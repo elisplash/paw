@@ -3,6 +3,16 @@
 import type { Config, Message, InstallProgress } from './types';
 import { setGatewayConfig, getGatewayStatus, sendChatMessage } from './api';
 
+// Global error handlers — prevent silent crashes
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection:', event.reason);
+  event.preventDefault();
+});
+
+window.addEventListener('error', (event) => {
+  console.error('Uncaught error:', event.error);
+});
+
 // Tauri API types
 interface TauriWindow {
   __TAURI__?: {
@@ -115,13 +125,17 @@ document.getElementById('setup-detect')?.addEventListener('click', async () => {
         config.gateway.token = token;
         saveConfig();
         
-        // Start gateway if not running
+        // Only start gateway if not already running
         if (invoke) {
-          await invoke('start_gateway');
+          const alreadyRunning = await invoke<boolean>('check_gateway_health').catch(() => false);
+          if (!alreadyRunning) {
+            await invoke('start_gateway').catch((e: unknown) => {
+              console.warn('Gateway start failed (may already be running):', e);
+            });
+            // Wait a moment for gateway to start
+            await new Promise(resolve => setTimeout(resolve, 1500));
+          }
         }
-        
-        // Wait a moment for gateway to start
-        await new Promise(resolve => setTimeout(resolve, 1500));
         
         await checkGatewayStatus();
         switchView('chat');
@@ -399,12 +413,19 @@ async function callGateway(userMessage: string): Promise<string> {
 }
 
 async function checkGatewayStatus() {
-  const status = await getGatewayStatus();
-  if (status.running) {
-    statusDot?.classList.add('connected');
-    statusDot?.classList.remove('error');
-    if (statusText) statusText.textContent = 'Connected';
-  } else {
+  try {
+    const status = await getGatewayStatus();
+    if (status.running) {
+      statusDot?.classList.add('connected');
+      statusDot?.classList.remove('error');
+      if (statusText) statusText.textContent = 'Connected';
+    } else {
+      statusDot?.classList.remove('connected');
+      statusDot?.classList.add('error');
+      if (statusText) statusText.textContent = 'Disconnected';
+    }
+  } catch (e) {
+    console.warn('Status check failed:', e);
     statusDot?.classList.remove('connected');
     statusDot?.classList.add('error');
     if (statusText) statusText.textContent = 'Disconnected';
@@ -420,12 +441,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (config.configured) {
       switchView('chat');
-      checkGatewayStatus();
+      await checkGatewayStatus();
     } else {
       showView('setup-view');
     }
 
-    setInterval(checkGatewayStatus, 10000);
+    // Poll status — catch errors so interval never crashes the app
+    setInterval(() => {
+      checkGatewayStatus().catch((e) => console.warn('Status poll error:', e));
+    }, 10000);
     console.log('Claw Desktop initialized');
   } catch (e) {
     console.error('Init error:', e);

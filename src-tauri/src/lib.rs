@@ -1,6 +1,8 @@
 use std::process::Command;
 use std::path::PathBuf;
 use std::fs;
+use std::net::TcpStream;
+use log::{info, warn, error};
 use tauri::{Emitter, Manager};
 
 fn get_app_data_dir() -> PathBuf {
@@ -97,6 +99,7 @@ fn get_gateway_token() -> Option<String> {
 
 #[tauri::command]
 async fn install_openclaw(window: tauri::Window, app_handle: tauri::AppHandle) -> Result<(), String> {
+    info!("Starting OpenClaw installation...");
     let app_dir = get_app_data_dir();
     fs::create_dir_all(&app_dir).map_err(|e| format!("Failed to create app dir: {}", e))?;
 
@@ -225,18 +228,20 @@ async fn install_openclaw(window: tauri::Window, app_handle: tauri::AppHandle) -
         "message": "Starting gateway..."
     })).ok();
 
-    // Step 4: Start the gateway
-    let openclaw_bin = get_openclaw_path();
-    let node_bin_dir = get_node_bin_dir();
-    
-    Command::new(openclaw_bin.to_str().unwrap())
-        .args(["gateway", "start"])
-        .env("PATH", join_path_env(&node_bin_dir))
-        .spawn()
-        .map_err(|e| format!("Failed to start gateway: {}", e))?;
+    // Step 4: Start the gateway (skip if already running)
+    if !is_gateway_running(5757) {
+        let openclaw_bin = get_openclaw_path();
+        let node_bin_dir = get_node_bin_dir();
+        
+        Command::new(openclaw_bin.to_str().unwrap())
+            .args(["gateway", "start"])
+            .env("PATH", join_path_env(&node_bin_dir))
+            .spawn()
+            .map_err(|e| format!("Failed to start gateway: {}", e))?;
 
-    // Give it time to start
-    std::thread::sleep(std::time::Duration::from_secs(3));
+        // Give it time to start
+        std::thread::sleep(std::time::Duration::from_secs(3));
+    }
 
     window.emit("install-progress", serde_json::json!({
         "stage": "done",
@@ -247,8 +252,27 @@ async fn install_openclaw(window: tauri::Window, app_handle: tauri::AppHandle) -
     Ok(())
 }
 
+fn is_gateway_running(port: u16) -> bool {
+    TcpStream::connect(format!("127.0.0.1:{}", port)).is_ok()
+}
+
+#[tauri::command]
+fn check_gateway_health() -> bool {
+    let running = is_gateway_running(5757);
+    info!("Gateway health check: {}", if running { "running" } else { "not running" });
+    running
+}
+
 #[tauri::command]
 fn start_gateway() -> Result<(), String> {
+    // Don't start if already running
+    if is_gateway_running(5757) {
+        info!("Gateway already running on port 5757, skipping start");
+        return Ok(());
+    }
+
+    info!("Starting gateway...");
+
     let openclaw_bin = get_openclaw_path();
     let node_dir = get_node_bin_dir();
     
@@ -271,6 +295,7 @@ fn start_gateway() -> Result<(), String> {
 
 #[tauri::command]
 fn stop_gateway() -> Result<(), String> {
+    info!("Stopping gateway...");
     #[cfg(unix)]
     {
         let _ = Command::new("pkill")
@@ -289,6 +314,12 @@ fn stop_gateway() -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_log::Builder::new()
+            .target(tauri_plugin_log::Target::new(
+                tauri_plugin_log::TargetKind::LogDir { file_name: Some("claw".into()) },
+            ))
+            .max_file_size(5_000_000) // 5MB max per log file
+            .build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
@@ -296,6 +327,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             check_node_installed,
             check_openclaw_installed,
+            check_gateway_health,
             get_gateway_token,
             install_openclaw,
             start_gateway,
