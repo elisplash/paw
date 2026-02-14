@@ -39,7 +39,6 @@ let wsConnected = false;
 let _streamingContent = '';  // accumulates deltas for current streaming response
 let _streamingEl: HTMLElement | null = null;  // the live-updating DOM element
 let _streamingRunId: string | null = null;
-let _streamingSessionKey: string | null = null;  // filter events to current session
 let _streamingResolve: ((text: string) => void) | null = null;  // resolves when agent run completes
 let _streamingTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -548,7 +547,6 @@ async function sendMessage() {
   // Prepare streaming UI
   _streamingContent = '';
   _streamingRunId = null;
-  _streamingSessionKey = currentSessionKey ?? 'default';
   showStreamingMessage();
 
   // chat.send is async — it returns {runId, status:"started"} immediately.
@@ -582,7 +580,6 @@ async function sendMessage() {
     finalizeStreaming(_streamingContent || `Error: ${errMsg}`);
   } finally {
     isLoading = false;
-    _streamingSessionKey = null;
     _streamingRunId = null;
     _streamingResolve = null;
     if (_streamingTimeout) { clearTimeout(_streamingTimeout); _streamingTimeout = null; }
@@ -671,69 +668,83 @@ function renderMessages() {
 }
 
 // Listen for streaming agent events — update chat bubble in real-time
+// Actual format: { runId, stream: "assistant"|"lifecycle"|"tool", data: {...}, sessionKey, seq, ts }
 gateway.on('agent', (payload: unknown) => {
   try {
-    const evt = payload as import('./types').AgentEvent;
-    console.log(`[main] agent event: type=${evt.type} runId=${evt.runId?.slice(0,8)} session=${evt.sessionKey?.slice(0,12)} content=${evt.content?.slice(0,50) ?? '(none)'}`);
+    const evt = payload as Record<string, unknown>;
+    const stream = evt.stream as string | undefined;
+    const data = evt.data as Record<string, unknown> | undefined;
+    const runId = evt.runId as string | undefined;
 
-    // Filter: only process events for OUR session (not events from another client's chat)
-    if (evt.sessionKey && _streamingSessionKey && evt.sessionKey !== _streamingSessionKey) return;
     // Filter: only process during active send, and match runId if known
     if (!isLoading && !_streamingEl) return;
-    if (_streamingRunId && evt.runId && evt.runId !== _streamingRunId) return;
+    if (_streamingRunId && runId && runId !== _streamingRunId) return;
 
-    switch (evt.type) {
-      case 'start':
-        if (!_streamingRunId) _streamingRunId = evt.runId ?? null;
-        console.log(`[main] Agent run started: ${_streamingRunId}`);
-        break;
-      case 'delta':
-        if (evt.content) {
-          appendStreamingDelta(evt.content);
-        }
-        break;
-      case 'tool-start':
-        if (evt.tool && _streamingEl) {
-          appendStreamingDelta(`\n\n▶ ${evt.tool}...`);
-        }
-        break;
-      case 'tool-done':
-        break;
-      case 'done':
-        console.log('[main] Agent run done, finalizing');
+    if (stream === 'assistant' && data) {
+      // data.delta = incremental text, data.text = accumulated text so far
+      const delta = data.delta as string | undefined;
+      if (delta) {
+        appendStreamingDelta(delta);
+      }
+    } else if (stream === 'lifecycle' && data) {
+      const phase = data.phase as string | undefined;
+      if (phase === 'start') {
+        if (!_streamingRunId && runId) _streamingRunId = runId;
+        console.log(`[main] Agent run started: ${runId}`);
+      } else if (phase === 'end') {
+        console.log(`[main] Agent run ended: ${runId}`);
         if (_streamingResolve) {
           _streamingResolve(_streamingContent);
           _streamingResolve = null;
         }
-        break;
-      case 'error':
-        if (evt.error) {
-          appendStreamingDelta(`\n\nError: ${evt.error}`);
-        }
-        // Also finalize on error
-        if (_streamingResolve) {
-          _streamingResolve(_streamingContent);
-          _streamingResolve = null;
-        }
-        break;
+      }
+    } else if (stream === 'tool' && data) {
+      const tool = (data.name ?? data.tool) as string | undefined;
+      const phase = data.phase as string | undefined;
+      if (phase === 'start' && tool && _streamingEl) {
+        appendStreamingDelta(`\n\n▶ ${tool}...`);
+      }
+    } else if (stream === 'error' && data) {
+      const error = (data.message ?? data.error ?? '') as string;
+      if (error) appendStreamingDelta(`\n\nError: ${error}`);
+      if (_streamingResolve) {
+        _streamingResolve(_streamingContent);
+        _streamingResolve = null;
+      }
     }
   } catch (e) {
     console.warn('[main] Agent event handler error:', e);
   }
 });
 
-// Listen for chat events — may contain final message or status updates
+// Listen for chat events — contains assembled messages with state: "delta"|"final"
+// Format: { runId, sessionKey, seq, state, message: { role, content: [{type:"text",text:"..."}], timestamp } }
 gateway.on('chat', (payload: unknown) => {
   try {
     const evt = payload as Record<string, unknown>;
-    console.log('[main] chat event:', JSON.stringify(evt).slice(0, 500));
+    const state = evt.state as string | undefined;
+    const runId = evt.runId as string | undefined;
+    const msg = evt.message as Record<string, unknown> | undefined;
 
-    // If this chat event contains message content, extract it
-    const content = extractContent(evt.content) || extractContent(evt.text) || extractContent(evt.message);
-    if (content && _streamingEl && isLoading) {
-      // If we haven't received any agent deltas, this might be the response
-      if (!_streamingContent) {
-        appendStreamingDelta(content);
+    if (!isLoading && !_streamingEl) return;
+    if (_streamingRunId && runId && runId !== _streamingRunId) return;
+
+    if (state === 'final' && msg) {
+      // Final assembled message — use as canonical response
+      const text = extractContent(msg.content);
+      if (text) {
+        console.log(`[main] Chat final: ${text.slice(0, 100)}`);
+        // If streaming hasn't captured the full text, replace with final
+        _streamingContent = text;
+        if (_streamingEl) {
+          _streamingEl.textContent = text;
+          if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        // Resolve the streaming promise since we have the final text
+        if (_streamingResolve) {
+          _streamingResolve(text);
+          _streamingResolve = null;
+        }
       }
     }
   } catch (e) {

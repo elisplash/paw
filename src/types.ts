@@ -195,12 +195,37 @@ export interface ChatSendResult {
 export interface AgentEvent {
   sessionKey?: string;
   runId?: string;
-  type: string;  // 'start' | 'delta' | 'tool-start' | 'tool-done' | 'done' | 'error' ...
-  content?: string;
-  tool?: string;
-  toolCallId?: string;
-  result?: string;
-  error?: string;
+  seq?: number;
+  ts?: number;
+  stream: 'assistant' | 'lifecycle' | 'tool' | 'error' | string;
+  data: {
+    // assistant stream
+    text?: string;    // accumulated text so far
+    delta?: string;   // incremental text
+    // lifecycle stream
+    phase?: 'start' | 'end' | string;
+    // tool stream
+    name?: string;
+    tool?: string;
+    // error stream
+    message?: string;
+    error?: string;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export interface ChatEvent {
+  runId?: string;
+  sessionKey?: string;
+  seq?: number;
+  state: 'delta' | 'final' | string;
+  message?: {
+    role: string;
+    content: string | ContentBlock | ContentBlock[];
+    timestamp?: string | number;
+    [key: string]: unknown;
+  };
   [key: string]: unknown;
 }
 
