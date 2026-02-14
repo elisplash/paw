@@ -28,7 +28,7 @@ const listen = tauriWindow.__TAURI__?.event?.listen;
 // ── State ──────────────────────────────────────────────────────────────────
 let config: AppConfig = {
   configured: false,
-  gateway: { url: 'http://localhost:18789', token: '' },
+  gateway: { url: '', token: '' },
 };
 
 let messages: Message[] = [];
@@ -38,6 +38,7 @@ let sessions: Session[] = [];
 let wsConnected = false;
 
 function getPortFromUrl(url: string): number {
+  if (!url) return 18789;
   try { return parseInt(new URL(url).port, 10) || 18789; }
   catch { return 18789; }
 }
@@ -304,6 +305,29 @@ function loadConfigFromStorage() {
     try { config = JSON.parse(saved); } catch { /* invalid */ }
   }
   setGatewayConfig(config.gateway.url, config.gateway.token);
+}
+
+/** Read live port+token from ~/.openclaw/openclaw.json via Tauri and update config */
+async function refreshConfigFromDisk(): Promise<boolean> {
+  if (!invoke) return false;
+  try {
+    const installed = await invoke<boolean>('check_openclaw_installed').catch(() => false);
+    if (!installed) return false;
+
+    const token = await invoke<string | null>('get_gateway_token').catch(() => null);
+    const port = await invoke<number>('get_gateway_port_setting').catch(() => 18789);
+
+    if (token) {
+      config.configured = true;
+      config.gateway.url = `http://localhost:${port}`;
+      config.gateway.token = token;
+      saveConfig();
+      return true;
+    }
+  } catch (e) {
+    console.warn('Failed to read config from disk:', e);
+  }
+  return false;
 }
 
 // ── Settings form ──────────────────────────────────────────────────────────
@@ -856,9 +880,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Paw starting...');
     loadConfigFromStorage();
 
-    if (config.configured) {
+    // Always try to read live config from disk — it may have a newer token/port
+    const freshConfig = await refreshConfigFromDisk();
+    if (freshConfig) {
+      console.log('Config loaded from disk:', config.gateway.url);
+    }
+
+    if (config.configured && config.gateway.token) {
       switchView('dashboard');
-      await connectGateway();
+
+      // Probe first, then connect
+      const port = getPortFromUrl(config.gateway.url);
+      const running = invoke
+        ? await invoke<boolean>('check_gateway_health', { port }).catch(() => false)
+        : await probeHealth().catch(() => false);
+
+      if (running) {
+        await connectGateway();
+      } else {
+        // Gateway not running — try to start it, then connect
+        if (invoke) {
+          console.log('Gateway not responding, attempting to start...');
+          await invoke('start_gateway', { port }).catch((e: unknown) => {
+            console.warn('Gateway start failed:', e);
+          });
+          await new Promise(r => setTimeout(r, 2500));
+          await connectGateway();
+        } else {
+          console.warn('No Tauri runtime — cannot start gateway');
+          if (statusText) statusText.textContent = 'Disconnected';
+        }
+      }
     } else {
       showView('setup-view');
     }

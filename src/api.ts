@@ -1,7 +1,7 @@
 // Paw — HTTP helpers (used only for pre-connection health probes)
 // All runtime communication goes through the WebSocket gateway in gateway.ts
 
-let gatewayUrl = 'http://localhost:18789';
+let gatewayUrl = '';
 let gatewayToken = '';
 
 export function setGatewayConfig(url: string, token: string) {
@@ -22,6 +22,7 @@ export function getGatewayToken(): string {
  * Returns true if the gateway HTTP endpoint responds at all.
  */
 export async function probeHealth(): Promise<boolean> {
+  if (!gatewayUrl) return false;
   try {
     const response = await fetch(`${gatewayUrl}/health`, {
       headers: gatewayToken ? { Authorization: `Bearer ${gatewayToken}` } : {},

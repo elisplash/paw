@@ -25,7 +25,9 @@ import type {
 
 const PROTOCOL_VERSION = 3;
 const REQUEST_TIMEOUT_MS = 30_000;
-const RECONNECT_DELAY_MS = 5_000;
+const RECONNECT_BASE_MS = 3_000;
+const RECONNECT_MAX_MS = 60_000;
+const MAX_RECONNECT_ATTEMPTS = 20;
 
 type EventHandler = (payload: unknown) => void;
 
@@ -48,6 +50,7 @@ class GatewayClient {
   private pendingRequests = new Map<string, { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: number }>();
   private eventHandlers = new Map<string, Set<EventHandler>>();
   private reconnectTimer: number | null = null;
+  private reconnectAttempts = 0;
   private _connected = false;
   private _lastSeq = 0;
   hello: HelloOk | null = null;
@@ -97,6 +100,7 @@ class GatewayClient {
         this.rejectAllPending('connection closed');
         if (wasConnected) {
           this.emit('_disconnected', {});
+          this.reconnectAttempts = 0; // reset since we had a successful connection
           this.scheduleReconnect();
         }
       };
@@ -147,14 +151,29 @@ class GatewayClient {
 
   private scheduleReconnect() {
     if (this.reconnectTimer) return;
+    this.reconnectAttempts++;
+    if (this.reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+      console.warn('[gateway] Max reconnect attempts reached, giving up');
+      this.emit('_reconnect_exhausted', { attempts: this.reconnectAttempts });
+      return;
+    }
+    // Exponential backoff: 3s, 6s, 12s, 24s... capped at 60s
+    const delay = Math.min(RECONNECT_BASE_MS * Math.pow(2, this.reconnectAttempts - 1), RECONNECT_MAX_MS);
+    console.log(`[gateway] Reconnect attempt ${this.reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${delay}ms`);
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
       if (this.config) {
         this.connect(this.config).catch(() => {
-          // will retry via onclose → scheduleReconnect
+          // Failed — schedule next attempt
+          this.scheduleReconnect();
         });
       }
-    }, RECONNECT_DELAY_MS);
+    }, delay);
+  }
+
+  /** Reset reconnect counter (call after a successful manual connect) */
+  resetReconnect() {
+    this.reconnectAttempts = 0;
   }
 
   get connected(): boolean {
