@@ -962,3 +962,267 @@ button:focus:not(:focus-visible) {
   color: var(--text-secondary);
   text-align: center;
 }
+
+/* View description */
+.view-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+
+/* Nav badge */
+.nav-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 100px;
+  background: var(--accent);
+  color: white;
+  margin-left: auto;
+}
+
+/* Channel cards */
+.channel-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  margin-bottom: 10px;
+}
+
+.channel-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.channel-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.channel-icon.telegram {
+  background: #229ED9;
+  color: white;
+}
+
+.channel-icon.discord {
+  background: #5865F2;
+  color: white;
+}
+
+.channel-icon.whatsapp {
+  background: #25D366;
+  color: white;
+}
+
+.channel-icon.signal {
+  background: #3A76F0;
+  color: white;
+}
+
+.channel-info {
+  flex: 1;
+}
+
+.channel-name {
+  font-weight: 500;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.channel-status {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.channel-status.connected {
+  color: var(--success);
+}
+
+/* Button icon only */
+.btn-icon {
+  padding: 8px;
+  width: 36px;
+  height: 36px;
+}
+
+/* Chat header actions */
+.chat-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+/* View header actions */
+.view-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Loading state */
+.loading-state {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Config editor */
+.config-editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.config-textarea {
+  flex: 1;
+  min-height: 400px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+}
+
+.config-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Logs */
+.logs-container {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: auto;
+}
+
+.logs-content {
+  padding: 16px;
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+
+/* Session/Cron/Skill items */
+.item-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.item-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.item-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.item-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--text-secondary);
+}
+
+.item-icon.active {
+  background: var(--accent-muted);
+}
+
+.item-icon.active svg {
+  stroke: var(--accent);
+}
+
+.item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.item-toggle {
+  width: 44px;
+  height: 24px;
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.item-toggle.active {
+  background: var(--accent);
+}
+
+.item-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: white;
+  border-radius: 50%;
+  transition: transform var(--transition-fast);
+}
+
+.item-toggle.active::after {
+  transform: translateX(20px);
+}
+
+/* Installing animation */
+.setup-icon.installing svg {
+  animation: bounce 1s infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
