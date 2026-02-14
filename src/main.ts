@@ -193,16 +193,22 @@ async function connectGateway(): Promise<boolean> {
     // Abort any running agent executions left over from other clients
     // (e.g. OpenClaw Chat). Stale runs can crash the gateway when
     // two operator clients compete for the same session.
+    // Also delete paw-* internal sessions (memory palace background calls).
     try {
       const sessResult = await gateway.listSessions({ limit: 50 });
       const activeSessions = sessResult.sessions ?? [];
       for (const s of activeSessions) {
-        try {
-          await gateway.chatAbort(s.key);
-        } catch { /* no running exec on this session — that's fine */ }
+        if (s.key.startsWith('paw-')) {
+          // Delete internal sessions so they don't clutter the UI
+          try { await gateway.deleteSession(s.key); } catch { /* ignore */ }
+        } else {
+          try { await gateway.chatAbort(s.key); } catch { /* no running exec */ }
+        }
       }
-      if (activeSessions.length) {
-        console.log(`[main] Cleared ${activeSessions.length} session(s) of stale agent runs`);
+      const pawSessions = activeSessions.filter(s => s.key.startsWith('paw-'));
+      if (pawSessions.length) console.log(`[main] Cleaned up ${pawSessions.length} internal paw-* session(s)`);
+      if (activeSessions.length - pawSessions.length > 0) {
+        console.log(`[main] Cleared ${activeSessions.length - pawSessions.length} session(s) of stale agent runs`);
       }
     } catch (e) {
       console.warn('[main] Session cleanup failed (non-critical):', e);
@@ -503,7 +509,8 @@ async function loadSessions() {
   if (!wsConnected) return;
   try {
     const result = await gateway.listSessions({ limit: 50, includeDerivedTitles: true, includeLastMessage: true });
-    sessions = result.sessions ?? [];
+    // Filter out internal paw-* sessions (memory palace background calls)
+    sessions = (result.sessions ?? []).filter(s => !s.key.startsWith('paw-'));
     renderSessionSelect();
     if (!currentSessionKey && sessions.length) {
       currentSessionKey = sessions[0].key;
