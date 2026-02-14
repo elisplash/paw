@@ -1142,36 +1142,49 @@ async function loadSkills() {
       const card = document.createElement('div');
       card.className = 'skill-card';
 
-      const enabledClass = skill.enabled ? 'enabled' : '';
-      const statusLabel = skill.installed
-        ? (skill.enabled ? 'Enabled' : 'Disabled')
+      // Server returns disabled/eligible/missing/install — not installed/enabled
+      const isEnabled = !skill.disabled;
+      const hasMissingReqs = (skill.missing?.bins?.length ?? 0) > 0
+        || (skill.missing?.anyBins?.length ?? 0) > 0
+        || (skill.missing?.os?.length ?? 0) > 0;
+      const isInstalled = skill.always || !hasMissingReqs;
+      const installOptions = skill.install ?? [];
+
+      const enabledClass = isEnabled ? 'enabled' : '';
+      const statusLabel = isInstalled
+        ? (isEnabled ? 'Enabled' : 'Disabled')
         : 'Available';
-      const statusClass = skill.installed
-        ? (skill.enabled ? 'connected' : 'muted')
+      const statusClass = isInstalled
+        ? (isEnabled ? 'connected' : 'muted')
         : 'muted';
+
+      // For the Install button, use the first install spec's ID and label
+      const installSpecId = installOptions[0]?.id ?? '';
+      const installLabel = installOptions[0]?.label ?? 'Install';
 
       card.innerHTML = `
         <div class="skill-card-header">
-          <span class="skill-card-name">${escHtml(skill.label ?? skill.name)}</span>
+          <span class="skill-card-name">${escHtml(skill.name)}</span>
           <span class="status-badge ${statusClass}">${statusLabel}</span>
         </div>
         <div class="skill-card-desc">${escHtml(skill.description ?? '')}</div>
         <div class="skill-card-footer">
           <div style="display:flex;align-items:center;gap:8px">
-            <span class="skill-card-version">${skill.version ? 'v' + escHtml(skill.version) : ''}</span>
             ${skill.homepage ? `<a class="skill-card-link" href="${escAttr(skill.homepage)}" target="_blank">docs ↗</a>` : ''}
           </div>
           <div class="skill-card-actions">
-            ${skill.installed ? `
-              <button class="skill-toggle ${enabledClass}" data-name="${escAttr(skill.name)}" data-enabled="${skill.enabled}" title="${skill.enabled ? 'Disable' : 'Enable'}"></button>
+            ${isInstalled ? `
+              <button class="skill-toggle ${enabledClass}" data-name="${escAttr(skill.name)}" data-enabled="${isEnabled}" title="${isEnabled ? 'Disable' : 'Enable'}"></button>
               <button class="btn btn-ghost btn-sm skill-update" data-name="${escAttr(skill.name)}">Update</button>
+            ` : installOptions.length > 0 ? `
+              <button class="btn btn-primary btn-sm skill-install" data-name="${escAttr(skill.name)}" data-install-id="${escAttr(installSpecId)}">${escHtml(installLabel)}</button>
             ` : `
-              <button class="btn btn-primary btn-sm skill-install" data-name="${escAttr(skill.name)}">Install</button>
+              <span class="status-badge muted">No installer</span>
             `}
           </div>
         </div>
       `;
-      if (skill.installed) {
+      if (isInstalled) {
         installed?.appendChild(card);
       } else {
         if (availableSection) availableSection.style.display = '';
@@ -1194,7 +1207,11 @@ function wireSkillActions() {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const name = (btn as HTMLElement).dataset.name!;
-      const installId = crypto.randomUUID();
+      const installId = (btn as HTMLElement).dataset.installId!;
+      if (!installId) {
+        showSkillsToast(`No installer available for ${name}`, 'error');
+        return;
+      }
       (btn as HTMLButtonElement).disabled = true;
       (btn as HTMLButtonElement).textContent = 'Installing…';
       showSkillsToast(`Installing ${name}…`, 'info');

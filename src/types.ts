@@ -260,21 +260,47 @@ export interface CronRunLogEntry {
 
 // ── Skills ─────────────────────────────────────────────────────────────────
 
+export interface SkillInstallOption {
+  id: string;
+  kind: string;
+  label: string;
+  bins?: string[];
+}
+
 export interface SkillEntry {
   name: string;
-  label?: string;
   description?: string;
-  enabled: boolean;
-  installed: boolean;
-  version?: string;
+  source?: string;
+  bundled?: boolean;
+  skillKey?: string;
+  primaryEnv?: string;
+  emoji?: string;
   homepage?: string;
-  binPath?: string;
-  apiKeyConfigured?: boolean;
+  always?: boolean;
+  disabled?: boolean;
+  blockedByAllowlist?: boolean;
+  eligible?: boolean;
+  requirements?: {
+    bins?: string[];
+    anyBins?: string[];
+    env?: string[];
+    config?: string[];
+    os?: string[];
+  };
+  missing?: {
+    bins?: string[];
+    anyBins?: string[];
+    env?: string[];
+    config?: string[];
+    os?: string[];
+  };
+  configChecks?: { path: string; value: unknown; satisfied: boolean }[];
+  install?: SkillInstallOption[];
   [key: string]: unknown;
 }
 
 export interface SkillsStatusResult {
-  agentId: string;
+  agentId?: string;
   workspaceDir: string;
   skills: SkillEntry[];
 }
