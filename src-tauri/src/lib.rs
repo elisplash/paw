@@ -443,6 +443,7 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
     // Check if we need to inject OPENAI_BASE_URL for Azure/Foundry
     let embedding_base_url = read_paw_settings()
         .and_then(|s| s.get("embeddingBaseUrl").and_then(|v| v.as_str()).map(|s| s.to_string()));
+    let azure_api_version = get_api_version_or_default();
 
     // If Azure endpoint, ensure the plugin patch is applied (survives openclaw updates)
     if let Some(ref url) = embedding_base_url {
@@ -464,7 +465,10 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
             .output();
         if is_azure_endpoint(url) {
             let _ = Command::new("launchctl")
-                .args(["setenv", "OPENAI_API_VERSION", "2024-08-01-preview"])
+                .args(["setenv", "AZURE_OPENAI_ENDPOINT", url])
+                .output();
+            let _ = Command::new("launchctl")
+                .args(["setenv", "OPENAI_API_VERSION", &azure_api_version])
                 .output();
         }
     }
@@ -491,7 +495,8 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
     if let Some(ref url) = embedding_base_url {
         install_cmd.env("OPENAI_BASE_URL", url);
         if is_azure_endpoint(url) {
-            install_cmd.env("OPENAI_API_VERSION", "2024-08-01-preview");
+            install_cmd.env("AZURE_OPENAI_ENDPOINT", url);
+            install_cmd.env("OPENAI_API_VERSION", &azure_api_version);
         }
     }
     let install_result = install_cmd.output();
@@ -511,7 +516,8 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
     if let Some(ref url) = embedding_base_url {
         cmd.env("OPENAI_BASE_URL", url);
         if is_azure_endpoint(url) {
-            cmd.env("OPENAI_API_VERSION", "2024-08-01-preview");
+            cmd.env("AZURE_OPENAI_ENDPOINT", url);
+            cmd.env("OPENAI_API_VERSION", &azure_api_version);
         }
     }
     cmd.spawn()
@@ -676,15 +682,18 @@ fn patch_memory_plugin_for_azure() -> Result<(), String> {
                 "    apiKey: string,\n",
                 "    private model: string,\n",
                 "  ) {\n",
-                "    const baseUrl = process.env.OPENAI_BASE_URL || '';\n",
-                "    const isAzure = baseUrl.includes('.azure.') || baseUrl.includes('.cognitiveservices.');\n",
+                "    const baseUrl = process.env.AZURE_OPENAI_ENDPOINT || process.env.OPENAI_BASE_URL || '';\n",
+                "    const isAzure = baseUrl.includes('.azure.') || baseUrl.includes('.cognitiveservices.') || baseUrl.includes('.ai.azure.');\n",
                 "    if (isAzure) {\n",
                 "      // Azure requires api-key header + api-version query param.\n",
                 "      // AzureOpenAI handles both automatically.\n",
+                "      // Strip trailing /openai if present — AzureOpenAI adds it internally.\n",
+                "      const endpoint = baseUrl.replace(/\\/openai\\/?$/, '');\n",
                 "      this.client = new AzureOpenAI({\n",
                 "        apiKey,\n",
                 "        apiVersion: process.env.OPENAI_API_VERSION || '2024-08-01-preview',\n",
-                "        baseURL: baseUrl,\n",
+                "        endpoint,\n",
+                "        deployment: this.model,\n",
                 "      }) as unknown as OpenAI;\n",
                 "    } else {\n",
                 "      this.client = new OpenAI({ apiKey });\n",
@@ -737,7 +746,7 @@ fn check_memory_configured() -> bool {
 /// Enable the memory-lancedb plugin by patching openclaw.json.
 /// This is a pure config operation — no Python, no venv, no git clone.
 #[tauri::command]
-fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option<String>) -> Result<(), String> {
+fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option<String>, api_version: Option<String>) -> Result<(), String> {
     let api_key = api_key.trim().to_string();
     if api_key.is_empty() {
         return Err("An embedding API key is required.".to_string());
@@ -754,6 +763,11 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
     let base_url = base_url
         .map(|u| u.trim().to_string())
         .filter(|u| !u.is_empty());
+
+    let api_version = api_version
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "2024-08-01-preview".to_string());
 
     let home = dirs::home_dir().ok_or("Cannot find home directory")?;
     let config_path = home.join(".openclaw/openclaw.json");
@@ -774,9 +788,10 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
         "model": model,
     });
 
-    // If a base URL is provided (Azure Foundry), also store it
+    // If a base URL is provided (Azure Foundry), also store it.
     // Note: memory-lancedb's strict schema only allows apiKey + model in "embedding",
     // so we store the base URL separately for the gateway env.
+    // For Azure, the "model" doubles as the deployment name.
 
     // Ensure plugins object exists
     let obj = config.as_object_mut().ok_or("Config is not an object")?;
@@ -826,10 +841,11 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
         vars.insert("OPENAI_BASE_URL".to_string(), serde_json::json!(url));
         info!("Set env.vars.OPENAI_BASE_URL={} in openclaw.json", url);
 
-        // For Azure endpoints, also set OPENAI_API_VERSION
+        // For Azure endpoints, also set AZURE_OPENAI_ENDPOINT and OPENAI_API_VERSION
         if is_azure_endpoint(url) {
-            vars.insert("OPENAI_API_VERSION".to_string(), serde_json::json!("2024-08-01-preview"));
-            info!("Set env.vars.OPENAI_API_VERSION for Azure");
+            vars.insert("AZURE_OPENAI_ENDPOINT".to_string(), serde_json::json!(url));
+            vars.insert("OPENAI_API_VERSION".to_string(), serde_json::json!(&api_version));
+            info!("Set env.vars.AZURE_OPENAI_ENDPOINT and OPENAI_API_VERSION={} for Azure", api_version);
         }
     }
 
@@ -837,9 +853,10 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
     fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())
         .map_err(|e| format!("Failed to write config: {}", e))?;
 
-    // Also store the base URL in paw-settings.json for CLI commands (memory_stats/memory_search)
+    // Also store the base URL and API version in paw-settings.json for CLI commands
     save_paw_settings(&serde_json::json!({
         "embeddingBaseUrl": base_url,
+        "azureApiVersion": &api_version,
     }))?;
 
     // If the base URL is Azure, patch the plugin to use AzureOpenAI
@@ -900,6 +917,23 @@ fn get_embedding_base_url() -> Option<String> {
         .map(|s| s.to_string())
 }
 
+/// Read the Azure API version from Paw settings.
+/// Returns the version string if configured, None otherwise.
+#[tauri::command]
+fn get_azure_api_version() -> Option<String> {
+    let settings = read_paw_settings()?;
+    settings.get("azureApiVersion")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
+/// Helper: read the stored Azure API version, falling back to a default.
+fn get_api_version_or_default() -> String {
+    read_paw_settings()
+        .and_then(|s| s.get("azureApiVersion").and_then(|v| v.as_str()).map(|s| s.to_string()))
+        .unwrap_or_else(|| "2024-08-01-preview".to_string())
+}
+
 /// Run a command with a timeout. Returns stdout on success.
 fn run_with_timeout(mut cmd: Command, timeout_secs: u64) -> Result<String, String> {
     let mut child = cmd.stdout(std::process::Stdio::piped())
@@ -942,6 +976,7 @@ fn memory_stats() -> Result<String, String> {
     let node_dir = get_node_bin_dir();
     let base_url = read_paw_settings()
         .and_then(|s| s.get("embeddingBaseUrl").and_then(|v| v.as_str()).map(|s| s.to_string()));
+    let api_version = get_api_version_or_default();
 
     let mut cmd = if openclaw_bin.exists() {
         let mut c = Command::new(openclaw_bin.to_str().unwrap());
@@ -951,7 +986,13 @@ fn memory_stats() -> Result<String, String> {
         Command::new("openclaw")
     };
     cmd.args(["ltm", "stats"]);
-    if let Some(ref url) = base_url { cmd.env("OPENAI_BASE_URL", url); }
+    if let Some(ref url) = base_url {
+        cmd.env("OPENAI_BASE_URL", url);
+        if is_azure_endpoint(url) {
+            cmd.env("AZURE_OPENAI_ENDPOINT", url);
+            cmd.env("OPENAI_API_VERSION", &api_version);
+        }
+    }
 
     run_with_timeout(cmd, 10)
 }
@@ -964,6 +1005,7 @@ fn memory_search(query: String, limit: Option<u32>) -> Result<String, String> {
     let limit_str = limit.unwrap_or(10).to_string();
     let base_url = read_paw_settings()
         .and_then(|s| s.get("embeddingBaseUrl").and_then(|v| v.as_str()).map(|s| s.to_string()));
+    let api_version = get_api_version_or_default();
 
     let mut cmd = if openclaw_bin.exists() {
         let mut c = Command::new(openclaw_bin.to_str().unwrap());
@@ -973,7 +1015,13 @@ fn memory_search(query: String, limit: Option<u32>) -> Result<String, String> {
         Command::new("openclaw")
     };
     cmd.args(["ltm", "search", &query, "--limit", &limit_str]);
-    if let Some(ref url) = base_url { cmd.env("OPENAI_BASE_URL", url); }
+    if let Some(ref url) = base_url {
+        cmd.env("OPENAI_BASE_URL", url);
+        if is_azure_endpoint(url) {
+            cmd.env("AZURE_OPENAI_ENDPOINT", url);
+            cmd.env("OPENAI_API_VERSION", &api_version);
+        }
+    }
 
     run_with_timeout(cmd, 15)
 }
@@ -1053,6 +1101,10 @@ fn repair_openclaw_config() -> Result<bool, String> {
                 }
                 if let Some(vars) = env_obj.get_mut("vars").and_then(|v| v.as_object_mut()) {
                     vars.insert("OPENAI_BASE_URL".to_string(), serde_json::json!(&url));
+                    if is_azure_endpoint(&url) {
+                        vars.insert("AZURE_OPENAI_ENDPOINT".to_string(), serde_json::json!(&url));
+                        vars.insert("OPENAI_API_VERSION".to_string(), serde_json::json!(get_api_version_or_default()));
+                    }
                     info!("Migrated baseUrl to env.vars.OPENAI_BASE_URL: {}", url);
                 }
             }
@@ -1095,6 +1147,7 @@ pub fn run() {
             check_memory_configured,
             enable_memory_plugin,
             get_embedding_base_url,
+            get_azure_api_version,
             memory_stats,
             memory_search,
             repair_openclaw_config

@@ -1782,9 +1782,14 @@ async function loadMemoryPalace() {
         if (invoke) {
           try {
             const existingUrl = await invoke<string | null>('get_embedding_base_url');
+            const existingVersion = await invoke<string | null>('get_azure_api_version');
             const baseUrlInput = $('palace-base-url') as HTMLInputElement | null;
+            const apiVersionInput = $('palace-api-version') as HTMLInputElement | null;
             if (existingUrl && baseUrlInput && !baseUrlInput.value) {
               baseUrlInput.value = existingUrl;
+            }
+            if (existingVersion && apiVersionInput && !apiVersionInput.value) {
+              apiVersionInput.value = existingVersion;
             }
           } catch { /* ignore */ }
         }
@@ -1827,9 +1832,11 @@ function initPalaceInstall() {
     const apiKeyInput = $('palace-api-key') as HTMLInputElement | null;
     const baseUrlInput = $('palace-base-url') as HTMLInputElement | null;
     const modelInput = $('palace-model-name') as HTMLInputElement | null;
+    const apiVersionInput = $('palace-api-version') as HTMLInputElement | null;
     let apiKey = apiKeyInput?.value?.trim() ?? '';
     let baseUrl = baseUrlInput?.value?.trim() ?? '';
     const modelName = modelInput?.value?.trim() ?? '';
+    const apiVersion = apiVersionInput?.value?.trim() ?? '';
 
     // Detect URL pasted into API key field (common mistake)
     if (apiKey.startsWith('http://') || apiKey.startsWith('https://')) {
@@ -1871,6 +1878,7 @@ function initPalaceInstall() {
         apiKey,
         baseUrl: baseUrl || null,
         model: modelName || null,
+        apiVersion: apiVersion || null,
       });
 
       if (progressText) progressText.textContent = 'Configuration saved! Restarting gateway…';

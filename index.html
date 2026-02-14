@@ -888,16 +888,21 @@
                   Custom Endpoint <span class="palace-api-hint">(Azure — leave blank for OpenAI)</span>
                 </label>
                 <input class="palace-api-input" id="palace-base-url" type="text"
-                  placeholder="https://your-resource.openai.azure.com/openai" autocomplete="off" spellcheck="false" />
+                  placeholder="https://your-resource.openai.azure.com" autocomplete="off" spellcheck="false" />
                 <p class="palace-api-hint" style="font-size:11px;margin:-6px 0 8px 0;opacity:0.6;">
-                  Azure: use your resource endpoint (e.g. https://myresource.openai.azure.com/openai).
-                  The deployment name is resolved from the model field below.
+                  Azure AI Foundry: use your resource endpoint (e.g. https://myresource.openai.azure.com).
+                  Enter your deployment name in the model field below (e.g. text-embedding-ada-002).
                 </p>
                 <label class="palace-api-label" for="palace-model-name">
-                  Model / Deployment <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>
+                  Model / Deployment Name <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>
                 </label>
                 <input class="palace-api-input" id="palace-model-name" type="text"
-                  placeholder="text-embedding-3-small" autocomplete="off" spellcheck="false" />
+                  placeholder="text-embedding-3-small or your Azure deployment name" autocomplete="off" spellcheck="false" />
+                <label class="palace-api-label" for="palace-api-version">
+                  API Version <span class="palace-api-hint">(Azure only — defaults to 2024-08-01-preview)</span>
+                </label>
+                <input class="palace-api-input" id="palace-api-version" type="text"
+                  placeholder="2024-08-01-preview" autocomplete="off" spellcheck="false" />
               </div>
               <div class="palace-install-progress" id="palace-install-progress" style="display:none">
                 <p class="progress-text" id="palace-progress-text">Saving configuration…</p>
