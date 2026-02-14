@@ -680,10 +680,11 @@ fn ensure_memory_plugin_compatible(is_azure: bool) -> Result<(), String> {
 
     // Layer 1: Patch the plugin source files IN-PLACE at whatever location
     // the gateway actually loads them from (nvm, global npm, local, etc.)
-    if let Some(plugin_dir) = find_bundled_memory_plugin() {
-        info!("Found memory-lancedb plugin at {:?}", plugin_dir);
+    let plugin_dir = find_bundled_memory_plugin();
+    if let Some(ref pdir) = plugin_dir {
+        info!("Found memory-lancedb plugin at {:?}", pdir);
         for file in &["index.ts", "index.js", "dist/index.js", "dist/index.mjs"] {
-            let path = plugin_dir.join(file);
+            let path = pdir.join(file);
             if path.exists() {
                 let content = fs::read_to_string(&path)
                     .map_err(|e| format!("Failed to read {}: {}", file, e))?;
@@ -703,7 +704,10 @@ fn ensure_memory_plugin_compatible(is_azure: bool) -> Result<(), String> {
     }
 
     // Layer 2: Write the runtime routing shim (primary reliability mechanism)
-    write_openai_routing_shim(&home)?;
+    // Pass the plugin directory so the shim can resolve `openai` from the
+    // correct node_modules (the shim lives in ~/.openclaw/ which has no
+    // node_modules of its own).
+    write_openai_routing_shim(&home, plugin_dir.as_deref())?;
 
     Ok(())
 }
@@ -711,134 +715,148 @@ fn ensure_memory_plugin_compatible(is_azure: bool) -> Result<(), String> {
 /// Write the runtime OpenAI → AzureOpenAI routing shim.
 ///
 /// This shim is loaded via `NODE_OPTIONS=--require <path>` before any
-/// application code runs.  It hooks Node's module loading to intercept
-/// both CJS `require('openai')` and ESM `import` and wraps the `OpenAI`
-/// constructor with a Proxy:
-///   - When Azure env vars are detected → `new AzureOpenAI({…})`
-///   - Otherwise → `new OpenAI({…})` (pass-through)
-fn write_openai_routing_shim(home: &std::path::Path) -> Result<(), String> {
-    let shim_content = r#"// Paw OpenAI routing shim — loaded via NODE_OPTIONS=--require
-// Routes OpenAI SDK calls to either standard OpenAI or Azure OpenAI
-// based on environment variables set by the Paw desktop app.
-//
-// Standard OpenAI: OPENAI_BASE_URL is read automatically by the SDK — no action needed.
-// Azure OpenAI:    AZURE_OPENAI_ENDPOINT triggers constructor swap to AzureOpenAI.
-'use strict';
+/// application code runs.  It eagerly loads the `openai` npm package,
+/// replaces the `OpenAI` constructor with a Proxy that creates `AzureOpenAI`
+/// instead, and mutates the cached module exports.  This works for both
+/// CJS `require('openai')` and ESM `import OpenAI from 'openai'` because
+/// Node's ESM loader uses the same underlying CJS module cache for
+/// CommonJS packages.
+///
+/// `openclaw_plugin_dir` is the path to the memory-lancedb plugin directory
+/// (e.g. `~/.nvm/versions/node/v24/lib/node_modules/openclaw/extensions/memory-lancedb`).
+/// We use it to compute the openclaw package root so `require('openai')` resolves correctly.
+fn write_openai_routing_shim(home: &std::path::Path, openclaw_plugin_dir: Option<&std::path::Path>) -> Result<(), String> {
+    // Compute the openclaw package root so the shim can resolve `openai`.
+    // Plugin dir: .../openclaw/extensions/memory-lancedb → root: .../openclaw/
+    let openclaw_root = openclaw_plugin_dir
+        .and_then(|p| p.parent())        // extensions/
+        .and_then(|p| p.parent());       // openclaw/
 
-const _pawAzureEndpoint = process.env.AZURE_OPENAI_ENDPOINT || '';
-const _pawIsAzure = _pawAzureEndpoint.length > 0 && (
-  _pawAzureEndpoint.includes('.azure.') ||
-  _pawAzureEndpoint.includes('.cognitiveservices.') ||
-  _pawAzureEndpoint.includes('.ai.azure.')
-);
-
-function _pawCreateProxy(OrigOpenAI, AzureOpenAI) {
-  const endpoint   = _pawAzureEndpoint.replace(/\/openai\/?$/, '');
-  const apiVersion = process.env.OPENAI_API_VERSION || '2024-08-01-preview';
-  const deployment = process.env.OPENAI_DEPLOYMENT || undefined;
-
-  return new Proxy(OrigOpenAI, {
-    construct(_target, args) {
-      const opts = args[0] || {};
-      // If caller explicitly set baseURL, honour it (don't redirect)
-      if (opts.baseURL) return new OrigOpenAI(opts);
-      try {
-        return new AzureOpenAI({
-          apiKey:     opts.apiKey || process.env.OPENAI_API_KEY,
-          endpoint:   endpoint,
-          deployment: deployment,
-          apiVersion: apiVersion,
-        });
-      } catch (err) {
-        console.error('[paw] AzureOpenAI constructor failed, falling back:', err.message);
-        return new OrigOpenAI(opts);
-      }
-    },
-    apply(_target, _this, args) {
-      // Some code calls OpenAI() without `new`
-      const opts = args[0] || {};
-      if (opts.baseURL) return new OrigOpenAI(opts);
-      try {
-        return new AzureOpenAI({
-          apiKey:     opts.apiKey || process.env.OPENAI_API_KEY,
-          endpoint:   _pawAzureEndpoint.replace(/\/openai\/?$/, ''),
-          deployment: process.env.OPENAI_DEPLOYMENT || undefined,
-          apiVersion: process.env.OPENAI_API_VERSION || '2024-08-01-preview',
-        });
-      } catch (err) {
-        return new OrigOpenAI(opts);
-      }
-    }
-  });
-}
-
-if (_pawIsAzure) {
-  try {
-    // ── Layer A: CJS hook (Module._load) ──
-    const Module = require('module');
-    const _origLoad = Module._load;
-    let _pawCjsPatched = false;
-
-    Module._load = function paw_load(request, parent, isMain) {
-      const mod = _origLoad.call(this, request, parent, isMain);
-
-      if (_pawCjsPatched || request !== 'openai' || !mod) return mod;
-      _pawCjsPatched = true;
-
-      const OrigOpenAI = mod.default || mod.OpenAI;
-      const AzureOpenAI = mod.AzureOpenAI;
-      if (!OrigOpenAI || !AzureOpenAI || typeof AzureOpenAI !== 'function') {
-        console.warn('[paw] openai CJS module missing expected exports — skipping');
-        return mod;
-      }
-
-      const proxied = _pawCreateProxy(OrigOpenAI, AzureOpenAI);
-      if (mod.default) mod.default = proxied;
-      if (mod.OpenAI)  mod.OpenAI  = proxied;
-
-      console.log('[paw] Azure OpenAI CJS routing active —',
-        'endpoint:', _pawAzureEndpoint.replace(/\/openai\/?$/, ''),
-        'deployment:', process.env.OPENAI_DEPLOYMENT || '(from model)',
-        'apiVersion:', process.env.OPENAI_API_VERSION || '2024-08-01-preview');
-      return mod;
+    // Build the require-resolution snippet.
+    // If we know the openclaw root, use Module.createRequire so require('openai')
+    // resolves from openclaw's node_modules rather than the shim's directory.
+    let require_snippet = if let Some(root) = openclaw_root {
+        let root_str = root.display().to_string().replace('\\', "/");
+        format!(
+            "const {{ createRequire: _pawCR }} = require('module');\n    \
+             const _pawReq = _pawCR('{}/package.json');\n    \
+             const openaiMod = _pawReq('openai');",
+            root_str
+        )
+    } else {
+        // Fallback: try process.argv[1] (the gateway main script), then bare require
+        "let openaiMod;\n    \
+         try {\n      \
+           const { createRequire: _cr } = require('module');\n      \
+           const _r = _cr(process.argv[1] || __filename);\n      \
+           openaiMod = _r('openai');\n    \
+         } catch (_) {\n      \
+           openaiMod = require('openai');\n    \
+         }".to_string()
     };
 
-    // ── Layer B: ESM hook (globalThis interception) ──
-    // For ESM imports, Module._load won't trigger.  We set up a global
-    // getter that patches the openai module the first time it's accessed
-    // via dynamic import fallback.  The main fix for ESM is the source
-    // patching done in Layer 1 — this is an additional safety net.
-    //
-    // Also try Module.register for Node 20.6+ (loader hooks)
-    if (typeof Module.register === 'function') {
-      try {
-        // Create an inline data: URL loader that patches openai
-        const loaderCode = `
-          export async function resolve(specifier, context, next) {
-            return next(specifier, context);
-          }
-          export async function load(url, context, next) {
-            const result = await next(url, context);
-            // We can't easily patch ESM exports, but the env vars
-            // are set so the source patches in index.ts will work.
-            return result;
-          }
-        `;
-        // Module.register is available but we primarily rely on
-        // env vars + source patches for ESM.
-      } catch (_) { /* ignore */ }
-    }
-  } catch (err) {
+    let shim_content = format!(
+r#"// Paw OpenAI → AzureOpenAI routing shim
+// Loaded via NODE_OPTIONS=--require before the gateway starts.
+//
+// Strategy: eagerly load `openai`, replace the OpenAI constructor with a
+// Proxy that creates AzureOpenAI, and mutate the module cache in-place.
+// Both CJS require() and ESM import see the patched exports because
+// ESM resolves CJS packages through the same module cache.
+'use strict';
+
+const _pawEndpoint = process.env.AZURE_OPENAI_ENDPOINT || '';
+const _pawIsAzure = _pawEndpoint.length > 0 && (
+  _pawEndpoint.includes('.azure.') ||
+  _pawEndpoint.includes('.cognitiveservices.') ||
+  _pawEndpoint.includes('.ai.azure.')
+);
+
+if (_pawIsAzure) {{
+  try {{
+    // Eagerly load the openai package into the CJS module cache.
+    // Use createRequire to resolve from the openclaw package root
+    // (the shim lives in ~/.openclaw/ which has no node_modules).
+    {require_snippet}
+    const OrigOpenAI = openaiMod.default || openaiMod.OpenAI;
+    const AzureOpenAI = openaiMod.AzureOpenAI;
+
+    if (!OrigOpenAI || !AzureOpenAI || typeof AzureOpenAI !== 'function') {{
+      console.warn('[paw] openai package missing OpenAI or AzureOpenAI exports — cannot route');
+    }} else {{
+      const endpoint   = _pawEndpoint.replace(/\/openai\/?$/, '');
+      const apiVersion = process.env.OPENAI_API_VERSION || '2024-08-01-preview';
+      const deployment = process.env.OPENAI_DEPLOYMENT || undefined;
+      const apiKey     = process.env.OPENAI_API_KEY || undefined;
+
+      const handler = {{
+        construct(_target, args) {{
+          const opts = args[0] || {{}};
+          // If caller explicitly set baseURL, honour it (non-Azure usage)
+          if (opts.baseURL) return new OrigOpenAI(opts);
+          try {{
+            const client = new AzureOpenAI({{
+              apiKey:     opts.apiKey || apiKey,
+              endpoint:   endpoint,
+              deployment: deployment,
+              apiVersion: apiVersion,
+            }});
+            return client;
+          }} catch (err) {{
+            console.error('[paw] AzureOpenAI constructor failed, falling back:', err.message);
+            return new OrigOpenAI(opts);
+          }}
+        }},
+        apply(_target, _this, args) {{
+          return handler.construct(_target, args);
+        }},
+        get(target, prop, receiver) {{
+          // Proxy static properties / prototype so instanceof checks etc. still work
+          return Reflect.get(target, prop, receiver);
+        }}
+      }};
+
+      const proxied = new Proxy(OrigOpenAI, handler);
+
+      // Mutate the cached module exports in-place so ALL future imports
+      // (both CJS require and ESM import) see the proxied constructor.
+      if (openaiMod.default) openaiMod.default = proxied;
+      if (openaiMod.OpenAI)  openaiMod.OpenAI  = proxied;
+
+      // Also patch the CJS cache entry directly for extra safety
+      const Module = require('module');
+      try {{
+        const resolvedPath = Module._resolveFilename('openai', module);
+        if (resolvedPath && Module._cache && Module._cache[resolvedPath]) {{
+          const cached = Module._cache[resolvedPath];
+          if (cached.exports) {{
+            if (cached.exports.default) cached.exports.default = proxied;
+            if (cached.exports.OpenAI)  cached.exports.OpenAI  = proxied;
+          }}
+        }}
+      }} catch (_e) {{ /* _resolveFilename may throw if openai not in default paths */ }}
+
+      console.log('[paw] Azure OpenAI routing active —',
+        'endpoint:', endpoint,
+        'deployment:', deployment || '(from model)',
+        'apiVersion:', apiVersion,
+        'apiKey:', apiKey ? apiKey.slice(0, 8) + '...' : '(none)');
+    }}
+  }} catch (err) {{
     console.error('[paw] Failed to initialise Azure routing shim:', err.message);
-  }
-  console.log('[paw] Azure OpenAI shim loaded for endpoint:', _pawAzureEndpoint);
-} else if (process.env.OPENAI_BASE_URL) {
+    console.error('[paw] Stack:', err.stack);
+  }}
+}} else if (process.env.OPENAI_BASE_URL) {{
   console.log('[paw] Standard OpenAI routing — baseURL:', process.env.OPENAI_BASE_URL);
-}
-"#;
+}} else {{
+  console.log('[paw] No AZURE_OPENAI_ENDPOINT set — shim inactive');
+}}
+"#,
+        require_snippet = require_snippet,
+    );
 
     let shim_path = home.join(".openclaw/_paw_openai_shim.js");
-    fs::write(&shim_path, shim_content)
+    fs::write(&shim_path, &shim_content)
         .map_err(|e| format!("Failed to write routing shim: {}", e))?;
     info!("Wrote OpenAI routing shim to {:?}", shim_path);
     Ok(())
@@ -1201,6 +1219,8 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
         let vars = env_obj.get_mut("vars").unwrap().as_object_mut()
             .ok_or("env.vars is not an object")?;
         vars.insert("OPENAI_BASE_URL".to_string(), serde_json::json!(url));
+        // Always provide the API key so the gateway process can authenticate
+        vars.insert("OPENAI_API_KEY".to_string(), serde_json::json!(&api_key));
         info!("Set env.vars.OPENAI_BASE_URL={} in openclaw.json", url);
 
         // For Azure endpoints, also set AZURE_OPENAI_ENDPOINT and OPENAI_API_VERSION
@@ -1227,6 +1247,7 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
         if let Some(env_obj) = obj.get_mut("env").and_then(|e| e.as_object_mut()) {
             if let Some(vars) = env_obj.get_mut("vars").and_then(|v| v.as_object_mut()) {
                 vars.remove("OPENAI_BASE_URL");
+                vars.remove("OPENAI_API_KEY");
                 vars.remove("AZURE_OPENAI_ENDPOINT");
                 vars.remove("OPENAI_API_VERSION");
                 vars.remove("OPENAI_DEPLOYMENT");
