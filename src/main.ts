@@ -1,79 +1,74 @@
-// Paw - Main Application
+// Paw — Main Application
+// Wires OpenClaw gateway (WebSocket protocol v3) to the UI
 
-import type { Config, Message, InstallProgress } from './types';
-import { setGatewayConfig, getGatewayStatus, sendChatMessage } from './api';
+import type { AppConfig, Message, InstallProgress, ChatMessage, Session } from './types';
+import { setGatewayConfig, probeHealth } from './api';
+import { gateway } from './gateway';
 
-// Global error handlers — prevent silent crashes
+// ── Global error handlers ──────────────────────────────────────────────────
 window.addEventListener('unhandledrejection', (event) => {
   console.error('Unhandled promise rejection:', event.reason);
   event.preventDefault();
 });
-
 window.addEventListener('error', (event) => {
   console.error('Uncaught error:', event.error);
 });
 
-// Tauri API types
+// ── Tauri bridge ───────────────────────────────────────────────────────────
 interface TauriWindow {
   __TAURI__?: {
-    core: {
-      invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
-    };
-    event: {
-      listen: <T>(event: string, handler: (event: { payload: T }) => void) => Promise<() => void>;
-    };
+    core: { invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T> };
+    event: { listen: <T>(event: string, handler: (event: { payload: T }) => void) => Promise<() => void> };
   };
 }
-
 const tauriWindow = window as unknown as TauriWindow;
 const invoke = tauriWindow.__TAURI__?.core?.invoke;
 const listen = tauriWindow.__TAURI__?.event?.listen;
 
-// State
-let config: Config = {
+// ── State ──────────────────────────────────────────────────────────────────
+let config: AppConfig = {
   configured: false,
-  gateway: {
-    url: 'http://localhost:5757',
-    token: '',
-  },
+  gateway: { url: 'http://localhost:5757', token: '' },
 };
 
 let messages: Message[] = [];
 let isLoading = false;
+let currentSessionKey: string | null = null;
+let sessions: Session[] = [];
+let wsConnected = false;
 
-/** Extract port number from a gateway URL, defaulting to 5757 */
 function getPortFromUrl(url: string): number {
-  try {
-    const u = new URL(url);
-    return u.port ? parseInt(u.port, 10) : 5757;
-  } catch {
-    return 5757;
-  }
+  try { return parseInt(new URL(url).port, 10) || 5757; }
+  catch { return 5757; }
 }
 
-// DOM Elements (safe - may be null)
-const dashboardView = document.getElementById('dashboard-view');
-const setupView = document.getElementById('setup-view');
-const manualSetupView = document.getElementById('manual-setup-view');
-const installView = document.getElementById('install-view');
-const chatView = document.getElementById('chat-view');
-const buildView = document.getElementById('build-view');
-const codeView = document.getElementById('code-view');
-const contentView = document.getElementById('content-view');
-const mailView = document.getElementById('mail-view');
-const automationsView = document.getElementById('automations-view');
-const channelsView = document.getElementById('channels-view');
-const researchView = document.getElementById('research-view');
-const memoryView = document.getElementById('memory-view');
-const skillsView = document.getElementById('skills-view');
-const foundryView = document.getElementById('foundry-view');
-const settingsView = document.getElementById('settings-view');
-const statusDot = document.getElementById('status-dot');
-const statusText = document.getElementById('status-text');
-const chatMessages = document.getElementById('chat-messages');
-const chatEmpty = document.getElementById('chat-empty');
-const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement | null;
-const chatSend = document.getElementById('chat-send') as HTMLButtonElement | null;
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const $ = (id: string) => document.getElementById(id);
+const dashboardView = $('dashboard-view');
+const setupView = $('setup-view');
+const manualSetupView = $('manual-setup-view');
+const installView = $('install-view');
+const chatView = $('chat-view');
+const buildView = $('build-view');
+const codeView = $('code-view');
+const contentView = $('content-view');
+const mailView = $('mail-view');
+const automationsView = $('automations-view');
+const channelsView = $('channels-view');
+const researchView = $('research-view');
+const memoryView = $('memory-view');
+const skillsView = $('skills-view');
+const foundryView = $('foundry-view');
+const settingsView = $('settings-view');
+const statusDot = $('status-dot');
+const statusText = $('status-text');
+const chatMessages = $('chat-messages');
+const chatEmpty = $('chat-empty');
+const chatInput = $('chat-input') as HTMLTextAreaElement | null;
+const chatSend = $('chat-send') as HTMLButtonElement | null;
+const chatSessionSelect = $('chat-session-select') as HTMLSelectElement | null;
+const chatAgentName = $('chat-agent-name');
+const modelLabel = $('model-label');
 
 const allViews = [
   dashboardView, setupView, manualSetupView, installView,
@@ -82,7 +77,7 @@ const allViews = [
   skillsView, foundryView, settingsView,
 ].filter(Boolean);
 
-// Navigation — sidebar, feature cards, & quick actions
+// ── Navigation ─────────────────────────────────────────────────────────────
 document.querySelectorAll('[data-view]').forEach((item) => {
   item.addEventListener('click', () => {
     const view = item.getAttribute('data-view');
@@ -91,118 +86,163 @@ document.querySelectorAll('[data-view]').forEach((item) => {
 });
 
 function switchView(viewName: string) {
-  if (!config.configured && viewName !== 'settings') {
-    return;
-  }
+  if (!config.configured && viewName !== 'settings') return;
 
   document.querySelectorAll('.nav-item').forEach((item) => {
     item.classList.toggle('active', item.getAttribute('data-view') === viewName);
   });
-
   allViews.forEach((v) => v?.classList.remove('active'));
 
   const viewMap: Record<string, HTMLElement | null> = {
-    dashboard: dashboardView,
-    chat: chatView,
-    build: buildView,
-    code: codeView,
-    content: contentView,
-    mail: mailView,
-    automations: automationsView,
-    channels: channelsView,
-    research: researchView,
-    memory: memoryView,
-    skills: skillsView,
-    foundry: foundryView,
-    settings: settingsView,
+    dashboard: dashboardView, chat: chatView, build: buildView, code: codeView,
+    content: contentView, mail: mailView, automations: automationsView,
+    channels: channelsView, research: researchView, memory: memoryView,
+    skills: skillsView, foundry: foundryView, settings: settingsView,
   };
-
   const target = viewMap[viewName];
   if (target) target.classList.add('active');
 
+  // Auto-load data when switching to a data view
+  if (wsConnected) {
+    switch (viewName) {
+      case 'chat': loadSessions(); break;
+      case 'channels': loadChannels(); break;
+      case 'automations': loadCron(); break;
+      case 'skills': loadSkills(); break;
+      case 'foundry': loadModels(); break;
+      case 'memory': loadMemory(); break;
+      case 'settings': syncSettingsForm(); loadGatewayConfig(); break;
+      default: break;
+    }
+  }
   if (viewName === 'settings') syncSettingsForm();
 }
 
 function showView(viewId: string) {
   allViews.forEach((v) => v?.classList.remove('active'));
-  document.getElementById(viewId)?.classList.add('active');
+  $(viewId)?.classList.add('active');
 }
 
-// Setup handlers
-document.getElementById('setup-detect')?.addEventListener('click', async () => {
-  if (statusText) statusText.textContent = 'Detecting...';
-  
+// ── Gateway connection ─────────────────────────────────────────────────────
+async function connectGateway(): Promise<boolean> {
   try {
-    // Check if OpenClaw is installed
+    const wsUrl = config.gateway.url.replace(/^http/, 'ws');
+    const hello = await gateway.connect({ url: wsUrl, token: config.gateway.token });
+    wsConnected = true;
+    console.log('Gateway connected:', hello);
+
+    statusDot?.classList.add('connected');
+    statusDot?.classList.remove('error');
+    if (statusText) statusText.textContent = 'Connected';
+    if (modelLabel) modelLabel.textContent = 'Connected';
+
+    // Load agent name
+    try {
+      const agents = await gateway.listAgents();
+      if (agents.agents?.length && chatAgentName) {
+        const main = agents.agents.find(a => a.id === agents.defaultId) ?? agents.agents[0];
+        chatAgentName.textContent = main.identity?.name ?? main.name ?? main.id;
+      }
+    } catch { /* non-critical */ }
+
+    return true;
+  } catch (e) {
+    console.error('WS connect failed:', e);
+    wsConnected = false;
+    statusDot?.classList.remove('connected');
+    statusDot?.classList.add('error');
+    if (statusText) statusText.textContent = 'Disconnected';
+    if (modelLabel) modelLabel.textContent = 'Disconnected';
+    return false;
+  }
+}
+
+// Subscribe to gateway lifecycle events
+gateway.on('_connected', () => {
+  wsConnected = true;
+  statusDot?.classList.add('connected');
+  statusDot?.classList.remove('error');
+  if (statusText) statusText.textContent = 'Connected';
+});
+gateway.on('_disconnected', () => {
+  wsConnected = false;
+  statusDot?.classList.remove('connected');
+  statusDot?.classList.add('error');
+  if (statusText) statusText.textContent = 'Disconnected';
+});
+
+// ── Status check (fallback for polling) ────────────────────────────────────
+async function checkGatewayStatus() {
+  if (wsConnected) return; // WS is authoritative
+  try {
+    const ok = await probeHealth();
+    if (ok && !wsConnected) {
+      await connectGateway();
+    }
+  } catch {
+    // Try TCP check via Tauri
+    const port = getPortFromUrl(config.gateway.url);
+    const tcpAlive = invoke ? await invoke<boolean>('check_gateway_health', { port }).catch(() => false) : false;
+    if (tcpAlive && !wsConnected) {
+      await connectGateway();
+    } else {
+      statusDot?.classList.remove('connected');
+      statusDot?.classList.add('error');
+      if (statusText) statusText.textContent = 'Disconnected';
+    }
+  }
+}
+
+// ── Setup / Detect / Install handlers ──────────────────────────────────────
+$('setup-detect')?.addEventListener('click', async () => {
+  if (statusText) statusText.textContent = 'Detecting...';
+  try {
     const installed = invoke ? await invoke<boolean>('check_openclaw_installed') : false;
-    
     if (installed) {
-      // Get the token
       const token = invoke ? await invoke<string | null>('get_gateway_token') : null;
-      
       if (token) {
-        // Read the actual port from openclaw.json via Rust
         const cfgPort = invoke ? await invoke<number>('get_gateway_port_setting').catch(() => 5757) : 5757;
-        
         config.configured = true;
         config.gateway.url = `http://localhost:${cfgPort}`;
         config.gateway.token = token;
         saveConfig();
-        
-        // Only start gateway if not already running
+
         if (invoke) {
           const alreadyRunning = await invoke<boolean>('check_gateway_health', { port: cfgPort }).catch(() => false);
           if (!alreadyRunning) {
             await invoke('start_gateway', { port: cfgPort }).catch((e: unknown) => {
               console.warn('Gateway start failed (may already be running):', e);
             });
-            // Wait a moment for gateway to start
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            await new Promise(r => setTimeout(r, 1500));
           }
         }
-        
-        await checkGatewayStatus();
+
+        await connectGateway();
         switchView('dashboard');
         return;
       }
     }
-    
-    // Not installed - show install view
     showView('install-view');
-    
   } catch (error) {
     console.error('Detection error:', error);
     alert('Could not detect OpenClaw. Try manual setup or install.');
   }
 });
 
-document.getElementById('setup-manual')?.addEventListener('click', () => {
-  showView('manual-setup-view');
-});
+$('setup-manual')?.addEventListener('click', () => showView('manual-setup-view'));
+$('setup-new')?.addEventListener('click', () => showView('install-view'));
+$('gateway-back')?.addEventListener('click', () => showView('setup-view'));
+$('install-back')?.addEventListener('click', () => showView('setup-view'));
 
-document.getElementById('setup-new')?.addEventListener('click', () => {
-  showView('install-view');
-});
-
-document.getElementById('gateway-back')?.addEventListener('click', () => {
-  showView('setup-view');
-});
-
-document.getElementById('install-back')?.addEventListener('click', () => {
-  showView('setup-view');
-});
-
-// Install OpenClaw
-document.getElementById('start-install')?.addEventListener('click', async () => {
-  const progressBar = document.getElementById('install-progress-bar') as HTMLElement;
-  const progressText = document.getElementById('install-progress-text') as HTMLElement;
-  const installBtn = document.getElementById('start-install') as HTMLButtonElement;
-  
+// ── Install OpenClaw ───────────────────────────────────────────────────────
+$('start-install')?.addEventListener('click', async () => {
+  const progressBar = $('install-progress-bar') as HTMLElement;
+  const progressText = $('install-progress-text') as HTMLElement;
+  const installBtn = $('start-install') as HTMLButtonElement;
   installBtn.disabled = true;
   installBtn.textContent = 'Installing...';
-  
+
   try {
-    // Listen for progress events
     if (listen) {
       await listen<InstallProgress>('install-progress', (event: { payload: InstallProgress }) => {
         const { percent, message } = event.payload;
@@ -210,27 +250,19 @@ document.getElementById('start-install')?.addEventListener('click', async () => 
         if (progressText) progressText.textContent = message;
       });
     }
-    
-    // Start installation
-    if (invoke) {
-      await invoke('install_openclaw');
-    }
-    
-    // Get the token after install
+    if (invoke) await invoke('install_openclaw');
+
     const token = invoke ? await invoke<string | null>('get_gateway_token') : null;
-    
     if (token) {
       const cfgPort = invoke ? await invoke<number>('get_gateway_port_setting').catch(() => 5757) : 5757;
       config.configured = true;
       config.gateway.url = `http://localhost:${cfgPort}`;
       config.gateway.token = token;
       saveConfig();
-      
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      await checkGatewayStatus();
+      await new Promise(r => setTimeout(r, 1000));
+      await connectGateway();
       switchView('dashboard');
     }
-    
   } catch (error) {
     console.error('Install error:', error);
     if (progressText) progressText.textContent = `Error: ${error}`;
@@ -239,100 +271,176 @@ document.getElementById('start-install')?.addEventListener('click', async () => 
   }
 });
 
-// Gateway form
-document.getElementById('gateway-form')?.addEventListener('submit', async (e) => {
+// ── Gateway form (manual) ──────────────────────────────────────────────────
+$('gateway-form')?.addEventListener('submit', async (e) => {
   e.preventDefault();
-  
-  const url = (document.getElementById('gateway-url') as HTMLInputElement).value;
-  const token = (document.getElementById('gateway-token') as HTMLInputElement).value;
-  
-  // Test connection
+  const url = ($('gateway-url') as HTMLInputElement).value;
+  const token = ($('gateway-token') as HTMLInputElement).value;
   try {
-    const response = await fetch(`${url}/health`, {
-      signal: AbortSignal.timeout(3000),
-    });
-    
-    if (response.ok) {
-      config.configured = true;
-      config.gateway = { url, token };
-      saveConfig();
-      
-      if (statusDot) statusDot.classList.add('connected');
-      if (statusText) statusText.textContent = 'Connected';
-      
+    config.configured = true;
+    config.gateway = { url, token };
+    saveConfig();
+    const ok = await connectGateway();
+    if (ok) {
       switchView('dashboard');
     } else {
-      throw new Error('Gateway not responding');
+      throw new Error('Connection failed');
     }
-  } catch (error) {
+  } catch {
     alert('Could not connect to gateway. Check URL and try again.');
   }
 });
 
-// Settings Form
+// ── Config persistence ─────────────────────────────────────────────────────
+function saveConfig() {
+  localStorage.setItem('claw-config', JSON.stringify(config));
+  setGatewayConfig(config.gateway.url, config.gateway.token);
+}
+
+function loadConfigFromStorage() {
+  const saved = localStorage.getItem('claw-config');
+  if (saved) {
+    try { config = JSON.parse(saved); } catch { /* invalid */ }
+  }
+  setGatewayConfig(config.gateway.url, config.gateway.token);
+}
+
+// ── Settings form ──────────────────────────────────────────────────────────
 function syncSettingsForm() {
-  const urlInput = document.getElementById('settings-gateway-url') as HTMLInputElement;
-  const tokenInput = document.getElementById('settings-gateway-token') as HTMLInputElement;
+  const urlInput = $('settings-gateway-url') as HTMLInputElement;
+  const tokenInput = $('settings-gateway-token') as HTMLInputElement;
   if (urlInput) urlInput.value = config.gateway.url;
   if (tokenInput) tokenInput.value = config.gateway.token;
 }
 
-document.getElementById('settings-save-gateway')?.addEventListener('click', async () => {
-  const url = (document.getElementById('settings-gateway-url') as HTMLInputElement).value;
-  const token = (document.getElementById('settings-gateway-token') as HTMLInputElement).value;
-  
-  try {
-    const response = await fetch(`${url}/health`, {
-      signal: AbortSignal.timeout(3000),
-    });
-    
-    if (response.ok) {
-      config.gateway = { url, token };
-      saveConfig();
-      
-      if (statusDot) statusDot.classList.add('connected');
-      if (statusDot) statusDot.classList.remove('error');
-      if (statusText) statusText.textContent = 'Connected';
-      
-      alert('Settings saved!');
-    } else {
-      throw new Error('Not OK');
-    }
-  } catch {
-    alert('Could not connect to gateway with these settings.');
+$('settings-save-gateway')?.addEventListener('click', async () => {
+  const url = ($('settings-gateway-url') as HTMLInputElement).value;
+  const token = ($('settings-gateway-token') as HTMLInputElement).value;
+  config.gateway = { url, token };
+  config.configured = true;
+  saveConfig();
+
+  gateway.disconnect();
+  wsConnected = false;
+  const ok = await connectGateway();
+  if (ok) {
+    alert('Connected successfully!');
+  } else {
+    alert('Settings saved but could not connect to gateway.');
   }
 });
 
-// Config persistence
-function saveConfig() {
-  localStorage.setItem('claw-config', JSON.stringify(config));
-  syncApiConfig();
-}
-
-function syncApiConfig() {
-  setGatewayConfig(config.gateway.url, config.gateway.token);
-}
-
-function loadConfig() {
-  const saved = localStorage.getItem('claw-config');
-  if (saved) {
+// ── Config editor (Settings > OpenClaw Configuration) ──────────────────────
+async function loadGatewayConfig() {
+  const section = $('settings-config-section');
+  const editor = $('settings-config-editor') as HTMLTextAreaElement | null;
+  const versionEl = $('settings-gateway-version');
+  if (!wsConnected) {
+    if (section) section.style.display = 'none';
+    return;
+  }
+  try {
+    const result = await gateway.configGet();
+    if (section) section.style.display = '';
+    if (editor) editor.value = JSON.stringify(result.config, null, 2);
     try {
-      config = JSON.parse(saved);
-    } catch {
-      // Invalid config
-    }
+      const h = await gateway.getHealth();
+      if (versionEl) versionEl.textContent = `Gateway: ${h.ts ? 'up since ' + new Date(h.ts).toLocaleString() : 'running'}`;
+    } catch { /* ignore */ }
+  } catch (e) {
+    console.warn('Config load failed:', e);
+    if (section) section.style.display = 'none';
   }
 }
 
-// Chat functionality
+$('settings-save-config')?.addEventListener('click', async () => {
+  const editor = $('settings-config-editor') as HTMLTextAreaElement;
+  if (!editor) return;
+  try {
+    const parsed = JSON.parse(editor.value);
+    await gateway.configSet(parsed);
+    alert('Configuration saved!');
+  } catch (e) {
+    alert(`Invalid config: ${e instanceof Error ? e.message : e}`);
+  }
+});
+
+$('settings-reload-config')?.addEventListener('click', () => loadGatewayConfig());
+
+// ══════════════════════════════════════════════════════════════════════════
+// ═══ DATA VIEWS ════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════════════════
+
+// ── Sessions / Chat ────────────────────────────────────────────────────────
+async function loadSessions() {
+  if (!wsConnected) return;
+  try {
+    const result = await gateway.listSessions({ limit: 50, includeDerivedTitles: true, includeLastMessage: true });
+    sessions = result.sessions ?? [];
+    renderSessionSelect();
+    if (!currentSessionKey && sessions.length) {
+      currentSessionKey = sessions[0].key;
+    }
+    if (currentSessionKey) await loadChatHistory(currentSessionKey);
+  } catch (e) { console.warn('Sessions load failed:', e); }
+}
+
+function renderSessionSelect() {
+  if (!chatSessionSelect) return;
+  chatSessionSelect.innerHTML = '';
+  if (!sessions.length) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No sessions';
+    chatSessionSelect.appendChild(opt);
+    return;
+  }
+  for (const s of sessions) {
+    const opt = document.createElement('option');
+    opt.value = s.key;
+    opt.textContent = s.label ?? s.displayName ?? s.key;
+    if (s.key === currentSessionKey) opt.selected = true;
+    chatSessionSelect.appendChild(opt);
+  }
+}
+
+chatSessionSelect?.addEventListener('change', () => {
+  const key = chatSessionSelect?.value;
+  if (key) {
+    currentSessionKey = key;
+    loadChatHistory(key);
+  }
+});
+
+async function loadChatHistory(sessionKey: string) {
+  if (!wsConnected) return;
+  try {
+    const result = await gateway.chatHistory(sessionKey);
+    messages = (result.messages ?? []).map(chatMsgToMessage);
+    renderMessages();
+  } catch (e) {
+    console.warn('Chat history load failed:', e);
+    messages = [];
+    renderMessages();
+  }
+}
+
+function chatMsgToMessage(m: ChatMessage): Message {
+  const ts = m.ts ?? m.timestamp;
+  return {
+    id: m.id ?? undefined,
+    role: m.role as 'user' | 'assistant' | 'system',
+    content: m.content ?? '',
+    timestamp: ts ? new Date(ts as string | number) : new Date(),
+    toolCalls: m.toolCalls,
+  };
+}
+
+// Chat send
 chatSend?.addEventListener('click', sendMessage);
 chatInput?.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
 });
-
 chatInput?.addEventListener('input', () => {
   if (chatInput) {
     chatInput.style.height = 'auto';
@@ -340,9 +448,11 @@ chatInput?.addEventListener('input', () => {
   }
 });
 
-document.getElementById('new-chat-btn')?.addEventListener('click', () => {
+$('new-chat-btn')?.addEventListener('click', () => {
   messages = [];
+  currentSessionKey = null;
   renderMessages();
+  if (chatSessionSelect) chatSessionSelect.value = '';
 });
 
 async function sendMessage() {
@@ -350,20 +460,27 @@ async function sendMessage() {
   if (!content || isLoading) return;
 
   addMessage({ role: 'user', content, timestamp: new Date() });
-  if (chatInput) chatInput.value = '';
-  if (chatInput) chatInput.style.height = 'auto';
-
+  if (chatInput) { chatInput.value = ''; chatInput.style.height = 'auto'; }
   isLoading = true;
   if (chatSend) chatSend.disabled = true;
-  showLoading();
+  showLoadingIndicator();
 
   try {
-    const response = await callGateway(content);
-    hideLoading();
-    addMessage({ role: 'assistant', content: response, timestamp: new Date() });
+    const sessionKey = currentSessionKey ?? 'default';
+    const result = await gateway.chatSend(sessionKey, content);
+    hideLoadingIndicator();
+
+    if (result.text) {
+      addMessage({ role: 'assistant', content: result.text, timestamp: new Date(), toolCalls: result.toolCalls });
+    } else if (result.response) {
+      addMessage({ role: 'assistant', content: typeof result.response === 'string' ? result.response : JSON.stringify(result.response), timestamp: new Date() });
+    }
+
+    if (result.sessionKey) currentSessionKey = result.sessionKey;
+    loadSessions();
   } catch (error) {
-    console.error('Error:', error);
-    hideLoading();
+    console.error('Chat error:', error);
+    hideLoadingIndicator();
     addMessage({
       role: 'assistant',
       content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
@@ -381,110 +498,375 @@ function addMessage(message: Message) {
 }
 
 function renderMessages() {
+  if (!chatMessages) return;
   if (messages.length === 0) {
     if (chatEmpty) chatEmpty.style.display = 'flex';
+    chatMessages.querySelectorAll('.message').forEach(m => m.remove());
     return;
   }
-
   if (chatEmpty) chatEmpty.style.display = 'none';
+  chatMessages.querySelectorAll('.message').forEach(m => m.remove());
 
-  const existingMessages = chatMessages?.querySelectorAll('.message');
-  existingMessages?.forEach((m) => m.remove());
-
-  messages.forEach((msg) => {
+  for (const msg of messages) {
     const div = document.createElement('div');
     div.className = `message ${msg.role}`;
-
-    const content = document.createElement('div');
-    content.className = 'message-content';
-    content.textContent = msg.content;
-
+    const contentEl = document.createElement('div');
+    contentEl.className = 'message-content';
+    contentEl.textContent = msg.content;
     const time = document.createElement('div');
     time.className = 'message-time';
     time.textContent = msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-    div.appendChild(content);
+    div.appendChild(contentEl);
     div.appendChild(time);
-    chatMessages?.appendChild(div);
-  });
 
-  if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+    if (msg.toolCalls?.length) {
+      const badge = document.createElement('div');
+      badge.className = 'tool-calls-badge';
+      badge.textContent = `${msg.toolCalls.length} tool call${msg.toolCalls.length > 1 ? 's' : ''}`;
+      div.appendChild(badge);
+    }
+
+    chatMessages.appendChild(div);
+  }
+  chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-function showLoading() {
+function showLoadingIndicator() {
   if (chatEmpty) chatEmpty.style.display = 'none';
   const loadingDiv = document.createElement('div');
   loadingDiv.className = 'message assistant';
   loadingDiv.id = 'loading-message';
-  loadingDiv.innerHTML = `
-    <div class="message-content">
-      <div class="loading-dots">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
-    </div>
-  `;
+  loadingDiv.innerHTML = `<div class="message-content"><div class="loading-dots"><span></span><span></span><span></span></div></div>`;
   chatMessages?.appendChild(loadingDiv);
   if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-function hideLoading() {
-  document.getElementById('loading-message')?.remove();
+function hideLoadingIndicator() {
+  $('loading-message')?.remove();
 }
 
-async function callGateway(userMessage: string): Promise<string> {
-  return sendChatMessage(userMessage);
-}
+// Listen for streaming agent events
+gateway.on('agent', (_payload: unknown) => {
+  // Could update streaming indicator here in the future
+});
 
-async function checkGatewayStatus() {
+// ── Channels ───────────────────────────────────────────────────────────────
+async function loadChannels() {
+  const list = $('channels-list');
+  const empty = $('channels-empty');
+  const loading = $('channels-loading');
+  if (!wsConnected || !list) return;
+
+  if (loading) loading.style.display = '';
+  if (empty) empty.style.display = 'none';
+  list.innerHTML = '';
+
   try {
-    // First try the HTTP health endpoint via the configured URL
-    const status = await getGatewayStatus();
-    if (status.running) {
-      statusDot?.classList.add('connected');
-      statusDot?.classList.remove('error');
-      if (statusText) statusText.textContent = 'Connected';
-    } else {
-      // HTTP responded but gateway reports not running — try TCP port check as fallback
-      const port = getPortFromUrl(config.gateway.url);
-      const tcpAlive = invoke ? await invoke<boolean>('check_gateway_health', { port }).catch(() => false) : false;
-      if (tcpAlive) {
-        statusDot?.classList.add('connected');
-        statusDot?.classList.remove('error');
-        if (statusText) statusText.textContent = 'Connected';
-      } else {
-        statusDot?.classList.remove('connected');
-        statusDot?.classList.add('error');
-        if (statusText) statusText.textContent = 'Disconnected';
-      }
+    const result = await gateway.getChannelsStatus(true);
+    if (loading) loading.style.display = 'none';
+
+    const channels = result.channels ?? {};
+    const keys = Object.keys(channels);
+    if (!keys.length) {
+      if (empty) empty.style.display = 'flex';
+      return;
+    }
+
+    for (const id of keys) {
+      const ch = channels[id];
+      const card = document.createElement('div');
+      card.className = 'list-item';
+      const statusClass = ch.linked ? 'connected' : (ch.configured ? 'warning' : 'muted');
+      const statusLabel = ch.linked ? 'Linked' : (ch.configured ? 'Configured' : 'Not set up');
+      card.innerHTML = `
+        <div class="list-item-header">
+          <span class="list-item-title">${escHtml(String(id))}</span>
+          <span class="status-badge ${statusClass}">${statusLabel}</span>
+        </div>
+        ${ch.accounts ? `<div class="list-item-meta">${Object.keys(ch.accounts).length} account(s)</div>` : ''}
+      `;
+      list.appendChild(card);
     }
   } catch (e) {
-    console.warn('Status check failed:', e);
-    statusDot?.classList.remove('connected');
-    statusDot?.classList.add('error');
-    if (statusText) statusText.textContent = 'Disconnected';
+    console.warn('Channels load failed:', e);
+    if (loading) loading.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+  }
+}
+$('refresh-channels-btn')?.addEventListener('click', () => loadChannels());
+
+// ── Automations / Cron ─────────────────────────────────────────────────────
+async function loadCron() {
+  const list = $('cron-list');
+  const empty = $('cron-empty');
+  const loading = $('cron-loading');
+  if (!wsConnected || !list) return;
+
+  if (loading) loading.style.display = '';
+  if (empty) empty.style.display = 'none';
+  list.innerHTML = '';
+
+  try {
+    const result = await gateway.cronList();
+    if (loading) loading.style.display = 'none';
+
+    const jobs = result.jobs ?? [];
+    if (!jobs.length) {
+      if (empty) empty.style.display = 'flex';
+      return;
+    }
+
+    for (const job of jobs) {
+      const card = document.createElement('div');
+      card.className = 'list-item';
+      const scheduleStr = typeof job.schedule === 'string' ? job.schedule : (job.schedule?.type ?? '');
+      card.innerHTML = `
+        <div class="list-item-header">
+          <span class="list-item-title">${escHtml(job.label ?? job.id)}</span>
+          <span class="status-badge ${job.enabled ? 'connected' : 'muted'}">${job.enabled ? 'Active' : 'Paused'}</span>
+        </div>
+        <div class="list-item-meta">${escHtml(scheduleStr)} ${job.prompt ? '— ' + escHtml(String(job.prompt)) : ''}</div>
+        <div class="list-item-actions">
+          <button class="btn btn-ghost btn-sm cron-run" data-id="${escAttr(job.id)}">Run Now</button>
+          <button class="btn btn-ghost btn-sm cron-toggle" data-id="${escAttr(job.id)}" data-enabled="${job.enabled}">${job.enabled ? 'Pause' : 'Enable'}</button>
+        </div>
+      `;
+      list.appendChild(card);
+    }
+
+    list.querySelectorAll('.cron-run').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = (btn as HTMLElement).dataset.id!;
+        try { await gateway.cronRun(id); alert('Job triggered!'); }
+        catch (e) { alert(`Failed: ${e}`); }
+      });
+    });
+    list.querySelectorAll('.cron-toggle').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = (btn as HTMLElement).dataset.id!;
+        const enabled = (btn as HTMLElement).dataset.enabled === 'true';
+        try {
+          await gateway.cronUpdate(id, { enabled: !enabled });
+          loadCron();
+        } catch (e) { alert(`Failed: ${e}`); }
+      });
+    });
+  } catch (e) {
+    console.warn('Cron load failed:', e);
+    if (loading) loading.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+  }
+}
+$('add-cron-btn')?.addEventListener('click', () => {
+  const label = prompt('Job name:');
+  if (!label) return;
+  const schedule = prompt('Cron schedule (e.g. "0 * * * *"):');
+  if (!schedule) return;
+  const prompt_ = prompt('Task prompt:');
+  if (!prompt_) return;
+  gateway.cronAdd({ label, schedule, prompt: prompt_, enabled: true })
+    .then(() => loadCron())
+    .catch(e => alert(`Failed: ${e}`));
+});
+
+// ── Skills ─────────────────────────────────────────────────────────────────
+async function loadSkills() {
+  const list = $('skills-list');
+  const empty = $('skills-empty');
+  const loading = $('skills-loading');
+  if (!wsConnected || !list) return;
+
+  if (loading) loading.style.display = '';
+  if (empty) empty.style.display = 'none';
+  list.innerHTML = '';
+
+  try {
+    const result = await gateway.skillsStatus();
+    if (loading) loading.style.display = 'none';
+
+    const skills = result.skills ?? [];
+    if (!skills.length) {
+      if (empty) empty.style.display = 'flex';
+      return;
+    }
+
+    for (const skill of skills) {
+      const card = document.createElement('div');
+      card.className = 'list-item';
+      card.innerHTML = `
+        <div class="list-item-header">
+          <span class="list-item-title">${escHtml(skill.name)}</span>
+          <span class="status-badge ${skill.installed ? 'connected' : 'muted'}">${skill.installed ? 'Installed' : 'Available'}</span>
+        </div>
+        <div class="list-item-meta">${escHtml(skill.description ?? '')}</div>
+      `;
+      list.appendChild(card);
+    }
+  } catch (e) {
+    console.warn('Skills load failed:', e);
+    if (loading) loading.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+  }
+}
+$('refresh-skills-btn')?.addEventListener('click', () => loadSkills());
+
+// ── Models / Foundry ───────────────────────────────────────────────────────
+async function loadModels() {
+  const list = $('models-list');
+  const empty = $('models-empty');
+  const loading = $('models-loading');
+  if (!wsConnected || !list) return;
+
+  if (loading) loading.style.display = '';
+  if (empty) empty.style.display = 'none';
+  list.innerHTML = '';
+
+  try {
+    const result = await gateway.modelsList();
+    if (loading) loading.style.display = 'none';
+
+    const models = result.models ?? [];
+    if (!models.length) {
+      if (empty) empty.style.display = 'flex';
+      return;
+    }
+
+    for (const model of models) {
+      const card = document.createElement('div');
+      card.className = 'list-item';
+      card.innerHTML = `
+        <div class="list-item-header">
+          <span class="list-item-title">${escHtml(model.name ?? model.id)}</span>
+          <span class="list-item-tag">${escHtml(model.provider ?? '')}</span>
+        </div>
+        <div class="list-item-meta">${model.contextWindow ? `Context: ${model.contextWindow.toLocaleString()} tokens` : ''} ${model.reasoning ? '• Reasoning' : ''}</div>
+      `;
+      list.appendChild(card);
+    }
+  } catch (e) {
+    console.warn('Models load failed:', e);
+    if (loading) loading.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
+  }
+}
+$('refresh-models-btn')?.addEventListener('click', () => loadModels());
+
+// ── Memory / Agent Files ───────────────────────────────────────────────────
+async function loadMemory() {
+  const list = $('memory-list');
+  const empty = $('memory-empty');
+  const loading = $('memory-loading');
+  const editor = $('memory-editor');
+  if (!wsConnected || !list) return;
+
+  if (loading) loading.style.display = '';
+  if (empty) empty.style.display = 'none';
+  if (editor) editor.style.display = 'none';
+  list.innerHTML = '';
+
+  try {
+    const result = await gateway.agentFilesList();
+    if (loading) loading.style.display = 'none';
+
+    const files = result.files ?? [];
+    if (!files.length) {
+      if (empty) empty.style.display = 'flex';
+      return;
+    }
+
+    for (const file of files) {
+      const card = document.createElement('div');
+      card.className = 'list-item list-item-clickable';
+      const displayName = file.path ?? file.name ?? 'unknown';
+      const displaySize = file.sizeBytes ?? file.size;
+      card.innerHTML = `
+        <div class="list-item-header">
+          <span class="list-item-title">${escHtml(displayName)}</span>
+          <span class="list-item-meta">${displaySize ? formatBytes(displaySize) : ''}</span>
+        </div>
+      `;
+      card.addEventListener('click', () => openMemoryFile(displayName));
+      list.appendChild(card);
+    }
+  } catch (e) {
+    console.warn('Memory load failed:', e);
+    if (loading) loading.style.display = 'none';
+    if (empty) empty.style.display = 'flex';
   }
 }
 
-// Initialize
+async function openMemoryFile(filePath: string) {
+  const editor = $('memory-editor');
+  const content = $('memory-editor-content') as HTMLTextAreaElement | null;
+  const pathEl = $('memory-editor-path');
+  if (!editor || !content) return;
+
+  editor.style.display = '';
+  if (pathEl) pathEl.textContent = filePath;
+  content.value = 'Loading...';
+  content.disabled = true;
+
+  try {
+    const result = await gateway.agentFilesGet(filePath);
+    content.value = result.content ?? '';
+    content.disabled = false;
+    content.dataset.filePath = filePath;
+  } catch (e) {
+    content.value = `Error loading file: ${e}`;
+  }
+}
+
+$('memory-editor-save')?.addEventListener('click', async () => {
+  const content = $('memory-editor-content') as HTMLTextAreaElement | null;
+  if (!content?.dataset.filePath) return;
+  try {
+    await gateway.agentFilesSet(content.dataset.filePath, content.value);
+    alert('File saved!');
+  } catch (e) {
+    alert(`Save failed: ${e}`);
+  }
+});
+
+$('memory-editor-close')?.addEventListener('click', () => {
+  const editor = $('memory-editor');
+  if (editor) editor.style.display = 'none';
+});
+
+$('refresh-memory-btn')?.addEventListener('click', () => loadMemory());
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function escHtml(s: string): string {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+function escAttr(s: string): string {
+  return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+// ── Initialize ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log('Paw starting...');
-    loadConfig();
-    syncApiConfig();
+    loadConfigFromStorage();
 
     if (config.configured) {
       switchView('dashboard');
-      await checkGatewayStatus();
+      await connectGateway();
     } else {
       showView('setup-view');
     }
 
-    // Poll status — catch errors so interval never crashes the app
+    // Poll status every 15s — reconnect if WS dropped
     setInterval(() => {
-      checkGatewayStatus().catch((e) => console.warn('Status poll error:', e));
-    }, 10000);
+      checkGatewayStatus().catch(e => console.warn('Status poll error:', e));
+    }, 15_000);
+
     console.log('Paw initialized');
   } catch (e) {
     console.error('Init error:', e);
