@@ -28,10 +28,23 @@ def _get_openai_config():
     """Load OpenAI embedding config from memory-palace config."""
     from memory_palace.config import load_config
     config = load_config()
+    raw_url = config.get("openai_base_url", "https://api.openai.com/v1").rstrip("/")
+    # Normalize Azure / Foundry full-endpoint URLs:
+    # Users may paste the full URL including /embeddings?api-version=...
+    # We need just the base — we'll append /embeddings ourselves.
+    # Detect and strip: .../embeddings, .../embeddings?..., .../embeddings/...
+    import re
+    base_url = re.sub(r'/embeddings(\?.*)?$', '', raw_url)
+    # For Azure OpenAI, preserve the api-version as a query param
+    api_version = None
+    qs_match = re.search(r'api-version=([^&]+)', raw_url)
+    if qs_match:
+        api_version = qs_match.group(1)
     return {
         "api_key": config.get("openai_api_key") or "",
-        "base_url": config.get("openai_base_url", "https://api.openai.com/v1").rstrip("/"),
+        "base_url": base_url,
         "model": config.get("embedding_model") or "text-embedding-3-small",
+        "api_version": api_version,
     }
 
 
@@ -80,6 +93,17 @@ def get_embedding_openai(text: str, model: Optional[str] = None) -> Optional[Lis
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
+    # For Azure OpenAI: use api-key header instead of Bearer token
+    if "cognitiveservices.azure.com" in base_url or "openai.azure.com" in base_url:
+        headers["api-key"] = api_key
+        del headers["Authorization"]
+
+    # Build endpoint URL — append /embeddings and optional api-version
+    endpoint = f"{base_url}/embeddings"
+    api_version = cfg.get("api_version")
+    if api_version:
+        sep = "&" if "?" in endpoint else "?"
+        endpoint = f"{endpoint}{sep}api-version={api_version}"
 
     last_error = None
 
@@ -88,7 +112,7 @@ def get_embedding_openai(text: str, model: Optional[str] = None) -> Optional[Lis
             timeout = 30 if attempt == 0 else 60
 
             response = requests.post(
-                f"{base_url}/embeddings",
+                endpoint,
                 headers=headers,
                 json={
                     "model": model,
@@ -165,11 +189,17 @@ def is_openai_available() -> bool:
     if not cfg["api_key"]:
         return False
     try:
+        base_url = cfg["base_url"]
+        headers = {"Authorization": f"Bearer {cfg['api_key']}"}
+        # Azure OpenAI uses api-key header
+        if "cognitiveservices.azure.com" in base_url or "openai.azure.com" in base_url:
+            headers = {"api-key": cfg["api_key"]}
         response = requests.get(
-            f"{cfg['base_url']}/models",
-            headers={"Authorization": f"Bearer {cfg['api_key']}"},
+            f"{base_url}/models",
+            headers=headers,
             timeout=10,
         )
-        return response.status_code == 200
+        # Azure may return 404 for /models but 200 for the deployment
+        return response.status_code in (200, 404)
     except requests.exceptions.RequestException:
         return False

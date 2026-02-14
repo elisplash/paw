@@ -757,6 +757,10 @@ gateway.on('agent', (payload: unknown) => {
     const stream = evt.stream as string | undefined;
     const data = evt.data as Record<string, unknown> | undefined;
     const runId = evt.runId as string | undefined;
+    const evtSession = evt.sessionKey as string | undefined;
+
+    // Filter: ignore events from background palace sessions
+    if (evtSession && evtSession.startsWith('paw-')) return;
 
     // Filter: only process during active send, and match runId if known
     if (!isLoading && !_streamingEl) return;
@@ -814,6 +818,10 @@ gateway.on('chat', (payload: unknown) => {
 
     const runId = evt.runId as string | undefined;
     const msg = evt.message as Record<string, unknown> | undefined;
+    const chatEvtSession = evt.sessionKey as string | undefined;
+
+    // Ignore background palace sessions
+    if (chatEvtSession && chatEvtSession.startsWith('paw-')) return;
 
     if (!isLoading && !_streamingEl) return;
     if (_streamingRunId && runId && runId !== _streamingRunId) return;
@@ -1931,7 +1939,10 @@ async function loadPalaceStats() {
   }
 
   try {
-    const result = await gateway.chatSend('paw-memory', 'Use memory_stats to show current statistics. Return only raw JSON.', { thinking: 'minimal' });
+    const result = await Promise.race([
+      gateway.chatSend('paw-memory', 'Use memory_stats to show current statistics. Return only raw JSON.', { thinking: 'minimal' }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+    ]);
     const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
     // Try to parse stats from the response
     const jsonMatch = text.match(/\{[\s\S]*"total"[\s\S]*\}/);
@@ -1992,7 +2003,10 @@ async function loadPalaceSidebar() {
   }
 
   try {
-    const result = await gateway.chatSend('paw-memory', 'Use memory_recent with limit 20. Return only raw JSON.', { thinking: 'minimal' });
+    const result = await Promise.race([
+      gateway.chatSend('paw-memory', 'Use memory_recent with limit 20. Return only raw JSON.', { thinking: 'minimal' }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+    ]);
     const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
@@ -2034,7 +2048,10 @@ async function palaceRecallById(memoryId: string) {
   if (emptyEl) emptyEl.style.display = 'none';
 
   try {
-    const result = await gateway.chatSend('paw-memory', `Use memory_get with id "${memoryId}". Return only raw JSON.`, { thinking: 'minimal' });
+    const result = await Promise.race([
+      gateway.chatSend('paw-memory', `Use memory_get with id "${memoryId}". Return only raw JSON.`, { thinking: 'minimal' }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+    ]);
     const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -2133,7 +2150,10 @@ async function palaceRecallSearch() {
   }
 
   try {
-    const result = await gateway.chatSend('paw-memory', `Use memory_recall with query "${query.replace(/"/g, '\\"')}" and n_results 10. Return only raw JSON array.`, { thinking: 'minimal' });
+    const result = await Promise.race([
+      gateway.chatSend('paw-memory', `Use memory_recall with query "${query.replace(/"/g, '\\"')}" and n_results 10. Return only raw JSON array.`, { thinking: 'minimal' }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+    ]);
     const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
 
@@ -2191,7 +2211,10 @@ function initPalaceRemember() {
         keywords ? `tags: [${keywords.split(',').map(k => `"${k.trim()}"`).join(', ')}]` : '',
       ].filter(Boolean).join(', ');
 
-      await gateway.chatSend('paw-memory', `Use memory_remember with ${params}. Confirm when saved.`, { thinking: 'minimal' });
+      await Promise.race([
+        gateway.chatSend('paw-memory', `Use memory_remember with ${params}. Confirm when saved.`, { thinking: 'minimal' }),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+      ]);
 
       // Clear form
       if ($('palace-remember-subject') as HTMLInputElement) ($('palace-remember-subject') as HTMLInputElement).value = '';
@@ -2240,7 +2263,10 @@ async function renderPalaceGraph() {
 
   try {
     // Get recent memories with their edges for graph data
-    const result = await gateway.chatSend('paw-memory', 'Use memory_recent with limit 50. Include edges for each memory. Return only raw JSON array with fields: id, subject, type, edges (array of {target_id, target_subject, type}).', { thinking: 'minimal' });
+    const result = await Promise.race([
+      gateway.chatSend('paw-memory', 'Use memory_recent with limit 50. Include edges for each memory. Return only raw JSON array with fields: id, subject, type, edges (array of {target_id, target_subject, type}).', { thinking: 'minimal' }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
+    ]);
     const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
 
