@@ -122,16 +122,21 @@ class GatewayClient {
       };
 
       this.ws.onmessage = (ev) => {
+        // Guard: ignore messages from a superseded WebSocket
+        if (ev.target !== this.ws) return;
         try {
           const frame = JSON.parse(ev.data);
           this.handleFrame(frame);
-        } catch {
-          console.error('[gateway] bad frame', ev.data);
+        } catch (e) {
+          console.error('[gateway] Frame handling error:', e, ev.data?.slice?.(0, 200));
         }
       };
 
       this.ws.onclose = (ev) => {
+        // Guard: ignore close events from a superseded WebSocket
+        if (ev.target !== this.ws) return;
         const wasConnected = this._connected;
+        this.stopKeepalive();
         this._connected = false;
         this._connecting = false;
         this.hello = null;
@@ -139,8 +144,9 @@ class GatewayClient {
         this.rejectAllPending('connection closed');
         if (wasConnected) {
           this.emit('_disconnected', {});
-          this.reconnectAttempts = 0; // reset since we had a successful connection
-          this.scheduleReconnect();
+          this.reconnectAttempts = 0;
+          // Defer reconnect to avoid re-entrancy in the close handler
+          setTimeout(() => this.scheduleReconnect(), 0);
         }
       };
 
@@ -212,13 +218,19 @@ class GatewayClient {
       this.reconnectTimer = null;
     }
     this.rejectAllPending('disconnected');
-    if (this.ws) {
-      try { this.ws.close(); } catch { /* ignore */ }
-    }
+    const oldWs = this.ws;
     this.ws = null;
     this._connected = false;
     // Note: do NOT reset _connecting here — connect() sets it before calling disconnect()
     this.hello = null;
+    // Null out handlers on the old socket to prevent ghost callbacks
+    if (oldWs) {
+      oldWs.onopen = null;
+      oldWs.onmessage = null;
+      oldWs.onclose = null;
+      oldWs.onerror = null;
+      try { oldWs.close(); } catch { /* ignore */ }
+    }
   }
 
   private scheduleReconnect() {
@@ -253,11 +265,15 @@ class GatewayClient {
     this.stopKeepalive();
     // Send a lightweight ping every 30s to keep the connection alive
     this.keepaliveTimer = window.setInterval(() => {
-      if (this._connected && this.ws?.readyState === WebSocket.OPEN) {
-        this.request('health').catch(() => {
-          // Health request failed — connection is likely dead
-          console.warn('[gateway] Keepalive ping failed');
-        });
+      try {
+        if (this._connected && this.ws?.readyState === WebSocket.OPEN) {
+          this.request('health').catch(() => {
+            console.warn('[gateway] Keepalive ping failed');
+          });
+        }
+      } catch {
+        // Guard against synchronous throw if ws state changes mid-check
+        console.warn('[gateway] Keepalive error (non-fatal)');
       }
     }, 30_000);
   }

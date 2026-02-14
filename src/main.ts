@@ -192,14 +192,21 @@ gateway.on('_disconnected', () => {
   wsConnected = false;
   statusDot?.classList.remove('connected');
   statusDot?.classList.add('error');
-  if (statusText) statusText.textContent = 'Disconnected';
+  if (statusText) statusText.textContent = 'Reconnecting...';
 
   // Clean up any in-progress streaming — resolve the promise with what we have
-  if (_streamingResolve) {
-    console.warn('[main] WS disconnected during streaming — finalizing with partial content');
-    _streamingResolve(_streamingContent || '(Connection lost)');
+  // Use a local ref to avoid double-resolution (catch block may also resolve)
+  const resolve = _streamingResolve;
+  if (resolve) {
     _streamingResolve = null;
+    console.warn('[main] WS disconnected during streaming — finalizing with partial content');
+    resolve(_streamingContent || '(Connection lost)');
   }
+});
+
+gateway.on('_reconnect_exhausted', () => {
+  if (statusText) statusText.textContent = 'Connection lost';
+  console.error('[main] Gateway reconnect exhausted — giving up. Refresh to retry.');
 });
 
 // ── Status check (fallback for polling) ────────────────────────────────────
@@ -585,8 +592,12 @@ async function sendMessage() {
     loadSessions().catch(() => {});
   } catch (error) {
     console.error('Chat error:', error);
-    const errMsg = error instanceof Error ? error.message : 'Failed to get response';
-    finalizeStreaming(_streamingContent || `Error: ${errMsg}`);
+    // Don't show raw WS errors like "connection closed" — the disconnect handler
+    // already resolved with partial content. Only finalize if not already done.
+    if (_streamingEl) {
+      const errMsg = error instanceof Error ? error.message : 'Failed to get response';
+      finalizeStreaming(_streamingContent || `Error: ${errMsg}`);
+    }
   } finally {
     isLoading = false;
     _streamingRunId = null;
