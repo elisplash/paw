@@ -207,30 +207,21 @@ fn get_gateway_token() -> Option<String> {
     let config = parse_openclaw_config()?;
 
     // Primary: gateway.auth.token (the correct path per OpenClaw docs)
-    let token = config["gateway"]["auth"]["token"].as_str()
-        // Fallback: OPENCLAW_GATEWAY_TOKEN env var
-        .or_else(|| {
-            info!("gateway.auth.token not found in config, checking env");
-            std::env::var("OPENCLAW_GATEWAY_TOKEN").ok().and_then(|s| {
-                let trimmed = s.trim().to_string();
-                if trimmed.is_empty() { None } else { Some(trimmed) }
-            }).as_deref()
-            // We need to return &str but env var is owned — use map below instead
-        });
-
-    // Handle the env var case separately since lifetimes are tricky
-    if let Some(t) = token {
+    if let Some(t) = config["gateway"]["auth"]["token"].as_str() {
         let result = t.to_string();
-        let masked = if result.len() > 8 {
-            format!("{}...{}", &result[..4], &result[result.len()-4..])
-        } else {
-            "****".to_string()
-        };
-        info!("Token found: {} ({} chars)", masked, result.len());
-        return Some(result);
+        if !result.trim().is_empty() {
+            let masked = if result.len() > 8 {
+                format!("{}...{}", &result[..4], &result[result.len()-4..])
+            } else {
+                "****".to_string()
+            };
+            info!("Token from config gateway.auth.token: {} ({} chars)", masked, result.len());
+            return Some(result);
+        }
     }
 
-    // Env var fallback
+    // Fallback: OPENCLAW_GATEWAY_TOKEN env var
+    info!("gateway.auth.token not found in config, checking env");
     if let Ok(env_token) = std::env::var("OPENCLAW_GATEWAY_TOKEN") {
         let trimmed = env_token.trim().to_string();
         if !trimmed.is_empty() {
