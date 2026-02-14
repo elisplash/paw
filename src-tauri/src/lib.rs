@@ -322,7 +322,7 @@ async fn install_openclaw(window: tauri::Window, app_handle: tauri::AppHandle) -
 
     // Step 2: Install OpenClaw using bundled npm
     let npm_path = get_npm_path();
-    let node_modules_dir = app_dir.join("node_modules");
+    let _node_modules_dir = app_dir.join("node_modules");
     
     let install_result = Command::new(npm_path.to_str().unwrap())
         .args(["install", "openclaw", "--prefix", app_dir.to_str().unwrap()])
