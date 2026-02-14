@@ -864,6 +864,46 @@
         <!-- ═══ Memory View — Knowledge Base ═══ -->
         <!-- ═══ Memory View — Memory Palace ═══ -->
         <div class="view palace-view" id="memory-view">
+          <!-- Palace install banner (shown when not installed/running) -->
+          <div class="palace-install-banner" id="palace-install-banner" style="display:none">
+            <div class="palace-install-card">
+              <div class="palace-install-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
+                  <path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/>
+                  <line x1="9" y1="21" x2="15" y2="21"/>
+                  <line x1="10" y1="24" x2="14" y2="24"/>
+                </svg>
+              </div>
+              <h2 class="palace-install-title">Set Up Memory Palace</h2>
+              <p class="palace-install-desc">
+                Add semantic memory, knowledge graphs, and auto-linking to your agent.
+                One click installs everything — Python venv, embeddings model, and local server.
+              </p>
+              <div class="palace-install-reqs">
+                <div class="palace-install-req" id="palace-req-python">
+                  <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+                  <span>Python 3.10+</span>
+                  <span class="palace-req-status" id="palace-req-python-status">checking…</span>
+                </div>
+                <div class="palace-install-req">
+                  <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+                  <span>memory-palace package</span>
+                </div>
+                <div class="palace-install-req">
+                  <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+                  <span>Local embedding model</span>
+                </div>
+              </div>
+              <div class="palace-install-progress" id="palace-install-progress" style="display:none">
+                <div class="progress-bar"><div class="progress-fill" id="palace-progress-bar"></div></div>
+                <p class="progress-text" id="palace-progress-text">Ready to install</p>
+              </div>
+              <div class="palace-install-actions">
+                <button class="btn btn-primary" id="palace-install-btn">Install Memory Palace</button>
+                <button class="btn btn-ghost btn-sm" id="palace-skip-btn">Skip — use file editor only</button>
+              </div>
+            </div>
+          </div>
           <!-- Palace Sidebar -->
           <div class="palace-sidebar">
             <div class="palace-sidebar-header">

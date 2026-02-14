@@ -2520,6 +2520,94 @@ button:focus:not(:focus-visible) { outline: none; }
 }
 
 /* ═══ Memory Palace View ═══ */
+
+/* Palace install banner */
+.palace-install-banner {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.palace-install-card {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 40px 48px;
+  max-width: 480px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.palace-install-icon {
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+.palace-install-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.palace-install-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 380px;
+}
+.palace-install-reqs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+}
+.palace-install-req {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.palace-install-req svg {
+  flex-shrink: 0;
+  stroke: var(--text-muted);
+}
+.palace-install-req.ready svg {
+  stroke: var(--success);
+  fill: var(--success);
+  fill-opacity: 0.15;
+}
+.palace-install-req.missing svg {
+  stroke: var(--danger);
+}
+.palace-req-status {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.palace-install-progress {
+  width: 100%;
+}
+.palace-install-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+}
+.palace-install-actions .btn-primary {
+  width: 100%;
+}
+
 .palace-view.active {
   display: flex;
   height: 100%;

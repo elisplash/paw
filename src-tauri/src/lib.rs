@@ -5,6 +5,8 @@ use std::net::TcpStream;
 use log::{info, warn, error};
 use tauri::{Emitter, Manager};
 
+const PALACE_DEFAULT_PORT: u16 = 21549;
+
 fn get_app_data_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
@@ -431,28 +433,36 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
     // Don't start if already running
     if is_gateway_running(p) {
         info!("Gateway already running on port {}, skipping start", p);
-        return Ok(());
-    }
-
-    info!("Starting gateway (expected port {})...", p);
-
-    let openclaw_bin = get_openclaw_path();
-    let node_dir = get_node_bin_dir();
-    
-    // Try bundled openclaw first
-    if openclaw_bin.exists() {
-        Command::new(openclaw_bin.to_str().unwrap())
-            .args(["gateway", "start"])
-            .env("PATH", join_path_env(&node_dir))
-            .spawn()
-            .map_err(|e| format!("Failed to start gateway: {}", e))?;
     } else {
-        // Fall back to system openclaw
-        Command::new("openclaw")
-            .args(["gateway", "start"])
-            .spawn()
-            .map_err(|e| format!("Failed to start gateway: {}", e))?;
+        info!("Starting gateway (expected port {})...", p);
+
+        let openclaw_bin = get_openclaw_path();
+        let node_dir = get_node_bin_dir();
+        
+        // Try bundled openclaw first
+        if openclaw_bin.exists() {
+            Command::new(openclaw_bin.to_str().unwrap())
+                .args(["gateway", "start"])
+                .env("PATH", join_path_env(&node_dir))
+                .spawn()
+                .map_err(|e| format!("Failed to start gateway: {}", e))?;
+        } else {
+            // Fall back to system openclaw
+            Command::new("openclaw")
+                .args(["gateway", "start"])
+                .spawn()
+                .map_err(|e| format!("Failed to start gateway: {}", e))?;
+        }
     }
+
+    // Also auto-start Memory Palace if installed
+    if check_palace_installed() && !is_palace_running() {
+        info!("Auto-starting Memory Palace alongside gateway...");
+        if let Err(e) = start_palace_server() {
+            warn!("Failed to auto-start Memory Palace: {}", e);
+        }
+    }
+
     Ok(())
 }
 
@@ -472,6 +482,295 @@ fn stop_gateway() -> Result<(), String> {
             .output();
     }
     Ok(())
+}
+
+// ═══ Memory Palace Lifecycle ══════════════════════════════════════════════
+
+fn get_palace_dir() -> PathBuf {
+    get_app_data_dir().join("memory-palace")
+}
+
+fn get_palace_venv() -> PathBuf {
+    get_palace_dir().join("venv")
+}
+
+fn get_palace_python() -> PathBuf {
+    let venv = get_palace_venv();
+    if cfg!(target_os = "windows") {
+        venv.join("Scripts/python.exe")
+    } else {
+        venv.join("bin/python3")
+    }
+}
+
+fn get_palace_pip() -> PathBuf {
+    let venv = get_palace_venv();
+    if cfg!(target_os = "windows") {
+        venv.join("Scripts/pip.exe")
+    } else {
+        venv.join("bin/pip3")
+    }
+}
+
+fn find_system_python() -> Option<String> {
+    // Try common Python 3 names
+    for name in &["python3", "python"] {
+        if let Ok(output) = Command::new(name).arg("--version").output() {
+            if output.status.success() {
+                let ver = String::from_utf8_lossy(&output.stdout).to_string();
+                let ver_alt = String::from_utf8_lossy(&output.stderr).to_string();
+                let version_str = if ver.contains("3.") { ver } else { ver_alt };
+                if version_str.contains("3.") {
+                    info!("Found Python: {} → {}", name, version_str.trim());
+                    return Some(name.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+#[tauri::command]
+fn check_python_installed() -> bool {
+    find_system_python().is_some()
+}
+
+#[tauri::command]
+fn check_palace_installed() -> bool {
+    let python = get_palace_python();
+    if !python.exists() {
+        return false;
+    }
+    // Check if memory-palace package is installed in venv
+    let output = Command::new(python.to_str().unwrap())
+        .args(["-c", "import memory_palace; print('ok')"])
+        .output();
+    match output {
+        Ok(o) => o.status.success(),
+        Err(_) => false,
+    }
+}
+
+#[tauri::command]
+fn check_palace_health() -> bool {
+    is_palace_running()
+}
+
+fn is_palace_running() -> bool {
+    TcpStream::connect(format!("127.0.0.1:{}", PALACE_DEFAULT_PORT)).is_ok()
+}
+
+fn get_palace_data_dir() -> PathBuf {
+    get_app_data_dir().join("memory-palace/data")
+}
+
+#[tauri::command]
+async fn install_palace(window: tauri::Window) -> Result<(), String> {
+    info!("Starting Memory Palace installation...");
+
+    window.emit("palace-install-progress", serde_json::json!({
+        "stage": "checking",
+        "percent": 5,
+        "message": "Checking for Python 3..."
+    })).ok();
+
+    // Step 1: Check Python available
+    let python_cmd = find_system_python()
+        .ok_or("Python 3 not found. Please install Python 3.10+ from python.org")?;
+
+    window.emit("palace-install-progress", serde_json::json!({
+        "stage": "venv",
+        "percent": 15,
+        "message": "Creating virtual environment..."
+    })).ok();
+
+    // Step 2: Create venv
+    let palace_dir = get_palace_dir();
+    let venv_dir = get_palace_venv();
+    let data_dir = get_palace_data_dir();
+    fs::create_dir_all(&palace_dir).map_err(|e| format!("Failed to create palace dir: {}", e))?;
+    fs::create_dir_all(&data_dir).map_err(|e| format!("Failed to create data dir: {}", e))?;
+
+    if !venv_dir.exists() {
+        let venv_result = Command::new(&python_cmd)
+            .args(["-m", "venv", venv_dir.to_str().unwrap()])
+            .output()
+            .map_err(|e| format!("Failed to create venv: {}", e))?;
+
+        if !venv_result.status.success() {
+            let stderr = String::from_utf8_lossy(&venv_result.stderr);
+            return Err(format!("venv creation failed: {}", stderr));
+        }
+    }
+
+    window.emit("palace-install-progress", serde_json::json!({
+        "stage": "pip",
+        "percent": 30,
+        "message": "Installing memory-palace package..."
+    })).ok();
+
+    // Step 3: pip install memory-palace
+    let pip = get_palace_pip();
+    let pip_result = Command::new(pip.to_str().unwrap())
+        .args(["install", "--upgrade", "memory-palace"])
+        .output()
+        .map_err(|e| format!("pip install failed: {}", e))?;
+
+    if !pip_result.status.success() {
+        let stderr = String::from_utf8_lossy(&pip_result.stderr);
+        // Try alternative: pip install from git
+        warn!("pip install memory-palace failed ({}), trying git install...", stderr.chars().take(200).collect::<String>());
+
+        window.emit("palace-install-progress", serde_json::json!({
+            "stage": "pip",
+            "percent": 40,
+            "message": "Trying alternative install method..."
+        })).ok();
+
+        let git_result = Command::new(pip.to_str().unwrap())
+            .args(["install", "git+https://github.com/jeffpierce/memory-palace.git"])
+            .output()
+            .map_err(|e| format!("git pip install failed: {}", e))?;
+
+        if !git_result.status.success() {
+            let stderr2 = String::from_utf8_lossy(&git_result.stderr);
+            return Err(format!("memory-palace install failed: {}", stderr2));
+        }
+    }
+
+    window.emit("palace-install-progress", serde_json::json!({
+        "stage": "configure",
+        "percent": 70,
+        "message": "Configuring Memory Palace..."
+    })).ok();
+
+    // Step 4: Create a palace config
+    let config_path = palace_dir.join("config.yaml");
+    if !config_path.exists() {
+        let config_content = format!(
+            "# Memory Palace configuration (auto-generated by Paw)\n\
+            server:\n  host: 127.0.0.1\n  port: {}\n\
+            storage:\n  path: {}\n  database: memories.db\n\
+            embedding:\n  provider: local\n  model: all-MiniLM-L6-v2\n\
+            auto_linking:\n  enabled: true\n  threshold: 0.75\n",
+            PALACE_DEFAULT_PORT,
+            data_dir.display()
+        );
+        fs::write(&config_path, config_content)
+            .map_err(|e| format!("Failed to write config: {}", e))?;
+    }
+
+    window.emit("palace-install-progress", serde_json::json!({
+        "stage": "starting",
+        "percent": 85,
+        "message": "Starting Memory Palace server..."
+    })).ok();
+
+    // Step 5: Start the server
+    start_palace_server()?;
+
+    // Wait for it to come up
+    for _ in 0..15 {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        if is_palace_running() {
+            break;
+        }
+    }
+
+    let running = is_palace_running();
+    if running {
+        window.emit("palace-install-progress", serde_json::json!({
+            "stage": "done",
+            "percent": 100,
+            "message": "Memory Palace installed and running!"
+        })).ok();
+        info!("Memory Palace installed and running on port {}", PALACE_DEFAULT_PORT);
+    } else {
+        window.emit("palace-install-progress", serde_json::json!({
+            "stage": "done",
+            "percent": 100,
+            "message": "Installed! Server may need a moment to start."
+        })).ok();
+        warn!("Memory Palace installed but not yet responding on port {}", PALACE_DEFAULT_PORT);
+    }
+
+    Ok(())
+}
+
+fn start_palace_server() -> Result<(), String> {
+    if is_palace_running() {
+        info!("Memory Palace already running on port {}", PALACE_DEFAULT_PORT);
+        return Ok(());
+    }
+
+    let python = get_palace_python();
+    if !python.exists() {
+        return Err("Memory Palace not installed (no venv python found)".to_string());
+    }
+
+    let palace_dir = get_palace_dir();
+    let config_path = palace_dir.join("config.yaml");
+    let log_path = palace_dir.join("palace.log");
+
+    // Build command args
+    let mut args: Vec<String> = vec![
+        "-m".to_string(),
+        "memory_palace".to_string(),
+        "serve".to_string(),
+    ];
+
+    if config_path.exists() {
+        args.push("--config".to_string());
+        args.push(config_path.to_str().unwrap().to_string());
+    }
+
+    args.push("--port".to_string());
+    args.push(PALACE_DEFAULT_PORT.to_string());
+
+    info!("Starting Memory Palace: {} {:?}", python.display(), args);
+
+    // Open log file for stdout/stderr redirect
+    let log_file = fs::File::create(&log_path)
+        .map_err(|e| format!("Failed to create palace log: {}", e))?;
+    let log_err = log_file.try_clone()
+        .map_err(|e| format!("Failed to clone log handle: {}", e))?;
+
+    Command::new(python.to_str().unwrap())
+        .args(&args)
+        .stdout(std::process::Stdio::from(log_file))
+        .stderr(std::process::Stdio::from(log_err))
+        .spawn()
+        .map_err(|e| format!("Failed to start Memory Palace: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+fn start_palace() -> Result<(), String> {
+    start_palace_server()
+}
+
+#[tauri::command]
+fn stop_palace() -> Result<(), String> {
+    info!("Stopping Memory Palace...");
+    #[cfg(unix)]
+    {
+        let _ = Command::new("pkill")
+            .args(["-f", "memory_palace"])
+            .output();
+    }
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/F", "/IM", "python.exe"])
+            .output();
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn get_palace_port() -> u16 {
+    PALACE_DEFAULT_PORT
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -496,7 +795,14 @@ pub fn run() {
             get_gateway_port_setting,
             install_openclaw,
             start_gateway,
-            stop_gateway
+            stop_gateway,
+            check_python_installed,
+            check_palace_installed,
+            check_palace_health,
+            install_palace,
+            start_palace,
+            stop_palace,
+            get_palace_port
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

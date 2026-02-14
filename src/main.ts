@@ -1698,32 +1698,67 @@ async function loadSpaceCron(space: string) {
 // ── Memory Palace ──────────────────────────────────────────────────────────
 let _palaceInitialized = false;
 let _palaceAvailable = false;
+let _palaceSkipped = false;
 
 async function loadMemoryPalace() {
   if (!wsConnected) return;
 
-  // Check if memory-palace skill is installed (only once)
+  // Check if memory-palace is running (via Tauri or gateway skills)
   if (!_palaceInitialized) {
     _palaceInitialized = true;
-    try {
-      const status = await gateway.skillsStatus();
-      const skills = status.skills ?? [];
-      _palaceAvailable = skills.some(
-        (s: { name: string; installed?: boolean; enabled?: boolean }) =>
-          s.name.toLowerCase().includes('memory') && s.installed !== false && s.enabled !== false,
-      );
-    } catch {
-      _palaceAvailable = false;
+
+    // First: check via Tauri if the local palace server is running
+    if (invoke) {
+      try {
+        const running = await invoke<boolean>('check_palace_health');
+        _palaceAvailable = running;
+        if (running) {
+          console.log('[palace] Local Memory Palace server detected');
+        }
+      } catch {
+        _palaceAvailable = false;
+      }
     }
+
+    // Fallback: check via gateway skills if Tauri check didn't find it
+    if (!_palaceAvailable) {
+      try {
+        const status = await gateway.skillsStatus();
+        const skills = status.skills ?? [];
+        _palaceAvailable = skills.some(
+          (s: { name: string; installed?: boolean; enabled?: boolean }) =>
+            s.name.toLowerCase().includes('memory') && s.installed !== false && s.enabled !== false,
+        );
+      } catch {
+        _palaceAvailable = false;
+      }
+    }
+
     initPalaceTabs();
     initPalaceRecall();
     initPalaceRemember();
     initPalaceGraph();
+    initPalaceInstall();
 
-    // If palace not available, default to Files tab and hide Agent Files divider
-    // (sidebar already shows files as the main content)
+    const banner = $('palace-install-banner');
     const filesDivider = $('palace-files-divider');
-    if (!_palaceAvailable) {
+
+    if (!_palaceAvailable && !_palaceSkipped) {
+      // Show install banner
+      if (banner) banner.style.display = 'flex';
+      // Check Python availability for the banner
+      if (invoke) {
+        try {
+          const hasPython = await invoke<boolean>('check_python_installed');
+          const reqEl = $('palace-req-python');
+          const statusEl = $('palace-req-python-status');
+          if (reqEl) reqEl.classList.add(hasPython ? 'ready' : 'missing');
+          if (statusEl) statusEl.textContent = hasPython ? '✓ found' : '✗ not found';
+        } catch { /* ignore */ }
+      }
+    } else if (!_palaceAvailable && _palaceSkipped) {
+      // Skipped — show files mode
+      if (banner) banner.style.display = 'none';
       document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
       document.querySelector('.palace-tab[data-palace-tab="files"]')?.classList.add('active');
@@ -1733,6 +1768,8 @@ async function loadMemoryPalace() {
       const memoryListBelow = $('memory-list');
       if (memoryListBelow) memoryListBelow.style.display = 'none';
     } else {
+      // Palace is available — full mode
+      if (banner) banner.style.display = 'none';
       if (filesDivider) filesDivider.style.display = '';
     }
   }
@@ -1740,6 +1777,78 @@ async function loadMemoryPalace() {
   // Load palace stats + memory list via gateway
   await loadPalaceStats();
   await loadPalaceSidebar();
+}
+
+function initPalaceInstall() {
+  // Install button
+  $('palace-install-btn')?.addEventListener('click', async () => {
+    const btn = $('palace-install-btn') as HTMLButtonElement | null;
+    const progress = $('palace-install-progress');
+    const progressBar = $('palace-progress-bar') as HTMLElement | null;
+    const progressText = $('palace-progress-text') as HTMLElement | null;
+    if (!btn || !invoke) return;
+
+    btn.disabled = true;
+    btn.textContent = 'Installing…';
+    if (progress) progress.style.display = '';
+
+    try {
+      // Listen for progress events
+      if (listen) {
+        await listen<{ percent: number; message: string }>('palace-install-progress', (event: { payload: { percent: number; message: string } }) => {
+          const { percent, message } = event.payload;
+          if (progressBar) progressBar.style.width = `${percent}%`;
+          if (progressText) progressText.textContent = message;
+        });
+      }
+
+      await invoke('install_palace');
+
+      // Check if it's now running
+      await new Promise(r => setTimeout(r, 2000));
+      const running = await invoke<boolean>('check_palace_health').catch(() => false);
+
+      if (running) {
+        _palaceAvailable = true;
+        _palaceInitialized = false; // Re-initialize to load palace mode
+        const banner = $('palace-install-banner');
+        if (banner) banner.style.display = 'none';
+        await loadMemoryPalace();
+        loadMemory();
+      } else {
+        if (progressText) progressText.textContent = 'Installed! Starting server… refresh in a moment.';
+        btn.textContent = 'Refresh';
+        btn.disabled = false;
+        btn.onclick = () => {
+          _palaceInitialized = false;
+          loadMemoryPalace();
+        };
+      }
+    } catch (e) {
+      if (progressText) progressText.textContent = `Error: ${e}`;
+      btn.textContent = 'Retry';
+      btn.disabled = false;
+    }
+  });
+
+  // Skip button
+  $('palace-skip-btn')?.addEventListener('click', () => {
+    _palaceSkipped = true;
+    const banner = $('palace-install-banner');
+    if (banner) banner.style.display = 'none';
+
+    // Switch to files mode
+    document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
+    document.querySelector('.palace-tab[data-palace-tab="files"]')?.classList.add('active');
+    const fp = $('palace-files-panel');
+    if (fp) fp.style.display = 'flex';
+
+    const filesDivider = $('palace-files-divider');
+    if (filesDivider) filesDivider.style.display = 'none';
+    const memoryListBelow = $('memory-list');
+    if (memoryListBelow) memoryListBelow.style.display = 'none';
+  });
 }
 
 async function loadPalaceStats() {
@@ -2221,6 +2330,7 @@ async function renderPalaceGraph() {
 // Palace refresh button
 $('palace-refresh')?.addEventListener('click', async () => {
   _palaceInitialized = false;
+  _palaceSkipped = false;
   await loadMemoryPalace();
   loadMemory();
 });
