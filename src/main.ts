@@ -483,12 +483,29 @@ async function loadChatHistory(sessionKey: string) {
   }
 }
 
+/** Extract readable text from Anthropic-style content blocks or plain strings */
+function extractContent(content: unknown): string {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) {
+    return content
+      .filter((block: Record<string, unknown>) => block.type === 'text' && typeof block.text === 'string')
+      .map((block: Record<string, unknown>) => block.text as string)
+      .join('\n');
+  }
+  if (content && typeof content === 'object') {
+    const obj = content as Record<string, unknown>;
+    if (obj.type === 'text' && typeof obj.text === 'string') return obj.text;
+  }
+  if (content == null) return '';
+  return String(content);
+}
+
 function chatMsgToMessage(m: ChatMessage): Message {
   const ts = m.ts ?? m.timestamp;
   return {
     id: m.id ?? undefined,
     role: m.role as 'user' | 'assistant' | 'system',
-    content: m.content ?? '',
+    content: extractContent(m.content),
     timestamp: ts ? new Date(ts as string | number) : new Date(),
     toolCalls: m.toolCalls,
   };
@@ -528,10 +545,9 @@ async function sendMessage() {
     const result = await gateway.chatSend(sessionKey, content);
     hideLoadingIndicator();
 
-    if (result.text) {
-      addMessage({ role: 'assistant', content: result.text, timestamp: new Date(), toolCalls: result.toolCalls });
-    } else if (result.response) {
-      addMessage({ role: 'assistant', content: typeof result.response === 'string' ? result.response : JSON.stringify(result.response), timestamp: new Date() });
+    const responseText = extractContent(result.text) || extractContent(result.response) || extractContent((result as unknown as Record<string, unknown>).content);
+    if (responseText) {
+      addMessage({ role: 'assistant', content: responseText, timestamp: new Date(), toolCalls: result.toolCalls });
     }
 
     if (result.sessionKey) currentSessionKey = result.sessionKey;
