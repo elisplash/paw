@@ -36,6 +36,9 @@ let isLoading = false;
 let currentSessionKey: string | null = null;
 let sessions: Session[] = [];
 let wsConnected = false;
+let _streamingContent = '';  // accumulates deltas for current streaming response
+let _streamingEl: HTMLElement | null = null;  // the live-updating DOM element
+let _streamingRunId: string | null = null;
 
 function getPortFromUrl(url: string): number {
   if (!url) return 18789;
@@ -538,31 +541,73 @@ async function sendMessage() {
   if (chatInput) { chatInput.value = ''; chatInput.style.height = 'auto'; }
   isLoading = true;
   if (chatSend) chatSend.disabled = true;
-  showLoadingIndicator();
+
+  // Prepare streaming UI — show an empty assistant bubble that will fill with deltas
+  _streamingContent = '';
+  _streamingRunId = null;
+  showStreamingMessage();
 
   try {
     const sessionKey = currentSessionKey ?? 'default';
     const result = await gateway.chatSend(sessionKey, content);
-    hideLoadingIndicator();
 
-    const responseText = extractContent(result.text) || extractContent(result.response) || extractContent((result as unknown as Record<string, unknown>).content);
-    if (responseText) {
-      addMessage({ role: 'assistant', content: responseText, timestamp: new Date(), toolCalls: result.toolCalls });
-    }
+    // Streaming may have already populated the bubble via agent events.
+    // Use the final result as the canonical content (in case deltas were missed).
+    const finalText = extractContent(result.text) || extractContent(result.response) || extractContent((result as unknown as Record<string, unknown>).content);
+    finalizeStreaming(finalText || _streamingContent, result.toolCalls);
 
     if (result.sessionKey) currentSessionKey = result.sessionKey;
     loadSessions();
   } catch (error) {
     console.error('Chat error:', error);
-    hideLoadingIndicator();
-    addMessage({
-      role: 'assistant',
-      content: `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`,
-      timestamp: new Date(),
-    });
+    const errText = _streamingContent
+      ? _streamingContent + '\n\n(Error: connection interrupted)'
+      : `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`;
+    finalizeStreaming(errText);
   } finally {
     isLoading = false;
     if (chatSend) chatSend.disabled = false;
+  }
+}
+
+/** Show an empty assistant bubble for streaming content */
+function showStreamingMessage() {
+  if (chatEmpty) chatEmpty.style.display = 'none';
+  const div = document.createElement('div');
+  div.className = 'message assistant';
+  div.id = 'streaming-message';
+  const contentEl = document.createElement('div');
+  contentEl.className = 'message-content';
+  contentEl.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+  const time = document.createElement('div');
+  time.className = 'message-time';
+  time.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  div.appendChild(contentEl);
+  div.appendChild(time);
+  chatMessages?.appendChild(div);
+  _streamingEl = contentEl;
+  if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+/** Append a text delta to the streaming bubble */
+function appendStreamingDelta(text: string) {
+  _streamingContent += text;
+  if (_streamingEl) {
+    _streamingEl.textContent = _streamingContent;
+    if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+}
+
+/** Finalize streaming: replace the live bubble with a permanent message */
+function finalizeStreaming(finalContent: string, toolCalls?: import('./types').ToolCall[]) {
+  // Remove the streaming element
+  $('streaming-message')?.remove();
+  _streamingEl = null;
+  _streamingRunId = null;
+  _streamingContent = '';
+
+  if (finalContent) {
+    addMessage({ role: 'assistant', content: finalContent, timestamp: new Date(), toolCalls });
   }
 }
 
@@ -605,23 +650,42 @@ function renderMessages() {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-function showLoadingIndicator() {
-  if (chatEmpty) chatEmpty.style.display = 'none';
-  const loadingDiv = document.createElement('div');
-  loadingDiv.className = 'message assistant';
-  loadingDiv.id = 'loading-message';
-  loadingDiv.innerHTML = `<div class="message-content"><div class="loading-dots"><span></span><span></span><span></span></div></div>`;
-  chatMessages?.appendChild(loadingDiv);
-  if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
-}
+// Listen for streaming agent events — update chat bubble in real-time
+gateway.on('agent', (payload: unknown) => {
+  try {
+    const evt = payload as import('./types').AgentEvent;
+    // Only process events for the current streaming run
+    if (!isLoading) return;
+    if (_streamingRunId && evt.runId && evt.runId !== _streamingRunId) return;
 
-function hideLoadingIndicator() {
-  $('loading-message')?.remove();
-}
-
-// Listen for streaming agent events
-gateway.on('agent', (_payload: unknown) => {
-  // Could update streaming indicator here in the future
+    switch (evt.type) {
+      case 'start':
+        _streamingRunId = evt.runId ?? null;
+        break;
+      case 'delta':
+        if (evt.content) {
+          appendStreamingDelta(evt.content);
+        }
+        break;
+      case 'tool-start':
+        if (evt.tool && _streamingEl) {
+          // Show tool use indicator inline
+          appendStreamingDelta(`\n\n> Using ${evt.tool}...`);
+        }
+        break;
+      case 'tool-done':
+        // Could show tool result — for now just note completion
+        break;
+      case 'error':
+        if (evt.error) {
+          appendStreamingDelta(`\n\nError: ${evt.error}`);
+        }
+        break;
+      // 'done' is handled by the chatSend response resolving
+    }
+  } catch (e) {
+    console.warn('[main] Agent event handler error:', e);
+  }
 });
 
 // ── Channels ───────────────────────────────────────────────────────────────
