@@ -1703,24 +1703,24 @@ let _palaceSkipped = false;
 async function loadMemoryPalace() {
   if (!wsConnected) return;
 
-  // Check if memory-palace is running (via Tauri or gateway skills)
+  // Check if memory-palace is installed and registered as a gateway skill
   if (!_palaceInitialized) {
     _palaceInitialized = true;
 
-    // First: check via Tauri if the local palace server is running
+    // Check via Tauri if palace is installed + registered as MCP skill
     if (invoke) {
       try {
-        const running = await invoke<boolean>('check_palace_health');
-        _palaceAvailable = running;
-        if (running) {
-          console.log('[palace] Local Memory Palace server detected');
+        const healthy = await invoke<boolean>('check_palace_health');
+        _palaceAvailable = healthy;
+        if (healthy) {
+          console.log('[palace] Memory Palace installed and registered as MCP skill');
         }
       } catch {
         _palaceAvailable = false;
       }
     }
 
-    // Fallback: check via gateway skills if Tauri check didn't find it
+    // Fallback: check via gateway skills API
     if (!_palaceAvailable) {
       try {
         const status = await gateway.skillsStatus();
@@ -1754,6 +1754,15 @@ async function loadMemoryPalace() {
           const statusEl = $('palace-req-python-status');
           if (reqEl) reqEl.classList.add(hasPython ? 'ready' : 'missing');
           if (statusEl) statusEl.textContent = hasPython ? '✓ found' : '✗ not found';
+        } catch { /* ignore */ }
+
+        // Check Ollama availability
+        try {
+          const hasOllama = await invoke<boolean>('check_ollama_installed');
+          const reqEl = $('palace-req-ollama');
+          const statusEl = $('palace-req-ollama-status');
+          if (reqEl) reqEl.classList.add(hasOllama ? 'ready' : 'missing');
+          if (statusEl) statusEl.textContent = hasOllama ? '✓ found' : '✗ not found — install from ollama.ai';
         } catch { /* ignore */ }
       }
     } else if (!_palaceAvailable && _palaceSkipped) {
@@ -1804,11 +1813,11 @@ function initPalaceInstall() {
 
       await invoke('install_palace');
 
-      // Check if it's now running
-      await new Promise(r => setTimeout(r, 2000));
-      const running = await invoke<boolean>('check_palace_health').catch(() => false);
+      // Check if it's now registered as a gateway skill
+      await new Promise(r => setTimeout(r, 1000));
+      const healthy = await invoke<boolean>('check_palace_health').catch(() => false);
 
-      if (running) {
+      if (healthy) {
         _palaceAvailable = true;
         _palaceInitialized = false; // Re-initialize to load palace mode
         const banner = $('palace-install-banner');
@@ -1816,7 +1825,7 @@ function initPalaceInstall() {
         await loadMemoryPalace();
         loadMemory();
       } else {
-        // Get palace.log for diagnostics
+        // Installed but not yet registered — might need gateway restart
         let logTail = '';
         try {
           logTail = await invoke<string>('get_palace_log');
@@ -1824,8 +1833,8 @@ function initPalaceInstall() {
 
         if (progressText) {
           progressText.textContent = logTail
-            ? 'Server not responding. See log below:'
-            : 'Installed but server not responding. Try Refresh.';
+            ? 'Installed but skill registration may need a gateway restart. See log below:'
+            : 'Installed! You may need to restart the gateway for the skill to activate.';
         }
 
         // Show log output if available

@@ -877,7 +877,7 @@
               <h2 class="palace-install-title">Set Up Memory Palace</h2>
               <p class="palace-install-desc">
                 Add semantic memory, knowledge graphs, and auto-linking to your agent.
-                One click installs everything — Python venv, embeddings model, and local server.
+                One click installs everything — Python venv, Ollama models, and MCP integration.
               </p>
               <div class="palace-install-reqs">
                 <div class="palace-install-req" id="palace-req-python">
@@ -885,13 +885,18 @@
                   <span>Python 3.10+</span>
                   <span class="palace-req-status" id="palace-req-python-status">checking…</span>
                 </div>
-                <div class="palace-install-req">
+                <div class="palace-install-req" id="palace-req-ollama">
                   <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-                  <span>memory-palace package</span>
+                  <span>Ollama</span>
+                  <span class="palace-req-status" id="palace-req-ollama-status">checking…</span>
                 </div>
                 <div class="palace-install-req">
                   <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-                  <span>Local embedding model</span>
+                  <span>memory-palace (git)</span>
+                </div>
+                <div class="palace-install-req">
+                  <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
+                  <span>Embedding model (nomic-embed-text)</span>
                 </div>
               </div>
               <div class="palace-install-progress" id="palace-install-progress" style="display:none">

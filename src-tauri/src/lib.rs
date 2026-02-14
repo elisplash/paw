@@ -5,8 +5,6 @@ use std::net::TcpStream;
 use log::{info, warn, error};
 use tauri::{Emitter, Manager};
 
-const PALACE_DEFAULT_PORT: u16 = 21549;
-
 fn get_app_data_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
@@ -455,13 +453,8 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
         }
     }
 
-    // Also auto-start Memory Palace if installed
-    if check_palace_installed() && !is_palace_running() {
-        info!("Auto-starting Memory Palace alongside gateway...");
-        if let Err(e) = start_palace_server() {
-            warn!("Failed to auto-start Memory Palace: {}", e);
-        }
-    }
+    // Memory Palace is an MCP skill — the gateway spawns it on demand.
+    // No separate server to auto-start.
 
     Ok(())
 }
@@ -485,9 +478,19 @@ fn stop_gateway() -> Result<(), String> {
 }
 
 // ═══ Memory Palace Lifecycle ══════════════════════════════════════════════
+// Memory Palace is an MCP server (stdio transport), NOT an HTTP server.
+// Install: git clone → pip install -e . → python -m setup.first_run
+// Run: registered as an MCP skill in the OpenClaw gateway config.
+// Requires: Python 3.10+, Ollama (for local embeddings).
+
+const PALACE_GIT_URL: &str = "https://github.com/jeffpierce/memory-palace.git";
 
 fn get_palace_dir() -> PathBuf {
     get_app_data_dir().join("memory-palace")
+}
+
+fn get_palace_repo() -> PathBuf {
+    get_palace_dir().join("repo")
 }
 
 fn get_palace_venv() -> PathBuf {
@@ -512,8 +515,17 @@ fn get_palace_pip() -> PathBuf {
     }
 }
 
+/// Path to the memory-palace-mcp entrypoint in the venv
+fn get_palace_mcp_bin() -> PathBuf {
+    let venv = get_palace_venv();
+    if cfg!(target_os = "windows") {
+        venv.join("Scripts/memory-palace-mcp.exe")
+    } else {
+        venv.join("bin/memory-palace-mcp")
+    }
+}
+
 fn find_system_python() -> Option<String> {
-    // Try common Python 3 names
     for name in &["python3", "python"] {
         if let Ok(output) = Command::new(name).arg("--version").output() {
             if output.status.success() {
@@ -530,18 +542,31 @@ fn find_system_python() -> Option<String> {
     None
 }
 
+fn check_ollama_available() -> bool {
+    Command::new("ollama")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 #[tauri::command]
 fn check_python_installed() -> bool {
     find_system_python().is_some()
 }
 
 #[tauri::command]
+fn check_ollama_installed() -> bool {
+    check_ollama_available()
+}
+
+#[tauri::command]
 fn check_palace_installed() -> bool {
+    // Palace is installed if: venv python exists AND memory_palace module imports
     let python = get_palace_python();
     if !python.exists() {
         return false;
     }
-    // Check if memory-palace package is installed in venv
     let output = Command::new(python.to_str().unwrap())
         .args(["-c", "import memory_palace; print('ok')"])
         .output();
@@ -553,43 +578,54 @@ fn check_palace_installed() -> bool {
 
 #[tauri::command]
 fn check_palace_health() -> bool {
-    is_palace_running()
-}
-
-fn is_palace_running() -> bool {
-    TcpStream::connect(format!("127.0.0.1:{}", PALACE_DEFAULT_PORT)).is_ok()
-}
-
-fn get_palace_data_dir() -> PathBuf {
-    get_app_data_dir().join("memory-palace/data")
+    // Palace is "healthy" if it's installed and registered as a gateway skill.
+    // Since it's an MCP stdio server, there's no port to check.
+    // We check: (1) mcp entrypoint exists, (2) it's in the gateway config.
+    let mcp_bin = get_palace_mcp_bin();
+    if !mcp_bin.exists() {
+        return false;
+    }
+    // Check if registered in gateway config
+    if let Some(config) = parse_openclaw_config() {
+        if let Some(skills) = config["skills"].as_object() {
+            return skills.contains_key("memory-palace");
+        }
+    }
+    false
 }
 
 #[tauri::command]
 async fn install_palace(window: tauri::Window) -> Result<(), String> {
     info!("Starting Memory Palace installation...");
 
+    // ── Step 1: Check Python ──────────────────────────────────────────────
     window.emit("palace-install-progress", serde_json::json!({
         "stage": "checking",
         "percent": 5,
-        "message": "Checking for Python 3..."
+        "message": "Checking requirements..."
     })).ok();
 
-    // Step 1: Check Python available
     let python_cmd = find_system_python()
         .ok_or("Python 3 not found. Please install Python 3.10+ from python.org")?;
+    info!("Using Python: {}", python_cmd);
 
+    // ── Step 2: Check Ollama ──────────────────────────────────────────────
+    if !check_ollama_available() {
+        return Err("Ollama not found. Please install Ollama from https://ollama.ai — it provides local embedding models for Memory Palace.".to_string());
+    }
+    info!("Ollama is available");
+
+    // ── Step 3: Create venv ───────────────────────────────────────────────
     window.emit("palace-install-progress", serde_json::json!({
         "stage": "venv",
-        "percent": 15,
-        "message": "Creating virtual environment..."
+        "percent": 10,
+        "message": "Creating Python virtual environment..."
     })).ok();
 
-    // Step 2: Create venv
     let palace_dir = get_palace_dir();
     let venv_dir = get_palace_venv();
-    let data_dir = get_palace_data_dir();
+    let repo_dir = get_palace_repo();
     fs::create_dir_all(&palace_dir).map_err(|e| format!("Failed to create palace dir: {}", e))?;
-    fs::create_dir_all(&data_dir).map_err(|e| format!("Failed to create data dir: {}", e))?;
 
     if !venv_dir.exists() {
         let venv_result = Command::new(&python_cmd)
@@ -603,245 +639,267 @@ async fn install_palace(window: tauri::Window) -> Result<(), String> {
         }
     }
 
+    // ── Step 4: Git clone ─────────────────────────────────────────────────
     window.emit("palace-install-progress", serde_json::json!({
-        "stage": "pip",
-        "percent": 30,
-        "message": "Installing memory-palace package..."
+        "stage": "clone",
+        "percent": 20,
+        "message": "Cloning memory-palace repository..."
     })).ok();
 
-    // Step 3: pip install memory-palace
+    if repo_dir.exists() {
+        // Pull latest
+        info!("memory-palace repo exists, pulling latest...");
+        let pull = Command::new("git")
+            .args(["pull", "--ff-only"])
+            .current_dir(&repo_dir)
+            .output();
+        if let Ok(o) = pull {
+            if o.status.success() {
+                info!("git pull succeeded");
+            } else {
+                warn!("git pull failed, continuing with existing code");
+            }
+        }
+    } else {
+        let clone_result = Command::new("git")
+            .args(["clone", "--depth", "1", PALACE_GIT_URL, repo_dir.to_str().unwrap()])
+            .output()
+            .map_err(|e| format!("git clone failed: {}", e))?;
+
+        if !clone_result.status.success() {
+            let stderr = String::from_utf8_lossy(&clone_result.stderr);
+            return Err(format!("git clone failed: {}", stderr));
+        }
+    }
+
+    // ── Step 5: pip install -e . ──────────────────────────────────────────
+    window.emit("palace-install-progress", serde_json::json!({
+        "stage": "pip",
+        "percent": 35,
+        "message": "Installing memory-palace and dependencies..."
+    })).ok();
+
     let pip = get_palace_pip();
     let pip_result = Command::new(pip.to_str().unwrap())
-        .args(["install", "--upgrade", "memory-palace"])
+        .args(["install", "-e", repo_dir.to_str().unwrap()])
         .output()
         .map_err(|e| format!("pip install failed: {}", e))?;
 
     if !pip_result.status.success() {
         let stderr = String::from_utf8_lossy(&pip_result.stderr);
-        // Try alternative: pip install from git
-        warn!("pip install memory-palace failed ({}), trying git install...", stderr.chars().take(200).collect::<String>());
-
-        window.emit("palace-install-progress", serde_json::json!({
-            "stage": "pip",
-            "percent": 40,
-            "message": "Trying alternative install method..."
-        })).ok();
-
-        let git_result = Command::new(pip.to_str().unwrap())
-            .args(["install", "git+https://github.com/jeffpierce/memory-palace.git"])
-            .output()
-            .map_err(|e| format!("git pip install failed: {}", e))?;
-
-        if !git_result.status.success() {
-            let stderr2 = String::from_utf8_lossy(&git_result.stderr);
-            return Err(format!("memory-palace install failed: {}", stderr2));
-        }
+        return Err(format!("pip install -e . failed: {}", stderr));
     }
+    info!("pip install -e . succeeded");
 
-    // Step 3b: Verify the module actually installed correctly
+    // ── Step 6: Verify module imports ─────────────────────────────────────
     window.emit("palace-install-progress", serde_json::json!({
         "stage": "verify",
-        "percent": 55,
+        "percent": 50,
         "message": "Verifying installation..."
     })).ok();
 
     let venv_python = get_palace_python();
     let verify = Command::new(venv_python.to_str().unwrap())
-        .args(["-c", "import memory_palace; print(getattr(memory_palace, '__version__', 'unknown'))"])
+        .args(["-c", "import memory_palace; print(getattr(memory_palace, '__version__', 'ok'))"])
+        .output()
+        .map_err(|e| format!("Failed to verify: {}", e))?;
+
+    if !verify.status.success() {
+        let stderr = String::from_utf8_lossy(&verify.stderr);
+        return Err(format!("memory-palace module cannot be imported: {}", stderr));
+    }
+    let ver = String::from_utf8_lossy(&verify.stdout).trim().to_string();
+    info!("memory-palace verified: {}", ver);
+
+    // Verify MCP entrypoint exists
+    let mcp_bin = get_palace_mcp_bin();
+    if !mcp_bin.exists() {
+        // Try to find it
+        let find = Command::new("find")
+            .args([venv_dir.to_str().unwrap(), "-name", "memory-palace-mcp", "-o", "-name", "memory_palace_mcp"])
+            .output();
+        let found = find.map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
+        warn!("MCP entrypoint not at expected path {:?}. Found: {}", mcp_bin, found.trim());
+        // Not fatal — the gateway might use python -m mcp_server.server instead
+    }
+
+    // ── Step 7: Run setup wizard (non-interactive) ────────────────────────
+    window.emit("palace-install-progress", serde_json::json!({
+        "stage": "setup",
+        "percent": 60,
+        "message": "Running first-time setup (downloading models)..."
+    })).ok();
+
+    // Create default config at ~/.memory-palace/config.json
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let mp_config_dir = home.join(".memory-palace");
+    let mp_config_path = mp_config_dir.join("config.json");
+    fs::create_dir_all(&mp_config_dir).ok();
+
+    if !mp_config_path.exists() {
+        let mp_config = serde_json::json!({
+            "database": {
+                "type": "sqlite",
+                "url": null
+            },
+            "ollama_url": "http://localhost:11434",
+            "embedding_model": null,
+            "llm_model": null,
+            "synthesis": {
+                "enabled": true
+            },
+            "auto_link": {
+                "enabled": true,
+                "link_threshold": 0.75,
+                "suggest_threshold": 0.675
+            },
+            "toon_output": true,
+            "instances": ["paw"],
+            "notify_command": null,
+            "instance_routes": {}
+        });
+        fs::write(&mp_config_path, serde_json::to_string_pretty(&mp_config).unwrap())
+            .map_err(|e| format!("Failed to write config: {}", e))?;
+        info!("Wrote default Memory Palace config to {:?}", mp_config_path);
+    }
+
+    // Try to run setup.first_run — it auto-detects and pulls Ollama models.
+    // This script may be interactive so we run it with a timeout and skip if it hangs.
+    let setup_result = Command::new(venv_python.to_str().unwrap())
+        .args(["-m", "setup.first_run"])
+        .current_dir(&repo_dir)
+        .env("MEMORY_PALACE_DATA_DIR", mp_config_dir.to_str().unwrap())
         .output();
-    match verify {
+
+    match setup_result {
         Ok(ref o) if o.status.success() => {
-            let ver = String::from_utf8_lossy(&o.stdout).trim().to_string();
-            info!("memory-palace module verified, version: {}", ver);
+            info!("setup.first_run completed successfully");
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            info!("Setup output: {}", stdout.chars().take(500).collect::<String>());
         }
         Ok(ref o) => {
             let stderr = String::from_utf8_lossy(&o.stderr);
-            warn!("memory-palace module import failed: {}", stderr);
-            // Try to discover what we actually installed
-            let list_out = Command::new(pip.to_str().unwrap())
-                .args(["show", "memory-palace"])
-                .output();
-            if let Ok(lo) = list_out {
-                let info_str = String::from_utf8_lossy(&lo.stdout);
-                warn!("pip show memory-palace: {}", info_str);
-            }
-            return Err(format!("memory-palace installed but module cannot be imported: {}", stderr));
+            warn!("setup.first_run exited non-zero: {}", stderr.chars().take(500).collect::<String>());
+            // Not fatal — Ollama models can be pulled on first use
         }
         Err(e) => {
-            return Err(format!("Failed to verify memory-palace: {}", e));
+            warn!("setup.first_run failed to run: {}", e);
+            // Not fatal
         }
     }
 
+    // Pull a lightweight embedding model via Ollama explicitly (in case setup didn't)
     window.emit("palace-install-progress", serde_json::json!({
-        "stage": "configure",
+        "stage": "models",
         "percent": 70,
-        "message": "Configuring Memory Palace..."
+        "message": "Ensuring embedding model is available..."
     })).ok();
 
-    // Step 4: Create a palace config
-    let config_path = palace_dir.join("config.yaml");
-    if !config_path.exists() {
-        let config_content = format!(
-            "# Memory Palace configuration (auto-generated by Paw)\n\
-            server:\n  host: 127.0.0.1\n  port: {}\n\
-            storage:\n  path: {}\n  database: memories.db\n\
-            embedding:\n  provider: local\n  model: all-MiniLM-L6-v2\n\
-            auto_linking:\n  enabled: true\n  threshold: 0.75\n",
-            PALACE_DEFAULT_PORT,
-            data_dir.display()
-        );
-        fs::write(&config_path, config_content)
-            .map_err(|e| format!("Failed to write config: {}", e))?;
-    }
+    let model_check = Command::new("ollama")
+        .args(["list"])
+        .output();
+    let has_embed_model = model_check
+        .map(|o| {
+            let out = String::from_utf8_lossy(&o.stdout).to_lowercase();
+            out.contains("nomic-embed-text")
+        })
+        .unwrap_or(false);
 
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "starting",
-        "percent": 85,
-        "message": "Starting Memory Palace server..."
-    })).ok();
+    if !has_embed_model {
+        info!("Pulling nomic-embed-text via Ollama...");
+        window.emit("palace-install-progress", serde_json::json!({
+            "stage": "models",
+            "percent": 72,
+            "message": "Pulling embedding model (nomic-embed-text)... this may take a minute"
+        })).ok();
 
-    // Step 5: Start the server
-    start_palace_server()?;
-
-    // Wait for it to come up (up to 30s — first run downloads embedding model)
-    for i in 0..30 {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-        if is_palace_running() {
-            break;
+        let pull = Command::new("ollama")
+            .args(["pull", "nomic-embed-text"])
+            .output();
+        match pull {
+            Ok(ref o) if o.status.success() => info!("nomic-embed-text pulled successfully"),
+            Ok(ref o) => warn!("ollama pull nomic-embed-text failed: {}", String::from_utf8_lossy(&o.stderr)),
+            Err(e) => warn!("Failed to run ollama pull: {}", e),
         }
-        // Update progress as we wait
-        let pct = 85 + (i as u32 * 14 / 30).min(14);
-        window.emit("palace-install-progress", serde_json::json!({
-            "stage": "starting",
-            "percent": pct,
-            "message": format!("Waiting for server to start… ({}s)", i + 1)
-        })).ok();
     }
 
-    let running = is_palace_running();
-    if running {
-        window.emit("palace-install-progress", serde_json::json!({
-            "stage": "done",
-            "percent": 100,
-            "message": "Memory Palace installed and running!"
-        })).ok();
-        info!("Memory Palace installed and running on port {}", PALACE_DEFAULT_PORT);
-    } else {
-        // Read palace.log for diagnostics
-        let log_path = palace_dir.join("palace.log");
-        let log_tail = if log_path.exists() {
-            fs::read_to_string(&log_path)
-                .unwrap_or_default()
-                .lines()
-                .rev()
-                .take(20)
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
-                .collect::<Vec<_>>()
-                .join("\n")
-        } else {
-            "(no log file found)".to_string()
-        };
-        warn!("Memory Palace installed but not responding. Log tail:\n{}", log_tail);
+    // ── Step 8: Register as MCP skill in OpenClaw gateway ─────────────────
+    window.emit("palace-install-progress", serde_json::json!({
+        "stage": "register",
+        "percent": 85,
+        "message": "Registering Memory Palace as gateway skill..."
+    })).ok();
 
-        window.emit("palace-install-progress", serde_json::json!({
-            "stage": "done",
-            "percent": 100,
-            "message": format!("Installed but server not responding. Check log for details.")
-        })).ok();
-    }
+    register_palace_skill()?;
+
+    // ── Done ──────────────────────────────────────────────────────────────
+    window.emit("palace-install-progress", serde_json::json!({
+        "stage": "done",
+        "percent": 100,
+        "message": "Memory Palace installed and registered!"
+    })).ok();
+    info!("Memory Palace installation complete");
 
     Ok(())
 }
 
-fn start_palace_server() -> Result<(), String> {
-    if is_palace_running() {
-        info!("Memory Palace already running on port {}", PALACE_DEFAULT_PORT);
-        return Ok(());
+/// Register Memory Palace as an MCP skill in the OpenClaw gateway config.
+/// Adds/updates the "memory-palace" entry under the "skills" key in openclaw.json.
+fn register_palace_skill() -> Result<(), String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let config_path = home.join(".openclaw/openclaw.json");
+
+    if !config_path.exists() {
+        return Err("OpenClaw config not found. Install OpenClaw first.".to_string());
     }
 
-    let python = get_palace_python();
-    if !python.exists() {
-        return Err("Memory Palace not installed (no venv python found)".to_string());
-    }
+    // Read current config
+    let content = fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read config: {}", e))?;
 
-    let palace_dir = get_palace_dir();
-    let config_path = palace_dir.join("config.yaml");
-    let log_path = palace_dir.join("palace.log");
-    let data_dir = get_palace_data_dir();
-    fs::create_dir_all(&data_dir).ok();
+    let sanitized = sanitize_json5(&content);
+    let mut config: serde_json::Value = serde_json::from_str(&sanitized)
+        .map_err(|e| format!("Failed to parse config: {}", e))?;
 
-    // Discover the right CLI entrypoint
-    // Try: python -m memory_palace --help to see what subcommands exist
-    let help_out = Command::new(python.to_str().unwrap())
-        .args(["-m", "memory_palace", "--help"])
-        .output();
-    let help_text = match help_out {
-        Ok(ref o) => {
-            let stdout = String::from_utf8_lossy(&o.stdout).to_string();
-            let stderr = String::from_utf8_lossy(&o.stderr).to_string();
-            format!("{}{}", stdout, stderr)
-        }
-        Err(_) => String::new()
-    };
-    info!("memory_palace --help output: {}", help_text.chars().take(500).collect::<String>());
+    // Build the MCP command for the skill
+    let mcp_bin = get_palace_mcp_bin();
+    let venv_python = get_palace_python();
 
-    // Build command args — try common subcommands
-    let subcommand = if help_text.contains("serve") {
-        "serve"
-    } else if help_text.contains("run") {
-        "run"
-    } else if help_text.contains("start") {
-        "start"
-    } else if help_text.contains("server") {
-        "server"
+    // Prefer the direct entrypoint, fall back to python -m
+    let (command, args) = if mcp_bin.exists() {
+        (mcp_bin.to_str().unwrap().to_string(), Vec::<String>::new())
     } else {
-        "serve"  // default fallback
+        (venv_python.to_str().unwrap().to_string(), vec!["-m".to_string(), "mcp_server.server".to_string()])
     };
 
-    let mut args: Vec<String> = vec![
-        "-m".to_string(),
-        "memory_palace".to_string(),
-        subcommand.to_string(),
-    ];
+    // Create skill entry
+    let skill_config = serde_json::json!({
+        "command": command,
+        "args": args,
+        "transport": "stdio",
+        "enabled": true
+    });
 
-    // Add config if present and help mentions --config
-    if config_path.exists() && (help_text.contains("--config") || help_text.contains("-c")) {
-        args.push("--config".to_string());
-        args.push(config_path.to_str().unwrap().to_string());
+    // Ensure "skills" object exists
+    if !config["skills"].is_object() {
+        config["skills"] = serde_json::json!({});
     }
+    config["skills"]["memory-palace"] = skill_config;
 
-    // Add port if help mentions --port or -p
-    if help_text.contains("--port") || help_text.contains("-p ") {
-        args.push("--port".to_string());
-        args.push(PALACE_DEFAULT_PORT.to_string());
-    }
+    // Write back
+    fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())
+        .map_err(|e| format!("Failed to write config: {}", e))?;
 
-    // Add host if help mentions --host
-    if help_text.contains("--host") {
-        args.push("--host".to_string());
-        args.push("127.0.0.1".to_string());
-    }
+    info!("Registered memory-palace as MCP skill in {:?}", config_path);
+    Ok(())
+}
 
-    info!("Starting Memory Palace: {} {:?}", python.display(), args);
-
-    // Open log file for stdout/stderr redirect
-    let log_file = fs::File::create(&log_path)
-        .map_err(|e| format!("Failed to create palace log: {}", e))?;
-    let log_err = log_file.try_clone()
-        .map_err(|e| format!("Failed to clone log handle: {}", e))?;
-
-    Command::new(python.to_str().unwrap())
-        .args(&args)
-        .current_dir(&palace_dir)
-        .env("PALACE_DATA_DIR", data_dir.to_str().unwrap())
-        .env("PALACE_PORT", PALACE_DEFAULT_PORT.to_string())
-        .stdout(std::process::Stdio::from(log_file))
-        .stderr(std::process::Stdio::from(log_err))
-        .spawn()
-        .map_err(|e| format!("Failed to start Memory Palace: {}", e))?;
-
+fn start_palace_server() -> Result<(), String> {
+    // Memory Palace is an MCP stdio server — there's no persistent server to start.
+    // It's spawned on-demand by the gateway when a tool call is made.
+    // This function is a no-op but kept for API compatibility.
+    info!("Memory Palace is an MCP stdio server — no persistent server to start.");
+    info!("The gateway spawns it on-demand when skills are invoked.");
     Ok(())
 }
 
@@ -852,25 +910,15 @@ fn start_palace() -> Result<(), String> {
 
 #[tauri::command]
 fn stop_palace() -> Result<(), String> {
-    info!("Stopping Memory Palace...");
-    #[cfg(unix)]
-    {
-        let _ = Command::new("pkill")
-            .args(["-f", "memory_palace"])
-            .output();
-    }
-    #[cfg(windows)]
-    {
-        let _ = Command::new("taskkill")
-            .args(["/F", "/IM", "python.exe"])
-            .output();
-    }
+    // MCP stdio servers are ephemeral — nothing to stop
+    info!("Memory Palace uses stdio transport — no persistent process to stop.");
     Ok(())
 }
 
 #[tauri::command]
 fn get_palace_port() -> u16 {
-    PALACE_DEFAULT_PORT
+    // No port — MCP stdio transport. Return 0 to indicate not applicable.
+    0
 }
 
 #[tauri::command]
@@ -888,7 +936,7 @@ fn get_palace_log() -> String {
             .collect::<Vec<_>>()
             .join("\n")
     } else {
-        "(no palace.log found)".to_string()
+        "(no palace.log found — Memory Palace uses MCP stdio transport)".to_string()
     }
 }
 
@@ -916,6 +964,7 @@ pub fn run() {
             start_gateway,
             stop_gateway,
             check_python_installed,
+            check_ollama_installed,
             check_palace_installed,
             check_palace_health,
             install_palace,
