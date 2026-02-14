@@ -2376,6 +2376,40 @@ button:focus:not(:focus-visible) { outline: none; }
   border-color: var(--accent);
 }
 
+/* Skill config modal */
+.skill-config-field {
+  margin-bottom: 14px;
+}
+.skill-config-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 5px;
+  letter-spacing: 0.02em;
+}
+.skill-config-field .form-input {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.skill-config-field .field-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.skill-config-missing {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--warning, #E8A317);
+  margin-top: 2px;
+}
+.skill-card.needs-setup {
+  border-left: 3px solid var(--warning, #E8A317);
+}
+
 /* ═══ Foundry Tabs & Modes ═══ */
 .foundry-tabs {
   display: flex;

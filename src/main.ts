@@ -1144,37 +1144,58 @@ async function loadSkills() {
 
       // Server returns disabled/eligible/missing/install — not installed/enabled
       const isEnabled = !skill.disabled;
-      const hasMissingReqs = (skill.missing?.bins?.length ?? 0) > 0
+      const hasMissingBins = (skill.missing?.bins?.length ?? 0) > 0
         || (skill.missing?.anyBins?.length ?? 0) > 0
         || (skill.missing?.os?.length ?? 0) > 0;
-      const isInstalled = skill.always || !hasMissingReqs;
+      const hasMissingEnv = (skill.missing?.env?.length ?? 0) > 0;
+      const hasMissingConfig = (skill.missing?.config?.length ?? 0) > 0;
+      const isInstalled = skill.always || (!hasMissingBins && !hasMissingEnv && !hasMissingConfig);
+      const needsSetup = !hasMissingBins && (hasMissingEnv || hasMissingConfig);
+      const hasEnvRequirements = (skill.requirements?.env?.length ?? 0) > 0;
       const installOptions = skill.install ?? [];
+
+      if (needsSetup) card.className += ' needs-setup';
 
       const enabledClass = isEnabled ? 'enabled' : '';
       const statusLabel = isInstalled
         ? (isEnabled ? 'Enabled' : 'Disabled')
-        : 'Available';
+        : needsSetup ? 'Needs Setup' : 'Available';
       const statusClass = isInstalled
         ? (isEnabled ? 'connected' : 'muted')
-        : 'muted';
+        : needsSetup ? 'warning' : 'muted';
 
       // For the Install button, use the first install spec's ID and label
       const installSpecId = installOptions[0]?.id ?? '';
       const installLabel = installOptions[0]?.label ?? 'Install';
 
+      // Encode skill data for config modal
+      const skillDataAttr = escAttr(JSON.stringify({
+        name: skill.name,
+        skillKey: skill.skillKey ?? skill.name,
+        description: skill.description ?? '',
+        primaryEnv: skill.primaryEnv,
+        requiredEnv: skill.requirements?.env ?? [],
+        missingEnv: skill.missing?.env ?? [],
+        homepage: skill.homepage,
+      }));
+
       card.innerHTML = `
         <div class="skill-card-header">
-          <span class="skill-card-name">${escHtml(skill.name)}</span>
+          <span class="skill-card-name">${skill.emoji ? escHtml(skill.emoji) + ' ' : ''}${escHtml(skill.name)}</span>
           <span class="status-badge ${statusClass}">${statusLabel}</span>
         </div>
         <div class="skill-card-desc">${escHtml(skill.description ?? '')}</div>
+        ${needsSetup ? `<div class="skill-config-missing">⚠ Needs API key${(skill.missing?.env?.length ?? 0) > 1 ? 's' : ''}: ${escHtml((skill.missing?.env ?? []).join(', '))}</div>` : ''}
         <div class="skill-card-footer">
           <div style="display:flex;align-items:center;gap:8px">
             ${skill.homepage ? `<a class="skill-card-link" href="${escAttr(skill.homepage)}" target="_blank">docs ↗</a>` : ''}
           </div>
           <div class="skill-card-actions">
             ${isInstalled ? `
+              ${hasEnvRequirements ? `<button class="btn btn-ghost btn-sm skill-configure" data-skill='${skillDataAttr}' title="Configure">⚙</button>` : ''}
               <button class="skill-toggle ${enabledClass}" data-skill-key="${escAttr(skill.skillKey ?? skill.name)}" data-name="${escAttr(skill.name)}" data-enabled="${isEnabled}" title="${isEnabled ? 'Disable' : 'Enable'}"></button>
+            ` : needsSetup ? `
+              <button class="btn btn-primary btn-sm skill-configure" data-skill='${skillDataAttr}'>Setup</button>
             ` : installOptions.length > 0 ? `
               <button class="btn btn-primary btn-sm skill-install" data-name="${escAttr(skill.name)}" data-install-id="${escAttr(installSpecId)}">${escHtml(installLabel)}</button>
             ` : `
@@ -1246,6 +1267,19 @@ function wireSkillActions() {
       }
     });
   });
+
+  // Configure / Setup buttons
+  document.querySelectorAll('.skill-configure').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const raw = (btn as HTMLElement).dataset.skill;
+      if (!raw) return;
+      try {
+        const data = JSON.parse(raw);
+        openSkillConfigModal(data);
+      } catch { /* ignore parse errors */ }
+    });
+  });
 }
 
 let _skillsToastTimer: number | null = null;
@@ -1262,6 +1296,119 @@ function showSkillsToast(message: string, type: 'success' | 'error' | 'info') {
     _skillsToastTimer = null;
   }, type === 'error' ? 8000 : 4000);
 }
+
+// ── Skill config modal ─────────────────────────────────────────────────────
+interface SkillConfigData {
+  name: string;
+  skillKey: string;
+  description: string;
+  primaryEnv?: string;
+  requiredEnv: string[];
+  missingEnv: string[];
+  homepage?: string;
+}
+
+let _activeSkillConfig: SkillConfigData | null = null;
+
+function openSkillConfigModal(data: SkillConfigData) {
+  const modal = $('skill-config-modal');
+  const title = $('skill-config-title');
+  const desc = $('skill-config-desc');
+  const fields = $('skill-config-fields');
+  if (!modal || !fields) return;
+
+  _activeSkillConfig = data;
+
+  if (title) title.textContent = `Configure ${data.name}`;
+  if (desc) {
+    const parts: string[] = [];
+    if (data.description) parts.push(data.description);
+    if (data.homepage) parts.push(`<a href="${escAttr(data.homepage)}" target="_blank" style="color:var(--accent)">View docs ↗</a>`);
+    desc.innerHTML = parts.join(' — ');
+  }
+
+  // Build one input field per required env var
+  const envVars = data.requiredEnv.length > 0 ? data.requiredEnv : (data.primaryEnv ? [data.primaryEnv] : []);
+  fields.innerHTML = envVars.map(envName => {
+    const isMissing = data.missingEnv.includes(envName);
+    const isPrimary = envName === data.primaryEnv;
+    return `
+      <div class="skill-config-field">
+        <label for="skill-env-${escAttr(envName)}">${escHtml(envName)}${isMissing ? ' <span style="color:var(--warning,#E8A317)">(not set)</span>' : ' <span style="color:var(--success)">✓</span>'}</label>
+        <input type="password" id="skill-env-${escAttr(envName)}" class="form-input"
+          data-env-name="${escAttr(envName)}"
+          data-is-primary="${isPrimary}"
+          placeholder="${isPrimary ? 'Enter your API key' : `Enter value for ${envName}`}"
+          autocomplete="off" spellcheck="false">
+        <div class="field-hint">${isPrimary ? 'This is the main API key for this skill.' : 'Required environment variable.'} Leave blank to keep current value.</div>
+      </div>
+    `;
+  }).join('');
+
+  modal.style.display = 'flex';
+}
+
+function closeSkillConfigModal() {
+  const modal = $('skill-config-modal');
+  if (modal) modal.style.display = 'none';
+  _activeSkillConfig = null;
+}
+
+async function saveSkillConfig() {
+  if (!_activeSkillConfig) return;
+  const fields = $('skill-config-fields');
+  if (!fields) return;
+
+  const data = _activeSkillConfig;
+  const inputs = fields.querySelectorAll<HTMLInputElement>('input[data-env-name]');
+
+  // Collect values
+  const env: Record<string, string> = {};
+  let apiKey: string | undefined;
+
+  inputs.forEach(input => {
+    const envName = input.dataset.envName!;
+    const value = input.value.trim();
+    if (!value) return; // skip blank = keep current
+
+    if (input.dataset.isPrimary === 'true') {
+      apiKey = value;
+    } else {
+      env[envName] = value;
+    }
+  });
+
+  // Nothing entered
+  if (!apiKey && Object.keys(env).length === 0) {
+    showSkillsToast('No values entered — nothing to save', 'info');
+    return;
+  }
+
+  const saveBtn = $('skill-config-save') as HTMLButtonElement | null;
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving…'; }
+
+  try {
+    const updates: { enabled?: boolean; apiKey?: string; env?: Record<string, string> } = {};
+    if (apiKey) updates.apiKey = apiKey;
+    if (Object.keys(env).length > 0) updates.env = env;
+
+    await gateway.skillsUpdate(data.skillKey, updates);
+    showSkillsToast(`${data.name} configured successfully!`, 'success');
+    closeSkillConfigModal();
+    await loadSkills();
+  } catch (e) {
+    showSkillsToast(`Failed to configure ${data.name}: ${e}`, 'error');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save'; }
+  }
+}
+
+$('skill-config-close')?.addEventListener('click', closeSkillConfigModal);
+$('skill-config-cancel')?.addEventListener('click', closeSkillConfigModal);
+$('skill-config-save')?.addEventListener('click', saveSkillConfig);
+$('skill-config-modal')?.addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeSkillConfigModal();
+});
 
 $('refresh-skills-btn')?.addEventListener('click', () => loadSkills());
 
