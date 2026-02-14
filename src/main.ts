@@ -6,12 +6,25 @@ import { setGatewayConfig, probeHealth } from './api';
 import { gateway } from './gateway';
 
 // ── Global error handlers ──────────────────────────────────────────────────
+function crashLog(msg: string) {
+  try {
+    const log = JSON.parse(localStorage.getItem('paw-crash-log') || '[]') as string[];
+    log.push(`${new Date().toISOString()} ${msg}`);
+    // Keep last 50 entries
+    while (log.length > 50) log.shift();
+    localStorage.setItem('paw-crash-log', JSON.stringify(log));
+  } catch { /* localStorage might be full */ }
+}
 window.addEventListener('unhandledrejection', (event) => {
-  console.error('Unhandled promise rejection:', event.reason);
+  const msg = event.reason?.message ?? event.reason ?? 'unknown';
+  crashLog(`unhandledrejection: ${msg}`);
+  console.error('Unhandled promise rejection:', msg);
   event.preventDefault();
 });
 window.addEventListener('error', (event) => {
-  console.error('Uncaught error:', event.error);
+  const msg = event.error?.message ?? event.message ?? 'unknown';
+  crashLog(`error: ${msg}`);
+  console.error('Uncaught error:', msg);
 });
 
 // ── Tauri bridge ───────────────────────────────────────────────────────────
@@ -741,12 +754,15 @@ gateway.on('agent', (payload: unknown) => {
     } else if (stream === 'tool' && data) {
       const tool = (data.name ?? data.tool) as string | undefined;
       const phase = data.phase as string | undefined;
-      if (phase === 'start' && tool && _streamingEl) {
-        appendStreamingDelta(`\n\n▶ ${tool}...`);
+      if (phase === 'start' && tool) {
+        console.log(`[main] Tool: ${tool}`);
+        if (_streamingEl) appendStreamingDelta(`\n\n▶ ${tool}...`);
       }
     } else if (stream === 'error' && data) {
       const error = (data.message ?? data.error ?? '') as string;
-      if (error) appendStreamingDelta(`\n\nError: ${error}`);
+      console.error(`[main] Agent error: ${error}`);
+      crashLog(`agent-error: ${error}`);
+      if (error && _streamingEl) appendStreamingDelta(`\n\nError: ${error}`);
       if (_streamingResolve) {
         _streamingResolve(_streamingContent);
         _streamingResolve = null;
@@ -757,23 +773,27 @@ gateway.on('agent', (payload: unknown) => {
   }
 });
 
-// Listen for chat events — contains assembled messages with state: "delta"|"final"
-// Format: { runId, sessionKey, seq, state, message: { role, content: [{type:"text",text:"..."}], timestamp } }
+// Listen for chat events — only care about 'final' (assembled message).
+// We skip 'delta' since agent events already handle real-time streaming.
 gateway.on('chat', (payload: unknown) => {
   try {
     const evt = payload as Record<string, unknown>;
     const state = evt.state as string | undefined;
+
+    // Skip delta events entirely — agent handler already processes deltas
+    if (state !== 'final') return;
+
     const runId = evt.runId as string | undefined;
     const msg = evt.message as Record<string, unknown> | undefined;
 
     if (!isLoading && !_streamingEl) return;
     if (_streamingRunId && runId && runId !== _streamingRunId) return;
 
-    if (state === 'final' && msg) {
+    if (msg) {
       // Final assembled message — use as canonical response
       const text = extractContent(msg.content);
       if (text) {
-        console.log(`[main] Chat final: ${text.slice(0, 100)}`);
+        console.log(`[main] Chat final (${text.length} chars)`);
         // If streaming hasn't captured the full text, replace with final
         _streamingContent = text;
         if (_streamingEl) {
@@ -1095,6 +1115,20 @@ function formatBytes(bytes: number): string {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log('[main] Paw starting...');
+
+    // Check for crash log from previous run
+    try {
+      const prevLog = localStorage.getItem('paw-crash-log');
+      if (prevLog) {
+        const entries = JSON.parse(prevLog) as string[];
+        if (entries.length) {
+          console.warn(`[main] Previous crash log (${entries.length} entries):`);
+          entries.slice(-5).forEach(e => console.warn('  ', e));
+        }
+      }
+    } catch { /* ignore */ }
+    crashLog('startup');
+
     loadConfigFromStorage();
     console.log(`[main] After loadConfigFromStorage: configured=${config.configured} url="${config.gateway.url}" tokenLen=${config.gateway.token?.length ?? 0}`);
 

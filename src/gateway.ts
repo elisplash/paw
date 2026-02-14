@@ -315,12 +315,14 @@ class GatewayClient {
         this._lastSeq = frame.seq;
       }
       this.emit(frame.event, frame.payload);
-      // Log events for debugging (truncated to avoid console overflow)
-      if (frame.event !== 'connect.challenge' && frame.event !== 'health' && frame.event !== 'tick') {
+      // Only log non-streaming events to avoid overwhelming WebKit console
+      // (streaming deltas are handled by main.ts event handlers)
+      if (frame.event !== 'connect.challenge' && frame.event !== 'health' && frame.event !== 'tick'
+          && frame.event !== 'agent' && frame.event !== 'chat') {
         try {
-          console.log(`[gateway] Event: ${frame.event}`, JSON.stringify(frame.payload).slice(0, 300));
+          console.log(`[gateway] Event: ${frame.event}`, JSON.stringify(frame.payload).slice(0, 200));
         } catch {
-          console.log(`[gateway] Event: ${frame.event} (payload not serializable)`);
+          console.log(`[gateway] Event: ${frame.event}`);
         }
       }
     }
