@@ -697,3 +697,219 @@ body {
 button:focus:not(:focus-visible) {
   outline: none;
 }
+
+/* Setup Options */
+.setup-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.setup-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  width: 100%;
+}
+
+.setup-option:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.setup-option-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--accent-muted);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.setup-option-icon svg {
+  width: 20px;
+  height: 20px;
+  stroke: var(--accent);
+}
+
+.setup-option-text {
+  flex: 1;
+}
+
+.setup-option-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.setup-option-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Button Group */
+.btn-group {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-group .btn {
+  flex: 1;
+}
+
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+/* List View */
+.list-view {
+  padding: 24px 32px;
+  overflow-y: auto;
+}
+
+.view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.view-title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.list-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.list-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+}
+
+.list-item-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.list-item-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--text-secondary);
+}
+
+.list-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-item-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.list-item-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.list-item-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 100px;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+.list-item-badge.active {
+  background: var(--success);
+  color: white;
+}
+
+.list-item-badge.pending {
+  background: var(--accent);
+  color: white;
+}
+
+/* Memory Section */
+.memory-section {
+  margin-bottom: 24px;
+}
+
+.memory-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.memory-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.memory-file:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.memory-file svg {
+  stroke: var(--text-muted);
+}
+
+/* Chat send button icon only */
+.chat-send {
+  padding: 10px 12px;
+}
+
+.chat-send svg {
+  width: 18px;
+  height: 18px;
+}

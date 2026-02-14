@@ -1,10 +1,13 @@
 // Claw Desktop - Main Application
 
+import { getGatewayStatus, setGatewayConfig } from './api';
+
 interface Config {
-  provider: string;
-  apiKey: string;
-  model: string;
   configured: boolean;
+  gateway: {
+    url: string;
+    token: string;
+  };
 }
 
 interface Message {
@@ -15,22 +18,24 @@ interface Message {
 
 // State
 let config: Config = {
-  provider: 'anthropic',
-  apiKey: '',
-  model: 'claude-sonnet-4-20250514',
   configured: false,
+  gateway: {
+    url: 'http://localhost:5757',
+    token: '',
+  },
 };
 
 let messages: Message[] = [];
 let isLoading = false;
 
-// Gateway URL
-const GATEWAY_URL = 'http://localhost:5757';
-
 // DOM Elements
 const setupView = document.getElementById('setup-view')!;
+const manualSetupView = document.getElementById('manual-setup-view')!;
 const chatView = document.getElementById('chat-view')!;
 const agentsView = document.getElementById('agents-view')!;
+const channelsView = document.getElementById('channels-view')!;
+const memoryView = document.getElementById('memory-view')!;
+const cronView = document.getElementById('cron-view')!;
 const settingsView = document.getElementById('settings-view')!;
 const statusDot = document.getElementById('status-dot')!;
 const statusText = document.getElementById('status-text')!;
@@ -38,6 +43,8 @@ const chatMessages = document.getElementById('chat-messages')!;
 const chatEmpty = document.getElementById('chat-empty')!;
 const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement;
 const chatSend = document.getElementById('chat-send') as HTMLButtonElement;
+
+const allViews = [setupView, manualSetupView, chatView, agentsView, channelsView, memoryView, cronView, settingsView];
 
 // Navigation
 document.querySelectorAll('.nav-item').forEach((item) => {
@@ -48,24 +55,35 @@ document.querySelectorAll('.nav-item').forEach((item) => {
 });
 
 function switchView(viewName: string) {
+  // Don't allow navigation if not configured (except settings)
+  if (!config.configured && viewName !== 'settings') {
+    return;
+  }
+
   // Update nav
   document.querySelectorAll('.nav-item').forEach((item) => {
     item.classList.toggle('active', item.getAttribute('data-view') === viewName);
   });
 
-  // Update views
-  [setupView, chatView, agentsView, settingsView].forEach((v) => v.classList.remove('active'));
+  // Hide all views
+  allViews.forEach((v) => v.classList.remove('active'));
 
+  // Show selected view
   switch (viewName) {
     case 'chat':
-      if (config.configured) {
-        chatView.classList.add('active');
-      } else {
-        setupView.classList.add('active');
-      }
+      chatView.classList.add('active');
       break;
     case 'agents':
       agentsView.classList.add('active');
+      break;
+    case 'channels':
+      channelsView.classList.add('active');
+      break;
+    case 'memory':
+      memoryView.classList.add('active');
+      break;
+    case 'cron':
+      cronView.classList.add('active');
       break;
     case 'settings':
       settingsView.classList.add('active');
@@ -74,47 +92,102 @@ function switchView(viewName: string) {
   }
 }
 
-// Setup Form
-const setupForm = document.getElementById('setup-form') as HTMLFormElement;
-setupForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
+function showSetup() {
+  allViews.forEach((v) => v.classList.remove('active'));
+  setupView.classList.add('active');
+}
 
-  const provider = (document.getElementById('provider-select') as HTMLSelectElement).value;
-  const apiKey = (document.getElementById('api-key-input') as HTMLInputElement).value;
-  const model = (document.getElementById('model-select') as HTMLSelectElement).value;
+function showManualSetup() {
+  allViews.forEach((v) => v.classList.remove('active'));
+  manualSetupView.classList.add('active');
+}
 
-  if (!apiKey.trim()) {
-    alert('Please enter an API key');
-    return;
+// Setup handlers
+document.getElementById('setup-detect')?.addEventListener('click', async () => {
+  statusText.textContent = 'Detecting...';
+  
+  // Try to find config file and connect
+  const status = await getGatewayStatus();
+  
+  if (status.running) {
+    // Gateway found! Try to load token from default location
+    config.configured = true;
+    config.gateway.url = 'http://localhost:5757';
+    saveConfig();
+    
+    statusDot.classList.add('connected');
+    statusText.textContent = 'Connected';
+    
+    switchView('chat');
+  } else {
+    alert('No gateway detected. Make sure OpenClaw is running, or use Manual Setup.');
   }
+});
 
-  config = { provider, apiKey, model, configured: true };
-  saveConfig();
-  updateModelLabel();
+document.getElementById('setup-manual')?.addEventListener('click', () => {
+  showManualSetup();
+});
 
-  // Switch to chat view
-  setupView.classList.remove('active');
-  chatView.classList.add('active');
+document.getElementById('setup-new')?.addEventListener('click', () => {
+  // Open OpenClaw docs in browser
+  window.open('https://docs.openclaw.ai/getting-started', '_blank');
+});
+
+document.getElementById('gateway-back')?.addEventListener('click', () => {
+  showSetup();
+});
+
+// Gateway form
+document.getElementById('gateway-form')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  const url = (document.getElementById('gateway-url') as HTMLInputElement).value;
+  const token = (document.getElementById('gateway-token') as HTMLInputElement).value;
+  
+  // Test connection
+  setGatewayConfig(url, token);
+  const status = await getGatewayStatus();
+  
+  if (status.running) {
+    config.configured = true;
+    config.gateway = { url, token };
+    saveConfig();
+    
+    statusDot.classList.add('connected');
+    statusText.textContent = 'Connected';
+    
+    switchView('chat');
+  } else {
+    alert('Could not connect to gateway. Check URL and try again.');
+  }
 });
 
 // Settings Form
-document.getElementById('settings-save')?.addEventListener('click', () => {
-  const provider = (document.getElementById('settings-provider') as HTMLSelectElement).value;
-  const apiKey = (document.getElementById('settings-api-key') as HTMLInputElement).value;
-  const model = (document.getElementById('settings-model') as HTMLSelectElement).value;
+function syncSettingsForm() {
+  (document.getElementById('settings-gateway-url') as HTMLInputElement).value = config.gateway.url;
+  (document.getElementById('settings-gateway-token') as HTMLInputElement).value = config.gateway.token;
+}
 
-  if (apiKey.trim()) {
-    config = { provider, apiKey, model, configured: true };
+document.getElementById('settings-save-gateway')?.addEventListener('click', async () => {
+  const url = (document.getElementById('settings-gateway-url') as HTMLInputElement).value;
+  const token = (document.getElementById('settings-gateway-token') as HTMLInputElement).value;
+  
+  setGatewayConfig(url, token);
+  const status = await getGatewayStatus();
+  
+  if (status.running) {
+    config.gateway = { url, token };
     saveConfig();
+    
+    statusDot.classList.add('connected');
+    statusDot.classList.remove('error');
+    statusText.textContent = 'Connected';
+    
     alert('Settings saved!');
+  } else {
+    alert('Could not connect to gateway with these settings.');
   }
 });
-
-function syncSettingsForm() {
-  (document.getElementById('settings-provider') as HTMLSelectElement).value = config.provider;
-  (document.getElementById('settings-api-key') as HTMLInputElement).value = config.apiKey;
-  (document.getElementById('settings-model') as HTMLSelectElement).value = config.model;
-}
 
 // Config persistence
 function saveConfig() {
@@ -126,6 +199,7 @@ function loadConfig() {
   if (saved) {
     try {
       config = JSON.parse(saved);
+      setGatewayConfig(config.gateway.url, config.gateway.token);
     } catch {
       // Invalid config, use defaults
     }
@@ -147,6 +221,12 @@ chatInput.addEventListener('input', () => {
   chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
 });
 
+// New chat
+document.getElementById('new-chat-btn')?.addEventListener('click', () => {
+  messages = [];
+  renderMessages();
+});
+
 async function sendMessage() {
   const content = chatInput.value.trim();
   if (!content || isLoading) return;
@@ -161,7 +241,7 @@ async function sendMessage() {
   showLoading();
 
   try {
-    const response = await callLLM(content);
+    const response = await callGateway(content);
     hideLoading();
     addMessage({ role: 'assistant', content: response, timestamp: new Date() });
   } catch (error) {
@@ -191,7 +271,7 @@ function renderMessages() {
 
   chatEmpty.style.display = 'none';
 
-  // Clear and re-render (simple approach)
+  // Clear and re-render
   const existingMessages = chatMessages.querySelectorAll('.message');
   existingMessages.forEach((m) => m.remove());
 
@@ -212,7 +292,6 @@ function renderMessages() {
     chatMessages.appendChild(div);
   });
 
-  // Scroll to bottom
   chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
@@ -239,95 +318,59 @@ function hideLoading() {
   if (loading) loading.remove();
 }
 
-// Update model label in chat header
-function updateModelLabel() {
-  const modelLabel = document.getElementById('model-label');
-  if (modelLabel) {
-    const modelNames: Record<string, string> = {
-      'claude-sonnet-4-20250514': 'Claude Sonnet 4',
-      'claude-3-5-sonnet-20241022': 'Claude 3.5 Sonnet',
-      'gpt-4o': 'GPT-4o',
-      'gpt-4-turbo': 'GPT-4 Turbo',
-    };
-    modelLabel.textContent = modelNames[config.model] || config.model;
-  }
-}
+async function callGateway(userMessage: string): Promise<string> {
+  // Call gateway API
+  const response = await fetch(`${config.gateway.url}/api/v1/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${config.gateway.token}`,
+    },
+    body: JSON.stringify({
+      message: userMessage,
+      history: messages.slice(-10).map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+    }),
+  });
 
-async function callLLM(userMessage: string): Promise<string> {
-  // Direct API call based on provider
-  if (config.provider === 'anthropic') {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+  if (!response.ok) {
+    // Try webchat endpoint
+    const webchatResponse = await fetch(`${config.gateway.url}/webchat/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': config.apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
-        model: config.model,
-        max_tokens: 4096,
-        messages: messages
-          .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .map((m) => ({ role: m.role, content: m.content }))
-          .concat([{ role: 'user', content: userMessage }]),
+        message: userMessage,
       }),
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || `API error: ${response.status}`);
+    if (!webchatResponse.ok) {
+      throw new Error(`Gateway error: ${response.status}`);
     }
 
-    const data = await response.json();
-    return data.content[0]?.text || 'No response';
-  } else if (config.provider === 'openai') {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: messages
-          .filter((m) => m.role === 'user' || m.role === 'assistant')
-          .map((m) => ({ role: m.role, content: m.content }))
-          .concat([{ role: 'user', content: userMessage }]),
-      }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.error?.message || `API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    return data.choices[0]?.message?.content || 'No response';
+    const data = await webchatResponse.json();
+    return data.response || data.message || 'No response';
   }
 
-  throw new Error('Unsupported provider');
+  const data = await response.json();
+  return data.response || data.message || data.content || 'No response';
 }
 
 // Gateway status check
 async function checkGatewayStatus() {
-  try {
-    const response = await fetch(`${GATEWAY_URL}/health`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(2000),
-    });
-
-    if (response.ok) {
-      statusDot.classList.add('connected');
-      statusDot.classList.remove('error');
-      statusText.textContent = 'Gateway Running';
-    } else {
-      throw new Error('Not OK');
-    }
-  } catch {
+  const status = await getGatewayStatus();
+  
+  if (status.running) {
+    statusDot.classList.add('connected');
+    statusDot.classList.remove('error');
+    statusText.textContent = 'Connected';
+  } else {
     statusDot.classList.remove('connected');
     statusDot.classList.add('error');
-    statusText.textContent = 'Gateway Offline';
+    statusText.textContent = 'Disconnected';
   }
 }
 
@@ -335,16 +378,13 @@ async function checkGatewayStatus() {
 document.addEventListener('DOMContentLoaded', () => {
   loadConfig();
 
-  // Show appropriate view
   if (config.configured) {
-    setupView.classList.remove('active');
-    chatView.classList.add('active');
-    updateModelLabel();
+    switchView('chat');
+    checkGatewayStatus();
   } else {
-    setupView.classList.add('active');
+    showSetup();
   }
 
-  // Check gateway status
-  checkGatewayStatus();
+  // Periodic status check
   setInterval(checkGatewayStatus, 10000);
 });
