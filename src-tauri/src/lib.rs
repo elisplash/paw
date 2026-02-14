@@ -467,11 +467,15 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
     // Ensure the LaunchAgent plist is installed. After `openclaw gateway stop`
     // unloads the service, `openclaw gateway start` fails with "service not
     // loaded". Running install first re-registers the plist with launchd.
+    // Pass OPENAI_BASE_URL so it's embedded in the plist EnvironmentVariables.
     info!("Ensuring gateway LaunchAgent is installed...");
-    let install_result = Command::new(&bin_str)
-        .args(["gateway", "install"])
-        .env("PATH", &path_env)
-        .output();
+    let mut install_cmd = Command::new(&bin_str);
+    install_cmd.args(["gateway", "install"])
+        .env("PATH", &path_env);
+    if let Some(ref url) = embedding_base_url {
+        install_cmd.env("OPENAI_BASE_URL", url);
+    }
+    let install_result = install_cmd.output();
     match &install_result {
         Ok(out) => {
             let stdout = String::from_utf8_lossy(&out.stdout);
@@ -645,12 +649,29 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
         },
     }));
 
+    // If a base URL is provided (Azure Foundry), write it to env.vars in
+    // openclaw.json so that `gateway install` embeds it in the LaunchAgent plist.
+    // The OpenAI SDK reads OPENAI_BASE_URL automatically.
+    if let Some(ref url) = base_url {
+        if !obj.contains_key("env") {
+            obj.insert("env".to_string(), serde_json::json!({}));
+        }
+        let env_obj = obj.get_mut("env").unwrap().as_object_mut()
+            .ok_or("env is not an object")?;
+        if !env_obj.contains_key("vars") {
+            env_obj.insert("vars".to_string(), serde_json::json!({}));
+        }
+        let vars = env_obj.get_mut("vars").unwrap().as_object_mut()
+            .ok_or("env.vars is not an object")?;
+        vars.insert("OPENAI_BASE_URL".to_string(), serde_json::json!(url));
+        info!("Set env.vars.OPENAI_BASE_URL={} in openclaw.json", url);
+    }
+
     // Write back openclaw.json (no Paw-specific keys — gateway rejects unknown root keys)
     fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())
         .map_err(|e| format!("Failed to write config: {}", e))?;
 
-    // Store the embedding base URL in a separate Paw settings file so we can
-    // inject OPENAI_BASE_URL when the gateway starts (for Azure/Foundry).
+    // Also store the base URL in paw-settings.json for CLI commands (memory_stats/memory_search)
     save_paw_settings(&serde_json::json!({
         "embeddingBaseUrl": base_url,
     }))?;
@@ -791,7 +812,8 @@ fn repair_openclaw_config() -> Result<bool, String> {
 
         // Fix memory-lancedb embedding config — strict schema only allows apiKey + model.
         // If the user manually added baseUrl or other properties, strip them and
-        // migrate baseUrl to paw-settings.json so it's injected as OPENAI_BASE_URL.
+        // migrate baseUrl to env.vars.OPENAI_BASE_URL where the gateway can use it.
+        let mut rescued_base_url: Option<String> = None;
         if let Some(embedding) = obj
             .get_mut("plugins")
             .and_then(|p| p.get_mut("entries"))
@@ -800,14 +822,11 @@ fn repair_openclaw_config() -> Result<bool, String> {
             .and_then(|c| c.get_mut("embedding"))
             .and_then(|e| e.as_object_mut())
         {
-            // Rescue baseUrl before removing it — save to paw-settings.json
+            // Rescue baseUrl before removing it
             if let Some(base_url_val) = embedding.remove("baseUrl") {
                 repaired = true;
                 info!("Removed invalid 'baseUrl' from embedding config");
-                if let Some(url) = base_url_val.as_str() {
-                    let _ = save_paw_settings(&serde_json::json!({ "embeddingBaseUrl": url }));
-                    info!("Migrated embeddingBaseUrl to paw-settings.json: {}", url);
-                }
+                rescued_base_url = base_url_val.as_str().map(|s| s.to_string());
             }
             // Remove any other unknown properties (only apiKey and model are valid)
             let allowed: std::collections::HashSet<&str> = ["apiKey", "model"].iter().copied().collect();
@@ -820,6 +839,22 @@ fn repair_openclaw_config() -> Result<bool, String> {
                 repaired = true;
                 info!("Removed invalid '{}' from embedding config", key);
             }
+        }
+        // Now migrate rescued baseUrl to env.vars.OPENAI_BASE_URL (separate borrow scope)
+        if let Some(url) = rescued_base_url {
+            if !obj.contains_key("env") {
+                obj.insert("env".to_string(), serde_json::json!({}));
+            }
+            if let Some(env_obj) = obj.get_mut("env").and_then(|e| e.as_object_mut()) {
+                if !env_obj.contains_key("vars") {
+                    env_obj.insert("vars".to_string(), serde_json::json!({}));
+                }
+                if let Some(vars) = env_obj.get_mut("vars").and_then(|v| v.as_object_mut()) {
+                    vars.insert("OPENAI_BASE_URL".to_string(), serde_json::json!(&url));
+                    info!("Migrated baseUrl to env.vars.OPENAI_BASE_URL: {}", url);
+                }
+            }
+            let _ = save_paw_settings(&serde_json::json!({ "embeddingBaseUrl": &url }));
         }
     }
 
