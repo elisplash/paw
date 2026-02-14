@@ -39,6 +39,7 @@ let wsConnected = false;
 let _streamingContent = '';  // accumulates deltas for current streaming response
 let _streamingEl: HTMLElement | null = null;  // the live-updating DOM element
 let _streamingRunId: string | null = null;
+let _streamingDone: (() => void) | null = null;  // resolved when agent 'done' event fires
 
 function getPortFromUrl(url: string): number {
   if (!url) return 18789;
@@ -545,27 +546,55 @@ async function sendMessage() {
   // Prepare streaming UI — show an empty assistant bubble that will fill with deltas
   _streamingContent = '';
   _streamingRunId = null;
+
+  // Create a promise that resolves when the agent 'done' event fires
+  const streamingComplete = new Promise<void>((resolve) => {
+    _streamingDone = resolve;
+    // Safety timeout: if no 'done' event within 180s, resolve anyway
+    setTimeout(() => { _streamingDone = null; resolve(); }, 180_000);
+  });
+
   showStreamingMessage();
 
   try {
     const sessionKey = currentSessionKey ?? 'default';
     const result = await gateway.chatSend(sessionKey, content);
+    console.log('[main] chat.send result:', JSON.stringify(result));
 
-    // Streaming may have already populated the bubble via agent events.
-    // Use the final result as the canonical content (in case deltas were missed).
-    const finalText = extractContent(result.text) || extractContent(result.response) || extractContent((result as unknown as Record<string, unknown>).content);
-    finalizeStreaming(finalText || _streamingContent, result.toolCalls);
+    // If we got streaming content via deltas, prefer that over the RPC result.
+    // The RPC result may just be a status message (e.g. "Command still running").
+    // If no streaming deltas came through, try extracting from the result.
+    const rpcText = extractContent(result.text) || extractContent(result.response) || extractContent((result as unknown as Record<string, unknown>).content);
+
+    if (_streamingContent) {
+      // Streaming was active — use streamed content (it's the real AI output)
+      // But wait briefly for any final deltas to arrive
+      await Promise.race([streamingComplete, new Promise(r => setTimeout(r, 3000))]);
+      finalizeStreaming(_streamingContent, result.toolCalls);
+    } else if (rpcText) {
+      // No streaming deltas — use the RPC result text
+      finalizeStreaming(rpcText, result.toolCalls);
+    } else {
+      // Neither streaming nor RPC had content — wait for streaming to finish
+      console.log('[main] No content yet, waiting for streaming events...');
+      await Promise.race([streamingComplete, new Promise(r => setTimeout(r, 30_000))]);
+      const fallback = _streamingContent || '(No response received)';
+      finalizeStreaming(fallback, result.toolCalls);
+    }
 
     if (result.sessionKey) currentSessionKey = result.sessionKey;
     loadSessions();
   } catch (error) {
     console.error('Chat error:', error);
-    const errText = _streamingContent
-      ? _streamingContent + '\n\n(Error: connection interrupted)'
-      : `Error: ${error instanceof Error ? error.message : 'Failed to get response'}`;
-    finalizeStreaming(errText);
+    // If we accumulated streaming content before the error, preserve it
+    if (_streamingContent) {
+      finalizeStreaming(_streamingContent);
+    } else {
+      finalizeStreaming(`Error: ${error instanceof Error ? error.message : 'Failed to get response'}`);
+    }
   } finally {
     isLoading = false;
+    _streamingDone = null;
     if (chatSend) chatSend.disabled = false;
   }
 }
@@ -675,6 +704,13 @@ gateway.on('agent', (payload: unknown) => {
         break;
       case 'tool-done':
         // Could show tool result — for now just note completion
+        break;
+      case 'done':
+        console.log('[main] Agent run done');
+        if (_streamingDone) {
+          _streamingDone();
+          _streamingDone = null;
+        }
         break;
       case 'error':
         if (evt.error) {

@@ -276,6 +276,10 @@ class GatewayClient {
         this._lastSeq = frame.seq;
       }
       this.emit(frame.event, frame.payload);
+      // Log all events for debugging (except high-frequency ones)
+      if (frame.event !== 'connect.challenge') {
+        console.log(`[gateway] Event: ${frame.event}`, frame.payload);
+      }
     }
   }
 
