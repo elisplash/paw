@@ -898,30 +898,47 @@
                 Works with OpenAI, Azure OpenAI, or any compatible endpoint — just add your API key.
               </p>
               <div class="palace-api-config" id="palace-api-config">
+                <label class="palace-api-label" for="palace-provider">
+                  Provider <span class="palace-api-required">*</span>
+                </label>
+                <select class="palace-api-input palace-api-select" id="palace-provider">
+                  <option value="openai">OpenAI</option>
+                  <option value="azure">Azure OpenAI</option>
+                </select>
                 <label class="palace-api-label" for="palace-api-key">
-                  Embedding API Key <span class="palace-api-required">*</span>
+                  API Key <span class="palace-api-required">*</span>
                 </label>
                 <input class="palace-api-input" id="palace-api-key" type="password"
-                  placeholder="sk-... or Azure API key" autocomplete="off" spellcheck="false" />
-                <label class="palace-api-label" for="palace-base-url">
-                  Custom Endpoint <span class="palace-api-hint">(optional — leave blank for api.openai.com)</span>
-                </label>
-                <input class="palace-api-input" id="palace-base-url" type="text"
-                  placeholder="https://your-resource.openai.azure.com" autocomplete="off" spellcheck="false" />
-                <p class="palace-api-hint" style="font-size:11px;margin:-6px 0 8px 0;opacity:0.6;">
-                  Azure: use your resource endpoint (e.g. https://myresource.openai.azure.com).
-                  Other providers: use the base URL of any OpenAI-compatible API.
-                </p>
-                <label class="palace-api-label" for="palace-model-name">
-                  Model / Deployment Name <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>
+                  placeholder="sk-..." autocomplete="off" spellcheck="false" />
+                <div id="palace-azure-fields" style="display:none">
+                  <label class="palace-api-label" for="palace-base-url">
+                    Azure Endpoint <span class="palace-api-required">*</span>
+                  </label>
+                  <input class="palace-api-input" id="palace-base-url" type="text"
+                    placeholder="https://your-resource.openai.azure.com" autocomplete="off" spellcheck="false" />
+                  <p class="palace-api-hint" style="font-size:11px;margin:-6px 0 8px 0;opacity:0.6;">
+                    Your Azure resource endpoint (e.g. https://myresource.openai.azure.com).
+                  </p>
+                </div>
+                <div id="palace-openai-endpoint-field">
+                  <label class="palace-api-label" for="palace-base-url-openai">
+                    Custom Endpoint <span class="palace-api-hint">(optional — leave blank for api.openai.com)</span>
+                  </label>
+                  <input class="palace-api-input" id="palace-base-url-openai" type="text"
+                    placeholder="https://api.openai.com" autocomplete="off" spellcheck="false" />
+                </div>
+                <label class="palace-api-label" for="palace-model-name" id="palace-model-label">
+                  Model <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>
                 </label>
                 <input class="palace-api-input" id="palace-model-name" type="text"
-                  placeholder="text-embedding-3-small (or Azure deployment name)" autocomplete="off" spellcheck="false" />
-                <label class="palace-api-label" for="palace-api-version">
-                  API Version <span class="palace-api-hint">(Azure only — defaults to 2024-08-01-preview)</span>
-                </label>
-                <input class="palace-api-input" id="palace-api-version" type="text"
-                  placeholder="2024-08-01-preview" autocomplete="off" spellcheck="false" />
+                  placeholder="text-embedding-3-small" autocomplete="off" spellcheck="false" />
+                <div id="palace-api-version-field" style="display:none">
+                  <label class="palace-api-label" for="palace-api-version">
+                    API Version <span class="palace-api-hint">(defaults to 2024-08-01-preview)</span>
+                  </label>
+                  <input class="palace-api-input" id="palace-api-version" type="text"
+                    placeholder="2024-08-01-preview" autocomplete="off" spellcheck="false" />
+                </div>
               </div>
               <div class="palace-install-progress" id="palace-install-progress" style="display:none">
                 <p class="progress-text" id="palace-progress-text">Saving configuration…</p>

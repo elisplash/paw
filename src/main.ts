@@ -1963,16 +1963,23 @@ async function loadMemoryPalace() {
           progressDiv.style.display = '';
           progressEl.textContent = 'Memory is configured but not active. Update settings or restart the gateway.';
         }
-        // Pre-fill the base URL from settings if available
+        // Pre-fill from settings if available
         if (invoke) {
           try {
             const existingUrl = await invoke<string | null>('get_embedding_base_url');
             const existingVersion = await invoke<string | null>('get_azure_api_version');
-            const baseUrlInput = $('palace-base-url') as HTMLInputElement | null;
-            const apiVersionInput = $('palace-api-version') as HTMLInputElement | null;
-            if (existingUrl && baseUrlInput && !baseUrlInput.value) {
-              baseUrlInput.value = existingUrl;
+            const existingProvider = await invoke<string | null>('get_embedding_provider');
+            const providerSel = $('palace-provider') as HTMLSelectElement | null;
+            if (existingProvider && providerSel) providerSel.value = existingProvider;
+            updateProviderFields();
+            if (existingProvider === 'azure') {
+              const baseUrlInput = $('palace-base-url') as HTMLInputElement | null;
+              if (existingUrl && baseUrlInput && !baseUrlInput.value) baseUrlInput.value = existingUrl;
+            } else {
+              const openaiUrlInput = $('palace-base-url-openai') as HTMLInputElement | null;
+              if (existingUrl && openaiUrlInput && !openaiUrlInput.value) openaiUrlInput.value = existingUrl;
             }
+            const apiVersionInput = $('palace-api-version') as HTMLInputElement | null;
             if (existingVersion && apiVersionInput && !apiVersionInput.value) {
               apiVersionInput.value = existingVersion;
             }
@@ -2008,7 +2015,45 @@ async function loadMemoryPalace() {
   }
 }
 
+function updateProviderFields() {
+  const sel = $('palace-provider') as HTMLSelectElement | null;
+  const isAzure = sel?.value === 'azure';
+  const azureFields = $('palace-azure-fields');
+  const openaiEndpoint = $('palace-openai-endpoint-field');
+  const apiVersionField = $('palace-api-version-field');
+  const apiKeyInput = $('palace-api-key') as HTMLInputElement | null;
+  const modelLabel = $('palace-model-label');
+  const modelInput = $('palace-model-name') as HTMLInputElement | null;
+
+  if (azureFields) azureFields.style.display = isAzure ? '' : 'none';
+  if (openaiEndpoint) openaiEndpoint.style.display = isAzure ? 'none' : '';
+  if (apiVersionField) apiVersionField.style.display = isAzure ? '' : 'none';
+  if (apiKeyInput) apiKeyInput.placeholder = isAzure ? 'Azure API key' : 'sk-...';
+  if (modelLabel) modelLabel.innerHTML = isAzure
+    ? 'Deployment Name <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>'
+    : 'Model <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>';
+  if (modelInput) modelInput.placeholder = isAzure
+    ? 'text-embedding-3-small' : 'text-embedding-3-small';
+}
+
+function getSelectedProvider(): string {
+  return (($('palace-provider') as HTMLSelectElement)?.value) || 'openai';
+}
+
+function getBaseUrlForProvider(): string {
+  const provider = getSelectedProvider();
+  if (provider === 'azure') {
+    return ($('palace-base-url') as HTMLInputElement)?.value?.trim() ?? '';
+  }
+  return ($('palace-base-url-openai') as HTMLInputElement)?.value?.trim() ?? '';
+}
+
 function initPalaceInstall() {
+  // Provider dropdown — toggle fields on change
+  $('palace-provider')?.addEventListener('change', updateProviderFields);
+  // Set initial state
+  updateProviderFields();
+
   // Settings gear — show the setup banner for reconfiguration
   $('palace-settings')?.addEventListener('click', async () => {
     const banner = $('palace-install-banner');
@@ -2019,9 +2064,18 @@ function initPalaceInstall() {
       try {
         const existingUrl = await invoke<string | null>('get_embedding_base_url');
         const existingVersion = await invoke<string | null>('get_azure_api_version');
-        const baseUrlInput = $('palace-base-url') as HTMLInputElement | null;
+        const existingProvider = await invoke<string | null>('get_embedding_provider');
+        const providerSel = $('palace-provider') as HTMLSelectElement | null;
+        if (existingProvider && providerSel) providerSel.value = existingProvider;
+        updateProviderFields();
+        if (existingProvider === 'azure') {
+          const baseUrlInput = $('palace-base-url') as HTMLInputElement | null;
+          if (existingUrl && baseUrlInput) baseUrlInput.value = existingUrl;
+        } else {
+          const openaiUrlInput = $('palace-base-url-openai') as HTMLInputElement | null;
+          if (existingUrl && openaiUrlInput) openaiUrlInput.value = existingUrl;
+        }
         const apiVersionInput = $('palace-api-version') as HTMLInputElement | null;
-        if (existingUrl && baseUrlInput) baseUrlInput.value = existingUrl;
         if (existingVersion && apiVersionInput) apiVersionInput.value = existingVersion;
       } catch { /* ignore */ }
     }
@@ -2041,32 +2095,40 @@ function initPalaceInstall() {
 
     // Read form values
     const apiKeyInput = $('palace-api-key') as HTMLInputElement | null;
-    const baseUrlInput = $('palace-base-url') as HTMLInputElement | null;
     const modelInput = $('palace-model-name') as HTMLInputElement | null;
     const apiVersionInput = $('palace-api-version') as HTMLInputElement | null;
+    const provider = getSelectedProvider();
     let apiKey = apiKeyInput?.value?.trim() ?? '';
-    let baseUrl = baseUrlInput?.value?.trim() ?? '';
+    let baseUrl = getBaseUrlForProvider();
     const modelName = modelInput?.value?.trim() ?? '';
     const apiVersion = apiVersionInput?.value?.trim() ?? '';
 
     // Detect URL pasted into API key field (common mistake)
     if (apiKey.startsWith('http://') || apiKey.startsWith('https://')) {
-      if (baseUrl && !baseUrl.startsWith('http')) {
-        const temp = apiKey;
-        apiKey = baseUrl;
-        baseUrl = temp;
-        if (apiKeyInput) apiKeyInput.value = apiKey;
-        if (baseUrlInput) baseUrlInput.value = baseUrl;
-      } else if (!baseUrl) {
+      if (!baseUrl) {
+        // Move it to the right field
         baseUrl = apiKey;
         apiKey = '';
-        if (baseUrlInput) baseUrlInput.value = baseUrl;
+        if (provider === 'azure') {
+          const bi = $('palace-base-url') as HTMLInputElement | null;
+          if (bi) bi.value = baseUrl;
+        } else {
+          const bi = $('palace-base-url-openai') as HTMLInputElement | null;
+          if (bi) bi.value = baseUrl;
+        }
         if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.style.borderColor = '#e44'; apiKeyInput.focus(); apiKeyInput.placeholder = 'Enter your API key here (not a URL)'; }
         return;
       } else {
         if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.style.borderColor = '#e44'; apiKeyInput.focus(); apiKeyInput.placeholder = 'This looks like a URL — enter your API key instead'; }
         return;
       }
+    }
+
+    // Azure requires an endpoint
+    if (provider === 'azure' && !baseUrl) {
+      const bi = $('palace-base-url') as HTMLInputElement | null;
+      if (bi) { bi.style.borderColor = '#e44'; bi.focus(); bi.placeholder = 'Azure endpoint is required'; }
+      return;
     }
 
     if (!apiKey) {
@@ -2092,6 +2154,7 @@ function initPalaceInstall() {
           baseUrl: baseUrl || null,
           model: modelName || null,
           apiVersion: apiVersion || null,
+          provider,
         });
         if (progressText) progressText.textContent = 'Connection test passed ✓ Saving configuration…';
       } catch (testErr: any) {
@@ -2111,6 +2174,7 @@ function initPalaceInstall() {
         baseUrl: baseUrl || null,
         model: modelName || null,
         apiVersion: apiVersion || null,
+        provider,
       });
 
       if (progressText) progressText.textContent = 'Configuration saved! Restarting gateway…';

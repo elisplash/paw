@@ -979,6 +979,7 @@ fn test_embedding_connection(
     base_url: Option<String>,
     model: Option<String>,
     api_version: Option<String>,
+    provider: Option<String>,
 ) -> Result<String, String> {
     let api_key = api_key.trim().to_string();
     if api_key.is_empty() {
@@ -999,17 +1000,22 @@ fn test_embedding_connection(
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| "2024-08-01-preview".to_string());
 
+    let is_azure = provider.as_deref() == Some("azure")
+        || base_url.as_ref().map(|u| is_azure_endpoint(u)).unwrap_or(false);
+
     // Build the request URL and headers based on provider type
-    let (url, auth_header) = if let Some(ref base) = base_url {
-        if is_azure_endpoint(base) {
-            // Azure: POST {endpoint}/openai/deployments/{model}/embeddings?api-version={version}
-            let endpoint = base.trim_end_matches('/').replace("/openai", "");
-            let url = format!(
-                "{}/openai/deployments/{}/embeddings?api-version={}",
-                endpoint, model, api_version
-            );
-            (url, format!("api-key: {}", api_key))
-        } else {
+    let (url, auth_header) = if is_azure {
+        let endpoint = base_url.as_deref().unwrap_or("")
+            .trim_end_matches('/').replace("/openai", "");
+        if endpoint.is_empty() {
+            return Err("Azure endpoint URL is required".to_string());
+        }
+        let url = format!(
+            "{}/openai/deployments/{}/embeddings?api-version={}",
+            endpoint, model, api_version
+        );
+        (url, format!("api-key: {}", api_key))
+    } else if let Some(ref base) = base_url {
             // Custom OpenAI-compatible: POST {base_url}/v1/embeddings
             let url = if base.ends_with("/v1") {
                 format!("{}/embeddings", base)
@@ -1126,7 +1132,7 @@ fn check_memory_configured() -> bool {
 /// Enable the memory-lancedb plugin by patching openclaw.json.
 /// This is a pure config operation — no Python, no venv, no git clone.
 #[tauri::command]
-fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option<String>, api_version: Option<String>) -> Result<(), String> {
+fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option<String>, api_version: Option<String>, provider: Option<String>) -> Result<(), String> {
     let api_key = api_key.trim().to_string();
     if api_key.is_empty() {
         return Err("An embedding API key is required.".to_string());
@@ -1148,6 +1154,8 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
         .map(|v| v.trim().to_string())
         .filter(|v| !v.is_empty())
         .unwrap_or_else(|| "2024-08-01-preview".to_string());
+
+    let provider_str = provider.as_deref().unwrap_or("openai");
 
     let home = dirs::home_dir().ok_or("Cannot find home directory")?;
     let config_path = home.join(".openclaw/openclaw.json");
@@ -1223,8 +1231,8 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
         vars.insert("OPENAI_API_KEY".to_string(), serde_json::json!(&api_key));
         info!("Set env.vars.OPENAI_BASE_URL={} in openclaw.json", url);
 
-        // For Azure endpoints, also set AZURE_OPENAI_ENDPOINT and OPENAI_API_VERSION
-        if is_azure_endpoint(url) {
+        // For Azure provider, also set AZURE_OPENAI_ENDPOINT and OPENAI_API_VERSION
+        if provider_str == "azure" || is_azure_endpoint(url) {
             vars.insert("AZURE_OPENAI_ENDPOINT".to_string(), serde_json::json!(url));
             vars.insert("OPENAI_API_VERSION".to_string(), serde_json::json!(&api_version));
             vars.insert("OPENAI_DEPLOYMENT".to_string(), serde_json::json!(&model));
@@ -1260,16 +1268,17 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
     fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())
         .map_err(|e| format!("Failed to write config: {}", e))?;
 
-    // Also store the base URL and API version in paw-settings.json for CLI commands
+    // Also store the base URL, API version, and provider in paw-settings.json
     save_paw_settings(&serde_json::json!({
         "embeddingBaseUrl": base_url,
         "azureApiVersion": &api_version,
+        "embeddingProvider": provider_str,
     }))?;
 
     // Ensure the memory plugin is compatible with the configured provider.
     // Azure endpoints need AzureOpenAI SDK routing; standard endpoints work as-is.
-    let is_azure = base_url.as_ref()
-        .map(|u| is_azure_endpoint(u)).unwrap_or(false);
+    let is_azure = provider_str == "azure"
+        || base_url.as_ref().map(|u| is_azure_endpoint(u)).unwrap_or(false);
     match ensure_memory_plugin_compatible(is_azure) {
         Ok(()) => info!("Memory plugin configured for {} routing", if is_azure { "Azure" } else { "standard OpenAI" }),
         Err(e) => warn!("Failed to configure memory plugin routing: {}", e),
@@ -1326,6 +1335,15 @@ fn get_azure_api_version() -> Option<String> {
         .map(|s| s.to_string())
 }
 
+/// Read the embedding provider from Paw settings ("openai" or "azure").
+#[tauri::command]
+fn get_embedding_provider() -> Option<String> {
+    let settings = read_paw_settings()?;
+    settings.get("embeddingProvider")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
 /// Helper: read the stored Azure API version, falling back to a default.
 fn get_api_version_or_default() -> String {
     read_paw_settings()
@@ -1358,7 +1376,12 @@ fn apply_embedding_env(cmd: &mut Command, url: &str) {
         cmd.env("OPENAI_API_KEY", &api_key);
     }
 
-    if is_azure_endpoint(url) {
+    // Check saved provider preference first, then fall back to URL sniffing
+    let saved_provider = read_paw_settings()
+        .and_then(|s| s.get("embeddingProvider").and_then(|v| v.as_str()).map(|s| s.to_string()));
+    let is_azure = saved_provider.as_deref() == Some("azure") || is_azure_endpoint(url);
+
+    if is_azure {
         // ── Azure OpenAI path ──
         let api_version = get_api_version_or_default();
         cmd.env("AZURE_OPENAI_ENDPOINT", url);
@@ -1589,6 +1612,7 @@ pub fn run() {
             test_embedding_connection,
             get_embedding_base_url,
             get_azure_api_version,
+            get_embedding_provider,
             memory_stats,
             memory_search,
             repair_openclaw_config
