@@ -1,59 +1,24 @@
 // Claw Desktop - Gateway WebSocket Client
 
-export interface GatewayConfig {
-  url: string;
-  token: string;
-}
-
-export interface GatewayStatus {
-  connected: boolean;
-  version?: string;
-  uptime?: number;
-}
-
-export interface Channel {
-  id: string;
-  type: string;
-  name: string;
-  status: 'connected' | 'disconnected' | 'pending' | 'qr_required';
-  linked?: boolean;
-}
-
-export interface Session {
-  key: string;
-  kind: string;
-  model?: string;
-  lastMessage?: string;
-  lastActive?: string;
-}
-
-export interface CronJob {
-  id: string;
-  name?: string;
-  schedule: unknown;
-  payload: unknown;
-  enabled: boolean;
-  lastRun?: string;
-  nextRun?: string;
-}
-
-export interface Skill {
-  id: string;
-  name: string;
-  description?: string;
-  enabled: boolean;
-  installed: boolean;
-}
-
-export interface Node {
-  id: string;
-  name: string;
-  connected: boolean;
-  paired: boolean;
-  caps?: string[];
-}
+import type {
+  GatewayConfig,
+  GatewayStatus,
+  Channel,
+  Session,
+  CronJob,
+  Skill,
+  Node,
+} from './types';
 
 type MessageHandler = (event: unknown) => void;
+
+function detectPlatform(): string {
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes('win')) return 'windows';
+  if (ua.includes('mac')) return 'macos';
+  if (ua.includes('linux')) return 'linux';
+  return 'unknown';
+}
 
 class GatewayClient {
   private ws: WebSocket | null = null;
@@ -112,7 +77,7 @@ class GatewayClient {
         id: 'claw-desktop',
         displayName: 'Claw Desktop',
         version: '0.1.0',
-        platform: 'macos',
+        platform: detectPlatform(),
         mode: 'control-ui',
       },
       auth: this.config?.token ? { token: this.config.token } : undefined,
@@ -218,11 +183,12 @@ class GatewayClient {
       const status = await this.request<{ version?: string; uptimeMs?: number }>('status');
       return {
         connected: true,
+        running: true,
         version: status.version,
         uptime: status.uptimeMs,
       };
     } catch {
-      return { connected: false };
+      return { connected: false, running: false };
     }
   }
 

@@ -1,5 +1,8 @@
 // Claw Desktop - Main Application
 
+import type { Config, Message, InstallProgress } from './types';
+import { setGatewayConfig, getGatewayStatus, sendChatMessage } from './api';
+
 // Tauri API types
 interface TauriWindow {
   __TAURI__?: {
@@ -15,26 +18,6 @@ interface TauriWindow {
 const tauriWindow = window as unknown as TauriWindow;
 const invoke = tauriWindow.__TAURI__?.core?.invoke;
 const listen = tauriWindow.__TAURI__?.event?.listen;
-
-interface Config {
-  configured: boolean;
-  gateway: {
-    url: string;
-    token: string;
-  };
-}
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-}
-
-interface InstallProgress {
-  stage: string;
-  percent: number;
-  message: string;
-}
 
 // State
 let config: Config = {
@@ -284,6 +267,11 @@ document.getElementById('settings-save-gateway')?.addEventListener('click', asyn
 // Config persistence
 function saveConfig() {
   localStorage.setItem('claw-config', JSON.stringify(config));
+  syncApiConfig();
+}
+
+function syncApiConfig() {
+  setGatewayConfig(config.gateway.url, config.gateway.token);
 }
 
 function loadConfig() {
@@ -407,39 +395,16 @@ function hideLoading() {
 }
 
 async function callGateway(userMessage: string): Promise<string> {
-  // Try the webchat endpoint first
-  const response = await fetch(`${config.gateway.url}/webchat/send`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      message: userMessage,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(`Gateway error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  return data.response || data.message || data.content || 'No response';
+  return sendChatMessage(userMessage);
 }
 
 async function checkGatewayStatus() {
-  try {
-    const response = await fetch(`${config.gateway.url}/health`, {
-      signal: AbortSignal.timeout(2000),
-    });
-    
-    if (response.ok) {
-      statusDot?.classList.add('connected');
-      statusDot?.classList.remove('error');
-      if (statusText) statusText.textContent = 'Connected';
-    } else {
-      throw new Error('Not OK');
-    }
-  } catch {
+  const status = await getGatewayStatus();
+  if (status.running) {
+    statusDot?.classList.add('connected');
+    statusDot?.classList.remove('error');
+    if (statusText) statusText.textContent = 'Connected';
+  } else {
     statusDot?.classList.remove('connected');
     statusDot?.classList.add('error');
     if (statusText) statusText.textContent = 'Disconnected';
@@ -451,6 +416,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log('Claw Desktop starting...');
     loadConfig();
+    syncApiConfig();
 
     if (config.configured) {
       switchView('chat');

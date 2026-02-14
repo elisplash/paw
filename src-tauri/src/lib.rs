@@ -4,13 +4,28 @@ use std::fs;
 use tauri::{Emitter, Manager};
 
 fn get_app_data_dir() -> PathBuf {
-    let home = dirs::home_dir().unwrap_or_default();
-    home.join("Library/Application Support/Claw")
+    #[cfg(target_os = "macos")]
+    {
+        let home = dirs::home_dir().unwrap_or_default();
+        home.join("Library/Application Support/Claw")
+    }
+    #[cfg(target_os = "windows")]
+    {
+        dirs::data_local_dir().unwrap_or_default().join("Claw")
+    }
+    #[cfg(target_os = "linux")]
+    {
+        dirs::data_dir().unwrap_or_default().join("claw")
+    }
 }
 
 fn get_bundled_node_path() -> Option<PathBuf> {
     let app_dir = get_app_data_dir();
-    let node_bin = app_dir.join("node/bin/node");
+    let node_bin = if cfg!(target_os = "windows") {
+        app_dir.join("node/node.exe")
+    } else {
+        app_dir.join("node/bin/node")
+    };
     if node_bin.exists() {
         Some(node_bin)
     } else {
@@ -20,12 +35,34 @@ fn get_bundled_node_path() -> Option<PathBuf> {
 
 fn get_npm_path() -> PathBuf {
     let app_dir = get_app_data_dir();
-    app_dir.join("node/bin/npm")
+    if cfg!(target_os = "windows") {
+        app_dir.join("node/npm.cmd")
+    } else {
+        app_dir.join("node/bin/npm")
+    }
 }
 
 fn get_openclaw_path() -> PathBuf {
     let app_dir = get_app_data_dir();
-    app_dir.join("node_modules/.bin/openclaw")
+    if cfg!(target_os = "windows") {
+        app_dir.join("node_modules/.bin/openclaw.cmd")
+    } else {
+        app_dir.join("node_modules/.bin/openclaw")
+    }
+}
+
+fn get_node_bin_dir() -> PathBuf {
+    let app_dir = get_app_data_dir();
+    if cfg!(target_os = "windows") {
+        app_dir.join("node")
+    } else {
+        app_dir.join("node/bin")
+    }
+}
+
+fn join_path_env(new_dir: &std::path::Path) -> String {
+    let sep = if cfg!(target_os = "windows") { ";" } else { ":" };
+    format!("{}{}{}", new_dir.display(), sep, std::env::var("PATH").unwrap_or_default())
 }
 
 #[tauri::command]
@@ -72,9 +109,16 @@ async fn install_openclaw(window: tauri::Window, app_handle: tauri::AppHandle) -
 
     let node_dir = app_dir.join("node");
     if !node_dir.exists() {
-        // Determine architecture
+        // Determine architecture and platform
         let arch = if cfg!(target_arch = "aarch64") { "arm64" } else { "x64" };
-        let resource_name = format!("node/node-darwin-{}.tar.gz", arch);
+        let os_name = if cfg!(target_os = "macos") {
+            "darwin"
+        } else if cfg!(target_os = "windows") {
+            "win"
+        } else {
+            "linux"
+        };
+        let resource_name = format!("node/node-{}-{}.tar.gz", os_name, arch);
         
         // Get the resource path from the app bundle
         let resource_path = app_handle.path()
@@ -118,7 +162,7 @@ async fn install_openclaw(window: tauri::Window, app_handle: tauri::AppHandle) -
     
     let install_result = Command::new(npm_path.to_str().unwrap())
         .args(["install", "openclaw", "--prefix", app_dir.to_str().unwrap()])
-        .env("PATH", format!("{}:{}", node_dir.join("bin").display(), std::env::var("PATH").unwrap_or_default()))
+        .env("PATH", join_path_env(&node_dir.join(if cfg!(target_os = "windows") { "" } else { "bin" })))
         .output()
         .map_err(|e| format!("Failed to run npm: {}", e))?;
 
@@ -183,11 +227,11 @@ async fn install_openclaw(window: tauri::Window, app_handle: tauri::AppHandle) -
 
     // Step 4: Start the gateway
     let openclaw_bin = get_openclaw_path();
-    let node_bin_dir = node_dir.join("bin");
+    let node_bin_dir = get_node_bin_dir();
     
     Command::new(openclaw_bin.to_str().unwrap())
         .args(["gateway", "start"])
-        .env("PATH", format!("{}:{}", node_bin_dir.display(), std::env::var("PATH").unwrap_or_default()))
+        .env("PATH", join_path_env(&node_bin_dir))
         .spawn()
         .map_err(|e| format!("Failed to start gateway: {}", e))?;
 
@@ -206,13 +250,13 @@ async fn install_openclaw(window: tauri::Window, app_handle: tauri::AppHandle) -
 #[tauri::command]
 fn start_gateway() -> Result<(), String> {
     let openclaw_bin = get_openclaw_path();
-    let node_dir = get_app_data_dir().join("node/bin");
+    let node_dir = get_node_bin_dir();
     
     // Try bundled openclaw first
     if openclaw_bin.exists() {
         Command::new(openclaw_bin.to_str().unwrap())
             .args(["gateway", "start"])
-            .env("PATH", format!("{}:{}", node_dir.display(), std::env::var("PATH").unwrap_or_default()))
+            .env("PATH", join_path_env(&node_dir))
             .spawn()
             .map_err(|e| format!("Failed to start gateway: {}", e))?;
     } else {
@@ -227,9 +271,18 @@ fn start_gateway() -> Result<(), String> {
 
 #[tauri::command]
 fn stop_gateway() -> Result<(), String> {
-    let _ = Command::new("pkill")
-        .args(["-f", "openclaw-gateway"])
-        .output();
+    #[cfg(unix)]
+    {
+        let _ = Command::new("pkill")
+            .args(["-f", "openclaw-gateway"])
+            .output();
+    }
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/F", "/IM", "openclaw-gateway.exe"])
+            .output();
+    }
     Ok(())
 }
 

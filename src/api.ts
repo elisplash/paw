@@ -42,11 +42,11 @@ export async function getGatewayStatus(): Promise<GatewayStatus> {
     });
     
     if (response.ok) {
-      return { running: true };
+      return { connected: true, running: true };
     }
-    return { running: false };
+    return { connected: false, running: false };
   } catch {
-    return { running: false };
+    return { connected: false, running: false };
   }
 }
 
