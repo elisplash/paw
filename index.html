@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Claw Desktop</title>
+    <title>Paw</title>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
@@ -13,17 +13,26 @@
         <div class="sidebar-header">
           <div class="sidebar-brand">
             <div class="sidebar-logo">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
               </svg>
             </div>
-            <span class="sidebar-title">Claw</span>
+            <span class="sidebar-title">Paw</span>
           </div>
         </div>
         
         <nav class="sidebar-nav">
           <div class="nav-section">
-            <div class="nav-item active" data-view="chat">
+            <div class="nav-item active" data-view="dashboard">
+              <svg class="icon" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+              <span>Home</span>
+            </div>
+            <div class="nav-item" data-view="chat">
               <svg class="icon" viewBox="0 0 24 24">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
@@ -32,21 +41,67 @@
           </div>
 
           <div class="nav-section">
-            <div class="nav-section-label">Manage</div>
-            <div class="nav-item" data-view="agents">
+            <div class="nav-section-label">Create</div>
+            <div class="nav-item" data-view="build">
               <svg class="icon" viewBox="0 0 24 24">
-                <circle cx="12" cy="8" r="5"/>
-                <path d="M20 21a8 8 0 1 0-16 0"/>
+                <polyline points="16 18 22 12 16 6"/>
+                <polyline points="8 6 2 12 8 18"/>
+                <line x1="14" y1="4" x2="10" y2="20"/>
               </svg>
-              <span>Agents</span>
+              <span>Build</span>
+              <span class="nav-badge">New</span>
             </div>
-            <div class="nav-item" data-view="channels">
+            <div class="nav-item" data-view="code">
+              <svg class="icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+              </svg>
+              <span>Code</span>
+            </div>
+            <div class="nav-item" data-view="content">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M12 20h9"/>
+                <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+              <span>Create</span>
+            </div>
+          </div>
+
+          <div class="nav-section">
+            <div class="nav-section-label">Automate</div>
+            <div class="nav-item" data-view="mail">
               <svg class="icon" viewBox="0 0 24 24">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                 <polyline points="22,6 12,13 2,6"/>
               </svg>
+              <span>Mail</span>
+              <span class="nav-badge">New</span>
+            </div>
+            <div class="nav-item" data-view="automations">
+              <svg class="icon" viewBox="0 0 24 24">
+                <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
+              <span>Automate</span>
+            </div>
+            <div class="nav-item" data-view="channels">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/>
+                <rect x="1" y="6" width="14" height="12" rx="2"/>
+              </svg>
               <span>Channels</span>
             </div>
+            <div class="nav-item" data-view="research">
+              <svg class="icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+              <span>Research</span>
+            </div>
+          </div>
+          
+          <div class="nav-section">
+            <div class="nav-section-label">System</div>
             <div class="nav-item" data-view="memory">
               <svg class="icon" viewBox="0 0 24 24">
                 <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
@@ -54,17 +109,20 @@
               </svg>
               <span>Memory</span>
             </div>
-            <div class="nav-item" data-view="cron">
+            <div class="nav-item" data-view="skills">
               <svg class="icon" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10"/>
-                <polyline points="12 6 12 12 16 14"/>
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
               </svg>
-              <span>Schedules</span>
+              <span>Skills</span>
             </div>
-          </div>
-          
-          <div class="nav-section">
-            <div class="nav-section-label">System</div>
+            <div class="nav-item" data-view="foundry">
+              <svg class="icon" viewBox="0 0 24 24">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                <line x1="12" y1="22.08" x2="12" y2="12"/>
+              </svg>
+              <span>Foundry</span>
+            </div>
             <div class="nav-item" data-view="settings">
               <svg class="icon" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="3"/>
@@ -85,7 +143,141 @@
 
       <!-- Main Content -->
       <main class="main">
-        <!-- Onboarding View -->
+
+        <!-- ═══ Dashboard ═══ -->
+        <div class="view dashboard-view" id="dashboard-view">
+          <div class="dashboard-greeting">
+            <h1>Welcome to Paw</h1>
+            <p>Your AI command center — powered by OpenClaw</p>
+          </div>
+
+          <div class="quick-actions">
+            <button class="quick-action" data-view="chat">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              New Chat
+            </button>
+            <button class="quick-action" data-view="build">
+              <svg class="icon" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              Build App
+            </button>
+            <button class="quick-action" data-view="mail">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              Check Mail
+            </button>
+          </div>
+
+          <!-- Primary Features -->
+          <div class="feature-section">
+            <div class="feature-section-title">Start here</div>
+            <div class="feature-grid primary">
+              <button class="feature-card" data-view="chat">
+                <div class="feature-card-icon orange">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div class="feature-card-title">Chat</div>
+                <div class="feature-card-desc">Talk to your agent — ask anything, get answers, run tasks</div>
+              </button>
+
+              <button class="feature-card" data-view="build">
+                <div class="feature-card-icon blue">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/><line x1="14" y1="4" x2="10" y2="20"/></svg>
+                </div>
+                <div class="feature-card-title">Build</div>
+                <div class="feature-card-desc">Describe an app and watch it get built — frontend, backend, deployed</div>
+                <span class="feature-card-tag new">New</span>
+              </button>
+
+              <button class="feature-card" data-view="code">
+                <div class="feature-card-icon purple">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                </div>
+                <div class="feature-card-title">Code</div>
+                <div class="feature-card-desc">Git repos, branches, PRs, code review — managed by your agent</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Productivity -->
+          <div class="feature-section">
+            <div class="feature-section-title">Productivity</div>
+            <div class="feature-grid secondary">
+              <button class="feature-card" data-view="mail">
+                <div class="feature-card-icon pink">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </div>
+                <div class="feature-card-title">Mail</div>
+                <div class="feature-card-desc">Read, draft and send emails with approval guardrails</div>
+                <span class="feature-card-tag new">New</span>
+              </button>
+
+              <button class="feature-card" data-view="automations">
+                <div class="feature-card-icon yellow">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </div>
+                <div class="feature-card-title">Automate</div>
+                <div class="feature-card-desc">Scheduled tasks, triggers, and recurring workflows</div>
+              </button>
+
+              <button class="feature-card" data-view="research">
+                <div class="feature-card-icon cyan">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </div>
+                <div class="feature-card-title">Research</div>
+                <div class="feature-card-desc">Browse the web, find data, compile reports automatically</div>
+                <span class="feature-card-tag beta">Beta</span>
+              </button>
+
+              <button class="feature-card" data-view="content">
+                <div class="feature-card-icon green">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </div>
+                <div class="feature-card-title">Create</div>
+                <div class="feature-card-desc">Blog posts, social content, marketing copy, and more</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Connect & System -->
+          <div class="feature-section">
+            <div class="feature-section-title">Connect & Configure</div>
+            <div class="feature-grid system">
+              <button class="feature-card" data-view="channels">
+                <div class="feature-card-icon orange">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/><rect x="1" y="6" width="14" height="12" rx="2"/></svg>
+                </div>
+                <div class="feature-card-title">Channels</div>
+                <div class="feature-card-desc">Telegram, Discord, WhatsApp, Signal</div>
+              </button>
+
+              <button class="feature-card" data-view="memory">
+                <div class="feature-card-icon purple">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                </div>
+                <div class="feature-card-title">Memory</div>
+                <div class="feature-card-desc">Persistent knowledge that grows over time</div>
+              </button>
+
+              <button class="feature-card" data-view="skills">
+                <div class="feature-card-icon cyan">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                </div>
+                <div class="feature-card-title">Skills</div>
+                <div class="feature-card-desc">Install and manage agent abilities</div>
+              </button>
+
+              <button class="feature-card" data-view="foundry">
+                <div class="feature-card-icon yellow">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                </div>
+                <div class="feature-card-title">Foundry</div>
+                <div class="feature-card-desc">Choose models and manage your subscription</div>
+                <span class="feature-card-tag pro">Pro</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ Onboarding ═══ -->
         <div class="view setup-view" id="setup-view">
           <div class="setup-card">
             <div class="setup-header">
@@ -94,7 +286,7 @@
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                 </svg>
               </div>
-              <h1 class="setup-title">Welcome to Claw</h1>
+              <h1 class="setup-title">Welcome to Paw</h1>
               <p class="setup-subtitle">Connect to your OpenClaw gateway or set up a new one</p>
             </div>
             
@@ -102,8 +294,7 @@
               <button class="setup-option" id="setup-detect">
                 <div class="setup-option-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="11" cy="11" r="8"/>
-                    <path d="m21 21-4.35-4.35"/>
+                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                   </svg>
                 </div>
                 <div class="setup-option-text">
@@ -142,7 +333,7 @@
           </div>
         </div>
 
-        <!-- Install View -->
+        <!-- ═══ Install View ═══ -->
         <div class="view setup-view" id="install-view">
           <div class="setup-card">
             <div class="setup-header">
@@ -159,23 +350,17 @@
             
             <div class="install-requirements">
               <div class="requirement-item" id="req-node">
-                <svg class="icon-sm" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10"/>
-                </svg>
+                <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
                 <span>Node.js runtime</span>
               </div>
               <div class="requirement-item">
-                <svg class="icon-sm" viewBox="0 0 24 24">
-                  <circle cx="12" cy="12" r="10"/>
-                </svg>
+                <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
                 <span>OpenClaw gateway</span>
               </div>
             </div>
             
             <div class="install-progress">
-              <div class="progress-bar">
-                <div class="progress-fill" id="install-progress-bar"></div>
-              </div>
+              <div class="progress-bar"><div class="progress-fill" id="install-progress-bar"></div></div>
               <p class="progress-text" id="install-progress-text">Ready to install</p>
             </div>
             
@@ -183,14 +368,10 @@
               <button type="button" class="btn btn-secondary" id="install-back">Back</button>
               <button type="button" class="btn btn-primary" id="start-install">Install Now</button>
             </div>
-            
-            <p class="form-hint" style="text-align: center; margin-top: 16px;">
-              Requires Node.js. <a href="https://nodejs.org" target="_blank" style="color: var(--accent);">Download here</a> if not installed.
-            </p>
           </div>
         </div>
 
-        <!-- Manual Config View -->
+        <!-- ═══ Manual Config ═══ -->
         <div class="view setup-view" id="manual-setup-view">
           <div class="setup-card">
             <div class="setup-header">
@@ -210,13 +391,11 @@
                 <label class="form-label">Gateway URL</label>
                 <input type="text" class="form-input" id="gateway-url" value="http://localhost:5757" />
               </div>
-              
               <div class="form-group">
                 <label class="form-label">Auth Token</label>
                 <input type="password" class="form-input" id="gateway-token" placeholder="Enter token from openclaw.json" />
                 <p class="form-hint">Find this in ~/.openclaw/openclaw.json under gateway.auth.token</p>
               </div>
-              
               <div class="btn-group">
                 <button type="button" class="btn btn-secondary" id="gateway-back">Back</button>
                 <button type="submit" class="btn btn-primary">Connect</button>
@@ -225,25 +404,23 @@
           </div>
         </div>
 
-        <!-- Chat View -->
+        <!-- ═══ Chat View ═══ -->
         <div class="view chat-view" id="chat-view">
           <div class="chat-header">
             <div class="chat-header-left">
               <div class="chat-avatar">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <circle cx="12" cy="8" r="5"/>
-                  <path d="M20 21a8 8 0 1 0-16 0"/>
+                  <circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/>
                 </svg>
               </div>
               <div>
-                <div class="chat-title">Main Agent</div>
+                <div class="chat-title">Agent</div>
                 <div class="chat-subtitle" id="model-label">Connected</div>
               </div>
             </div>
             <button class="btn btn-ghost" id="new-chat-btn" title="New Chat">
               <svg class="icon" viewBox="0 0 24 24">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
             </button>
           </div>
@@ -256,18 +433,13 @@
                 </svg>
               </div>
               <div class="empty-title">Start a conversation</div>
-              <div class="empty-subtitle">Send a message to chat with your agent</div>
+              <div class="empty-subtitle">Ask anything — your agent is ready</div>
             </div>
           </div>
           
           <div class="chat-input-container">
             <div class="chat-input-wrapper">
-              <textarea 
-                class="chat-input" 
-                id="chat-input" 
-                placeholder="Message..." 
-                rows="1"
-              ></textarea>
+              <textarea class="chat-input" id="chat-input" placeholder="Message your agent..." rows="1"></textarea>
               <button class="chat-send" id="chat-send">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <line x1="22" y1="2" x2="11" y2="13"/>
@@ -278,44 +450,100 @@
           </div>
         </div>
 
-        <!-- Agents View -->
-        <div class="view list-view" id="agents-view">
+        <!-- ═══ Build View ═══ -->
+        <div class="view list-view" id="build-view">
           <div class="view-header">
-            <h1 class="view-title">Agents</h1>
-            <button class="btn btn-primary btn-sm" id="add-agent-btn">
-              <svg class="icon-sm" viewBox="0 0 24 24">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
+            <h1 class="view-title">Build</h1>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>
               </svg>
-              Add Agent
+            </div>
+            <div class="empty-title">Vibe code anything</div>
+            <div class="empty-subtitle">Describe your app idea in chat and your agent will scaffold, build, and deploy it</div>
+          </div>
+        </div>
+
+        <!-- ═══ Code View ═══ -->
+        <div class="view list-view" id="code-view">
+          <div class="view-header">
+            <h1 class="view-title">Code</h1>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 1v4M12 19v4"/>
+              </svg>
+            </div>
+            <div class="empty-title">Git & code management</div>
+            <div class="empty-subtitle">Your agent can create repos, write code, open PRs, and do code reviews</div>
+          </div>
+        </div>
+
+        <!-- ═══ Content View ═══ -->
+        <div class="view list-view" id="content-view">
+          <div class="view-header">
+            <h1 class="view-title">Create</h1>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+            </div>
+            <div class="empty-title">Content creation</div>
+            <div class="empty-subtitle">Generate blog posts, social media content, marketing copy, and more</div>
+          </div>
+        </div>
+
+        <!-- ═══ Mail View ═══ -->
+        <div class="view list-view" id="mail-view">
+          <div class="view-header">
+            <h1 class="view-title">Mail</h1>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+            </div>
+            <div class="empty-title">Email agent</div>
+            <div class="empty-subtitle">Connect your inbox — read, draft, and send emails with your approval before anything goes out</div>
+          </div>
+        </div>
+
+        <!-- ═══ Automations View ═══ -->
+        <div class="view list-view" id="automations-view">
+          <div class="view-header">
+            <h1 class="view-title">Automate</h1>
+            <button class="btn btn-primary btn-sm" id="add-schedule-btn">
+              <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Automation
             </button>
           </div>
-          <div class="list-content" id="agents-list">
-            <div class="list-item">
-              <div class="list-item-icon">
+          <div class="list-content" id="cron-list">
+            <div class="empty-state">
+              <div class="empty-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <circle cx="12" cy="8" r="5"/>
-                  <path d="M20 21a8 8 0 1 0-16 0"/>
+                  <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                 </svg>
               </div>
-              <div class="list-item-content">
-                <div class="list-item-title">Main</div>
-                <div class="list-item-desc">Default agent</div>
-              </div>
-              <div class="list-item-badge active">Active</div>
+              <div class="empty-title">No automations yet</div>
+              <div class="empty-subtitle">Create scheduled tasks, triggers, and recurring workflows</div>
             </div>
           </div>
         </div>
 
-        <!-- Channels View -->
+        <!-- ═══ Channels View ═══ -->
         <div class="view list-view" id="channels-view">
           <div class="view-header">
             <h1 class="view-title">Channels</h1>
             <button class="btn btn-primary btn-sm" id="add-channel-btn">
-              <svg class="icon-sm" viewBox="0 0 24 24">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
+              <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add Channel
             </button>
           </div>
@@ -323,17 +551,34 @@
             <div class="empty-state">
               <div class="empty-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                  <polyline points="22,6 12,13 2,6"/>
+                  <path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/>
+                  <rect x="1" y="6" width="14" height="12" rx="2"/>
                 </svg>
               </div>
-              <div class="empty-title">No channels configured</div>
-              <div class="empty-subtitle">Connect Telegram, Discord, WhatsApp, or other services</div>
+              <div class="empty-title">No channels connected</div>
+              <div class="empty-subtitle">Connect Telegram, Discord, WhatsApp, Signal, or other platforms</div>
             </div>
           </div>
         </div>
 
-        <!-- Memory View -->
+        <!-- ═══ Research View ═══ -->
+        <div class="view list-view" id="research-view">
+          <div class="view-header">
+            <h1 class="view-title">Research</h1>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+              </svg>
+            </div>
+            <div class="empty-title">Web research</div>
+            <div class="empty-subtitle">Your agent can browse the web, gather data, and compile reports for you</div>
+          </div>
+        </div>
+
+        <!-- ═══ Memory View ═══ -->
         <div class="view list-view" id="memory-view">
           <div class="view-header">
             <h1 class="view-title">Memory</h1>
@@ -351,40 +596,44 @@
             </div>
             <div class="memory-section">
               <h2 class="memory-section-title">Daily Notes</h2>
-              <div id="daily-notes-list">
-                <!-- Populated by JS -->
-              </div>
+              <div id="daily-notes-list"></div>
             </div>
           </div>
         </div>
 
-        <!-- Schedules/Cron View -->
-        <div class="view list-view" id="cron-view">
+        <!-- ═══ Skills View ═══ -->
+        <div class="view list-view" id="skills-view">
           <div class="view-header">
-            <h1 class="view-title">Schedules</h1>
-            <button class="btn btn-primary btn-sm" id="add-schedule-btn">
-              <svg class="icon-sm" viewBox="0 0 24 24">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
-              Add Schedule
-            </button>
+            <h1 class="view-title">Skills</h1>
           </div>
-          <div class="list-content" id="cron-list">
-            <div class="empty-state">
-              <div class="empty-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                  <circle cx="12" cy="12" r="10"/>
-                  <polyline points="12 6 12 12 16 14"/>
-                </svg>
-              </div>
-              <div class="empty-title">No schedules</div>
-              <div class="empty-subtitle">Create automated tasks and reminders</div>
+          <div class="empty-state">
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+              </svg>
             </div>
+            <div class="empty-title">Agent skills</div>
+            <div class="empty-subtitle">Browse and install abilities — web browsing, code execution, APIs, and more</div>
           </div>
         </div>
 
-        <!-- Settings View -->
+        <!-- ═══ Foundry View ═══ -->
+        <div class="view list-view" id="foundry-view">
+          <div class="view-header">
+            <h1 class="view-title">Foundry</h1>
+          </div>
+          <div class="empty-state">
+            <div class="empty-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              </svg>
+            </div>
+            <div class="empty-title">Model marketplace</div>
+            <div class="empty-subtitle">Choose from GPT-4, Claude, Gemini, local models, or subscribe to access Foundry models</div>
+          </div>
+        </div>
+
+        <!-- ═══ Settings View ═══ -->
         <div class="view settings-view" id="settings-view">
           <h1 class="view-title" style="margin-bottom: 24px;">Settings</h1>
           
@@ -398,13 +647,13 @@
               <label class="form-label">Token</label>
               <input type="password" class="form-input" id="settings-gateway-token" />
             </div>
-            <button class="btn btn-primary" id="settings-save-gateway">Save Gateway Settings</button>
+            <button class="btn btn-primary" id="settings-save-gateway" style="width: auto;">Save Gateway Settings</button>
           </div>
           
           <div class="settings-section">
             <h2 class="settings-section-title">About</h2>
             <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-              <strong>Claw Desktop</strong> v0.1.0<br>
+              <strong>Paw</strong> v0.1.0<br>
               Built on <a href="https://github.com/openclaw/openclaw" target="_blank" style="color: var(--accent);">OpenClaw</a><br><br>
               <a href="https://github.com/elisplash/paw" target="_blank" style="color: var(--text-muted);">View source on GitHub</a>
             </p>

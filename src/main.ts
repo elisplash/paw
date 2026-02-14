@@ -1,4 +1,4 @@
-// Claw Desktop - Main Application
+// Paw - Main Application
 
 import type { Config, Message, InstallProgress } from './types';
 import { setGatewayConfig, getGatewayStatus, sendChatMessage } from './api';
@@ -42,14 +42,21 @@ let messages: Message[] = [];
 let isLoading = false;
 
 // DOM Elements (safe - may be null)
+const dashboardView = document.getElementById('dashboard-view');
 const setupView = document.getElementById('setup-view');
 const manualSetupView = document.getElementById('manual-setup-view');
 const installView = document.getElementById('install-view');
 const chatView = document.getElementById('chat-view');
-const agentsView = document.getElementById('agents-view');
+const buildView = document.getElementById('build-view');
+const codeView = document.getElementById('code-view');
+const contentView = document.getElementById('content-view');
+const mailView = document.getElementById('mail-view');
+const automationsView = document.getElementById('automations-view');
 const channelsView = document.getElementById('channels-view');
+const researchView = document.getElementById('research-view');
 const memoryView = document.getElementById('memory-view');
-const cronView = document.getElementById('cron-view');
+const skillsView = document.getElementById('skills-view');
+const foundryView = document.getElementById('foundry-view');
 const settingsView = document.getElementById('settings-view');
 const statusDot = document.getElementById('status-dot');
 const statusText = document.getElementById('status-text');
@@ -58,10 +65,15 @@ const chatEmpty = document.getElementById('chat-empty');
 const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement | null;
 const chatSend = document.getElementById('chat-send') as HTMLButtonElement | null;
 
-const allViews = [setupView, manualSetupView, installView, chatView, agentsView, channelsView, memoryView, cronView, settingsView].filter(Boolean);
+const allViews = [
+  dashboardView, setupView, manualSetupView, installView,
+  chatView, buildView, codeView, contentView, mailView,
+  automationsView, channelsView, researchView, memoryView,
+  skillsView, foundryView, settingsView,
+].filter(Boolean);
 
-// Navigation
-document.querySelectorAll('.nav-item').forEach((item) => {
+// Navigation — sidebar, feature cards, & quick actions
+document.querySelectorAll('[data-view]').forEach((item) => {
   item.addEventListener('click', () => {
     const view = item.getAttribute('data-view');
     if (view) switchView(view);
@@ -79,27 +91,26 @@ function switchView(viewName: string) {
 
   allViews.forEach((v) => v?.classList.remove('active'));
 
-  switch (viewName) {
-    case 'chat':
-      chatView?.classList.add('active');
-      break;
-    case 'agents':
-      agentsView?.classList.add('active');
-      break;
-    case 'channels':
-      channelsView?.classList.add('active');
-      break;
-    case 'memory':
-      memoryView?.classList.add('active');
-      break;
-    case 'cron':
-      cronView?.classList.add('active');
-      break;
-    case 'settings':
-      settingsView?.classList.add('active');
-      syncSettingsForm();
-      break;
-  }
+  const viewMap: Record<string, HTMLElement | null> = {
+    dashboard: dashboardView,
+    chat: chatView,
+    build: buildView,
+    code: codeView,
+    content: contentView,
+    mail: mailView,
+    automations: automationsView,
+    channels: channelsView,
+    research: researchView,
+    memory: memoryView,
+    skills: skillsView,
+    foundry: foundryView,
+    settings: settingsView,
+  };
+
+  const target = viewMap[viewName];
+  if (target) target.classList.add('active');
+
+  if (viewName === 'settings') syncSettingsForm();
 }
 
 function showView(viewId: string) {
@@ -138,7 +149,7 @@ document.getElementById('setup-detect')?.addEventListener('click', async () => {
         }
         
         await checkGatewayStatus();
-        switchView('chat');
+        switchView('dashboard');
         return;
       }
     }
@@ -203,7 +214,7 @@ document.getElementById('start-install')?.addEventListener('click', async () => 
       
       await new Promise(resolve => setTimeout(resolve, 1000));
       await checkGatewayStatus();
-      switchView('chat');
+      switchView('dashboard');
     }
     
   } catch (error) {
@@ -235,7 +246,7 @@ document.getElementById('gateway-form')?.addEventListener('submit', async (e) =>
       if (statusDot) statusDot.classList.add('connected');
       if (statusText) statusText.textContent = 'Connected';
       
-      switchView('chat');
+      switchView('dashboard');
     } else {
       throw new Error('Gateway not responding');
     }
@@ -435,12 +446,12 @@ async function checkGatewayStatus() {
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    console.log('Claw Desktop starting...');
+    console.log('Paw starting...');
     loadConfig();
     syncApiConfig();
 
     if (config.configured) {
-      switchView('chat');
+      switchView('dashboard');
       await checkGatewayStatus();
     } else {
       showView('setup-view');
@@ -450,7 +461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setInterval(() => {
       checkGatewayStatus().catch((e) => console.warn('Status poll error:', e));
     }, 10000);
-    console.log('Claw Desktop initialized');
+    console.log('Paw initialized');
   } catch (e) {
     console.error('Init error:', e);
     showView('setup-view');
