@@ -1782,9 +1782,9 @@ async function loadMemoryPalace() {
             btn.textContent = 'Restarting…';
             try {
               await invoke?.('stop_gateway');
-              await new Promise(r => setTimeout(r, 2000));
+              await new Promise(r => setTimeout(r, 4000));
               await invoke?.('start_gateway', { port: null });
-              await new Promise(r => setTimeout(r, 3000));
+              await new Promise(r => setTimeout(r, 5000));
               _palaceInitialized = false;
               await loadMemoryPalace();
               loadMemory();
@@ -1882,9 +1882,9 @@ function initPalaceInstall() {
       // Restart gateway to pick up the new plugin config
       try {
         await invoke('stop_gateway');
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 4000));
         await invoke('start_gateway', { port: null });
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise(r => setTimeout(r, 5000));
       } catch (e) {
         console.warn('[memory] Gateway restart failed:', e);
       }
@@ -1919,9 +1919,9 @@ function initPalaceInstall() {
           btn.textContent = 'Restarting…';
           try {
             await invoke('stop_gateway');
-            await new Promise(r => setTimeout(r, 2000));
+            await new Promise(r => setTimeout(r, 4000));
             await invoke('start_gateway', { port: null });
-            await new Promise(r => setTimeout(r, 3000));
+            await new Promise(r => setTimeout(r, 5000));
             _palaceInitialized = false;
             await loadMemoryPalace();
             loadMemory();

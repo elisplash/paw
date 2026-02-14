@@ -470,18 +470,47 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
 #[tauri::command]
 fn stop_gateway() -> Result<(), String> {
     info!("Stopping gateway...");
-    #[cfg(unix)]
-    {
-        let _ = Command::new("pkill")
-            .args(["-f", "openclaw-gateway"])
-            .output();
+
+    let openclaw_bin = get_openclaw_path();
+    let node_dir = get_node_bin_dir();
+
+    // Prefer `openclaw gateway stop` which properly handles the LaunchAgent.
+    // Raw `pkill` only kills the process — launchd immediately restarts it,
+    // causing the subsequent `gateway start` to fail on `launchctl kickstart`.
+    let result = if openclaw_bin.exists() {
+        Command::new(openclaw_bin.to_str().unwrap())
+            .args(["gateway", "stop"])
+            .env("PATH", join_path_env(&node_dir))
+            .output()
+    } else {
+        Command::new("openclaw")
+            .args(["gateway", "stop"])
+            .output()
+    };
+
+    match result {
+        Ok(output) => {
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                info!("openclaw gateway stop returned non-zero ({}): {}", output.status, stderr.trim());
+                // Fall back to pkill as last resort
+                #[cfg(unix)]
+                { let _ = Command::new("pkill").args(["-f", "openclaw-gateway"]).output(); }
+                #[cfg(windows)]
+                { let _ = Command::new("taskkill").args(["/F", "/IM", "openclaw-gateway.exe"]).output(); }
+            } else {
+                info!("Gateway stopped via openclaw CLI");
+            }
+        }
+        Err(e) => {
+            info!("openclaw gateway stop failed ({}), falling back to pkill", e);
+            #[cfg(unix)]
+            { let _ = Command::new("pkill").args(["-f", "openclaw-gateway"]).output(); }
+            #[cfg(windows)]
+            { let _ = Command::new("taskkill").args(["/F", "/IM", "openclaw-gateway.exe"]).output(); }
+        }
     }
-    #[cfg(windows)]
-    {
-        let _ = Command::new("taskkill")
-            .args(["/F", "/IM", "openclaw-gateway.exe"])
-            .output();
-    }
+
     Ok(())
 }
 
