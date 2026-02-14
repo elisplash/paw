@@ -88,17 +88,20 @@ fn check_openclaw_installed() -> bool {
     openclaw_config.exists()
 }
 
-/// Read the gateway port from ~/.openclaw/openclaw.json (gateway.port),
-/// falling back to 5757 if not set or unreadable.
+/// Read the gateway port from ~/.openclaw/openclaw.json.
+/// Checks gateway.port, then falls back to 18789 (OpenClaw default).
 fn get_gateway_port() -> u16 {
     let port = (|| -> Option<u16> {
         let home = dirs::home_dir()?;
         let config_path = home.join(".openclaw/openclaw.json");
         let content = std::fs::read_to_string(config_path).ok()?;
         let config: serde_json::Value = serde_json::from_str(&content).ok()?;
-        config["gateway"]["port"].as_u64().map(|p| p as u16)
+        // Try gateway.port first, then top-level port
+        config["gateway"]["port"].as_u64()
+            .or_else(|| config["port"].as_u64())
+            .map(|p| p as u16)
     })();
-    port.unwrap_or(5757)
+    port.unwrap_or(18789)
 }
 
 #[tauri::command]

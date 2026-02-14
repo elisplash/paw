@@ -28,7 +28,7 @@ const listen = tauriWindow.__TAURI__?.event?.listen;
 // ── State ──────────────────────────────────────────────────────────────────
 let config: AppConfig = {
   configured: false,
-  gateway: { url: 'http://localhost:5757', token: '' },
+  gateway: { url: 'http://localhost:18789', token: '' },
 };
 
 let messages: Message[] = [];
@@ -38,8 +38,8 @@ let sessions: Session[] = [];
 let wsConnected = false;
 
 function getPortFromUrl(url: string): number {
-  try { return parseInt(new URL(url).port, 10) || 5757; }
-  catch { return 5757; }
+  try { return parseInt(new URL(url).port, 10) || 18789; }
+  catch { return 18789; }
 }
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
@@ -201,19 +201,20 @@ $('setup-detect')?.addEventListener('click', async () => {
     if (installed) {
       const token = invoke ? await invoke<string | null>('get_gateway_token') : null;
       if (token) {
-        const cfgPort = invoke ? await invoke<number>('get_gateway_port_setting').catch(() => 5757) : 5757;
+        const cfgPort = invoke ? await invoke<number>('get_gateway_port_setting').catch(() => 18789) : 18789;
         config.configured = true;
         config.gateway.url = `http://localhost:${cfgPort}`;
         config.gateway.token = token;
         saveConfig();
 
+        // Probe first — only start gateway if nothing is listening
         if (invoke) {
           const alreadyRunning = await invoke<boolean>('check_gateway_health', { port: cfgPort }).catch(() => false);
           if (!alreadyRunning) {
             await invoke('start_gateway', { port: cfgPort }).catch((e: unknown) => {
               console.warn('Gateway start failed (may already be running):', e);
             });
-            await new Promise(r => setTimeout(r, 1500));
+            await new Promise(r => setTimeout(r, 2000));
           }
         }
 
@@ -254,7 +255,7 @@ $('start-install')?.addEventListener('click', async () => {
 
     const token = invoke ? await invoke<string | null>('get_gateway_token') : null;
     if (token) {
-      const cfgPort = invoke ? await invoke<number>('get_gateway_port_setting').catch(() => 5757) : 5757;
+      const cfgPort = invoke ? await invoke<number>('get_gateway_port_setting').catch(() => 18789) : 18789;
       config.configured = true;
       config.gateway.url = `http://localhost:${cfgPort}`;
       config.gateway.token = token;

@@ -1,7 +1,7 @@
 // Paw — HTTP helpers (used only for pre-connection health probes)
 // All runtime communication goes through the WebSocket gateway in gateway.ts
 
-let gatewayUrl = 'http://localhost:5757';
+let gatewayUrl = 'http://localhost:18789';
 let gatewayToken = '';
 
 export function setGatewayConfig(url: string, token: string) {
