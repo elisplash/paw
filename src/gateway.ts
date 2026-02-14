@@ -402,11 +402,12 @@ class GatewayClient {
   }
 
   async chatSend(sessionKey: string, message: string, opts?: { thinking?: string; idempotencyKey?: string }): Promise<ChatSendResult> {
+    const idempotencyKey = opts?.idempotencyKey ?? crypto.randomUUID();
     return this.request<ChatSendResult>('chat.send', {
       sessionKey,
       message,
+      idempotencyKey,
       ...(opts?.thinking ? { thinking: opts.thinking } : {}),
-      ...(opts?.idempotencyKey ? { idempotencyKey: opts.idempotencyKey } : {}),
     }, 120_000); // chat can take a while
   }
 
