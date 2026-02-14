@@ -214,7 +214,7 @@ class GatewayClient {
     }
     this.ws = null;
     this._connected = false;
-    this._connecting = false;
+    // Note: do NOT reset _connecting here — connect() sets it before calling disconnect()
     this.hello = null;
   }
 
