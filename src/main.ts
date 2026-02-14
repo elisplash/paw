@@ -1719,6 +1719,22 @@ async function loadMemoryPalace() {
     initPalaceRecall();
     initPalaceRemember();
     initPalaceGraph();
+
+    // If palace not available, default to Files tab and hide Agent Files divider
+    // (sidebar already shows files as the main content)
+    const filesDivider = $('palace-files-divider');
+    if (!_palaceAvailable) {
+      document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
+      document.querySelector('.palace-tab[data-palace-tab="files"]')?.classList.add('active');
+      const fp = $('palace-files-panel');
+      if (fp) fp.style.display = 'flex';
+      if (filesDivider) filesDivider.style.display = 'none';
+      const memoryListBelow = $('memory-list');
+      if (memoryListBelow) memoryListBelow.style.display = 'none';
+    } else {
+      if (filesDivider) filesDivider.style.display = '';
+    }
   }
 
   // Load palace stats + memory list via gateway
@@ -1733,9 +1749,18 @@ async function loadPalaceStats() {
   if (!totalEl) return;
 
   if (!_palaceAvailable) {
-    totalEl.textContent = '—';
-    if (typesEl) typesEl.textContent = '—';
-    if (edgesEl) edgesEl.textContent = '—';
+    // Show agent file count as fallback stats
+    try {
+      const result = await gateway.agentFilesList();
+      const files = result.files ?? [];
+      totalEl.textContent = String(files.length);
+      if (typesEl) typesEl.textContent = 'files';
+      if (edgesEl) edgesEl.textContent = '—';
+    } catch {
+      totalEl.textContent = '—';
+      if (typesEl) typesEl.textContent = '—';
+      if (edgesEl) edgesEl.textContent = '—';
+    }
     return;
   }
 
@@ -1764,7 +1789,39 @@ async function loadPalaceSidebar() {
   list.innerHTML = '';
 
   if (!_palaceAvailable) {
-    list.innerHTML = `<div class="empty-state" style="padding:1rem;font-size:0.85rem;">Memory Palace skill not detected.<br>Install it in <strong>Skills</strong> to unlock semantic memory.</div>`;
+    // Fall back to showing agent files as memory entries in the sidebar
+    try {
+      const result = await gateway.agentFilesList();
+      const files = result.files ?? [];
+      if (!files.length) {
+        list.innerHTML = `<div class="palace-list-empty">No agent files yet</div>`;
+        return;
+      }
+      for (const file of files) {
+        const displayName = file.path ?? file.name ?? 'unknown';
+        const displaySize = file.sizeBytes ?? file.size;
+        const card = document.createElement('div');
+        card.className = 'palace-memory-card';
+        card.innerHTML = `
+          <span class="palace-memory-type">file</span>
+          <div class="palace-memory-subject">${escHtml(displayName)}</div>
+          <div class="palace-memory-preview">${displaySize ? formatBytes(displaySize) : 'Agent file'}</div>
+        `;
+        card.addEventListener('click', () => {
+          // Switch to Files tab and open this file
+          document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
+          document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
+          document.querySelector('.palace-tab[data-palace-tab="files"]')?.classList.add('active');
+          const fp = $('palace-files-panel');
+          if (fp) fp.style.display = 'flex';
+          openMemoryFile(displayName);
+        });
+        list.appendChild(card);
+      }
+    } catch (e) {
+      console.warn('Agent files load failed:', e);
+      list.innerHTML = '<div class="palace-list-empty">Could not load files</div>';
+    }
     return;
   }
 
@@ -1791,7 +1848,7 @@ async function loadPalaceSidebar() {
     }
   } catch (e) {
     console.warn('Palace sidebar load failed:', e);
-    list.innerHTML = '<div class="empty-state" style="padding:1rem;">Could not load memories.</div>';
+    list.innerHTML = '<div class="palace-list-empty">Could not load memories</div>';
   }
 }
 
@@ -1895,7 +1952,17 @@ async function palaceRecallSearch() {
   if (emptyEl) emptyEl.style.display = 'none';
 
   if (!_palaceAvailable) {
-    resultsEl.innerHTML = '<div class="empty-state" style="padding:1rem;">Memory Palace skill not installed. Install it in Skills to enable semantic recall.</div>';
+    resultsEl.innerHTML = `<div class="empty-state" style="padding:1rem;">
+      <div class="empty-title">Semantic recall requires Memory Palace</div>
+      <div class="empty-subtitle" style="max-width:380px;line-height:1.6">
+        Memory Palace is a separate MCP skill that adds semantic search, knowledge graphs, and auto-linking.<br><br>
+        <strong>To set up:</strong><br>
+        1. Install from <a href="https://github.com/jeffpierce/memory-palace" target="_blank" style="color:var(--accent)">github.com/jeffpierce/memory-palace</a><br>
+        2. Run the MCP server alongside your gateway<br>
+        3. Register it as a skill in your OpenClaw config<br><br>
+        Meanwhile, use the <strong>Files</strong> tab to view and edit agent files directly.
+      </div>
+    </div>`;
     return;
   }
 
@@ -1941,7 +2008,7 @@ function initPalaceRemember() {
     }
 
     if (!_palaceAvailable) {
-      alert('Memory Palace skill not installed. Install it in Skills.');
+      alert('Memory Palace skill not installed.\n\nInstall it from github.com/jeffpierce/memory-palace, run the MCP server, and register it as a skill in your OpenClaw config.\n\nMeanwhile, use the Files tab to manage agent files directly.');
       return;
     }
 
@@ -1993,7 +2060,13 @@ async function renderPalaceGraph() {
   if (!canvas) return;
 
   if (!_palaceAvailable) {
-    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Memory Palace skill not installed.'; }
+    if (emptyEl) {
+      emptyEl.style.display = 'flex';
+      emptyEl.innerHTML = `
+        <div class="empty-title">Knowledge Graph</div>
+        <div class="empty-subtitle">Requires <a href="https://github.com/jeffpierce/memory-palace" target="_blank" style="color:var(--accent)">Memory Palace</a> skill for graph visualization</div>
+      `;
+    }
     return;
   }
 
