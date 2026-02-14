@@ -876,7 +876,7 @@
               <h2 class="palace-install-title">Enable Long-Term Memory</h2>
               <p class="palace-install-desc">
                 Give your agent persistent vector memory with auto-capture and semantic recall.
-                Just add an embedding API key — no extra software required.
+                Works with OpenAI or Azure AI Foundry — just add your API key.
               </p>
               <div class="palace-api-config" id="palace-api-config">
                 <label class="palace-api-label" for="palace-api-key">
@@ -885,12 +885,16 @@
                 <input class="palace-api-input" id="palace-api-key" type="password"
                   placeholder="sk-... or Azure API key" autocomplete="off" spellcheck="false" />
                 <label class="palace-api-label" for="palace-base-url">
-                  Custom Endpoint <span class="palace-api-hint">(Azure / Foundry — leave blank for OpenAI)</span>
+                  Custom Endpoint <span class="palace-api-hint">(Azure — leave blank for OpenAI)</span>
                 </label>
                 <input class="palace-api-input" id="palace-base-url" type="text"
-                  placeholder="https://your-resource.openai.azure.com/openai/deployments/text-embedding-3-small" autocomplete="off" spellcheck="false" />
+                  placeholder="https://your-resource.openai.azure.com/openai" autocomplete="off" spellcheck="false" />
+                <p class="palace-api-hint" style="font-size:11px;margin:-6px 0 8px 0;opacity:0.6;">
+                  Azure: use your resource endpoint (e.g. https://myresource.openai.azure.com/openai).
+                  The deployment name is resolved from the model field below.
+                </p>
                 <label class="palace-api-label" for="palace-model-name">
-                  Model <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>
+                  Model / Deployment <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>
                 </label>
                 <input class="palace-api-input" id="palace-model-name" type="text"
                   placeholder="text-embedding-3-small" autocomplete="off" spellcheck="false" />

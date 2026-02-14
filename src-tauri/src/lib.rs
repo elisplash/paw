@@ -444,6 +444,16 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
     let embedding_base_url = read_paw_settings()
         .and_then(|s| s.get("embeddingBaseUrl").and_then(|v| v.as_str()).map(|s| s.to_string()));
 
+    // If Azure endpoint, ensure the plugin patch is applied (survives openclaw updates)
+    if let Some(ref url) = embedding_base_url {
+        if is_azure_endpoint(url) {
+            match patch_memory_plugin_for_azure() {
+                Ok(()) => info!("Azure memory plugin patch verified"),
+                Err(e) => warn!("Failed to verify Azure plugin patch: {}", e),
+            }
+        }
+    }
+
     // On macOS, set the env var for the launchd user session so the
     // LaunchAgent picks it up when gateway is started/restarted by launchd.
     #[cfg(target_os = "macos")]
@@ -452,6 +462,11 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
         let _ = Command::new("launchctl")
             .args(["setenv", "OPENAI_BASE_URL", url])
             .output();
+        if is_azure_endpoint(url) {
+            let _ = Command::new("launchctl")
+                .args(["setenv", "OPENAI_API_VERSION", "2024-08-01-preview"])
+                .output();
+        }
     }
 
     let bin_str: String;
@@ -475,6 +490,9 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
         .env("PATH", &path_env);
     if let Some(ref url) = embedding_base_url {
         install_cmd.env("OPENAI_BASE_URL", url);
+        if is_azure_endpoint(url) {
+            install_cmd.env("OPENAI_API_VERSION", "2024-08-01-preview");
+        }
     }
     let install_result = install_cmd.output();
     match &install_result {
@@ -492,6 +510,9 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
         .env("PATH", &path_env);
     if let Some(ref url) = embedding_base_url {
         cmd.env("OPENAI_BASE_URL", url);
+        if is_azure_endpoint(url) {
+            cmd.env("OPENAI_API_VERSION", "2024-08-01-preview");
+        }
     }
     cmd.spawn()
         .map_err(|e| format!("Failed to start gateway: {}", e))?;
@@ -553,6 +574,144 @@ fn stop_gateway() -> Result<(), String> {
 //   - memory_forget — delete memories
 // Configuration: plugins.slots.memory = "memory-lancedb" in openclaw.json.
 // Requires: an OpenAI-compatible embedding API key.
+
+/// Returns true if the given base URL looks like an Azure endpoint.
+fn is_azure_endpoint(url: &str) -> bool {
+    url.contains(".azure.") || url.contains(".cognitiveservices.") || url.contains(".ai.azure.")
+}
+
+/// Find the bundled memory-lancedb plugin directory (inside the openclaw npm package).
+fn find_bundled_memory_plugin() -> Option<PathBuf> {
+    let app_dir = get_app_data_dir();
+    // Installed via npm: <app_dir>/node_modules/openclaw/extensions/memory-lancedb
+    let candidate = app_dir.join("node_modules/openclaw/extensions/memory-lancedb");
+    if candidate.join("index.ts").exists() {
+        return Some(candidate);
+    }
+    // Also try global install
+    let home = dirs::home_dir()?;
+    let global = home.join(".openclaw/node_modules/openclaw/extensions/memory-lancedb");
+    if global.join("index.ts").exists() {
+        return Some(global);
+    }
+    None
+}
+
+/// Install a patched copy of the memory-lancedb plugin in ~/.openclaw/extensions/
+/// that uses AzureOpenAI instead of plain OpenAI when an Azure base URL is detected.
+/// The global extensions dir takes priority over the bundled one, so this override
+/// is picked up automatically by the gateway.
+fn patch_memory_plugin_for_azure() -> Result<(), String> {
+    let bundled = find_bundled_memory_plugin()
+        .ok_or("Cannot find bundled memory-lancedb plugin")?;
+
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let target_dir = home.join(".openclaw/extensions/memory-lancedb");
+
+    // Copy the entire plugin directory
+    fs::create_dir_all(&target_dir)
+        .map_err(|e| format!("Failed to create extensions dir: {}", e))?;
+
+    // Copy config.ts, package.json, openclaw.plugin.json
+    for file in &["config.ts", "package.json", "openclaw.plugin.json"] {
+        let src = bundled.join(file);
+        let dst = target_dir.join(file);
+        if src.exists() {
+            fs::copy(&src, &dst)
+                .map_err(|e| format!("Failed to copy {}: {}", file, e))?;
+        }
+    }
+
+    // Symlink node_modules from the bundled dir (avoids duplicating large deps)
+    let nm_link = target_dir.join("node_modules");
+    let nm_src = bundled.join("node_modules");
+    if nm_src.exists() && !nm_link.exists() {
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&nm_src, &nm_link)
+                .map_err(|e| format!("Failed to symlink node_modules: {}", e))?;
+        }
+        #[cfg(windows)]
+        {
+            // On Windows, fall back to junction or directory copy
+            let _ = Command::new("cmd")
+                .args(["/c", "mklink", "/J",
+                    nm_link.to_str().unwrap(),
+                    nm_src.to_str().unwrap()])
+                .output();
+        }
+    }
+
+    // Read the original index.ts
+    let index_src = bundled.join("index.ts");
+    let index_content = fs::read_to_string(&index_src)
+        .map_err(|e| format!("Failed to read index.ts: {}", e))?;
+
+    // Patch: replace `import OpenAI from "openai";` with an import that also
+    // brings in AzureOpenAI, and replace the Embeddings constructor to detect Azure.
+    let patched = index_content
+        .replace(
+            r#"import OpenAI from "openai";"#,
+            r#"import OpenAI, { AzureOpenAI } from "openai";"#,
+        )
+        .replace(
+            // Original constructor
+            concat!(
+                "class Embeddings {\n",
+                "  private client: OpenAI;\n",
+                "\n",
+                "  constructor(\n",
+                "    apiKey: string,\n",
+                "    private model: string,\n",
+                "  ) {\n",
+                "    this.client = new OpenAI({ apiKey });\n",
+                "  }",
+            ),
+            // Patched constructor: detect Azure endpoints via OPENAI_BASE_URL
+            concat!(
+                "class Embeddings {\n",
+                "  private client: OpenAI;\n",
+                "\n",
+                "  constructor(\n",
+                "    apiKey: string,\n",
+                "    private model: string,\n",
+                "  ) {\n",
+                "    const baseUrl = process.env.OPENAI_BASE_URL || '';\n",
+                "    const isAzure = baseUrl.includes('.azure.') || baseUrl.includes('.cognitiveservices.');\n",
+                "    if (isAzure) {\n",
+                "      // Azure requires api-key header + api-version query param.\n",
+                "      // AzureOpenAI handles both automatically.\n",
+                "      this.client = new AzureOpenAI({\n",
+                "        apiKey,\n",
+                "        apiVersion: process.env.OPENAI_API_VERSION || '2024-08-01-preview',\n",
+                "        baseURL: baseUrl,\n",
+                "      }) as unknown as OpenAI;\n",
+                "    } else {\n",
+                "      this.client = new OpenAI({ apiKey });\n",
+                "    }\n",
+                "  }",
+            ),
+        );
+
+    // Write the patched index.ts
+    let index_dst = target_dir.join("index.ts");
+    fs::write(&index_dst, &patched)
+        .map_err(|e| format!("Failed to write patched index.ts: {}", e))?;
+
+    info!("Patched memory-lancedb for Azure at {:?}", target_dir);
+    Ok(())
+}
+
+/// Remove the patched memory plugin (revert to bundled version).
+fn remove_patched_memory_plugin() {
+    if let Some(home) = dirs::home_dir() {
+        let target_dir = home.join(".openclaw/extensions/memory-lancedb");
+        if target_dir.exists() {
+            let _ = fs::remove_dir_all(&target_dir);
+            info!("Removed patched memory-lancedb plugin");
+        }
+    }
+}
 
 /// Check if memory-lancedb is configured in openclaw.json.
 #[tauri::command]
@@ -666,6 +825,12 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
             .ok_or("env.vars is not an object")?;
         vars.insert("OPENAI_BASE_URL".to_string(), serde_json::json!(url));
         info!("Set env.vars.OPENAI_BASE_URL={} in openclaw.json", url);
+
+        // For Azure endpoints, also set OPENAI_API_VERSION
+        if is_azure_endpoint(url) {
+            vars.insert("OPENAI_API_VERSION".to_string(), serde_json::json!("2024-08-01-preview"));
+            info!("Set env.vars.OPENAI_API_VERSION for Azure");
+        }
     }
 
     // Write back openclaw.json (no Paw-specific keys — gateway rejects unknown root keys)
@@ -676,6 +841,23 @@ fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option
     save_paw_settings(&serde_json::json!({
         "embeddingBaseUrl": base_url,
     }))?;
+
+    // If the base URL is Azure, patch the plugin to use AzureOpenAI
+    if let Some(ref url) = base_url {
+        if is_azure_endpoint(url) {
+            info!("Azure endpoint detected — patching memory plugin for Azure compatibility");
+            match patch_memory_plugin_for_azure() {
+                Ok(()) => info!("Memory plugin patched for Azure"),
+                Err(e) => warn!("Failed to patch memory plugin for Azure: {}", e),
+            }
+        } else {
+            // Not Azure — remove any previous Azure patch so bundled version is used
+            remove_patched_memory_plugin();
+        }
+    } else {
+        // No base URL — remove any previous Azure patch
+        remove_patched_memory_plugin();
+    }
 
     info!("Enabled memory-lancedb plugin in openclaw.json (model: {})", model);
     Ok(())
