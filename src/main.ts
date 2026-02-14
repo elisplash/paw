@@ -2746,7 +2746,7 @@ document.querySelectorAll('.research-tab').forEach(tab => {
 });
 
 async function createNewResearch() {
-  const name = prompt('Research project name:');
+  const name = await promptModal('Research project name:', 'My research project');
   if (!name) return;
   const id = crypto.randomUUID();
   await saveProject({ id, name, space: 'research' });
@@ -2757,8 +2757,8 @@ async function createNewResearch() {
 $('research-new-project')?.addEventListener('click', createNewResearch);
 $('research-create-first')?.addEventListener('click', createNewResearch);
 
-$('research-add-source')?.addEventListener('click', () => {
-  const url = prompt('Source URL:');
+$('research-add-source')?.addEventListener('click', async () => {
+  const url = await promptModal('Source URL:', 'https://...');
   if (!url) return;
   const list = $('research-sources-list');
   if (!list) return;
@@ -2773,7 +2773,7 @@ $('research-add-source')?.addEventListener('click', () => {
 
 $('research-agent-find')?.addEventListener('click', async () => {
   if (!_activeResearchId || !wsConnected) { alert('Connect to gateway first'); return; }
-  const topic = prompt('What should the agent research?');
+  const topic = await promptModal('What should the agent research?', 'Enter a research topic...');
   if (!topic) return;
   alert('Research request sent. Check Chat for findings.');
   gateway.chatSend('paw-research-' + _activeResearchId, `Research this topic thoroughly and provide key findings with sources: ${topic}`).catch(console.warn);
@@ -2793,7 +2793,7 @@ let _buildOpenFiles: { path: string; content: string }[] = [];
 let _buildActiveFile: string | null = null;
 
 $('build-new-project')?.addEventListener('click', async () => {
-  const name = prompt('Project name:');
+  const name = await promptModal('Project name:', 'My project');
   if (!name) return;
   const id = crypto.randomUUID();
   await saveProject({ id, name, space: 'build' });
@@ -2820,9 +2820,9 @@ async function loadBuildProject() {
   }
 }
 
-$('build-add-file')?.addEventListener('click', () => {
+$('build-add-file')?.addEventListener('click', async () => {
   if (!_buildProjectId) { alert('Create a project first'); return; }
-  const filename = prompt('File name (e.g. index.html):');
+  const filename = await promptModal('File name', 'e.g. index.html');
   if (!filename) return;
   const _fl = $('build-file-list'); void _fl;
   const editor = $('build-code-editor') as HTMLTextAreaElement;
@@ -2936,6 +2936,55 @@ $('build-chat-send')?.addEventListener('click', async () => {
 });
 
 // ── Helpers ────────────────────────────────────────────────────────────────
+
+// Tauri 2 WKWebView (macOS) does not support window.prompt() — it returns null.
+// This custom modal replaces all prompt() usage in the app.
+function promptModal(title: string, placeholder?: string): Promise<string | null> {
+  return new Promise(resolve => {
+    const overlay = $('prompt-modal');
+    const titleEl = $('prompt-modal-title');
+    const input = $('prompt-modal-input') as HTMLInputElement | null;
+    const okBtn = $('prompt-modal-ok');
+    const cancelBtn = $('prompt-modal-cancel');
+    const closeBtn = $('prompt-modal-close');
+    if (!overlay || !input) { resolve(null); return; }
+
+    if (titleEl) titleEl.textContent = title;
+    input.placeholder = placeholder ?? '';
+    input.value = '';
+    overlay.style.display = 'flex';
+    input.focus();
+
+    function cleanup() {
+      overlay!.style.display = 'none';
+      okBtn?.removeEventListener('click', onOk);
+      cancelBtn?.removeEventListener('click', onCancel);
+      closeBtn?.removeEventListener('click', onCancel);
+      input?.removeEventListener('keydown', onKey);
+      overlay?.removeEventListener('click', onBackdrop);
+    }
+    function onOk() {
+      const val = input!.value.trim();
+      cleanup();
+      resolve(val || null);
+    }
+    function onCancel() { cleanup(); resolve(null); }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Enter') { e.preventDefault(); onOk(); }
+      else if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+    }
+    function onBackdrop(e: MouseEvent) {
+      if (e.target === overlay) onCancel();
+    }
+
+    okBtn?.addEventListener('click', onOk);
+    cancelBtn?.addEventListener('click', onCancel);
+    closeBtn?.addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKey);
+    overlay.addEventListener('click', onBackdrop);
+  });
+}
+
 function escHtml(s: string): string {
   const d = document.createElement('div');
   d.textContent = s;

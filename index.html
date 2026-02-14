@@ -1285,6 +1285,23 @@
       </main>
     </div>
 
+    <!-- Generic Prompt Modal (replaces window.prompt which doesn't work in Tauri webview) -->
+    <div class="modal-overlay" id="prompt-modal" style="display:none">
+      <div class="modal-card" style="width:420px">
+        <div class="modal-header">
+          <h2 class="modal-title" id="prompt-modal-title">Input</h2>
+          <button class="btn-icon" id="prompt-modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <input type="text" class="form-input" id="prompt-modal-input" placeholder="" autocomplete="off" />
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="prompt-modal-cancel">Cancel</button>
+          <button class="btn btn-primary" id="prompt-modal-ok">OK</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
