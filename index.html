@@ -794,7 +794,7 @@
           <div class="view-loading" id="channels-loading" style="display:none">Loading channels…</div>
         </div>
 
-        <!-- ═══ Research View — Notebook ═══ -->
+        <!-- ═══ Research View — Agent-powered research ═══ -->
         <div class="view studio-view" id="research-view">
           <div class="studio-sidebar">
             <div class="studio-sidebar-header">
@@ -817,45 +817,64 @@
             </div>
           </div>
           <div class="studio-main">
-            <div class="research-tabs" id="research-tabs" style="display:none">
-              <button class="research-tab active" data-tab="sources">Sources</button>
-              <button class="research-tab" data-tab="findings">Findings</button>
-              <button class="research-tab" data-tab="report">Report</button>
-              <button class="btn btn-ghost btn-sm btn-error" id="research-delete-project" style="margin-left:auto">Delete</button>
-            </div>
+            <!-- Empty state -->
             <div class="studio-editor" id="research-content">
               <div class="empty-state" id="research-empty">
                 <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg></div>
-                <div class="empty-title">Research notebook</div>
-                <div class="empty-subtitle">Create a research project — your agent will browse the web, gather data, and compile findings</div>
-                <button class="btn btn-primary" id="research-create-first" style="margin-top:16px">Start Research</button>
+                <div class="empty-title">Research assistant</div>
+                <div class="empty-subtitle">Create a project, ask a question, and your agent will research it — browsing the web, gathering sources, and compiling findings</div>
+                <button class="btn btn-primary" id="research-create-first" style="margin-top:16px">New Research Project</button>
               </div>
-              <div class="research-panel" id="research-sources" style="display:none">
-                <div class="research-panel-header">
-                  <h3>Sources</h3>
-                  <button class="btn btn-primary btn-sm" id="research-add-source">
-                    <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    Add URL
+
+              <!-- Active project workspace -->
+              <div class="research-workspace" id="research-workspace" style="display:none">
+                <!-- Topic input -->
+                <div class="research-input-bar">
+                  <input type="text" class="form-input research-topic-input" id="research-topic-input"
+                         placeholder="What do you want to research?" autocomplete="off" />
+                  <button class="btn btn-primary" id="research-run-btn">
+                    <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                    Research
                   </button>
                 </div>
-                <div id="research-sources-list" class="research-items"></div>
-              </div>
-              <div class="research-panel" id="research-findings" style="display:none">
-                <div class="research-panel-header">
-                  <h3>Findings</h3>
-                  <button class="btn btn-primary btn-sm" id="research-agent-find">
-                    <svg class="icon-sm" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
-                    Agent Research
-                  </button>
+
+                <!-- Live agent output (shown during research) -->
+                <div class="research-live" id="research-live" style="display:none">
+                  <div class="research-live-header">
+                    <div class="research-live-status">
+                      <div class="loading-dots"><span></span><span></span><span></span></div>
+                      <span id="research-live-label">Researching…</span>
+                    </div>
+                    <button class="btn btn-ghost btn-sm" id="research-abort-btn">Stop</button>
+                  </div>
+                  <div class="research-live-content" id="research-live-content"></div>
                 </div>
-                <div id="research-findings-list" class="research-items"></div>
-              </div>
-              <div class="research-panel" id="research-report" style="display:none">
-                <div class="research-panel-header">
-                  <h3>Report</h3>
-                  <button class="btn btn-primary btn-sm" id="research-generate-report">Generate Report</button>
+
+                <!-- Accumulated findings -->
+                <div class="research-findings" id="research-findings-area">
+                  <div class="research-findings-header" id="research-findings-header" style="display:none">
+                    <h3>Findings</h3>
+                    <button class="btn btn-primary btn-sm" id="research-generate-report">
+                      <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                      Generate Report
+                    </button>
+                  </div>
+                  <div id="research-findings-list" class="research-findings-list"></div>
                 </div>
-                <textarea class="studio-content-editor" id="research-report-editor" placeholder="Report will appear here..."></textarea>
+
+                <!-- Report (generated synthesis) -->
+                <div class="research-report-area" id="research-report-area" style="display:none">
+                  <div class="research-findings-header">
+                    <h3>Report</h3>
+                    <button class="btn btn-ghost btn-sm" id="research-close-report">Back to Findings</button>
+                  </div>
+                  <div class="research-report-content" id="research-report-content"></div>
+                </div>
+
+                <!-- Project actions -->
+                <div class="research-project-actions">
+                  <button class="btn btn-ghost btn-sm btn-error" id="research-delete-project">Delete Project</button>
+                </div>
               </div>
             </div>
           </div>

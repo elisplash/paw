@@ -774,7 +774,34 @@ gateway.on('agent', (payload: unknown) => {
     const runId = evt.runId as string | undefined;
     const evtSession = evt.sessionKey as string | undefined;
 
-    // Filter: ignore events from background palace sessions
+    // Route paw-research-* events to the Research view
+    if (evtSession && evtSession.startsWith('paw-research-')) {
+      if (!_researchStreaming) return;
+      if (_researchRunId && runId && runId !== _researchRunId) return;
+
+      if (stream === 'assistant' && data) {
+        const delta = data.delta as string | undefined;
+        if (delta) appendResearchDelta(delta);
+      } else if (stream === 'lifecycle' && data) {
+        const phase = data.phase as string | undefined;
+        if (phase === 'start' && !_researchRunId && runId) _researchRunId = runId;
+        if (phase === 'end' && _researchResolve) {
+          _researchResolve(_researchContent);
+          _researchResolve = null;
+        }
+      } else if (stream === 'tool' && data) {
+        const tool = (data.name ?? data.tool) as string | undefined;
+        const phase = data.phase as string | undefined;
+        if (phase === 'start' && tool) appendResearchDelta(`\n\n▶ ${tool}...`);
+      } else if (stream === 'error' && data) {
+        const error = (data.message ?? data.error ?? '') as string;
+        if (error) appendResearchDelta(`\n\nError: ${error}`);
+        if (_researchResolve) { _researchResolve(_researchContent); _researchResolve = null; }
+      }
+      return;
+    }
+
+    // Filter: ignore other background paw-* sessions (e.g. memory)
     if (evtSession && evtSession.startsWith('paw-')) return;
 
     // Filter: only process during active send, and match runId if known
@@ -835,7 +862,21 @@ gateway.on('chat', (payload: unknown) => {
     const msg = evt.message as Record<string, unknown> | undefined;
     const chatEvtSession = evt.sessionKey as string | undefined;
 
-    // Ignore background palace sessions
+    // Route paw-research-* final messages to research view
+    if (chatEvtSession && chatEvtSession.startsWith('paw-research-')) {
+      if (_researchStreaming && msg) {
+        const text = extractContent(msg.content);
+        if (text) {
+          _researchContent = text;
+          const liveContent = $('research-live-content');
+          if (liveContent) liveContent.textContent = text;
+          if (_researchResolve) { _researchResolve(text); _researchResolve = null; }
+        }
+      }
+      return;
+    }
+
+    // Ignore other background paw-* sessions
     if (chatEvtSession && chatEvtSession.startsWith('paw-')) return;
 
     if (!isLoading && !_streamingEl) return;
@@ -2686,10 +2727,16 @@ $('content-delete-doc')?.addEventListener('click', async () => {
 // ── Research Notebook ──────────────────────────────────────────────────────
 let _activeResearchId: string | null = null;
 
+// ── Research — Agent-powered research ──────────────────────────────────────
+let _researchStreaming = false;
+let _researchContent = '';
+let _researchRunId: string | null = null;
+let _researchResolve: ((text: string) => void) | null = null;
+
 async function loadResearchProjects() {
   const list = $('research-project-list');
   const empty = $('research-empty');
-  const tabs = $('research-tabs');
+  const workspace = $('research-workspace');
   if (!list) return;
 
   const projects = await listProjects('research');
@@ -2697,8 +2744,7 @@ async function loadResearchProjects() {
 
   if (!projects.length && !_activeResearchId) {
     if (empty) empty.style.display = 'flex';
-    if (tabs) tabs.style.display = 'none';
-    hideResearchPanels();
+    if (workspace) workspace.style.display = 'none';
     return;
   }
 
@@ -2714,36 +2760,187 @@ async function loadResearchProjects() {
   }
 }
 
-function hideResearchPanels() {
-  [$('research-sources'), $('research-findings'), $('research-report')].forEach(p => {
-    if (p) p.style.display = 'none';
-  });
-}
-
-function openResearchProject(id: string) {
+async function openResearchProject(id: string) {
   _activeResearchId = id;
   const empty = $('research-empty');
-  const tabs = $('research-tabs');
+  const workspace = $('research-workspace');
   if (empty) empty.style.display = 'none';
-  if (tabs) tabs.style.display = 'flex';
-  // Show sources panel by default
-  switchResearchTab('sources');
+  if (workspace) workspace.style.display = '';
+  await loadResearchFindings(id);
   loadResearchProjects();
 }
 
-function switchResearchTab(tab: string) {
-  document.querySelectorAll('.research-tab').forEach(t => t.classList.toggle('active', t.getAttribute('data-tab') === tab));
-  hideResearchPanels();
-  const panel = $(`research-${tab}`);
-  if (panel) panel.style.display = '';
+async function loadResearchFindings(projectId: string) {
+  const list = $('research-findings-list');
+  const header = $('research-findings-header');
+  if (!list) return;
+
+  // Load findings saved as content docs linked to this project
+  const allDocs = await listDocs();
+  const findings = allDocs.filter(d => d.project_id === projectId && d.content_type === 'research-finding');
+  list.innerHTML = '';
+
+  if (findings.length) {
+    if (header) header.style.display = 'flex';
+    for (const f of findings) {
+      list.appendChild(renderFindingCard(f));
+    }
+  } else {
+    if (header) header.style.display = 'none';
+  }
 }
 
-document.querySelectorAll('.research-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    const t = tab.getAttribute('data-tab');
-    if (t) switchResearchTab(t);
+function renderFindingCard(doc: import('./db').ContentDoc): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'research-finding-card';
+  card.innerHTML = `
+    <div class="research-finding-header">
+      <div class="research-finding-title">${escHtml(doc.title)}</div>
+      <div class="research-finding-actions">
+        <span class="research-finding-meta">${new Date(doc.created_at).toLocaleString()}</span>
+        <button class="btn btn-ghost btn-xs research-finding-delete" data-id="${escAttr(doc.id)}" title="Remove">✕</button>
+      </div>
+    </div>
+    <div class="research-finding-body">${formatResearchContent(doc.content)}</div>
+  `;
+  card.querySelector('.research-finding-delete')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await deleteDoc(doc.id);
+    if (_activeResearchId) loadResearchFindings(_activeResearchId);
   });
-});
+  return card;
+}
+
+function formatResearchContent(text: string): string {
+  // Simple markdown-ish rendering: bold, headers, bullets, links
+  return escHtml(text)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^[-•] (.+)$/gm, '<div class="research-bullet">• $1</div>')
+    .replace(/\n/g, '<br>');
+}
+
+async function runResearch() {
+  if (!_activeResearchId || !wsConnected || _researchStreaming) return;
+  const input = $('research-topic-input') as HTMLInputElement | null;
+  const topic = input?.value.trim();
+  if (!topic) return;
+
+  const projectId = _activeResearchId;
+  const sessionKey = 'paw-research-' + projectId;
+
+  // Show live output
+  _researchStreaming = true;
+  _researchContent = '';
+  _researchRunId = null;
+  const liveArea = $('research-live');
+  const liveContent = $('research-live-content');
+  const runBtn = $('research-run-btn');
+  if (liveArea) liveArea.style.display = '';
+  if (liveContent) liveContent.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+  if (runBtn) runBtn.setAttribute('disabled', 'true');
+  const label = $('research-live-label');
+  if (label) label.textContent = 'Researching…';
+
+  // Promise that resolves when the agent finishes
+  const done = new Promise<string>((resolve) => {
+    _researchResolve = resolve;
+    setTimeout(() => resolve(_researchContent || '(Research timed out)'), 180_000);
+  });
+
+  try {
+    const result = await gateway.chatSend(sessionKey,
+      `Research this topic thoroughly. Browse the web, find multiple sources, and provide detailed findings with key insights, data points, and source URLs. Be comprehensive and structured.\n\nTopic: ${topic}`
+    );
+    if (result.runId) _researchRunId = result.runId;
+
+    const finalText = await done;
+
+    // Save finding to database
+    const findingId = crypto.randomUUID();
+    await saveDoc({
+      id: findingId,
+      project_id: projectId,
+      title: topic,
+      content: finalText,
+      content_type: 'research-finding',
+    });
+
+    // Update UI
+    if (liveArea) liveArea.style.display = 'none';
+    if (input) input.value = '';
+    await loadResearchFindings(projectId);
+  } catch (e) {
+    console.error('[research] Error:', e);
+    if (liveContent) {
+      liveContent.textContent = `Error: ${e instanceof Error ? e.message : e}`;
+    }
+  } finally {
+    _researchStreaming = false;
+    _researchRunId = null;
+    _researchResolve = null;
+    if (runBtn) runBtn.removeAttribute('disabled');
+    if (label) label.textContent = 'Done';
+  }
+}
+
+function appendResearchDelta(text: string) {
+  _researchContent += text;
+  const liveContent = $('research-live-content');
+  if (liveContent) {
+    liveContent.textContent = _researchContent;
+    // Auto-scroll the live area
+    liveContent.scrollTop = liveContent.scrollHeight;
+  }
+}
+
+async function generateResearchReport() {
+  if (!_activeResearchId || !wsConnected) return;
+
+  const allDocs = await listDocs();
+  const findings = allDocs.filter(d => d.project_id === _activeResearchId && d.content_type === 'research-finding');
+  if (!findings.length) { alert('No findings yet — run some research first'); return; }
+
+  const reportArea = $('research-report-area');
+  const findingsArea = $('research-findings-area');
+  const reportContent = $('research-report-content');
+  if (reportArea) reportArea.style.display = '';
+  if (findingsArea) findingsArea.style.display = 'none';
+  if (reportContent) reportContent.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+
+  // Compile findings into a prompt
+  const findingsText = findings.map((f, i) => `## Finding ${i + 1}: ${f.title}\n${f.content}`).join('\n\n---\n\n');
+
+  const sessionKey = 'paw-research-' + _activeResearchId;
+
+  // Temporarily capture deltas for the report
+  const prevStreaming = _researchStreaming;
+  _researchStreaming = true;
+  _researchContent = '';
+
+  const done = new Promise<string>((resolve) => {
+    _researchResolve = resolve;
+    setTimeout(() => resolve(_researchContent || '(Report generation timed out)'), 180_000);
+  });
+
+  try {
+    const result = await gateway.chatSend(sessionKey,
+      `Based on all the research findings below, write a comprehensive, well-structured report. Include an executive summary, key findings organized by theme, conclusions, and a list of sources. Use markdown formatting.\n\n${findingsText}`
+    );
+    if (result.runId) _researchRunId = result.runId;
+
+    const reportText = await done;
+    if (reportContent) reportContent.innerHTML = formatResearchContent(reportText);
+  } catch (e) {
+    if (reportContent) reportContent.textContent = `Error generating report: ${e instanceof Error ? e.message : e}`;
+  } finally {
+    _researchStreaming = prevStreaming;
+    _researchRunId = null;
+    _researchResolve = null;
+  }
+}
 
 async function createNewResearch() {
   const name = await promptModal('Research project name:', 'My research project');
@@ -2754,36 +2951,47 @@ async function createNewResearch() {
   loadResearchProjects();
 }
 
+// Wire up research event handlers
 $('research-new-project')?.addEventListener('click', createNewResearch);
 $('research-create-first')?.addEventListener('click', createNewResearch);
 
-$('research-add-source')?.addEventListener('click', async () => {
-  const url = await promptModal('Source URL:', 'https://...');
-  if (!url) return;
-  const list = $('research-sources-list');
-  if (!list) return;
-  const item = document.createElement('div');
-  item.className = 'research-item';
-  item.innerHTML = `
-    <div class="research-item-title">${escHtml(url)}</div>
-    <div class="research-item-meta">Added ${new Date().toLocaleDateString()}</div>
-  `;
-  list.appendChild(item);
+$('research-run-btn')?.addEventListener('click', runResearch);
+$('research-topic-input')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runResearch(); }
 });
 
-$('research-agent-find')?.addEventListener('click', async () => {
-  if (!_activeResearchId || !wsConnected) { alert('Connect to gateway first'); return; }
-  const topic = await promptModal('What should the agent research?', 'Enter a research topic...');
-  if (!topic) return;
-  alert('Research request sent. Check Chat for findings.');
-  gateway.chatSend('paw-research-' + _activeResearchId, `Research this topic thoroughly and provide key findings with sources: ${topic}`).catch(console.warn);
+$('research-abort-btn')?.addEventListener('click', () => {
+  if (!_activeResearchId) return;
+  gateway.chatAbort('paw-research-' + _activeResearchId).catch(console.warn);
+  if (_researchResolve) {
+    _researchResolve(_researchContent || '(Aborted)');
+    _researchResolve = null;
+  }
+});
+
+$('research-generate-report')?.addEventListener('click', generateResearchReport);
+
+$('research-close-report')?.addEventListener('click', () => {
+  const reportArea = $('research-report-area');
+  const findingsArea = $('research-findings-area');
+  if (reportArea) reportArea.style.display = 'none';
+  if (findingsArea) findingsArea.style.display = '';
 });
 
 $('research-delete-project')?.addEventListener('click', async () => {
   if (!_activeResearchId) return;
-  if (!confirm('Delete this research project?')) return;
+  if (!confirm('Delete this research project and all its findings?')) return;
+  // Delete associated findings
+  const allDocs = await listDocs();
+  for (const d of allDocs.filter(d => d.project_id === _activeResearchId)) {
+    await deleteDoc(d.id);
+  }
   await deleteProject(_activeResearchId);
   _activeResearchId = null;
+  const workspace = $('research-workspace');
+  const empty = $('research-empty');
+  if (workspace) workspace.style.display = 'none';
+  if (empty) empty.style.display = 'flex';
   loadResearchProjects();
 });
 
