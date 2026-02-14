@@ -877,7 +877,7 @@
               <h2 class="palace-install-title">Set Up Memory Palace</h2>
               <p class="palace-install-desc">
                 Add semantic memory, knowledge graphs, and auto-linking to your agent.
-                One click installs everything — Python venv, Ollama models, and MCP integration.
+                One click installs everything — Python venv, cloud embeddings, and MCP integration.
               </p>
               <div class="palace-install-reqs">
                 <div class="palace-install-req" id="palace-req-python">
@@ -885,19 +885,26 @@
                   <span>Python 3.10+</span>
                   <span class="palace-req-status" id="palace-req-python-status">checking…</span>
                 </div>
-                <div class="palace-install-req" id="palace-req-ollama">
+                <div class="palace-install-req">
                   <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-                  <span>Ollama</span>
-                  <span class="palace-req-status" id="palace-req-ollama-status">checking…</span>
+                  <span>memory-palace (auto-cloned)</span>
                 </div>
                 <div class="palace-install-req">
                   <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-                  <span>memory-palace (git)</span>
+                  <span>text-embedding-3-small (cloud)</span>
                 </div>
-                <div class="palace-install-req">
-                  <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-                  <span>Embedding model (nomic-embed-text)</span>
-                </div>
+              </div>
+              <div class="palace-api-config" id="palace-api-config">
+                <label class="palace-api-label" for="palace-api-key">
+                  Embedding API Key <span class="palace-api-required">*</span>
+                </label>
+                <input class="palace-api-input" id="palace-api-key" type="password"
+                  placeholder="sk-… or your Foundry API key" autocomplete="off" spellcheck="false" />
+                <label class="palace-api-label" for="palace-base-url">
+                  Base URL <span class="palace-api-hint">(optional — defaults to OpenAI)</span>
+                </label>
+                <input class="palace-api-input" id="palace-base-url" type="text"
+                  placeholder="https://api.openai.com/v1" autocomplete="off" spellcheck="false" />
               </div>
               <div class="palace-install-progress" id="palace-install-progress" style="display:none">
                 <div class="progress-bar"><div class="progress-fill" id="palace-progress-bar"></div></div>

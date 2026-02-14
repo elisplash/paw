@@ -2597,6 +2597,49 @@ button:focus:not(:focus-visible) { outline: none; }
 .palace-install-progress {
   width: 100%;
 }
+.palace-api-config {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.palace-api-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-top: 6px;
+}
+.palace-api-label:first-child {
+  margin-top: 0;
+}
+.palace-api-required {
+  color: var(--danger);
+}
+.palace-api-hint {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.palace-api-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.palace-api-input:focus {
+  border-color: var(--brand);
+}
+.palace-api-input::placeholder {
+  color: var(--text-muted);
+  font-family: var(--font-primary);
+}
 .palace-install-actions {
   display: flex;
   flex-direction: column;

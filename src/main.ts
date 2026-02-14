@@ -1755,15 +1755,6 @@ async function loadMemoryPalace() {
           if (reqEl) reqEl.classList.add(hasPython ? 'ready' : 'missing');
           if (statusEl) statusEl.textContent = hasPython ? '✓ found' : '✗ not found';
         } catch { /* ignore */ }
-
-        // Check Ollama availability
-        try {
-          const hasOllama = await invoke<boolean>('check_ollama_installed');
-          const reqEl = $('palace-req-ollama');
-          const statusEl = $('palace-req-ollama-status');
-          if (reqEl) reqEl.classList.add(hasOllama ? 'ready' : 'missing');
-          if (statusEl) statusEl.textContent = hasOllama ? '✓ found' : '✗ not found — install from ollama.ai';
-        } catch { /* ignore */ }
       }
     } else if (!_palaceAvailable && _palaceSkipped) {
       // Skipped — show files mode
@@ -1797,6 +1788,22 @@ function initPalaceInstall() {
     const progressText = $('palace-progress-text') as HTMLElement | null;
     if (!btn || !invoke) return;
 
+    // Read API key and base URL from inputs
+    const apiKeyInput = $('palace-api-key') as HTMLInputElement | null;
+    const baseUrlInput = $('palace-base-url') as HTMLInputElement | null;
+    const apiKey = apiKeyInput?.value?.trim() ?? '';
+    const baseUrl = baseUrlInput?.value?.trim() ?? '';
+
+    if (!apiKey) {
+      if (apiKeyInput) {
+        apiKeyInput.style.borderColor = '#e44';
+        apiKeyInput.focus();
+        apiKeyInput.placeholder = 'API key is required';
+      }
+      return;
+    }
+    if (apiKeyInput) apiKeyInput.style.borderColor = '';
+
     btn.disabled = true;
     btn.textContent = 'Installing…';
     if (progress) progress.style.display = '';
@@ -1811,7 +1818,7 @@ function initPalaceInstall() {
         });
       }
 
-      await invoke('install_palace');
+      await invoke('install_palace', { apiKey: apiKey, baseUrl: baseUrl || null });
 
       // Check if it's now registered as a gateway skill
       await new Promise(r => setTimeout(r, 1000));

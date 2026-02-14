@@ -485,6 +485,10 @@ fn stop_gateway() -> Result<(), String> {
 
 const PALACE_GIT_URL: &str = "https://github.com/jeffpierce/memory-palace.git";
 
+// Embed the Python patch files at compile time
+const OPENAI_PATCH_PY: &str = include_str!("../../resources/palace_openai_patch.py");
+const EMBEDDING_HOOK_PY: &str = include_str!("../../resources/paw_embedding_hook.py");
+
 fn get_palace_dir() -> PathBuf {
     get_app_data_dir().join("memory-palace")
 }
@@ -595,27 +599,31 @@ fn check_palace_health() -> bool {
 }
 
 #[tauri::command]
-async fn install_palace(window: tauri::Window) -> Result<(), String> {
-    info!("Starting Memory Palace installation...");
+async fn install_palace(window: tauri::Window, api_key: String, base_url: Option<String>) -> Result<(), String> {
+    info!("Starting Memory Palace installation (cloud embeddings)...");
+
+    let api_key = api_key.trim().to_string();
+    if api_key.is_empty() {
+        return Err("An embedding API key is required. Enter your API key for text-embedding-3-small.".to_string());
+    }
+
+    let base_url = base_url
+        .map(|u| u.trim().to_string())
+        .filter(|u| !u.is_empty())
+        .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
 
     // ── Step 1: Check Python ──────────────────────────────────────────────
     window.emit("palace-install-progress", serde_json::json!({
         "stage": "checking",
         "percent": 5,
-        "message": "Checking requirements..."
+        "message": "Checking Python..."
     })).ok();
 
     let python_cmd = find_system_python()
         .ok_or("Python 3 not found. Please install Python 3.10+ from python.org")?;
     info!("Using Python: {}", python_cmd);
 
-    // ── Step 2: Check Ollama ──────────────────────────────────────────────
-    if !check_ollama_available() {
-        return Err("Ollama not found. Please install Ollama from https://ollama.ai — it provides local embedding models for Memory Palace.".to_string());
-    }
-    info!("Ollama is available");
-
-    // ── Step 3: Create venv ───────────────────────────────────────────────
+    // ── Step 2: Create venv ───────────────────────────────────────────────
     window.emit("palace-install-progress", serde_json::json!({
         "stage": "venv",
         "percent": 10,
@@ -639,7 +647,7 @@ async fn install_palace(window: tauri::Window) -> Result<(), String> {
         }
     }
 
-    // ── Step 4: Git clone ─────────────────────────────────────────────────
+    // ── Step 3: Git clone ─────────────────────────────────────────────────
     window.emit("palace-install-progress", serde_json::json!({
         "stage": "clone",
         "percent": 20,
@@ -647,7 +655,6 @@ async fn install_palace(window: tauri::Window) -> Result<(), String> {
     })).ok();
 
     if repo_dir.exists() {
-        // Pull latest
         info!("memory-palace repo exists, pulling latest...");
         let pull = Command::new("git")
             .args(["pull", "--ff-only"])
@@ -672,7 +679,7 @@ async fn install_palace(window: tauri::Window) -> Result<(), String> {
         }
     }
 
-    // ── Step 5: pip install -e . ──────────────────────────────────────────
+    // ── Step 4: pip install -e . ──────────────────────────────────────────
     window.emit("palace-install-progress", serde_json::json!({
         "stage": "pip",
         "percent": 35,
@@ -691,7 +698,7 @@ async fn install_palace(window: tauri::Window) -> Result<(), String> {
     }
     info!("pip install -e . succeeded");
 
-    // ── Step 6: Verify module imports ─────────────────────────────────────
+    // ── Step 5: Verify module imports ─────────────────────────────────────
     window.emit("palace-install-progress", serde_json::json!({
         "stage": "verify",
         "percent": 50,
@@ -714,114 +721,85 @@ async fn install_palace(window: tauri::Window) -> Result<(), String> {
     // Verify MCP entrypoint exists
     let mcp_bin = get_palace_mcp_bin();
     if !mcp_bin.exists() {
-        // Try to find it
         let find = Command::new("find")
             .args([venv_dir.to_str().unwrap(), "-name", "memory-palace-mcp", "-o", "-name", "memory_palace_mcp"])
             .output();
         let found = find.map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
         warn!("MCP entrypoint not at expected path {:?}. Found: {}", mcp_bin, found.trim());
-        // Not fatal — the gateway might use python -m mcp_server.server instead
     }
 
-    // ── Step 7: Run setup wizard (non-interactive) ────────────────────────
+    // ── Step 6: Install Paw embedding patches ─────────────────────────────
     window.emit("palace-install-progress", serde_json::json!({
-        "stage": "setup",
+        "stage": "patch",
         "percent": 60,
-        "message": "Running first-time setup (downloading models)..."
+        "message": "Installing cloud embedding support..."
     })).ok();
 
-    // Create default config at ~/.memory-palace/config.json
+    let mp_module_dir = repo_dir.join("memory_palace");
+    let openai_patch_path = mp_module_dir.join("paw_openai_embeddings.py");
+    let hook_path = mp_module_dir.join("paw_embedding_hook.py");
+
+    fs::write(&openai_patch_path, OPENAI_PATCH_PY)
+        .map_err(|e| format!("Failed to write OpenAI patch: {}", e))?;
+    info!("Wrote OpenAI embedding patch to {:?}", openai_patch_path);
+
+    fs::write(&hook_path, EMBEDDING_HOOK_PY)
+        .map_err(|e| format!("Failed to write embedding hook: {}", e))?;
+    info!("Wrote embedding hook to {:?}", hook_path);
+
+    // Inject hook into __init__.py so it activates when the module loads
+    let init_path = mp_module_dir.join("__init__.py");
+    let hook_import = "\n# Paw cloud embedding hook\ntry:\n    from memory_palace.paw_embedding_hook import install_hook as _paw_hook\n    _paw_hook()\nexcept Exception:\n    pass\n";
+
+    let init_content = fs::read_to_string(&init_path).unwrap_or_default();
+    if !init_content.contains("paw_embedding_hook") {
+        let mut new_content = init_content.clone();
+        new_content.push_str(hook_import);
+        fs::write(&init_path, new_content)
+            .map_err(|e| format!("Failed to patch __init__.py: {}", e))?;
+        info!("Injected embedding hook into __init__.py");
+    }
+
+    // ── Step 7: Write Memory Palace config ────────────────────────────────
+    window.emit("palace-install-progress", serde_json::json!({
+        "stage": "config",
+        "percent": 75,
+        "message": "Writing configuration..."
+    })).ok();
+
     let home = dirs::home_dir().ok_or("Cannot find home directory")?;
     let mp_config_dir = home.join(".memory-palace");
     let mp_config_path = mp_config_dir.join("config.json");
     fs::create_dir_all(&mp_config_dir).ok();
 
-    if !mp_config_path.exists() {
-        let mp_config = serde_json::json!({
-            "database": {
-                "type": "sqlite",
-                "url": null
-            },
-            "ollama_url": "http://localhost:11434",
-            "embedding_model": null,
-            "llm_model": null,
-            "synthesis": {
-                "enabled": true
-            },
-            "auto_link": {
-                "enabled": true,
-                "link_threshold": 0.75,
-                "suggest_threshold": 0.675
-            },
-            "toon_output": true,
-            "instances": ["paw"],
-            "notify_command": null,
-            "instance_routes": {}
-        });
-        fs::write(&mp_config_path, serde_json::to_string_pretty(&mp_config).unwrap())
-            .map_err(|e| format!("Failed to write config: {}", e))?;
-        info!("Wrote default Memory Palace config to {:?}", mp_config_path);
-    }
-
-    // Try to run setup.first_run — it auto-detects and pulls Ollama models.
-    // This script may be interactive so we run it with a timeout and skip if it hangs.
-    let setup_result = Command::new(venv_python.to_str().unwrap())
-        .args(["-m", "setup.first_run"])
-        .current_dir(&repo_dir)
-        .env("MEMORY_PALACE_DATA_DIR", mp_config_dir.to_str().unwrap())
-        .output();
-
-    match setup_result {
-        Ok(ref o) if o.status.success() => {
-            info!("setup.first_run completed successfully");
-            let stdout = String::from_utf8_lossy(&o.stdout);
-            info!("Setup output: {}", stdout.chars().take(500).collect::<String>());
-        }
-        Ok(ref o) => {
-            let stderr = String::from_utf8_lossy(&o.stderr);
-            warn!("setup.first_run exited non-zero: {}", stderr.chars().take(500).collect::<String>());
-            // Not fatal — Ollama models can be pulled on first use
-        }
-        Err(e) => {
-            warn!("setup.first_run failed to run: {}", e);
-            // Not fatal
-        }
-    }
-
-    // Pull a lightweight embedding model via Ollama explicitly (in case setup didn't)
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "models",
-        "percent": 70,
-        "message": "Ensuring embedding model is available..."
-    })).ok();
-
-    let model_check = Command::new("ollama")
-        .args(["list"])
-        .output();
-    let has_embed_model = model_check
-        .map(|o| {
-            let out = String::from_utf8_lossy(&o.stdout).to_lowercase();
-            out.contains("nomic-embed-text")
-        })
-        .unwrap_or(false);
-
-    if !has_embed_model {
-        info!("Pulling nomic-embed-text via Ollama...");
-        window.emit("palace-install-progress", serde_json::json!({
-            "stage": "models",
-            "percent": 72,
-            "message": "Pulling embedding model (nomic-embed-text)... this may take a minute"
-        })).ok();
-
-        let pull = Command::new("ollama")
-            .args(["pull", "nomic-embed-text"])
-            .output();
-        match pull {
-            Ok(ref o) if o.status.success() => info!("nomic-embed-text pulled successfully"),
-            Ok(ref o) => warn!("ollama pull nomic-embed-text failed: {}", String::from_utf8_lossy(&o.stderr)),
-            Err(e) => warn!("Failed to run ollama pull: {}", e),
-        }
-    }
+    let mp_config = serde_json::json!({
+        "database": {
+            "type": "sqlite",
+            "url": null
+        },
+        "embedding_provider": "openai",
+        "openai_api_key": api_key,
+        "openai_base_url": base_url,
+        "embedding_model": "text-embedding-3-small",
+        "embedding_dimension": 1536,
+        "ollama_url": "http://localhost:11434",
+        "llm_model": null,
+        "synthesis": {
+            "enabled": false
+        },
+        "auto_link": {
+            "enabled": true,
+            "link_threshold": 0.75,
+            "suggest_threshold": 0.675
+        },
+        "toon_output": true,
+        "instances": ["paw"],
+        "notify_command": null,
+        "instance_routes": {}
+    });
+    fs::write(&mp_config_path, serde_json::to_string_pretty(&mp_config).unwrap())
+        .map_err(|e| format!("Failed to write config: {}", e))?;
+    info!("Wrote Memory Palace config (cloud embeddings via {}) to {:?}", base_url, mp_config_path);
 
     // ── Step 8: Register as MCP skill in OpenClaw gateway ─────────────────
     window.emit("palace-install-progress", serde_json::json!({
@@ -836,9 +814,9 @@ async fn install_palace(window: tauri::Window) -> Result<(), String> {
     window.emit("palace-install-progress", serde_json::json!({
         "stage": "done",
         "percent": 100,
-        "message": "Memory Palace installed and registered!"
+        "message": "Memory Palace installed with cloud embeddings!"
     })).ok();
-    info!("Memory Palace installation complete");
+    info!("Memory Palace installation complete (cloud embeddings)");
 
     Ok(())
 }
