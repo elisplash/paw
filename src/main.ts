@@ -193,6 +193,13 @@ gateway.on('_disconnected', () => {
   statusDot?.classList.remove('connected');
   statusDot?.classList.add('error');
   if (statusText) statusText.textContent = 'Disconnected';
+
+  // Clean up any in-progress streaming — resolve the promise with what we have
+  if (_streamingResolve) {
+    console.warn('[main] WS disconnected during streaming — finalizing with partial content');
+    _streamingResolve(_streamingContent || '(Connection lost)');
+    _streamingResolve = null;
+  }
 });
 
 // ── Status check (fallback for polling) ────────────────────────────────────
@@ -444,7 +451,8 @@ async function loadSessions() {
     if (!currentSessionKey && sessions.length) {
       currentSessionKey = sessions[0].key;
     }
-    if (currentSessionKey) await loadChatHistory(currentSessionKey);
+    // Don't reload chat history if we're in the middle of streaming
+    if (currentSessionKey && !isLoading) await loadChatHistory(currentSessionKey);
   } catch (e) { console.warn('Sessions load failed:', e); }
 }
 
@@ -573,7 +581,8 @@ async function sendMessage() {
     // Now wait for the agent events to deliver the full response
     const finalText = await responsePromise;
     finalizeStreaming(finalText);
-    loadSessions();
+    // Refresh session list (but skip re-loading chat history — we already have it)
+    loadSessions().catch(() => {});
   } catch (error) {
     console.error('Chat error:', error);
     const errMsg = error instanceof Error ? error.message : 'Failed to get response';
@@ -603,15 +612,25 @@ function showStreamingMessage() {
   div.appendChild(time);
   chatMessages?.appendChild(div);
   _streamingEl = contentEl;
-  if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+  scrollToBottom();
 }
 
 /** Append a text delta to the streaming bubble */
+let _scrollRafPending = false;
+function scrollToBottom() {
+  if (_scrollRafPending || !chatMessages) return;
+  _scrollRafPending = true;
+  requestAnimationFrame(() => {
+    if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+    _scrollRafPending = false;
+  });
+}
+
 function appendStreamingDelta(text: string) {
   _streamingContent += text;
   if (_streamingEl) {
     _streamingEl.textContent = _streamingContent;
-    if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+    scrollToBottom();
   }
 }
 
@@ -635,14 +654,17 @@ function addMessage(message: Message) {
 
 function renderMessages() {
   if (!chatMessages) return;
+  // Remove only non-streaming message elements
+  chatMessages.querySelectorAll('.message:not(#streaming-message)').forEach(m => m.remove());
+
   if (messages.length === 0) {
     if (chatEmpty) chatEmpty.style.display = 'flex';
-    chatMessages.querySelectorAll('.message').forEach(m => m.remove());
     return;
   }
   if (chatEmpty) chatEmpty.style.display = 'none';
-  chatMessages.querySelectorAll('.message').forEach(m => m.remove());
 
+  // Build all nodes in a fragment to avoid repeated reflows
+  const frag = document.createDocumentFragment();
   for (const msg of messages) {
     const div = document.createElement('div');
     div.className = `message ${msg.role}`;
@@ -662,9 +684,16 @@ function renderMessages() {
       div.appendChild(badge);
     }
 
-    chatMessages.appendChild(div);
+    frag.appendChild(div);
   }
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  // Insert before any streaming message, or at end
+  const streamingEl = $('streaming-message');
+  if (streamingEl) {
+    chatMessages.insertBefore(frag, streamingEl);
+  } else {
+    chatMessages.appendChild(frag);
+  }
+  scrollToBottom();
 }
 
 // Listen for streaming agent events — update chat bubble in real-time
@@ -738,7 +767,7 @@ gateway.on('chat', (payload: unknown) => {
         _streamingContent = text;
         if (_streamingEl) {
           _streamingEl.textContent = text;
-          if (chatMessages) chatMessages.scrollTop = chatMessages.scrollHeight;
+          scrollToBottom();
         }
         // Resolve the streaming promise since we have the final text
         if (_streamingResolve) {

@@ -51,6 +51,7 @@ class GatewayClient {
   private eventHandlers = new Map<string, Set<EventHandler>>();
   private reconnectTimer: number | null = null;
   private reconnectAttempts = 0;
+  private keepaliveTimer: number | null = null;
   private _connected = false;
   private _connecting = false;
   private _lastSeq = 0;
@@ -108,6 +109,7 @@ class GatewayClient {
           this._connected = true;
           this._connecting = false;
           this.hello = hello;
+          this.startKeepalive();
           console.log('[gateway] Handshake success:', hello?.type ?? 'hello-ok');
           this.emit('_connected', hello);
           resolve(hello);
@@ -204,6 +206,7 @@ class GatewayClient {
   }
 
   disconnect() {
+    this.stopKeepalive();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -244,6 +247,26 @@ class GatewayClient {
   /** Reset reconnect counter (call after a successful manual connect) */
   resetReconnect() {
     this.reconnectAttempts = 0;
+  }
+
+  private startKeepalive() {
+    this.stopKeepalive();
+    // Send a lightweight ping every 30s to keep the connection alive
+    this.keepaliveTimer = window.setInterval(() => {
+      if (this._connected && this.ws?.readyState === WebSocket.OPEN) {
+        this.request('health').catch(() => {
+          // Health request failed — connection is likely dead
+          console.warn('[gateway] Keepalive ping failed');
+        });
+      }
+    }, 30_000);
+  }
+
+  private stopKeepalive() {
+    if (this.keepaliveTimer) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
   }
 
   get connected(): boolean {
