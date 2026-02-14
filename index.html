@@ -275,6 +275,19 @@
               </button>
             </div>
           </div>
+
+          <!-- Scheduled Tasks Widget -->
+          <div class="feature-section" id="dashboard-cron-section" style="display:none">
+            <div class="feature-section-title">
+              <svg class="icon-sm" viewBox="0 0 24 24" style="display:inline;vertical-align:-2px;margin-right:4px"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Scheduled Tasks
+            </div>
+            <div class="dash-cron-grid" id="dashboard-cron-list"></div>
+            <div class="dash-cron-empty" id="dashboard-cron-empty" style="display:none">
+              <span>No scheduled tasks running.</span>
+              <button class="btn btn-ghost btn-sm" data-view="automations">Set up automations →</button>
+            </div>
+          </div>
         </div>
 
         <!-- ═══ Onboarding ═══ -->
@@ -517,6 +530,15 @@
                 <textarea class="ide-chat-input" id="build-chat-input" placeholder="Describe what to build..." rows="2"></textarea>
                 <button class="btn btn-primary btn-sm" id="build-chat-send">Send</button>
               </div>
+              <!-- Build scheduled tasks -->
+              <div class="space-cron-widget" id="build-cron-widget" style="display:none">
+                <div class="space-cron-header">
+                  <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  <span>Scheduled</span>
+                  <span class="space-cron-count" id="build-cron-count">0</span>
+                </div>
+                <div class="space-cron-items" id="build-cron-items"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -587,6 +609,15 @@
               <textarea class="studio-content-editor" id="content-body" style="display:none" placeholder="Start writing..."></textarea>
             </div>
             <div class="studio-word-count" id="content-word-count" style="display:none">0 words</div>
+            <!-- Content scheduled tasks -->
+            <div class="space-cron-widget space-cron-widget-inline" id="content-cron-widget" style="display:none">
+              <div class="space-cron-header">
+                <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>Publishing schedule</span>
+                <span class="space-cron-count" id="content-cron-count">0</span>
+              </div>
+              <div class="space-cron-items" id="content-cron-items"></div>
+            </div>
           </div>
         </div>
 
@@ -628,6 +659,15 @@
                 <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Add Account
               </button>
+            </div>
+            <!-- Mail scheduled tasks -->
+            <div class="space-cron-widget space-cron-widget-sidebar" id="mail-cron-widget" style="display:none">
+              <div class="space-cron-header">
+                <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>Digests</span>
+                <span class="space-cron-count" id="mail-cron-count">0</span>
+              </div>
+              <div class="space-cron-items" id="mail-cron-items"></div>
             </div>
           </div>
           <div class="mail-list" id="mail-message-list">
@@ -766,6 +806,15 @@
             <div class="studio-doc-list" id="research-project-list">
               <div class="studio-doc-empty">No research projects</div>
             </div>
+            <!-- Research scheduled tasks -->
+            <div class="space-cron-widget space-cron-widget-sidebar" id="research-cron-widget" style="display:none">
+              <div class="space-cron-header">
+                <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                <span>Recurring</span>
+                <span class="space-cron-count" id="research-cron-count">0</span>
+              </div>
+              <div class="space-cron-items" id="research-cron-items"></div>
+            </div>
           </div>
           <div class="studio-main">
             <div class="research-tabs" id="research-tabs" style="display:none">
@@ -813,31 +862,172 @@
         </div>
 
         <!-- ═══ Memory View — Knowledge Base ═══ -->
-        <div class="view memory-split-view" id="memory-view">
-          <div class="memory-file-panel">
-            <div class="memory-file-header">
-              <span>Memory Files</span>
-              <button class="btn btn-ghost btn-sm" id="refresh-memory-btn">
+        <!-- ═══ Memory View — Memory Palace ═══ -->
+        <div class="view palace-view" id="memory-view">
+          <!-- Palace Sidebar -->
+          <div class="palace-sidebar">
+            <div class="palace-sidebar-header">
+              <span class="palace-sidebar-title">Memory Palace</span>
+              <button class="btn-icon" id="palace-refresh" title="Refresh memories">
                 <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               </button>
             </div>
-            <div class="memory-file-list" id="memory-list"></div>
+            <!-- Stats summary -->
+            <div class="palace-stats" id="palace-stats">
+              <div class="palace-stat">
+                <span class="palace-stat-num" id="palace-total">—</span>
+                <span class="palace-stat-label">Total</span>
+              </div>
+              <div class="palace-stat">
+                <span class="palace-stat-num" id="palace-types">—</span>
+                <span class="palace-stat-label">Types</span>
+              </div>
+              <div class="palace-stat">
+                <span class="palace-stat-num" id="palace-graph-edges">—</span>
+                <span class="palace-stat-label">Links</span>
+              </div>
+            </div>
+            <!-- Filters -->
+            <div class="palace-filters">
+              <input class="palace-search-input" id="palace-search" placeholder="Search memories…" />
+              <select class="palace-filter-select" id="palace-type-filter">
+                <option value="">All types</option>
+                <option value="fact">Facts</option>
+                <option value="preference">Preferences</option>
+                <option value="architecture">Architecture</option>
+                <option value="decision">Decisions</option>
+                <option value="insight">Insights</option>
+                <option value="gotcha">Gotchas</option>
+                <option value="event">Events</option>
+                <option value="solution">Solutions</option>
+              </select>
+              <select class="palace-filter-select" id="palace-project-filter">
+                <option value="">All projects</option>
+              </select>
+            </div>
+            <!-- Memory list -->
+            <div class="palace-memory-list" id="palace-memory-list">
+              <div class="palace-list-empty">No memories yet</div>
+            </div>
+            <!-- Agent file fallback section -->
+            <div class="palace-section-divider">
+              <span>Agent Files</span>
+              <button class="btn-icon" id="refresh-memory-btn" title="Refresh files">
+                <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </button>
+            </div>
+            <div class="palace-memory-list" id="memory-list"></div>
           </div>
-          <div class="memory-editor-panel">
-            <div class="memory-editor" id="memory-editor" style="display:none">
-              <div class="memory-editor-header">
-                <span class="memory-editor-path" id="memory-editor-path"></span>
-                <div style="display:flex;gap:6px">
-                  <button class="btn btn-ghost btn-sm" id="memory-editor-close">Close</button>
-                  <button class="btn btn-primary btn-sm" id="memory-editor-save">Save</button>
+          <!-- Palace Main -->
+          <div class="palace-main">
+            <!-- Tabs: Recall / Graph / Remember / Files -->
+            <div class="palace-tabs">
+              <button class="palace-tab active" data-palace-tab="recall">
+                <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                Recall
+              </button>
+              <button class="palace-tab" data-palace-tab="graph">
+                <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="7.5" x2="8.5" y2="16.5"/></svg>
+                Graph
+              </button>
+              <button class="palace-tab" data-palace-tab="remember">
+                <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Remember
+              </button>
+              <button class="palace-tab" data-palace-tab="files">
+                <svg class="icon-sm" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Files
+              </button>
+            </div>
+            <!-- Recall Panel -->
+            <div class="palace-panel active" id="palace-recall-panel">
+              <div class="palace-recall-input-area">
+                <textarea class="palace-recall-input" id="palace-recall-input" placeholder="Search by meaning… e.g. 'How does authentication work?'" rows="2"></textarea>
+                <button class="btn btn-primary btn-sm" id="palace-recall-btn">Recall</button>
+              </div>
+              <div class="palace-recall-results" id="palace-recall-results">
+                <div class="empty-state" id="palace-recall-empty">
+                  <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></div>
+                  <div class="empty-title">Semantic search</div>
+                  <div class="empty-subtitle">Search your agent's memories by meaning — not just keywords</div>
                 </div>
               </div>
-              <textarea class="memory-editor-content" id="memory-editor-content"></textarea>
             </div>
-            <div class="empty-state" id="memory-empty">
-              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
-              <div class="empty-title">No memory files yet</div>
-              <div class="empty-subtitle">Your agent's persistent knowledge will appear here</div>
+            <!-- Graph Panel -->
+            <div class="palace-panel" id="palace-graph-panel">
+              <div class="palace-graph-container" id="palace-graph-canvas">
+                <div class="empty-state" id="palace-graph-empty">
+                  <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/></svg></div>
+                  <div class="empty-title">Knowledge graph</div>
+                  <div class="empty-subtitle">Visual map of how your agent's memories connect to each other</div>
+                </div>
+                <canvas id="palace-graph-render" width="800" height="600" style="display:none"></canvas>
+              </div>
+            </div>
+            <!-- Remember Panel -->
+            <div class="palace-panel" id="palace-remember-panel">
+              <div class="palace-remember-form">
+                <div class="form-group">
+                  <label class="form-label">Memory type</label>
+                  <select class="form-input" id="palace-remember-type">
+                    <option value="fact">Fact</option>
+                    <option value="preference">Preference</option>
+                    <option value="architecture">Architecture</option>
+                    <option value="decision">Decision</option>
+                    <option value="insight">Insight</option>
+                    <option value="gotcha">Gotcha</option>
+                    <option value="event">Event</option>
+                    <option value="solution">Solution</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Subject</label>
+                  <input class="form-input" id="palace-remember-subject" placeholder="What is this about?" />
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Content</label>
+                  <textarea class="form-input" id="palace-remember-content" rows="5" placeholder="The memory content…"></textarea>
+                </div>
+                <div class="form-row">
+                  <div class="form-group" style="flex:1">
+                    <label class="form-label">Project</label>
+                    <input class="form-input" id="palace-remember-project" placeholder="life" />
+                  </div>
+                  <div class="form-group" style="flex:1">
+                    <label class="form-label">Keywords (comma-separated)</label>
+                    <input class="form-input" id="palace-remember-keywords" placeholder="auth, jwt, tokens" />
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" style="display:flex;align-items:center;gap:8px">
+                    <input type="checkbox" id="palace-remember-foundational" /> Foundational (never archived)
+                  </label>
+                </div>
+                <button class="btn btn-primary" id="palace-remember-save" style="align-self:flex-start">
+                  <svg class="icon-sm" viewBox="0 0 24 24" style="margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Store Memory
+                </button>
+              </div>
+            </div>
+            <!-- Files Panel (legacy agent files) -->
+            <div class="palace-panel" id="palace-files-panel">
+              <div class="memory-editor-panel" style="flex:1;display:flex;flex-direction:column">
+                <div class="memory-editor" id="memory-editor" style="display:none">
+                  <div class="memory-editor-header">
+                    <span class="memory-editor-path" id="memory-editor-path"></span>
+                    <div style="display:flex;gap:6px">
+                      <button class="btn btn-ghost btn-sm" id="memory-editor-close">Close</button>
+                      <button class="btn btn-primary btn-sm" id="memory-editor-save">Save</button>
+                    </div>
+                  </div>
+                  <textarea class="memory-editor-content" id="memory-editor-content"></textarea>
+                </div>
+                <div class="empty-state" id="memory-empty">
+                  <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                  <div class="empty-title">Agent files</div>
+                  <div class="empty-subtitle">Raw filesystem used by your agent for persistent storage</div>
+                </div>
+              </div>
             </div>
           </div>
           <div class="view-loading" id="memory-loading" style="display:none">Loading memory…</div>

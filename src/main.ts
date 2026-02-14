@@ -126,20 +126,23 @@ function switchView(viewName: string) {
   // Auto-load data when switching to a data view
   if (wsConnected) {
     switch (viewName) {
+      case 'dashboard': loadDashboardCron(); break;
       case 'chat': loadSessions(); break;
       case 'channels': loadChannels(); break;
       case 'automations': loadCron(); break;
       case 'skills': loadSkills(); break;
       case 'foundry': loadModels(); loadModes(); break;
-      case 'memory': loadMemory(); break;
+      case 'memory': loadMemoryPalace(); loadMemory(); break;
+      case 'build': loadSpaceCron('build'); break;
+      case 'mail': loadSpaceCron('mail'); break;
       case 'settings': syncSettingsForm(); loadGatewayConfig(); break;
       default: break;
     }
   }
   // Local-only views (no gateway needed)
   switch (viewName) {
-    case 'content': loadContentDocs(); break;
-    case 'research': loadResearchProjects(); break;
+    case 'content': loadContentDocs(); if (wsConnected) loadSpaceCron('content'); break;
+    case 'research': loadResearchProjects(); if (wsConnected) loadSpaceCron('research'); break;
     default: break;
   }
   if (viewName === 'settings') syncSettingsForm();
@@ -1427,6 +1430,568 @@ $('memory-editor-close')?.addEventListener('click', () => {
 });
 
 $('refresh-memory-btn')?.addEventListener('click', () => loadMemory());
+
+// ── Dashboard Cron Widget ──────────────────────────────────────────────────
+async function loadDashboardCron() {
+  const section = $('dashboard-cron-section');
+  const list = $('dashboard-cron-list');
+  const empty = $('dashboard-cron-empty');
+  if (!wsConnected || !list) return;
+
+  list.innerHTML = '';
+  if (empty) empty.style.display = 'none';
+
+  try {
+    const result = await gateway.cronList();
+    const jobs = result.jobs ?? [];
+
+    if (!jobs.length) {
+      if (section) section.style.display = '';
+      if (empty) empty.style.display = 'flex';
+      return;
+    }
+
+    if (section) section.style.display = '';
+
+    for (const job of jobs.slice(0, 8)) {
+      const card = document.createElement('div');
+      card.className = 'dash-cron-card';
+      const scheduleStr = typeof job.schedule === 'string' ? job.schedule : (job.schedule?.type ?? '');
+      card.innerHTML = `
+        <span class="dash-cron-dot ${job.enabled ? 'active' : 'paused'}"></span>
+        <div class="dash-cron-info">
+          <div class="dash-cron-name">${escHtml(job.label ?? job.id)}</div>
+          <div class="dash-cron-schedule">${escHtml(scheduleStr)}</div>
+        </div>
+      `;
+      card.addEventListener('click', () => switchView('automations'));
+      list.appendChild(card);
+    }
+  } catch (e) {
+    console.warn('Dashboard cron load failed:', e);
+    if (section) section.style.display = 'none';
+  }
+}
+
+// ── Space Cron Mini-Widgets ────────────────────────────────────────────────
+async function loadSpaceCron(space: string) {
+  const widget = $(`${space}-cron-widget`);
+  const count = $(`${space}-cron-count`);
+  const items = $(`${space}-cron-items`);
+  if (!wsConnected || !widget) return;
+
+  widget.style.display = 'none';
+  if (items) items.innerHTML = '';
+
+  try {
+    const result = await gateway.cronList();
+    const jobs = result.jobs ?? [];
+    if (!jobs.length) return;
+
+    // Filter jobs contextually by space keywords
+    const keywords: Record<string, string[]> = {
+      build: ['build', 'deploy', 'compile', 'test', 'ci', 'lint'],
+      content: ['content', 'write', 'publish', 'draft', 'blog', 'post', 'article'],
+      mail: ['mail', 'email', 'send', 'newsletter', 'digest', 'notify', 'inbox'],
+      research: ['research', 'scrape', 'crawl', 'monitor', 'fetch', 'analyze', 'report'],
+    };
+    const spaceKeywords = keywords[space] ?? [];
+
+    const matched = jobs.filter(job => {
+      const label = (job.label ?? '').toLowerCase();
+      const prompt = (typeof job.prompt === 'string' ? job.prompt : '').toLowerCase();
+      return spaceKeywords.some(kw => label.includes(kw) || prompt.includes(kw));
+    });
+
+    // If no keyword matches, show all active jobs as a fallback (max 3)
+    const display = matched.length ? matched : jobs.filter(j => j.enabled).slice(0, 3);
+    if (!display.length) return;
+
+    widget.style.display = '';
+    if (count) count.textContent = String(display.length);
+
+    for (const job of display.slice(0, 5)) {
+      const item = document.createElement('div');
+      item.className = 'space-cron-item';
+      const scheduleStr = typeof job.schedule === 'string' ? job.schedule : (job.schedule?.type ?? '');
+      item.innerHTML = `
+        <span class="dash-cron-dot ${job.enabled ? 'active' : 'paused'}"></span>
+        <span class="space-cron-name">${escHtml(job.label ?? job.id)}</span>
+        <span class="space-cron-schedule">${escHtml(scheduleStr)}</span>
+      `;
+      item.addEventListener('click', () => switchView('automations'));
+      items?.appendChild(item);
+    }
+  } catch (e) {
+    console.warn(`Space cron (${space}) load failed:`, e);
+  }
+}
+
+// ── Memory Palace ──────────────────────────────────────────────────────────
+let _palaceInitialized = false;
+let _palaceAvailable = false;
+
+async function loadMemoryPalace() {
+  if (!wsConnected) return;
+
+  // Check if memory-palace skill is installed (only once)
+  if (!_palaceInitialized) {
+    _palaceInitialized = true;
+    try {
+      const status = await gateway.skillsStatus();
+      const skills = status.skills ?? [];
+      _palaceAvailable = skills.some(
+        (s: { name: string; installed?: boolean; enabled?: boolean }) =>
+          s.name.toLowerCase().includes('memory') && s.installed !== false && s.enabled !== false,
+      );
+    } catch {
+      _palaceAvailable = false;
+    }
+    initPalaceTabs();
+    initPalaceRecall();
+    initPalaceRemember();
+    initPalaceGraph();
+  }
+
+  // Load palace stats + memory list via gateway
+  await loadPalaceStats();
+  await loadPalaceSidebar();
+}
+
+async function loadPalaceStats() {
+  const totalEl = $('palace-total');
+  const typesEl = $('palace-types');
+  const edgesEl = $('palace-graph-edges');
+  if (!totalEl) return;
+
+  if (!_palaceAvailable) {
+    totalEl.textContent = '—';
+    if (typesEl) typesEl.textContent = '—';
+    if (edgesEl) edgesEl.textContent = '—';
+    return;
+  }
+
+  try {
+    const result = await gateway.chatSend('paw-memory', 'Use memory_stats to show current statistics. Return only raw JSON.', { thinking: 'minimal' });
+    const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
+    // Try to parse stats from the response
+    const jsonMatch = text.match(/\{[\s\S]*"total"[\s\S]*\}/);
+    if (jsonMatch) {
+      const stats = JSON.parse(jsonMatch[0]);
+      totalEl.textContent = String(stats.total ?? stats.total_memories ?? '0');
+      if (typesEl) typesEl.textContent = String(stats.types ?? stats.type_count ?? '—');
+      if (edgesEl) edgesEl.textContent = String(stats.edges ?? stats.total_edges ?? '—');
+    }
+  } catch {
+    totalEl.textContent = '—';
+    if (typesEl) typesEl.textContent = '—';
+    if (edgesEl) edgesEl.textContent = '—';
+  }
+}
+
+async function loadPalaceSidebar() {
+  const list = $('palace-memory-list');
+  if (!list) return;
+
+  list.innerHTML = '';
+
+  if (!_palaceAvailable) {
+    list.innerHTML = `<div class="empty-state" style="padding:1rem;font-size:0.85rem;">Memory Palace skill not detected.<br>Install it in <strong>Skills</strong> to unlock semantic memory.</div>`;
+    return;
+  }
+
+  try {
+    const result = await gateway.chatSend('paw-memory', 'Use memory_recent with limit 20. Return only raw JSON.', { thinking: 'minimal' });
+    const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      const memories: { id?: string; type?: string; subject?: string; content?: string; created_at?: string }[] = JSON.parse(jsonMatch[0]);
+      for (const mem of memories) {
+        const card = document.createElement('div');
+        card.className = 'palace-memory-card';
+        card.innerHTML = `
+          <span class="palace-memory-type">${escHtml(mem.type ?? 'note')}</span>
+          <div class="palace-memory-subject">${escHtml(mem.subject ?? 'Untitled')}</div>
+          <div class="palace-memory-preview">${escHtml((mem.content ?? '').slice(0, 80))}${(mem.content?.length ?? 0) > 80 ? '…' : ''}</div>
+          <div class="palace-memory-meta">${mem.created_at ? new Date(mem.created_at).toLocaleDateString() : ''}</div>
+        `;
+        card.addEventListener('click', () => {
+          if (mem.id) palaceRecallById(mem.id);
+        });
+        list.appendChild(card);
+      }
+    }
+  } catch (e) {
+    console.warn('Palace sidebar load failed:', e);
+    list.innerHTML = '<div class="empty-state" style="padding:1rem;">Could not load memories.</div>';
+  }
+}
+
+async function palaceRecallById(memoryId: string) {
+  const resultsEl = $('palace-recall-results');
+  const emptyEl = $('palace-recall-empty');
+  if (!resultsEl) return;
+
+  // Switch to recall tab
+  document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
+  document.querySelector('.palace-tab[data-palace-tab="recall"]')?.classList.add('active');
+  const recallPanel = $('palace-recall-panel');
+  if (recallPanel) recallPanel.style.display = 'flex';
+
+  resultsEl.innerHTML = '<div style="padding:1rem;color:var(--text-secondary)">Loading…</div>';
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  try {
+    const result = await gateway.chatSend('paw-memory', `Use memory_get with id "${memoryId}". Return only raw JSON.`, { thinking: 'minimal' });
+    const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const mem = JSON.parse(jsonMatch[0]);
+      resultsEl.innerHTML = '';
+      resultsEl.appendChild(renderRecallCard(mem));
+    }
+  } catch (e) {
+    resultsEl.innerHTML = `<div style="padding:1rem;color:var(--danger)">Error: ${escHtml(String(e))}</div>`;
+  }
+}
+
+function renderRecallCard(mem: { type?: string; subject?: string; content?: string; score?: number; created_at?: string; tags?: string[]; edges?: { type?: string; target_subject?: string }[] }): HTMLElement {
+  const card = document.createElement('div');
+  card.className = 'palace-result-card';
+
+  const score = mem.score != null ? `<span class="palace-result-score">${(mem.score * 100).toFixed(0)}%</span>` : '';
+  const tags = (mem.tags ?? []).map(t => `<span class="palace-result-tag">${escHtml(t)}</span>`).join('');
+  const edges = (mem.edges ?? []).map(e =>
+    `<span class="palace-result-edge ${escAttr(e.type ?? '')}">${escHtml(e.type ?? 'link')} → ${escHtml(e.target_subject ?? '?')}</span>`,
+  ).join('');
+
+  card.innerHTML = `
+    <div class="palace-result-header">
+      <span class="palace-result-type">${escHtml(mem.type ?? 'note')}</span>
+      ${score}
+    </div>
+    <div class="palace-result-subject">${escHtml(mem.subject ?? 'Untitled')}</div>
+    <div class="palace-result-content">${escHtml(mem.content ?? '')}</div>
+    <div class="palace-result-meta">
+      ${mem.created_at ? new Date(mem.created_at).toLocaleDateString() : ''}
+      ${tags ? `<div class="palace-result-tags">${tags}</div>` : ''}
+    </div>
+    ${edges ? `<div class="palace-result-edges">${edges}</div>` : ''}
+  `;
+  return card;
+}
+
+// Palace tab switching
+function initPalaceTabs() {
+  document.querySelectorAll('.palace-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const target = (tab as HTMLElement).dataset.palaceTab;
+      if (!target) return;
+
+      document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
+      const panel = $(`palace-${target}-panel`);
+      if (panel) panel.style.display = 'flex';
+    });
+  });
+}
+
+// Palace recall search
+function initPalaceRecall() {
+  const btn = $('palace-recall-btn');
+  const input = $('palace-recall-input') as HTMLTextAreaElement | null;
+  if (!btn || !input) return;
+
+  btn.addEventListener('click', () => palaceRecallSearch());
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      palaceRecallSearch();
+    }
+  });
+}
+
+async function palaceRecallSearch() {
+  const input = $('palace-recall-input') as HTMLTextAreaElement | null;
+  const resultsEl = $('palace-recall-results');
+  const emptyEl = $('palace-recall-empty');
+  if (!input || !resultsEl) return;
+
+  const query = input.value.trim();
+  if (!query) return;
+
+  resultsEl.innerHTML = '<div style="padding:1rem;color:var(--text-secondary)">Searching…</div>';
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  if (!_palaceAvailable) {
+    resultsEl.innerHTML = '<div class="empty-state" style="padding:1rem;">Memory Palace skill not installed. Install it in Skills to enable semantic recall.</div>';
+    return;
+  }
+
+  try {
+    const result = await gateway.chatSend('paw-memory', `Use memory_recall with query "${query.replace(/"/g, '\\"')}" and n_results 10. Return only raw JSON array.`, { thinking: 'minimal' });
+    const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+
+    if (jsonMatch) {
+      const memories: { type?: string; subject?: string; content?: string; score?: number; created_at?: string; tags?: string[]; edges?: { type?: string; target_subject?: string }[] }[] = JSON.parse(jsonMatch[0]);
+      resultsEl.innerHTML = '';
+      if (!memories.length) {
+        if (emptyEl) emptyEl.style.display = 'flex';
+        return;
+      }
+      for (const mem of memories) {
+        resultsEl.appendChild(renderRecallCard(mem));
+      }
+    } else {
+      resultsEl.innerHTML = `<div style="padding:1rem;color:var(--text-secondary)">${escHtml(text.slice(0, 500))}</div>`;
+    }
+  } catch (e) {
+    resultsEl.innerHTML = `<div style="padding:1rem;color:var(--danger)">Recall failed: ${escHtml(String(e))}</div>`;
+  }
+}
+
+// Palace remember form
+function initPalaceRemember() {
+  const btn = $('palace-remember-save');
+  if (!btn) return;
+
+  btn.addEventListener('click', async () => {
+    const type = ($('palace-remember-type') as HTMLSelectElement | null)?.value ?? 'note';
+    const subject = ($('palace-remember-subject') as HTMLInputElement | null)?.value.trim() ?? '';
+    const content = ($('palace-remember-content') as HTMLTextAreaElement | null)?.value.trim() ?? '';
+    const project = ($('palace-remember-project') as HTMLInputElement | null)?.value.trim() ?? '';
+    const keywords = ($('palace-remember-keywords') as HTMLInputElement | null)?.value.trim() ?? '';
+    const foundational = ($('palace-remember-foundational') as HTMLInputElement | null)?.checked ?? false;
+
+    if (!subject || !content) {
+      alert('Subject and content are required.');
+      return;
+    }
+
+    if (!_palaceAvailable) {
+      alert('Memory Palace skill not installed. Install it in Skills.');
+      return;
+    }
+
+    btn.textContent = 'Saving…';
+    (btn as HTMLButtonElement).disabled = true;
+
+    try {
+      const params = [
+        `content: "${content.replace(/"/g, '\\"')}"`,
+        `memory_type: "${type}"`,
+        `subject: "${subject.replace(/"/g, '\\"')}"`,
+        foundational ? 'foundational: true' : '',
+        project ? `metadata: { project: "${project.replace(/"/g, '\\"')}" }` : '',
+        keywords ? `tags: [${keywords.split(',').map(k => `"${k.trim()}"`).join(', ')}]` : '',
+      ].filter(Boolean).join(', ');
+
+      await gateway.chatSend('paw-memory', `Use memory_remember with ${params}. Confirm when saved.`, { thinking: 'minimal' });
+
+      // Clear form
+      if ($('palace-remember-subject') as HTMLInputElement) ($('palace-remember-subject') as HTMLInputElement).value = '';
+      if ($('palace-remember-content') as HTMLTextAreaElement) ($('palace-remember-content') as HTMLTextAreaElement).value = '';
+      if ($('palace-remember-project') as HTMLInputElement) ($('palace-remember-project') as HTMLInputElement).value = '';
+      if ($('palace-remember-keywords') as HTMLInputElement) ($('palace-remember-keywords') as HTMLInputElement).value = '';
+      if ($('palace-remember-foundational') as HTMLInputElement) ($('palace-remember-foundational') as HTMLInputElement).checked = false;
+
+      alert('Memory saved!');
+      await loadPalaceSidebar();
+      await loadPalaceStats();
+    } catch (e) {
+      alert(`Save failed: ${e}`);
+    } finally {
+      btn.textContent = '💾 Save Memory';
+      (btn as HTMLButtonElement).disabled = false;
+    }
+  });
+}
+
+// Palace knowledge graph visualization
+function initPalaceGraph() {
+  const renderBtn = $('palace-graph-render');
+  if (!renderBtn) return;
+
+  renderBtn.addEventListener('click', () => renderPalaceGraph());
+}
+
+async function renderPalaceGraph() {
+  const canvas = $('palace-graph-canvas') as HTMLCanvasElement | null;
+  const emptyEl = $('palace-graph-empty');
+  if (!canvas) return;
+
+  if (!_palaceAvailable) {
+    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Memory Palace skill not installed.'; }
+    return;
+  }
+
+  if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Loading graph…'; }
+
+  try {
+    // Get recent memories with their edges for graph data
+    const result = await gateway.chatSend('paw-memory', 'Use memory_recent with limit 50. Include edges for each memory. Return only raw JSON array with fields: id, subject, type, edges (array of {target_id, target_subject, type}).', { thinking: 'minimal' });
+    const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+
+    if (!jsonMatch) {
+      if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'No graph data available.'; }
+      return;
+    }
+
+    const memories: { id?: string; subject?: string; type?: string; edges?: { target_id?: string; target_subject?: string; type?: string }[] }[] = JSON.parse(jsonMatch[0]);
+    if (!memories.length) {
+      if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'No memories to visualize.'; }
+      return;
+    }
+
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    // Render force-directed graph on canvas
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const rect = canvas.parentElement?.getBoundingClientRect();
+    canvas.width = rect?.width ?? 600;
+    canvas.height = rect?.height ?? 400;
+
+    // Build node + edge lists
+    const nodeMap = new Map<string, { x: number; y: number; vx: number; vy: number; subject: string; type: string }>();
+    const edgeList: { from: string; to: string; type: string }[] = [];
+
+    for (const mem of memories) {
+      const id = mem.id ?? mem.subject ?? Math.random().toString();
+      if (!nodeMap.has(id)) {
+        nodeMap.set(id, {
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: 0, vy: 0,
+          subject: mem.subject ?? '?',
+          type: mem.type ?? 'note',
+        });
+      }
+      for (const edge of mem.edges ?? []) {
+        const targetId = edge.target_id ?? edge.target_subject ?? '';
+        if (targetId) {
+          if (!nodeMap.has(targetId)) {
+            nodeMap.set(targetId, {
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              vx: 0, vy: 0,
+              subject: edge.target_subject ?? '?',
+              type: 'note',
+            });
+          }
+          edgeList.push({ from: id, to: targetId, type: edge.type ?? 'related' });
+        }
+      }
+    }
+
+    const nodes = Array.from(nodeMap.entries());
+    const typeColors: Record<string, string> = {
+      note: '#0073EA', fact: '#00CA72', decision: '#FDAB3D',
+      procedure: '#E44258', concept: '#A25DDC', code: '#579BFC',
+    };
+
+    // Simple force simulation (50 iterations)
+    for (let iter = 0; iter < 50; iter++) {
+      // Repulsion between all nodes
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i][1], b = nodes[j][1];
+          let dx = a.x - b.x, dy = a.y - b.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const force = 2000 / (dist * dist);
+          dx *= force / dist; dy *= force / dist;
+          a.vx += dx; a.vy += dy;
+          b.vx -= dx; b.vy -= dy;
+        }
+      }
+      // Attraction along edges
+      for (const edge of edgeList) {
+        const a = nodeMap.get(edge.from), b = nodeMap.get(edge.to);
+        if (!a || !b) continue;
+        let dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const force = (dist - 100) * 0.01;
+        dx *= force / dist; dy *= force / dist;
+        a.vx += dx; a.vy += dy;
+        b.vx -= dx; b.vy -= dy;
+      }
+      // Center gravity
+      for (const [, node] of nodes) {
+        node.vx += (canvas.width / 2 - node.x) * 0.001;
+        node.vy += (canvas.height / 2 - node.y) * 0.001;
+      }
+      // Apply velocities
+      for (const [, node] of nodes) {
+        node.x += node.vx * 0.3;
+        node.y += node.vy * 0.3;
+        node.vx *= 0.8;
+        node.vy *= 0.8;
+        // Clamp to bounds
+        node.x = Math.max(30, Math.min(canvas.width - 30, node.x));
+        node.y = Math.max(30, Math.min(canvas.height - 30, node.y));
+      }
+    }
+
+    // Draw
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Edges
+    ctx.strokeStyle = '#D0D4E4';
+    ctx.lineWidth = 1;
+    for (const edge of edgeList) {
+      const a = nodeMap.get(edge.from), b = nodeMap.get(edge.to);
+      if (!a || !b) continue;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+    }
+
+    // Nodes
+    for (const [, node] of nodes) {
+      const color = typeColors[node.type] ?? '#676879';
+      ctx.beginPath();
+      ctx.arc(node.x, node.y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Label
+      ctx.fillStyle = '#323338';
+      ctx.font = '11px Figtree, sans-serif';
+      ctx.textAlign = 'center';
+      const label = node.subject.length > 20 ? node.subject.slice(0, 18) + '…' : node.subject;
+      ctx.fillText(label, node.x, node.y - 14);
+    }
+  } catch (e) {
+    console.warn('Graph render failed:', e);
+    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Failed to load graph data.'; }
+  }
+}
+
+// Palace refresh button
+$('palace-refresh')?.addEventListener('click', async () => {
+  _palaceInitialized = false;
+  await loadMemoryPalace();
+  loadMemory();
+});
+
+// Palace sidebar search filter (local filter of visible cards)
+$('palace-search')?.addEventListener('input', () => {
+  const query = (($('palace-search') as HTMLInputElement)?.value ?? '').toLowerCase();
+  document.querySelectorAll('.palace-memory-card').forEach(card => {
+    const text = card.textContent?.toLowerCase() ?? '';
+    (card as HTMLElement).style.display = text.includes(query) ? '' : 'none';
+  });
+});
 
 // ══════════════════════════════════════════════════════════════════════════
 // ═══ LOCAL APPLICATION SPACES ═══════════════════════════════════════════
