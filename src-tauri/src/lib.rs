@@ -436,25 +436,33 @@ fn start_gateway(port: Option<u16>) -> Result<(), String> {
 
         let openclaw_bin = get_openclaw_path();
         let node_dir = get_node_bin_dir();
+
+        // Check if we need to inject OPENAI_BASE_URL for Azure/Foundry
+        let embedding_base_url = parse_openclaw_config()
+            .and_then(|c| c.pointer("/_paw/embeddingBaseUrl").and_then(|v| v.as_str()).map(|s| s.to_string()));
         
         // Try bundled openclaw first
         if openclaw_bin.exists() {
-            Command::new(openclaw_bin.to_str().unwrap())
-                .args(["gateway", "start"])
-                .env("PATH", join_path_env(&node_dir))
-                .spawn()
+            let mut cmd = Command::new(openclaw_bin.to_str().unwrap());
+            cmd.args(["gateway", "start"])
+                .env("PATH", join_path_env(&node_dir));
+            if let Some(ref url) = embedding_base_url {
+                cmd.env("OPENAI_BASE_URL", url);
+                info!("Injecting OPENAI_BASE_URL={} into gateway env", url);
+            }
+            cmd.spawn()
                 .map_err(|e| format!("Failed to start gateway: {}", e))?;
         } else {
             // Fall back to system openclaw
-            Command::new("openclaw")
-                .args(["gateway", "start"])
-                .spawn()
+            let mut cmd = Command::new("openclaw");
+            cmd.args(["gateway", "start"]);
+            if let Some(ref url) = embedding_base_url {
+                cmd.env("OPENAI_BASE_URL", url);
+            }
+            cmd.spawn()
                 .map_err(|e| format!("Failed to start gateway: {}", e))?;
         }
     }
-
-    // Memory Palace is an MCP skill — the gateway spawns it on demand.
-    // No separate server to auto-start.
 
     Ok(())
 }
@@ -477,364 +485,143 @@ fn stop_gateway() -> Result<(), String> {
     Ok(())
 }
 
-// ═══ Memory Palace Lifecycle ══════════════════════════════════════════════
-// Memory Palace is an MCP server (stdio transport), NOT an HTTP server.
-// Install: git clone → pip install -e . → python -m setup.first_run
-// Run: registered as an MCP skill in the OpenClaw gateway config.
-// Requires: Python 3.10+, Ollama (for local embeddings).
+// ═══ Memory (LanceDB Plugin) ══════════════════════════════════════════════
+// OpenClaw ships a built-in memory-lancedb plugin that provides:
+//   - memory_recall — semantic vector search over stored memories
+//   - memory_store — save memories with categories and importance
+//   - memory_forget — delete memories
+// Configuration: plugins.slots.memory = "memory-lancedb" in openclaw.json.
+// Requires: an OpenAI-compatible embedding API key.
 
-const PALACE_GIT_URL: &str = "https://github.com/jeffpierce/memory-palace.git";
-
-// Embed the Python patch files at compile time
-const OPENAI_PATCH_PY: &str = include_str!("../../resources/palace_openai_patch.py");
-const EMBEDDING_HOOK_PY: &str = include_str!("../../resources/paw_embedding_hook.py");
-
-fn get_palace_dir() -> PathBuf {
-    get_app_data_dir().join("memory-palace")
-}
-
-fn get_palace_repo() -> PathBuf {
-    get_palace_dir().join("repo")
-}
-
-fn get_palace_venv() -> PathBuf {
-    get_palace_dir().join("venv")
-}
-
-fn get_palace_python() -> PathBuf {
-    let venv = get_palace_venv();
-    if cfg!(target_os = "windows") {
-        venv.join("Scripts/python.exe")
-    } else {
-        venv.join("bin/python3")
-    }
-}
-
-fn get_palace_pip() -> PathBuf {
-    let venv = get_palace_venv();
-    if cfg!(target_os = "windows") {
-        venv.join("Scripts/pip.exe")
-    } else {
-        venv.join("bin/pip3")
-    }
-}
-
-/// Path to the memory-palace-mcp entrypoint in the venv
-fn get_palace_mcp_bin() -> PathBuf {
-    let venv = get_palace_venv();
-    if cfg!(target_os = "windows") {
-        venv.join("Scripts/memory-palace-mcp.exe")
-    } else {
-        venv.join("bin/memory-palace-mcp")
-    }
-}
-
-fn find_system_python() -> Option<String> {
-    for name in &["python3", "python"] {
-        if let Ok(output) = Command::new(name).arg("--version").output() {
-            if output.status.success() {
-                let ver = String::from_utf8_lossy(&output.stdout).to_string();
-                let ver_alt = String::from_utf8_lossy(&output.stderr).to_string();
-                let version_str = if ver.contains("3.") { ver } else { ver_alt };
-                if version_str.contains("3.") {
-                    info!("Found Python: {} → {}", name, version_str.trim());
-                    return Some(name.to_string());
-                }
-            }
-        }
-    }
-    None
-}
-
-fn check_ollama_available() -> bool {
-    Command::new("ollama")
-        .arg("--version")
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-}
-
+/// Check if memory-lancedb is configured in openclaw.json.
 #[tauri::command]
-fn check_python_installed() -> bool {
-    find_system_python().is_some()
-}
-
-#[tauri::command]
-fn check_ollama_installed() -> bool {
-    check_ollama_available()
-}
-
-#[tauri::command]
-fn check_palace_installed() -> bool {
-    // Palace is installed if: venv python exists AND memory_palace module imports
-    let python = get_palace_python();
-    if !python.exists() {
+fn check_memory_configured() -> bool {
+    let config = match parse_openclaw_config() {
+        Some(c) => c,
+        None => return false,
+    };
+    // Check plugins.slots.memory == "memory-lancedb"
+    let slot = config.pointer("/plugins/slots/memory")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    if slot != "memory-lancedb" {
         return false;
     }
-    let output = Command::new(python.to_str().unwrap())
-        .args(["-c", "import memory_palace; print('ok')"])
-        .output();
-    match output {
-        Ok(o) => o.status.success(),
-        Err(_) => false,
-    }
+    // Check plugins.entries.memory-lancedb.config.embedding.apiKey exists
+    let api_key = config.pointer("/plugins/entries/memory-lancedb/config/embedding/apiKey")
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    !api_key.is_empty()
 }
 
+/// Enable the memory-lancedb plugin by patching openclaw.json.
+/// This is a pure config operation — no Python, no venv, no git clone.
 #[tauri::command]
-fn check_palace_health() -> bool {
-    // Palace is "healthy" if the module is installed and importable.
-    // Registration with the gateway happens via the skills.install API at runtime.
-    let python = get_palace_python();
-    if !python.exists() {
-        return false;
-    }
-    let output = Command::new(python.to_str().unwrap())
-        .args(["-c", "import memory_palace; print('ok')"])
-        .output();
-    match output {
-        Ok(o) => o.status.success(),
-        Err(_) => false,
-    }
-}
-
-#[tauri::command]
-async fn install_palace(window: tauri::Window, api_key: String, base_url: Option<String>, model_name: Option<String>) -> Result<(), String> {
-    info!("Starting Memory Palace installation (cloud embeddings)...");
-
+fn enable_memory_plugin(api_key: String, base_url: Option<String>, model: Option<String>) -> Result<(), String> {
     let api_key = api_key.trim().to_string();
     if api_key.is_empty() {
-        return Err("An embedding API key is required. Enter your API key for text-embedding-3-small.".to_string());
+        return Err("An embedding API key is required.".to_string());
     }
-
-    // Validate key doesn't look like a URL (common user mistake)
     if api_key.starts_with("http://") || api_key.starts_with("https://") {
         return Err("The API key looks like a URL. Please enter your actual API key, not the endpoint URL.".to_string());
     }
 
-    let base_url = base_url
-        .map(|u| u.trim().to_string())
-        .filter(|u| !u.is_empty())
-        .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
-
-    let model = model_name
+    let model = model
         .map(|m| m.trim().to_string())
         .filter(|m| !m.is_empty())
         .unwrap_or_else(|| "text-embedding-3-small".to_string());
 
-    // ── Step 1: Check Python ──────────────────────────────────────────────
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "checking",
-        "percent": 5,
-        "message": "Checking Python..."
-    })).ok();
-
-    let python_cmd = find_system_python()
-        .ok_or("Python 3 not found. Please install Python 3.10+ from python.org")?;
-    info!("Using Python: {}", python_cmd);
-
-    // ── Step 2: Create venv ───────────────────────────────────────────────
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "venv",
-        "percent": 10,
-        "message": "Creating Python virtual environment..."
-    })).ok();
-
-    let palace_dir = get_palace_dir();
-    let venv_dir = get_palace_venv();
-    let repo_dir = get_palace_repo();
-    fs::create_dir_all(&palace_dir).map_err(|e| format!("Failed to create palace dir: {}", e))?;
-
-    if !venv_dir.exists() {
-        let venv_result = Command::new(&python_cmd)
-            .args(["-m", "venv", venv_dir.to_str().unwrap()])
-            .output()
-            .map_err(|e| format!("Failed to create venv: {}", e))?;
-
-        if !venv_result.status.success() {
-            let stderr = String::from_utf8_lossy(&venv_result.stderr);
-            return Err(format!("venv creation failed: {}", stderr));
-        }
-    }
-
-    // ── Step 3: Git clone ─────────────────────────────────────────────────
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "clone",
-        "percent": 20,
-        "message": "Cloning memory-palace repository..."
-    })).ok();
-
-    if repo_dir.exists() {
-        info!("memory-palace repo exists, pulling latest...");
-        let pull = Command::new("git")
-            .args(["pull", "--ff-only"])
-            .current_dir(&repo_dir)
-            .output();
-        if let Ok(o) = pull {
-            if o.status.success() {
-                info!("git pull succeeded");
-            } else {
-                warn!("git pull failed, continuing with existing code");
-            }
-        }
-    } else {
-        let clone_result = Command::new("git")
-            .args(["clone", "--depth", "1", PALACE_GIT_URL, repo_dir.to_str().unwrap()])
-            .output()
-            .map_err(|e| format!("git clone failed: {}", e))?;
-
-        if !clone_result.status.success() {
-            let stderr = String::from_utf8_lossy(&clone_result.stderr);
-            return Err(format!("git clone failed: {}", stderr));
-        }
-    }
-
-    // ── Step 4: pip install -e . ──────────────────────────────────────────
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "pip",
-        "percent": 35,
-        "message": "Installing memory-palace and dependencies..."
-    })).ok();
-
-    let pip = get_palace_pip();
-    let pip_result = Command::new(pip.to_str().unwrap())
-        .args(["install", "-e", repo_dir.to_str().unwrap()])
-        .output()
-        .map_err(|e| format!("pip install failed: {}", e))?;
-
-    if !pip_result.status.success() {
-        let stderr = String::from_utf8_lossy(&pip_result.stderr);
-        return Err(format!("pip install -e . failed: {}", stderr));
-    }
-    info!("pip install -e . succeeded");
-
-    // ── Step 5: Verify module imports ─────────────────────────────────────
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "verify",
-        "percent": 50,
-        "message": "Verifying installation..."
-    })).ok();
-
-    let venv_python = get_palace_python();
-    let verify = Command::new(venv_python.to_str().unwrap())
-        .args(["-c", "import memory_palace; print(getattr(memory_palace, '__version__', 'ok'))"])
-        .output()
-        .map_err(|e| format!("Failed to verify: {}", e))?;
-
-    if !verify.status.success() {
-        let stderr = String::from_utf8_lossy(&verify.stderr);
-        return Err(format!("memory-palace module cannot be imported: {}", stderr));
-    }
-    let ver = String::from_utf8_lossy(&verify.stdout).trim().to_string();
-    info!("memory-palace verified: {}", ver);
-
-    // Verify MCP entrypoint exists
-    let mcp_bin = get_palace_mcp_bin();
-    if !mcp_bin.exists() {
-        let find = Command::new("find")
-            .args([venv_dir.to_str().unwrap(), "-name", "memory-palace-mcp", "-o", "-name", "memory_palace_mcp"])
-            .output();
-        let found = find.map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
-        warn!("MCP entrypoint not at expected path {:?}. Found: {}", mcp_bin, found.trim());
-    }
-
-    // ── Step 6: Install Paw embedding patches ─────────────────────────────
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "patch",
-        "percent": 60,
-        "message": "Installing cloud embedding support..."
-    })).ok();
-
-    let mp_module_dir = repo_dir.join("memory_palace");
-    let openai_patch_path = mp_module_dir.join("paw_openai_embeddings.py");
-    let hook_path = mp_module_dir.join("paw_embedding_hook.py");
-
-    fs::write(&openai_patch_path, OPENAI_PATCH_PY)
-        .map_err(|e| format!("Failed to write OpenAI patch: {}", e))?;
-    info!("Wrote OpenAI embedding patch to {:?}", openai_patch_path);
-
-    fs::write(&hook_path, EMBEDDING_HOOK_PY)
-        .map_err(|e| format!("Failed to write embedding hook: {}", e))?;
-    info!("Wrote embedding hook to {:?}", hook_path);
-
-    // Inject hook into __init__.py so it activates when the module loads
-    let init_path = mp_module_dir.join("__init__.py");
-    let hook_import = "\n# Paw cloud embedding hook\ntry:\n    from memory_palace.paw_embedding_hook import install_hook as _paw_hook\n    _paw_hook()\nexcept Exception:\n    pass\n";
-
-    let init_content = fs::read_to_string(&init_path).unwrap_or_default();
-    if !init_content.contains("paw_embedding_hook") {
-        let mut new_content = init_content.clone();
-        new_content.push_str(hook_import);
-        fs::write(&init_path, new_content)
-            .map_err(|e| format!("Failed to patch __init__.py: {}", e))?;
-        info!("Injected embedding hook into __init__.py");
-    }
-
-    // ── Step 7: Write Memory Palace config ────────────────────────────────
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "config",
-        "percent": 75,
-        "message": "Writing configuration..."
-    })).ok();
+    let base_url = base_url
+        .map(|u| u.trim().to_string())
+        .filter(|u| !u.is_empty());
 
     let home = dirs::home_dir().ok_or("Cannot find home directory")?;
-    let mp_config_dir = home.join(".memory-palace");
-    let mp_config_path = mp_config_dir.join("config.json");
-    fs::create_dir_all(&mp_config_dir).ok();
+    let config_path = home.join(".openclaw/openclaw.json");
 
-    let mp_config = serde_json::json!({
-        "database": {
-            "type": "sqlite",
-            "url": null
-        },
-        "embedding_provider": "openai",
-        "openai_api_key": api_key,
-        "openai_base_url": base_url,
-        "embedding_model": model,
-        "embedding_dimension": 1536,
-        "ollama_url": "http://localhost:11434",
-        "llm_model": null,
-        "synthesis": {
-            "enabled": false
-        },
-        "auto_link": {
-            "enabled": true,
-            "link_threshold": 0.75,
-            "suggest_threshold": 0.675
-        },
-        "toon_output": true,
-        "instances": ["paw"],
-        "notify_command": null,
-        "instance_routes": {}
+    if !config_path.exists() {
+        return Err("OpenClaw config not found. Install OpenClaw first.".to_string());
+    }
+
+    let content = fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read config: {}", e))?;
+    let sanitized = sanitize_json5(&content);
+    let mut config: serde_json::Value = serde_json::from_str(&sanitized)
+        .map_err(|e| format!("Failed to parse config: {}", e))?;
+
+    // Build the embedding config
+    let embedding = serde_json::json!({
+        "apiKey": api_key,
+        "model": model,
     });
-    fs::write(&mp_config_path, serde_json::to_string_pretty(&mp_config).unwrap())
+
+    // If a base URL is provided (Azure Foundry), also store it
+    // Note: memory-lancedb's strict schema only allows apiKey + model in "embedding",
+    // so we store the base URL separately for the gateway env.
+
+    // Ensure plugins object exists
+    let obj = config.as_object_mut().ok_or("Config is not an object")?;
+    if !obj.contains_key("plugins") {
+        obj.insert("plugins".to_string(), serde_json::json!({}));
+    }
+    let plugins = obj.get_mut("plugins").unwrap().as_object_mut()
+        .ok_or("plugins is not an object")?;
+
+    // Set plugins.slots.memory = "memory-lancedb"
+    if !plugins.contains_key("slots") {
+        plugins.insert("slots".to_string(), serde_json::json!({}));
+    }
+    let slots = plugins.get_mut("slots").unwrap().as_object_mut()
+        .ok_or("plugins.slots is not an object")?;
+    slots.insert("memory".to_string(), serde_json::json!("memory-lancedb"));
+
+    // Set plugins.entries.memory-lancedb
+    if !plugins.contains_key("entries") {
+        plugins.insert("entries".to_string(), serde_json::json!({}));
+    }
+    let entries = plugins.get_mut("entries").unwrap().as_object_mut()
+        .ok_or("plugins.entries is not an object")?;
+    entries.insert("memory-lancedb".to_string(), serde_json::json!({
+        "enabled": true,
+        "config": {
+            "embedding": embedding,
+            "autoCapture": true,
+            "autoRecall": true,
+        },
+    }));
+
+    // If a custom base URL is provided (Azure/Foundry), store it so we can
+    // set OPENAI_BASE_URL when the gateway is started.
+    if let Some(ref url) = base_url {
+        obj.insert("_paw".to_string(), serde_json::json!({
+            "embeddingBaseUrl": url,
+        }));
+        info!("Stored embedding base URL for gateway env: {}", url);
+    } else {
+        // Remove any existing _paw section
+        obj.remove("_paw");
+    }
+
+    // Write back
+    fs::write(&config_path, serde_json::to_string_pretty(&config).unwrap())
         .map_err(|e| format!("Failed to write config: {}", e))?;
-    info!("Wrote Memory Palace config (cloud embeddings via {}) to {:?}", base_url, mp_config_path);
 
-    // ── Step 8: Register as MCP skill in OpenClaw gateway ─────────────────
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "register",
-        "percent": 85,
-        "message": "Registering Memory Palace as gateway skill..."
-    })).ok();
-
-    // Note: Gateway skill registration happens via the skills.install API
-    // from the frontend after this install completes. We don't write to
-    // openclaw.json directly — the gateway schema doesn't allow arbitrary skill keys.
-
-    // ── Done ──────────────────────────────────────────────────────────────
-    window.emit("palace-install-progress", serde_json::json!({
-        "stage": "done",
-        "percent": 100,
-        "message": "Memory Palace installed! Registering with gateway..."
-    })).ok();
-    info!("Memory Palace installation complete (cloud embeddings)");
-
+    info!("Enabled memory-lancedb plugin in openclaw.json (model: {})", model);
     Ok(())
 }
 
-/// Repair openclaw.json by removing any invalid "skills" key that Paw
-/// may have written in a previous version. The gateway manages skills
-/// through its own API, not through raw config keys.
+/// Read the embedding base URL from the _paw section of openclaw.json.
+/// Returns the URL if configured, None otherwise.
+#[tauri::command]
+fn get_embedding_base_url() -> Option<String> {
+    let config = parse_openclaw_config()?;
+    config.pointer("/_paw/embeddingBaseUrl")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
+/// Repair openclaw.json by removing any cruft from previous Paw versions.
+/// Removes old "skills" key (from v1 palace integration) and ensures
+/// the config is valid for the gateway.
 #[tauri::command]
 fn repair_openclaw_config() -> Result<bool, String> {
     let home = dirs::home_dir().ok_or("Cannot find home directory")?;
@@ -851,9 +638,9 @@ fn repair_openclaw_config() -> Result<bool, String> {
     let mut config: serde_json::Value = serde_json::from_str(&sanitized)
         .map_err(|e| format!("Failed to parse config: {}", e))?;
 
-    // Remove the invalid "skills" key if present
     let mut repaired = false;
     if let Some(obj) = config.as_object_mut() {
+        // Remove the invalid "skills" key if present (legacy palace integration)
         if obj.contains_key("skills") {
             obj.remove("skills");
             repaired = true;
@@ -868,52 +655,6 @@ fn repair_openclaw_config() -> Result<bool, String> {
     }
 
     Ok(repaired)
-}
-
-fn start_palace_server() -> Result<(), String> {
-    // Memory Palace is an MCP stdio server — there's no persistent server to start.
-    // It's spawned on-demand by the gateway when a tool call is made.
-    // This function is a no-op but kept for API compatibility.
-    info!("Memory Palace is an MCP stdio server — no persistent server to start.");
-    info!("The gateway spawns it on-demand when skills are invoked.");
-    Ok(())
-}
-
-#[tauri::command]
-fn start_palace() -> Result<(), String> {
-    start_palace_server()
-}
-
-#[tauri::command]
-fn stop_palace() -> Result<(), String> {
-    // MCP stdio servers are ephemeral — nothing to stop
-    info!("Memory Palace uses stdio transport — no persistent process to stop.");
-    Ok(())
-}
-
-#[tauri::command]
-fn get_palace_port() -> u16 {
-    // No port — MCP stdio transport. Return 0 to indicate not applicable.
-    0
-}
-
-#[tauri::command]
-fn get_palace_log() -> String {
-    let log_path = get_palace_dir().join("palace.log");
-    if log_path.exists() {
-        fs::read_to_string(&log_path)
-            .unwrap_or_else(|e| format!("(failed to read log: {})", e))
-            .lines()
-            .rev()
-            .take(50)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect::<Vec<_>>()
-            .join("\n")
-    } else {
-        "(no palace.log found — Memory Palace uses MCP stdio transport)".to_string()
-    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -939,15 +680,9 @@ pub fn run() {
             install_openclaw,
             start_gateway,
             stop_gateway,
-            check_python_installed,
-            check_ollama_installed,
-            check_palace_installed,
-            check_palace_health,
-            install_palace,
-            start_palace,
-            stop_palace,
-            get_palace_port,
-            get_palace_log,
+            check_memory_configured,
+            enable_memory_plugin,
+            get_embedding_base_url,
             repair_openclaw_config
         ])
         .run(tauri::generate_context!())

@@ -862,9 +862,8 @@
         </div>
 
         <!-- ═══ Memory View — Knowledge Base ═══ -->
-        <!-- ═══ Memory View — Memory Palace ═══ -->
         <div class="view palace-view" id="memory-view">
-          <!-- Palace install banner (shown when not installed/running) -->
+          <!-- Memory setup banner (shown when plugin not configured) -->
           <div class="palace-install-banner" id="palace-install-banner" style="display:none">
             <div class="palace-install-card">
               <div class="palace-install-icon">
@@ -874,37 +873,22 @@
                   <line x1="10" y1="24" x2="14" y2="24"/>
                 </svg>
               </div>
-              <h2 class="palace-install-title">Set Up Memory Palace</h2>
+              <h2 class="palace-install-title">Enable Long-Term Memory</h2>
               <p class="palace-install-desc">
-                Add semantic memory, knowledge graphs, and auto-linking to your agent.
-                One click installs everything — Python venv, cloud embeddings, and MCP integration.
+                Give your agent persistent vector memory with auto-capture and semantic recall.
+                Just add an embedding API key — no extra software required.
               </p>
-              <div class="palace-install-reqs">
-                <div class="palace-install-req" id="palace-req-python">
-                  <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-                  <span>Python 3.10+</span>
-                  <span class="palace-req-status" id="palace-req-python-status">checking…</span>
-                </div>
-                <div class="palace-install-req">
-                  <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-                  <span>memory-palace (auto-cloned)</span>
-                </div>
-                <div class="palace-install-req">
-                  <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-                  <span>text-embedding-3-small (cloud)</span>
-                </div>
-              </div>
               <div class="palace-api-config" id="palace-api-config">
-                <label class="palace-api-label" for="palace-base-url">
-                  Target URI <span class="palace-api-hint">(Azure / Foundry endpoint)</span>
-                </label>
-                <input class="palace-api-input" id="palace-base-url" type="text"
-                  placeholder="https://your-resource.cognitiveservices.azure.com/openai/deployments/text-embedding-3-small/embeddings?api-version=2023-05-15" autocomplete="off" spellcheck="false" />
                 <label class="palace-api-label" for="palace-api-key">
-                  API Key <span class="palace-api-required">*</span>
+                  Embedding API Key <span class="palace-api-required">*</span>
                 </label>
                 <input class="palace-api-input" id="palace-api-key" type="password"
-                  placeholder="Your API key (not a URL)" autocomplete="off" spellcheck="false" />
+                  placeholder="sk-... or Azure API key" autocomplete="off" spellcheck="false" />
+                <label class="palace-api-label" for="palace-base-url">
+                  Custom Endpoint <span class="palace-api-hint">(Azure / Foundry — leave blank for OpenAI)</span>
+                </label>
+                <input class="palace-api-input" id="palace-base-url" type="text"
+                  placeholder="https://your-resource.openai.azure.com/openai/deployments/text-embedding-3-small" autocomplete="off" spellcheck="false" />
                 <label class="palace-api-label" for="palace-model-name">
                   Model <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>
                 </label>
@@ -912,11 +896,10 @@
                   placeholder="text-embedding-3-small" autocomplete="off" spellcheck="false" />
               </div>
               <div class="palace-install-progress" id="palace-install-progress" style="display:none">
-                <div class="progress-bar"><div class="progress-fill" id="palace-progress-bar"></div></div>
-                <p class="progress-text" id="palace-progress-text">Ready to install</p>
+                <p class="progress-text" id="palace-progress-text">Saving configuration…</p>
               </div>
               <div class="palace-install-actions">
-                <button class="btn btn-primary" id="palace-install-btn">Install Memory Palace</button>
+                <button class="btn btn-primary" id="palace-install-btn">Enable Memory</button>
                 <button class="btn btn-ghost btn-sm" id="palace-skip-btn">Skip — use file editor only</button>
               </div>
             </div>
@@ -924,7 +907,7 @@
           <!-- Palace Sidebar -->
           <div class="palace-sidebar">
             <div class="palace-sidebar-header">
-              <span class="palace-sidebar-title">Memory Palace</span>
+              <span class="palace-sidebar-title">Memory</span>
               <button class="btn-icon" id="palace-refresh" title="Refresh memories">
                 <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               </button>
@@ -985,7 +968,7 @@
               </button>
               <button class="palace-tab" data-palace-tab="graph">
                 <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><line x1="8.5" y1="7.5" x2="15.5" y2="16.5"/><line x1="15.5" y1="7.5" x2="8.5" y2="16.5"/></svg>
-                Graph
+                Map
               </button>
               <button class="palace-tab" data-palace-tab="remember">
                 <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1025,40 +1008,31 @@
             <div class="palace-panel" id="palace-remember-panel">
               <div class="palace-remember-form">
                 <div class="form-group">
-                  <label class="form-label">Memory type</label>
+                  <label class="form-label">Category</label>
                   <select class="form-input" id="palace-remember-type">
+                    <option value="other">Other</option>
                     <option value="fact">Fact</option>
                     <option value="preference">Preference</option>
-                    <option value="architecture">Architecture</option>
                     <option value="decision">Decision</option>
-                    <option value="insight">Insight</option>
-                    <option value="gotcha">Gotcha</option>
-                    <option value="event">Event</option>
-                    <option value="solution">Solution</option>
+                    <option value="procedure">Procedure</option>
+                    <option value="concept">Concept</option>
+                    <option value="code">Code</option>
+                    <option value="person">Person</option>
+                    <option value="project">Project</option>
                   </select>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Subject</label>
-                  <input class="form-input" id="palace-remember-subject" placeholder="What is this about?" />
-                </div>
-                <div class="form-group">
                   <label class="form-label">Content</label>
-                  <textarea class="form-input" id="palace-remember-content" rows="5" placeholder="The memory content…"></textarea>
-                </div>
-                <div class="form-row">
-                  <div class="form-group" style="flex:1">
-                    <label class="form-label">Project</label>
-                    <input class="form-input" id="palace-remember-project" placeholder="life" />
-                  </div>
-                  <div class="form-group" style="flex:1">
-                    <label class="form-label">Keywords (comma-separated)</label>
-                    <input class="form-input" id="palace-remember-keywords" placeholder="auth, jwt, tokens" />
-                  </div>
+                  <textarea class="form-input" id="palace-remember-content" rows="5" placeholder="What should the agent remember?"></textarea>
                 </div>
                 <div class="form-group">
-                  <label class="form-label" style="display:flex;align-items:center;gap:8px">
-                    <input type="checkbox" id="palace-remember-foundational" /> Foundational (never archived)
-                  </label>
+                  <label class="form-label">Importance (1–10)</label>
+                  <select class="form-input" id="palace-remember-importance">
+                    <option value="3">3 – Low</option>
+                    <option value="5" selected>5 – Normal</option>
+                    <option value="7">7 – High</option>
+                    <option value="10">10 – Critical</option>
+                  </select>
                 </div>
                 <button class="btn btn-primary" id="palace-remember-save" style="align-self:flex-start">
                   <svg class="icon-sm" viewBox="0 0 24 24" style="margin-right:4px"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>

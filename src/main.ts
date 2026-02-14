@@ -1718,7 +1718,7 @@ async function loadSpaceCron(space: string) {
   }
 }
 
-// ── Memory Palace ──────────────────────────────────────────────────────────
+// ── Memory (LanceDB) ───────────────────────────────────────────────────────
 let _palaceInitialized = false;
 let _palaceAvailable = false;
 let _palaceSkipped = false;
@@ -1726,13 +1726,11 @@ let _palaceSkipped = false;
 async function loadMemoryPalace() {
   if (!wsConnected) return;
 
-  // Check if memory-palace is installed and registered as a gateway skill
+  // Check if memory-lancedb plugin is active in the gateway
   if (!_palaceInitialized) {
     _palaceInitialized = true;
 
-    // Check via gateway skills API — the skill must be registered and enabled
-    // in the gateway for palace commands to work. Module installation alone
-    // is not enough (the skill needs gateway registration via skills.install).
+    // Check via gateway skills/plugins — look for memory-lancedb or memory tools
     try {
       const status = await gateway.skillsStatus();
       const skills = status.skills ?? [];
@@ -1741,18 +1739,17 @@ async function loadMemoryPalace() {
           s.name.toLowerCase().includes('memory') && s.installed !== false && s.enabled !== false,
       );
       if (_palaceAvailable) {
-        console.log('[palace] Memory Palace registered and enabled in gateway');
+        console.log('[memory] Memory plugin active in gateway');
       }
     } catch {
       _palaceAvailable = false;
     }
 
-    // If the module is installed but not registered, show install banner
-    // (user may need to re-install to trigger gateway registration)
-    let moduleInstalled = false;
+    // If gateway doesn't show it, check if config is written (might need restart)
+    let configWritten = false;
     if (!_palaceAvailable && invoke) {
       try {
-        moduleInstalled = await invoke<boolean>('check_palace_health');
+        configWritten = await invoke<boolean>('check_memory_configured');
       } catch { /* ignore */ }
     }
 
@@ -1766,21 +1763,38 @@ async function loadMemoryPalace() {
     const filesDivider = $('palace-files-divider');
 
     if (!_palaceAvailable && !_palaceSkipped) {
-      // Show install banner
+      // Show setup banner
       if (banner) banner.style.display = 'flex';
-      if (moduleInstalled) {
-        // Module is installed but not registered with gateway
-        console.log('[palace] Module installed but not registered as gateway skill');
-      }
-      // Check Python availability for the banner
-      if (invoke) {
-        try {
-          const hasPython = await invoke<boolean>('check_python_installed');
-          const reqEl = $('palace-req-python');
-          const statusEl = $('palace-req-python-status');
-          if (reqEl) reqEl.classList.add(hasPython ? 'ready' : 'missing');
-          if (statusEl) statusEl.textContent = hasPython ? '✓ found' : '✗ not found';
-        } catch { /* ignore */ }
+      if (configWritten) {
+        // Config is written but gateway hasn't picked it up — need restart
+        console.log('[memory] Config written but plugin not active — gateway restart needed');
+        const progressEl = $('palace-progress-text');
+        const progressDiv = $('palace-install-progress');
+        if (progressEl && progressDiv) {
+          progressDiv.style.display = '';
+          progressEl.textContent = 'Memory is configured but needs a gateway restart to activate.';
+        }
+        const btn = $('palace-install-btn') as HTMLButtonElement | null;
+        if (btn) {
+          btn.textContent = 'Restart Gateway';
+          btn.onclick = async () => {
+            btn.disabled = true;
+            btn.textContent = 'Restarting…';
+            try {
+              await invoke?.('stop_gateway');
+              await new Promise(r => setTimeout(r, 2000));
+              await invoke?.('start_gateway', { port: null });
+              await new Promise(r => setTimeout(r, 3000));
+              _palaceInitialized = false;
+              await loadMemoryPalace();
+              loadMemory();
+            } catch (e) {
+              if (progressEl) progressEl.textContent = `Restart failed: ${e}`;
+              btn.disabled = false;
+              btn.textContent = 'Retry';
+            }
+          };
+        }
       }
     } else if (!_palaceAvailable && _palaceSkipped) {
       // Skipped — show files mode
@@ -1794,27 +1808,26 @@ async function loadMemoryPalace() {
       const memoryListBelow = $('memory-list');
       if (memoryListBelow) memoryListBelow.style.display = 'none';
     } else {
-      // Palace is available — full mode
+      // Memory is available — full mode
       if (banner) banner.style.display = 'none';
       if (filesDivider) filesDivider.style.display = '';
     }
   }
 
-  // Load palace stats + memory list via gateway
+  // Load memory stats + sidebar
   await loadPalaceStats();
   await loadPalaceSidebar();
 }
 
 function initPalaceInstall() {
-  // Install button
+  // Enable button
   $('palace-install-btn')?.addEventListener('click', async () => {
     const btn = $('palace-install-btn') as HTMLButtonElement | null;
-    const progress = $('palace-install-progress');
-    const progressBar = $('palace-progress-bar') as HTMLElement | null;
+    const progressDiv = $('palace-install-progress');
     const progressText = $('palace-progress-text') as HTMLElement | null;
     if (!btn || !invoke) return;
 
-    // Read API key, base URL, and model from inputs
+    // Read form values
     const apiKeyInput = $('palace-api-key') as HTMLInputElement | null;
     const baseUrlInput = $('palace-base-url') as HTMLInputElement | null;
     const modelInput = $('palace-model-name') as HTMLInputElement | null;
@@ -1824,16 +1837,13 @@ function initPalaceInstall() {
 
     // Detect URL pasted into API key field (common mistake)
     if (apiKey.startsWith('http://') || apiKey.startsWith('https://')) {
-      // Swap: what's in key looks like a URL, what's in URL might be the key
       if (baseUrl && !baseUrl.startsWith('http')) {
-        // baseUrl has the actual key, apiKey has the URL — swap them
         const temp = apiKey;
         apiKey = baseUrl;
         baseUrl = temp;
         if (apiKeyInput) apiKeyInput.value = apiKey;
         if (baseUrlInput) baseUrlInput.value = baseUrl;
       } else if (!baseUrl) {
-        // User put URL in key field, base URL is empty — move it
         baseUrl = apiKey;
         apiKey = '';
         if (baseUrlInput) baseUrlInput.value = baseUrl;
@@ -1856,94 +1866,74 @@ function initPalaceInstall() {
     if (apiKeyInput) apiKeyInput.style.borderColor = '';
 
     btn.disabled = true;
-    btn.textContent = 'Installing…';
-    if (progress) progress.style.display = '';
+    btn.textContent = 'Saving…';
+    if (progressDiv) progressDiv.style.display = '';
 
     try {
-      // Listen for progress events
-      if (listen) {
-        await listen<{ percent: number; message: string }>('palace-install-progress', (event: { payload: { percent: number; message: string } }) => {
-          const { percent, message } = event.payload;
-          if (progressBar) progressBar.style.width = `${percent}%`;
-          if (progressText) progressText.textContent = message;
-        });
+      // Write config to openclaw.json (pure config — no install needed)
+      await invoke('enable_memory_plugin', {
+        apiKey,
+        baseUrl: baseUrl || null,
+        model: modelName || null,
+      });
+
+      if (progressText) progressText.textContent = 'Configuration saved! Restarting gateway…';
+
+      // Restart gateway to pick up the new plugin config
+      try {
+        await invoke('stop_gateway');
+        await new Promise(r => setTimeout(r, 2000));
+        await invoke('start_gateway', { port: null });
+        await new Promise(r => setTimeout(r, 3000));
+      } catch (e) {
+        console.warn('[memory] Gateway restart failed:', e);
       }
 
-      await invoke('install_palace', { apiKey: apiKey, baseUrl: baseUrl || null, modelName: modelName || null });
+      // Re-check if memory plugin is now active
+      _palaceInitialized = false;
+      _palaceAvailable = false;
 
-      // Register the skill via gateway API (not config file)
-      if (wsConnected) {
-        try {
-          await gateway.skillsInstall('memory-palace', crypto.randomUUID());
-          console.log('[main] Registered memory-palace skill via gateway API');
-        } catch (e) {
-          console.warn('[main] skills.install failed (may need gateway restart):', e);
-        }
-      }
+      try {
+        const status = await gateway.skillsStatus();
+        const skills = status.skills ?? [];
+        _palaceAvailable = skills.some(
+          (s: { name: string; installed?: boolean; enabled?: boolean }) =>
+            s.name.toLowerCase().includes('memory') && s.installed !== false && s.enabled !== false,
+        );
+      } catch { /* ignore */ }
 
-      // Check if it's now registered as a gateway skill
-      await new Promise(r => setTimeout(r, 1000));
-      const healthy = await invoke<boolean>('check_palace_health').catch(() => false);
-
-      if (healthy) {
-        _palaceAvailable = true;
-        _palaceInitialized = false; // Re-initialize to load palace mode
+      if (_palaceAvailable) {
         const banner = $('palace-install-banner');
         if (banner) banner.style.display = 'none';
+        _palaceInitialized = false;
         await loadMemoryPalace();
         loadMemory();
       } else {
-        // Installed but not yet registered — might need gateway restart
-        let logTail = '';
-        try {
-          logTail = await invoke<string>('get_palace_log');
-        } catch { /* ignore */ }
-
         if (progressText) {
-          progressText.textContent = logTail
-            ? 'Installed but skill registration may need a gateway restart. See log below:'
-            : 'Installed! You may need to restart the gateway for the skill to activate.';
+          progressText.textContent = 'Configuration saved. The gateway may need a manual restart to activate the memory plugin.';
         }
-
-        // Show log output if available
-        if (logTail && progress) {
-          let logEl = document.getElementById('palace-log-output');
-          if (!logEl) {
-            logEl = document.createElement('pre');
-            logEl.id = 'palace-log-output';
-            logEl.style.cssText = 'max-height:140px;overflow:auto;background:#f0f0f0;border-radius:6px;padding:8px 10px;font-size:11px;color:#444;margin-top:8px;text-align:left;white-space:pre-wrap;word-break:break-all;';
-            progress.appendChild(logEl);
-          }
-          logEl.textContent = logTail;
-        }
-
-        btn.textContent = 'Refresh';
+        btn.textContent = 'Restart Gateway';
         btn.disabled = false;
-        btn.onclick = () => {
-          _palaceInitialized = false;
-          loadMemoryPalace();
+        btn.onclick = async () => {
+          btn.disabled = true;
+          btn.textContent = 'Restarting…';
+          try {
+            await invoke('stop_gateway');
+            await new Promise(r => setTimeout(r, 2000));
+            await invoke('start_gateway', { port: null });
+            await new Promise(r => setTimeout(r, 3000));
+            _palaceInitialized = false;
+            await loadMemoryPalace();
+            loadMemory();
+          } catch (e) {
+            if (progressText) progressText.textContent = `Restart failed: ${e}`;
+            btn.disabled = false;
+            btn.textContent = 'Retry';
+          }
         };
       }
     } catch (e) {
-      // Get palace.log for diagnostics on error too
-      let logTail = '';
-      try {
-        if (invoke) logTail = await invoke<string>('get_palace_log');
-      } catch { /* ignore */ }
-
       if (progressText) progressText.textContent = `Error: ${e}`;
-
-      if (logTail && progress) {
-        let logEl = document.getElementById('palace-log-output');
-        if (!logEl) {
-          logEl = document.createElement('pre');
-          logEl.id = 'palace-log-output';
-          logEl.style.cssText = 'max-height:140px;overflow:auto;background:#f0f0f0;border-radius:6px;padding:8px 10px;font-size:11px;color:#444;margin-top:8px;text-align:left;white-space:pre-wrap;word-break:break-all;';
-          progress.appendChild(logEl);
-        }
-        logEl.textContent = logTail;
-      }
-
       btn.textContent = 'Retry';
       btn.disabled = false;
     }
@@ -1955,7 +1945,6 @@ function initPalaceInstall() {
     const banner = $('palace-install-banner');
     if (banner) banner.style.display = 'none';
 
-    // Switch to files mode
     document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
     document.querySelector('.palace-tab[data-palace-tab="files"]')?.classList.add('active');
@@ -1992,19 +1981,24 @@ async function loadPalaceStats() {
   }
 
   try {
+    // Use memory_recall with a broad query to estimate memory count
     const result = await Promise.race([
-      gateway.chatSend('paw-memory', 'Use memory_stats to show current statistics. Return only raw JSON.', { thinking: 'minimal' }),
+      gateway.chatSend('paw-memory', 'Use memory_recall with query "summary of all stored information" and limit 50. Return only raw JSON with the count and categories.', { thinking: 'minimal' }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
     ]);
     const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
-    // Try to parse stats from the response
-    const jsonMatch = text.match(/\{[\s\S]*"total"[\s\S]*\}/);
-    if (jsonMatch) {
-      const stats = JSON.parse(jsonMatch[0]);
-      totalEl.textContent = String(stats.total ?? stats.total_memories ?? '0');
-      if (typesEl) typesEl.textContent = String(stats.types ?? stats.type_count ?? '—');
-      if (edgesEl) edgesEl.textContent = String(stats.edges ?? stats.total_edges ?? '—');
+    // Try to parse count from the response
+    const countMatch = text.match(/Found (\d+) memor/i) || text.match(/"count"\s*:\s*(\d+)/);
+    if (countMatch) {
+      totalEl.textContent = countMatch[1];
     }
+    // Parse categories if present
+    const catMatch = text.match(/\[(.*?)\]/);
+    if (catMatch && typesEl) {
+      const cats = new Set(catMatch[1].split(',').map(s => s.trim().replace(/"/g, '')));
+      typesEl.textContent = String(cats.size) + ' types';
+    }
+    if (edgesEl) edgesEl.textContent = '—'; // LanceDB doesn't have edges
   } catch {
     totalEl.textContent = '—';
     if (typesEl) typesEl.textContent = '—';
@@ -2057,21 +2051,20 @@ async function loadPalaceSidebar() {
 
   try {
     const result = await Promise.race([
-      gateway.chatSend('paw-memory', 'Use memory_recent with limit 20. Return only raw JSON.', { thinking: 'minimal' }),
+      gateway.chatSend('paw-memory', 'Use memory_recall with query "recent important information" and limit 20. Return only raw JSON array with fields: id, text, category, importance, score.', { thinking: 'minimal' }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
     ]);
     const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-      const memories: { id?: string; type?: string; subject?: string; content?: string; created_at?: string }[] = JSON.parse(jsonMatch[0]);
+      const memories: { id?: string; text?: string; category?: string; importance?: number; score?: number }[] = JSON.parse(jsonMatch[0]);
       for (const mem of memories) {
         const card = document.createElement('div');
         card.className = 'palace-memory-card';
         card.innerHTML = `
-          <span class="palace-memory-type">${escHtml(mem.type ?? 'note')}</span>
-          <div class="palace-memory-subject">${escHtml(mem.subject ?? 'Untitled')}</div>
-          <div class="palace-memory-preview">${escHtml((mem.content ?? '').slice(0, 80))}${(mem.content?.length ?? 0) > 80 ? '…' : ''}</div>
-          <div class="palace-memory-meta">${mem.created_at ? new Date(mem.created_at).toLocaleDateString() : ''}</div>
+          <span class="palace-memory-type">${escHtml(mem.category ?? 'other')}</span>
+          <div class="palace-memory-subject">${escHtml((mem.text ?? '').slice(0, 60))}${(mem.text?.length ?? 0) > 60 ? '…' : ''}</div>
+          <div class="palace-memory-preview">${mem.score != null ? `${(mem.score * 100).toFixed(0)}% match` : ''}</div>
         `;
         card.addEventListener('click', () => {
           if (mem.id) palaceRecallById(mem.id);
@@ -2080,7 +2073,7 @@ async function loadPalaceSidebar() {
       }
     }
   } catch (e) {
-    console.warn('Palace sidebar load failed:', e);
+    console.warn('Memory sidebar load failed:', e);
     list.innerHTML = '<div class="palace-list-empty">Could not load memories</div>';
   }
 }
@@ -2102,43 +2095,39 @@ async function palaceRecallById(memoryId: string) {
 
   try {
     const result = await Promise.race([
-      gateway.chatSend('paw-memory', `Use memory_get with id "${memoryId}". Return only raw JSON.`, { thinking: 'minimal' }),
+      gateway.chatSend('paw-memory', `Use memory_recall with query "id:${memoryId}" and limit 1. Return only raw JSON array.`, { thinking: 'minimal' }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
     ]);
     const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
-      const mem = JSON.parse(jsonMatch[0]);
+      const memories = JSON.parse(jsonMatch[0]);
       resultsEl.innerHTML = '';
-      resultsEl.appendChild(renderRecallCard(mem));
+      if (Array.isArray(memories) && memories.length) {
+        resultsEl.appendChild(renderRecallCard(memories[0]));
+      }
     }
   } catch (e) {
     resultsEl.innerHTML = `<div style="padding:1rem;color:var(--danger)">Error: ${escHtml(String(e))}</div>`;
   }
 }
 
-function renderRecallCard(mem: { type?: string; subject?: string; content?: string; score?: number; created_at?: string; tags?: string[]; edges?: { type?: string; target_subject?: string }[] }): HTMLElement {
+function renderRecallCard(mem: { id?: string; text?: string; category?: string; importance?: number; score?: number }): HTMLElement {
   const card = document.createElement('div');
   card.className = 'palace-result-card';
 
   const score = mem.score != null ? `<span class="palace-result-score">${(mem.score * 100).toFixed(0)}%</span>` : '';
-  const tags = (mem.tags ?? []).map(t => `<span class="palace-result-tag">${escHtml(t)}</span>`).join('');
-  const edges = (mem.edges ?? []).map(e =>
-    `<span class="palace-result-edge ${escAttr(e.type ?? '')}">${escHtml(e.type ?? 'link')} → ${escHtml(e.target_subject ?? '?')}</span>`,
-  ).join('');
+  const importance = mem.importance != null ? `<span class="palace-result-tag">importance: ${mem.importance}</span>` : '';
 
   card.innerHTML = `
     <div class="palace-result-header">
-      <span class="palace-result-type">${escHtml(mem.type ?? 'note')}</span>
+      <span class="palace-result-type">${escHtml(mem.category ?? 'other')}</span>
       ${score}
     </div>
-    <div class="palace-result-subject">${escHtml(mem.subject ?? 'Untitled')}</div>
-    <div class="palace-result-content">${escHtml(mem.content ?? '')}</div>
+    <div class="palace-result-content">${escHtml(mem.text ?? '')}</div>
     <div class="palace-result-meta">
-      ${mem.created_at ? new Date(mem.created_at).toLocaleDateString() : ''}
-      ${tags ? `<div class="palace-result-tags">${tags}</div>` : ''}
+      ${importance}
     </div>
-    ${edges ? `<div class="palace-result-edges">${edges}</div>` : ''}
   `;
   return card;
 }
@@ -2189,14 +2178,9 @@ async function palaceRecallSearch() {
 
   if (!_palaceAvailable) {
     resultsEl.innerHTML = `<div class="empty-state" style="padding:1rem;">
-      <div class="empty-title">Semantic recall requires Memory Palace</div>
+      <div class="empty-title">Memory not enabled</div>
       <div class="empty-subtitle" style="max-width:380px;line-height:1.6">
-        Memory Palace is a separate MCP skill that adds semantic search, knowledge graphs, and auto-linking.<br><br>
-        <strong>To set up:</strong><br>
-        1. Install from <a href="https://github.com/jeffpierce/memory-palace" target="_blank" style="color:var(--accent)">github.com/jeffpierce/memory-palace</a><br>
-        2. Run the MCP server alongside your gateway<br>
-        3. Register it as a skill in your OpenClaw config<br><br>
-        Meanwhile, use the <strong>Files</strong> tab to view and edit agent files directly.
+        Enable long-term memory in the Memory tab to use semantic recall.
       </div>
     </div>`;
     return;
@@ -2204,14 +2188,14 @@ async function palaceRecallSearch() {
 
   try {
     const result = await Promise.race([
-      gateway.chatSend('paw-memory', `Use memory_recall with query "${query.replace(/"/g, '\\"')}" and n_results 10. Return only raw JSON array.`, { thinking: 'minimal' }),
+      gateway.chatSend('paw-memory', `Use memory_recall with query "${query.replace(/"/g, '\\"')}" and limit 10. Return only raw JSON array with fields: id, text, category, importance, score.`, { thinking: 'minimal' }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
     ]);
     const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
 
     if (jsonMatch) {
-      const memories: { type?: string; subject?: string; content?: string; score?: number; created_at?: string; tags?: string[]; edges?: { type?: string; target_subject?: string }[] }[] = JSON.parse(jsonMatch[0]);
+      const memories: { id?: string; text?: string; category?: string; importance?: number; score?: number }[] = JSON.parse(jsonMatch[0]);
       resultsEl.innerHTML = '';
       if (!memories.length) {
         if (emptyEl) emptyEl.style.display = 'flex';
@@ -2234,20 +2218,18 @@ function initPalaceRemember() {
   if (!btn) return;
 
   btn.addEventListener('click', async () => {
-    const type = ($('palace-remember-type') as HTMLSelectElement | null)?.value ?? 'note';
-    const subject = ($('palace-remember-subject') as HTMLInputElement | null)?.value.trim() ?? '';
+    const category = ($('palace-remember-type') as HTMLSelectElement | null)?.value ?? 'other';
     const content = ($('palace-remember-content') as HTMLTextAreaElement | null)?.value.trim() ?? '';
-    const project = ($('palace-remember-project') as HTMLInputElement | null)?.value.trim() ?? '';
-    const keywords = ($('palace-remember-keywords') as HTMLInputElement | null)?.value.trim() ?? '';
-    const foundational = ($('palace-remember-foundational') as HTMLInputElement | null)?.checked ?? false;
+    const importanceStr = ($('palace-remember-importance') as HTMLSelectElement | null)?.value ?? '5';
+    const importance = parseInt(importanceStr, 10) || 5;
 
-    if (!subject || !content) {
-      alert('Subject and content are required.');
+    if (!content) {
+      alert('Content is required.');
       return;
     }
 
     if (!_palaceAvailable) {
-      alert('Memory Palace skill not installed.\n\nInstall it from github.com/jeffpierce/memory-palace, run the MCP server, and register it as a skill in your OpenClaw config.\n\nMeanwhile, use the Files tab to manage agent files directly.');
+      alert('Memory not enabled. Enable long-term memory in the Memory tab first.');
       return;
     }
 
@@ -2256,25 +2238,18 @@ function initPalaceRemember() {
 
     try {
       const params = [
-        `content: "${content.replace(/"/g, '\\"')}"`,
-        `memory_type: "${type}"`,
-        `subject: "${subject.replace(/"/g, '\\"')}"`,
-        foundational ? 'foundational: true' : '',
-        project ? `metadata: { project: "${project.replace(/"/g, '\\"')}" }` : '',
-        keywords ? `tags: [${keywords.split(',').map(k => `"${k.trim()}"`).join(', ')}]` : '',
-      ].filter(Boolean).join(', ');
+        `text: "${content.replace(/"/g, '\\"')}"`,
+        `category: "${category}"`,
+        `importance: ${importance}`,
+      ].join(', ');
 
       await Promise.race([
-        gateway.chatSend('paw-memory', `Use memory_remember with ${params}. Confirm when saved.`, { thinking: 'minimal' }),
+        gateway.chatSend('paw-memory', `Use memory_store with ${params}. Confirm when saved.`, { thinking: 'minimal' }),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
       ]);
 
       // Clear form
-      if ($('palace-remember-subject') as HTMLInputElement) ($('palace-remember-subject') as HTMLInputElement).value = '';
       if ($('palace-remember-content') as HTMLTextAreaElement) ($('palace-remember-content') as HTMLTextAreaElement).value = '';
-      if ($('palace-remember-project') as HTMLInputElement) ($('palace-remember-project') as HTMLInputElement).value = '';
-      if ($('palace-remember-keywords') as HTMLInputElement) ($('palace-remember-keywords') as HTMLInputElement).value = '';
-      if ($('palace-remember-foundational') as HTMLInputElement) ($('palace-remember-foundational') as HTMLInputElement).checked = false;
 
       alert('Memory saved!');
       await loadPalaceSidebar();
@@ -2305,30 +2280,30 @@ async function renderPalaceGraph() {
     if (emptyEl) {
       emptyEl.style.display = 'flex';
       emptyEl.innerHTML = `
-        <div class="empty-title">Knowledge Graph</div>
-        <div class="empty-subtitle">Requires <a href="https://github.com/jeffpierce/memory-palace" target="_blank" style="color:var(--accent)">Memory Palace</a> skill for graph visualization</div>
+        <div class="empty-title">Memory Map</div>
+        <div class="empty-subtitle">Enable long-term memory to visualize stored knowledge</div>
       `;
     }
     return;
   }
 
-  if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Loading graph…'; }
+  if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Loading memory map…'; }
 
   try {
-    // Get recent memories with their edges for graph data
+    // Recall memories grouped by category for visualization
     const result = await Promise.race([
-      gateway.chatSend('paw-memory', 'Use memory_recent with limit 50. Include edges for each memory. Return only raw JSON array with fields: id, subject, type, edges (array of {target_id, target_subject, type}).', { thinking: 'minimal' }),
+      gateway.chatSend('paw-memory', 'Use memory_recall with query "*" and limit 50. Return only raw JSON array with fields: id, text, category, importance, score.', { thinking: 'minimal' }),
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
     ]);
     const text = typeof result === 'string' ? result : (result as { text?: string }).text ?? '';
     const jsonMatch = text.match(/\[[\s\S]*\]/);
 
     if (!jsonMatch) {
-      if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'No graph data available.'; }
+      if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'No memories to visualize.'; }
       return;
     }
 
-    const memories: { id?: string; subject?: string; type?: string; edges?: { target_id?: string; target_subject?: string; type?: string }[] }[] = JSON.parse(jsonMatch[0]);
+    const memories: { id?: string; text?: string; category?: string; importance?: number; score?: number }[] = JSON.parse(jsonMatch[0]);
     if (!memories.length) {
       if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'No memories to visualize.'; }
       return;
@@ -2336,7 +2311,7 @@ async function renderPalaceGraph() {
 
     if (emptyEl) emptyEl.style.display = 'none';
 
-    // Render force-directed graph on canvas
+    // Render bubble chart grouped by category
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -2344,122 +2319,66 @@ async function renderPalaceGraph() {
     canvas.width = rect?.width ?? 600;
     canvas.height = rect?.height ?? 400;
 
-    // Build node + edge lists
-    const nodeMap = new Map<string, { x: number; y: number; vx: number; vy: number; subject: string; type: string }>();
-    const edgeList: { from: string; to: string; type: string }[] = [];
-
-    for (const mem of memories) {
-      const id = mem.id ?? mem.subject ?? Math.random().toString();
-      if (!nodeMap.has(id)) {
-        nodeMap.set(id, {
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          vx: 0, vy: 0,
-          subject: mem.subject ?? '?',
-          type: mem.type ?? 'note',
-        });
-      }
-      for (const edge of mem.edges ?? []) {
-        const targetId = edge.target_id ?? edge.target_subject ?? '';
-        if (targetId) {
-          if (!nodeMap.has(targetId)) {
-            nodeMap.set(targetId, {
-              x: Math.random() * canvas.width,
-              y: Math.random() * canvas.height,
-              vx: 0, vy: 0,
-              subject: edge.target_subject ?? '?',
-              type: 'note',
-            });
-          }
-          edgeList.push({ from: id, to: targetId, type: edge.type ?? 'related' });
-        }
-      }
-    }
-
-    const nodes = Array.from(nodeMap.entries());
-    const typeColors: Record<string, string> = {
-      note: '#0073EA', fact: '#00CA72', decision: '#FDAB3D',
-      procedure: '#E44258', concept: '#A25DDC', code: '#579BFC',
+    const categoryColors: Record<string, string> = {
+      other: '#676879', preference: '#0073EA', fact: '#00CA72',
+      decision: '#FDAB3D', procedure: '#E44258', concept: '#A25DDC',
+      code: '#579BFC', person: '#FF642E', project: '#CAB641',
     };
 
-    // Simple force simulation (50 iterations)
-    for (let iter = 0; iter < 50; iter++) {
-      // Repulsion between all nodes
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const a = nodes[i][1], b = nodes[j][1];
-          let dx = a.x - b.x, dy = a.y - b.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const force = 2000 / (dist * dist);
-          dx *= force / dist; dy *= force / dist;
-          a.vx += dx; a.vy += dy;
-          b.vx -= dx; b.vy -= dy;
-        }
-      }
-      // Attraction along edges
-      for (const edge of edgeList) {
-        const a = nodeMap.get(edge.from), b = nodeMap.get(edge.to);
-        if (!a || !b) continue;
-        let dx = b.x - a.x, dy = b.y - a.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const force = (dist - 100) * 0.01;
-        dx *= force / dist; dy *= force / dist;
-        a.vx += dx; a.vy += dy;
-        b.vx -= dx; b.vy -= dy;
-      }
-      // Center gravity
-      for (const [, node] of nodes) {
-        node.vx += (canvas.width / 2 - node.x) * 0.001;
-        node.vy += (canvas.height / 2 - node.y) * 0.001;
-      }
-      // Apply velocities
-      for (const [, node] of nodes) {
-        node.x += node.vx * 0.3;
-        node.y += node.vy * 0.3;
-        node.vx *= 0.8;
-        node.vy *= 0.8;
-        // Clamp to bounds
-        node.x = Math.max(30, Math.min(canvas.width - 30, node.x));
-        node.y = Math.max(30, Math.min(canvas.height - 30, node.y));
-      }
+    // Group by category, place category clusters
+    const groups = new Map<string, typeof memories>();
+    for (const mem of memories) {
+      const cat = mem.category ?? 'other';
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat)!.push(mem);
     }
 
-    // Draw
+    // Layout: distribute category centers in a circle
+    const categories = Array.from(groups.entries());
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const radius = Math.min(cx, cy) * 0.55;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Edges
-    ctx.strokeStyle = '#D0D4E4';
-    ctx.lineWidth = 1;
-    for (const edge of edgeList) {
-      const a = nodeMap.get(edge.from), b = nodeMap.get(edge.to);
-      if (!a || !b) continue;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
-    }
+    categories.forEach(([cat, mems], i) => {
+      const angle = (i / categories.length) * Math.PI * 2 - Math.PI / 2;
+      const groupX = cx + Math.cos(angle) * radius;
+      const groupY = cy + Math.sin(angle) * radius;
 
-    // Nodes
-    for (const [, node] of nodes) {
-      const color = typeColors[node.type] ?? '#676879';
-      ctx.beginPath();
-      ctx.arc(node.x, node.y, 8, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Label
-      ctx.fillStyle = '#323338';
-      ctx.font = '11px Figtree, sans-serif';
+      // Draw category label
+      ctx.fillStyle = '#676879';
+      ctx.font = 'bold 12px Figtree, sans-serif';
       ctx.textAlign = 'center';
-      const label = node.subject.length > 20 ? node.subject.slice(0, 18) + '…' : node.subject;
-      ctx.fillText(label, node.x, node.y - 14);
-    }
+      ctx.fillText(cat.toUpperCase(), groupX, groupY - 30 - mems.length * 2);
+
+      // Draw bubbles for each memory
+      mems.forEach((mem, j) => {
+        const innerAngle = (j / mems.length) * Math.PI * 2;
+        const spread = Math.min(25 + mems.length * 4, 60);
+        const mx = groupX + Math.cos(innerAngle) * spread * (0.3 + Math.random() * 0.7);
+        const my = groupY + Math.sin(innerAngle) * spread * (0.3 + Math.random() * 0.7);
+        const size = 4 + (mem.importance ?? 5) * 0.8;
+        const color = categoryColors[cat] ?? '#676879';
+
+        ctx.beginPath();
+        ctx.arc(mx, my, size, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 0.7;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      });
+
+      // Count label
+      ctx.fillStyle = categoryColors[cat] ?? '#676879';
+      ctx.font = '11px Figtree, sans-serif';
+      ctx.fillText(`${mems.length}`, groupX, groupY + 35 + mems.length * 2);
+    });
   } catch (e) {
     console.warn('Graph render failed:', e);
-    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Failed to load graph data.'; }
+    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Failed to load memory map.'; }
   }
 }
 
