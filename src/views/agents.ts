@@ -97,10 +97,12 @@ export function configure(opts: {
 }
 
 export async function loadAgents() {
+  console.log('[agents] loadAgents called');
   // Load from localStorage for now (could move to SQLite later)
   try {
     const stored = localStorage.getItem('paw-agents');
     _agents = stored ? JSON.parse(stored) : [];
+    console.log('[agents] Loaded from storage:', _agents.length, 'agents');
   } catch {
     _agents = [];
   }
@@ -131,7 +133,9 @@ function saveAgents() {
 }
 
 function renderAgents() {
+  console.log('[agents] renderAgents called');
   const grid = $('agents-grid');
+  console.log('[agents] grid element:', grid);
   if (!grid) return;
 
   grid.innerHTML = _agents.map(agent => `

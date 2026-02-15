@@ -2746,6 +2746,8 @@ button:focus:not(:focus-visible) { outline: none; }
 .agents-view {
   padding: 32px;
   overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
 }
 .agents-grid {
   display: grid;
@@ -2865,12 +2867,13 @@ button:focus:not(:focus-visible) { outline: none; }
   border-radius: var(--radius-lg);
   width: 480px;
   max-width: 90vw;
-  max-height: 85vh;
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  margin: 40px;
 }
-.agent-modal-large { width: 560px; }
+.agent-modal-large { width: 600px; max-width: 95vw; }
 .agent-modal-header {
   display: flex;
   align-items: center;
