@@ -4,7 +4,7 @@
 import type { AppConfig, Message, InstallProgress, ChatMessage, Session, SkillEntry } from './types';
 import { setGatewayConfig, probeHealth } from './api';
 import { gateway } from './gateway';
-import { initDb, listModes, saveMode, deleteMode, listDocs, saveDoc, getDoc, deleteDoc, listProjects, saveProject, deleteProject, listProjectFiles, saveProjectFile, deleteProjectFile } from './db';
+import { initDb, listModes, saveMode, deleteMode, listDocs, saveDoc, getDoc, deleteDoc, listProjects, saveProject, deleteProject, listProjectFiles, saveProjectFile, deleteProjectFile, logCredentialActivity, getCredentialActivityLog } from './db';
 import type { AgentMode } from './db';
 
 // ── Global error handlers ──────────────────────────────────────────────────
@@ -1684,6 +1684,11 @@ async function renderMailAccounts(_gmail: Record<string, unknown> | null, himala
       try {
         if (invoke) await invoke('remove_himalaya_account', { accountName: acct.name });
         removeMailPermissions(acct.name);
+        logCredentialActivity({
+          accountName: acct.name,
+          action: 'denied',
+          detail: `Account revoked: ${acct.email} — credentials deleted from device`,
+        });
         showToast(`${acct.email} revoked — credentials removed from this device`, 'success');
         loadMail();
       } catch (err) {
@@ -1738,6 +1743,74 @@ async function renderMailAccounts(_gmail: Record<string, unknown> | null, himala
 
   if (_mailAccounts.length === 0 && !himalaya) {
     list.innerHTML = '<div class="mail-no-accounts">No accounts connected</div>';
+  }
+
+  // Render activity log below accounts
+  renderCredentialActivityLog();
+}
+
+async function renderCredentialActivityLog() {
+  // Find or create the activity log section in the mail sidebar
+  let logSection = $('mail-vault-activity');
+  if (!logSection) {
+    const accountsSection = document.querySelector('.mail-accounts-section');
+    if (!accountsSection) return;
+    logSection = document.createElement('div');
+    logSection.id = 'mail-vault-activity';
+    logSection.className = 'mail-vault-activity-section';
+    accountsSection.after(logSection);
+  }
+
+  try {
+    const entries = await getCredentialActivityLog(20);
+    if (entries.length === 0) {
+      logSection.innerHTML = `
+        <div class="mail-vault-activity-header" id="mail-vault-activity-toggle">
+          <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Activity Log
+          <span class="mail-vault-activity-count">0</span>
+        </div>
+        <div class="mail-vault-activity-empty">No credential activity yet</div>
+      `;
+      return;
+    }
+
+    const blocked = entries.filter(e => !e.was_allowed).length;
+    logSection.innerHTML = `
+      <div class="mail-vault-activity-header" id="mail-vault-activity-toggle">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Activity Log
+        <span class="mail-vault-activity-count">${entries.length}${blocked ? ` · <span class="vault-blocked-count">${blocked} blocked</span>` : ''}</span>
+        <span class="mail-vault-activity-chevron">▸</span>
+      </div>
+      <div class="mail-vault-activity-list" style="display:none">
+        ${entries.map(e => {
+          const icon = !e.was_allowed ? '🚫' : e.action === 'send' ? '✉️' : e.action === 'read' ? '📨' : e.action === 'delete' ? '🗑️' : e.action === 'manage' ? '📁' : '📋';
+          const cls = !e.was_allowed ? 'vault-log-blocked' : '';
+          const time = e.timestamp ? new Date(e.timestamp + 'Z').toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+          return `<div class="vault-log-entry ${cls}">
+            <span class="vault-log-icon">${icon}</span>
+            <div class="vault-log-body">
+              <div class="vault-log-action">${escHtml(e.detail ?? e.action)}</div>
+              <div class="vault-log-time">${time}${e.tool_name ? ' · ' + escHtml(e.tool_name) : ''}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    `;
+
+    // Toggle expand
+    $('mail-vault-activity-toggle')?.addEventListener('click', () => {
+      const list = logSection!.querySelector('.mail-vault-activity-list') as HTMLElement | null;
+      const chevron = logSection!.querySelector('.mail-vault-activity-chevron');
+      if (list) {
+        const open = list.style.display !== 'none';
+        list.style.display = open ? 'none' : '';
+        if (chevron) chevron.textContent = open ? '▸' : '▾';
+      }
+    });
+  } catch {
+    // DB not ready yet, skip
   }
 }
 
@@ -2123,15 +2196,20 @@ function showMailAccountForm(providerId: string) {
     <div class="mail-security-info">
       <div class="mail-security-header">
         <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        How your credentials are protected
+        How your credentials are stored &amp; used
       </div>
       <ul class="mail-security-list">
-        <li><strong>Local only</strong> — your password is stored on this device at <code>~/.config/himalaya/config.toml</code> and never leaves your machine</li>
-        <li><strong>Encrypted in transit</strong> — all connections use TLS encryption to ${provider.imap || 'your mail server'}</li>
-        <li><strong>No cloud</strong> — Paw and OpenClaw are self-hosted; no third-party servers ever see your credentials</li>
-        <li><strong>Revocable</strong> — ${needsAppPw ? 'revoke the app password in your provider\'s security settings at any time' : 'change your password to instantly revoke access'}</li>
-        <li><strong>Auditable</strong> — every email action by the agent is logged in Chat history so you can review what happened</li>
+        <li><strong>Local file (chmod 600)</strong> — password is saved to <code>~/.config/himalaya/config.toml</code> with owner-only read permissions. Other OS users cannot read it, but it is not encrypted at rest.</li>
+        <li><strong>Never sent to frontend</strong> — passwords are redacted before reaching the UI. The raw credential stays in the Rust process only.</li>
+        <li><strong>TLS in transit</strong> — connections to ${provider.imap || 'your mail server'} use TLS encryption</li>
+        <li><strong>No cloud</strong> — Paw and OpenClaw are fully self-hosted; no third-party server ever sees your password</li>
+        <li><strong>Permission-gated</strong> — the agent must pass your Credential Vault permissions before using email tools. Disabling a permission auto-blocks the tool.</li>
+        <li><strong>Activity log</strong> — every agent email action (and every block) is recorded in a local SQLite audit log you can review in the Credential Vault</li>
+        <li><strong>Revocable</strong> — ${needsAppPw ? "revoke the app password in your provider's security settings at any time to instantly cut off access" : 'change your password to instantly revoke access'}</li>
       </ul>
+      <div class="mail-security-limitations">
+        <strong>Limitations:</strong> The password is stored in plaintext on disk (protected by file permissions, not encryption). If someone gains access to your user account on this machine, they could read the file. For maximum security, use an App Password with limited scope instead of your main password.
+      </div>
     </div>
   `;
 
@@ -2184,6 +2262,14 @@ async function saveMailImapSetup() {
       manage: ($('ch-field-perm-manage') as HTMLInputElement)?.checked ?? false,
     };
     saveMailPermissions(accountName, perms);
+
+    // Log account creation in activity log
+    const permList = [perms.read && 'read', perms.send && 'send', perms.delete && 'delete', perms.manage && 'manage'].filter(Boolean).join(', ');
+    logCredentialActivity({
+      accountName,
+      action: 'approved',
+      detail: `Account connected: ${email} (permissions: ${permList})`,
+    });
 
     showToast(`${email} connected! Your agent can now read and send emails.`, 'success');
     closeChannelSetup();
@@ -5124,6 +5210,36 @@ async function loadSettingsPresence() {
 $('settings-refresh-presence')?.addEventListener('click', () => loadSettingsPresence());
 
 // ── Exec Approval event handler ────────────────────────────────────────────
+// Maps himalaya CLI subcommands to permission categories
+const HIMALAYA_PERM_MAP: Record<string, keyof MailPermissions> = {
+  'envelope list': 'read', 'envelope get': 'read', 'envelope watch': 'read',
+  'message read': 'read', 'message get': 'read', 'message list': 'read',
+  'message write': 'send', 'message send': 'send', 'message reply': 'send', 'message forward': 'send',
+  'message delete': 'delete', 'message remove': 'delete', 'flag remove': 'delete',
+  'folder create': 'manage', 'folder delete': 'manage', 'folder rename': 'manage',
+  'message move': 'manage', 'message copy': 'manage', 'flag add': 'manage', 'flag set': 'manage',
+};
+
+/** Classify a tool invocation's required permission. Returns null if not a mail tool. */
+function classifyMailPermission(toolName: string, args?: Record<string, unknown>): { perm: keyof MailPermissions; label: string } | null {
+  const name = (toolName || '').toLowerCase();
+  if (!name.includes('himalaya')) return null;
+
+  // Try to match against known subcommands from args or tool name
+  const argsStr = args ? JSON.stringify(args).toLowerCase() : '';
+  for (const [sub, perm] of Object.entries(HIMALAYA_PERM_MAP)) {
+    if (name.includes(sub) || argsStr.includes(sub)) {
+      return { perm, label: sub };
+    }
+  }
+  // Fallback heuristics
+  if (name.includes('send') || argsStr.includes('send')) return { perm: 'send', label: 'send' };
+  if (name.includes('delete') || argsStr.includes('delete')) return { perm: 'delete', label: 'delete' };
+  if (name.includes('move') || name.includes('folder')) return { perm: 'manage', label: 'manage' };
+  // Default: treat as read
+  return { perm: 'read', label: 'read' };
+}
+
 gateway.on('exec.approval.requested', (payload: unknown) => {
   const evt = payload as Record<string, unknown>;
   const id = (evt.id ?? evt.approvalId) as string | undefined;
@@ -5135,6 +5251,39 @@ gateway.on('exec.approval.requested', (payload: unknown) => {
   const descEl = $('approval-modal-desc');
   const detailsEl = $('approval-modal-details');
   if (!modal || !descEl) return;
+
+  const sessionKey = (evt.sessionKey ?? '') as string;
+
+  // ── Permission enforcement for mail/credential tools ──
+  const mailPerm = classifyMailPermission(tool, args);
+  if (mailPerm) {
+    // Check if ANY account has this permission granted
+    const anyAllowed = _mailAccounts.some(acct => {
+      const perms = loadMailPermissions(acct.name);
+      return perms[mailPerm.perm];
+    });
+    if (!anyAllowed) {
+      // Auto-deny and log
+      if (id) gateway.request('exec.approvals.resolve', { id, allowed: false }).catch(console.warn);
+      logCredentialActivity({
+        action: 'blocked',
+        toolName: tool,
+        detail: `Blocked: "${mailPerm.label}" permission is disabled in Credential Vault`,
+        sessionKey,
+        wasAllowed: false,
+      });
+      showToast(`Blocked: your Credential Vault doesn't allow "${mailPerm.label}" — update permissions in Mail sidebar`, 'warning');
+      return;
+    }
+    // Permission granted — log it and continue to approval modal
+    logCredentialActivity({
+      action: mailPerm.perm,
+      toolName: tool,
+      detail: `Agent requested: ${tool}${args ? ' ' + JSON.stringify(args).slice(0, 120) : ''}`,
+      sessionKey,
+      wasAllowed: true,
+    });
+  }
 
   descEl.textContent = desc;
   if (detailsEl) {

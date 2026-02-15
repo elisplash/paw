@@ -2449,6 +2449,85 @@ button:focus:not(:focus-visible) { outline: none; }
   border-radius: 3px;
 }
 
+.mail-security-limitations {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.mail-security-limitations strong {
+  color: #d97706;
+}
+
+/* ── Credential Vault Activity Log ──────────────────────────────────── */
+.mail-vault-activity-section {
+  padding: 4px 12px 12px;
+}
+.mail-vault-activity-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 6px 4px;
+  border-radius: var(--radius-xs);
+  transition: background var(--transition-fast);
+}
+.mail-vault-activity-header:hover { background: var(--bg-hover); }
+.mail-vault-activity-header .icon-sm { width: 14px; height: 14px; }
+.mail-vault-activity-count { font-weight: 400; margin-left: auto; font-size: 10px; }
+.mail-vault-activity-chevron { font-size: 10px; margin-left: 2px; }
+.vault-blocked-count { color: var(--error); font-weight: 600; }
+
+.mail-vault-activity-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 6px 4px;
+}
+
+.mail-vault-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+
+.vault-log-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 11px;
+}
+.vault-log-entry:hover { background: var(--bg-hover); }
+.vault-log-entry.vault-log-blocked {
+  background: rgba(239, 68, 68, 0.06);
+}
+.vault-log-icon { font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+.vault-log-body { flex: 1; min-width: 0; }
+.vault-log-action {
+  color: var(--text-primary);
+  line-height: 1.3;
+  word-break: break-word;
+}
+.vault-log-blocked .vault-log-action { color: var(--error); }
+.vault-log-time {
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 1px;
+}
+
 /* Mail item snippet */
 .mail-item-snippet {
   font-size: 12px;

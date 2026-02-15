@@ -134,6 +134,20 @@ async function runMigrations(db: Database) {
     )
   `);
 
+  // Credential activity log — every agent action involving credentials
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS credential_activity_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp TEXT DEFAULT (datetime('now')),
+      account_name TEXT,
+      action TEXT NOT NULL,        -- 'read', 'send', 'delete', 'manage', 'blocked', 'approved', 'denied'
+      tool_name TEXT,              -- e.g. 'himalaya envelope list', 'himalaya send'
+      detail TEXT,                 -- human-readable description
+      session_key TEXT,
+      was_allowed INTEGER DEFAULT 1  -- 0 = blocked by permission policy
+    )
+  `);
+
   // Seed default agent mode if none exist
   const modes = await db.select<{ count: number }[]>('SELECT COUNT(*) as count FROM agent_modes');
   if (modes[0]?.count === 0) {
@@ -296,4 +310,41 @@ export async function saveProjectFile(file: { id: string; project_id: string; pa
 export async function deleteProjectFile(id: string): Promise<void> {
   if (!db) return;
   await db.execute('DELETE FROM project_files WHERE id = ?', [id]);
+}
+
+// ── Credential Activity Log ───────────────────────────────────────────────
+
+export interface CredentialLogEntry {
+  id: number;
+  timestamp: string;
+  account_name: string | null;
+  action: string;
+  tool_name: string | null;
+  detail: string | null;
+  session_key: string | null;
+  was_allowed: number;
+}
+
+export async function logCredentialActivity(entry: {
+  accountName?: string;
+  action: string;
+  toolName?: string;
+  detail?: string;
+  sessionKey?: string;
+  wasAllowed?: boolean;
+}): Promise<void> {
+  if (!db) return;
+  await db.execute(
+    `INSERT INTO credential_activity_log (account_name, action, tool_name, detail, session_key, was_allowed)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [entry.accountName ?? null, entry.action, entry.toolName ?? null, entry.detail ?? null,
+     entry.sessionKey ?? null, entry.wasAllowed !== false ? 1 : 0]
+  );
+}
+
+export async function getCredentialActivityLog(limit = 50): Promise<CredentialLogEntry[]> {
+  if (!db) return [];
+  return db.select<CredentialLogEntry[]>(
+    'SELECT * FROM credential_activity_log ORDER BY id DESC LIMIT ?', [limit]
+  );
 }

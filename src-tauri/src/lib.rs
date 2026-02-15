@@ -6,6 +6,21 @@ use std::time::{Duration, Instant};
 use log::{info, warn, error};
 use tauri::{Emitter, Manager};
 
+/// Set restrictive file permissions (owner-only read/write) on Unix.
+/// No-op on non-Unix platforms.
+#[cfg(unix)]
+fn set_owner_only_permissions(path: &std::path::Path) -> Result<(), String> {
+    use std::os::unix::fs::PermissionsExt;
+    let perms = fs::Permissions::from_mode(0o600);
+    fs::set_permissions(path, perms)
+        .map_err(|e| format!("Failed to set permissions on {:?}: {}", path, e))
+}
+
+#[cfg(not(unix))]
+fn set_owner_only_permissions(_path: &std::path::Path) -> Result<(), String> {
+    Ok(()) // Windows ACLs not handled here yet
+}
+
 fn get_app_data_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
@@ -1627,12 +1642,16 @@ message.send.backend.auth.raw = "{escaped_pw}"
             .map_err(|e| format!("Failed to write config: {}", e))?;
     }
 
-    info!("Wrote himalaya config for account '{}' at {:?}", account_name, config_path);
+    // Set owner-only permissions (chmod 600) so other users can't read the password
+    set_owner_only_permissions(&config_path)?;
+
+    info!("Wrote himalaya config for account '{}' at {:?} (mode 600)", account_name, config_path);
     Ok(true)
 }
 
 /// Read the current Himalaya config to list configured accounts.
-/// Returns the raw TOML content (parsed on the frontend).
+/// Passwords are REDACTED before returning to the frontend — the raw
+/// credential never leaves the Rust process.
 #[tauri::command]
 fn read_himalaya_config() -> Result<String, String> {
     let home = dirs::home_dir().ok_or("Cannot find home directory")?;
@@ -1640,8 +1659,28 @@ fn read_himalaya_config() -> Result<String, String> {
     if !config_path.exists() {
         return Ok(String::new());
     }
-    fs::read_to_string(&config_path)
-        .map_err(|e| format!("Failed to read config: {}", e))
+    let raw = fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read config: {}", e))?;
+
+    // Redact all password values so they never reach the JS layer.
+    // Matches lines like:  backend.auth.raw = "secret123"
+    let redacted = raw.lines().map(|line| {
+        let trimmed = line.trim();
+        if trimmed.starts_with("backend.auth.raw")
+            || trimmed.starts_with("message.send.backend.auth.raw")
+        {
+            // Replace the value after '=' with a redacted placeholder
+            if let Some(eq) = line.find('=') {
+                format!("{} \"••••••••\"", &line[..eq+1])
+            } else {
+                line.to_string()
+            }
+        } else {
+            line.to_string()
+        }
+    }).collect::<Vec<_>>().join("\n");
+
+    Ok(redacted)
 }
 
 /// Remove a Himalaya account from the config file.
@@ -1677,6 +1716,7 @@ fn remove_himalaya_account(account_name: String) -> Result<bool, String> {
         } else {
             fs::write(&config_path, final_content)
                 .map_err(|e| format!("Failed to write config: {}", e))?;
+            set_owner_only_permissions(&config_path)?;
         }
         Ok(true)
     } else {
