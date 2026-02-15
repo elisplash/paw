@@ -38,6 +38,15 @@
               </svg>
               <span>Chat</span>
             </div>
+            <div class="nav-item" data-view="agents">
+              <svg class="icon" viewBox="0 0 24 24">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="19" cy="4" r="2" fill="currentColor"/>
+              </svg>
+              <span>Agents</span>
+              <span class="nav-badge">New</span>
+            </div>
           </div>
 
           <div class="nav-section">
@@ -428,6 +437,20 @@
           </div>
         </div>
 
+
+        <!-- ═══ Agents View ═══ -->
+        <div class="view agents-view" id="agents-view">
+          <div class="view-header">
+            <h1 class="view-title">Agents</h1>
+            <button class="btn btn-primary btn-sm" id="agents-create-btn">
+              <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Agent
+            </button>
+          </div>
+          <div class="agents-grid" id="agents-grid">
+            <!-- Agent cards render here -->
+          </div>
+        </div>
 
         <!-- ═══ Chat View ═══ -->
         <div class="view chat-view" id="chat-view">

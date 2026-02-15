@@ -33,6 +33,8 @@ import * as FoundryModule from './views/foundry';
 import * as ResearchModule from './views/research';
 import * as NodesModule from './views/nodes';
 import * as ProjectsModule from './views/projects';
+import * as AgentsModule from './views/agents';
+import * as TodayModule from './views/today';
 import { classifyCommandRisk, isPrivilegeEscalation, loadSecuritySettings, matchesAllowlist, matchesDenylist, type RiskClassification } from './security';
 
 // ── Global error handlers ──────────────────────────────────────────────────
@@ -199,6 +201,7 @@ function switchView(viewName: string) {
       case 'chat': loadSessions(); break;
       case 'channels': loadChannels(); break;
       case 'automations': AutomationsModule.loadCron(); break;
+      case 'agents': AgentsModule.loadAgents(); break;
       case 'skills': SkillsModule.loadSkills(); break;
       case 'foundry': FoundryModule.loadModels(); FoundryModule.loadModes(); FoundryModule.loadAgents(); break;
       case 'nodes': NodesModule.loadNodes(); NodesModule.loadPairingRequests(); break;
