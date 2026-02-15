@@ -53,7 +53,7 @@ let config: AppConfig = {
   gateway: { url: '', token: '' },
 };
 
-let messages: Message[] = [];
+let messages: MessageWithAttachments[] = [];
 let isLoading = false;
 let currentSessionKey: string | null = null;
 let sessions: Session[] = [];
@@ -64,6 +64,17 @@ let _streamingRunId: string | null = null;
 let _streamingResolve: ((text: string) => void) | null = null;  // resolves when agent run completes
 let _streamingTimeout: ReturnType<typeof setTimeout> | null = null;
 let _pendingAttachments: File[] = [];
+
+/** Extended Message type with optional attachments (gateway may include these) */
+interface ChatAttachmentLocal {
+  name: string;
+  mimeType: string;
+  url?: string;
+  data?: string; // base64
+}
+interface MessageWithAttachments extends Message {
+  attachments?: ChatAttachmentLocal[];
+}
 
 function getPortFromUrl(url: string): number {
   if (!url) return 18789;
@@ -648,15 +659,21 @@ function extractContent(content: unknown): string {
   return String(content);
 }
 
-function chatMsgToMessage(m: ChatMessage): Message {
+function chatMsgToMessage(m: ChatMessage): MessageWithAttachments {
   const ts = m.ts ?? m.timestamp;
-  return {
+  const result: MessageWithAttachments = {
     id: m.id ?? undefined,
     role: m.role as 'user' | 'assistant' | 'system',
     content: extractContent(m.content),
     timestamp: ts ? new Date(ts as string | number) : new Date(),
     toolCalls: m.toolCalls,
   };
+  // Carry attachments through if present on the gateway message
+  const raw = m as Record<string, unknown>;
+  if (Array.isArray(raw.attachments) && raw.attachments.length > 0) {
+    result.attachments = raw.attachments as ChatAttachmentLocal[];
+  }
+  return result;
 }
 
 // Chat send
@@ -922,7 +939,7 @@ function finalizeStreaming(finalContent: string, toolCalls?: import('./types').T
   }
 }
 
-function addMessage(message: Message) {
+function addMessage(message: MessageWithAttachments) {
   messages.push(message);
   renderMessages();
 }
@@ -983,6 +1000,33 @@ function renderMessages() {
     time.className = 'message-time';
     time.textContent = msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     div.appendChild(contentEl);
+
+    // Render image attachments inline if present
+    if (msg.attachments?.length) {
+      const attachStrip = document.createElement('div');
+      attachStrip.className = 'message-attachments';
+      for (const att of msg.attachments) {
+        if (att.mimeType?.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.className = 'message-attachment-img';
+          img.alt = att.name || 'attachment';
+          if (att.url) {
+            img.src = att.url;
+          } else if (att.data) {
+            img.src = `data:${att.mimeType};base64,${att.data}`;
+          }
+          img.addEventListener('click', () => window.open(img.src, '_blank'));
+          attachStrip.appendChild(img);
+        } else {
+          const docChip = document.createElement('div');
+          docChip.className = 'message-attachment-doc';
+          docChip.textContent = `\uD83D\uDCC4 ${att.name || 'file'}`;
+          attachStrip.appendChild(docChip);
+        }
+      }
+      div.appendChild(attachStrip);
+    }
+
     div.appendChild(time);
 
     if (msg.toolCalls?.length) {

@@ -4300,6 +4300,39 @@ select.form-input {
   color: var(--error);
 }
 
+/* ─── Message Inline Attachments ─── */
+.message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 0 4px;
+}
+.message-attachment-img {
+  max-width: 240px;
+  max-height: 180px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  cursor: pointer;
+  border: 1px solid var(--border-light, #e0e0e0);
+  transition: transform var(--transition-fast);
+}
+.message-attachment-img:hover {
+  transform: scale(1.03);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.message-attachment-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light, #e0e0e0);
+  border-radius: var(--radius-sm);
+}
+
 /* ─── Markdown in Chat Messages ─── */
 .message-content h2, .message-content h3, .message-content h4 {
   margin: 12px 0 4px;
