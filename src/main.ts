@@ -861,7 +861,15 @@ async function sendMessage() {
     }
   }
 
-  addMessage({ role: 'user', content, timestamp: new Date() });
+  // Add user message with attachments to UI
+  const userMsg: import('./types').Message = { role: 'user', content, timestamp: new Date() };
+  if (attachments.length > 0) {
+    (userMsg as Record<string, unknown>).attachments = attachments.map(a => ({
+      mimeType: a.mimeType,
+      data: a.content,
+    }));
+  }
+  addMessage(userMsg);
   if (chatInput) { chatInput.value = ''; chatInput.style.height = 'auto'; }
   clearPendingAttachments();
   isLoading = true;
