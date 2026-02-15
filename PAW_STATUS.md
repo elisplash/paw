@@ -1,6 +1,6 @@
 # Paw — Full Architecture, Status & Wiring Plan
 
-> Last updated: 2026-02-15 (Sprint Plan added)  
+> Last updated: 2026-02-15 (Sprint 1 in progress — token meter + compaction warnings + memory export built)  
 > Cross-referenced against: [github.com/openclaw/openclaw](https://github.com/openclaw/openclaw) main branch
 
 ---
@@ -120,6 +120,8 @@ OpenClaw is a local-first personal AI assistant framework with:
 | Markdown rendering | ✅ | `formatMarkdown()` — bold, italic, code blocks, inline code, headers, links, lists, blockquotes, tables, horizontal rules |
 | Mode selection | ✅ | Dropdown in chat header — selected mode's model, system_prompt, thinking_level, temperature sent with `chat.send` |
 | Toast notifications | ✅ | Success/error/info toasts with auto-dismiss |
+| Token meter | ✅ | Progress bar in chat header — tokens used / context limit, color-coded (green/yellow/red), auto-detect model context window |
+| Compaction warning | ✅ | Yellow banner when context ≥80% full, escalates at 95%, dismissible |
 
 **What's missing**:
 - No session search
@@ -267,6 +269,7 @@ OpenClaw is a local-first personal AI assistant framework with:
 | Remember (store memory) | 🔶 | Uses `chat.send` to ask agent to call `memory_store` — **indirect and unreliable** |
 | Knowledge graph viz | 🔶 | Canvas bubble chart grouped by category — but data is just memory search results, not a real graph |
 | Memory stats | ✅ | `memory_stats` → `openclaw ltm stats` CLI |
+| Memory export | ✅ | Export all memories as timestamped JSON file (Blob download, up to 500 memories) |
 | Sidebar search | ✅ | Client-side filter of loaded memory cards |
 | Skip setup | ✅ | Falls back to agent files view |
 | Reconfigure | ✅ | Settings gear reopens setup form with pre-filled values |
@@ -943,9 +946,9 @@ The gateway exposes its full API via WebSocket on `ws://127.0.0.1:{port}` (defau
 
 **What's missing entirely**: TTS UI (5 typed methods, no UI), Talk Mode UI (2 typed, no UI), Voice Wake UI (2 typed, no UI). That's **~9 gateway methods with zero UI**. Beyond gateway wiring, the Community Gap Analysis identifies **19 feature items** across 5 sprints that address real user pain (memory visibility, cost tracking, cron reliability, multi-agent routing).
 
-**Coverage reality**: Paw calls **~77 of ~90 gateway methods** (**~86% UI wired, ~98% typed**). 12 of 18 gateway events consumed. Every category except TTS/Talk/Voice Wake is at **100%**. But "wired" ≠ "complete" — the community gap analysis shows that basic wiring (e.g., usage dashboard exists) is just the foundation. Users need **depth**: per-conversation costs, budget alerts, compaction warnings, cron error highlighting, TTS playback.
+**Coverage reality**: Paw calls **~77 of ~90 gateway methods** (**~86% UI wired, ~98% typed**). 12 of 18 gateway events consumed. Every category except TTS/Talk/Voice Wake is at **100%**. Sprint 1 is in progress — token meter, compaction warnings, and memory export are now built. Users get real-time context visibility and data portability.
 
-**Next up**: Sprint 1 (Cost & Memory Visibility) is the highest-impact work — 5 items, mostly building on already-wired methods. See Sprint Plan section for the full 19-item roadmap.
+**Next up**: Sprint 1 remaining items (Usage Dashboard enhancement, per-conversation cost, budget alerts), then Sprint 2 (Cron Reliability). See Sprint Plan section for the full 19-item roadmap (3 of 19 complete).
 
 ---
 
@@ -960,10 +963,10 @@ Based on OpenClaw community feedback — Reddit, Discord, GitHub issues. Maps re
 | What they need | Paw status | Gap |
 |----------------|:---:|-----|
 | Memory inspector (see what's in context window) | ⚪ | NOT BUILT — need real-time context window view showing what the agent "sees" |
-| Memory usage meter (tokens consumed vs limit) | ⚪ | NOT BUILT — `usage.status` exists and is wired but doesn't show per-conversation context consumption |
-| Compaction warning ("about to forget") | ⚪ | NOT BUILT — need to listen for compaction events, warn user before data is lost |
+| Memory usage meter (tokens consumed vs limit) | ✅ | **BUILT** — token meter progress bar in chat header, color-coded, auto-detects model context limit |
+| Compaction warning ("about to forget") | ✅ | **BUILT** — yellow banner at 80% context capacity, escalates at 95%, dismissible |
 | Memory embedding toggle + cost savings UI | 🔶 | Have LanceDB setup, no cost comparison UI (embedding vs no embedding) |
-| Backup/export memory | ⚪ | NOT BUILT — users want to download their memory database |
+| Backup/export memory | ✅ | **BUILT** — export button in Memory Palace sidebar, downloads all memories as JSON |
 
 ### 🔴 CRITICAL — Cron/Automation Reliability
 
@@ -1058,8 +1061,8 @@ Priority order based on community pain severity + implementation feasibility.
 | # | Feature | Gateway methods | Effort | Details |
 |---|---------|----------------|--------|---------|
 | 1 | **Usage Dashboard enhancement** | `usage.status`, `usage.cost` | S | Already wired — add per-model cost cards, session-level breakdown, refresh timer |
-| 2 | **Memory Context Meter** | `usage.status` (token counts) | M | Show current context window usage in chat header as a progress bar (tokens used / max) |
-| 3 | **Compaction indicator** | Listen for compaction events | M | Banner/toast when context is about to be compacted, link to memory view |
+| 2 | ~~**Memory Context Meter**~~ | ~~`usage.status` (token counts)~~ | ~~M~~ | ✅ **DONE** — Progress bar in chat header, color-coded, auto-detect model context limit |
+| 3 | ~~**Compaction indicator**~~ | ~~Listen for compaction events~~ | ~~M~~ | ✅ **DONE** — Yellow banner at 80% capacity, escalates at 95%, dismissible |
 | 4 | **Per-conversation cost** | Track tokens per session locally | M | Accumulate `usage.status` deltas per session ID, show in chat header |
 | 5 | **Budget alert** | Local threshold check | S | Settings input for spending limit, warn when `usage.cost` exceeds it |
 
@@ -1102,5 +1105,5 @@ Priority order based on community pain severity + implementation feasibility.
 | # | Feature | Gateway methods | Effort | Details |
 |---|---------|----------------|--------|---------|
 | 17 | **Screenshot viewer** | `browser.status` (screenshots) | M | Display agent screenshots in browser panel, lightbox view |
-| 18 | **Memory export** | Tauri file dialog + `memory_search` | M | Export LanceDB memory to JSON/CSV, downloadable |
+| 18 | ~~**Memory export**~~ | ~~Tauri file dialog + `memory_search`~~ | ~~M~~ | ✅ **DONE** — Blob download, timestamped JSON, up to 500 memories |
 | 19 | **Memory cost comparison** | `usage.cost` + memory config | S | Show embedding cost vs no-embedding, toggle with savings estimate |
