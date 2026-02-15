@@ -466,17 +466,13 @@
           <div class="chat-input-container">
             <div class="chat-attachment-preview" id="chat-attachment-preview" style="display:none"></div>
             <div class="chat-input-wrapper">
-              <button class="chat-attach-btn" id="chat-attach-btn" title="Attach file">
-                <i data-lucide="paperclip"></i>
-              </button>
+              <button class="chat-attach-btn" id="chat-attach-btn" title="Attach file" data-icon="paperclip"></button>
               <input type="file" id="chat-file-input" multiple accept="image/jpeg,image/png,image/gif,image/webp,.pdf,.txt,.md" style="display:none" />
               <textarea class="chat-input" id="chat-input" placeholder="Message your agent..." rows="1"></textarea>
-              <button class="chat-send" id="chat-send" title="Send message">
-                <i data-lucide="arrow-up"></i>
-              </button>
+              <button class="chat-send" id="chat-send" title="Send message" data-icon="arrow-up"></button>
             </div>
             <button class="chat-abort-btn" id="chat-abort-btn" style="display:none">
-              <i data-lucide="square"></i>
+              <span data-icon="square"></span>
               Stop
             </button>
           </div>

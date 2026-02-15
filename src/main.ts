@@ -4,7 +4,24 @@
 import type { AppConfig, Message, InstallProgress, ChatMessage, Session } from './types';
 import { setGatewayConfig, probeHealth } from './api';
 import { gateway } from './gateway';
-import { createIcons, Paperclip, ArrowUp, Square, RotateCcw, X, Image, FileText, File, Wrench, Download, ExternalLink } from 'lucide';
+// ── Inline Lucide-style SVG icons (avoids broken lucide package) ─────────────
+const _icons: Record<string, string> = {
+  'paperclip': '<path d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>',
+  'arrow-up': '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+  'square': '<rect width="18" height="18" x="3" y="3" rx="2"/>',
+  'rotate-ccw': '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+  'x': '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+  'image': '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+  'file-text': '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  'file': '<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/>',
+  'wrench': '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/>',
+  'download': '<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>',
+  'external-link': '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+};
+function icon(name: string, cls = ''): string {
+  const inner = _icons[name] || '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''}>${inner}</svg>`;
+}
 import { initDb, listModes, listDocs, saveDoc, getDoc, deleteDoc, listProjects, saveProject, listProjectFiles, saveProjectFile, deleteProjectFile, logCredentialActivity } from './db';
 import * as SettingsModule from './views/settings';
 import * as AutomationsModule from './views/automations';
@@ -705,7 +722,7 @@ chatFileInput?.addEventListener('change', () => {
   renderAttachmentPreview();
 });
 
-/** Get the right Lucide icon data attr name for a file type */
+/** Get the right icon name for a file type */
 function fileTypeIcon(mimeType: string): string {
   if (mimeType.startsWith('image/')) return 'image';
   if (mimeType === 'application/pdf' || mimeType.startsWith('text/')) return 'file-text';
@@ -734,7 +751,7 @@ function renderAttachmentPreview() {
     } else {
       const iconWrap = document.createElement('span');
       iconWrap.className = 'attachment-chip-icon';
-      iconWrap.innerHTML = `<i data-lucide="${fileTypeIcon(file.type)}"></i>`;
+      iconWrap.innerHTML = icon(fileTypeIcon(file.type));
       chip.appendChild(iconWrap);
     }
     const meta = document.createElement('div');
@@ -751,7 +768,7 @@ function renderAttachmentPreview() {
     chip.appendChild(meta);
     const removeBtn = document.createElement('button');
     removeBtn.className = 'attachment-chip-remove';
-    removeBtn.innerHTML = '<i data-lucide="x"></i>';
+    removeBtn.innerHTML = icon('x');
     removeBtn.title = 'Remove';
     const idx = i;
     removeBtn.addEventListener('click', () => {
@@ -761,7 +778,6 @@ function renderAttachmentPreview() {
     chip.appendChild(removeBtn);
     chatAttachmentPreview.appendChild(chip);
   }
-  createIcons({ icons: { X, Image, FileText, File }, nameAttr: 'data-lucide' });
 }
 
 function clearPendingAttachments() {
@@ -1055,7 +1071,7 @@ function renderMessages() {
           card.appendChild(img);
           const overlay = document.createElement('div');
           overlay.className = 'message-attachment-overlay';
-          overlay.innerHTML = `<i data-lucide="external-link"></i>`;
+          overlay.innerHTML = icon('external-link');
           card.appendChild(overlay);
           card.addEventListener('click', () => window.open(img.src, '_blank'));
           if (att.name) {
@@ -1069,7 +1085,7 @@ function renderMessages() {
           const docChip = document.createElement('div');
           docChip.className = 'message-attachment-doc';
           const iconName = att.mimeType?.startsWith('text/') || att.mimeType === 'application/pdf' ? 'file-text' : 'file';
-          docChip.innerHTML = `<i data-lucide="${iconName}"></i><span>${att.name || 'file'}</span>`;
+          docChip.innerHTML = `${icon(iconName)}<span>${att.name || 'file'}</span>`;
           attachStrip.appendChild(docChip);
         }
       }
@@ -1081,7 +1097,7 @@ function renderMessages() {
     if (msg.toolCalls?.length) {
       const badge = document.createElement('div');
       badge.className = 'tool-calls-badge';
-      badge.innerHTML = `<i data-lucide="wrench"></i> ${msg.toolCalls.length} tool call${msg.toolCalls.length > 1 ? 's' : ''}`;
+      badge.innerHTML = `${icon('wrench')} ${msg.toolCalls.length} tool call${msg.toolCalls.length > 1 ? 's' : ''}`;
       div.appendChild(badge);
     }
 
@@ -1092,7 +1108,7 @@ function renderMessages() {
       const retryBtn = document.createElement('button');
       retryBtn.className = 'message-retry-btn';
       retryBtn.title = 'Retry';
-      retryBtn.innerHTML = '<i data-lucide="rotate-ccw"></i> Retry';
+      retryBtn.innerHTML = `${icon('rotate-ccw')} Retry`;
       const retryContent = isLastUser ? msg.content : (lastUserIdx >= 0 ? messages[lastUserIdx].content : '');
       retryBtn.addEventListener('click', () => retryMessage(retryContent));
       div.appendChild(retryBtn);
@@ -1107,8 +1123,6 @@ function renderMessages() {
   } else {
     chatMessages.appendChild(frag);
   }
-  // Render Lucide icons in newly added message elements
-  createIcons({ icons: { RotateCcw, Wrench, ExternalLink, FileText, File, Image }, nameAttr: 'data-lucide' });
   scrollToBottom();
 }
 
@@ -2695,8 +2709,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log('[main] Paw starting...');
 
-    // Render Lucide icons in the static HTML
-    createIcons({ icons: { Paperclip, ArrowUp, Square, RotateCcw, X, Image, FileText, File, Wrench, Download, ExternalLink }, nameAttr: 'data-lucide' });
+    // Render inline SVG icons in static HTML buttons
+    for (const el of document.querySelectorAll<HTMLElement>('[data-icon]')) {
+      const name = el.dataset.icon;
+      if (name) el.innerHTML = icon(name);
+    }
 
     // Check for crash log from previous run
     try {

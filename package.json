@@ -12,8 +12,7 @@
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
-    "@tauri-apps/plugin-sql": "^2.3.2",
-    "lucide": "^0.564.0"
+    "@tauri-apps/plugin-sql": "^2.3.2"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
