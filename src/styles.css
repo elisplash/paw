@@ -2251,6 +2251,204 @@ button:focus:not(:focus-visible) { outline: none; }
   gap: 12px;
 }
 
+/* ── Credential Vault ─────────────────────────────────────────────────── */
+.mail-accounts-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 8px 4px 4px;
+}
+.mail-accounts-header .icon-sm { width: 14px; height: 14px; }
+
+.mail-vault-account {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  overflow: hidden;
+  transition: border-color var(--transition-fast);
+}
+.mail-vault-account:hover { border-color: var(--accent); }
+
+.mail-vault-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 10px;
+  cursor: default;
+}
+.mail-vault-expand {
+  font-size: 14px;
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+}
+
+.mail-vault-details {
+  padding: 0 10px 10px;
+  border-top: 1px solid var(--border);
+}
+.mail-vault-perms { display: flex; flex-direction: column; gap: 2px; margin-top: 8px; }
+
+.mail-vault-perm-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  font-size: 12px;
+  transition: background var(--transition-fast);
+}
+.mail-vault-perm-row:hover { background: var(--bg-hover); }
+.mail-vault-perm-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.mail-vault-perm-icon { font-size: 14px; flex-shrink: 0; }
+.mail-vault-perm-name { font-weight: 500; color: var(--text-primary); }
+
+.mail-vault-perm-summary {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-xs);
+}
+
+.mail-vault-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.mail-vault-meta-item { display: flex; align-items: center; gap: 4px; }
+.mail-vault-meta code {
+  font-size: 10px;
+  background: var(--bg-secondary);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.mail-vault-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+}
+.mail-vault-revoke {
+  color: var(--error) !important;
+  border-color: var(--error) !important;
+}
+.mail-vault-revoke:hover {
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* ── Setup form: permissions & security ─────────────────────────────── */
+.mail-permissions-setup {
+  margin-top: 16px;
+  padding: 14px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.mail-permissions-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.mail-permissions-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+.mail-perm-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.mail-perm-toggle:hover { background: var(--bg-hover); }
+.mail-perm-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.mail-perm-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 110px;
+}
+.mail-perm-detail {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.mail-security-info {
+  margin-top: 16px;
+  padding: 14px;
+  background: rgba(16, 185, 129, 0.06);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--radius-sm);
+}
+.mail-security-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.mail-security-header .icon-sm { color: #10b981; }
+.mail-security-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mail-security-list li {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  padding-left: 12px;
+  position: relative;
+}
+.mail-security-list li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #10b981;
+  font-weight: 700;
+  font-size: 11px;
+}
+.mail-security-list li strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.mail-security-list li code {
+  font-size: 10px;
+  background: rgba(16, 185, 129, 0.1);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
 /* Mail item snippet */
 .mail-item-snippet {
   font-size: 12px;

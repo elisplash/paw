@@ -1539,7 +1539,33 @@ async function loadMail() {
   }
 }
 
+interface MailPermissions {
+  read: boolean;
+  send: boolean;
+  delete: boolean;
+  manage: boolean;
+}
 let _mailAccounts: { name: string; email: string }[] = [];
+
+/** Load permissions for a mail account from localStorage */
+function loadMailPermissions(accountName: string): MailPermissions {
+  try {
+    const raw = localStorage.getItem(`mail-perms-${accountName}`);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  // Defaults: read + send on, delete + manage off
+  return { read: true, send: true, delete: false, manage: false };
+}
+
+/** Save permissions for a mail account to localStorage */
+function saveMailPermissions(accountName: string, perms: MailPermissions) {
+  localStorage.setItem(`mail-perms-${accountName}`, JSON.stringify(perms));
+}
+
+/** Remove permissions when account is deleted */
+function removeMailPermissions(accountName: string) {
+  localStorage.removeItem(`mail-perms-${accountName}`);
+}
 
 async function renderMailAccounts(_gmail: Record<string, unknown> | null, himalaya: SkillEntry | null) {
   const list = $('mail-accounts-list');
@@ -1561,10 +1587,11 @@ async function renderMailAccounts(_gmail: Record<string, unknown> | null, himala
     } catch { /* no config yet */ }
   }
 
-  // Show configured email accounts
+  // Show configured email accounts in vault style
   for (const acct of _mailAccounts) {
+    const perms = loadMailPermissions(acct.name);
     const item = document.createElement('div');
-    item.className = 'mail-account-item';
+    item.className = 'mail-vault-account';
     // Detect provider icon from email domain
     const domain = acct.email.split('@')[1] ?? '';
     let icon = '📧';
@@ -1574,24 +1601,90 @@ async function renderMailAccounts(_gmail: Record<string, unknown> | null, himala
     else if (domain.includes('icloud') || domain.includes('me.com')) icon = '☁️';
     else if (domain.includes('fastmail')) icon = '⚡';
 
+    const permCount = [perms.read, perms.send, perms.delete, perms.manage].filter(Boolean).length;
+    const permSummary = [perms.read && 'Read', perms.send && 'Send', perms.delete && 'Delete', perms.manage && 'Manage'].filter(Boolean).join(' · ') || 'No permissions';
+
     item.innerHTML = `
-      <div class="mail-account-icon">${icon}</div>
-      <div class="mail-account-info">
-        <div class="mail-account-name">${escHtml(acct.email)}</div>
-        <div class="mail-account-status connected">Connected</div>
+      <div class="mail-vault-header">
+        <div class="mail-account-icon">${icon}</div>
+        <div class="mail-account-info">
+          <div class="mail-account-name">${escHtml(acct.email)}</div>
+          <div class="mail-account-status connected">${permCount}/4 permissions active</div>
+        </div>
+        <button class="btn-icon mail-vault-expand" title="Manage permissions">▾</button>
       </div>
-      <button class="btn-icon mail-account-remove" data-account="${escAttr(acct.name)}" title="Remove account">&times;</button>
+      <div class="mail-vault-details" style="display:none">
+        <div class="mail-vault-perms">
+          <label class="mail-vault-perm-row">
+            <input type="checkbox" class="mail-vault-cb" data-perm="read" ${perms.read ? 'checked' : ''}>
+            <span class="mail-vault-perm-icon">📨</span>
+            <span class="mail-vault-perm-name">Read emails</span>
+          </label>
+          <label class="mail-vault-perm-row">
+            <input type="checkbox" class="mail-vault-cb" data-perm="send" ${perms.send ? 'checked' : ''}>
+            <span class="mail-vault-perm-icon">✉️</span>
+            <span class="mail-vault-perm-name">Send emails</span>
+          </label>
+          <label class="mail-vault-perm-row">
+            <input type="checkbox" class="mail-vault-cb" data-perm="delete" ${perms.delete ? 'checked' : ''}>
+            <span class="mail-vault-perm-icon">🗑️</span>
+            <span class="mail-vault-perm-name">Delete emails</span>
+          </label>
+          <label class="mail-vault-perm-row">
+            <input type="checkbox" class="mail-vault-cb" data-perm="manage" ${perms.manage ? 'checked' : ''}>
+            <span class="mail-vault-perm-icon">📁</span>
+            <span class="mail-vault-perm-name">Manage folders</span>
+          </label>
+        </div>
+        <div class="mail-vault-perm-summary">${permSummary}</div>
+        <div class="mail-vault-meta">
+          <span class="mail-vault-meta-item">🔒 Stored locally at <code>~/.config/himalaya/</code></span>
+          <span class="mail-vault-meta-item">📋 All actions logged in Chat</span>
+        </div>
+        <div class="mail-vault-actions">
+          <button class="btn btn-ghost btn-sm mail-vault-revoke" data-account="${escAttr(acct.name)}">Revoke Access</button>
+        </div>
+      </div>
     `;
     list.appendChild(item);
 
-    // Wire remove button
-    item.querySelector('.mail-account-remove')?.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const name = (e.currentTarget as HTMLElement).getAttribute('data-account');
-      if (!name || !confirm(`Remove ${acct.email}?`)) return;
+    // Toggle expand/collapse
+    const expandBtn = item.querySelector('.mail-vault-expand');
+    const details = item.querySelector('.mail-vault-details') as HTMLElement;
+    expandBtn?.addEventListener('click', () => {
+      const open = details.style.display !== 'none';
+      details.style.display = open ? 'none' : '';
+      expandBtn.textContent = open ? '▾' : '▴';
+    });
+
+    // Wire permission toggles — instant save
+    item.querySelectorAll('.mail-vault-cb').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const updated: MailPermissions = {
+          read: (item.querySelector('[data-perm="read"]') as HTMLInputElement)?.checked ?? true,
+          send: (item.querySelector('[data-perm="send"]') as HTMLInputElement)?.checked ?? true,
+          delete: (item.querySelector('[data-perm="delete"]') as HTMLInputElement)?.checked ?? false,
+          manage: (item.querySelector('[data-perm="manage"]') as HTMLInputElement)?.checked ?? false,
+        };
+        saveMailPermissions(acct.name, updated);
+        // Update summary display
+        const count = [updated.read, updated.send, updated.delete, updated.manage].filter(Boolean).length;
+        const summary = [updated.read && 'Read', updated.send && 'Send', updated.delete && 'Delete', updated.manage && 'Manage'].filter(Boolean).join(' · ') || 'No permissions';
+        const statusEl = item.querySelector('.mail-account-status');
+        const summaryEl = item.querySelector('.mail-vault-perm-summary');
+        if (statusEl) statusEl.textContent = `${count}/4 permissions active`;
+        if (summaryEl) summaryEl.textContent = summary;
+        showToast(`Permissions updated for ${acct.email}`, 'info');
+      });
+    });
+
+    // Wire revoke (remove) button
+    item.querySelector('.mail-vault-revoke')?.addEventListener('click', async () => {
+      if (!confirm(`Remove ${acct.email} and revoke all access?\n\nThis deletes the stored credentials from your device. Your email account is not affected.`)) return;
       try {
-        if (invoke) await invoke('remove_himalaya_account', { accountName: name });
-        showToast(`${acct.email} removed`, 'success');
+        if (invoke) await invoke('remove_himalaya_account', { accountName: acct.name });
+        removeMailPermissions(acct.name);
+        showToast(`${acct.email} revoked — credentials removed from this device`, 'success');
         loadMail();
       } catch (err) {
         showToast(`Remove failed: ${err instanceof Error ? err.message : err}`, 'error');
@@ -1951,6 +2044,7 @@ function showMailAccountForm(providerId: string) {
   footer.textContent = 'Connect Account';
 
   const isCustom = providerId === 'custom';
+  const needsAppPw = providerId === 'gmail' || providerId === 'yahoo' || providerId === 'icloud';
 
   body.innerHTML = `
     <div class="mail-setup-back" id="mail-setup-back">← Choose provider</div>
@@ -1965,7 +2059,7 @@ function showMailAccountForm(providerId: string) {
       <div class="form-hint">How your name appears in outgoing emails</div>
     </div>
     <div class="form-group">
-      <label class="form-label" for="ch-field-mail-password">${providerId === 'gmail' || providerId === 'yahoo' || providerId === 'icloud' ? 'App Password' : 'Password'} <span class="required">*</span></label>
+      <label class="form-label" for="ch-field-mail-password">${needsAppPw ? 'App Password' : 'Password'} <span class="required">*</span></label>
       <input class="form-input" id="ch-field-mail-password" type="password" placeholder="${providerId === 'gmail' ? '16-character app password' : 'Password'}">
     </div>
     ${isCustom ? `
@@ -2000,6 +2094,45 @@ function showMailAccountForm(providerId: string) {
     </div>
     `}
     <input type="hidden" id="ch-field-mail-provider" value="${providerId}">
+
+    <div class="mail-permissions-setup">
+      <div class="mail-permissions-title">Agent permissions</div>
+      <div class="mail-permissions-desc">Control what your agent can do with this account. You can change these any time from the Credential Vault.</div>
+      <label class="mail-perm-toggle">
+        <input type="checkbox" id="ch-field-perm-read" checked>
+        <span class="mail-perm-label">📨 Read emails</span>
+        <span class="mail-perm-detail">List inbox, read messages, search</span>
+      </label>
+      <label class="mail-perm-toggle">
+        <input type="checkbox" id="ch-field-perm-send" checked>
+        <span class="mail-perm-label">✉️ Send emails</span>
+        <span class="mail-perm-detail">Compose and send on your behalf</span>
+      </label>
+      <label class="mail-perm-toggle">
+        <input type="checkbox" id="ch-field-perm-delete">
+        <span class="mail-perm-label">🗑️ Delete emails</span>
+        <span class="mail-perm-detail">Move to trash, permanently delete</span>
+      </label>
+      <label class="mail-perm-toggle">
+        <input type="checkbox" id="ch-field-perm-manage">
+        <span class="mail-perm-label">📁 Manage folders</span>
+        <span class="mail-perm-detail">Create folders, move messages, flag</span>
+      </label>
+    </div>
+
+    <div class="mail-security-info">
+      <div class="mail-security-header">
+        <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        How your credentials are protected
+      </div>
+      <ul class="mail-security-list">
+        <li><strong>Local only</strong> — your password is stored on this device at <code>~/.config/himalaya/config.toml</code> and never leaves your machine</li>
+        <li><strong>Encrypted in transit</strong> — all connections use TLS encryption to ${provider.imap || 'your mail server'}</li>
+        <li><strong>No cloud</strong> — Paw and OpenClaw are self-hosted; no third-party servers ever see your credentials</li>
+        <li><strong>Revocable</strong> — ${needsAppPw ? 'revoke the app password in your provider\'s security settings at any time' : 'change your password to instantly revoke access'}</li>
+        <li><strong>Auditable</strong> — every email action by the agent is logged in Chat history so you can review what happened</li>
+      </ul>
+    </div>
   `;
 
   // Wire back button
@@ -2042,6 +2175,15 @@ async function saveMailImapSetup() {
     } else {
       throw new Error('Tauri runtime not available — cannot write config');
     }
+
+    // Save permissions alongside credentials
+    const perms = {
+      read: ($('ch-field-perm-read') as HTMLInputElement)?.checked ?? true,
+      send: ($('ch-field-perm-send') as HTMLInputElement)?.checked ?? true,
+      delete: ($('ch-field-perm-delete') as HTMLInputElement)?.checked ?? false,
+      manage: ($('ch-field-perm-manage') as HTMLInputElement)?.checked ?? false,
+    };
+    saveMailPermissions(accountName, perms);
 
     showToast(`${email} connected! Your agent can now read and send emails.`, 'success');
     closeChannelSetup();
