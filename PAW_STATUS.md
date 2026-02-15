@@ -123,8 +123,13 @@ OpenClaw is a local-first personal AI assistant framework with:
 
 **What's missing**:
 - No session search
-- No image/file attachment support
 - No thinking level selector per message (uses mode's default)
+
+**Recent additions (2026-02-15)**:
+- ✅ Retry button on messages (resend last user message)
+- ✅ Attachment picker UI (📎 button, file picker, preview strip)
+- ✅ Image attachment rendering in chat bubbles
+- ✅ `ChatAttachment` type + gateway `chatSend()` attachment support
 
 ---
 
@@ -503,19 +508,31 @@ Real-time gateway log viewer for debugging. Could be a Settings tab.
 
 ---
 
-## File Map
+## File Map (Updated 2026-02-15)
 
 | File | LOC | Purpose |
 |------|-----|---------|
-| `src/main.ts` | 5,394 | **All UI logic** — navigation, views, event handlers, data loading, DOM manipulation, mail vault, exec approvals |
-| `src/styles.css` | 4,390 | **All styling** — Monday.com-inspired light theme, layout, components, view-specific styles, mail vault, activity log |
-| `index.html` | 1,552 | **All DOM structure** — sidebar, every view's HTML, modals, approval modal, prompt modal |
-| `src/gateway.ts` | 612 | **WebSocket gateway client** — Protocol v3 handshake, request/response, events, high-level API |
-| `src/types.ts` | 496 | **TypeScript types** — all gateway protocol types, UI types |
-| `src/db.ts` | 350 | **SQLite database** — migrations, CRUD for modes/projects/docs/email accounts/credential audit log |
-| `src/api.ts` | 40 | **HTTP health probe** — pre-WebSocket connectivity check |
-| `src-tauri/src/lib.rs` | 1,947 | **Rust backend** — Tauri commands, install, gateway lifecycle, memory plugin, config management, himalaya mail config, OS keychain integration |
-| `src-tauri/src/main.rs` | 6 | Entry point (calls `lib::run()`) |
+| `src/main.ts` | 2,732 | **Core UI logic** — navigation, chat, event handlers (refactored from 5,394) |
+| `src/styles.css` | ~4,500 | **All styling** — Monday.com-inspired light theme, layout, components |
+| `index.html` | ~1,600 | **All DOM structure** — sidebar, views, modals |
+| `src/gateway.ts` | 746 | **WebSocket gateway client** — Protocol v3, ~70 methods typed |
+| `src/types.ts` | 514 | **TypeScript types** — gateway protocol types, ChatAttachment, UI types |
+| `src/db.ts` | 350 | **SQLite database** — migrations, CRUD |
+| `src/api.ts` | 40 | **HTTP health probe** |
+| `src-tauri/src/lib.rs` | 1,947 | **Rust backend** — Tauri commands, keychain, config |
+
+### View Modules (`src/views/`)
+| File | LOC | Purpose |
+|------|-----|---------|
+| `memory-palace.ts` | 877 | Agent files, LanceDB memory, knowledge graph |
+| `mail.ts` | 849 | Himalaya integration, credential vault, inbox |
+| `foundry.ts` | 539 | Models, modes, multi-agent CRUD |
+| `nodes.ts` | 436 | **NEW** — Node management, pairing, commands |
+| `skills.ts` | 413 | Skill browser, install, configure |
+| `research.ts` | 360 | Research projects, findings, reports |
+| `automations.ts` | 183 | Cron job management |
+| `settings.ts` | 181 | Gateway config, logs |
+| **Total views** | **3,838** | Extracted from main.ts |
 
 ---
 
@@ -605,51 +622,53 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | `config.patch` | ✅ | ❌ | Typed but not called |
 | `config.schema` | ✅ | ❌ | Typed but not called — **could power a proper config editor** |
 
-#### TTS (Text-to-Speech) — ENTIRELY MISSING FROM PAW
+#### TTS (Text-to-Speech) — TYPED IN GATEWAY, NO UI
 | Method | In gateway.ts | Called from UI | Notes |
 |--------|:---:|:---:|-------|
-| `tts.status` | ❌ | ❌ | Get TTS status/provider/mode |
-| `tts.providers` | ❌ | ❌ | List available TTS providers |
-| `tts.enable` | ❌ | ❌ | Enable TTS |
-| `tts.disable` | ❌ | ❌ | Disable TTS |
-| `tts.convert` | ❌ | ❌ | Convert text → speech audio |
-| `tts.setProvider` | ❌ | ❌ | Set TTS provider (elevenlabs/openai/edge) |
+| `tts.status` | ✅ | ❌ | Typed, no UI |
+| `tts.providers` | ✅ | ❌ | Typed, no UI |
+| `tts.enable` | ✅ | ❌ | Typed, no UI |
+| `tts.disable` | ❌ | ❌ | Merged into `tts.enable(false)` |
+| `tts.convert` | ✅ | ❌ | Typed, no UI |
+| `tts.setProvider` | ✅ | ❌ | Typed, no UI |
 
-#### Talk Mode — ENTIRELY MISSING FROM PAW
+#### Talk Mode — TYPED IN GATEWAY, NO UI
 | Method | In gateway.ts | Called from UI | Notes |
 |--------|:---:|:---:|-------|
-| `talk.config` | ❌ | ❌ | Get talk config (ElevenLabs voice, etc.) |
-| `talk.mode` | ❌ | ❌ | Enable/disable continuous talk mode |
+| `talk.config` | ✅ | ❌ | Typed, no UI |
+| `talk.mode` | ✅ | ❌ | Typed, no UI |
 
-#### Voice Wake — ENTIRELY MISSING FROM PAW
+#### Voice Wake — TYPED IN GATEWAY, NO UI
 | Method | In gateway.ts | Called from UI | Notes |
 |--------|:---:|:---:|-------|
-| `voicewake.get` | ❌ | ❌ | Get wake word triggers |
-| `voicewake.set` | ❌ | ❌ | Set wake word triggers |
+| `voicewake.get` | ✅ | ❌ | Typed, no UI |
+| `voicewake.set` | ✅ | ❌ | Typed, no UI |
 
-#### Node Management — ENTIRELY MISSING FROM PAW UI
+#### Node Management — MODULE READY, NEEDS UI WIRING
 | Method | In gateway.ts | Called from UI | Notes |
 |--------|:---:|:---:|-------|
-| `node.list` | ✅ | ❌ | Typed but not called |
-| `node.describe` | ❌ | ❌ | Node capabilities |
-| `node.invoke` | ❌ | ❌ | Invoke command on a node (camera.snap, etc.) |
-| `node.invoke.result` | ❌ | ❌ | Node → gateway result |
-| `node.event` | ❌ | ❌ | Node events |
-| `node.rename` | ❌ | ❌ | Rename a paired node |
-| `node.pair.request` | ❌ | ❌ | Request pairing |
-| `node.pair.list` | ❌ | ❌ | List pairing requests |
-| `node.pair.approve` | ❌ | ❌ | Approve pairing |
-| `node.pair.reject` | ❌ | ❌ | Reject pairing |
-| `node.pair.verify` | ❌ | ❌ | Verify node token |
+| `node.list` | ✅ | 🔶 | `src/views/nodes.ts` ready, needs HTML/main.ts wiring |
+| `node.describe` | ✅ | 🔶 | In nodes.ts module |
+| `node.invoke` | ✅ | 🔶 | In nodes.ts module (camera.snap, location.get, etc.) |
+| `node.invoke.result` | ❌ | ❌ | Event handling — not yet wired |
+| `node.event` | ❌ | ❌ | Event handling — not yet wired |
+| `node.rename` | ✅ | 🔶 | In nodes.ts module |
+| `node.pair.request` | ❌ | ❌ | Client-side — not needed |
+| `node.pair.list` | ✅ | 🔶 | In nodes.ts module |
+| `node.pair.approve` | ✅ | 🔶 | In nodes.ts module |
+| `node.pair.reject` | ✅ | 🔶 | In nodes.ts module |
+| `node.pair.verify` | ❌ | ❌ | NOT TYPED |
 
-#### Device Pairing — ENTIRELY MISSING FROM PAW
+**New (2026-02-15)**: `src/views/nodes.ts` created with full node management logic (436 lines). Needs HTML structure + main.ts wiring + styles.
+
+#### Device Pairing — TYPED IN GATEWAY, NO UI
 | Method | In gateway.ts | Called from UI | Notes |
 |--------|:---:|:---:|-------|
-| `device.pair.list` | ❌ | ❌ | List paired devices |
-| `device.pair.approve` | ❌ | ❌ | Approve device |
-| `device.pair.reject` | ❌ | ❌ | Reject device |
-| `device.token.rotate` | ❌ | ❌ | Rotate device auth token |
-| `device.token.revoke` | ❌ | ❌ | Revoke device auth token |
+| `device.pair.list` | ✅ | ❌ | Typed, no UI |
+| `device.pair.approve` | ✅ | ❌ | Typed, no UI |
+| `device.pair.reject` | ✅ | ❌ | Typed, no UI |
+| `device.token.rotate` | ✅ | ❌ | Typed, no UI |
+| `device.token.revoke` | ✅ | ❌ | Typed, no UI |
 
 #### Exec Approvals — PARTIALLY WIRED
 | Method | In gateway.ts | Called from UI | Notes |
@@ -676,23 +695,25 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | `last-heartbeat` | ❌ | ❌ | NOT TYPED |
 | `set-heartbeats` | ❌ | ❌ | NOT TYPED |
 
-#### Onboarding Wizard — ENTIRELY MISSING FROM PAW
+#### Onboarding Wizard — TYPED IN GATEWAY, NO UI
 | Method | In gateway.ts | Called from UI | Notes |
 |--------|:---:|:---:|-------|
-| `wizard.start` | ❌ | ❌ | Start guided setup |
-| `wizard.next` | ❌ | ❌ | Next wizard step |
-| `wizard.cancel` | ❌ | ❌ | Cancel wizard |
-| `wizard.status` | ❌ | ❌ | Wizard status |
+| `wizard.start` | ✅ | ❌ | Typed, no UI |
+| `wizard.next` | ✅ | ❌ | Typed, no UI |
+| `wizard.cancel` | ✅ | ❌ | Typed, no UI |
+| `wizard.status` | ✅ | ❌ | Typed, no UI |
 
-#### Update — MISSING FROM PAW
+#### Update — TYPED IN GATEWAY, NO UI
 | Method | In gateway.ts | Called from UI | Notes |
 |--------|:---:|:---:|-------|
-| `update.run` | ❌ | ❌ | Self-update OpenClaw |
+| `update.run` | ✅ | ❌ | Typed, no UI |
 
-#### Browser Control — MISSING FROM PAW
+#### Browser Control — TYPED IN GATEWAY, NO UI
 | Method | In gateway.ts | Called from UI | Notes |
 |--------|:---:|:---:|-------|
-| `browser.request` | ❌ | ❌ | CDP browser control |
+| `browser.status` | ✅ | ❌ | Typed, no UI |
+| `browser.start` | ✅ | ❌ | Typed, no UI |
+| `browser.stop` | ✅ | ❌ | Typed, no UI |
 
 #### Direct Send
 | Method | In gateway.ts | Called from UI | Notes |
@@ -722,7 +743,7 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | `exec.approval.requested` | ✅ | Approval modal + mail permission auto-deny |
 | `exec.approval.resolved` | ❌ | **Not consumed** — approval resolved |
 
-### Coverage Summary
+### Coverage Summary (Updated 2026-02-15)
 
 | Category | Methods in OpenClaw | Methods typed in Paw | Methods called from UI | % Coverage |
 |----------|:---:|:---:|:---:|:---:|
@@ -735,19 +756,21 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | Skills | 4 | 4 | 4 | **100%** |
 | Models | 1 | 1 | 1 | **100%** |
 | Config | 5 | 4 | 2 | 40% |
-| **TTS** | **6** | **0** | **0** | **0%** |
-| **Talk** | **2** | **0** | **0** | **0%** |
-| **Voice Wake** | **2** | **0** | **0** | **0%** |
-| **Nodes** | **11** | **1** | **0** | **0%** |
-| **Devices** | **5** | **0** | **0** | **0%** |
+| TTS | 6 | 5 | 0 | 83% typed |
+| Talk | 2 | 2 | 0 | **100% typed** |
+| Voice Wake | 2 | 2 | 0 | **100% typed** |
+| Nodes | 11 | 8 | 0 | 73% typed (module ready) |
+| Devices | 5 | 5 | 0 | **100% typed** |
 | Exec Approvals | 7 | 3 | 1 | 14% |
-| **Usage** | **2** | **0** | **0** | **0%** |
-| **System** | **4** | **1** | **0** | **0%** |
-| **Wizard** | **4** | **0** | **0** | **0%** |
-| **Update** | **1** | **0** | **0** | **0%** |
-| **Browser** | **1** | **0** | **0** | **0%** |
-| Send/Agent | 2 | 2 | 0 | 0% |
-| **TOTAL** | **~88** | **~44** | **~32** | **~36%** |
+| Usage | 2 | 2 | 0 | **100% typed** |
+| System | 4 | 1 | 0 | 25% |
+| Wizard | 4 | 4 | 0 | **100% typed** |
+| Update | 1 | 1 | 0 | **100% typed** |
+| Browser | 3 | 3 | 0 | **100% typed** |
+| Send/Agent | 2 | 2 | 0 | **100% typed** |
+| **TOTAL** | **~88** | **~70** | **~32** | **~80% typed, ~36% UI wired** |
+
+**Progress**: Gateway client now has ~80% of methods typed (up from ~50%). Main gap is UI wiring.
 
 ---
 
