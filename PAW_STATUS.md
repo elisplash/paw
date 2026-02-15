@@ -161,11 +161,10 @@ OpenClaw is a local-first personal AI assistant framework with:
 | Document list sidebar | ✅ | Shows documents with word count and date |
 | Text editor | ✅ | Plain `<textarea>` with auto word count |
 | Content type select | ✅ | markdown/html/plaintext selector |
-| AI Improve | 🔶 | Sends to gateway but says "check Chat for response" — **does NOT stream result back into editor** |
+| AI Improve | ✅ | Sends to gateway via `agent` + `agentWait` — direct sessionless run, result applied to editor |
 | Delete document | ✅ | With confirmation |
 
 **What's missing**:
-- AI Improve result doesn't come back to the editor — broken UX
 - No markdown preview/rendering
 - No export (PDF, HTML, etc.)
 - No AI generate from scratch
@@ -574,9 +573,9 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 #### Agent
 | Method | In gateway.ts | Called from UI | Notes |
 |--------|:---:|:---:|-------|
-| `agent` | ✅ | ❌ | Typed — available for Build/Content views (not yet called) |
+| `agent` | ✅ | ✅ | Content AI Improve — direct sessionless agent run |
 | `agent.identity.get` | ✅ | ✅ | Chat header → shows agent emoji + name |
-| `agent.wait` | ✅ | ❌ | Typed — server-side wait, not UI-triggered |
+| `agent.wait` | ✅ | ✅ | Content AI Improve — waits for agent result |
 | `agents.list` | ✅ | ✅ | Chat view (display agent name) + Foundry |
 | `agents.create` | ✅ | ✅ | Foundry — create new agents |
 | `agents.update` | ✅ | ✅ | Foundry — edit agent config |
@@ -746,7 +745,7 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | Channels | 4 | 4 | 4 | **100%** |
 | Sessions | 6 | 6 | 6 | **100%** ✅ |
 | Chat | 3 | 3 | 3 | **100%** |
-| Agent | 10 | 10 | 8 | **100% typed, 80% UI** |
+| Agent | 10 | 10 | 10 | **100%** ✅ |
 | Cron | 8 | 8 | 8 | **100%** ✅ |
 | Skills | 4 | 4 | 4 | **100%** |
 | Models | 1 | 1 | 1 | **100%** |
@@ -937,7 +936,7 @@ The gateway exposes its full API via WebSocket on `ws://127.0.0.1:{port}` (defau
 
 **What's missing entirely**: TTS (6 methods), Talk Mode (2), Voice Wake (2), Usage Tracking (2), Onboarding Wizard (4), Self-Update (1), Browser Control (1). That's **~18 gateway methods with zero UI coverage**.
 
-**Coverage reality**: Paw calls **~42 of ~90 gateway methods** (**~47% UI wired, ~83% typed**). 8 of 18 gateway events are consumed (node.added, node.removed, node.pair.requested, node.pair.resolved, device.pair.requested, device.pair.resolved, exec.approval.requested, agent deltas). Core/Health, Sessions, Cron, and Config are now **100% wired to UI**. The gateway WebSocket client (`gateway.ts`) is well-structured, and every feature sprint proves that adding new methods is straightforward (add type -> add wrapper -> add UI).
+**Coverage reality**: Paw calls **~44 of ~90 gateway methods** (**~49% UI wired, ~83% typed**). 8 of 18 gateway events are consumed (node.added, node.removed, node.pair.requested, node.pair.resolved, device.pair.requested, device.pair.resolved, exec.approval.requested, agent deltas). Core/Health, Sessions, Agent, Cron, and Config are now **100% wired to UI**. The gateway WebSocket client (`gateway.ts`) is well-structured, and every feature sprint proves that adding new methods is straightforward (add type -> add wrapper -> add UI).
 
 **Security posture**: Mail credentials stored in OS keychain (macOS Keychain / libsecret), Himalaya config.toml chmod 600, passwords never returned to JS frontend, agent email actions enforced via per-account permission toggles, all activity logged to SQLite audit trail.
 

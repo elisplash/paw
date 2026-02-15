@@ -259,6 +259,11 @@ export interface ChatSendResult {
   toolCalls?: ToolCall[];
 }
 
+export interface AgentRunResult {
+  runId: string;
+  ok?: boolean;
+}
+
 export interface AgentWaitResult {
   runId: string;
   status: string;

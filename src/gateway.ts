@@ -632,9 +632,9 @@ class GatewayClient {
     return this.request('send', params);
   }
 
-  // Agent run (agent turn)
-  async agent(params: Record<string, unknown>): Promise<unknown> {
-    return this.request('agent', params, 120_000);
+  // Agent run (direct, sessionless agent turn)
+  async agent(params: Record<string, unknown>): Promise<import('./types').AgentRunResult> {
+    return this.request<import('./types').AgentRunResult>('agent', params, 120_000);
   }
 
   // Agent wait for completion

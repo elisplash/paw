@@ -1285,25 +1285,6 @@ gateway.on('agent', (payload: unknown) => {
       return;
     }
 
-    // Route paw-create-* events to the Content view
-    if (evtSession && evtSession.startsWith('paw-create-')) {
-      if (!_contentStreaming) return;
-      if (_contentStreamRunId && runId && runId !== _contentStreamRunId) return;
-      if (stream === 'assistant' && data) {
-        const delta = data.delta as string | undefined;
-        if (delta) _contentStreamContent += delta;
-      } else if (stream === 'lifecycle' && data) {
-        const phase = data.phase as string | undefined;
-        if (phase === 'start' && !_contentStreamRunId && runId) _contentStreamRunId = runId;
-        if (phase === 'end' && _contentStreamResolve) { _contentStreamResolve(_contentStreamContent); _contentStreamResolve = null; }
-      } else if (stream === 'error' && data) {
-        const error = (data.message ?? data.error ?? '') as string;
-        if (error) _contentStreamContent += `\n\nError: ${error}`;
-        if (_contentStreamResolve) { _contentStreamResolve(_contentStreamContent); _contentStreamResolve = null; }
-      }
-      return;
-    }
-
     // Filter: ignore other background paw-* sessions (e.g. memory)
     if (evtSession && evtSession.startsWith('paw-')) return;
 
@@ -2294,33 +2275,26 @@ $('content-ai-improve')?.addEventListener('click', async () => {
   const bodyEl = $('content-body') as HTMLTextAreaElement;
   const body = bodyEl?.value.trim();
   if (!body) return;
-  const sessionKey = 'paw-create-' + _activeDocId;
 
-  _contentStreaming = true;
-  _contentStreamContent = '';
-  _contentStreamRunId = null;
+  const btn = $('content-ai-improve') as HTMLButtonElement | null;
+  if (btn) btn.disabled = true;
   showToast('AI improving your text…', 'info');
 
-  const done = new Promise<string>((resolve) => {
-    _contentStreamResolve = resolve;
-    setTimeout(() => resolve(_contentStreamContent || '(Timed out)'), 120_000);
-  });
-
   try {
-    const result = await gateway.chatSend(sessionKey, `Improve this text. Return only the improved version, no explanations:\n\n${body}`);
-    if (result.runId) _contentStreamRunId = result.runId;
-
-    const finalText = await done;
-    if (finalText && bodyEl) {
-      bodyEl.value = finalText;
+    // Direct agent run (sessionless) — no chat history needed for one-shot improve
+    const run = await gateway.agent({ prompt: `Improve this text. Return only the improved version, no explanations:\n\n${body}` });
+    // Wait for the agent to finish and return the full result
+    const result = await gateway.agentWait(run.runId, 120_000);
+    if (result.text && bodyEl) {
+      bodyEl.value = result.text;
       showToast('Text improved!', 'success');
+    } else {
+      showToast('Agent returned no text', 'error');
     }
   } catch (e) {
     showToast(`Failed: ${e instanceof Error ? e.message : e}`, 'error');
   } finally {
-    _contentStreaming = false;
-    _contentStreamRunId = null;
-    _contentStreamResolve = null;
+    if (btn) btn.disabled = false;
   }
 });
 
@@ -2339,12 +2313,6 @@ let _buildStreaming = false;
 let _buildStreamContent = '';
 let _buildStreamRunId: string | null = null;
 let _buildStreamResolve: ((text: string) => void) | null = null;
-
-// ── Content — streaming state ──────────────────────────────────────────────
-let _contentStreaming = false;
-let _contentStreamContent = '';
-let _contentStreamRunId: string | null = null;
-let _contentStreamResolve: ((text: string) => void) | null = null;
 
 // ── Build IDE ──────────────────────────────────────────────────────────────
 let _buildProjectId: string | null = null;
