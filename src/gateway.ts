@@ -475,7 +475,7 @@ class GatewayClient {
     attachments?: import('./types').ChatAttachment[];
   }): Promise<ChatSendResult> {
     const idempotencyKey = opts?.idempotencyKey ?? crypto.randomUUID();
-    return this.request<ChatSendResult>('chat.send', {
+    const params: Record<string, unknown> = {
       sessionKey,
       message,
       idempotencyKey,
@@ -485,7 +485,11 @@ class GatewayClient {
       ...(opts?.thinkingLevel ? { thinkingLevel: opts.thinkingLevel } : {}),
       ...(opts?.temperature != null ? { temperature: opts.temperature } : {}),
       ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}),
-    }, 120_000); // chat can take a while
+    };
+    if (opts?.attachments?.length) {
+      console.log('[gateway] chat.send with attachments:', opts.attachments.length, 'params.attachments:', (params.attachments as unknown[])?.length);
+    }
+    return this.request<ChatSendResult>('chat.send', params, 120_000);
   }
 
   async chatAbort(sessionKey: string, runId?: string): Promise<void> {
