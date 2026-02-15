@@ -606,6 +606,131 @@ class GatewayClient {
   async agent(params: Record<string, unknown>): Promise<unknown> {
     return this.request('agent', params, 120_000);
   }
+
+  // Session reset (clear history, keep session)
+  async sessionReset(key: string): Promise<unknown> {
+    return this.request('sessions.reset', { key });
+  }
+
+  // TTS (Text-to-Speech)
+  async ttsStatus(): Promise<{ enabled: boolean; provider?: string; voice?: string; providers?: string[] }> {
+    return this.request('tts.status', {});
+  }
+
+  async ttsProviders(): Promise<{ providers: Array<{ id: string; name: string; voices?: string[] }> }> {
+    return this.request('tts.providers', {});
+  }
+
+  async ttsSetProvider(provider: string, voice?: string): Promise<unknown> {
+    return this.request('tts.setProvider', { provider, voice });
+  }
+
+  async ttsEnable(enabled: boolean): Promise<unknown> {
+    return this.request('tts.enable', { enabled });
+  }
+
+  async ttsConvert(text: string, voice?: string): Promise<{ audio?: string; url?: string; path?: string }> {
+    return this.request('tts.convert', { text, voice });
+  }
+
+  // Talk Mode (continuous voice)
+  async talkConfig(): Promise<{ enabled?: boolean; wakeWord?: string; voice?: string }> {
+    return this.request('talk.config', {});
+  }
+
+  async talkMode(enabled: boolean): Promise<unknown> {
+    return this.request('talk.mode', { enabled });
+  }
+
+  // Voice Wake
+  async voicewakeGet(): Promise<{ triggers: string[] }> {
+    return this.request('voicewake.get', {});
+  }
+
+  async voicewakeSet(triggers: string[]): Promise<unknown> {
+    return this.request('voicewake.set', { triggers });
+  }
+
+  // Node management (extended)
+  async nodeDescribe(nodeId: string): Promise<{ node: import('./types').GatewayNode; caps?: string[]; commands?: string[] }> {
+    return this.request('node.describe', { nodeId });
+  }
+
+  async nodeInvoke(nodeId: string, command: string, params?: Record<string, unknown>): Promise<unknown> {
+    return this.request('node.invoke', { nodeId, command, params });
+  }
+
+  async nodeRename(nodeId: string, name: string): Promise<unknown> {
+    return this.request('node.rename', { nodeId, name });
+  }
+
+  async nodePairList(): Promise<{ requests: Array<{ id: string; nodeId: string; name?: string; requestedAt: number }> }> {
+    return this.request('node.pair.list', {});
+  }
+
+  async nodePairApprove(requestId: string): Promise<unknown> {
+    return this.request('node.pair.approve', { requestId });
+  }
+
+  async nodePairReject(requestId: string): Promise<unknown> {
+    return this.request('node.pair.reject', { requestId });
+  }
+
+  // Device pairing
+  async devicePairList(): Promise<{ devices: Array<{ id: string; name?: string; platform?: string; pairedAt?: number }> }> {
+    return this.request('device.pair.list', {});
+  }
+
+  async devicePairApprove(deviceId: string): Promise<unknown> {
+    return this.request('device.pair.approve', { deviceId });
+  }
+
+  async devicePairReject(deviceId: string): Promise<unknown> {
+    return this.request('device.pair.reject', { deviceId });
+  }
+
+  async deviceTokenRotate(deviceId: string): Promise<{ token: string }> {
+    return this.request('device.token.rotate', { deviceId });
+  }
+
+  async deviceTokenRevoke(deviceId: string): Promise<unknown> {
+    return this.request('device.token.revoke', { deviceId });
+  }
+
+  // Onboarding wizard
+  async wizardStatus(): Promise<{ active: boolean; step?: string; completed?: boolean }> {
+    return this.request('wizard.status', {});
+  }
+
+  async wizardStart(): Promise<{ step: string }> {
+    return this.request('wizard.start', {});
+  }
+
+  async wizardNext(data?: Record<string, unknown>): Promise<{ step?: string; completed?: boolean }> {
+    return this.request('wizard.next', data ?? {});
+  }
+
+  async wizardCancel(): Promise<unknown> {
+    return this.request('wizard.cancel', {});
+  }
+
+  // Browser control
+  async browserStatus(): Promise<{ running: boolean; tabs?: Array<{ id: string; url: string; title?: string }> }> {
+    return this.request('browser.status', {});
+  }
+
+  async browserStart(): Promise<unknown> {
+    return this.request('browser.start', {});
+  }
+
+  async browserStop(): Promise<unknown> {
+    return this.request('browser.stop', {});
+  }
+
+  // Self-update
+  async updateRun(): Promise<{ updated: boolean; version?: string }> {
+    return this.request('update.run', {}, 120_000);
+  }
 }
 
 export const gateway = new GatewayClient();
