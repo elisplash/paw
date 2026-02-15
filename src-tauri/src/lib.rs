@@ -1545,8 +1545,9 @@ fn memory_store(content: String, category: Option<String>, importance: Option<u3
 
 /// Write (or merge) a Himalaya TOML config for an IMAP/SMTP email account.
 /// Creates ~/.config/himalaya/config.toml with the account settings.
-/// If the file already exists, the account is added/replaced while preserving
-/// other accounts.
+/// Password is stored in the OS keychain (macOS Keychain / libsecret / Windows
+/// Credential Manager) — NOT in the TOML file.  The TOML only contains a
+/// keyring reference so himalaya can look it up at runtime.
 #[tauri::command]
 fn write_himalaya_config(
     account_name: String,
@@ -1565,10 +1566,16 @@ fn write_himalaya_config(
     fs::create_dir_all(&config_dir)
         .map_err(|e| format!("Failed to create config dir: {}", e))?;
 
-    // Build TOML for this account
-    // Himalaya v1 format: [accounts.<name>]
+    // ── Store password in OS keychain ──────────────────────────────────
+    let keyring_service = format!("paw-mail-{}", account_name);
+    let entry = keyring::Entry::new(&keyring_service, &email)
+        .map_err(|e| format!("Keyring init failed: {}", e))?;
+    entry.set_password(&password)
+        .map_err(|e| format!("Failed to store password in keychain: {}", e))?;
+    info!("Stored password for '{}' in OS keychain (service={})", email, keyring_service);
+
+    // ── Build TOML — password is a keyring reference, NOT plaintext ────
     let display = display_name.unwrap_or_else(|| email.clone());
-    let escaped_pw = password.replace('\'', "'\\''");
     let account_toml = format!(
         r#"[accounts.{name}]
 email = "{email}"
@@ -1580,7 +1587,7 @@ backend.port = {imap_port}
 backend.encryption = "tls"
 backend.login = "{email}"
 backend.auth.type = "password"
-backend.auth.raw = "{escaped_pw}"
+backend.auth.cmd = "security find-generic-password -s '{service}' -a '{email}' -w 2>/dev/null || secret-tool lookup service '{service}' username '{email}' 2>/dev/null"
 
 message.send.backend.type = "smtp"
 message.send.backend.host = "{smtp_host}"
@@ -1588,7 +1595,7 @@ message.send.backend.port = {smtp_port}
 message.send.backend.encryption = "tls"
 message.send.backend.login = "{email}"
 message.send.backend.auth.type = "password"
-message.send.backend.auth.raw = "{escaped_pw}"
+message.send.backend.auth.cmd = "security find-generic-password -s '{service}' -a '{email}' -w 2>/dev/null || secret-tool lookup service '{service}' username '{email}' 2>/dev/null"
 "#,
         name = account_name,
         email = email,
@@ -1597,19 +1604,15 @@ message.send.backend.auth.raw = "{escaped_pw}"
         imap_port = imap_port,
         smtp_host = smtp_host,
         smtp_port = smtp_port,
-        escaped_pw = escaped_pw,
+        service = keyring_service,
     );
 
     if config_path.exists() {
-        // Read existing config and check if this account already exists
         let existing = fs::read_to_string(&config_path)
             .map_err(|e| format!("Failed to read existing config: {}", e))?;
 
-        // Simple approach: if [accounts.<name>] exists, replace from that header
-        // to the next [accounts.*] header or end of file.
         let marker = format!("[accounts.{}]", account_name);
         if let Some(start) = existing.find(&marker) {
-            // Find the next [accounts.*] section after this one
             let rest = &existing[start + marker.len()..];
             let end_offset = if let Some(next) = rest.find("\n[accounts.") {
                 start + marker.len() + next
@@ -1626,7 +1629,6 @@ message.send.backend.auth.raw = "{escaped_pw}"
             fs::write(&config_path, new_content.trim_end())
                 .map_err(|e| format!("Failed to write config: {}", e))?;
         } else {
-            // Append new account
             let mut content = existing;
             if !content.ends_with('\n') {
                 content.push('\n');
@@ -1637,21 +1639,20 @@ message.send.backend.auth.raw = "{escaped_pw}"
                 .map_err(|e| format!("Failed to write config: {}", e))?;
         }
     } else {
-        // New file — write account directly
         fs::write(&config_path, account_toml.trim_end())
             .map_err(|e| format!("Failed to write config: {}", e))?;
     }
 
-    // Set owner-only permissions (chmod 600) so other users can't read the password
     set_owner_only_permissions(&config_path)?;
 
-    info!("Wrote himalaya config for account '{}' at {:?} (mode 600)", account_name, config_path);
+    info!("Wrote himalaya config for account '{}' at {:?} (mode 600, password in keychain)", account_name, config_path);
     Ok(true)
 }
 
 /// Read the current Himalaya config to list configured accounts.
-/// Passwords are REDACTED before returning to the frontend — the raw
-/// credential never leaves the Rust process.
+/// Passwords are stored in the OS keychain — the TOML only contains command
+/// references.  We still redact the auth.cmd lines so the frontend never sees
+/// the shell command that retrieves the password.
 #[tauri::command]
 fn read_himalaya_config() -> Result<String, String> {
     let home = dirs::home_dir().ok_or("Cannot find home directory")?;
@@ -1662,16 +1663,16 @@ fn read_himalaya_config() -> Result<String, String> {
     let raw = fs::read_to_string(&config_path)
         .map_err(|e| format!("Failed to read config: {}", e))?;
 
-    // Redact all password values so they never reach the JS layer.
-    // Matches lines like:  backend.auth.raw = "secret123"
+    // Redact auth command and raw password lines so they never reach JS.
     let redacted = raw.lines().map(|line| {
         let trimmed = line.trim();
         if trimmed.starts_with("backend.auth.raw")
             || trimmed.starts_with("message.send.backend.auth.raw")
+            || trimmed.starts_with("backend.auth.cmd")
+            || trimmed.starts_with("message.send.backend.auth.cmd")
         {
-            // Replace the value after '=' with a redacted placeholder
             if let Some(eq) = line.find('=') {
-                format!("{} \"••••••••\"", &line[..eq+1])
+                format!("{} \"[stored in OS keychain]\"", &line[..eq+1])
             } else {
                 line.to_string()
             }
@@ -1683,11 +1684,44 @@ fn read_himalaya_config() -> Result<String, String> {
     Ok(redacted)
 }
 
-/// Remove a Himalaya account from the config file.
+/// Remove a Himalaya account from the config file and delete its password from
+/// the OS keychain.
 #[tauri::command]
 fn remove_himalaya_account(account_name: String) -> Result<bool, String> {
     let home = dirs::home_dir().ok_or("Cannot find home directory")?;
     let config_path = home.join(".config/himalaya/config.toml");
+
+    // ── Try to delete password from OS keychain ──────────────────────
+    // We need the email for the keyring lookup.  Parse it from the TOML.
+    if config_path.exists() {
+        if let Ok(raw) = fs::read_to_string(&config_path) {
+            // Extract email from [accounts.<name>] section
+            let marker = format!("[accounts.{}]", account_name);
+            if let Some(start) = raw.find(&marker) {
+                let section = &raw[start..];
+                for line in section.lines().skip(1) {
+                    if line.trim().starts_with("[accounts.") {
+                        break;
+                    }
+                    if line.trim().starts_with("email") {
+                        if let Some(eq) = line.find('=') {
+                            let email = line[eq+1..].trim().trim_matches('"').to_string();
+                            let service = format!("paw-mail-{}", account_name);
+                            if let Ok(entry) = keyring::Entry::new(&service, &email) {
+                                match entry.delete_credential() {
+                                    Ok(()) => info!("Deleted keychain entry for '{}' (service={})", email, service),
+                                    Err(e) => info!("Keychain delete for '{}': {} (may not exist)", email, e),
+                                }
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Remove from TOML ─────────────────────────────────────────────
     if !config_path.exists() {
         return Ok(false);
     }
@@ -1721,6 +1755,37 @@ fn remove_himalaya_account(account_name: String) -> Result<bool, String> {
         Ok(true)
     } else {
         Ok(false)
+    }
+}
+
+// ── Keyring helpers ──────────────────────────────────────────────────────────
+
+/// Check whether the OS keychain has a stored password for the given account.
+#[tauri::command]
+fn keyring_has_password(account_name: String, email: String) -> Result<bool, String> {
+    let service = format!("paw-mail-{}", account_name);
+    let entry = keyring::Entry::new(&service, &email)
+        .map_err(|e| format!("Keyring init failed: {}", e))?;
+    match entry.get_password() {
+        Ok(_) => Ok(true),
+        Err(keyring::Error::NoEntry) => Ok(false),
+        Err(e) => Err(format!("Keyring error: {}", e)),
+    }
+}
+
+/// Delete a password from the OS keychain.
+#[tauri::command]
+fn keyring_delete_password(account_name: String, email: String) -> Result<bool, String> {
+    let service = format!("paw-mail-{}", account_name);
+    let entry = keyring::Entry::new(&service, &email)
+        .map_err(|e| format!("Keyring init failed: {}", e))?;
+    match entry.delete_credential() {
+        Ok(()) => {
+            info!("Deleted keychain entry for '{}' (service={})", email, service);
+            Ok(true)
+        }
+        Err(keyring::Error::NoEntry) => Ok(false),
+        Err(e) => Err(format!("Keyring delete failed: {}", e)),
     }
 }
 
@@ -1873,7 +1938,9 @@ pub fn run() {
             repair_openclaw_config,
             write_himalaya_config,
             read_himalaya_config,
-            remove_himalaya_account
+            remove_himalaya_account,
+            keyring_has_password,
+            keyring_delete_password
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

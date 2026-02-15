@@ -1036,7 +1036,7 @@ gateway.on('chat', (payload: unknown) => {
 
 // ── Channels — Connection Hub ──────────────────────────────────────────────
 const CHANNEL_ICONS: Record<string, string> = {
-  telegram: '✈️', discord: '🎮', whatsapp: '💬', signal: '🔒', slack: '💼',
+  telegram: 'TG', discord: 'DC', whatsapp: 'WA', signal: 'SG', slack: 'SK',
 };
 const CHANNEL_CLASSES: Record<string, string> = {
   telegram: 'telegram', discord: 'discord', whatsapp: 'whatsapp', signal: 'signal', slack: 'slack',
@@ -1069,7 +1069,7 @@ const CHANNEL_SETUPS: ChannelSetupDef[] = [
   {
     id: 'telegram',
     name: 'Telegram',
-    icon: '✈️',
+    icon: 'TG',
     description: 'Connect your agent to Telegram via a Bot token from @BotFather.',
     fields: [
       { key: 'botToken', label: 'Bot Token', type: 'password', placeholder: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11', hint: 'Get this from @BotFather on Telegram', required: true, sensitive: true },
@@ -1099,7 +1099,7 @@ const CHANNEL_SETUPS: ChannelSetupDef[] = [
   {
     id: 'discord',
     name: 'Discord',
-    icon: '🎮',
+    icon: 'DC',
     description: 'Connect to Discord with a bot token from the Developer Portal.',
     fields: [
       { key: 'token', label: 'Bot Token', type: 'password', placeholder: 'Your Discord bot token', hint: 'From discord.com/developers → Bot → Token', required: true, sensitive: true },
@@ -1132,7 +1132,7 @@ const CHANNEL_SETUPS: ChannelSetupDef[] = [
   {
     id: 'whatsapp',
     name: 'WhatsApp',
-    icon: '💬',
+    icon: 'WA',
     description: 'Connect to WhatsApp via QR code pairing — no token needed.',
     fields: [
       { key: 'dmPolicy', label: 'DM Policy', type: 'select', options: [
@@ -1160,7 +1160,7 @@ const CHANNEL_SETUPS: ChannelSetupDef[] = [
   {
     id: 'slack',
     name: 'Slack',
-    icon: '💼',
+    icon: 'SK',
     description: 'Connect to Slack using Socket Mode (bot + app tokens).',
     fields: [
       { key: 'botToken', label: 'Bot Token', type: 'password', placeholder: 'xoxb-...', hint: 'OAuth Bot Token from Slack app settings', required: true, sensitive: true },
@@ -1190,7 +1190,7 @@ const CHANNEL_SETUPS: ChannelSetupDef[] = [
   {
     id: 'signal',
     name: 'Signal',
-    icon: '🔒',
+    icon: 'SG',
     description: 'Connect to Signal via signal-cli. Requires signal-cli installed.',
     fields: [
       { key: 'account', label: 'Phone Number', type: 'text', placeholder: '+15551234567', hint: 'E.164 phone number registered with signal-cli', required: true },
@@ -1402,7 +1402,7 @@ async function loadChannels() {
     for (const id of keys) {
       const ch = channels[id];
       const lId = id.toLowerCase();
-      const icon = CHANNEL_ICONS[lId] ?? '📡';
+      const icon = CHANNEL_ICONS[lId] ?? '--';
       const cssClass = CHANNEL_CLASSES[lId] ?? 'default';
       const linked = ch.linked;
       const configured = ch.configured;
@@ -1594,12 +1594,12 @@ async function renderMailAccounts(_gmail: Record<string, unknown> | null, himala
     item.className = 'mail-vault-account';
     // Detect provider icon from email domain
     const domain = acct.email.split('@')[1] ?? '';
-    let icon = '📧';
-    if (domain.includes('gmail')) icon = '📧';
-    else if (domain.includes('outlook') || domain.includes('hotmail') || domain.includes('live')) icon = '📬';
-    else if (domain.includes('yahoo')) icon = '📨';
-    else if (domain.includes('icloud') || domain.includes('me.com')) icon = '☁️';
-    else if (domain.includes('fastmail')) icon = '⚡';
+    let icon = 'M';
+    if (domain.includes('gmail')) icon = 'G';
+    else if (domain.includes('outlook') || domain.includes('hotmail') || domain.includes('live')) icon = 'O';
+    else if (domain.includes('yahoo')) icon = 'Y';
+    else if (domain.includes('icloud') || domain.includes('me.com')) icon = 'iC';
+    else if (domain.includes('fastmail')) icon = 'FM';
 
     const permCount = [perms.read, perms.send, perms.delete, perms.manage].filter(Boolean).length;
     const permSummary = [perms.read && 'Read', perms.send && 'Send', perms.delete && 'Delete', perms.manage && 'Manage'].filter(Boolean).join(' · ') || 'No permissions';
@@ -1617,29 +1617,29 @@ async function renderMailAccounts(_gmail: Record<string, unknown> | null, himala
         <div class="mail-vault-perms">
           <label class="mail-vault-perm-row">
             <input type="checkbox" class="mail-vault-cb" data-perm="read" ${perms.read ? 'checked' : ''}>
-            <span class="mail-vault-perm-icon">📨</span>
+            <span class="mail-vault-perm-icon">R</span>
             <span class="mail-vault-perm-name">Read emails</span>
           </label>
           <label class="mail-vault-perm-row">
             <input type="checkbox" class="mail-vault-cb" data-perm="send" ${perms.send ? 'checked' : ''}>
-            <span class="mail-vault-perm-icon">✉️</span>
+            <span class="mail-vault-perm-icon">S</span>
             <span class="mail-vault-perm-name">Send emails</span>
           </label>
           <label class="mail-vault-perm-row">
             <input type="checkbox" class="mail-vault-cb" data-perm="delete" ${perms.delete ? 'checked' : ''}>
-            <span class="mail-vault-perm-icon">🗑️</span>
+            <span class="mail-vault-perm-icon">D</span>
             <span class="mail-vault-perm-name">Delete emails</span>
           </label>
           <label class="mail-vault-perm-row">
             <input type="checkbox" class="mail-vault-cb" data-perm="manage" ${perms.manage ? 'checked' : ''}>
-            <span class="mail-vault-perm-icon">📁</span>
+            <span class="mail-vault-perm-icon">F</span>
             <span class="mail-vault-perm-name">Manage folders</span>
           </label>
         </div>
         <div class="mail-vault-perm-summary">${permSummary}</div>
         <div class="mail-vault-meta">
-          <span class="mail-vault-meta-item">🔒 Stored locally at <code>~/.config/himalaya/</code></span>
-          <span class="mail-vault-meta-item">📋 All actions logged in Chat</span>
+          <span class="mail-vault-meta-item">Stored locally at <code>~/.config/himalaya/</code> &mdash; password in OS keychain</span>
+          <span class="mail-vault-meta-item">All actions logged in Chat</span>
         </div>
         <div class="mail-vault-actions">
           <button class="btn btn-ghost btn-sm mail-vault-revoke" data-account="${escAttr(acct.name)}">Revoke Access</button>
@@ -1708,7 +1708,7 @@ async function renderMailAccounts(_gmail: Record<string, unknown> | null, himala
     else if (missingBins) { statusLabel = 'Missing CLI'; statusClass = 'error'; }
 
     item.innerHTML = `
-      <div class="mail-account-icon">🏔️</div>
+      <div class="mail-account-icon">H</div>
       <div class="mail-account-info">
         <div class="mail-account-name">Himalaya Skill</div>
         <div class="mail-account-status ${statusClass}">${statusLabel}</div>
@@ -1785,7 +1785,7 @@ async function renderCredentialActivityLog() {
       </div>
       <div class="mail-vault-activity-list" style="display:none">
         ${entries.map(e => {
-          const icon = !e.was_allowed ? '🚫' : e.action === 'send' ? '✉️' : e.action === 'read' ? '📨' : e.action === 'delete' ? '🗑️' : e.action === 'manage' ? '📁' : '📋';
+          const icon = !e.was_allowed ? 'X' : e.action === 'send' ? 'S' : e.action === 'read' ? 'R' : e.action === 'delete' ? 'D' : e.action === 'manage' ? 'F' : '--';
           const cls = !e.was_allowed ? 'vault-log-blocked' : '';
           const time = e.timestamp ? new Date(e.timestamp + 'Z').toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
           return `<div class="vault-log-entry ${cls}">
@@ -1971,7 +1971,7 @@ async function openMailMessage(msgId: string) {
         <div class="mail-preview-body">${formatMarkdown(body)}</div>
         ${agentReply ? `
           <div class="mail-preview-agent-reply">
-            <div class="mail-preview-agent-label">🤖 Agent Response</div>
+            <div class="mail-preview-agent-label">Agent Response</div>
             <div class="mail-preview-agent-body">${formatMarkdown(agentReply)}</div>
           </div>
         ` : ''}
@@ -2060,12 +2060,12 @@ $('mail-setup-account')?.addEventListener('click', () => openMailAccountSetup())
 
 // Provider presets for auto-filling IMAP/SMTP servers
 const EMAIL_PROVIDERS: Record<string, { name: string; icon: string; imap: string; imapPort: number; smtp: string; smtpPort: number; hint: string }> = {
-  gmail: { name: 'Gmail', icon: '📧', imap: 'imap.gmail.com', imapPort: 993, smtp: 'smtp.gmail.com', smtpPort: 465, hint: 'Use an App Password — go to Google Account → Security → App Passwords' },
-  outlook: { name: 'Outlook / Hotmail', icon: '📬', imap: 'outlook.office365.com', imapPort: 993, smtp: 'smtp.office365.com', smtpPort: 587, hint: 'Use your regular password, or an App Password if 2FA is on' },
-  yahoo: { name: 'Yahoo Mail', icon: '📨', imap: 'imap.mail.yahoo.com', imapPort: 993, smtp: 'smtp.mail.yahoo.com', smtpPort: 465, hint: 'Generate an App Password in Yahoo Account Settings → Security' },
-  icloud: { name: 'iCloud Mail', icon: '☁️', imap: 'imap.mail.me.com', imapPort: 993, smtp: 'smtp.mail.me.com', smtpPort: 587, hint: 'Use an App-Specific Password from appleid.apple.com' },
-  fastmail: { name: 'Fastmail', icon: '⚡', imap: 'imap.fastmail.com', imapPort: 993, smtp: 'smtp.fastmail.com', smtpPort: 465, hint: 'Use an App Password from Settings → Privacy & Security' },
-  custom: { name: 'Other (IMAP/SMTP)', icon: '⚙️', imap: '', imapPort: 993, smtp: '', smtpPort: 465, hint: 'Enter your mail server details manually' },
+  gmail: { name: 'Gmail', icon: 'G', imap: 'imap.gmail.com', imapPort: 993, smtp: 'smtp.gmail.com', smtpPort: 465, hint: 'Use an App Password — go to Google Account → Security → App Passwords' },
+  outlook: { name: 'Outlook / Hotmail', icon: 'O', imap: 'outlook.office365.com', imapPort: 993, smtp: 'smtp.office365.com', smtpPort: 587, hint: 'Use your regular password, or an App Password if 2FA is on' },
+  yahoo: { name: 'Yahoo Mail', icon: 'Y', imap: 'imap.mail.yahoo.com', imapPort: 993, smtp: 'smtp.mail.yahoo.com', smtpPort: 465, hint: 'Generate an App Password in Yahoo Account Settings → Security' },
+  icloud: { name: 'iCloud Mail', icon: 'iC', imap: 'imap.mail.me.com', imapPort: 993, smtp: 'smtp.mail.me.com', smtpPort: 587, hint: 'Use an App-Specific Password from appleid.apple.com' },
+  fastmail: { name: 'Fastmail', icon: 'FM', imap: 'imap.fastmail.com', imapPort: 993, smtp: 'smtp.fastmail.com', smtpPort: 465, hint: 'Use an App Password from Settings → Privacy & Security' },
+  custom: { name: 'Other (IMAP/SMTP)', icon: '*', imap: '', imapPort: 993, smtp: '', smtpPort: 465, hint: 'Enter your mail server details manually' },
 };
 
 function openMailAccountSetup() {
@@ -2173,22 +2173,22 @@ function showMailAccountForm(providerId: string) {
       <div class="mail-permissions-desc">Control what your agent can do with this account. You can change these any time from the Credential Vault.</div>
       <label class="mail-perm-toggle">
         <input type="checkbox" id="ch-field-perm-read" checked>
-        <span class="mail-perm-label">📨 Read emails</span>
+        <span class="mail-perm-label">Read emails</span>
         <span class="mail-perm-detail">List inbox, read messages, search</span>
       </label>
       <label class="mail-perm-toggle">
         <input type="checkbox" id="ch-field-perm-send" checked>
-        <span class="mail-perm-label">✉️ Send emails</span>
+        <span class="mail-perm-label">Send emails</span>
         <span class="mail-perm-detail">Compose and send on your behalf</span>
       </label>
       <label class="mail-perm-toggle">
         <input type="checkbox" id="ch-field-perm-delete">
-        <span class="mail-perm-label">🗑️ Delete emails</span>
+        <span class="mail-perm-label">Delete emails</span>
         <span class="mail-perm-detail">Move to trash, permanently delete</span>
       </label>
       <label class="mail-perm-toggle">
         <input type="checkbox" id="ch-field-perm-manage">
-        <span class="mail-perm-label">📁 Manage folders</span>
+        <span class="mail-perm-label">Manage folders</span>
         <span class="mail-perm-detail">Create folders, move messages, flag</span>
       </label>
     </div>
@@ -2199,8 +2199,8 @@ function showMailAccountForm(providerId: string) {
         How your credentials are stored &amp; used
       </div>
       <ul class="mail-security-list">
-        <li><strong>Local file (chmod 600)</strong> — password is saved to <code>~/.config/himalaya/config.toml</code> with owner-only read permissions. Other OS users cannot read it, but it is not encrypted at rest.</li>
-        <li><strong>Never sent to frontend</strong> — passwords are redacted before reaching the UI. The raw credential stays in the Rust process only.</li>
+        <li><strong>OS keychain</strong> — your password is stored in the system keychain (macOS Keychain / libsecret on Linux), not in any file. The TOML config at <code>~/.config/himalaya/</code> only contains a reference.</li>
+        <li><strong>Never sent to frontend</strong> — credential details are redacted before reaching the UI. The raw password stays in the Rust process and OS keychain only.</li>
         <li><strong>TLS in transit</strong> — connections to ${provider.imap || 'your mail server'} use TLS encryption</li>
         <li><strong>No cloud</strong> — Paw and OpenClaw are fully self-hosted; no third-party server ever sees your password</li>
         <li><strong>Permission-gated</strong> — the agent must pass your Credential Vault permissions before using email tools. Disabling a permission auto-blocks the tool.</li>
@@ -2208,7 +2208,7 @@ function showMailAccountForm(providerId: string) {
         <li><strong>Revocable</strong> — ${needsAppPw ? "revoke the app password in your provider's security settings at any time to instantly cut off access" : 'change your password to instantly revoke access'}</li>
       </ul>
       <div class="mail-security-limitations">
-        <strong>Limitations:</strong> The password is stored in plaintext on disk (protected by file permissions, not encryption). If someone gains access to your user account on this machine, they could read the file. For maximum security, use an App Password with limited scope instead of your main password.
+        <strong>Note:</strong> For maximum security, use an App Password with limited scope instead of your main password. The OS keychain protects credentials at rest using your system's native encryption.
       </div>
     </div>
   `;
@@ -2325,7 +2325,7 @@ async function loadCron() {
         <div class="auto-card-actions">
           <button class="btn btn-ghost btn-sm cron-run" data-id="${escAttr(job.id)}">▶ Run</button>
           <button class="btn btn-ghost btn-sm cron-toggle" data-id="${escAttr(job.id)}" data-enabled="${job.enabled}">${job.enabled ? '⏸ Pause' : '▶ Enable'}</button>
-          <button class="btn btn-ghost btn-sm cron-delete" data-id="${escAttr(job.id)}">🗑</button>
+          <button class="btn btn-ghost btn-sm cron-delete" data-id="${escAttr(job.id)}">Delete</button>
         </div>
       `;
       if (job.enabled) {
@@ -2508,14 +2508,14 @@ async function loadSkills() {
           <span class="status-badge ${statusClass}">${statusLabel}</span>
         </div>
         <div class="skill-card-desc">${escHtml(skill.description ?? '')}</div>
-        ${needsSetup ? `<div class="skill-config-missing">⚠ Needs API key${(skill.missing?.env?.length ?? 0) > 1 ? 's' : ''}: ${escHtml((skill.missing?.env ?? []).join(', '))}</div>` : ''}
+        ${needsSetup ? `<div class="skill-config-missing">Needs API key${(skill.missing?.env?.length ?? 0) > 1 ? 's' : ''}: ${escHtml((skill.missing?.env ?? []).join(', '))}</div>` : ''}
         <div class="skill-card-footer">
           <div style="display:flex;align-items:center;gap:8px">
             ${skill.homepage ? `<a class="skill-card-link" href="${escAttr(skill.homepage)}" target="_blank">docs ↗</a>` : ''}
           </div>
           <div class="skill-card-actions">
             ${isInstalled ? `
-              ${hasEnvRequirements ? `<button class="btn btn-ghost btn-sm skill-configure" data-skill='${skillDataAttr}' title="Configure">⚙</button>` : ''}
+              ${hasEnvRequirements ? `<button class="btn btn-ghost btn-sm skill-configure" data-skill='${skillDataAttr}' title="Configure">Configure</button>` : ''}
               <button class="skill-toggle ${enabledClass}" data-skill-key="${escAttr(skill.skillKey ?? skill.name)}" data-name="${escAttr(skill.name)}" data-enabled="${isEnabled}" title="${isEnabled ? 'Disable' : 'Enable'}"></button>
             ` : needsSetup ? `
               <button class="btn btn-primary btn-sm skill-configure" data-skill='${skillDataAttr}'>Setup</button>
@@ -2775,7 +2775,7 @@ $('skills-browse-bins')?.addEventListener('click', async () => {
         (btn as HTMLButtonElement).textContent = 'Installing…';
         try {
           await gateway.skillsInstall(name, crypto.randomUUID());
-          (btn as HTMLButtonElement).textContent = '✓ Installed';
+          (btn as HTMLButtonElement).textContent = 'Installed';
           showSkillsToast(`${name} installed!`, 'success');
           loadSkills();
         } catch (e) {
@@ -2918,7 +2918,7 @@ async function loadModes() {
       card.className = 'mode-card';
       card.style.borderLeftColor = mode.color || 'var(--accent)';
       card.innerHTML = `
-        <div class="mode-card-icon" style="background:${mode.color}22">${mode.icon || '🤖'}</div>
+        <div class="mode-card-icon" style="background:${mode.color}22">${mode.icon || mode.name?.charAt(0) || 'M'}</div>
         <div class="mode-card-info">
           <div class="mode-card-name">${escHtml(mode.name)}</div>
           <div class="mode-card-detail">${mode.model ? escHtml(mode.model) : 'Default model'} · ${mode.thinking_level || 'normal'} thinking</div>
@@ -2957,7 +2957,7 @@ function editMode(mode?: AgentMode) {
   }
 
   // Fill form
-  ($('mode-form-icon') as HTMLInputElement).value = mode?.icon ?? '🤖';
+  ($('mode-form-icon') as HTMLInputElement).value = mode?.icon ?? '';
   ($('mode-form-name') as HTMLInputElement).value = mode?.name ?? '';
   ($('mode-form-color') as HTMLInputElement).value = mode?.color ?? '#0073EA';
   ($('mode-form-prompt') as HTMLTextAreaElement).value = mode?.system_prompt ?? '';
@@ -2990,7 +2990,7 @@ $('mode-modal-save')?.addEventListener('click', async () => {
   await saveMode({
     id,
     name,
-    icon: ($('mode-form-icon') as HTMLInputElement).value || '🤖',
+    icon: ($('mode-form-icon') as HTMLInputElement).value || '',
     color: ($('mode-form-color') as HTMLInputElement).value || '#0073EA',
     model: ($('mode-form-model') as HTMLSelectElement).value || null,
     system_prompt: ($('mode-form-prompt') as HTMLTextAreaElement).value,
@@ -3052,7 +3052,7 @@ async function loadAgents() {
       const card = document.createElement('div');
       card.className = 'agent-card';
       const isDefault = agent.id === defaultId;
-      const emoji = agent.identity?.emoji ?? '🤖';
+      const emoji = agent.identity?.emoji ?? agent.name?.charAt(0)?.toUpperCase() ?? 'A';
       const name = agent.identity?.name ?? agent.name ?? agent.id;
       const theme = agent.identity?.theme ?? '';
       card.innerHTML = `
@@ -3088,7 +3088,7 @@ async function openAgentDetail(agentId: string) {
   const nameEl = $('agent-detail-name');
   const idEl = $('agent-detail-id');
   const deleteBtn = $('agent-detail-delete');
-  if (emojiEl) emojiEl.textContent = agent?.identity?.emoji ?? '🤖';
+  if (emojiEl) emojiEl.textContent = agent?.identity?.emoji ?? agent?.name?.charAt(0)?.toUpperCase() ?? 'A';
   if (nameEl) nameEl.textContent = agent?.identity?.name ?? agent?.name ?? agentId;
   if (idEl) idEl.textContent = agentId;
   // Don't allow deleting the "main" agent
@@ -3132,7 +3132,7 @@ async function loadAgentFiles(agentId: string) {
       const card = document.createElement('div');
       card.className = `agent-file-card ${exists ? '' : 'agent-file-card-new'}`;
       card.innerHTML = `
-        <div class="agent-file-card-icon">${exists ? '📄' : '➕'}</div>
+        <div class="agent-file-card-icon">${exists ? 'F' : '+'}</div>
         <div class="agent-file-card-body">
           <div class="agent-file-card-name">${escHtml(sf.name)}</div>
           <div class="agent-file-card-desc">${escHtml(sf.label)} — ${escHtml(sf.description)}</div>
@@ -3150,7 +3150,7 @@ async function loadAgentFiles(agentId: string) {
       const card = document.createElement('div');
       card.className = 'agent-file-card';
       card.innerHTML = `
-        <div class="agent-file-card-icon">📄</div>
+        <div class="agent-file-card-icon">F</div>
         <div class="agent-file-card-body">
           <div class="agent-file-card-name">${escHtml(path)}</div>
           ${file.sizeBytes ? `<div class="agent-file-card-size">${formatBytes(file.sizeBytes)}</div>` : ''}
@@ -3205,7 +3205,7 @@ function getAgentFileTemplate(fileName: string, agentId: string): string {
     'AGENTS.md': `# ${agentId} — Operating Instructions\n\n## Priorities\n1. Be helpful and accurate\n2. Use memory to remember context across sessions\n3. Follow the user's preferences defined in USER.md\n\n## Rules\n- Always check memory before answering questions about past conversations\n- Be concise unless asked for detail\n- Ask clarifying questions when intent is ambiguous\n`,
     'SOUL.md': `# ${agentId} — Persona\n\n## Personality\n- Friendly and professional\n- Direct and clear in communication\n- Proactive — anticipates needs\n\n## Tone\n- Warm but not overly casual\n- Confident without being arrogant\n\n## Boundaries\n- Always be honest about limitations\n- Never fabricate information\n`,
     'USER.md': `# About the User\n\n## How to address them\n- Use their first name\n\n## Preferences\n- Prefers concise responses\n- Likes code examples over lengthy explanations\n`,
-    'IDENTITY.md': `# IDENTITY.md - Agent Identity\n\n- Name: ${agentId}\n- Creature: helpful assistant\n- Vibe: warm and capable\n- Emoji: 🤖\n`,
+    'IDENTITY.md': `# IDENTITY.md - Agent Identity\n\n- Name: ${agentId}\n- Creature: helpful assistant\n- Vibe: warm and capable\n`,
     'TOOLS.md': `# ${agentId} — Tool Notes\n\n## Available Tools\nThis agent has access to the standard OpenClaw tool set.\n\n## Conventions\n- Use the file system for persistent work\n- Use memory_store for important facts to remember\n`,
     'HEARTBEAT.md': `# ${agentId} — Heartbeat Checklist\n\n- [ ] Check for pending tasks\n- [ ] Review recent messages\n`,
   };
@@ -3267,7 +3267,7 @@ function showAgentModal(agent?: import('./types').AgentSummary) {
   }
 
   // Fill fields
-  ($('agent-form-emoji') as HTMLInputElement).value = agent?.identity?.emoji ?? '🤖';
+  ($('agent-form-emoji') as HTMLInputElement).value = agent?.identity?.emoji ?? '';
   ($('agent-form-name') as HTMLInputElement).value = agent?.identity?.name ?? agent?.name ?? '';
   ($('agent-form-workspace') as HTMLInputElement).value = '';
 }
@@ -3285,7 +3285,7 @@ $('agent-modal-cancel')?.addEventListener('click', hideAgentModal);
 $('agent-modal-save')?.addEventListener('click', async () => {
   const name = ($('agent-form-name') as HTMLInputElement).value.trim();
   if (!name) { showToast('Name is required', 'error'); return; }
-  const emoji = ($('agent-form-emoji') as HTMLInputElement).value || '🤖';
+  const emoji = ($('agent-form-emoji') as HTMLInputElement).value || '';
   const workspace = ($('agent-form-workspace') as HTMLInputElement).value.trim() || undefined;
   const model = ($('agent-form-model') as HTMLSelectElement).value || undefined;
 
@@ -3365,7 +3365,7 @@ async function loadMemory() {
       const displaySize = file.sizeBytes ?? file.size;
       card.innerHTML = `
         <div class="list-item-header">
-          <span class="list-item-title">📄 ${escHtml(displayName)}</span>
+          <span class="list-item-title">${escHtml(displayName)}</span>
           <span class="list-item-meta">${displaySize ? formatBytes(displaySize) : ''}</span>
         </div>
       `;
@@ -4185,7 +4185,7 @@ function initPalaceRemember() {
     } catch (e) {
       showToast(`Save failed: ${e instanceof Error ? e.message : e}`, 'error');
     } finally {
-      btn.textContent = '💾 Save Memory';
+      btn.textContent = 'Save Memory';
       (btn as HTMLButtonElement).disabled = false;
     }
   });
@@ -4530,7 +4530,7 @@ async function loadResearchFindings(projectId: string) {
     const reportBtn = document.createElement('button');
     reportBtn.className = 'btn btn-ghost btn-sm';
     reportBtn.style.marginBottom = '8px';
-    reportBtn.textContent = `📄 View saved report (${new Date(savedReports[0].created_at).toLocaleDateString()})`;
+    reportBtn.textContent = `View saved report (${new Date(savedReports[0].created_at).toLocaleDateString()})`;
     reportBtn.addEventListener('click', () => {
       const reportArea = $('research-report-area');
       const findingsArea = $('research-findings-area');

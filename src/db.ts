@@ -26,7 +26,7 @@ async function runMigrations(db: Database) {
       skills TEXT, -- JSON array
       thinking_level TEXT DEFAULT 'normal',
       temperature REAL DEFAULT 1.0,
-      icon TEXT DEFAULT '🤖',
+      icon TEXT DEFAULT '',
       color TEXT DEFAULT '#0073EA',
       is_default INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
@@ -153,15 +153,15 @@ async function runMigrations(db: Database) {
   if (modes[0]?.count === 0) {
     await db.execute(
       `INSERT INTO agent_modes (id, name, model, system_prompt, icon, color, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ['default', 'General', null, '', '🤖', '#0073EA', 1]
+      ['default', 'General', null, '', 'G', '#0073EA', 1]
     );
     await db.execute(
       `INSERT INTO agent_modes (id, name, model, system_prompt, icon, color) VALUES (?, ?, ?, ?, ?, ?)`,
-      ['code-review', 'Code Review', null, 'You are a careful code reviewer. Focus on bugs, security issues, and performance problems. Be thorough and specific.', '🔍', '#A25DDC']
+      ['code-review', 'Code Review', null, 'You are a careful code reviewer. Focus on bugs, security issues, and performance problems. Be thorough and specific.', 'CR', '#A25DDC']
     );
     await db.execute(
       `INSERT INTO agent_modes (id, name, model, system_prompt, icon, color) VALUES (?, ?, ?, ?, ?, ?)`,
-      ['fast-chat', 'Quick Chat', null, 'Be concise and direct. Short answers preferred.', '⚡', '#FDAB3D']
+      ['fast-chat', 'Quick Chat', null, 'Be concise and direct. Short answers preferred.', 'QC', '#FDAB3D']
     );
   }
 }
@@ -200,7 +200,7 @@ export async function saveMode(mode: Partial<AgentMode> & { id: string; name: st
     `INSERT OR REPLACE INTO agent_modes (id, name, model, system_prompt, skills, thinking_level, temperature, icon, color, is_default, updated_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
     [mode.id, mode.name, mode.model ?? null, mode.system_prompt ?? '', mode.skills ?? '[]',
-     mode.thinking_level ?? 'normal', mode.temperature ?? 1.0, mode.icon ?? '🤖',
+     mode.thinking_level ?? 'normal', mode.temperature ?? 1.0, mode.icon ?? '',
      mode.color ?? '#0073EA', mode.is_default ?? 0]
   );
 }
