@@ -31,6 +31,7 @@ import type { MailPermissions } from './views/mail';
 import * as SkillsModule from './views/skills';
 import * as FoundryModule from './views/foundry';
 import * as ResearchModule from './views/research';
+import * as NodesModule from './views/nodes';
 
 // ── Global error handlers ──────────────────────────────────────────────────
 function crashLog(msg: string) {
@@ -118,6 +119,7 @@ const memoryView = $('memory-view');
 const skillsView = $('skills-view');
 const foundryView = $('foundry-view');
 const settingsView = $('settings-view');
+const nodesView = $('nodes-view');
 const statusDot = $('status-dot');
 const statusText = $('status-text');
 const chatMessages = $('chat-messages');
@@ -132,7 +134,7 @@ const allViews = [
   dashboardView, setupView, manualSetupView, installView,
   chatView, buildView, codeView, contentView, mailView,
   automationsView, channelsView, researchView, memoryView,
-  skillsView, foundryView, settingsView,
+  skillsView, foundryView, settingsView, nodesView,
 ].filter(Boolean);
 
 // ── Navigation ─────────────────────────────────────────────────────────────
@@ -156,6 +158,7 @@ function switchView(viewName: string) {
     content: contentView, mail: mailView, automations: automationsView,
     channels: channelsView, research: researchView, memory: memoryView,
     skills: skillsView, foundry: foundryView, settings: settingsView,
+    nodes: nodesView,
   };
   const target = viewMap[viewName];
   if (target) target.classList.add('active');
@@ -169,6 +172,7 @@ function switchView(viewName: string) {
       case 'automations': AutomationsModule.loadCron(); break;
       case 'skills': SkillsModule.loadSkills(); break;
       case 'foundry': FoundryModule.loadModels(); FoundryModule.loadModes(); FoundryModule.loadAgents(); break;
+      case 'nodes': NodesModule.loadNodes(); NodesModule.loadPairingRequests(); break;
       case 'memory': MemoryPalaceModule.loadMemoryPalace(); loadMemory(); break;
       case 'build': loadBuildProjects(); loadSpaceCron('build'); break;
       case 'mail': MailModule.loadMail(); loadSpaceCron('mail'); break;
@@ -283,6 +287,7 @@ gateway.on('_connected', () => {
   SkillsModule.setWsConnected(true);
   FoundryModule.setWsConnected(true);
   ResearchModule.setWsConnected(true);
+  NodesModule.setWsConnected(true);
   statusDot?.classList.add('connected');
   statusDot?.classList.remove('error');
   if (statusText) statusText.textContent = 'Connected';
@@ -295,6 +300,7 @@ gateway.on('_disconnected', () => {
   SkillsModule.setWsConnected(false);
   FoundryModule.setWsConnected(false);
   ResearchModule.setWsConnected(false);
+  NodesModule.setWsConnected(false);
   statusDot?.classList.remove('connected');
   statusDot?.classList.add('error');
   if (statusText) statusText.textContent = 'Reconnecting...';
@@ -2627,6 +2633,30 @@ function classifyMailPermission(toolName: string, args?: Record<string, unknown>
   return { perm: 'read', label: 'read' };
 }
 
+// ── Node gateway events ────────────────────────────────────────────────────
+gateway.on('node.pair.requested', (payload: unknown) => {
+  NodesModule.handleNodePairRequested(payload);
+});
+gateway.on('node.pair.resolved', (payload: unknown) => {
+  NodesModule.handleNodePairResolved(payload);
+});
+gateway.on('node.invoke.result', (payload: unknown) => {
+  const evt = payload as { nodeId?: string; command?: string; result?: unknown; error?: string };
+  console.log('[main] node.invoke.result:', evt);
+  // Refresh node list in case state changed
+  if (wsConnected && nodesView?.classList.contains('active')) {
+    NodesModule.loadNodes();
+  }
+});
+gateway.on('node.event', (payload: unknown) => {
+  const evt = payload as { nodeId?: string; event?: string; data?: unknown };
+  console.log('[main] node.event:', evt);
+  // Refresh node list (a node may have connected/disconnected)
+  if (wsConnected && nodesView?.classList.contains('active')) {
+    NodesModule.loadNodes();
+  }
+});
+
 gateway.on('exec.approval.requested', (payload: unknown) => {
   const evt = payload as Record<string, unknown>;
   const id = (evt.id ?? evt.approvalId) as string | undefined;
@@ -2757,6 +2787,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Research module events
     ResearchModule.configure({ promptModal });
     ResearchModule.initResearchEvents();
+
+    // Initialize Nodes module events
+    NodesModule.initNodesEvents();
+    NodesModule.configureCallbacks({
+      onCommandResult: (command, result) => {
+        console.log(`[main] Node command result: ${command}`, result);
+      },
+    });
 
     loadConfigFromStorage();
     console.log(`[main] After loadConfigFromStorage: configured=${config.configured} url="${config.gateway.url}" tokenLen=${config.gateway.token?.length ?? 0}`);

@@ -98,6 +98,15 @@
               </svg>
               <span>Research</span>
             </div>
+            <div class="nav-item" data-view="nodes">
+              <svg class="icon" viewBox="0 0 24 24">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+                <line x1="6" y1="6" x2="6.01" y2="6"/>
+                <line x1="6" y1="18" x2="6.01" y2="18"/>
+              </svg>
+              <span>Nodes</span>
+            </div>
           </div>
           
           <div class="nav-section">
@@ -835,6 +844,30 @@
               <button class="btn btn-ghost" id="channel-setup-cancel">Cancel</button>
               <button class="btn btn-primary" id="channel-setup-save">Save &amp; Connect</button>
             </div>
+          </div>
+        </div>
+
+        <!-- ═══ Nodes View — Device Management ═══ -->
+        <div class="view nodes-layout" id="nodes-view">
+          <div class="nodes-sidebar">
+            <div class="nodes-sidebar-header">
+              <span class="nodes-sidebar-title">Nodes</span>
+              <button class="btn-icon" id="nodes-refresh" title="Refresh nodes">
+                <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+              </button>
+            </div>
+            <div class="nodes-list" id="nodes-list"></div>
+            <div id="nodes-pairing-requests"></div>
+          </div>
+          <div class="nodes-main">
+            <div class="nodes-toast" id="nodes-toast" style="display:none"></div>
+            <div class="view-loading" id="nodes-loading" style="display:none">Loading nodes…</div>
+            <div class="empty-state" id="nodes-empty" style="display:flex">
+              <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+              <div class="empty-title">No nodes connected</div>
+              <div class="empty-subtitle">Pair a device (iOS, Android, Mac) to use camera, location, clipboard, and more</div>
+            </div>
+            <div id="nodes-detail" style="display:none"></div>
           </div>
         </div>
 
