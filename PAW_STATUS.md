@@ -418,7 +418,7 @@ Wake word system for hands-free activation. Paw has **zero** coverage.
 | Mail permission enforcement | ✅ | Auto-denies email tools when Credential Vault permissions are disabled (read/send/delete/manage) |
 | Audit logging | ✅ | All approval decisions (and auto-blocks) logged to SQLite `credential_activity_log` |
 | Activity log viewer | ✅ | Collapsible log in mail sidebar showing allowed/blocked actions with timestamps |
-| Approval config UI | ✅ | `exec.approvals.get/set` → Settings section with allow list, deny list, ask policy editor |
+| Approval config UI | ✅ | `exec.approvals.get/set` → Settings section with radio-card policy selector (Ask/Allow/Block) + per-tool 3-way toggle rows (Allow/Ask/Block) + Add Rule prompt modal |
 
 ---
 
@@ -756,7 +756,7 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | Voice Wake | 2 | 2 | 0 | **100% typed** |
 | Nodes | 11 | 10 | 9 | **91%** ✅ |
 | Devices | 5 | 5 | 5 | **100%** ✅ |
-| Exec Approvals | 7 | 3 | 3 | 43% |
+| Exec Approvals | 7 | 3 | 3 | 43% (gateway get/set + resolve wired, node approvals NOT TYPED) |
 | Usage | 2 | 2 | 0 | **100% typed** |
 | System | 4 | 1 | 0 | 25% |
 | Wizard | 4 | 4 | 0 | **100% typed** |
@@ -861,14 +861,14 @@ These are features that OpenClaw already exposes via gateway methods. Paw just n
 #### 4e. System Presence
 21. **Connected clients card** — `system-presence` → show who/what is connected (devices, apps, CLI)
 
-#### 4f. Node Management
-22. **Nodes view** — `node.list` + `node.describe` → list paired nodes with caps/commands
-23. **Node pairing** — `node.pair.list/approve/reject` → approve iOS/Android nodes from Paw
-24. **Node invoke** — `node.invoke` → trigger camera.snap, screen.record, etc. from desktop
+#### ~~4f. Node Management~~ ✅ DONE
+22. ~~**Nodes view** — `node.list` + `node.describe` → list paired nodes with caps/commands~~
+23. ~~**Node pairing** — `node.pair.list/approve/reject` → approve iOS/Android nodes from Paw~~
+24. ~~**Node invoke** — `node.invoke` → trigger camera.snap, screen.record, etc. from desktop~~
 
-#### 4g. Device Pairing
-25. **Paired devices** — `device.pair.list/approve/reject` → manage trusted devices
-26. **Token management** — `device.token.rotate/revoke`
+#### ~~4g. Device Pairing~~ ✅ DONE
+25. ~~**Paired devices** — `device.pair.list/approve/reject` → manage trusted devices~~
+26. ~~**Token management** — `device.token.rotate/revoke`~~
 
 #### 4h. Voice Wake + Talk Mode
 27. **Wake words editor** — `voicewake.get/set` → manage wake word triggers
@@ -931,16 +931,16 @@ The gateway exposes its full API via WebSocket on `ws://127.0.0.1:{port}` (defau
 
 ## Summary
 
-**What works**: Chat (streaming + markdown + abort + mode selection + session management), Research (full flow), Channels (+ per-channel setup forms), Automations, Skills, Models/Modes/Multi-Agent (CRUD + detail view), Memory (with setup), Settings (+ gateway logs + usage stats + connected clients), Dashboard, Mail (full IMAP/SMTP setup via Himalaya + provider picker + credential vault + OS keychain + agent permissions + audit log + compose + inbox), Exec Approvals (live modal + resolve + permission enforcement). The core gateway integration is solid and expanding.
+**What works**: Chat (streaming + markdown + abort + mode selection + session management + retry + attachments + image preview), Research (full flow), Channels (+ per-channel setup forms), Automations, Skills, Models/Modes/Multi-Agent (CRUD + detail view), Memory (with setup), Settings (+ gateway logs + usage stats + connected clients + device pairing + tool approval toggle UI), Dashboard, Mail (full IMAP/SMTP setup via Himalaya + provider picker + credential vault + OS keychain + agent permissions + audit log + compose + inbox), Node Management (list + describe + invoke + pairing), Exec Approvals (live approval modal + resolve + permission enforcement + visual toggle config UI). The core gateway integration is solid and expanding.
 
 **What's broken**: Build/Content chat responses still not routed, Code view is empty.
 
-**What's missing entirely**: TTS (6 methods), Talk Mode (2), Voice Wake (2), Node Management (11), Device Pairing (5), Usage Tracking (2), Onboarding Wizard (4), Self-Update (1), Browser Control (1). That's **~34 gateway methods with zero coverage** — though this is down from 42 at last audit.
+**What's missing entirely**: TTS (6 methods), Talk Mode (2), Voice Wake (2), Usage Tracking (2), Onboarding Wizard (4), Self-Update (1), Browser Control (1). That's **~18 gateway methods with zero UI coverage**.
 
-**Coverage reality**: Paw calls **~32 of ~88 gateway methods** (**~36% protocol coverage**). 4 of 18 gateway events are consumed. The gateway WebSocket client (`gateway.ts`) is well-structured, and every feature sprint proves that adding new methods is straightforward (add type -> add wrapper -> add UI).
+**Coverage reality**: Paw calls **~46 of ~88 gateway methods** (**~52% protocol coverage**). 8 of 18 gateway events are consumed (node.added, node.removed, node.pair.requested, node.pair.resolved, device.pair.requested, device.pair.resolved, exec.approval.requested, agent deltas). The gateway WebSocket client (`gateway.ts`) is well-structured, and every feature sprint proves that adding new methods is straightforward (add type -> add wrapper -> add UI).
 
 **Security posture**: Mail credentials stored in OS keychain (macOS Keychain / libsecret), Himalaya config.toml chmod 600, passwords never returned to JS frontend, agent email actions enforced via per-account permission toggles, all activity logged to SQLite audit trail.
 
-**Core insight**: Phases 1-16 moved Paw from a demo-quality shell (~26% coverage, broken wiring, empty views) to a functional desktop client (~36% coverage, real security, working mail). The remaining work is mostly Phase 4 "free features" (gateway methods that just need UI) and Phase 6 polish.
+**Core insight**: Phases 1-16 moved Paw from a demo-quality shell (~26% coverage, broken wiring, empty views) to a functional desktop client (~52% coverage, real security, working mail, nodes, device pairing, visual tool approvals). The remaining work is mostly Phase 4 "free features" (gateway methods that just need UI) and Phase 6 polish.
 
-**Priority for "works out of the box" goal**: Onboarding Wizard + Self-Update + Exec Approvals + Usage Tracking are the highest impact for non-technical users.
+**Priority for "works out of the box" goal**: Onboarding Wizard + Self-Update + Usage Tracking are the highest impact remaining items for non-technical users. Exec Approvals config UI is now fully wired with visual toggles.
