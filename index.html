@@ -794,18 +794,48 @@
         <div class="view list-view" id="channels-view">
           <div class="view-header">
             <h1 class="view-title">Channels</h1>
-            <button class="btn btn-ghost btn-sm" id="refresh-channels-btn">
-              <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-              Refresh
-            </button>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-primary btn-sm" id="add-channel-btn">
+                <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Channel
+              </button>
+              <button class="btn btn-ghost btn-sm" id="refresh-channels-btn">
+                <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Refresh
+              </button>
+            </div>
           </div>
           <div class="channel-grid" id="channels-list"></div>
           <div class="empty-state" id="channels-empty">
             <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/><rect x="1" y="6" width="14" height="12" rx="2"/></svg></div>
             <div class="empty-title">No channels configured</div>
-            <div class="empty-subtitle">Configure channels in your openclaw.json — Telegram, Discord, WhatsApp, Signal, Slack</div>
+            <div class="empty-subtitle">Connect your agent to messaging platforms</div>
+            <div class="channel-picker-grid" id="channels-picker-empty">
+              <button class="channel-pick-btn" data-ch-type="telegram"><span class="channel-pick-icon telegram">✈️</span><span>Telegram</span></button>
+              <button class="channel-pick-btn" data-ch-type="discord"><span class="channel-pick-icon discord">🎮</span><span>Discord</span></button>
+              <button class="channel-pick-btn" data-ch-type="whatsapp"><span class="channel-pick-icon whatsapp">💬</span><span>WhatsApp</span></button>
+              <button class="channel-pick-btn" data-ch-type="slack"><span class="channel-pick-icon slack">💼</span><span>Slack</span></button>
+              <button class="channel-pick-btn" data-ch-type="signal"><span class="channel-pick-icon signal">🔒</span><span>Signal</span></button>
+            </div>
           </div>
           <div class="view-loading" id="channels-loading" style="display:none">Loading channels…</div>
+
+          <!-- Channel Setup Modal -->
+          <div class="modal-overlay" id="channel-setup-modal" style="display:none">
+            <div class="modal-card channel-setup-modal-inner">
+              <div class="modal-header">
+                <h2 id="channel-setup-title">Set Up Channel</h2>
+                <button class="btn-icon" id="channel-setup-close">&times;</button>
+              </div>
+              <div class="modal-body" id="channel-setup-body">
+                <!-- Filled dynamically -->
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-ghost" id="channel-setup-cancel">Cancel</button>
+                <button class="btn btn-primary" id="channel-setup-save">Save &amp; Connect</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ═══ Research View — Agent-powered research ═══ -->

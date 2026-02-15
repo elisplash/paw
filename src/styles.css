@@ -2336,6 +2336,111 @@ button:focus:not(:focus-visible) { outline: none; }
   display: flex;
   gap: 6px;
   margin-top: auto;
+  flex-wrap: wrap;
+}
+
+/* ── Channel Picker Grid (empty state + add modal) ── */
+.channel-picker-grid {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.channel-pick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 100px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.channel-pick-btn:hover {
+  border-color: var(--blue);
+  background: var(--blue-subtle);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+.channel-pick-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+.channel-pick-icon.telegram { background: #e3f2fd; }
+.channel-pick-icon.discord { background: #ede7f6; }
+.channel-pick-icon.whatsapp { background: #e8f5e9; }
+.channel-pick-icon.signal { background: #e3f2fd; }
+.channel-pick-icon.slack { background: #fff3e0; }
+.channel-pick-icon.default { background: var(--bg-primary); }
+
+/* ── Channel Setup Modal ── */
+.channel-setup-modal-inner {
+  max-width: 520px;
+  width: 100%;
+}
+.channel-setup-desc {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+.form-group {
+  margin-bottom: 16px;
+}
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.form-label .required {
+  color: var(--error);
+}
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  transition: border-color var(--transition-fast);
+  box-sizing: border-box;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-subtle);
+}
+select.form-input {
+  appearance: auto;
+  cursor: pointer;
+}
+.form-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
 }
 
 /* ═══ Skills Grid ═══ */

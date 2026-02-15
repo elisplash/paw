@@ -1042,6 +1042,335 @@ const CHANNEL_CLASSES: Record<string, string> = {
   telegram: 'telegram', discord: 'discord', whatsapp: 'whatsapp', signal: 'signal', slack: 'slack',
 };
 
+// ── Channel Setup Definitions ──────────────────────────────────────────────
+interface ChannelField {
+  key: string;
+  label: string;
+  type: 'text' | 'password' | 'select' | 'toggle';
+  placeholder?: string;
+  hint?: string;
+  required?: boolean;
+  options?: { value: string; label: string }[];
+  defaultValue?: string | boolean;
+  sensitive?: boolean;
+}
+
+interface ChannelSetupDef {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  fields: ChannelField[];
+  /** Build the config patch from form values */
+  buildConfig: (values: Record<string, string | boolean>) => Record<string, unknown>;
+}
+
+const CHANNEL_SETUPS: ChannelSetupDef[] = [
+  {
+    id: 'telegram',
+    name: 'Telegram',
+    icon: '✈️',
+    description: 'Connect your agent to Telegram via a Bot token from @BotFather.',
+    fields: [
+      { key: 'botToken', label: 'Bot Token', type: 'password', placeholder: '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11', hint: 'Get this from @BotFather on Telegram', required: true, sensitive: true },
+      { key: 'dmPolicy', label: 'DM Policy', type: 'select', options: [
+        { value: 'pairing', label: 'Pairing (approve via code)' },
+        { value: 'allowlist', label: 'Allowlist only' },
+        { value: 'open', label: 'Open (anyone can DM)' },
+        { value: 'disabled', label: 'Disabled' },
+      ], defaultValue: 'pairing' },
+      { key: 'groupPolicy', label: 'Group Policy', type: 'select', options: [
+        { value: 'allowlist', label: 'Allowlist only' },
+        { value: 'open', label: 'Open (any group)' },
+        { value: 'disabled', label: 'Disabled' },
+      ], defaultValue: 'allowlist' },
+      { key: 'allowFrom', label: 'Allowed Users', type: 'text', placeholder: 'User IDs or usernames, comma-separated', hint: 'Leave blank for pairing mode' },
+    ],
+    buildConfig: (v) => ({
+      channels: { telegram: {
+        enabled: true,
+        botToken: v.botToken as string,
+        dmPolicy: v.dmPolicy as string || 'pairing',
+        groupPolicy: v.groupPolicy as string || 'allowlist',
+        ...(v.allowFrom ? { allowFrom: (v.allowFrom as string).split(',').map(s => s.trim()).filter(Boolean) } : {}),
+      }},
+    }),
+  },
+  {
+    id: 'discord',
+    name: 'Discord',
+    icon: '🎮',
+    description: 'Connect to Discord with a bot token from the Developer Portal.',
+    fields: [
+      { key: 'token', label: 'Bot Token', type: 'password', placeholder: 'Your Discord bot token', hint: 'From discord.com/developers → Bot → Token', required: true, sensitive: true },
+      { key: 'dmPolicy', label: 'DM Policy', type: 'select', options: [
+        { value: 'pairing', label: 'Pairing (approve via code)' },
+        { value: 'allowlist', label: 'Allowlist only' },
+        { value: 'open', label: 'Open (anyone can DM)' },
+        { value: 'disabled', label: 'Disabled' },
+      ], defaultValue: 'pairing' },
+      { key: 'groupPolicy', label: 'Server Policy', type: 'select', options: [
+        { value: 'open', label: 'Open (respond in allowed channels)' },
+        { value: 'allowlist', label: 'Allowlist only' },
+        { value: 'disabled', label: 'Disabled' },
+      ], defaultValue: 'open' },
+      { key: 'allowFrom', label: 'Allowed Users', type: 'text', placeholder: 'Discord usernames, comma-separated', hint: 'Leave blank for pairing mode' },
+    ],
+    buildConfig: (v) => ({
+      channels: { discord: {
+        enabled: true,
+        token: v.token as string,
+        dm: {
+          enabled: true,
+          policy: v.dmPolicy as string || 'pairing',
+          ...(v.allowFrom ? { allowFrom: (v.allowFrom as string).split(',').map(s => s.trim()).filter(Boolean) } : {}),
+        },
+        groupPolicy: v.groupPolicy as string || 'open',
+      }},
+    }),
+  },
+  {
+    id: 'whatsapp',
+    name: 'WhatsApp',
+    icon: '💬',
+    description: 'Connect to WhatsApp via QR code pairing — no token needed.',
+    fields: [
+      { key: 'dmPolicy', label: 'DM Policy', type: 'select', options: [
+        { value: 'pairing', label: 'Pairing (approve via code)' },
+        { value: 'allowlist', label: 'Allowlist only' },
+        { value: 'open', label: 'Open (anyone can DM)' },
+        { value: 'disabled', label: 'Disabled' },
+      ], defaultValue: 'pairing' },
+      { key: 'groupPolicy', label: 'Group Policy', type: 'select', options: [
+        { value: 'allowlist', label: 'Allowlist only' },
+        { value: 'open', label: 'Open (any group)' },
+        { value: 'disabled', label: 'Disabled' },
+      ], defaultValue: 'allowlist' },
+      { key: 'allowFrom', label: 'Allowed Phone Numbers', type: 'text', placeholder: '+15551234567, +15559876543', hint: 'E.164 format. Leave blank for pairing mode.' },
+    ],
+    buildConfig: (v) => ({
+      channels: { whatsapp: {
+        enabled: true,
+        dmPolicy: v.dmPolicy as string || 'pairing',
+        groupPolicy: v.groupPolicy as string || 'allowlist',
+        ...(v.allowFrom ? { allowFrom: (v.allowFrom as string).split(',').map(s => s.trim()).filter(Boolean) } : {}),
+      }},
+    }),
+  },
+  {
+    id: 'slack',
+    name: 'Slack',
+    icon: '💼',
+    description: 'Connect to Slack using Socket Mode (bot + app tokens).',
+    fields: [
+      { key: 'botToken', label: 'Bot Token', type: 'password', placeholder: 'xoxb-...', hint: 'OAuth Bot Token from Slack app settings', required: true, sensitive: true },
+      { key: 'appToken', label: 'App Token', type: 'password', placeholder: 'xapp-...', hint: 'App-Level Token (connections:write scope)', required: true, sensitive: true },
+      { key: 'dmPolicy', label: 'DM Policy', type: 'select', options: [
+        { value: 'pairing', label: 'Pairing (approve via code)' },
+        { value: 'allowlist', label: 'Allowlist only' },
+        { value: 'open', label: 'Open (anyone can DM)' },
+        { value: 'disabled', label: 'Disabled' },
+      ], defaultValue: 'pairing' },
+      { key: 'allowFrom', label: 'Allowed Users', type: 'text', placeholder: 'Slack usernames, comma-separated', hint: 'Leave blank for pairing mode' },
+    ],
+    buildConfig: (v) => ({
+      channels: { slack: {
+        enabled: true,
+        botToken: v.botToken as string,
+        appToken: v.appToken as string,
+        mode: 'socket',
+        dm: {
+          enabled: true,
+          policy: v.dmPolicy as string || 'pairing',
+          ...(v.allowFrom ? { allowFrom: (v.allowFrom as string).split(',').map(s => s.trim()).filter(Boolean) } : {}),
+        },
+      }},
+    }),
+  },
+  {
+    id: 'signal',
+    name: 'Signal',
+    icon: '🔒',
+    description: 'Connect to Signal via signal-cli. Requires signal-cli installed.',
+    fields: [
+      { key: 'account', label: 'Phone Number', type: 'text', placeholder: '+15551234567', hint: 'E.164 phone number registered with signal-cli', required: true },
+      { key: 'cliPath', label: 'signal-cli Path', type: 'text', placeholder: 'signal-cli', hint: 'Path to signal-cli binary (default: signal-cli)', defaultValue: 'signal-cli' },
+      { key: 'dmPolicy', label: 'DM Policy', type: 'select', options: [
+        { value: 'pairing', label: 'Pairing (approve via code)' },
+        { value: 'allowlist', label: 'Allowlist only' },
+        { value: 'open', label: 'Open (anyone can DM)' },
+        { value: 'disabled', label: 'Disabled' },
+      ], defaultValue: 'pairing' },
+      { key: 'allowFrom', label: 'Allowed Phone Numbers', type: 'text', placeholder: '+15559876543', hint: 'E.164 format. Leave blank for pairing mode.' },
+    ],
+    buildConfig: (v) => ({
+      channels: { signal: {
+        enabled: true,
+        account: v.account as string,
+        ...(v.cliPath && v.cliPath !== 'signal-cli' ? { cliPath: v.cliPath as string } : {}),
+        dmPolicy: v.dmPolicy as string || 'pairing',
+        ...(v.allowFrom ? { allowFrom: (v.allowFrom as string).split(',').map(s => s.trim()).filter(Boolean) } : {}),
+      }},
+    }),
+  },
+];
+
+let _channelSetupType: string | null = null;
+
+function openChannelSetup(channelType: string) {
+  const def = CHANNEL_SETUPS.find(c => c.id === channelType);
+  if (!def) return;
+  _channelSetupType = channelType;
+
+  const title = $('channel-setup-title');
+  const body = $('channel-setup-body');
+  const modal = $('channel-setup-modal');
+  if (!title || !body || !modal) return;
+
+  title.textContent = `Set Up ${def.name}`;
+
+  let html = `<p class="channel-setup-desc">${escHtml(def.description)}</p>`;
+  for (const field of def.fields) {
+    html += `<div class="form-group">`;
+    html += `<label class="form-label" for="ch-field-${field.key}">${escHtml(field.label)}${field.required ? ' <span class="required">*</span>' : ''}</label>`;
+
+    if (field.type === 'select' && field.options) {
+      html += `<select class="form-input" id="ch-field-${field.key}" data-ch-field="${field.key}">`;
+      for (const opt of field.options) {
+        const sel = opt.value === (field.defaultValue ?? '') ? ' selected' : '';
+        html += `<option value="${escAttr(opt.value)}"${sel}>${escHtml(opt.label)}</option>`;
+      }
+      html += `</select>`;
+    } else if (field.type === 'toggle') {
+      const checked = field.defaultValue ? ' checked' : '';
+      html += `<label class="toggle-label"><input type="checkbox" id="ch-field-${field.key}" data-ch-field="${field.key}"${checked}> Enabled</label>`;
+    } else {
+      const inputType = field.type === 'password' ? 'password' : 'text';
+      const val = typeof field.defaultValue === 'string' ? ` value="${escAttr(field.defaultValue)}"` : '';
+      html += `<input class="form-input" id="ch-field-${field.key}" data-ch-field="${field.key}" type="${inputType}" placeholder="${escAttr(field.placeholder ?? '')}"${val}>`;
+    }
+
+    if (field.hint) {
+      html += `<div class="form-hint">${escHtml(field.hint)}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  body.innerHTML = html;
+  modal.style.display = '';
+}
+
+function closeChannelSetup() {
+  const modal = $('channel-setup-modal');
+  if (modal) modal.style.display = 'none';
+  _channelSetupType = null;
+}
+
+async function saveChannelSetup() {
+  if (!_channelSetupType || !wsConnected) return;
+  const def = CHANNEL_SETUPS.find(c => c.id === _channelSetupType);
+  if (!def) return;
+
+  // Gather field values
+  const values: Record<string, string | boolean> = {};
+  for (const field of def.fields) {
+    const el = $(`ch-field-${field.key}`);
+    if (!el) continue;
+    if (field.type === 'toggle') {
+      values[field.key] = (el as HTMLInputElement).checked;
+    } else {
+      values[field.key] = ((el as HTMLInputElement | HTMLSelectElement).value ?? '').trim();
+    }
+  }
+
+  // Validate required fields
+  for (const field of def.fields) {
+    if (field.required && !values[field.key]) {
+      showToast(`${field.label} is required`, 'error');
+      $(`ch-field-${field.key}`)?.focus();
+      return;
+    }
+  }
+
+  const saveBtn = $('channel-setup-save') as HTMLButtonElement | null;
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+
+  try {
+    // Build the config patch from the setup definition
+    const patch = def.buildConfig(values);
+
+    // First, get current config to deep-merge channels
+    const current = await gateway.configGet();
+    const currentChannels = (current.config as Record<string, unknown>)?.channels as Record<string, unknown> ?? {};
+    const patchChannels = (patch as Record<string, unknown>).channels as Record<string, unknown>;
+
+    // Merge: keep existing channel configs, add/replace this one
+    const mergedChannels = { ...currentChannels, ...patchChannels };
+    await gateway.configPatch({ channels: mergedChannels });
+
+    showToast(`${def.name} configured!`, 'success');
+    closeChannelSetup();
+
+    // Reload channels after a brief delay (gateway needs to initialize the channel)
+    setTimeout(() => loadChannels(), 1500);
+  } catch (e) {
+    showToast(`Failed to save: ${e instanceof Error ? e.message : e}`, 'error');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save & Connect'; }
+  }
+}
+
+// Wire up channel setup UI
+$('channel-setup-close')?.addEventListener('click', closeChannelSetup);
+$('channel-setup-cancel')?.addEventListener('click', closeChannelSetup);
+$('channel-setup-save')?.addEventListener('click', saveChannelSetup);
+$('channel-setup-modal')?.addEventListener('click', (e) => {
+  if ((e.target as HTMLElement).id === 'channel-setup-modal') closeChannelSetup();
+});
+
+// "Add Channel" button in header opens a picker
+$('add-channel-btn')?.addEventListener('click', () => {
+  // If there are no channels shown, the empty-state picker is already visible.
+  // Otherwise, show a quick-pick via the setup modal with channel selection.
+  const body = $('channel-setup-body');
+  const title = $('channel-setup-title');
+  const modal = $('channel-setup-modal');
+  const footer = $('channel-setup-save') as HTMLButtonElement | null;
+  if (!body || !title || !modal) return;
+
+  _channelSetupType = null;
+  title.textContent = 'Add Channel';
+  if (footer) footer.style.display = 'none';
+
+  let html = '<div class="channel-picker-grid">';
+  for (const def of CHANNEL_SETUPS) {
+    html += `<button class="channel-pick-btn" data-ch-pick="${def.id}">
+      <span class="channel-pick-icon ${CHANNEL_CLASSES[def.id] ?? 'default'}">${def.icon}</span>
+      <span>${escHtml(def.name)}</span>
+    </button>`;
+  }
+  html += '</div>';
+  body.innerHTML = html;
+
+  // Wire picks
+  body.querySelectorAll('[data-ch-pick]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (footer) footer.style.display = '';
+      openChannelSetup((btn as HTMLElement).dataset.chPick!);
+    });
+  });
+
+  modal.style.display = '';
+});
+
+// Wire empty-state channel picker buttons
+document.querySelectorAll('#channels-picker-empty .channel-pick-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const chType = (btn as HTMLElement).dataset.chType;
+    if (chType) openChannelSetup(chType);
+  });
+});
+
 async function loadChannels() {
   const list = $('channels-list');
   const empty = $('channels-empty');
@@ -1089,6 +1418,8 @@ async function loadChannels() {
         <div class="channel-card-actions">
           ${!linked && configured ? `<button class="btn btn-primary btn-sm ch-login" data-ch="${escAttr(id)}">Login</button>` : ''}
           ${linked ? `<button class="btn btn-ghost btn-sm ch-logout" data-ch="${escAttr(id)}">Logout</button>` : ''}
+          ${CHANNEL_SETUPS.find(c => c.id === lId) ? `<button class="btn btn-ghost btn-sm ch-edit" data-ch="${escAttr(lId)}">Edit</button>` : ''}
+          ${configured ? `<button class="btn btn-ghost btn-sm ch-remove" data-ch="${escAttr(lId)}" title="Remove channel">Remove</button>` : ''}
           <button class="btn btn-ghost btn-sm ch-refresh-single" data-ch="${escAttr(id)}">Refresh</button>
         </div>
       `;
@@ -1121,6 +1452,29 @@ async function loadChannels() {
     });
     list.querySelectorAll('.ch-refresh-single').forEach(btn => {
       btn.addEventListener('click', () => loadChannels());
+    });
+    list.querySelectorAll('.ch-edit').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const chId = (btn as HTMLElement).dataset.ch!;
+        openChannelSetup(chId);
+      });
+    });
+    list.querySelectorAll('.ch-remove').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const chId = (btn as HTMLElement).dataset.ch!;
+        if (!confirm(`Remove ${chId} channel configuration? This will disconnect the channel.`)) return;
+        try {
+          const current = await gateway.configGet();
+          const cfg = current.config as Record<string, unknown>;
+          const channels = { ...(cfg?.channels as Record<string, unknown> ?? {}) };
+          delete channels[chId];
+          await gateway.configPatch({ channels });
+          showToast(`${chId} removed`, 'success');
+          setTimeout(() => loadChannels(), 1000);
+        } catch (e) {
+          showToast(`Remove failed: ${e instanceof Error ? e.message : e}`, 'error');
+        }
+      });
     });
   } catch (e) {
     console.warn('Channels load failed:', e);
