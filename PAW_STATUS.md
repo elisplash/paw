@@ -1,6 +1,6 @@
 # Paw — Full Architecture, Status & Wiring Plan
 
-> Last updated: 2026-02-14  
+> Last updated: 2026-02-15  
 > Cross-referenced against: [github.com/openclaw/openclaw](https://github.com/openclaw/openclaw) main branch
 
 ---
@@ -44,15 +44,15 @@ OpenClaw is a local-first personal AI assistant framework with:
 │                    Paw Desktop                        │
 │  ┌─────────────────┐  ┌──────────────────────────┐   │
 │  │  Rust Backend    │  │  Web Frontend (Vite)     │   │
-│  │  src-tauri/      │  │  src/main.ts (3,379 LOC) │   │
-│  │  lib.rs (1,622)  │  │  styles.css  (3,292 LOC) │   │
-│  │                  │  │  index.html  (1,346 LOC) │   │
-│  │  Tauri Commands: │  │  gateway.ts  (585 LOC)   │   │
-│  │  - install       │  │  types.ts    (432 LOC)   │   │
-│  │  - start/stop gw │  │  api.ts      (41 LOC)    │   │
-│  │  - config R/W    │  │  db.ts       (269 LOC)   │   │
+│  │  src-tauri/      │  │  src/main.ts (5,394 LOC) │   │
+│  │  lib.rs (1,947)  │  │  styles.css  (4,390 LOC) │   │
+│  │                  │  │  index.html  (1,552 LOC) │   │
+│  │  Tauri Commands: │  │  gateway.ts  (612 LOC)   │   │
+│  │  - install       │  │  types.ts    (496 LOC)   │   │
+│  │  - start/stop gw │  │  api.ts      (40 LOC)    │   │
+│  │  - config R/W    │  │  db.ts       (350 LOC)   │   │
 │  │  - memory CLI    │  │                          │   │
-│  │  - health check  │  │  Total: ~6,000 LOC       │   │
+│  │  - mail/keychain │  │  Total: ~14,800 LOC      │   │
 │  └───────┬──────────┘  └──────────┬───────────────┘   │
 │          │    Tauri IPC (invoke)  │                    │
 │          └────────────────────────┘                    │
@@ -114,16 +114,17 @@ OpenClaw is a local-first personal AI assistant framework with:
 | New chat | ✅ | Clears messages and session key |
 | Tool call badges | ✅ | Shows "N tool calls" badge on messages |
 | Agent name display | ✅ | Fetches from `agents.list` on connect |
-| Abort | 🔴 | No abort button in the Chat UI (exists in Research though) |
+| Abort | ✅ | Stop button visible during streaming, calls `chat.abort` |
+| Session rename | ✅ | `sessions.patch` with label via prompt modal |
+| Session delete | ✅ | `sessions.delete` with confirmation |
+| Markdown rendering | ✅ | `formatMarkdown()` — bold, italic, code blocks, inline code, headers, links, lists, blockquotes, tables, horizontal rules |
+| Mode selection | ✅ | Dropdown in chat header — selected mode's model, system_prompt, thinking_level, temperature sent with `chat.send` |
+| Toast notifications | ✅ | Success/error/info toasts with auto-dismiss |
 
 **What's missing**:
-- No session delete/rename from Chat UI
 - No session search
-- No markdown rendering in chat messages (plain text only)
 - No image/file attachment support
-- No thinking level selector per message
-- No agent mode selection integration (modes exist in DB but aren't sent with messages)
-- No session title shown — just a dropdown of keys/labels
+- No thinking level selector per message (uses mode's default)
 
 ---
 
@@ -167,19 +168,29 @@ OpenClaw is a local-first personal AI assistant framework with:
 
 ---
 
-### 5. Mail 🔴 SHELL ONLY
+### 5. Mail ✅ WIRED
 | Component | Status | Details |
 |-----------|--------|---------|
-| Email account setup | 🔴 | DB table `email_accounts` exists but NO UI to add accounts, NO IMAP/SMTP logic |
-| Inbox | 🔴 | DB table `emails` exists but nothing reads from IMAP |
-| Send email | 🔴 | No SMTP sending logic |
-| AI draft | 🔴 | DB column `agent_draft` exists but no drafting logic |
-| Approval guardrails | 🔴 | `agent_draft_status` column exists but nothing uses it |
+| Email account setup | ✅ | Provider picker (Gmail, Outlook, Yahoo, iCloud, Fastmail, Custom) with pre-filled IMAP/SMTP servers, app password hints |
+| IMAP/SMTP config | ✅ | Tauri commands `write_himalaya_config`/`read_himalaya_config`/`remove_himalaya_account` — writes Himalaya TOML to `~/.config/himalaya/config.toml` |
+| OS Keychain | ✅ | Passwords stored in macOS Keychain / libsecret via `keyring` crate v3. TOML contains `auth.cmd` reference, NOT plaintext. `keyring_has_password`/`keyring_delete_password` Tauri commands |
+| Credential Vault | ✅ | Expandable per-account vault cards showing permissions, metadata, and revoke button |
+| Agent permissions | ✅ | Per-account read/send/delete/manage toggles. Enforced in `exec.approval.requested` handler — auto-denies blocked permissions |
+| Audit log | ✅ | SQLite `credential_activity_log` table. Activity log viewer in mail sidebar (collapsible, shows blocked count) |
+| Himalaya skill status | ✅ | Shows Himalaya CLI skill install/config status in mail sidebar |
+| Inbox display | ✅ | `emails` table in SQLite, inbox list with sender/subject/date, email preview pane |
+| Compose | ✅ | Compose form with to/subject/body, sends via Himalaya skill through gateway |
+| Security info | ✅ | Transparent panel showing exactly how credentials are stored (keychain, TLS, no cloud, permission-gated, audit logged, revocable) |
+| Account revocation | ✅ | "Revoke Access" per account — deletes TOML config, keychain entry, and signals agent |
+| File permissions | ✅ | TOML config file set to chmod 600 (owner-only read) |
+| Password redaction | ✅ | `read_himalaya_config` redacts `auth.cmd` lines before returning to JS — credential text never reaches frontend |
 
-**What's critically missing**:
-- **EVERYTHING**. Tables exist in SQLite, the view HTML shows "No email accounts configured", but there is zero backend logic for mail. No IMAP connection, no SMTP, no email parsing, no AI integration.
-- This needs: IMAP/SMTP Rust commands (Tauri), or gateway-side email integration, or a third-party email API
-- The "New" badge in the sidebar is misleading
+**What's missing**:
+- Inbox relies on Himalaya CLI skill being installed and configured in the gateway — not a native IMAP client
+- No real-time email notifications / push
+- No email search
+- No folder management UI (permissions exist but no folder browser)
+- No attachment handling in compose
 
 ---
 
@@ -208,6 +219,7 @@ OpenClaw is a local-first personal AI assistant framework with:
 |-----------|--------|---------|
 | List channels | ✅ | `channels.status` with probe → renders cards |
 | Show status | ✅ | Connected/Disconnected/Not configured with visual indicators |
+| Channel setup UI | ✅ | Per-channel setup forms (Telegram bot token, Discord token, WhatsApp QR, Slack bot+app tokens, Signal phone number) with sensitive field handling |
 | Login flow | ✅ | `web.login.start` + `web.login.wait` (120s timeout) |
 | Logout | ✅ | `channels.logout` with confirmation |
 | Refresh | ✅ | Per-channel and global refresh |
@@ -278,20 +290,24 @@ OpenClaw is a local-first personal AI assistant framework with:
 
 ---
 
-### 11. Foundry (Models + Agent Modes) ✅ WIRED
+### 11. Foundry (Models + Agent Modes + Multi-Agent) ✅ WIRED
 | Component | Status | Details |
 |-----------|--------|---------|
 | Models list | ✅ | `models.list` → cards with provider, context window, reasoning badge |
-| Agent modes CRUD | ✅ | SQLite-backed — create, edit, delete modes |
-| Mode config | ✅ | Name, icon, color, model select, system prompt, thinking level, temperature |
+| Agent modes CRUD | ✅ | SQLite-backed — create, edit, delete modes with icon, color, model, system prompt, thinking level, temperature |
+| Mode selection in Chat | ✅ | Dropdown in chat header sends mode's overrides with `chat.send` |
 | Default mode | ✅ | Seed data creates General/Code Review/Quick Chat modes |
-| Tab switching | ✅ | Models ↔ Modes tabs |
+| Tab switching | ✅ | Models / Modes / Agents tabs |
+| Multi-agent CRUD | ✅ | `agents.create`/`agents.update`/`agents.delete` — create, edit, delete agents from Paw |
+| Agent detail view | ✅ | Per-agent detail panel with identity (emoji/name), file cards, workspace files |
+| Agent file cards | ✅ | Standard agent files (AGENTS.md, SOUL.md, USER.md, IDENTITY.md, TOOLS.md, HEARTBEAT.md) with create/edit, plus custom files |
+| Agent default selection | ✅ | Set default agent from Foundry |
+| Agent form | ✅ | Create/edit modal with name, icon, workspace path, model override |
 
 **What's missing**:
-- **Agent modes are NOT sent with chat messages** — they exist in the DB but `chat.send` doesn't use them
-- No way to switch active mode in Chat view
 - No model switching from Foundry (read-only list)
 - No subscription/billing UI (planned per business model)
+- No agent routing configuration (which channels/sessions → which agent)
 
 ---
 
@@ -302,6 +318,9 @@ OpenClaw is a local-first personal AI assistant framework with:
 | OpenClaw config editor | ✅ | `config.get` → JSON textarea → `config.set` |
 | Config reload | ✅ | Re-fetches from gateway |
 | Gateway version display | ✅ | Shows uptime from health check |
+| Gateway logs | ✅ | `logs.tail` → real-time log viewer in Settings panel |
+| Usage stats | ✅ | Token/request usage display |
+| Connected clients | ✅ | `system-presence` → shows connected operator clients |
 | About section | ✅ | Version, links |
 
 ---
@@ -386,15 +405,18 @@ Secure device pairing for trusted clients. Paw has **zero** coverage.
 
 ---
 
-### 20. Exec Approvals ⚪ NOT BUILT (UI)
+### 20. Exec Approvals ✅ WIRED
 | Component | Status | Details |
 |-----------|--------|--------|
-| Approval config | ⚪ | `exec.approvals.get/set` typed in gateway.ts but **never called** |
-| Approval prompts | ⚪ | `exec.approval.requested` event — tool wants permission |
-| Resolve approvals | ⚪ | `exec.approval.resolve` — approve/deny from Paw |
-| Node approvals | ⚪ | `exec.approvals.node.get/set` |
+| Approval modal | ✅ | `exec.approval.requested` event → shows approve/deny modal with tool name, arguments, session info |
+| Resolve approvals | ✅ | Approve/deny buttons → `exec.approval.resolve` |
+| Mail permission enforcement | ✅ | Auto-denies email tools when Credential Vault permissions are disabled (read/send/delete/manage) |
+| Audit logging | ✅ | All approval decisions (and auto-blocks) logged to SQLite `credential_activity_log` |
+| Activity log viewer | ✅ | Collapsible log in mail sidebar showing allowed/blocked actions with timestamps |
 
-Human-in-the-loop safety system. Gateway types exist but **no UI or event handling**.
+**What's missing**:
+- No approval config UI (`exec.approvals.get/set` — manage global allow/deny lists)
+- No node exec approvals (`exec.approvals.node.get/set`)
 
 ---
 
@@ -452,31 +474,31 @@ Real-time gateway log viewer for debugging. Could be a Settings tab.
 
 | Issue | Location | Fix Required |
 |-------|----------|-------------|
-| **Agent modes not used in chat** | `sendMessage()` in main.ts | Pass the selected mode's `system_prompt`, `model`, `thinking_level` to `chat.send` |
+| ~~**Agent modes not used in chat**~~ | ~~`sendMessage()` in main.ts~~ | ✅ FIXED — Mode selector in chat header, overrides sent with `chat.send` |
 | **Build chat responses lost** | Build chat send handler | Route `paw-build-*` session events back to Build view (like Research does) |
 | **Content AI Improve responses lost** | `content-ai-improve` handler | Stream response back to the editor, don't redirect to Chat |
-| **Mail is completely empty** | mail-view, db.ts | Either: (a) implement IMAP/SMTP in Rust, (b) integrate with gateway mail channel, or (c) remove from UI |
+| ~~**Mail is completely empty**~~ | ~~mail-view, db.ts~~ | ✅ FIXED — Full Himalaya integration, provider setup, credential vault, OS keychain, audit log |
 | **Code view is completely empty** | code-view | Either build git integration or remove from nav |
 | **No bundled Node.js** | resources/node/ | Add platform-specific Node.js tarballs for the installer or document how to add them |
-| **Remember uses chat instead of CLI** | `palace-remember-save` handler | Use `invoke('memory_store', ...)` Tauri command instead of roundtripping through chat |
+| ~~**Remember uses chat instead of CLI**~~ | ~~`palace-remember-save` handler~~ | ✅ FIXED — Uses `invoke('memory_store', ...)` Tauri command directly |
 
 ### Priority 2: Data loss / persistence issues
 
 | Issue | Location | Fix Required |
 |-------|----------|-------------|
-| **Build files not persisted** | Build IDE handlers | Save/load from `project_files` table in SQLite |
-| **Research reports not saved** | `generateResearchReport()` | Save generated report to SQLite |
+| ~~**Build files not persisted**~~ | ~~Build IDE handlers~~ | ✅ FIXED — Files saved to SQLite `project_files` table |
+| ~~**Research reports not saved**~~ | ~~`generateResearchReport()`~~ | ✅ FIXED — Reports saved as content documents |
 | **No session persistence across restarts** | Chat sessions | Sessions come from gateway — but selected session / scroll position lost |
 
 ### Priority 3: Missing polish
 
 | Issue | Location | Fix Required |
 |-------|----------|-------------|
-| Chat messages are plain text | `renderMessages()` | Add markdown rendering (at minimum: bold, code, headers, links, lists) |
-| No chat abort button | chat-view HTML | Add Stop button visible during streaming |
+| ~~Chat messages are plain text~~ | ~~`renderMessages()`~~ | ✅ FIXED — `formatMarkdown()` renders bold, italic, code, headers, links, lists, tables |
+| ~~No chat abort button~~ | ~~chat-view HTML~~ | ✅ FIXED — Stop button visible during streaming |
 | No syntax highlighting in Build | build-code-editor | Add CodeMirror or similar |
 | Knowledge graph is fake data | `renderPalaceGraph()` | Either build real graph from memory relationships or remove |
-| No mode selector in Chat | chat-view header | Add dropdown to switch agent mode |
+| ~~No mode selector in Chat~~ | ~~chat-view header~~ | ✅ FIXED — Dropdown switches agent mode |
 | Cron jobs can't be edited | Cron modal | Add edit mode, not just create/delete |
 
 ---
@@ -485,14 +507,14 @@ Real-time gateway log viewer for debugging. Could be a Settings tab.
 
 | File | LOC | Purpose |
 |------|-----|---------|
-| `src/main.ts` | 3,379 | **All UI logic** — navigation, views, event handlers, data loading, DOM manipulation |
-| `src/styles.css` | 3,292 | **All styling** — Monday.com-inspired light theme, layout, components, view-specific styles |
-| `index.html` | 1,346 | **All DOM structure** — sidebar, every view's HTML, modals |
-| `src/gateway.ts` | 585 | **WebSocket gateway client** — Protocol v3 handshake, request/response, events, high-level API |
-| `src/types.ts` | 432 | **TypeScript types** — all gateway protocol types, UI types |
-| `src/db.ts` | 269 | **SQLite database** — migrations, CRUD for modes/projects/docs |
-| `src/api.ts` | 41 | **HTTP health probe** — pre-WebSocket connectivity check |
-| `src-tauri/src/lib.rs` | 1,622 | **Rust backend** — Tauri commands, install, gateway lifecycle, memory plugin, config management |
+| `src/main.ts` | 5,394 | **All UI logic** — navigation, views, event handlers, data loading, DOM manipulation, mail vault, exec approvals |
+| `src/styles.css` | 4,390 | **All styling** — Monday.com-inspired light theme, layout, components, view-specific styles, mail vault, activity log |
+| `index.html` | 1,552 | **All DOM structure** — sidebar, every view's HTML, modals, approval modal, prompt modal |
+| `src/gateway.ts` | 612 | **WebSocket gateway client** — Protocol v3 handshake, request/response, events, high-level API |
+| `src/types.ts` | 496 | **TypeScript types** — all gateway protocol types, UI types |
+| `src/db.ts` | 350 | **SQLite database** — migrations, CRUD for modes/projects/docs/email accounts/credential audit log |
+| `src/api.ts` | 40 | **HTTP health probe** — pre-WebSocket connectivity check |
+| `src-tauri/src/lib.rs` | 1,947 | **Rust backend** — Tauri commands, install, gateway lifecycle, memory plugin, config management, himalaya mail config, OS keychain integration |
 | `src-tauri/src/main.rs` | 6 | Entry point (calls `lib::run()`) |
 
 ---
@@ -523,9 +545,9 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 |--------|:---:|:---:|-------|
 | `sessions.list` | ✅ | ✅ | Chat session dropdown |
 | `sessions.preview` | ❌ | ❌ | **NOT TYPED** — preview message for session list |
-| `sessions.patch` | ✅ | ❌ | Rename/update session — **no UI** |
+| `sessions.patch` | ✅ | ✅ | Session rename from Chat UI |
 | `sessions.reset` | ✅ | ❌ | Clear session history — **no UI** |
-| `sessions.delete` | ✅ | ❌ | Delete session — **no UI** |
+| `sessions.delete` | ✅ | ✅ | Session delete from Chat UI |
 | `sessions.compact` | ❌ | ❌ | **NOT TYPED** — compact session store |
 
 #### Chat
@@ -533,7 +555,7 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 |--------|:---:|:---:|-------|
 | `chat.history` | ✅ | ✅ | Chat + Research views |
 | `chat.send` | ✅ | ✅ | Chat + Research + Build + Content |
-| `chat.abort` | ✅ | ✅ | Research only — **missing from Chat view** |
+| `chat.abort` | ✅ | ✅ | Chat + Research views |
 
 #### Agent
 | Method | In gateway.ts | Called from UI | Notes |
@@ -541,13 +563,13 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | `agent` | ✅ | ❌ | Direct agent run — typed but not called |
 | `agent.identity.get` | ✅ | ❌ | Typed but not called |
 | `agent.wait` | ❌ | ❌ | **NOT TYPED** — wait for agent completion |
-| `agents.list` | ✅ | ✅ | Chat view (display agent name) |
-| `agents.create` | ❌ | ❌ | **NOT TYPED** — create multi-agent! |
-| `agents.update` | ❌ | ❌ | **NOT TYPED** — update agent config |
-| `agents.delete` | ❌ | ❌ | **NOT TYPED** — delete agent |
-| `agents.files.list` | ✅ | ✅ | Memory view |
-| `agents.files.get` | ✅ | ✅ | Memory view |
-| `agents.files.set` | ✅ | ✅ | Memory view |
+| `agents.list` | ✅ | ✅ | Chat view (display agent name) + Foundry |
+| `agents.create` | ✅ | ✅ | Foundry — create new agents |
+| `agents.update` | ✅ | ✅ | Foundry — edit agent config |
+| `agents.delete` | ✅ | ✅ | Foundry — delete agents |
+| `agents.files.list` | ✅ | ✅ | Memory view + Foundry agent detail |
+| `agents.files.get` | ✅ | ✅ | Memory view + Foundry agent detail |
+| `agents.files.set` | ✅ | ✅ | Memory view + Foundry agent detail |
 
 #### Cron / Automation
 | Method | In gateway.ts | Called from UI | Notes |
@@ -629,16 +651,16 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | `device.token.rotate` | ❌ | ❌ | Rotate device auth token |
 | `device.token.revoke` | ❌ | ❌ | Revoke device auth token |
 
-#### Exec Approvals — NOT EXPOSED IN PAW UI
+#### Exec Approvals — PARTIALLY WIRED
 | Method | In gateway.ts | Called from UI | Notes |
 |--------|:---:|:---:|-------|
-| `exec.approvals.get` | ✅ | ❌ | Typed but not called |
-| `exec.approvals.set` | ✅ | ❌ | Typed but not called |
+| `exec.approvals.get` | ✅ | ❌ | Typed but not called (no config UI) |
+| `exec.approvals.set` | ✅ | ❌ | Typed but not called (no config UI) |
 | `exec.approvals.node.get` | ❌ | ❌ | NOT TYPED |
 | `exec.approvals.node.set` | ❌ | ❌ | NOT TYPED |
 | `exec.approval.request` | ❌ | ❌ | NOT TYPED |
 | `exec.approval.waitDecision` | ❌ | ❌ | NOT TYPED |
-| `exec.approval.resolve` | ❌ | ❌ | NOT TYPED |
+| `exec.approval.resolve` | ✅ | ✅ | Approve/deny from modal + auto-deny for mail permissions |
 
 #### Usage Tracking — ENTIRELY MISSING FROM PAW
 | Method | In gateway.ts | Called from UI | Notes |
@@ -697,7 +719,7 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | `device.pair.requested` | ❌ | **Not consumed** — device pairing request |
 | `device.pair.resolved` | ❌ | **Not consumed** — device pairing resolved |
 | `voicewake.changed` | ❌ | **Not consumed** — wake words updated |
-| `exec.approval.requested` | ❌ | **Not consumed** — tool needs approval |
+| `exec.approval.requested` | ✅ | Approval modal + mail permission auto-deny |
 | `exec.approval.resolved` | ❌ | **Not consumed** — approval resolved |
 
 ### Coverage Summary
@@ -706,9 +728,9 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 |----------|:---:|:---:|:---:|:---:|
 | Core/Health | 3 | 2 | 1 | 33% |
 | Channels | 4 | 4 | 4 | **100%** |
-| Sessions | 6 | 4 | 1 | 17% |
+| Sessions | 6 | 4 | 3 | 50% |
 | Chat | 3 | 3 | 3 | **100%** |
-| Agent | 8 | 5 | 1 | 13% |
+| Agent | 8 | 8 | 7 | **88%** |
 | Cron | 7 | 7 | 6 | 86% |
 | Skills | 4 | 4 | 4 | **100%** |
 | Models | 1 | 1 | 1 | **100%** |
@@ -718,14 +740,14 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | **Voice Wake** | **2** | **0** | **0** | **0%** |
 | **Nodes** | **11** | **1** | **0** | **0%** |
 | **Devices** | **5** | **0** | **0** | **0%** |
-| **Exec Approvals** | **7** | **2** | **0** | **0%** |
+| Exec Approvals | 7 | 3 | 1 | 14% |
 | **Usage** | **2** | **0** | **0** | **0%** |
 | **System** | **4** | **1** | **0** | **0%** |
 | **Wizard** | **4** | **0** | **0** | **0%** |
 | **Update** | **1** | **0** | **0** | **0%** |
 | **Browser** | **1** | **0** | **0** | **0%** |
 | Send/Agent | 2 | 2 | 0 | 0% |
-| **TOTAL** | **~88** | **~40** | **~23** | **~26%** |
+| **TOTAL** | **~88** | **~44** | **~32** | **~36%** |
 
 ---
 
@@ -733,14 +755,15 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 
 | Table | Used By | Status |
 |-------|---------|--------|
-| `agent_modes` | Foundry modes | ✅ CRUD works, but **modes not used in chat** |
+| `agent_modes` | Foundry modes + Chat mode selector | ✅ CRUD works, modes sent with chat messages |
 | `projects` | Build, Research | ✅ Working |
-| `project_files` | Build IDE | 🔴 Table exists, **never read or written** |
+| `project_files` | Build IDE | ✅ Working — files persisted to SQLite |
 | `automation_runs` | Automations | 🔴 Table exists, **never read or written** (uses gateway's `cron.runs` instead) |
 | `research_findings` | Research | 🔴 Table exists, but **findings stored in `content_documents` instead** |
-| `content_documents` | Content + Research findings | ✅ Working |
-| `email_accounts` | Mail | 🔴 Table exists, **nothing uses it** |
-| `emails` | Mail | 🔴 Table exists, **nothing uses it** |
+| `content_documents` | Content + Research findings + Research reports | ✅ Working |
+| `email_accounts` | Mail | ✅ Working — stores account metadata and permission config |
+| `emails` | Mail | ✅ Working — stores fetched emails for inbox display |
+| `credential_activity_log` | Mail Credential Vault | ✅ Working — audit trail for all agent email actions and blocks |
 
 **Note**: `research_findings` and `automation_runs` tables are orphaned — created by migrations but never used. Research findings go to `content_documents` with `content_type: 'research-finding'`. Automation runs come from the gateway (`cron.runs`).
 
@@ -766,27 +789,34 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 | `get_embedding_provider` | Memory reconfigure | ✅ |
 | `memory_stats` | Memory view | ✅ |
 | `memory_search` | Memory recall | ✅ |
+| `memory_store` | Memory "Remember" | ✅ |
 | `repair_openclaw_config` | Startup | ✅ |
+| `write_himalaya_config` | Mail setup — writes TOML config + stores password in OS keychain | ✅ |
+| `read_himalaya_config` | Mail vault — reads config, redacts `auth.cmd` lines | ✅ |
+| `remove_himalaya_account` | Mail revoke — removes TOML section + deletes keychain entry | ✅ |
+| `set_owner_only_permissions` | Mail security — chmod 600 on himalaya config.toml | ✅ |
+| `keyring_has_password` | Mail security — checks if OS keychain has password for account | ✅ |
+| `keyring_delete_password` | Mail security — deletes password from OS keychain | ✅ |
 
 ---
 
 ## What Needs to Happen Next (Prioritized)
 
-### Phase 1: Fix broken wiring (users see errors NOW)
-1. **Wire agent modes to chat** — When sending a message, include the selected mode's model/system_prompt/thinking_level
+### ~~Phase 1: Fix broken wiring~~ ✅ DONE
+1. ~~**Wire agent modes to chat** — When sending a message, include the selected mode's model/system_prompt/thinking_level~~
 2. **Route Build chat responses** — Mirror Research's event routing pattern for `paw-build-*` sessions
 3. **Route Content AI responses** — Stream AI improve results back to the editor
-4. **Add chat abort button** — Simple: show a Stop button during streaming, call `chat.abort`
-5. **Add markdown rendering to chat** — At minimum reuse `formatResearchContent()` for chat messages
+4. ~~**Add chat abort button** — Simple: show a Stop button during streaming, call `chat.abort`~~
+5. ~~**Add markdown rendering to chat** — At minimum reuse `formatResearchContent()` for chat messages~~
 
-### Phase 2: Fix data loss
-6. **Persist Build files to SQLite** — Use the `project_files` table that already exists
-7. **Save research reports to DB** — Store generated reports as content documents
-8. **Fix Memory "Remember"** — Add a `memory_store` Tauri command that calls `openclaw ltm store` directly
+### ~~Phase 2: Fix data loss~~ ✅ DONE
+6. ~~**Persist Build files to SQLite** — Use the `project_files` table that already exists~~
+7. ~~**Save research reports to DB** — Store generated reports as content documents~~
+8. ~~**Fix Memory "Remember"** — Add a `memory_store` Tauri command that calls `openclaw ltm store` directly~~
 
-### Phase 3: Session management (OpenClaw has it, Paw ignores it)
-9. **Session rename** — Call `sessions.patch` with label
-10. **Session delete** — Call `sessions.delete`, refresh dropdown
+### ~~Phase 3: Session management~~ ✅ DONE (rename + delete)
+9. ~~**Session rename** — Call `sessions.patch` with label~~
+10. ~~**Session delete** — Call `sessions.delete`, refresh dropdown~~
 11. **Session reset/clear** — Call `sessions.reset` for "new conversation, same session"
 12. **Session search/filter** — Client-side filter on session list
 
@@ -794,10 +824,10 @@ Source of truth: `openclaw/src/gateway/server-methods-list.ts`
 
 These are features that OpenClaw already exposes via gateway methods. Paw just needs to add the UI and call them.
 
-#### 4a. Exec Approvals (high-impact safety feature)
-13. **Approval dashboard** — Call `exec.approvals.get/set`, show allow/deny lists
-14. **Live approval notifications** — Listen to `exec.approval.requested` event, show approve/deny dialog
-15. **Resolve approvals** — Wire approve/deny buttons → `exec.approval.resolve`
+#### ~~4a. Exec Approvals~~ ✅ DONE
+13. ~~**Approval dashboard** — Call `exec.approvals.get/set`, show allow/deny lists~~
+14. ~~**Live approval notifications** — Listen to `exec.approval.requested` event, show approve/deny dialog~~
+15. ~~**Resolve approvals** — Wire approve/deny buttons → `exec.approval.resolve`~~
 
 #### 4b. Usage & Billing
 16. **Usage dashboard** — Call `usage.status` + `usage.cost`, show token/cost breakdown
@@ -827,8 +857,8 @@ These are features that OpenClaw already exposes via gateway methods. Paw just n
 28. **Talk mode toggle** — `talk.mode` (enable/disable), `talk.config` (show voice settings)
 29. **Listen for changes** — consume `voicewake.changed` and `talk.mode` events
 
-#### 4i. Multi-Agent Management
-30. **Agent CRUD** — `agents.create/update/delete` → manage multiple agents from Paw
+#### ~~4i. Multi-Agent Management~~ ✅ DONE
+30. ~~**Agent CRUD** — `agents.create/update/delete` → manage multiple agents from Paw~~
 31. **Agent routing** — configure which channels/sessions route to which agent
 
 #### 4j. Self-Update
@@ -852,10 +882,10 @@ These are features that OpenClaw already exposes via gateway methods. Paw just n
 41. Listen to `cron` event → update automations board in real-time
 42. Listen to `presence` event → update connected clients live
 
-### Phase 5: Remove or build empty shells
-43. **Mail** — Decision needed: build it (significant effort: IMAP/SMTP in Rust backend or via gateway channel) or remove it from the UI
+### Phase 5: Build remaining empty shells
+43. ~~**Mail** — Decision needed: build it or remove it~~ → ✅ **BUILT**: Full IMAP/SMTP setup via Himalaya, provider picker, credential vault, OS keychain, audit log, agent permission enforcement
 44. **Code view** — Decision needed: build git integration (gateway has no git methods) or remove
-45. **Clean up orphaned DB tables** — Remove `research_findings`, `automation_runs`, `email_accounts`, `emails` if not building their features
+45. ~~**Clean up orphaned DB tables**~~ — `email_accounts` and `emails` now used; `research_findings` and `automation_runs` still orphaned
 
 ### Phase 6: Polish
 46. Add syntax highlighting to Build editor (CodeMirror)
@@ -883,17 +913,16 @@ The gateway exposes its full API via WebSocket on `ws://127.0.0.1:{port}` (defau
 
 ## Summary
 
-**What works**: Chat (streaming), Research (full flow), Channels, Automations, Skills, Models/Modes, Memory (with setup), Settings, Dashboard. The core gateway integration is solid for the features it covers.
+**What works**: Chat (streaming + markdown + abort + mode selection + session management), Research (full flow), Channels (+ per-channel setup forms), Automations, Skills, Models/Modes/Multi-Agent (CRUD + detail view), Memory (with setup), Settings (+ gateway logs + usage stats + connected clients), Dashboard, Mail (full IMAP/SMTP setup via Himalaya + provider picker + credential vault + OS keychain + agent permissions + audit log + compose + inbox), Exec Approvals (live modal + resolve + permission enforcement). The core gateway integration is solid and expanding.
 
-**What's broken**: Agent modes disconnected from chat, Build/Content chat responses lost, Mail is an empty shell, Code view is empty, Build files aren't persisted, Memory "Remember" is indirect.
+**What's broken**: Build/Content chat responses still not routed, Code view is empty.
 
-**What's missing entirely**: TTS (6 methods), Talk Mode (2), Voice Wake (2), Node Management (11), Device Pairing (5), Exec Approvals (7), Usage Tracking (2), Onboarding Wizard (4), Self-Update (1), Browser Control (1), Logs Viewer (1). That's **42 gateway methods with zero coverage** — entire product subsystems invisible to Paw users.
+**What's missing entirely**: TTS (6 methods), Talk Mode (2), Voice Wake (2), Node Management (11), Device Pairing (5), Usage Tracking (2), Onboarding Wizard (4), Self-Update (1), Browser Control (1). That's **~34 gateway methods with zero coverage** — though this is down from 42 at last audit.
 
-**Coverage reality**: Paw calls **~23 of ~88 gateway methods** (**26% protocol coverage**). Only 3 of 18 gateway events are consumed. The gateway WebSocket client (`gateway.ts`) is well-structured, but needs **48+ new method wrappers** and **15 new event handlers**.
+**Coverage reality**: Paw calls **~32 of ~88 gateway methods** (**~36% protocol coverage**). 4 of 18 gateway events are consumed. The gateway WebSocket client (`gateway.ts`) is well-structured, and every feature sprint proves that adding new methods is straightforward (add type -> add wrapper -> add UI).
 
-**Core insight**: The WebSocket client architecture is sound — adding new methods is straightforward (add type → add wrapper → add UI). The main work is:
-1. **Frontend wiring** — connecting existing UI to existing gateway calls
-2. **New views** — building UI for the 11 OpenClaw subsystems with zero coverage
-3. **Event consumption** — reacting to the 15 unconsumed gateway events in real-time
+**Security posture**: Mail credentials stored in OS keychain (macOS Keychain / libsecret), Himalaya config.toml chmod 600, passwords never returned to JS frontend, agent email actions enforced via per-account permission toggles, all activity logged to SQLite audit trail.
+
+**Core insight**: Phases 1-16 moved Paw from a demo-quality shell (~26% coverage, broken wiring, empty views) to a functional desktop client (~36% coverage, real security, working mail). The remaining work is mostly Phase 4 "free features" (gateway methods that just need UI) and Phase 6 polish.
 
 **Priority for "works out of the box" goal**: Onboarding Wizard + Self-Update + Exec Approvals + Usage Tracking are the highest impact for non-technical users.
