@@ -913,6 +913,7 @@ async function sendMessage() {
     // Include attachments if any
     if (attachments.length > 0) {
       chatOpts.attachments = attachments;
+      console.log('[main] Sending attachments:', attachments.length, 'items, first mimeType:', attachments[0]?.mimeType, 'content length:', attachments[0]?.content?.length);
     }
 
     const result = await gateway.chatSend(sessionKey, content, chatOpts);
