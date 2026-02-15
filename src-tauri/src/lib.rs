@@ -1528,6 +1528,162 @@ fn memory_store(content: String, category: Option<String>, importance: Option<u3
     run_with_timeout(cmd, 15)
 }
 
+/// Write (or merge) a Himalaya TOML config for an IMAP/SMTP email account.
+/// Creates ~/.config/himalaya/config.toml with the account settings.
+/// If the file already exists, the account is added/replaced while preserving
+/// other accounts.
+#[tauri::command]
+fn write_himalaya_config(
+    account_name: String,
+    email: String,
+    display_name: Option<String>,
+    imap_host: String,
+    imap_port: u16,
+    smtp_host: String,
+    smtp_port: u16,
+    password: String,
+) -> Result<bool, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let config_dir = home.join(".config/himalaya");
+    let config_path = config_dir.join("config.toml");
+
+    fs::create_dir_all(&config_dir)
+        .map_err(|e| format!("Failed to create config dir: {}", e))?;
+
+    // Build TOML for this account
+    // Himalaya v1 format: [accounts.<name>]
+    let display = display_name.unwrap_or_else(|| email.clone());
+    let escaped_pw = password.replace('\'', "'\\''");
+    let account_toml = format!(
+        r#"[accounts.{name}]
+email = "{email}"
+display-name = "{display}"
+
+backend.type = "imap"
+backend.host = "{imap_host}"
+backend.port = {imap_port}
+backend.encryption = "tls"
+backend.login = "{email}"
+backend.auth.type = "password"
+backend.auth.raw = "{escaped_pw}"
+
+message.send.backend.type = "smtp"
+message.send.backend.host = "{smtp_host}"
+message.send.backend.port = {smtp_port}
+message.send.backend.encryption = "tls"
+message.send.backend.login = "{email}"
+message.send.backend.auth.type = "password"
+message.send.backend.auth.raw = "{escaped_pw}"
+"#,
+        name = account_name,
+        email = email,
+        display = display,
+        imap_host = imap_host,
+        imap_port = imap_port,
+        smtp_host = smtp_host,
+        smtp_port = smtp_port,
+        escaped_pw = escaped_pw,
+    );
+
+    if config_path.exists() {
+        // Read existing config and check if this account already exists
+        let existing = fs::read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read existing config: {}", e))?;
+
+        // Simple approach: if [accounts.<name>] exists, replace from that header
+        // to the next [accounts.*] header or end of file.
+        let marker = format!("[accounts.{}]", account_name);
+        if let Some(start) = existing.find(&marker) {
+            // Find the next [accounts.*] section after this one
+            let rest = &existing[start + marker.len()..];
+            let end_offset = if let Some(next) = rest.find("\n[accounts.") {
+                start + marker.len() + next
+            } else {
+                existing.len()
+            };
+            let mut new_content = String::new();
+            new_content.push_str(&existing[..start]);
+            new_content.push_str(&account_toml);
+            new_content.push('\n');
+            if end_offset < existing.len() {
+                new_content.push_str(&existing[end_offset..]);
+            }
+            fs::write(&config_path, new_content.trim_end())
+                .map_err(|e| format!("Failed to write config: {}", e))?;
+        } else {
+            // Append new account
+            let mut content = existing;
+            if !content.ends_with('\n') {
+                content.push('\n');
+            }
+            content.push('\n');
+            content.push_str(&account_toml);
+            fs::write(&config_path, content.trim_end())
+                .map_err(|e| format!("Failed to write config: {}", e))?;
+        }
+    } else {
+        // New file — write account directly
+        fs::write(&config_path, account_toml.trim_end())
+            .map_err(|e| format!("Failed to write config: {}", e))?;
+    }
+
+    info!("Wrote himalaya config for account '{}' at {:?}", account_name, config_path);
+    Ok(true)
+}
+
+/// Read the current Himalaya config to list configured accounts.
+/// Returns the raw TOML content (parsed on the frontend).
+#[tauri::command]
+fn read_himalaya_config() -> Result<String, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let config_path = home.join(".config/himalaya/config.toml");
+    if !config_path.exists() {
+        return Ok(String::new());
+    }
+    fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read config: {}", e))
+}
+
+/// Remove a Himalaya account from the config file.
+#[tauri::command]
+fn remove_himalaya_account(account_name: String) -> Result<bool, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    let config_path = home.join(".config/himalaya/config.toml");
+    if !config_path.exists() {
+        return Ok(false);
+    }
+
+    let existing = fs::read_to_string(&config_path)
+        .map_err(|e| format!("Failed to read config: {}", e))?;
+
+    let marker = format!("[accounts.{}]", account_name);
+    if let Some(start) = existing.find(&marker) {
+        let rest = &existing[start + marker.len()..];
+        let end_offset = if let Some(next) = rest.find("\n[accounts.") {
+            start + marker.len() + next
+        } else {
+            existing.len()
+        };
+        let mut new_content = String::new();
+        new_content.push_str(existing[..start].trim_end());
+        if end_offset < existing.len() {
+            new_content.push('\n');
+            new_content.push_str(existing[end_offset..].trim_start());
+        }
+        let final_content = new_content.trim().to_string();
+        if final_content.is_empty() {
+            fs::remove_file(&config_path)
+                .map_err(|e| format!("Failed to remove config: {}", e))?;
+        } else {
+            fs::write(&config_path, final_content)
+                .map_err(|e| format!("Failed to write config: {}", e))?;
+        }
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
 /// Repair openclaw.json by removing any cruft from previous Paw versions.
 /// Removes old "skills" key (from v1 palace integration) and ensures
 /// the config is valid for the gateway.
@@ -1674,7 +1830,10 @@ pub fn run() {
             memory_stats,
             memory_search,
             memory_store,
-            repair_openclaw_config
+            repair_openclaw_config,
+            write_himalaya_config,
+            read_himalaya_config,
+            remove_himalaya_account
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

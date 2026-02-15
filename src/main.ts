@@ -1269,9 +1269,9 @@ function closeChannelSetup() {
 async function saveChannelSetup() {
   if (!_channelSetupType || !wsConnected) return;
 
-  // Gmail hooks are handled separately
-  if (_channelSetupType === '__gmail_hooks__') {
-    await saveGmailHooksSetup();
+  // Mail IMAP setup is handled separately
+  if (_channelSetupType === '__mail_imap__') {
+    await saveMailImapSetup();
     return;
   }
 
@@ -1521,11 +1521,12 @@ async function loadMail() {
     const himalaya = skillsResult?.skills?.find(s => s.name === 'himalaya');
     _mailHimalayaReady = !!(himalaya?.eligible && !himalaya?.disabled);
 
-    // Update accounts list
-    renderMailAccounts(gmail, himalaya ?? null);
+    // Update accounts list (also reads himalaya config for configured accounts)
+    await renderMailAccounts(gmail, himalaya ?? null);
 
-    // If Gmail is configured, load email sessions from hook-triggered sessions
-    if (_mailGmailConfigured) {
+    // Load inbox if we have any accounts configured (IMAP accounts or Gmail hooks)
+    const hasAccounts = _mailAccounts.length > 0 || _mailGmailConfigured;
+    if (hasAccounts) {
       await loadMailInbox();
     } else {
       _mailMessages = [];
@@ -1538,47 +1539,87 @@ async function loadMail() {
   }
 }
 
-function renderMailAccounts(gmail: Record<string, unknown> | null, himalaya: SkillEntry | null) {
+let _mailAccounts: { name: string; email: string }[] = [];
+
+async function renderMailAccounts(_gmail: Record<string, unknown> | null, himalaya: SkillEntry | null) {
   const list = $('mail-accounts-list');
   if (!list) return;
   list.innerHTML = '';
+  _mailAccounts = [];
 
-  if (_mailGmailConfigured && gmail) {
-    const acct = document.createElement('div');
-    acct.className = 'mail-account-item';
-    acct.innerHTML = `
-      <div class="mail-account-icon">📧</div>
-      <div class="mail-account-info">
-        <div class="mail-account-name">${escHtml(String(gmail.account ?? 'Gmail'))}</div>
-        <div class="mail-account-status connected">Hooks active</div>
-      </div>
-    `;
-    list.appendChild(acct);
+  // Read Himalaya config to find configured email accounts
+  if (invoke) {
+    try {
+      const toml = await invoke<string>('read_himalaya_config');
+      if (toml) {
+        // Parse account names and emails from TOML
+        const accountBlocks = toml.matchAll(/\[accounts\.([^\]]+)\][\s\S]*?email\s*=\s*"([^"]+)"/g);
+        for (const match of accountBlocks) {
+          _mailAccounts.push({ name: match[1], email: match[2] });
+        }
+      }
+    } catch { /* no config yet */ }
   }
 
-  if (himalaya) {
+  // Show configured email accounts
+  for (const acct of _mailAccounts) {
     const item = document.createElement('div');
     item.className = 'mail-account-item';
-    const eligible = himalaya.eligible && !himalaya.disabled;
+    // Detect provider icon from email domain
+    const domain = acct.email.split('@')[1] ?? '';
+    let icon = '📧';
+    if (domain.includes('gmail')) icon = '📧';
+    else if (domain.includes('outlook') || domain.includes('hotmail') || domain.includes('live')) icon = '📬';
+    else if (domain.includes('yahoo')) icon = '📨';
+    else if (domain.includes('icloud') || domain.includes('me.com')) icon = '☁️';
+    else if (domain.includes('fastmail')) icon = '⚡';
+
+    item.innerHTML = `
+      <div class="mail-account-icon">${icon}</div>
+      <div class="mail-account-info">
+        <div class="mail-account-name">${escHtml(acct.email)}</div>
+        <div class="mail-account-status connected">Connected</div>
+      </div>
+      <button class="btn-icon mail-account-remove" data-account="${escAttr(acct.name)}" title="Remove account">&times;</button>
+    `;
+    list.appendChild(item);
+
+    // Wire remove button
+    item.querySelector('.mail-account-remove')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const name = (e.currentTarget as HTMLElement).getAttribute('data-account');
+      if (!name || !confirm(`Remove ${acct.email}?`)) return;
+      try {
+        if (invoke) await invoke('remove_himalaya_account', { accountName: name });
+        showToast(`${acct.email} removed`, 'success');
+        loadMail();
+      } catch (err) {
+        showToast(`Remove failed: ${err instanceof Error ? err.message : err}`, 'error');
+      }
+    });
+  }
+
+  // Show Himalaya skill status if no accounts yet or skill isn't ready
+  if (himalaya && (!himalaya.eligible || himalaya.disabled)) {
+    const item = document.createElement('div');
+    item.className = 'mail-account-item';
     const missingBins = himalaya.missing?.bins?.length;
-    let statusText = 'Not installed';
+    let statusLabel = 'Not installed';
     let statusClass = '';
-    if (eligible) { statusText = 'Ready'; statusClass = 'connected'; }
-    else if (himalaya.disabled) { statusText = 'Disabled'; statusClass = 'muted'; }
-    else if (missingBins) { statusText = 'Missing CLI'; statusClass = 'error'; }
+    if (himalaya.disabled) { statusLabel = 'Disabled'; statusClass = 'muted'; }
+    else if (missingBins) { statusLabel = 'Missing CLI'; statusClass = 'error'; }
 
     item.innerHTML = `
       <div class="mail-account-icon">🏔️</div>
       <div class="mail-account-info">
-        <div class="mail-account-name">Himalaya <span style="font-size:11px;color:var(--text-muted)">(IMAP/SMTP)</span></div>
-        <div class="mail-account-status ${statusClass}">${statusText}</div>
+        <div class="mail-account-name">Himalaya Skill</div>
+        <div class="mail-account-status ${statusClass}">${statusLabel}</div>
       </div>
-      ${!eligible && himalaya.install?.length ? `<button class="btn btn-ghost btn-sm mail-himalaya-install">Install</button>` : ''}
+      ${himalaya.install?.length ? `<button class="btn btn-ghost btn-sm mail-himalaya-install">Install</button>` : ''}
       ${himalaya.disabled ? `<button class="btn btn-ghost btn-sm mail-himalaya-enable">Enable</button>` : ''}
     `;
     list.appendChild(item);
 
-    // Wire install/enable buttons
     item.querySelector('.mail-himalaya-install')?.addEventListener('click', async () => {
       const inst = himalaya.install?.[0];
       if (!inst) return;
@@ -1602,7 +1643,7 @@ function renderMailAccounts(gmail: Record<string, unknown> | null, himalaya: Ski
     });
   }
 
-  if (!_mailGmailConfigured && !himalaya) {
+  if (_mailAccounts.length === 0 && !himalaya) {
     list.innerHTML = '<div class="mail-no-accounts">No accounts connected</div>';
   }
 }
@@ -1652,40 +1693,41 @@ function showMailEmpty(show: boolean) {
   const items = $('mail-items');
   if (empty) {
     empty.style.display = show ? 'flex' : 'none';
-    // Update empty state content based on what's configured
     if (show) {
-      if (_mailHimalayaReady && !_mailGmailConfigured) {
+      const hasAccounts = _mailAccounts.length > 0;
+      const mailIcon = `<div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>`;
+
+      if (hasAccounts && _mailHimalayaReady) {
+        // Accounts configured and skill ready — just no inbox messages
         empty.innerHTML = `
-          <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
-          <div class="empty-title">Himalaya is ready</div>
-          <div class="empty-subtitle">Your agent can send &amp; read emails. Set up Gmail hooks to receive incoming emails in real-time, or use Compose to send one now.</div>
-          <div style="display:flex;gap:8px;margin-top:16px">
-            <button class="btn btn-primary" id="mail-setup-gmail-cta">Set Up Gmail Inbox</button>
-            <button class="btn btn-ghost" id="mail-compose-cta">Compose Email</button>
-          </div>
+          ${mailIcon}
+          <div class="empty-title">Inbox is empty</div>
+          <div class="empty-subtitle">No messages yet. Use Compose to send an email or ask your agent to check mail.</div>
+          <button class="btn btn-ghost" id="mail-compose-cta" style="margin-top:16px">Compose Email</button>
         `;
-        $('mail-setup-gmail-cta')?.addEventListener('click', () => openMailAccountSetup());
         $('mail-compose-cta')?.addEventListener('click', () => {
-          const prompt = 'I want to compose a new email. Please help me draft it and use himalaya to send it when ready.';
           currentSessionKey = null;
           switchView('chat');
-          if (chatInput) { chatInput.value = prompt; chatInput.focus(); }
+          if (chatInput) { chatInput.value = 'I want to compose a new email. Please help me draft it and use himalaya to send it when ready.'; chatInput.focus(); }
         });
-      } else if (!_mailHimalayaReady && !_mailGmailConfigured) {
+      } else if (hasAccounts && !_mailHimalayaReady) {
+        // Account configured but Himalaya skill not ready
         empty.innerHTML = `
-          <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
+          ${mailIcon}
+          <div class="empty-title">Enable the Himalaya skill</div>
+          <div class="empty-subtitle">Your email account is configured but the Himalaya skill needs to be installed or enabled for your agent to read and send emails.</div>
+          <button class="btn btn-primary" id="mail-go-skills" style="margin-top:16px">Go to Skills</button>
+        `;
+        $('mail-go-skills')?.addEventListener('click', () => switchView('skills'));
+      } else {
+        // No accounts — show add account prompt
+        empty.innerHTML = `
+          ${mailIcon}
           <div class="empty-title">Connect your email</div>
-          <div class="empty-subtitle">Add the Himalaya skill for IMAP/SMTP access, then set up Gmail hooks for real-time inbox delivery.</div>
+          <div class="empty-subtitle">Add an email account so your agent can read, draft, and send emails on your behalf.</div>
           <button class="btn btn-primary" id="mail-setup-account" style="margin-top:16px">Add Email Account</button>
         `;
         $('mail-setup-account')?.addEventListener('click', () => openMailAccountSetup());
-      } else {
-        // Gmail configured but empty inbox
-        empty.innerHTML = `
-          <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
-          <div class="empty-title">No emails yet</div>
-          <div class="empty-subtitle">Incoming Gmail hook messages will appear here automatically.</div>
-        `;
       }
     }
   }
@@ -1846,104 +1888,170 @@ document.querySelectorAll('.mail-folder').forEach(folder => {
 // Refresh
 $('mail-refresh')?.addEventListener('click', () => loadMail());
 
-// Add account / Setup account — opens Gmail hooks setup
+// Add account / Setup account — opens IMAP/SMTP email setup
 $('mail-add-account')?.addEventListener('click', () => openMailAccountSetup());
 $('mail-setup-account')?.addEventListener('click', () => openMailAccountSetup());
 
+// Provider presets for auto-filling IMAP/SMTP servers
+const EMAIL_PROVIDERS: Record<string, { name: string; icon: string; imap: string; imapPort: number; smtp: string; smtpPort: number; hint: string }> = {
+  gmail: { name: 'Gmail', icon: '📧', imap: 'imap.gmail.com', imapPort: 993, smtp: 'smtp.gmail.com', smtpPort: 465, hint: 'Use an App Password — go to Google Account → Security → App Passwords' },
+  outlook: { name: 'Outlook / Hotmail', icon: '📬', imap: 'outlook.office365.com', imapPort: 993, smtp: 'smtp.office365.com', smtpPort: 587, hint: 'Use your regular password, or an App Password if 2FA is on' },
+  yahoo: { name: 'Yahoo Mail', icon: '📨', imap: 'imap.mail.yahoo.com', imapPort: 993, smtp: 'smtp.mail.yahoo.com', smtpPort: 465, hint: 'Generate an App Password in Yahoo Account Settings → Security' },
+  icloud: { name: 'iCloud Mail', icon: '☁️', imap: 'imap.mail.me.com', imapPort: 993, smtp: 'smtp.mail.me.com', smtpPort: 587, hint: 'Use an App-Specific Password from appleid.apple.com' },
+  fastmail: { name: 'Fastmail', icon: '⚡', imap: 'imap.fastmail.com', imapPort: 993, smtp: 'smtp.fastmail.com', smtpPort: 465, hint: 'Use an App Password from Settings → Privacy & Security' },
+  custom: { name: 'Other (IMAP/SMTP)', icon: '⚙️', imap: '', imapPort: 993, smtp: '', smtpPort: 465, hint: 'Enter your mail server details manually' },
+};
+
 function openMailAccountSetup() {
-  // Re-use the channel setup modal pattern with mail-specific fields
   const title = $('channel-setup-title');
   const body = $('channel-setup-body');
   const modal = $('channel-setup-modal');
   const footer = $('channel-setup-save') as HTMLButtonElement | null;
   if (!title || !body || !modal || !footer) return;
 
-  _channelSetupType = '__gmail_hooks__'; // Special marker
-  title.textContent = 'Set Up Gmail';
+  _channelSetupType = '__mail_imap__';
+  title.textContent = 'Add Email Account';
   footer.style.display = '';
-  footer.textContent = 'Save & Enable';
+  footer.textContent = 'Connect Account';
 
+  // Show provider picker first
   body.innerHTML = `
-    <p class="channel-setup-desc">
-      Connect your Gmail inbox so the agent receives incoming emails in real-time via Google Cloud Pub/Sub hooks.
-      Requires a GCP project with Pub/Sub enabled and the <code>gog</code> CLI tool.
-    </p>
-    <div class="form-group">
-      <label class="form-label" for="ch-field-gmail-account">Gmail Address <span class="required">*</span></label>
-      <input class="form-input" id="ch-field-gmail-account" data-ch-field="gmail-account" type="email" placeholder="you@gmail.com">
-      <div class="form-hint">The Gmail account to watch for incoming emails</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label" for="ch-field-gmail-topic">GCP Pub/Sub Topic <span class="required">*</span></label>
-      <input class="form-input" id="ch-field-gmail-topic" data-ch-field="gmail-topic" type="text" placeholder="projects/my-project/topics/gog-gmail-watch">
-      <div class="form-hint">Full topic path from Google Cloud Console</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label" for="ch-field-gmail-token">Hooks Auth Token <span class="required">*</span></label>
-      <input class="form-input" id="ch-field-gmail-token" data-ch-field="gmail-token" type="password" placeholder="A secret token for webhook auth">
-      <div class="form-hint">Shared token between gog push endpoint and the gateway. Choose any strong random string.</div>
-    </div>
-    <div class="form-group">
-      <label class="form-label" for="ch-field-gmail-label">Gmail Label</label>
-      <input class="form-input" id="ch-field-gmail-label" data-ch-field="gmail-label" type="text" placeholder="INBOX" value="INBOX">
-      <div class="form-hint">Which Gmail label to watch (default: INBOX)</div>
-    </div>
-    <div style="margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:var(--radius-xs);font-size:12px;color:var(--text-secondary);line-height:1.5">
-      <strong>Prerequisites:</strong><br>
-      1. Install <code>gog</code> CLI: <code>brew install gogcli/tap/gog</code><br>
-      2. Run <code>gog auth login</code> to authenticate with Google<br>
-      3. Create a Pub/Sub topic in your GCP project<br>
-      4. The gateway will automatically start the Gmail watcher on save
+    <p class="channel-setup-desc">Choose your email provider to get started.</p>
+    <div class="mail-provider-grid">
+      ${Object.entries(EMAIL_PROVIDERS).map(([id, p]) => `
+        <button class="mail-provider-btn" data-provider="${id}">
+          <span class="mail-provider-icon">${p.icon}</span>
+          <span class="mail-provider-name">${p.name}</span>
+        </button>
+      `).join('')}
     </div>
   `;
+  footer.style.display = 'none'; // Hide save until provider is chosen
+
+  // Wire provider selection
+  body.querySelectorAll('.mail-provider-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const providerId = btn.getAttribute('data-provider') ?? 'custom';
+      showMailAccountForm(providerId);
+    });
+  });
+
   modal.style.display = '';
 }
 
-// saveGmailHooksSetup is called from saveChannelSetup when _channelSetupType === '__gmail_hooks__'
+function showMailAccountForm(providerId: string) {
+  const provider = EMAIL_PROVIDERS[providerId] ?? EMAIL_PROVIDERS.custom;
+  const body = $('channel-setup-body');
+  const footer = $('channel-setup-save') as HTMLButtonElement | null;
+  const title = $('channel-setup-title');
+  if (!body || !footer) return;
 
-async function saveGmailHooksSetup() {
-  const account = ($('ch-field-gmail-account') as HTMLInputElement)?.value.trim();
-  const topic = ($('ch-field-gmail-topic') as HTMLInputElement)?.value.trim();
-  const token = ($('ch-field-gmail-token') as HTMLInputElement)?.value.trim();
-  const label = ($('ch-field-gmail-label') as HTMLInputElement)?.value.trim() || 'INBOX';
+  if (title) title.textContent = `Connect ${provider.name}`;
+  footer.style.display = '';
+  footer.textContent = 'Connect Account';
 
-  if (!account) { showToast('Gmail address is required', 'error'); return; }
-  if (!topic) { showToast('Pub/Sub topic is required', 'error'); return; }
-  if (!token) { showToast('Auth token is required', 'error'); return; }
+  const isCustom = providerId === 'custom';
+
+  body.innerHTML = `
+    <div class="mail-setup-back" id="mail-setup-back">← Choose provider</div>
+    ${provider.hint ? `<div class="mail-setup-hint"><svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> ${provider.hint}</div>` : ''}
+    <div class="form-group">
+      <label class="form-label" for="ch-field-mail-email">Email Address <span class="required">*</span></label>
+      <input class="form-input" id="ch-field-mail-email" type="email" placeholder="you@${providerId === 'custom' ? 'example.com' : provider.imap.replace('imap.', '')}">
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="ch-field-mail-display">Display Name</label>
+      <input class="form-input" id="ch-field-mail-display" type="text" placeholder="Your Name">
+      <div class="form-hint">How your name appears in outgoing emails</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="ch-field-mail-password">${providerId === 'gmail' || providerId === 'yahoo' || providerId === 'icloud' ? 'App Password' : 'Password'} <span class="required">*</span></label>
+      <input class="form-input" id="ch-field-mail-password" type="password" placeholder="${providerId === 'gmail' ? '16-character app password' : 'Password'}">
+    </div>
+    ${isCustom ? `
+    <div class="form-row-2col">
+      <div class="form-group">
+        <label class="form-label" for="ch-field-mail-imap">IMAP Server <span class="required">*</span></label>
+        <input class="form-input" id="ch-field-mail-imap" type="text" placeholder="imap.example.com" value="${escAttr(provider.imap)}">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="ch-field-mail-imap-port">IMAP Port</label>
+        <input class="form-input" id="ch-field-mail-imap-port" type="number" value="${provider.imapPort}">
+      </div>
+    </div>
+    <div class="form-row-2col">
+      <div class="form-group">
+        <label class="form-label" for="ch-field-mail-smtp">SMTP Server <span class="required">*</span></label>
+        <input class="form-input" id="ch-field-mail-smtp" type="text" placeholder="smtp.example.com" value="${escAttr(provider.smtp)}">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="ch-field-mail-smtp-port">SMTP Port</label>
+        <input class="form-input" id="ch-field-mail-smtp-port" type="number" value="${provider.smtpPort}">
+      </div>
+    </div>
+    ` : `
+    <input type="hidden" id="ch-field-mail-imap" value="${escAttr(provider.imap)}">
+    <input type="hidden" id="ch-field-mail-imap-port" value="${provider.imapPort}">
+    <input type="hidden" id="ch-field-mail-smtp" value="${escAttr(provider.smtp)}">
+    <input type="hidden" id="ch-field-mail-smtp-port" value="${provider.smtpPort}">
+    <div class="mail-setup-servers">
+      <span>IMAP: ${provider.imap}:${provider.imapPort}</span>
+      <span>SMTP: ${provider.smtp}:${provider.smtpPort}</span>
+    </div>
+    `}
+    <input type="hidden" id="ch-field-mail-provider" value="${providerId}">
+  `;
+
+  // Wire back button
+  $('mail-setup-back')?.addEventListener('click', () => openMailAccountSetup());
+}
+
+// Save handler for mail IMAP setup — called from saveChannelSetup
+async function saveMailImapSetup() {
+  const email = ($('ch-field-mail-email') as HTMLInputElement)?.value.trim();
+  const password = ($('ch-field-mail-password') as HTMLInputElement)?.value.trim();
+  const displayName = ($('ch-field-mail-display') as HTMLInputElement)?.value.trim();
+  const imapHost = ($('ch-field-mail-imap') as HTMLInputElement)?.value.trim();
+  const imapPort = parseInt(($('ch-field-mail-imap-port') as HTMLInputElement)?.value ?? '993', 10);
+  const smtpHost = ($('ch-field-mail-smtp') as HTMLInputElement)?.value.trim();
+  const smtpPort = parseInt(($('ch-field-mail-smtp-port') as HTMLInputElement)?.value ?? '465', 10);
+
+  if (!email) { showToast('Email address is required', 'error'); return; }
+  if (!password) { showToast('Password is required', 'error'); return; }
+  if (!imapHost) { showToast('IMAP server is required', 'error'); return; }
+  if (!smtpHost) { showToast('SMTP server is required', 'error'); return; }
 
   const saveBtn = $('channel-setup-save') as HTMLButtonElement | null;
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Connecting...'; }
 
   try {
-    // Get current config to merge
-    const current = await gateway.configGet();
-    const cfg = current.config as Record<string, unknown>;
-    const existingHooks = (cfg?.hooks as Record<string, unknown>) ?? {};
+    // Derive a safe account name from the email
+    const accountName = email.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
 
-    await gateway.configPatch({
-      hooks: {
-        ...existingHooks,
-        enabled: true,
-        token: existingHooks.token ?? token, // Use existing token if set, otherwise use provided one
-        presets: ['gmail'],
-        gmail: {
-          ...((existingHooks.gmail as Record<string, unknown>) ?? {}),
-          account,
-          topic,
-          pushToken: token,
-          label,
-          includeBody: true,
-        },
-      },
-    });
+    if (invoke) {
+      await invoke('write_himalaya_config', {
+        accountName,
+        email,
+        displayName: displayName || null,
+        imapHost,
+        imapPort,
+        smtpHost,
+        smtpPort,
+        password,
+      });
+    } else {
+      throw new Error('Tauri runtime not available — cannot write config');
+    }
 
-    showToast('Gmail hooks configured! The gateway will start watching your inbox.', 'success');
+    showToast(`${email} connected! Your agent can now read and send emails.`, 'success');
     closeChannelSetup();
-    setTimeout(() => loadMail(), 2000);
+
+    // Reload mail view to show the new account
+    setTimeout(() => loadMail(), 500);
   } catch (e) {
-    showToast(`Failed to save: ${e instanceof Error ? e.message : e}`, 'error');
+    showToast(`Failed to connect: ${e instanceof Error ? e.message : e}`, 'error');
   } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save & Enable'; }
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Connect Account'; }
   }
 }
 

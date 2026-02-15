@@ -2175,6 +2175,14 @@ button:focus:not(:focus-visible) { outline: none; }
   border-radius: var(--radius-xs);
 }
 .mail-account-item:hover { background: var(--bg-hover); }
+.mail-account-item .mail-account-remove {
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  font-size: 14px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.mail-account-item:hover .mail-account-remove { opacity: 1; }
 .mail-account-icon { font-size: 16px; flex-shrink: 0; width: 24px; text-align: center; }
 .mail-account-info { flex: 1; min-width: 0; }
 .mail-account-name { font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2182,6 +2190,66 @@ button:focus:not(:focus-visible) { outline: none; }
 .mail-account-status.connected { color: var(--success); }
 .mail-account-status.error { color: var(--error); }
 .mail-account-status.muted { color: var(--text-muted); }
+
+/* Mail provider picker */
+.mail-provider-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+.mail-provider-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.mail-provider-btn:hover {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+.mail-provider-icon { font-size: 24px; }
+.mail-provider-name { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+
+/* Mail setup form helpers */
+.mail-setup-back {
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.mail-setup-back:hover { text-decoration: underline; }
+.mail-setup-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--accent-subtle);
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.mail-setup-hint .icon-sm { flex-shrink: 0; margin-top: 1px; color: var(--accent); }
+.mail-setup-servers {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+.form-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 100px;
+  gap: 12px;
+}
 
 /* Mail item snippet */
 .mail-item-snippet {
