@@ -4760,43 +4760,148 @@ select.form-input {
 }
 
 /* ─── Settings: Exec Approvals Config ─── */
-.approvals-config {
+.approvals-default-policy {
+  margin-bottom: 20px;
+}
+.approvals-policy-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.approvals-policy-options {
+  display: flex;
+  gap: 8px;
+}
+.approvals-policy-option {
+  cursor: pointer;
+  flex: 1;
+}
+.approvals-policy-option input[type="radio"] {
+  display: none;
+}
+.approvals-policy-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+}
+.approvals-policy-card .icon-sm {
+  width: 16px;
+  height: 16px;
+}
+.approvals-policy-option input:checked + .approvals-policy-card {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.approvals-policy-card:hover {
+  border-color: var(--accent);
+}
+
+/* Tool rule rows */
+.approvals-tool-list {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 6px;
 }
-.approvals-group {
-  padding: 16px;
+.approvals-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.approvals-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
 }
-.approvals-group-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
+.approvals-tool-name {
+  flex: 1;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 4px;
-}
-.approvals-group-title .icon-sm {
-  width: 16px;
-  height: 16px;
-  color: var(--accent);
-}
-.approvals-group-desc {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-bottom: 10px;
-  line-height: 1.5;
-}
-.approvals-textarea {
   font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1.6;
-  resize: vertical;
-  min-height: 60px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.approvals-toggle-group {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.approvals-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+.approvals-toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+.approvals-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.approvals-toggle-btn.active.allow {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.approvals-toggle-btn.active.ask {
+  background: #fff3e0;
+  color: #e65100;
+}
+.approvals-toggle-btn.active.deny {
+  background: #ffebee;
+  color: #c62828;
+}
+.icon-xs {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.approvals-remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+}
+.approvals-remove-btn:hover {
+  background: #ffebee;
+  color: #c62828;
 }
 
 /* btn-danger */

@@ -1562,43 +1562,48 @@
           <!-- Exec Approvals Config -->
           <div class="settings-section" id="settings-approvals-section" style="display:none">
             <h2 class="settings-section-title">Tool Approval Rules</h2>
-            <p class="settings-section-desc">Configure which tools your agent can use automatically and which require your approval each time.</p>
+            <p class="settings-section-desc">Choose which tools your agent can use automatically and which need your permission.</p>
             
-            <div class="approvals-config">
-              <div class="approvals-group">
-                <h3 class="approvals-group-title">
-                  <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                  Always Allow
-                </h3>
-                <p class="approvals-group-desc">Tools in this list run without asking. One tool name per line.</p>
-                <textarea class="form-input approvals-textarea" id="approvals-allow-list" rows="4" placeholder="e.g. brave_search&#10;read_file&#10;list_directory" spellcheck="false"></textarea>
-              </div>
-
-              <div class="approvals-group">
-                <h3 class="approvals-group-title">
-                  <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                  Always Deny
-                </h3>
-                <p class="approvals-group-desc">Tools in this list are always blocked. One tool name per line.</p>
-                <textarea class="form-input approvals-textarea" id="approvals-deny-list" rows="4" placeholder="e.g. rm&#10;execute_command" spellcheck="false"></textarea>
-              </div>
-
-              <div class="approvals-group">
-                <h3 class="approvals-group-title">
-                  <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                  Ask Policy
-                </h3>
-                <p class="approvals-group-desc">What happens for tools not in either list.</p>
-                <select class="form-input" id="approvals-ask-policy" style="width:auto">
-                  <option value="ask">Ask every time</option>
-                  <option value="allow">Allow automatically</option>
-                  <option value="deny">Deny automatically</option>
-                </select>
+            <!-- Default behaviour radio group -->
+            <div class="approvals-default-policy">
+              <div class="approvals-policy-label">When a tool isn't listed below:</div>
+              <div class="approvals-policy-options" id="approvals-ask-policy">
+                <label class="approvals-policy-option">
+                  <input type="radio" name="approvals-policy" value="ask" checked />
+                  <div class="approvals-policy-card">
+                    <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Ask me</span>
+                  </div>
+                </label>
+                <label class="approvals-policy-option">
+                  <input type="radio" name="approvals-policy" value="allow" />
+                  <div class="approvals-policy-card">
+                    <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <span>Allow</span>
+                  </div>
+                </label>
+                <label class="approvals-policy-option">
+                  <input type="radio" name="approvals-policy" value="deny" />
+                  <div class="approvals-policy-card">
+                    <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                    <span>Block</span>
+                  </div>
+                </label>
               </div>
             </div>
 
+            <!-- Tool rules list (rendered dynamically) -->
+            <div class="approvals-tool-list" id="approvals-tool-list">
+              <!-- Each tool rendered as a row with a 3-way toggle -->
+            </div>
+
+            <button class="btn btn-ghost btn-sm" id="approvals-add-tool" style="margin-top:8px">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add rule
+            </button>
+
             <div style="display:flex;gap:8px;margin-top:16px">
-              <button class="btn btn-primary" id="settings-save-approvals">Save Approval Rules</button>
+              <button class="btn btn-primary" id="settings-save-approvals">Save Rules</button>
               <button class="btn btn-ghost btn-sm" id="settings-refresh-approvals">Reload</button>
             </div>
           </div>

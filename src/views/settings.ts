@@ -2,7 +2,6 @@
 // Extracted from main.ts for maintainability
 
 import { gateway } from '../gateway';
-import type { ExecApprovalsSnapshot } from '../types';
 
 const $ = (id: string) => document.getElementById(id);
 
@@ -246,21 +245,142 @@ export async function loadSettingsDevices() {
 }
 
 // ── Exec Approvals Config ──────────────────────────────────────────────────
-let _currentApprovals: ExecApprovalsSnapshot | null = null;
+// Each tool gets a 3-way toggle row: Allow | Ask | Deny
+// Tools are gathered from the existing allow/deny lists
+
+interface ToolRule {
+  name: string;
+  state: 'allow' | 'ask' | 'deny';
+}
+
+let _toolRules: ToolRule[] = [];
+
+function renderToolRules() {
+  const list = $('approvals-tool-list');
+  if (!list) return;
+
+  if (_toolRules.length === 0) {
+    list.innerHTML = '<div class="approvals-empty">No tool-specific rules yet. Click "Add rule" to create one.</div>';
+    return;
+  }
+
+  list.innerHTML = _toolRules.map((rule, i) => `
+    <div class="approvals-tool-row" data-idx="${i}">
+      <div class="approvals-tool-name">${escHtml(rule.name)}</div>
+      <div class="approvals-toggle-group">
+        <button class="approvals-toggle-btn${rule.state === 'allow' ? ' active allow' : ''}" data-state="allow" data-idx="${i}" title="Always allow">
+          <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          Allow
+        </button>
+        <button class="approvals-toggle-btn${rule.state === 'ask' ? ' active ask' : ''}" data-state="ask" data-idx="${i}" title="Ask each time">
+          <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12.01" y2="16"/><line x1="12" y1="8" x2="12" y2="12"/></svg>
+          Ask
+        </button>
+        <button class="approvals-toggle-btn${rule.state === 'deny' ? ' active deny' : ''}" data-state="deny" data-idx="${i}" title="Always block">
+          <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Block
+        </button>
+      </div>
+      <button class="approvals-remove-btn" data-idx="${i}" title="Remove rule">
+        <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+  `).join('');
+
+  // Wire toggle buttons
+  list.querySelectorAll('.approvals-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-idx') ?? '-1', 10);
+      const state = btn.getAttribute('data-state') as 'allow' | 'ask' | 'deny';
+      if (idx < 0 || idx >= _toolRules.length) return;
+      _toolRules[idx].state = state;
+      renderToolRules();
+    });
+  });
+
+  // Wire remove buttons
+  list.querySelectorAll('.approvals-remove-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-idx') ?? '-1', 10);
+      if (idx < 0 || idx >= _toolRules.length) return;
+      _toolRules.splice(idx, 1);
+      renderToolRules();
+    });
+  });
+}
+
+function addToolRule() {
+  // Use the prompt modal if available, otherwise native prompt
+  const promptModal = $('prompt-modal');
+  const promptInput = $('prompt-modal-input') as HTMLInputElement | null;
+  const promptTitle = $('prompt-modal-title');
+  const promptOk = $('prompt-modal-ok');
+  const promptClose = $('prompt-modal-close');
+
+  if (promptModal && promptInput && promptOk && promptClose) {
+    if (promptTitle) promptTitle.textContent = 'Add Tool Rule';
+    promptInput.value = '';
+    promptInput.placeholder = 'Tool name, e.g. brave_search';
+    promptModal.style.display = 'flex';
+    promptInput.focus();
+
+    const cleanup = () => {
+      promptModal.style.display = 'none';
+      promptOk.removeEventListener('click', onOk);
+      promptClose.removeEventListener('click', onCancel);
+      promptInput.removeEventListener('keydown', onKey);
+    };
+    const onOk = () => {
+      const name = promptInput.value.trim();
+      cleanup();
+      if (!name) return;
+      if (_toolRules.some(r => r.name === name)) {
+        showSettingsToast(`"${name}" already has a rule`, 'info');
+        return;
+      }
+      _toolRules.push({ name, state: 'ask' });
+      renderToolRules();
+    };
+    const onCancel = () => cleanup();
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Enter') onOk(); if (e.key === 'Escape') onCancel(); };
+    promptOk.addEventListener('click', onOk);
+    promptClose.addEventListener('click', onCancel);
+    promptInput.addEventListener('keydown', onKey);
+  } else {
+    const name = prompt('Tool name (e.g. brave_search):');
+    if (!name?.trim()) return;
+    const trimmed = name.trim();
+    if (_toolRules.some(r => r.name === trimmed)) {
+      showSettingsToast(`"${trimmed}" already has a rule`, 'info');
+      return;
+    }
+    _toolRules.push({ name: trimmed, state: 'ask' });
+    renderToolRules();
+  }
+}
 
 export async function loadSettingsApprovals() {
   if (!wsConnected) return;
   const section = $('settings-approvals-section');
-  const allowList = $('approvals-allow-list') as HTMLTextAreaElement | null;
-  const denyList = $('approvals-deny-list') as HTMLTextAreaElement | null;
-  const askPolicy = $('approvals-ask-policy') as HTMLSelectElement | null;
   try {
     const snapshot = await gateway.execApprovalsGet();
-    _currentApprovals = snapshot;
     if (section) section.style.display = '';
-    if (allowList) allowList.value = (snapshot.gateway?.allow ?? []).join('\n');
-    if (denyList) denyList.value = (snapshot.gateway?.deny ?? []).join('\n');
-    if (askPolicy) askPolicy.value = snapshot.gateway?.askPolicy ?? 'ask';
+
+    // Build tool rules from allow + deny lists
+    const allowSet = new Set(snapshot.gateway?.allow ?? []);
+    const denySet = new Set(snapshot.gateway?.deny ?? []);
+    const allTools = new Set([...allowSet, ...denySet]);
+    _toolRules = [...allTools].map(name => ({
+      name,
+      state: allowSet.has(name) ? 'allow' as const : denySet.has(name) ? 'deny' as const : 'ask' as const,
+    }));
+
+    // Set the ask policy radio
+    const policy = snapshot.gateway?.askPolicy ?? 'ask';
+    const radio = document.querySelector(`input[name="approvals-policy"][value="${policy}"]`) as HTMLInputElement | null;
+    if (radio) radio.checked = true;
+
+    renderToolRules();
   } catch (e) {
     console.warn('[settings] Approvals load failed:', e);
     if (section) section.style.display = 'none';
@@ -268,21 +388,17 @@ export async function loadSettingsApprovals() {
 }
 
 async function saveSettingsApprovals() {
-  const allowList = $('approvals-allow-list') as HTMLTextAreaElement | null;
-  const denyList = $('approvals-deny-list') as HTMLTextAreaElement | null;
-  const askPolicy = $('approvals-ask-policy') as HTMLSelectElement | null;
-  if (!allowList || !denyList || !askPolicy) return;
+  const policyRadio = document.querySelector('input[name="approvals-policy"]:checked') as HTMLInputElement | null;
+  const policy = policyRadio?.value ?? 'ask';
 
-  const allow = allowList.value.split('\n').map(s => s.trim()).filter(Boolean);
-  const deny = denyList.value.split('\n').map(s => s.trim()).filter(Boolean);
-  const policy = askPolicy.value;
+  const allow = _toolRules.filter(r => r.state === 'allow').map(r => r.name);
+  const deny = _toolRules.filter(r => r.state === 'deny').map(r => r.name);
 
   try {
     await gateway.execApprovalsSet({
       gateway: { allow, deny, askPolicy: policy },
     });
     showSettingsToast('Approval rules saved', 'success');
-    _currentApprovals = { gateway: { allow, deny, askPolicy: policy }, node: _currentApprovals?.node ?? { allow: [], deny: [], askPolicy: 'ask' } };
   } catch (e) {
     showSettingsToast(`Failed to save: ${e instanceof Error ? e.message : e}`, 'error');
   }
@@ -309,6 +425,7 @@ export function initSettings() {
   $('settings-refresh-devices')?.addEventListener('click', () => loadSettingsDevices());
   $('settings-refresh-approvals')?.addEventListener('click', () => loadSettingsApprovals());
   $('settings-save-approvals')?.addEventListener('click', () => saveSettingsApprovals());
+  $('approvals-add-tool')?.addEventListener('click', () => addToolRule());
 }
 
 // ── Load all settings data ─────────────────────────────────────────────────
