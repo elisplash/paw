@@ -5033,6 +5033,155 @@ select.form-input {
   overflow-x: auto;
 }
 
+/* ─── Approval Modal: Danger Variant ─── */
+.modal-card.danger-modal {
+  border: 2px solid #ef4444;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.25), var(--shadow-lg);
+}
+.modal-card.danger-modal .modal-header {
+  background: linear-gradient(135deg, #7f1d1d, #991b1b);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.modal-card.danger-modal .modal-title {
+  color: #fecaca;
+}
+
+.approval-risk-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  background: rgba(239, 68, 68, 0.08);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+}
+.approval-risk-icon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.approval-risk-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.approval-risk-reason {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Risk level colors */
+.approval-risk-banner.risk-critical {
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom-color: rgba(239, 68, 68, 0.3);
+}
+.approval-risk-banner.risk-critical .approval-risk-label { color: #ef4444; }
+.approval-risk-banner.risk-critical .approval-risk-icon { color: #ef4444; }
+
+.approval-risk-banner.risk-high {
+  background: rgba(249, 115, 22, 0.10);
+  border-bottom-color: rgba(249, 115, 22, 0.25);
+}
+.approval-risk-banner.risk-high .approval-risk-label { color: #f97316; }
+.approval-risk-banner.risk-high .approval-risk-icon { color: #f97316; }
+
+.approval-risk-banner.risk-medium {
+  background: rgba(234, 179, 8, 0.08);
+  border-bottom-color: rgba(234, 179, 8, 0.2);
+}
+.approval-risk-banner.risk-medium .approval-risk-label { color: #eab308; }
+.approval-risk-banner.risk-medium .approval-risk-icon { color: #eab308; }
+
+/* Type-to-confirm for critical commands */
+.approval-type-confirm {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.approval-type-label {
+  font-size: 12px;
+  color: #ef4444;
+  font-weight: 500;
+}
+.approval-type-input {
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  background: rgba(239, 68, 68, 0.05);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.approval-type-input:focus {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+/* Danger modal: red deny gets emphasis, allow is de-emphasized */
+.modal-card.danger-modal .modal-footer #approval-deny-btn {
+  background: #ef4444;
+  color: white;
+  font-weight: 600;
+}
+.modal-card.danger-modal .modal-footer #approval-allow-btn {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.modal-card.danger-modal .modal-footer #approval-allow-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Security Settings ─── */
+.security-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.security-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 120ms;
+}
+.security-toggle-row:hover {
+  background: var(--bg-hover);
+}
+.security-toggle-row input[type="checkbox"] {
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: #ef4444;
+  width: 16px;
+  height: 16px;
+}
+.security-toggle-info {
+  flex: 1;
+  min-width: 0;
+}
+.security-toggle-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.security-toggle-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.security-patterns-input {
+  font-family: var(--font-mono, 'SF Mono', 'Consolas', 'Courier New', monospace);
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 80px;
+}
+
 /* ─── Settings: Section Description ─── */
 .settings-section-desc {
   font-size: 13px;
@@ -5040,6 +5189,180 @@ select.form-input {
   margin-bottom: 16px;
   line-height: 1.5;
 }
+
+/* ─── Security Audit Dashboard ─── */
+.audit-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+.audit-filter-select {
+  width: auto;
+  min-width: 120px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.audit-score-card {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.audit-score-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+}
+.audit-score-icon {
+  font-size: 14px;
+}
+.audit-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  max-height: 480px;
+  overflow-y: auto;
+}
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.audit-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-tertiary, var(--bg-secondary));
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  z-index: 1;
+}
+.audit-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-light, rgba(255,255,255,0.04));
+  color: var(--text-primary);
+  vertical-align: top;
+}
+.audit-table tr:hover td {
+  background: var(--bg-hover);
+}
+.audit-row-denied td {
+  background: rgba(239, 68, 68, 0.04);
+}
+.audit-cell-time {
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.audit-cell-event {
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.audit-cell-tool {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.audit-cell-detail {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.audit-risk-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+}
+.audit-risk-badge.risk-critical { background: rgba(239,68,68,0.15); color: #ef4444; }
+.audit-risk-badge.risk-high { background: rgba(249,115,22,0.12); color: #f97316; }
+.audit-risk-badge.risk-medium { background: rgba(234,179,8,0.10); color: #eab308; }
+.audit-risk-badge.risk-low { background: rgba(59,130,246,0.10); color: #3b82f6; }
+.audit-risk-badge.risk-safe { background: rgba(34,197,94,0.10); color: #22c55e; }
+.audit-result-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 600;
+}
+.audit-result-badge.allowed { background: rgba(34,197,94,0.12); color: #22c55e; }
+.audit-result-badge.denied { background: rgba(239,68,68,0.12); color: #ef4444; }
+.audit-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+/* ─── Device Token Age ─── */
+.device-token-age {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.device-token-age.stale {
+  color: #f97316;
+  font-weight: 500;
+}
+.device-token-age.critical {
+  color: #ef4444;
+  font-weight: 600;
+}
+/* ─── Skill Safety Warning ─── */
+.skill-safety-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(234,179,8,0.08);
+  border: 1px solid rgba(234,179,8,0.25);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.skill-safety-banner .safety-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.skill-safety-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.skill-safety-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.skill-safety-check .check-pass { color: #22c55e; }
+.skill-safety-check .check-warn { color: #eab308; }
+.skill-safety-check .check-fail { color: #ef4444; }
 .settings-subsection-title {
   font-size: 13px;
   font-weight: 600;

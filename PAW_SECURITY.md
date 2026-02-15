@@ -142,16 +142,17 @@ Paw is a Tauri 2 desktop wrapper around OpenClaw. Because every system call flow
 
 ## What's Missing — Critical
 
-### C1. sudo / su / Privilege Escalation Detection ❌
+### C1. sudo / su / Privilege Escalation Detection ✅
 
 **Risk**: Agent can request `sudo rm -rf /`, `su -c 'dangerous'`, `doas`, `pkexec`, or any privilege escalation command. The approval modal shows it, but it looks the same as a safe command. Users click "Allow" without reading.
 
-**What to build**:
+**Built** (Sprint A — 2026-02-15):
 
-- [ ] **Dangerous command classifier** — pattern-match exec approval requests against a blocklist
-- [ ] **Red "DANGER" modal variant** — when a dangerous command is detected, show a visually distinct warning (red border, skull icon, "This command requests elevated privileges")
-- [ ] **Auto-deny option for privilege escalation** — toggle in Settings: "Never allow sudo/su commands"
-- [ ] **Require explicit typing to approve** — for dangerous commands, user must type "ALLOW" instead of clicking a button
+- [x] **Dangerous command classifier** — `src/security.ts` pattern-matches exec approval requests against 30+ danger patterns across critical/high/medium risk levels
+- [x] **Red "DANGER" modal variant** — when a dangerous command is detected, shows a visually distinct warning (red border, skull icon, risk banner with level + reason)
+- [x] **Auto-deny option for privilege escalation** — toggle in Settings: "Auto-deny privilege escalation" blocks sudo/su/doas/pkexec/runas automatically
+- [x] **Auto-deny all critical commands** — toggle in Settings: "Auto-deny all critical-risk commands"
+- [x] **Require explicit typing to approve** — for critical commands, user must type "ALLOW" instead of clicking a button (configurable)
 
 **Patterns to detect**:
 ```
@@ -172,96 +173,94 @@ ssh-keygen -f (overwriting)             — key destruction
 
 **Location**: Enhance `exec.approval.requested` handler in `main.ts:3021`
 
-### C2. Content Security Policy (CSP) ❌
+### C2. Content Security Policy (CSP) ✅
 
-**Risk**: `tauri.conf.json` has `"csp": null` — no Content Security Policy at all. A compromised frontend could load arbitrary scripts, make requests to any domain, etc.
+**Built** (Sprint A — 2026-02-15):
 
-**What to build**:
+- [x] **Set restrictive CSP** in `tauri.conf.json` — `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:* ...; img-src 'self' data: blob:; object-src 'none'; frame-ancestors 'none'`
+- [x] **Block external script loading** — only `'self'` origin allowed
+- [x] **Restrict WebSocket connections** — only localhost origins
+- [x] **Allow data: URIs for images** — needed for attachment previews
 
-- [ ] **Set restrictive CSP** in `tauri.conf.json`:
-  ```json
-  "security": {
-    "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ws://127.0.0.1:* http://127.0.0.1:*; img-src 'self' data:; font-src 'self'"
-  }
-  ```
-- [ ] **Block external script loading** — only allow `'self'` origin
-- [ ] **Restrict WebSocket connections** — only `ws://127.0.0.1:*` (localhost gateway)
-- [ ] **Allow data: URIs for images** — needed for attachment previews
+### C3. Command Allowlist / Denylist ✅
 
-**Location**: `src-tauri/tauri.conf.json:24-26`
+**Built** (Sprint A — 2026-02-15):
 
-### C3. Command Allowlist / Denylist ❌
+- [x] **Command allowlist in Settings** — regex patterns for auto-approved commands with sensible defaults (git, npm, node, python, ls, cat, etc.)
+- [x] **Command denylist in Settings** — regex patterns for auto-denied commands with sensible defaults (sudo, rm -rf /, chmod 777, curl|sh, etc.)
+- [x] **Policy modes** — auto-deny (privilege escalation, critical), auto-approve (allowlist), or manual (modal) per command
+- [x] **Persist to localStorage** — `paw_security_settings` key with all toggles + patterns
+- [x] **New SQLite tables** — `security_audit_log` for unified event logging, `security_rules` for persistent rule storage
+- [x] **Regex validation** — patterns are validated before saving, invalid regex shows error toast
 
-**Risk**: The current exec approval system is binary (allow/deny per request). No way to pre-approve safe commands or permanently block dangerous ones.
+**Location**: `src/security.ts`, Settings view (`settings.ts`), `db.ts` (new tables)
 
-**What to build**:
-
-- [ ] **Command allowlist in Settings** — regex patterns for auto-approved commands
-  - Default safe list: `git *`, `npm *`, `node *`, `python *`, `ls`, `cat`, `echo`, `pwd`, `which`, `find` (read-only variants)
-- [ ] **Command denylist in Settings** — regex patterns for auto-denied commands
-  - Default deny list: `sudo *`, `su *`, `rm -rf /`, `chmod 777 *`, `dd if=*`, `curl * | sh`
-- [ ] **Policy modes**:
-  - `ask` (default) — show modal for every command
-  - `allowlist` — auto-approve allowlisted, ask for everything else
-  - `strict` — auto-approve allowlisted, auto-deny everything else
+**Still TODO**:
 - [ ] **Per-session overrides** — "Allow all for this session" with a timer (30min, 1hr)
-- [ ] **Persist to SQLite** — new `security_rules` table
-
-**Location**: New section in Settings view, new table in `db.ts`
 
 ---
 
 ## What's Missing — High Priority
 
-### H1. Unified Security Audit Dashboard ❌
+### H1. Unified Security Audit Dashboard ✅
 
-**What to build**:
+**Built** (Sprint A + Sprint B — 2026-02-15):
 
-- [ ] **Unified audit log** — combine credential activity log + exec approval decisions + skill installs into one view
-- [ ] **New SQLite table `security_audit_log`** — all security-relevant events:
-  - `exec_approval` — tool approved/denied, with tool name + args + timestamp
-  - `credential_access` — email password read/used
-  - `skill_install` — skill package installed
-  - `config_change` — gateway config modified
-  - `token_rotate` — device token rotated/revoked
-  - `login_attempt` — channel login attempt
-- [ ] **Filterable by type, date, severity**
-- [ ] **Export to JSON/CSV** for compliance
-- [ ] **Security score widget** — quick health check (CSP set? Token rotated recently? Audit log clean?)
+- [x] **New SQLite table `security_audit_log`** — all security-relevant events with: event_type, risk_level, tool_name, command, detail, session_key, was_allowed, matched_pattern
+- [x] **`security_rules` table** — persistent storage for user-defined allow/deny patterns
+- [x] **Logging from exec approval handler** — all auto-deny, auto-allow, and user decisions are logged to `security_audit_log`
+- [x] **CRUD functions** — `logSecurityEvent()`, `getSecurityAuditLog()`, `listSecurityRules()`, `addSecurityRule()`, etc.
+- [x] **Audit dashboard UI** — dedicated section in Settings with sortable/filterable table
+- [x] **Filterable by type, date, severity** — dropdown filters for event type, risk level, and result count
+- [x] **Export to JSON/CSV** — one-click export buttons in the dashboard
+- [x] **Security score widget** — quick stats: CSP active, blocked count, allowed count, critical count
 
-### H2. Skill Vetting / Package Safety ❌
+### H2. Skill Vetting / Package Safety 🔶 PARTIAL
 
 **Risk**: `skills.install` installs npm packages with no safety check. A malicious skill package could contain arbitrary code.
 
-**What to build**:
+**Built** (Sprint B — 2026-02-15):
 
-- [ ] **Pre-install safety check** — before `skills.install`, run `npm audit` on the package
+- [x] **Pre-install safety confirmation** — modal dialog showing safety checks before every skill install
+- [x] **Known-safe skills list** — built-in set of community-vetted skill names (web-search, git, memory, etc.)
+- [x] **Warning for unrecognized packages** — "Unrecognized skill — not in known-safe list" with ⚠ badge
+- [x] **npm install script warning** — alerts that npm packages run install scripts
+- [x] **Security audit logging** — all skill install decisions logged to `security_audit_log`
+
+**Still TODO**:
+
+- [ ] **npm audit integration** — actually run `npm audit` on the package before install
 - [ ] **Risk score display** — show download count, last publish date, known vulnerabilities
-- [ ] **Verified skills badge** — maintain a list of known-safe skills (or pull from community list)
-- [ ] **Warn on first-time packages** — "This skill has never been installed before. Are you sure?"
 - [ ] **Post-install sandbox check** — verify the skill doesn't request unexpected permissions
 
-### H3. Filesystem Sandboxing Hardening ❌
+### H3. Filesystem Sandboxing Hardening 🔶 PARTIAL
 
 **Current**: Tauri scope is `$HOME/Documents/Paw/**`. Projects view can browse any directory.
 
-**What to build**:
+**Built** (Sprint B — 2026-02-15):
+
+- [x] **Sensitive path blocking** — blocks adding `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.kube`, `~/.docker`, `~/.openclaw`, `/etc`, `/root`, `/proc`, `/sys`, `/dev`, filesystem root, and home directory root as project folders
+- [x] **File tree protection** — sensitive directories hidden from file tree browsing within projects
+- [x] **Security audit logging** — blocked path attempts logged to `security_audit_log`
+
+**Still TODO**:
 
 - [ ] **Per-project filesystem scope** — when a project folder is added, scope Tauri to that specific path
-- [ ] **Block traversal outside scope** — Projects view shouldn't allow `../../../etc/passwd`
-- [ ] **Read-only mode** — option to browse project files read-only (agent can read but not write)
-- [ ] **Sensitive path blocking** — never allow browsing `~/.ssh`, `~/.gnupg`, `~/.aws`, `~/.*` dirs
+- [ ] **Read-only mode** — option to browse project files read-only
 - [ ] **Agent filesystem restrictions** — through exec approvals, restrict which paths the agent can write to
 
-### H4. Token Auto-Rotation ❌
+### H4. Token Auto-Rotation 🔶 PARTIAL
 
 **Current**: Gateway token never expires unless manually rotated via `device.token.rotate`.
 
-**What to build**:
+**Built** (Sprint B — 2026-02-15):
+
+- [x] **Token age display** — device cards show days since pairing
+- [x] **Rotation reminder** — stale (30d+) and critical (90d+) visual warnings on device cards
+
+**Still TODO**:
 
 - [ ] **Auto-rotation schedule** — configurable interval (weekly, monthly, on-upgrade)
-- [ ] **Rotation reminder** — Settings badge: "Token hasn't been rotated in 30 days"
-- [ ] **Token age display** — show when the token was last rotated
 - [ ] **Auto-rotate on update** — when OpenClaw is updated, offer to rotate the token
 
 ---
@@ -324,23 +323,23 @@ ssh-keygen -f (overwriting)             — key destruction
 
 ## Implementation Plan
 
-### Sprint A — Critical Security (Immediate)
+### Sprint A — Critical Security ✅ COMPLETE (2026-02-15)
 
-| # | Task | Effort | Files |
+| # | Task | Status | Files |
 |---|------|--------|-------|
-| A1 | Dangerous command classifier + red modal | 1 day | `main.ts` (exec approval handler), `styles.css`, `index.html` (modal variant) |
-| A2 | Set proper CSP in tauri.conf.json | 30 min | `src-tauri/tauri.conf.json` |
-| A3 | Command allowlist/denylist UI in Settings | 1 day | `settings.ts`, `db.ts` (new table), `main.ts` (exec approval handler) |
-| A4 | Auto-deny sudo/su toggle | 30 min | `main.ts` (pattern check in exec approval handler) |
+| A1 | Dangerous command classifier + red modal | ✅ | `src/security.ts` (new), `main.ts`, `styles.css`, `index.html` |
+| A2 | Set proper CSP in tauri.conf.json | ✅ | `src-tauri/tauri.conf.json` |
+| A3 | Command allowlist/denylist UI in Settings | ✅ | `settings.ts`, `db.ts` (2 new tables), `main.ts`, `index.html` |
+| A4 | Auto-deny sudo/su toggle | ✅ | `src/security.ts`, `main.ts`, `settings.ts`, `index.html` |
 
-### Sprint B — Audit & Trust (Next)
+### Sprint B — Audit & Trust ✅ COMPLETE (2026-02-15)
 
-| # | Task | Effort | Files |
+| # | Task | Status | Files |
 |---|------|--------|-------|
-| B1 | Unified security audit log table | 1 day | `db.ts`, `settings.ts` or new `security.ts` view |
-| B2 | Skill vetting pre-install check | 1 day | `skills.ts` (add safety check before install) |
-| B3 | Token age display + rotation reminder | 2 hrs | `settings.ts` |
-| B4 | Sensitive path blocking for Projects | 2 hrs | `projects.ts` (block `~/.ssh`, etc.) |
+| B1 | Security audit dashboard UI | ✅ | `settings.ts`, `index.html`, `styles.css` |
+| B2 | Skill vetting pre-install safety | ✅ | `skills.ts` (safety confirmation dialog + known-safe list) |
+| B3 | Token age display + rotation reminder | ✅ | `settings.ts` (device cards with age + stale/critical warnings) |
+| B4 | Sensitive path blocking for Projects | ✅ | `projects.ts` (20+ blocked paths + file tree filtering) |
 
 ### Sprint C — Hardening (Later)
 
@@ -360,17 +359,21 @@ ssh-keygen -f (overwriting)             — key destruction
 |----------|--------|---------------|
 | **HIL (Human-in-the-Loop)** | ✅ Built | Exec approval modal, allow/deny per request, mail permission auto-deny |
 | **chmod (file permissions)** | ✅ Built (own files) | `set_owner_only_permissions()` on himalaya config — agent `chmod` not blocked |
-| **sudo/su detection** | ❌ Not built | No pattern matching on exec approval requests |
-| **Command allowlist** | ❌ Not built | No pre-approved or pre-denied command patterns |
+| **sudo/su detection** | ✅ Built | `src/security.ts` — pattern matching + auto-deny toggle + 30+ danger patterns |
+| **Dangerous command classifier** | ✅ Built | Risk classification (critical/high/medium), red DANGER modal, type-to-confirm |
+| **Command allowlist/denylist** | ✅ Built | Regex patterns in Settings, auto-approve safe commands, auto-deny dangerous ones |
 | **OS Keychain** | ✅ Built | Rust `keyring` crate — macOS Keychain / libsecret / Windows |
 | **Filesystem sandbox** | ✅ Partial | Tauri scope `~/Documents/Paw/**` — Projects view is unscoped |
-| **CSP** | ❌ Not built | `"csp": null` — wide open |
+| **CSP** | ✅ Built | Restrictive CSP: self-only scripts, localhost-only WebSocket, no external loads |
 | **Gateway auth** | ✅ Built | Token-based WebSocket auth + per-device rotation/revocation |
 | **Credential audit** | ✅ Built (mail only) | `credential_activity_log` table — no unified audit dashboard |
+| **Security audit log** | ✅ Built | `security_audit_log` table + filterable dashboard UI with export (JSON/CSV) |
 | **Channel access control** | ✅ Built | Per-channel DM/group policies with allowlists |
-| **Skill vetting** | ❌ Not built | `skills.install` has no safety check |
+| **Skill vetting** | 🔶 Partial | Pre-install safety confirmation, known-safe list, audit logging — no npm audit yet |
+| **Filesystem sandbox** | 🔶 Partial | Tauri scope + sensitive path blocking (20+ patterns) + file tree filtering |
+| **Token rotation** | 🔶 Partial | Token age display + stale/critical warnings on device cards — no auto-rotation yet |
 | **Encryption at rest** | ❌ Not built | SQLite and config files are plaintext |
-| **Token auto-rotation** | ❌ Not built | Manual rotation only |
+| **Token auto-rotation** | 🔶 Partial | Token age display + rotation reminders — no auto-schedule yet |
 | **Network sandboxing** | ❌ Not built | Agent can reach any domain |
 | **Crash recovery** | ❌ Not built | No watchdog, no auto-restart |
 
@@ -381,17 +384,18 @@ ssh-keygen -f (overwriting)             — key destruction
 | File | Security Role |
 |------|---------------|
 | `src-tauri/src/lib.rs` | Rust backend — keychain, chmod, gateway lifecycle |
-| `src-tauri/tauri.conf.json` | CSP config (currently null), bundle config |
+| `src-tauri/tauri.conf.json` | CSP config (restrictive policy set), bundle config |
 | `src-tauri/capabilities/default.json` | Filesystem scope, shell permissions |
-| `src/main.ts:2950-3095` | Exec approval handler, mail permission classifier, approval modal |
+| `src/security.ts` | **NEW** — Dangerous command classifier, risk patterns, security settings load/save, allowlist/denylist matching |
+| `src/main.ts:3022-3210` | Exec approval handler — risk classification, auto-deny/allow, danger modal, type-to-confirm |
 | `src/main.ts:1660-1820` | Channel setup — DM/group policies, allowlists |
 | `src/gateway.ts:607-625` | Exec approval gateway methods |
 | `src/db.ts:139` | `credential_activity_log` table schema |
-| `src/db.ts:338` | Audit log insert function |
-| `src/views/settings.ts` | Approval toggles, device token management, usage dashboard |
-| `src/views/mail.ts` | Credential vault, permission toggles per account |
-| `src/views/skills.ts` | Skill install (no vetting) |
-| `src/views/projects.ts` | File browser (no sensitive path blocking) |
+| `src/db.ts:150-190` | **NEW** — `security_audit_log` + `security_rules` table schemas |
+| `src/db.ts:380-460` | **NEW** — Security audit log + rules CRUD functions |
+| `src/views/settings.ts` | Approval toggles, security policy toggles, audit dashboard, device token management |
+| `src/views/skills.ts` | Skill install (with safety confirmation + known-safe list) |
+| `src/views/projects.ts` | File browser (sensitive path blocking for 20+ patterns) |
 
 ---
 

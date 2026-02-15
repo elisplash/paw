@@ -148,6 +148,34 @@ async function runMigrations(db: Database) {
     )
   `);
 
+  // Unified security audit log — all security-relevant events in one place
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS security_audit_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp TEXT DEFAULT (datetime('now')),
+      event_type TEXT NOT NULL,     -- 'exec_approval', 'credential_access', 'skill_install', 'config_change', 'auto_deny', 'auto_allow', 'security_policy'
+      risk_level TEXT,              -- 'critical', 'high', 'medium', 'low', 'safe', null
+      tool_name TEXT,
+      command TEXT,                 -- the raw command or tool invocation
+      detail TEXT,                  -- human-readable description
+      session_key TEXT,
+      was_allowed INTEGER DEFAULT 1,
+      matched_pattern TEXT          -- which security rule or pattern triggered
+    )
+  `);
+
+  // Command security rules — user-defined allowlist/denylist patterns
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS security_rules (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      rule_type TEXT NOT NULL,      -- 'allow' or 'deny'
+      pattern TEXT NOT NULL,        -- regex pattern
+      description TEXT,             -- optional human label
+      enabled INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   // Seed default agent mode if none exist
   const modes = await db.select<{ count: number }[]>('SELECT COUNT(*) as count FROM agent_modes');
   if (modes[0]?.count === 0) {
@@ -347,4 +375,96 @@ export async function getCredentialActivityLog(limit = 50): Promise<CredentialLo
   return db.select<CredentialLogEntry[]>(
     'SELECT * FROM credential_activity_log ORDER BY id DESC LIMIT ?', [limit]
   );
+}
+// ── Security Audit Log ────────────────────────────────────────────────────
+
+export interface SecurityAuditEntry {
+  id: number;
+  timestamp: string;
+  event_type: string;
+  risk_level: string | null;
+  tool_name: string | null;
+  command: string | null;
+  detail: string | null;
+  session_key: string | null;
+  was_allowed: number;
+  matched_pattern: string | null;
+}
+
+export async function logSecurityEvent(entry: {
+  eventType: string;
+  riskLevel?: string | null;
+  toolName?: string;
+  command?: string;
+  detail?: string;
+  sessionKey?: string;
+  wasAllowed?: boolean;
+  matchedPattern?: string;
+}): Promise<void> {
+  if (!db) return;
+  await db.execute(
+    `INSERT INTO security_audit_log (event_type, risk_level, tool_name, command, detail, session_key, was_allowed, matched_pattern)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      entry.eventType,
+      entry.riskLevel ?? null,
+      entry.toolName ?? null,
+      entry.command ?? null,
+      entry.detail ?? null,
+      entry.sessionKey ?? null,
+      entry.wasAllowed !== false ? 1 : 0,
+      entry.matchedPattern ?? null,
+    ]
+  );
+}
+
+export async function getSecurityAuditLog(limit = 100, eventType?: string): Promise<SecurityAuditEntry[]> {
+  if (!db) return [];
+  if (eventType) {
+    return db.select<SecurityAuditEntry[]>(
+      'SELECT * FROM security_audit_log WHERE event_type = ? ORDER BY id DESC LIMIT ?', [eventType, limit]
+    );
+  }
+  return db.select<SecurityAuditEntry[]>(
+    'SELECT * FROM security_audit_log ORDER BY id DESC LIMIT ?', [limit]
+  );
+}
+
+// ── Security Rules CRUD ───────────────────────────────────────────────────
+
+export interface SecurityRule {
+  id: number;
+  rule_type: string;
+  pattern: string;
+  description: string | null;
+  enabled: number;
+  created_at: string;
+}
+
+export async function listSecurityRules(ruleType?: string): Promise<SecurityRule[]> {
+  if (!db) return [];
+  if (ruleType) {
+    return db.select<SecurityRule[]>(
+      'SELECT * FROM security_rules WHERE rule_type = ? ORDER BY id ASC', [ruleType]
+    );
+  }
+  return db.select<SecurityRule[]>('SELECT * FROM security_rules ORDER BY rule_type, id ASC');
+}
+
+export async function addSecurityRule(rule: { ruleType: string; pattern: string; description?: string }): Promise<void> {
+  if (!db) return;
+  await db.execute(
+    `INSERT INTO security_rules (rule_type, pattern, description) VALUES (?, ?, ?)`,
+    [rule.ruleType, rule.pattern, rule.description ?? null]
+  );
+}
+
+export async function removeSecurityRule(id: number): Promise<void> {
+  if (!db) return;
+  await db.execute('DELETE FROM security_rules WHERE id = ?', [id]);
+}
+
+export async function toggleSecurityRule(id: number, enabled: boolean): Promise<void> {
+  if (!db) return;
+  await db.execute('UPDATE security_rules SET enabled = ? WHERE id = ?', [enabled ? 1 : 0, id]);
 }

@@ -2,6 +2,7 @@
 // Extracted from main.ts for maintainability
 
 import { gateway } from '../gateway';
+import { logSecurityEvent } from '../db';
 
 const $ = (id: string) => document.getElementById(id);
 
@@ -141,6 +142,104 @@ export async function loadSkills() {
   }
 }
 
+// ── B2: Skill Safety Confirmation ──────────────────────────────────────────
+
+/** Known safe / trusted skill packages (community-vetted) */
+const KNOWN_SAFE_SKILLS = new Set([
+  'web-search', 'web-browse', 'web-scrape',
+  'memory', 'memory-lancedb',
+  'filesystem', 'shell-exec',
+  'git', 'github', 'gitlab',
+  'docker', 'kubernetes',
+  'postgres', 'mysql', 'sqlite', 'redis',
+  'fetch', 'http', 'rest-api',
+  'puppeteer', 'playwright',
+  'slack', 'discord', 'telegram',
+]);
+
+/**
+ * Show a safety confirmation dialog before installing a skill.
+ * Returns true if user confirms, false if cancelled.
+ */
+async function showSkillSafetyConfirm(skillName: string, installId: string): Promise<boolean> {
+  const isKnown = KNOWN_SAFE_SKILLS.has(skillName.toLowerCase());
+  const isNpmPkg = installId.includes('/') || installId.startsWith('@') || installId.match(/^[a-z][\w-]*$/i);
+
+  // Build safety checks
+  const checks: Array<{ label: string; status: 'pass' | 'warn' | 'fail' }> = [];
+
+  if (isKnown) {
+    checks.push({ label: 'Known community skill', status: 'pass' });
+  } else {
+    checks.push({ label: 'Unrecognized skill — not in known-safe list', status: 'warn' });
+  }
+
+  if (isNpmPkg) {
+    checks.push({ label: 'npm package — runs install scripts', status: 'warn' });
+  }
+
+  checks.push({ label: 'Will have access to agent tool calls', status: 'warn' });
+
+  const checksHtml = checks.map(c => {
+    const icon = c.status === 'pass' ? '✓' : c.status === 'warn' ? '⚠' : '✕';
+    return `<div class="skill-safety-check"><span class="check-${c.status}">${icon}</span> ${escHtml(c.label)}</div>`;
+  }).join('');
+
+  // Use the prompt modal for confirmation
+  return new Promise<boolean>((resolve) => {
+    const promptModal = $('prompt-modal');
+    const promptInput = $('prompt-modal-input') as HTMLInputElement | null;
+    const promptTitle = $('prompt-modal-title');
+    const promptOk = $('prompt-modal-ok');
+    const promptClose = $('prompt-modal-close');
+    const promptCancel = $('prompt-modal-cancel');
+    const promptBody = promptModal?.querySelector('.modal-body');
+
+    if (!promptModal || !promptOk || !promptBody) {
+      // Fallback: native confirm
+      const ok = confirm(`Install skill "${skillName}"?\n\nThis will download and install a package that can execute code on your machine. Only install skills you trust.`);
+      resolve(ok);
+      return;
+    }
+
+    if (promptTitle) promptTitle.textContent = `Install "${skillName}"?`;
+    
+    // Replace the modal body temporarily
+    const originalBody = promptBody.innerHTML;
+    promptBody.innerHTML = `
+      <div class="skill-safety-banner">
+        <div class="safety-icon">🛡</div>
+        <div>
+          <strong>Skill Safety Review</strong>
+          <p style="margin:4px 0 0">This will download and install <strong>${escHtml(skillName)}</strong> on your machine. Skills can execute code and access system resources.</p>
+          <div class="skill-safety-checks">${checksHtml}</div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:12px">Only install skills from sources you trust. If unsure, review the skill's documentation first.</p>
+    `;
+
+    if (promptInput) promptInput.style.display = 'none';
+
+    promptModal.style.display = 'flex';
+
+    const cleanup = () => {
+      promptModal.style.display = 'none';
+      promptBody.innerHTML = originalBody;
+      if (promptInput) promptInput.style.display = '';
+      promptOk.removeEventListener('click', onOk);
+      promptClose?.removeEventListener('click', onCancel);
+      promptCancel?.removeEventListener('click', onCancel);
+    };
+
+    const onOk = () => { cleanup(); resolve(true); };
+    const onCancel = () => { cleanup(); resolve(false); };
+
+    promptOk.addEventListener('click', onOk);
+    promptClose?.addEventListener('click', onCancel);
+    promptCancel?.addEventListener('click', onCancel);
+  });
+}
+
 function wireSkillActions() {
   // Install buttons
   document.querySelectorAll('.skill-install').forEach(btn => {
@@ -152,12 +251,34 @@ function wireSkillActions() {
         showSkillsToast(`No installer available for ${name}`, 'error');
         return;
       }
+
+      // ── B2: Skill vetting — safety confirmation ──
+      const safetyOk = await showSkillSafetyConfirm(name, installId);
+      if (!safetyOk) {
+        logSecurityEvent({
+          eventType: 'skill_install',
+          riskLevel: 'medium',
+          toolName: name,
+          command: `skills.install ${name}`,
+          detail: `User cancelled skill install: ${name}`,
+          wasAllowed: false,
+        }).catch(() => {});
+        return;
+      }
+
       (btn as HTMLButtonElement).disabled = true;
       (btn as HTMLButtonElement).textContent = 'Installing…';
       showSkillsToast(`Installing ${name}…`, 'info');
       try {
         await gateway.skillsInstall(name, installId);
         showSkillsToast(`${name} installed successfully!`, 'success');
+        logSecurityEvent({
+          eventType: 'skill_install',
+          toolName: name,
+          command: `skills.install ${name}`,
+          detail: `Skill installed: ${name}`,
+          wasAllowed: true,
+        }).catch(() => {});
         await loadSkills();
       } catch (e) {
         showSkillsToast(`Install failed for ${name}: ${e}`, 'error');

@@ -22,7 +22,7 @@ function icon(name: string, cls = ''): string {
   const inner = _icons[name] || '';
   return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''}>${inner}</svg>`;
 }
-import { initDb, listModes, listDocs, saveDoc, getDoc, deleteDoc, listProjects, saveProject, listProjectFiles, saveProjectFile, deleteProjectFile, logCredentialActivity } from './db';
+import { initDb, listModes, listDocs, saveDoc, getDoc, deleteDoc, listProjects, saveProject, listProjectFiles, saveProjectFile, deleteProjectFile, logCredentialActivity, logSecurityEvent } from './db';
 import * as SettingsModule from './views/settings';
 import * as AutomationsModule from './views/automations';
 import * as MemoryPalaceModule from './views/memory-palace';
@@ -33,6 +33,7 @@ import * as FoundryModule from './views/foundry';
 import * as ResearchModule from './views/research';
 import * as NodesModule from './views/nodes';
 import * as ProjectsModule from './views/projects';
+import { classifyCommandRisk, isPrivilegeEscalation, loadSecuritySettings, matchesAllowlist, matchesDenylist, type RiskClassification } from './security';
 
 // ── Global error handlers ──────────────────────────────────────────────────
 function crashLog(msg: string) {
@@ -3026,8 +3027,17 @@ gateway.on('exec.approval.requested', (payload: unknown) => {
   const args = evt.args as Record<string, unknown> | undefined;
 
   const modal = $('approval-modal');
+  const modalCard = $('approval-modal-card');
+  const modalTitle = $('approval-modal-title');
   const descEl = $('approval-modal-desc');
   const detailsEl = $('approval-modal-details');
+  const riskBanner = $('approval-risk-banner');
+  const riskIcon = $('approval-risk-icon');
+  const riskLabel = $('approval-risk-label');
+  const riskReason = $('approval-risk-reason');
+  const typeConfirm = $('approval-type-confirm');
+  const typeInput = $('approval-type-input') as HTMLInputElement | null;
+  const allowBtn = $('approval-allow-btn') as HTMLButtonElement | null;
   if (!modal || !descEl) return;
 
   const sessionKey = (evt.sessionKey ?? '') as string;
@@ -3035,13 +3045,11 @@ gateway.on('exec.approval.requested', (payload: unknown) => {
   // ── Permission enforcement for mail/credential tools ──
   const mailPerm = classifyMailPermission(tool, args);
   if (mailPerm) {
-    // Check if ANY account has this permission granted
     const anyAllowed = MailModule.getMailAccounts().some(acct => {
       const perms = MailModule.loadMailPermissions(acct.name);
       return perms[mailPerm.perm];
     });
     if (!anyAllowed) {
-      // Auto-deny and log
       if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
       logCredentialActivity({
         action: 'blocked',
@@ -3053,7 +3061,6 @@ gateway.on('exec.approval.requested', (payload: unknown) => {
       showToast(`Blocked: your Credential Vault doesn't allow "${mailPerm.label}" — update permissions in Mail sidebar`, 'warning');
       return;
     }
-    // Permission granted — log it and continue to approval modal
     logCredentialActivity({
       action: mailPerm.perm,
       toolName: tool,
@@ -3061,6 +3068,95 @@ gateway.on('exec.approval.requested', (payload: unknown) => {
       sessionKey,
       wasAllowed: true,
     });
+  }
+
+  // ── Security: Risk classification ──
+  const secSettings = loadSecuritySettings();
+  const risk: RiskClassification | null = classifyCommandRisk(tool, args);
+
+  // Build a command string for allowlist/denylist matching
+  const cmdStr = args
+    ? Object.values(args).filter(v => typeof v === 'string').join(' ')
+    : tool;
+
+  // ── Auto-deny: privilege escalation ──
+  if (secSettings.autoDenyPrivilegeEscalation && isPrivilegeEscalation(tool, args)) {
+    if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
+    logCredentialActivity({ action: 'blocked', toolName: tool, detail: `Auto-denied: privilege escalation command (sudo/su/doas/pkexec)`, sessionKey, wasAllowed: false });
+    logSecurityEvent({ eventType: 'auto_deny', riskLevel: 'critical', toolName: tool, command: cmdStr, detail: 'Privilege escalation auto-denied', sessionKey, wasAllowed: false, matchedPattern: 'privilege_escalation' });
+    showToast('Auto-denied: privilege escalation command blocked by security policy', 'warning');
+    return;
+  }
+
+  // ── Auto-deny: all critical-risk commands ──
+  if (secSettings.autoDenyCritical && risk?.level === 'critical') {
+    if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
+    logCredentialActivity({ action: 'blocked', toolName: tool, detail: `Auto-denied: critical risk — ${risk.label}: ${risk.reason}`, sessionKey, wasAllowed: false });
+    logSecurityEvent({ eventType: 'auto_deny', riskLevel: 'critical', toolName: tool, command: cmdStr, detail: `${risk.label}: ${risk.reason}`, sessionKey, wasAllowed: false, matchedPattern: risk.matchedPattern });
+    showToast(`Auto-denied: ${risk.label} — ${risk.reason}`, 'warning');
+    return;
+  }
+
+  // ── Auto-deny: command denylist ──
+  if (secSettings.commandDenylist.length > 0 && matchesDenylist(cmdStr, secSettings.commandDenylist)) {
+    if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
+    logCredentialActivity({ action: 'blocked', toolName: tool, detail: `Auto-denied: matched command denylist pattern`, sessionKey, wasAllowed: false });
+    logSecurityEvent({ eventType: 'auto_deny', riskLevel: risk?.level ?? null, toolName: tool, command: cmdStr, detail: 'Matched command denylist', sessionKey, wasAllowed: false, matchedPattern: 'denylist' });
+    showToast('Auto-denied: command matched your denylist', 'warning');
+    return;
+  }
+
+  // ── Auto-approve: command allowlist (only if no risk detected) ──
+  if (!risk && secSettings.commandAllowlist.length > 0 && matchesAllowlist(cmdStr, secSettings.commandAllowlist)) {
+    if (id) gateway.execApprovalResolve(id, true).catch(console.warn);
+    logCredentialActivity({ action: 'approved', toolName: tool, detail: `Auto-approved: matched command allowlist pattern`, sessionKey, wasAllowed: true });
+    logSecurityEvent({ eventType: 'auto_allow', toolName: tool, command: cmdStr, detail: 'Matched command allowlist', sessionKey, wasAllowed: true, matchedPattern: 'allowlist' });
+    return;
+  }
+
+  // ── Configure modal appearance based on risk ──
+  const isDangerous = risk && (risk.level === 'critical' || risk.level === 'high');
+  const isCritical = risk?.level === 'critical';
+
+  // Reset modal state
+  modalCard?.classList.remove('danger-modal');
+  riskBanner?.classList.remove('risk-critical', 'risk-high', 'risk-medium');
+  if (riskBanner) riskBanner.style.display = 'none';
+  if (typeConfirm) typeConfirm.style.display = 'none';
+  if (typeInput) typeInput.value = '';
+  if (allowBtn) { allowBtn.disabled = false; allowBtn.textContent = 'Allow'; }
+  if (modalTitle) modalTitle.textContent = 'Tool Approval Required';
+
+  if (risk) {
+    // Show danger modal variant
+    if (isDangerous) {
+      modalCard?.classList.add('danger-modal');
+      if (modalTitle) modalTitle.textContent = '⚠ Dangerous Command Detected';
+    }
+
+    // Show risk banner
+    if (riskBanner && riskLabel && riskReason && riskIcon) {
+      riskBanner.style.display = 'flex';
+      riskBanner.classList.add(`risk-${risk.level}`);
+      riskLabel.textContent = `${risk.level.toUpperCase()}: ${risk.label}`;
+      riskReason.textContent = risk.reason;
+      riskIcon.textContent = isCritical ? '☠' : risk.level === 'high' ? '⚠' : '⚡';
+    }
+
+    // Type-to-confirm for critical commands
+    if (isCritical && secSettings.requireTypeToCritical && typeConfirm && typeInput && allowBtn) {
+      typeConfirm.style.display = 'block';
+      allowBtn.disabled = true;
+      allowBtn.textContent = 'Type ALLOW first';
+      const onTypeInput = () => {
+        const val = typeInput.value.trim().toUpperCase();
+        allowBtn.disabled = val !== 'ALLOW';
+        allowBtn.textContent = val === 'ALLOW' ? 'Allow' : 'Type ALLOW first';
+      };
+      typeInput.addEventListener('input', onTypeInput);
+      // Store cleanup ref
+      (typeInput as unknown as Record<string, unknown>)._secCleanup = onTypeInput;
+    }
   }
 
   descEl.textContent = desc;
@@ -3074,6 +3170,11 @@ gateway.on('exec.approval.requested', (payload: unknown) => {
   // Resolve when user clicks Allow/Deny
   const cleanup = () => {
     modal.style.display = 'none';
+    // Remove type-input listener
+    if (typeInput) {
+      const fn = (typeInput as unknown as Record<string, unknown>)._secCleanup as (() => void) | undefined;
+      if (fn) typeInput.removeEventListener('input', fn);
+    }
     $('approval-allow-btn')?.removeEventListener('click', onAllow);
     $('approval-deny-btn')?.removeEventListener('click', onDeny);
     $('approval-modal-close')?.removeEventListener('click', onDeny);
@@ -3081,11 +3182,17 @@ gateway.on('exec.approval.requested', (payload: unknown) => {
   const onAllow = () => {
     cleanup();
     if (id) gateway.execApprovalResolve(id, true).catch(console.warn);
+    const riskNote = risk ? ` (${risk.level}: ${risk.label})` : '';
+    logCredentialActivity({ action: 'approved', toolName: tool, detail: `User approved${riskNote}: ${tool}${args ? ' ' + JSON.stringify(args).slice(0, 120) : ''}`, sessionKey, wasAllowed: true });
+    logSecurityEvent({ eventType: 'exec_approval', riskLevel: risk?.level ?? null, toolName: tool, command: cmdStr, detail: `User approved${riskNote}`, sessionKey, wasAllowed: true, matchedPattern: risk?.matchedPattern });
     showToast('Tool approved', 'success');
   };
   const onDeny = () => {
     cleanup();
     if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
+    const riskNote = risk ? ` (${risk.level}: ${risk.label})` : '';
+    logCredentialActivity({ action: 'denied', toolName: tool, detail: `User denied${riskNote}: ${tool}${args ? ' ' + JSON.stringify(args).slice(0, 120) : ''}`, sessionKey, wasAllowed: false });
+    logSecurityEvent({ eventType: 'exec_approval', riskLevel: risk?.level ?? null, toolName: tool, command: cmdStr, detail: `User denied${riskNote}`, sessionKey, wasAllowed: false, matchedPattern: risk?.matchedPattern });
     showToast('Tool denied', 'warning');
   };
   $('approval-allow-btn')?.addEventListener('click', onAllow);

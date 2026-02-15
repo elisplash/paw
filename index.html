@@ -1807,6 +1807,126 @@
               <button class="btn btn-ghost btn-sm" id="settings-refresh-approvals">Reload</button>
             </div>
           </div>
+
+          <!-- Security Audit Dashboard -->
+          <div class="settings-section" id="settings-audit-section">
+            <h2 class="settings-section-title">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+              Security Audit Log
+            </h2>
+            <p class="settings-section-desc">All security-relevant events — exec approvals, auto-denies, auto-allows, and policy changes.</p>
+
+            <div class="audit-controls">
+              <select class="form-input audit-filter-select" id="audit-filter-type">
+                <option value="">All events</option>
+                <option value="exec_approval">Exec approvals</option>
+                <option value="auto_deny">Auto-denied</option>
+                <option value="auto_allow">Auto-allowed</option>
+                <option value="credential_access">Credential access</option>
+                <option value="security_policy">Policy changes</option>
+              </select>
+              <select class="form-input audit-filter-select" id="audit-filter-risk">
+                <option value="">All risk levels</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+                <option value="safe">Safe</option>
+              </select>
+              <select class="form-input audit-filter-select" id="audit-filter-limit">
+                <option value="50">Last 50</option>
+                <option value="100" selected>Last 100</option>
+                <option value="250">Last 250</option>
+                <option value="500">Last 500</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" id="audit-refresh">Refresh</button>
+              <button class="btn btn-ghost btn-sm" id="audit-export-json" title="Export as JSON">Export JSON</button>
+              <button class="btn btn-ghost btn-sm" id="audit-export-csv" title="Export as CSV">Export CSV</button>
+            </div>
+
+            <!-- Security score card -->
+            <div class="audit-score-card" id="audit-score-card">
+              <div class="audit-score-item" id="audit-score-csp">
+                <span class="audit-score-icon">✅</span>
+                <span class="audit-score-label">CSP Active</span>
+              </div>
+              <div class="audit-score-item" id="audit-score-denied">
+                <span class="audit-score-icon">🛡</span>
+                <span class="audit-score-label" id="audit-score-denied-label">0 blocked</span>
+              </div>
+              <div class="audit-score-item" id="audit-score-allowed">
+                <span class="audit-score-icon">✓</span>
+                <span class="audit-score-label" id="audit-score-allowed-label">0 allowed</span>
+              </div>
+              <div class="audit-score-item" id="audit-score-critical">
+                <span class="audit-score-icon">⚠</span>
+                <span class="audit-score-label" id="audit-score-critical-label">0 critical</span>
+              </div>
+            </div>
+
+            <div class="audit-table-wrapper" id="audit-table-wrapper">
+              <table class="audit-table" id="audit-log-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Event</th>
+                    <th>Risk</th>
+                    <th>Tool</th>
+                    <th>Detail</th>
+                    <th>Result</th>
+                  </tr>
+                </thead>
+                <tbody id="audit-log-body"></tbody>
+              </table>
+            </div>
+            <div class="audit-empty" id="audit-empty" style="display:none">No security events recorded yet.</div>
+          </div>
+
+          <!-- Security Policies -->
+          <div class="settings-section" id="settings-security-section">
+            <h2 class="settings-section-title">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Security Policies
+            </h2>
+            <p class="settings-section-desc">Controls how Paw handles dangerous commands from the agent.</p>
+
+            <div class="security-toggles">
+              <label class="security-toggle-row">
+                <input type="checkbox" id="sec-auto-deny-priv" />
+                <div class="security-toggle-info">
+                  <div class="security-toggle-label">Auto-deny privilege escalation</div>
+                  <div class="security-toggle-desc">Automatically block sudo, su, doas, pkexec, and runas commands without asking</div>
+                </div>
+              </label>
+              <label class="security-toggle-row">
+                <input type="checkbox" id="sec-auto-deny-critical" />
+                <div class="security-toggle-info">
+                  <div class="security-toggle-label">Auto-deny all critical-risk commands</div>
+                  <div class="security-toggle-desc">Automatically block fork bombs, remote code execution, disk destruction, etc.</div>
+                </div>
+              </label>
+              <label class="security-toggle-row">
+                <input type="checkbox" id="sec-require-type" checked />
+                <div class="security-toggle-info">
+                  <div class="security-toggle-label">Require typing "ALLOW" for critical commands</div>
+                  <div class="security-toggle-desc">Instead of clicking a button, you must type ALLOW to approve dangerous commands</div>
+                </div>
+              </label>
+            </div>
+
+            <h3 class="settings-subsection-title" style="margin-top:20px">Command Allowlist</h3>
+            <p class="settings-section-desc">Regex patterns for commands that are always auto-approved (bypasses the approval modal). One pattern per line.</p>
+            <textarea class="form-input security-patterns-input" id="sec-allowlist" rows="6" placeholder="^git\b&#10;^npm\b&#10;^ls\b"></textarea>
+
+            <h3 class="settings-subsection-title" style="margin-top:16px">Command Denylist</h3>
+            <p class="settings-section-desc">Regex patterns for commands that are always auto-denied. One pattern per line.</p>
+            <textarea class="form-input security-patterns-input" id="sec-denylist" rows="6" placeholder="\bsudo\b&#10;\brm\s+-rf\s+/"></textarea>
+
+            <div style="display:flex;gap:8px;margin-top:16px">
+              <button class="btn btn-primary" id="settings-save-security">Save Security Policies</button>
+              <button class="btn btn-ghost btn-sm" id="settings-reset-security">Reset to Defaults</button>
+            </div>
+          </div>
         </div>
       </main>
     </div>
@@ -1816,17 +1936,30 @@
 
     <!-- Exec Approval Modal -->
     <div class="modal-overlay" id="approval-modal" style="display:none">
-      <div class="modal-card" style="width:480px">
-        <div class="modal-header">
-          <h2 class="modal-title">Tool Approval Required</h2>
+      <div class="modal-card" id="approval-modal-card" style="width:480px">
+        <div class="modal-header" id="approval-modal-header">
+          <h2 class="modal-title" id="approval-modal-title">Tool Approval Required</h2>
           <button class="btn-icon" id="approval-modal-close">✕</button>
+        </div>
+        <!-- Risk badge (hidden by default, shown for dangerous commands) -->
+        <div class="approval-risk-banner" id="approval-risk-banner" style="display:none">
+          <div class="approval-risk-icon" id="approval-risk-icon">⚠</div>
+          <div class="approval-risk-info">
+            <div class="approval-risk-label" id="approval-risk-label">DANGER</div>
+            <div class="approval-risk-reason" id="approval-risk-reason"></div>
+          </div>
         </div>
         <div class="modal-body">
           <p id="approval-modal-desc" style="color:var(--text-secondary);margin-bottom:12px"></p>
           <div id="approval-modal-details" class="approval-details"></div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" id="approval-modal-footer">
           <button class="btn btn-secondary" id="approval-deny-btn">Deny</button>
+          <!-- Type-to-confirm container (hidden by default, shown for critical commands) -->
+          <div class="approval-type-confirm" id="approval-type-confirm" style="display:none">
+            <label class="approval-type-label">Type <strong>ALLOW</strong> to approve:</label>
+            <input type="text" class="form-input approval-type-input" id="approval-type-input" placeholder="Type ALLOW" autocomplete="off" spellcheck="false" />
+          </div>
           <button class="btn btn-primary" id="approval-allow-btn">Allow</button>
         </div>
       </div>

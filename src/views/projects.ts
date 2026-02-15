@@ -2,6 +2,7 @@
 // Uses Tauri filesystem APIs or falls back to a placeholder in browser
 
 import { showToast } from '../components/toast';
+import { logSecurityEvent } from '../db';
 
 const $ = (id: string) => document.getElementById(id);
 
@@ -68,6 +69,50 @@ function savePersistProjects(): void {
   localStorage.setItem('paw-project-folders', JSON.stringify(_projects));
 }
 
+// ── B4: Sensitive Path Blocking ─────────────────────────────────────────────
+
+/** Paths that should never be added as project folders or browsed into */
+const SENSITIVE_PATH_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
+  { pattern: /[/\\]\.ssh(\/|\\|$)/i,           label: 'SSH keys directory' },
+  { pattern: /[/\\]\.gnupg(\/|\\|$)/i,         label: 'GPG keyring directory' },
+  { pattern: /[/\\]\.aws(\/|\\|$)/i,           label: 'AWS credentials directory' },
+  { pattern: /[/\\]\.kube(\/|\\|$)/i,          label: 'Kubernetes config directory' },
+  { pattern: /[/\\]\.docker(\/|\\|$)/i,        label: 'Docker config directory' },
+  { pattern: /[/\\]\.gnome-keyring(\/|\\|$)/i, label: 'GNOME keyring directory' },
+  { pattern: /[/\\]\.password-store(\/|\\|$)/i,label: 'Password store directory' },
+  { pattern: /[/\\]\.netrc$/i,                 label: 'netrc credentials file' },
+  { pattern: /^\/etc(\/|$)/i,                  label: '/etc system config' },
+  { pattern: /^\/root(\/|$)/i,                 label: '/root home directory' },
+  { pattern: /^\/var\/log(\/|$)/i,             label: 'System logs directory' },
+  { pattern: /^\/proc(\/|$)/i,                 label: 'proc filesystem' },
+  { pattern: /^\/sys(\/|$)/i,                  label: 'sys filesystem' },
+  { pattern: /^\/dev(\/|$)/i,                  label: 'Device filesystem' },
+  { pattern: /^C:\\\\Windows(\\\\|$)/i,        label: 'Windows system directory' },
+  { pattern: /^C:\\\\Users\\\\[^\\\\]+\\\\AppData(\\\\|$)/i, label: 'AppData directory' },
+  { pattern: /[/\\]\.openclaw(\/|\\|$)/i,      label: 'OpenClaw config (contains tokens)' },
+  { pattern: /[/\\]\.config[/\\]himalaya(\/|\\|$)/i, label: 'Himalaya email config' },
+];
+
+/**
+ * Check if a path matches any known sensitive location.
+ * Returns the label of the matched pattern, or null if safe.
+ */
+function isSensitivePath(pathStr: string): string | null {
+  const normalized = pathStr.replace(/\\/g, '/');
+  for (const { pattern, label } of SENSITIVE_PATH_PATTERNS) {
+    if (pattern.test(normalized)) return label;
+  }
+  // Block home directory root itself (e.g. /home/user or /Users/user)
+  if (/^(\/home\/[^/]+|\/Users\/[^/]+|~)$/.test(normalized)) {
+    return 'Home directory root (too broad)';
+  }
+  // Block filesystem root
+  if (normalized === '/' || normalized === 'C:\\' || normalized === 'C:/') {
+    return 'Filesystem root';
+  }
+  return null;
+}
+
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export async function loadProjects(): Promise<void> {
@@ -84,6 +129,22 @@ export async function loadProjects(): Promise<void> {
 }
 
 export async function addProjectFolder(path: string, name?: string): Promise<void> {
+  // B4: Block sensitive directories
+  const blocked = isSensitivePath(path);
+  if (blocked) {
+    showToast(`Blocked: "${path}" is a sensitive system directory (${blocked}). Cannot add as a project.`, 'error');
+    logSecurityEvent({
+      eventType: 'security_policy',
+      riskLevel: 'high',
+      toolName: 'projects.addFolder',
+      command: path,
+      detail: `Blocked sensitive path: ${blocked}`,
+      wasAllowed: false,
+      matchedPattern: blocked,
+    }).catch(() => {});
+    return;
+  }
+
   // Check if already added
   if (_projects.some(p => p.path === path)) {
     showProjectsToast('Project already added', 'warning');
@@ -131,6 +192,10 @@ async function loadDirectoryContents(dirPath: string): Promise<FileEntry[]> {
       if (['node_modules', '__pycache__', '.git', 'target', 'dist', 'build', '.next', 'venv', '.venv'].includes(entry.name)) continue;
 
       const fullPath = await _join(dirPath, entry.name);
+
+      // B4: Skip sensitive directories in file tree
+      if (entry.isDirectory && isSensitivePath(fullPath)) continue;
+
       result.push({
         name: entry.name,
         path: fullPath,

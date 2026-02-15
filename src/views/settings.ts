@@ -1,7 +1,9 @@
-// Settings View — Logs, Usage, Presence, Nodes, Devices, Exec Approvals
+// Settings View — Logs, Usage, Presence, Nodes, Devices, Exec Approvals, Security Policies
 // Extracted from main.ts for maintainability
 
 import { gateway } from '../gateway';
+import { loadSecuritySettings, saveSecuritySettings, type SecuritySettings } from '../security';
+import { getSecurityAuditLog } from '../db';
 
 const $ = (id: string) => document.getElementById(id);
 
@@ -336,6 +338,24 @@ export async function loadSettingsDevices() {
         const name = d.name || d.id;
         const platform = d.platform || 'Unknown';
         const paired = d.pairedAt ? new Date(d.pairedAt).toLocaleDateString() : '—';
+
+        // B3: Token age display + rotation reminder
+        let tokenAgeHtml = '';
+        if (d.pairedAt) {
+          const ageMs = Date.now() - d.pairedAt;
+          const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
+          let ageClass = '';
+          let ageLabel = `Paired ${ageDays}d ago`;
+          if (ageDays > 90) {
+            ageClass = 'critical';
+            ageLabel = `⚠ Token ${ageDays}d old — rotate now`;
+          } else if (ageDays > 30) {
+            ageClass = 'stale';
+            ageLabel = `Token ${ageDays}d old — consider rotating`;
+          }
+          tokenAgeHtml = `<div class="device-token-age ${ageClass}">${escHtml(ageLabel)}</div>`;
+        }
+
         return `
           <div class="device-card">
             <div class="device-card-info">
@@ -345,6 +365,7 @@ export async function loadSettingsDevices() {
               <div>
                 <div class="device-card-name">${escHtml(name)}</div>
                 <div class="device-card-meta">${escHtml(platform)} · Paired ${escHtml(paired)}</div>
+                ${tokenAgeHtml}
               </div>
             </div>
             <div class="device-card-actions">
@@ -702,6 +723,168 @@ async function saveSettingsApprovals() {
   }
 }
 
+// ── Security Audit Dashboard ───────────────────────────────────────────────
+
+export async function loadSecurityAudit() {
+  const section = $('settings-audit-section');
+  const tbody = $('audit-log-body');
+  const emptyEl = $('audit-empty');
+  const tableWrapper = $('audit-table-wrapper');
+  if (!section || !tbody) return;
+
+  section.style.display = '';
+
+  const filterType = ($('audit-filter-type') as HTMLSelectElement | null)?.value || undefined;
+  const filterRisk = ($('audit-filter-risk') as HTMLSelectElement | null)?.value || '';
+  const limit = parseInt(($('audit-filter-limit') as HTMLSelectElement | null)?.value || '100', 10);
+
+  try {
+    const entries = await getSecurityAuditLog(limit, filterType);
+
+    // Apply client-side risk filter if set
+    const filtered = filterRisk
+      ? entries.filter(e => e.risk_level === filterRisk)
+      : entries;
+
+    // Update score cards
+    const denied = entries.filter(e => !e.was_allowed).length;
+    const allowed = entries.filter(e => e.was_allowed).length;
+    const critical = entries.filter(e => e.risk_level === 'critical').length;
+    const deniedLabel = $('audit-score-denied-label');
+    const allowedLabel = $('audit-score-allowed-label');
+    const criticalLabel = $('audit-score-critical-label');
+    if (deniedLabel) deniedLabel.textContent = `${denied} blocked`;
+    if (allowedLabel) allowedLabel.textContent = `${allowed} allowed`;
+    if (criticalLabel) criticalLabel.textContent = `${critical} critical`;
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '';
+      if (emptyEl) emptyEl.style.display = '';
+      if (tableWrapper) tableWrapper.style.display = 'none';
+      return;
+    }
+
+    if (emptyEl) emptyEl.style.display = 'none';
+    if (tableWrapper) tableWrapper.style.display = '';
+
+    tbody.innerHTML = filtered.map(e => {
+      const time = e.timestamp ? new Date(e.timestamp + 'Z').toLocaleString() : '—';
+      const riskBadge = e.risk_level
+        ? `<span class="audit-risk-badge risk-${escHtml(e.risk_level)}">${escHtml(e.risk_level)}</span>`
+        : '<span class="audit-risk-badge">—</span>';
+      const resultBadge = e.was_allowed
+        ? '<span class="audit-result-badge allowed">✓ Allowed</span>'
+        : '<span class="audit-result-badge denied">✕ Denied</span>';
+      const eventLabel = e.event_type.replace(/_/g, ' ');
+      return `<tr class="${e.was_allowed ? '' : 'audit-row-denied'}">
+        <td class="audit-cell-time">${escHtml(time)}</td>
+        <td class="audit-cell-event">${escHtml(eventLabel)}</td>
+        <td>${riskBadge}</td>
+        <td class="audit-cell-tool">${escHtml(e.tool_name ?? '—')}</td>
+        <td class="audit-cell-detail" title="${escHtml(e.detail ?? '')}">${escHtml((e.detail ?? '').slice(0, 80))}${(e.detail?.length ?? 0) > 80 ? '…' : ''}</td>
+        <td>${resultBadge}</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    console.warn('[settings] Audit log load failed:', e);
+    if (emptyEl) { emptyEl.style.display = ''; emptyEl.textContent = `Failed to load audit log: ${e}`; }
+    if (tableWrapper) tableWrapper.style.display = 'none';
+  }
+}
+
+function exportAuditJSON() {
+  const tbody = $('audit-log-body');
+  if (!tbody) return;
+  // Re-fetch and export
+  const filterType = ($('audit-filter-type') as HTMLSelectElement | null)?.value || undefined;
+  const limit = parseInt(($('audit-filter-limit') as HTMLSelectElement | null)?.value || '100', 10);
+  getSecurityAuditLog(limit, filterType).then(entries => {
+    const json = JSON.stringify(entries, null, 2);
+    downloadFile('paw-security-audit.json', json, 'application/json');
+  }).catch(e => showSettingsToast(`Export failed: ${e}`, 'error'));
+}
+
+function exportAuditCSV() {
+  const filterType = ($('audit-filter-type') as HTMLSelectElement | null)?.value || undefined;
+  const limit = parseInt(($('audit-filter-limit') as HTMLSelectElement | null)?.value || '100', 10);
+  getSecurityAuditLog(limit, filterType).then(entries => {
+    const headers = ['id', 'timestamp', 'event_type', 'risk_level', 'tool_name', 'command', 'detail', 'session_key', 'was_allowed', 'matched_pattern'];
+    const rows = entries.map(e =>
+      headers.map(h => {
+        const val = (e as unknown as Record<string, unknown>)[h];
+        const str = val == null ? '' : String(val);
+        return `"${str.replace(/"/g, '""')}"`;
+      }).join(',')
+    );
+    const csv = [headers.join(','), ...rows].join('\n');
+    downloadFile('paw-security-audit.csv', csv, 'text/csv');
+  }).catch(e => showSettingsToast(`Export failed: ${e}`, 'error'));
+}
+
+function downloadFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ── Security Policies (local settings) ─────────────────────────────────────
+
+export function loadSecurityPolicies() {
+  const settings = loadSecuritySettings();
+
+  const autoDenyPriv = $('sec-auto-deny-priv') as HTMLInputElement | null;
+  const autoDenyCritical = $('sec-auto-deny-critical') as HTMLInputElement | null;
+  const requireType = $('sec-require-type') as HTMLInputElement | null;
+  const allowlistEl = $('sec-allowlist') as HTMLTextAreaElement | null;
+  const denylistEl = $('sec-denylist') as HTMLTextAreaElement | null;
+
+  if (autoDenyPriv) autoDenyPriv.checked = settings.autoDenyPrivilegeEscalation;
+  if (autoDenyCritical) autoDenyCritical.checked = settings.autoDenyCritical;
+  if (requireType) requireType.checked = settings.requireTypeToCritical;
+  if (allowlistEl) allowlistEl.value = settings.commandAllowlist.join('\n');
+  if (denylistEl) denylistEl.value = settings.commandDenylist.join('\n');
+}
+
+function saveSecurityPolicies() {
+  const autoDenyPriv = ($('sec-auto-deny-priv') as HTMLInputElement | null)?.checked ?? false;
+  const autoDenyCritical = ($('sec-auto-deny-critical') as HTMLInputElement | null)?.checked ?? false;
+  const requireType = ($('sec-require-type') as HTMLInputElement | null)?.checked ?? true;
+  const allowlistRaw = ($('sec-allowlist') as HTMLTextAreaElement | null)?.value ?? '';
+  const denylistRaw = ($('sec-denylist') as HTMLTextAreaElement | null)?.value ?? '';
+
+  const commandAllowlist = allowlistRaw.split('\n').map(l => l.trim()).filter(Boolean);
+  const commandDenylist = denylistRaw.split('\n').map(l => l.trim()).filter(Boolean);
+
+  // Validate regex patterns
+  for (const p of [...commandAllowlist, ...commandDenylist]) {
+    try { new RegExp(p); }
+    catch {
+      showSettingsToast(`Invalid regex pattern: ${p}`, 'error');
+      return;
+    }
+  }
+
+  const settings: SecuritySettings = {
+    autoDenyPrivilegeEscalation: autoDenyPriv,
+    autoDenyCritical: autoDenyCritical,
+    requireTypeToCritical: requireType,
+    commandAllowlist,
+    commandDenylist,
+  };
+  saveSecuritySettings(settings);
+  showSettingsToast('Security policies saved', 'success');
+}
+
+function resetSecurityPolicies() {
+  localStorage.removeItem('paw_security_settings');
+  loadSecurityPolicies();
+  showSettingsToast('Security policies reset to defaults', 'info');
+}
+
 // ── Settings toast (inline) ────────────────────────────────────────────────
 function showSettingsToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
   // Try to use the global toast if available
@@ -735,13 +918,25 @@ export function initSettings() {
   $('settings-browser-start')?.addEventListener('click', () => startBrowser());
   $('settings-browser-stop')?.addEventListener('click', () => stopBrowser());
   $('settings-refresh-browser')?.addEventListener('click', () => loadSettingsBrowser());
+  // Security audit
+  $('audit-refresh')?.addEventListener('click', () => loadSecurityAudit());
+  $('audit-export-json')?.addEventListener('click', () => exportAuditJSON());
+  $('audit-export-csv')?.addEventListener('click', () => exportAuditCSV());
+  $('audit-filter-type')?.addEventListener('change', () => loadSecurityAudit());
+  $('audit-filter-risk')?.addEventListener('change', () => loadSecurityAudit());
+  $('audit-filter-limit')?.addEventListener('change', () => loadSecurityAudit());
+  // Security policies
+  $('settings-save-security')?.addEventListener('click', () => saveSecurityPolicies());
+  $('settings-reset-security')?.addEventListener('click', () => resetSecurityPolicies());
   // Budget
   initBudgetSettings();
 }
 
 // ── Load all settings data ─────────────────────────────────────────────────
 export async function loadSettings() {
+  loadSecurityPolicies(); // synchronous — reads from localStorage
   await Promise.all([
+    loadSecurityAudit(),
     loadSettingsStatus(),
     loadSettingsLogs(),
     loadSettingsUsage(),
