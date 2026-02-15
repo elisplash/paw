@@ -3021,7 +3021,83 @@ button:focus:not(:focus-visible) { outline: none; }
 
 .agent-danger-zone {
   padding-top: 16px;
+  margin-top: 24px;
   border-top: 1px solid var(--border);
+}
+
+/* Agent editor tabs */
+.agent-editor-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.agent-tab {
+  padding: 8px 16px;
+  border: none;
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+.agent-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
+.agent-tab.active { color: var(--accent); background: var(--accent-subtle); }
+
+.agent-tab-content { display: none; }
+.agent-tab-content.active { display: block; }
+
+/* Skills grid */
+.agent-skills-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.agent-skill-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.agent-skill-toggle:hover { border-color: var(--accent); }
+.agent-skill-toggle:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+.agent-skill-toggle input { width: 16px; height: 16px; accent-color: var(--accent); }
+.agent-skill-info { flex: 1; }
+.agent-skill-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+.agent-skill-desc { font-size: 11px; color: var(--text-muted); }
+
+/* System prompt */
+.agent-system-prompt {
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+/* Modal header with avatar */
+.agent-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.agent-avatar-large {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
 }
 
 /* ═══ Automations Board ═══ */

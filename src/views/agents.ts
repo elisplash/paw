@@ -9,6 +9,7 @@ interface Agent {
   avatar: string; // emoji or initials
   color: string;
   bio: string;
+  model: string; // AI model to use
   template: 'general' | 'research' | 'creative' | 'technical' | 'custom';
   personality: {
     tone: 'casual' | 'balanced' | 'formal';
@@ -17,9 +18,35 @@ interface Agent {
   };
   skills: string[];
   boundaries: string[];
+  systemPrompt?: string; // Custom instructions
   createdAt: string;
   lastUsed?: string;
 }
+
+// Available models
+const AVAILABLE_MODELS = [
+  { id: 'default', name: 'Default (Use account setting)' },
+  { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
+  { id: 'claude-opus-4-20250514', name: 'Claude Opus 4' },
+  { id: 'gpt-4o', name: 'GPT-4o' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
+];
+
+// Available skills
+const AVAILABLE_SKILLS = [
+  { id: 'web_search', name: 'Web Search', desc: 'Search the internet' },
+  { id: 'web_fetch', name: 'Web Fetch', desc: 'Read web pages' },
+  { id: 'browser', name: 'Browser', desc: 'Control a web browser' },
+  { id: 'read', name: 'Read Files', desc: 'Read local files' },
+  { id: 'write', name: 'Write Files', desc: 'Create and edit files' },
+  { id: 'exec', name: 'Run Commands', desc: 'Execute shell commands' },
+  { id: 'image', name: 'Image Analysis', desc: 'Analyze images' },
+  { id: 'memory_store', name: 'Memory', desc: 'Remember information' },
+  { id: 'cron', name: 'Scheduling', desc: 'Set reminders and schedules' },
+  { id: 'message', name: 'Messaging', desc: 'Send messages' },
+];
 
 // Default agent templates
 const AGENT_TEMPLATES: Record<string, Partial<Agent>> = {
@@ -86,6 +113,7 @@ export async function loadAgents() {
       avatar: '🧠',
       color: AVATAR_COLORS[0],
       bio: 'Your main AI assistant',
+      model: 'default',
       template: 'general',
       personality: { tone: 'balanced', initiative: 'balanced', detail: 'balanced' },
       skills: ['web_search', 'web_fetch', 'read', 'write', 'exec'],
@@ -275,6 +303,7 @@ function openAgentCreator() {
       avatar: selectedAvatar,
       color: AVATAR_COLORS[_agents.length % AVATAR_COLORS.length],
       bio: bio || template?.bio || '',
+      model: 'default',
       template: selectedTemplate as Agent['template'],
       personality: template?.personality || { tone: 'balanced', initiative: 'balanced', detail: 'balanced' },
       skills: template?.skills || [],
@@ -299,11 +328,22 @@ function openAgentEditor(agentId: string) {
   modal.innerHTML = `
     <div class="agent-modal-dialog agent-modal-large">
       <div class="agent-modal-header">
-        <span>Edit ${escHtml(agent.name)}</span>
+        <div class="agent-modal-header-left">
+          <div class="agent-avatar-large" style="background:${agent.color}">${agent.avatar}</div>
+          <span>Edit ${escHtml(agent.name)}</span>
+        </div>
         <button class="btn-icon agent-modal-close">×</button>
       </div>
       <div class="agent-modal-body">
-        <div class="agent-editor-section">
+        <div class="agent-editor-tabs">
+          <button class="agent-tab active" data-tab="basics">Basics</button>
+          <button class="agent-tab" data-tab="personality">Personality</button>
+          <button class="agent-tab" data-tab="skills">Skills</button>
+          <button class="agent-tab" data-tab="advanced">Advanced</button>
+        </div>
+        
+        <!-- Basics Tab -->
+        <div class="agent-tab-content active" id="tab-basics">
           <div class="form-group">
             <label class="form-label">Name</label>
             <input type="text" class="form-input" id="agent-edit-name" value="${escAttr(agent.name)}">
@@ -311,12 +351,29 @@ function openAgentEditor(agentId: string) {
           
           <div class="form-group">
             <label class="form-label">Bio</label>
-            <input type="text" class="form-input" id="agent-edit-bio" value="${escAttr(agent.bio)}">
+            <input type="text" class="form-input" id="agent-edit-bio" value="${escAttr(agent.bio)}" placeholder="What is this agent for?">
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Model</label>
+            <select class="form-input" id="agent-edit-model">
+              ${AVAILABLE_MODELS.map(m => `<option value="${m.id}" ${agent.model === m.id ? 'selected' : ''}>${m.name}</option>`).join('')}
+            </select>
+            <div class="form-hint">Which AI model this agent uses</div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Avatar</label>
+            <div class="agent-avatar-picker">
+              ${['🤖','🧠','🔬','🎨','💻','📚','🚀','⚡','🎯','💡','🔥','✨'].map(a => 
+                `<button class="agent-avatar-option ${agent.avatar === a ? 'selected' : ''}" data-avatar="${a}">${a}</button>`
+              ).join('')}
+            </div>
           </div>
         </div>
         
-        <div class="agent-editor-section">
-          <div class="form-label">Personality</div>
+        <!-- Personality Tab -->
+        <div class="agent-tab-content" id="tab-personality">
           <div class="agent-personality-grid">
             <div class="agent-personality-row">
               <span class="agent-personality-label">Tone</span>
@@ -345,24 +402,49 @@ function openAgentEditor(agentId: string) {
           </div>
         </div>
         
-        <div class="agent-editor-section">
-          <div class="form-label">Boundaries</div>
-          <div class="agent-boundaries" id="agent-boundaries">
-            ${agent.boundaries.map((b, i) => `
-              <div class="agent-boundary-row">
-                <input type="text" class="form-input agent-boundary-input" value="${escAttr(b)}" data-index="${i}">
-                <button class="btn-icon agent-boundary-remove" data-index="${i}">×</button>
-              </div>
+        <!-- Skills Tab -->
+        <div class="agent-tab-content" id="tab-skills">
+          <div class="form-hint" style="margin-bottom:16px">Choose which tools this agent can use</div>
+          <div class="agent-skills-grid">
+            ${AVAILABLE_SKILLS.map(s => `
+              <label class="agent-skill-toggle">
+                <input type="checkbox" data-skill="${s.id}" ${agent.skills.includes(s.id) ? 'checked' : ''}>
+                <div class="agent-skill-info">
+                  <div class="agent-skill-name">${s.name}</div>
+                  <div class="agent-skill-desc">${s.desc}</div>
+                </div>
+              </label>
             `).join('')}
           </div>
-          <button class="btn btn-ghost btn-sm" id="agent-add-boundary">+ Add rule</button>
         </div>
         
-        ${agent.id !== 'default' ? `
-        <div class="agent-editor-section agent-danger-zone">
-          <button class="btn btn-ghost agent-delete-btn" style="color:var(--error)">Delete Agent</button>
+        <!-- Advanced Tab -->
+        <div class="agent-tab-content" id="tab-advanced">
+          <div class="form-group">
+            <label class="form-label">Custom Instructions</label>
+            <textarea class="form-input agent-system-prompt" id="agent-edit-prompt" placeholder="Add custom instructions for this agent...">${escHtml(agent.systemPrompt || '')}</textarea>
+            <div class="form-hint">These instructions are added to every conversation with this agent</div>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Boundaries & Rules</label>
+            <div class="agent-boundaries" id="agent-boundaries">
+              ${agent.boundaries.map((b, i) => `
+                <div class="agent-boundary-row">
+                  <input type="text" class="form-input agent-boundary-input" value="${escAttr(b)}" data-index="${i}">
+                  <button class="btn-icon agent-boundary-remove" data-index="${i}">×</button>
+                </div>
+              `).join('')}
+            </div>
+            <button class="btn btn-ghost btn-sm" id="agent-add-boundary">+ Add rule</button>
+          </div>
+          
+          ${agent.id !== 'default' ? `
+          <div class="agent-danger-zone">
+            <button class="btn btn-ghost agent-delete-btn" style="color:var(--error)">Delete Agent</button>
+          </div>
+          ` : ''}
         </div>
-        ` : ''}
       </div>
       <div class="agent-modal-footer">
         <button class="btn btn-ghost agent-modal-cancel">Cancel</button>
@@ -374,6 +456,27 @@ function openAgentEditor(agentId: string) {
 
   const personality = { ...agent.personality };
   let boundaries = [...agent.boundaries];
+  let selectedAvatar = agent.avatar;
+
+  // Tab switching
+  modal.querySelectorAll('.agent-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      modal.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
+      modal.querySelectorAll('.agent-tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      const tabId = tab.getAttribute('data-tab');
+      modal.querySelector(`#tab-${tabId}`)?.classList.add('active');
+    });
+  });
+
+  // Avatar selection
+  modal.querySelectorAll('.agent-avatar-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modal.querySelectorAll('.agent-avatar-option').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedAvatar = btn.getAttribute('data-avatar') || '🤖';
+    });
+  });
 
   // Personality selection
   modal.querySelectorAll('.agent-personality-options').forEach(group => {
@@ -439,6 +542,15 @@ function openAgentEditor(agentId: string) {
   modal.querySelector('#agent-edit-save')?.addEventListener('click', () => {
     const name = (modal.querySelector('#agent-edit-name') as HTMLInputElement)?.value.trim();
     const bio = (modal.querySelector('#agent-edit-bio') as HTMLInputElement)?.value.trim();
+    const model = (modal.querySelector('#agent-edit-model') as HTMLSelectElement)?.value;
+    const systemPrompt = (modal.querySelector('#agent-edit-prompt') as HTMLTextAreaElement)?.value.trim();
+    
+    // Collect selected skills
+    const skills: string[] = [];
+    modal.querySelectorAll('.agent-skill-toggle input:checked').forEach(input => {
+      const skill = (input as HTMLInputElement).getAttribute('data-skill');
+      if (skill) skills.push(skill);
+    });
     
     if (!name) {
       showToast('Name is required', 'error');
@@ -447,8 +559,12 @@ function openAgentEditor(agentId: string) {
 
     agent.name = name;
     agent.bio = bio;
+    agent.avatar = selectedAvatar;
+    agent.model = model || 'default';
     agent.personality = personality;
+    agent.skills = skills;
     agent.boundaries = boundaries.filter(b => b.trim());
+    agent.systemPrompt = systemPrompt;
     
     saveAgents();
     renderAgents();

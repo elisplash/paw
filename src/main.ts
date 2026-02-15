@@ -151,6 +151,7 @@ const skillsView = $('skills-view');
 const foundryView = $('foundry-view');
 const settingsView = $('settings-view');
 const nodesView = $('nodes-view');
+const agentsView = $('agents-view');
 const statusDot = $('status-dot');
 const statusText = $('status-text');
 const chatMessages = $('chat-messages');
@@ -165,7 +166,7 @@ const allViews = [
   dashboardView, setupView, manualSetupView, installView,
   chatView, buildView, codeView, contentView, mailView,
   automationsView, channelsView, researchView, memoryView,
-  skillsView, foundryView, settingsView, nodesView,
+  skillsView, foundryView, settingsView, nodesView, agentsView,
 ].filter(Boolean);
 
 // ── Navigation ─────────────────────────────────────────────────────────────
@@ -189,7 +190,7 @@ function switchView(viewName: string) {
     content: contentView, mail: mailView, automations: automationsView,
     channels: channelsView, research: researchView, memory: memoryView,
     skills: skillsView, foundry: foundryView, settings: settingsView,
-    nodes: nodesView,
+    nodes: nodesView, agents: agentsView,
   };
   const target = viewMap[viewName];
   if (target) target.classList.add('active');
@@ -3292,6 +3293,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Research module events
     ResearchModule.configure({ promptModal });
     ResearchModule.initResearchEvents();
+
+    // Initialize Agents module
+    AgentsModule.configure({
+      switchView,
+      setCurrentAgent: (agentId) => { console.log('[main] Agent selected:', agentId); },
+    });
+    AgentsModule.initAgents();
 
     // Initialize Nodes module events
     NodesModule.initNodesEvents();
