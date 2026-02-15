@@ -4,6 +4,7 @@
 import type { AppConfig, Message, InstallProgress, ChatMessage, Session } from './types';
 import { setGatewayConfig, probeHealth } from './api';
 import { gateway } from './gateway';
+import { createIcons, Paperclip, ArrowUp, Square, RotateCcw, X, Image, FileText, File, Wrench, Download, ExternalLink } from 'lucide';
 import { initDb, listModes, listDocs, saveDoc, getDoc, deleteDoc, listProjects, saveProject, listProjectFiles, saveProjectFile, deleteProjectFile, logCredentialActivity } from './db';
 import * as SettingsModule from './views/settings';
 import * as AutomationsModule from './views/automations';
@@ -704,6 +705,13 @@ chatFileInput?.addEventListener('change', () => {
   renderAttachmentPreview();
 });
 
+/** Get the right Lucide icon data attr name for a file type */
+function fileTypeIcon(mimeType: string): string {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType === 'application/pdf' || mimeType.startsWith('text/')) return 'file-text';
+  return 'file';
+}
+
 function renderAttachmentPreview() {
   if (!chatAttachmentPreview) return;
   if (_pendingAttachments.length === 0) {
@@ -724,19 +732,26 @@ function renderAttachmentPreview() {
       img.onload = () => URL.revokeObjectURL(img.src);
       chip.appendChild(img);
     } else {
-      const icon = document.createElement('span');
-      icon.className = 'attachment-chip-icon';
-      icon.textContent = '\uD83D\uDCC4'; // 📄
-      chip.appendChild(icon);
+      const iconWrap = document.createElement('span');
+      iconWrap.className = 'attachment-chip-icon';
+      iconWrap.innerHTML = `<i data-lucide="${fileTypeIcon(file.type)}"></i>`;
+      chip.appendChild(iconWrap);
     }
-    const name = document.createElement('span');
-    name.className = 'attachment-chip-name';
-    name.textContent = file.name.length > 20 ? file.name.slice(0, 17) + '...' : file.name;
-    name.title = file.name;
-    chip.appendChild(name);
+    const meta = document.createElement('div');
+    meta.className = 'attachment-chip-meta';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'attachment-chip-name';
+    nameEl.textContent = file.name.length > 24 ? file.name.slice(0, 21) + '...' : file.name;
+    nameEl.title = file.name;
+    meta.appendChild(nameEl);
+    const sizeEl = document.createElement('span');
+    sizeEl.className = 'attachment-chip-size';
+    sizeEl.textContent = file.size < 1024 ? `${file.size} B` : file.size < 1048576 ? `${(file.size / 1024).toFixed(1)} KB` : `${(file.size / 1048576).toFixed(1)} MB`;
+    meta.appendChild(sizeEl);
+    chip.appendChild(meta);
     const removeBtn = document.createElement('button');
     removeBtn.className = 'attachment-chip-remove';
-    removeBtn.innerHTML = '\u00D7'; // ×
+    removeBtn.innerHTML = '<i data-lucide="x"></i>';
     removeBtn.title = 'Remove';
     const idx = i;
     removeBtn.addEventListener('click', () => {
@@ -746,6 +761,7 @@ function renderAttachmentPreview() {
     chip.appendChild(removeBtn);
     chatAttachmentPreview.appendChild(chip);
   }
+  createIcons({ icons: { X, Image, FileText, File }, nameAttr: 'data-lucide' });
 }
 
 function clearPendingAttachments() {
@@ -1007,6 +1023,8 @@ function renderMessages() {
       attachStrip.className = 'message-attachments';
       for (const att of msg.attachments) {
         if (att.mimeType?.startsWith('image/')) {
+          const card = document.createElement('div');
+          card.className = 'message-attachment-card';
           const img = document.createElement('img');
           img.className = 'message-attachment-img';
           img.alt = att.name || 'attachment';
@@ -1015,12 +1033,24 @@ function renderMessages() {
           } else if (att.data) {
             img.src = `data:${att.mimeType};base64,${att.data}`;
           }
-          img.addEventListener('click', () => window.open(img.src, '_blank'));
-          attachStrip.appendChild(img);
+          card.appendChild(img);
+          const overlay = document.createElement('div');
+          overlay.className = 'message-attachment-overlay';
+          overlay.innerHTML = `<i data-lucide="external-link"></i>`;
+          card.appendChild(overlay);
+          card.addEventListener('click', () => window.open(img.src, '_blank'));
+          if (att.name) {
+            const label = document.createElement('div');
+            label.className = 'message-attachment-label';
+            label.textContent = att.name;
+            card.appendChild(label);
+          }
+          attachStrip.appendChild(card);
         } else {
           const docChip = document.createElement('div');
           docChip.className = 'message-attachment-doc';
-          docChip.textContent = `\uD83D\uDCC4 ${att.name || 'file'}`;
+          const iconName = att.mimeType?.startsWith('text/') || att.mimeType === 'application/pdf' ? 'file-text' : 'file';
+          docChip.innerHTML = `<i data-lucide="${iconName}"></i><span>${att.name || 'file'}</span>`;
           attachStrip.appendChild(docChip);
         }
       }
@@ -1032,7 +1062,7 @@ function renderMessages() {
     if (msg.toolCalls?.length) {
       const badge = document.createElement('div');
       badge.className = 'tool-calls-badge';
-      badge.textContent = `${msg.toolCalls.length} tool call${msg.toolCalls.length > 1 ? 's' : ''}`;
+      badge.innerHTML = `<i data-lucide="wrench"></i> ${msg.toolCalls.length} tool call${msg.toolCalls.length > 1 ? 's' : ''}`;
       div.appendChild(badge);
     }
 
@@ -1043,7 +1073,7 @@ function renderMessages() {
       const retryBtn = document.createElement('button');
       retryBtn.className = 'message-retry-btn';
       retryBtn.title = 'Retry';
-      retryBtn.innerHTML = '🔄 Retry';
+      retryBtn.innerHTML = '<i data-lucide="rotate-ccw"></i> Retry';
       const retryContent = isLastUser ? msg.content : (lastUserIdx >= 0 ? messages[lastUserIdx].content : '');
       retryBtn.addEventListener('click', () => retryMessage(retryContent));
       div.appendChild(retryBtn);
@@ -1058,6 +1088,8 @@ function renderMessages() {
   } else {
     chatMessages.appendChild(frag);
   }
+  // Render Lucide icons in newly added message elements
+  createIcons({ icons: { RotateCcw, Wrench, ExternalLink, FileText, File, Image }, nameAttr: 'data-lucide' });
   scrollToBottom();
 }
 
@@ -2628,6 +2660,9 @@ gateway.on('exec.approval.requested', (payload: unknown) => {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.log('[main] Paw starting...');
+
+    // Render Lucide icons in the static HTML
+    createIcons({ icons: { Paperclip, ArrowUp, Square, RotateCcw, X, Image, FileText, File, Wrench, Download, ExternalLink }, nameAttr: 'data-lucide' });
 
     // Check for crash log from previous run
     try {

@@ -875,23 +875,43 @@ body {
 
 .chat-input-wrapper {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-end;
   background: var(--bg-secondary);
-  border: 1px solid var(--text-muted);
-  border-radius: var(--radius-sm);
-  padding: 4px 4px 4px 16px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 6px 6px 6px 16px;
   transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
 }
 
 .chat-input-wrapper:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-subtle);
+  box-shadow: 0 0 0 3px var(--accent-subtle), var(--shadow-sm);
+}
+
+/* When attachment preview is visible, fuse it seamlessly with the input */
+.chat-attachment-preview:not([style*="display:none"]):not([style*="display: none"]) + .chat-input-wrapper {
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  box-shadow: none;
+}
+.chat-attachment-preview:not([style*="display:none"]):not([style*="display: none"]) + .chat-input-wrapper:focus-within {
+  box-shadow: none;
+  border-color: var(--border);
+}
+/* When preview is visible, wrap the entire combo in a focus ring via container */
+.chat-input-container:has(.chat-attachment-preview:not([style*="display:none"])) {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+}
+.chat-input-container:has(.chat-attachment-preview:not([style*="display:none"])):focus-within {
+  box-shadow: 0 0 0 3px var(--accent-subtle), var(--shadow-sm);
 }
 
 .chat-input {
   flex: 1;
-  padding: 10px 0;
+  padding: 8px 0;
   background: transparent;
   border: none;
   color: var(--text-primary);
@@ -907,30 +927,40 @@ body {
 .chat-input::placeholder { color: var(--text-muted); }
 
 .chat-send {
-  padding: 8px 14px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   background: var(--accent);
   color: white;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: 50%;
   cursor: pointer;
   transition: all var(--transition-fast);
   display: flex;
   align-items: center;
-  font-family: inherit;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .chat-send:hover {
   background: var(--accent-hover);
+  transform: scale(1.05);
+}
+
+.chat-send:active {
+  transform: scale(0.95);
 }
 
 .chat-send:disabled {
   background: var(--text-muted);
   cursor: not-allowed;
+  transform: none;
 }
 
 .chat-send svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.5;
 }
 
 /* ─── List Views ─── */
@@ -1077,36 +1107,53 @@ body {
 .status-badge.muted { background: var(--bg-primary); color: var(--text-muted); }
 
 .tool-calls-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   color: var(--text-secondary);
-  margin-top: 4px;
-  padding: 2px 8px;
-  background: var(--bg-primary);
-  border-radius: var(--radius-sm);
-  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 10px;
+  background: var(--purple-subtle);
+  border-radius: var(--radius-pill);
+}
+.tool-calls-badge svg {
+  width: 12px;
+  height: 12px;
+  color: var(--purple);
 }
 
 /* ─── Message Retry Button ─── */
 .message-retry-btn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 6px;
-  padding: 4px 10px;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 5px 14px 5px 10px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-secondary);
-  background: var(--bg-primary);
-  border: 1px solid var(--text-muted);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-pill);
   cursor: pointer;
   transition: all var(--transition-fast);
   font-family: inherit;
+  box-shadow: var(--shadow-sm);
+}
+.message-retry-btn svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.5;
 }
 .message-retry-btn:hover {
   color: var(--accent);
   border-color: var(--accent);
   background: var(--accent-subtle);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+.message-retry-btn:active {
+  transform: scale(0.97);
 }
 
 /* ─── Settings ─── */
@@ -4203,9 +4250,9 @@ select.form-input {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 8px auto 0;
-  padding: 6px 16px;
-  border: 1px solid var(--error);
+  margin: 10px auto 0;
+  padding: 7px 18px;
+  border: 1.5px solid var(--error);
   border-radius: var(--radius-pill);
   background: var(--error-subtle);
   color: var(--error);
@@ -4213,27 +4260,34 @@ select.form-input {
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
+  font-family: inherit;
 }
-.chat-abort-btn:hover { background: var(--error); color: white; }
-.chat-abort-btn svg { width: 14px; height: 14px; }
+.chat-abort-btn:hover { background: var(--error); color: white; box-shadow: 0 0 0 3px var(--error-subtle); }
+.chat-abort-btn:active { transform: scale(0.97); }
+.chat-abort-btn svg { width: 13px; height: 13px; stroke-width: 2.5; }
 
 /* ─── Chat Attach Button ─── */
 .chat-attach-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  border-radius: var(--radius-sm);
+  border-radius: 50%;
   transition: all var(--transition-fast);
   flex-shrink: 0;
 }
 .chat-attach-btn:hover {
   color: var(--accent);
   background: var(--accent-subtle);
+}
+.chat-attach-btn:active {
+  transform: scale(0.92);
 }
 .chat-attach-btn svg {
   width: 18px;
@@ -4245,55 +4299,97 @@ select.form-input {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   background: var(--bg-secondary);
-  border: 1px solid var(--text-muted);
+  border: 1.5px solid var(--border);
   border-bottom: none;
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  animation: attachSlideUp 200ms ease;
 }
+@keyframes attachSlideUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .attachment-chip {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
+  gap: 8px;
+  padding: 6px 10px;
   background: var(--bg-primary);
-  border: 1px solid var(--border-light, #e0e0e0);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-size: 12px;
-  max-width: 180px;
+  max-width: 220px;
+  transition: all var(--transition-fast);
+  animation: chipFadeIn 150ms ease;
+}
+@keyframes chipFadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.attachment-chip:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
 }
 .attachment-chip-thumb {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
 }
 .attachment-chip-icon {
-  font-size: 18px;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--accent-subtle);
+  border-radius: 6px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.attachment-chip-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.attachment-chip-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 .attachment-chip-name {
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.attachment-chip-size {
+  color: var(--text-muted);
+  font-size: 11px;
 }
 .attachment-chip-remove {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   background: none;
   border: none;
   color: var(--text-muted);
-  font-size: 14px;
-  line-height: 1;
   cursor: pointer;
   border-radius: 50%;
   transition: all var(--transition-fast);
   flex-shrink: 0;
+  margin-left: auto;
+}
+.attachment-chip-remove svg {
+  width: 14px;
+  height: 14px;
 }
 .attachment-chip-remove:hover {
   background: var(--error-subtle);
@@ -4305,32 +4401,80 @@ select.form-input {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 8px;
-  padding: 0 4px;
+  margin-top: 10px;
+  padding: 0 2px;
+}
+.message-attachment-card {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all var(--transition-fast);
+  max-width: 280px;
+}
+.message-attachment-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+}
+.message-attachment-card:hover .message-attachment-overlay {
+  opacity: 1;
 }
 .message-attachment-img {
-  max-width: 240px;
-  max-height: 180px;
-  border-radius: var(--radius-sm);
+  display: block;
+  max-width: 280px;
+  max-height: 200px;
   object-fit: cover;
-  cursor: pointer;
-  border: 1px solid var(--border-light, #e0e0e0);
-  transition: transform var(--transition-fast);
 }
-.message-attachment-img:hover {
-  transform: scale(1.03);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+.message-attachment-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.5);
+  border-radius: 50%;
+  color: white;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.message-attachment-overlay svg {
+  width: 14px;
+  height: 14px;
+}
+.message-attachment-label {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .message-attachment-doc {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  background: var(--bg-primary);
-  border: 1px solid var(--border-light, #e0e0e0);
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+.message-attachment-doc svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.message-attachment-doc:hover {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
 }
 
 /* ─── Markdown in Chat Messages ─── */
