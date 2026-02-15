@@ -430,15 +430,18 @@ function showProjectsEmpty(): void {
 export async function promptAddFolder(): Promise<void> {
   if (_tauriAvailable) {
     try {
-      const { open } = await import('@tauri-apps/plugin-dialog');
-      const selected = await open({
-        directory: true,
-        multiple: false,
-        title: 'Select a project folder',
-      });
-      if (selected && typeof selected === 'string') {
-        await addProjectFolder(selected);
-        return;
+      // Try Tauri dialog via runtime API (avoids static import of plugin-dialog)
+      const tauriDialog = (window as any).__TAURI__?.dialog;
+      if (tauriDialog?.open) {
+        const selected = await tauriDialog.open({
+          directory: true,
+          multiple: false,
+          title: 'Select a project folder',
+        });
+        if (selected && typeof selected === 'string') {
+          await addProjectFolder(selected);
+          return;
+        }
       }
     } catch (e) {
       console.warn('[projects] Dialog not available, falling back to text input', e);
