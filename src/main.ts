@@ -1,7 +1,7 @@
 // Paw — Main Application
 // Wires OpenClaw gateway (WebSocket protocol v3) to the UI
 
-import type { AppConfig, Message, InstallProgress, ChatMessage, Session } from './types';
+import type { AppConfig, Message, InstallProgress, ChatMessage, Session, SkillEntry } from './types';
 import { setGatewayConfig, probeHealth } from './api';
 import { gateway } from './gateway';
 import { initDb, listModes, saveMode, deleteMode, listDocs, saveDoc, getDoc, deleteDoc, listProjects, saveProject, deleteProject, listProjectFiles, saveProjectFile, deleteProjectFile } from './db';
@@ -134,7 +134,7 @@ function switchView(viewName: string) {
       case 'foundry': loadModels(); loadModes(); loadAgents(); break;
       case 'memory': loadMemoryPalace(); loadMemory(); break;
       case 'build': loadBuildProjects(); loadSpaceCron('build'); break;
-      case 'mail': loadSpaceCron('mail'); break;
+      case 'mail': loadMail(); loadSpaceCron('mail'); break;
       case 'settings': syncSettingsForm(); loadGatewayConfig(); loadSettingsLogs(); loadSettingsUsage(); loadSettingsPresence(); break;
       default: break;
     }
@@ -1268,6 +1268,13 @@ function closeChannelSetup() {
 
 async function saveChannelSetup() {
   if (!_channelSetupType || !wsConnected) return;
+
+  // Gmail hooks are handled separately
+  if (_channelSetupType === '__gmail_hooks__') {
+    await saveGmailHooksSetup();
+    return;
+  }
+
   const def = CHANNEL_SETUPS.find(c => c.id === _channelSetupType);
   if (!def) return;
 
@@ -1483,6 +1490,424 @@ async function loadChannels() {
   }
 }
 $('refresh-channels-btn')?.addEventListener('click', () => loadChannels());
+
+// ── Mail — Email via Gmail Hooks + Himalaya ────────────────────────────────
+// Gmail hooks: inbound push via GCP Pub/Sub → gateway hook → agent session
+// Himalaya skill: agent CLI tool for IMAP/SMTP (read, send, reply)
+// Mail accounts = hooks.gmail config + himalaya skill status
+
+let _mailFolder = 'inbox';
+let _mailGmailConfigured = false;
+let _mailHimalayaReady = false;
+let _mailMessages: { id: string; from: string; subject: string; snippet: string; date: Date; body?: string; sessionKey?: string; read?: boolean }[] = [];
+let _mailSelectedId: string | null = null;
+
+async function loadMail() {
+  if (!wsConnected) return;
+  try {
+    // Check Gmail hooks config and Himalaya skill status in parallel
+    const [cfgResult, skillsResult] = await Promise.all([
+      gateway.configGet().catch(() => null),
+      gateway.skillsStatus().catch(() => null),
+    ]);
+
+    // Gmail hooks status
+    const cfg = cfgResult?.config as Record<string, unknown> | null;
+    const hooks = cfg?.hooks as Record<string, unknown> | null;
+    const gmail = hooks?.gmail as Record<string, unknown> | null;
+    _mailGmailConfigured = !!(hooks?.enabled && gmail?.account);
+
+    // Himalaya skill status
+    const himalaya = skillsResult?.skills?.find(s => s.name === 'himalaya');
+    _mailHimalayaReady = !!(himalaya?.eligible && !himalaya?.disabled);
+
+    // Update accounts list
+    renderMailAccounts(gmail, himalaya ?? null);
+
+    // If Gmail is configured, load email sessions from hook-triggered sessions
+    if (_mailGmailConfigured) {
+      await loadMailInbox();
+    } else {
+      _mailMessages = [];
+      renderMailList();
+      showMailEmpty(true);
+    }
+  } catch (e) {
+    console.warn('[mail] Load failed:', e);
+    showMailEmpty(true);
+  }
+}
+
+function renderMailAccounts(gmail: Record<string, unknown> | null, himalaya: SkillEntry | null) {
+  const list = $('mail-accounts-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  if (_mailGmailConfigured && gmail) {
+    const acct = document.createElement('div');
+    acct.className = 'mail-account-item';
+    acct.innerHTML = `
+      <div class="mail-account-icon">📧</div>
+      <div class="mail-account-info">
+        <div class="mail-account-name">${escHtml(String(gmail.account ?? 'Gmail'))}</div>
+        <div class="mail-account-status connected">Hooks active</div>
+      </div>
+    `;
+    list.appendChild(acct);
+  }
+
+  if (himalaya) {
+    const item = document.createElement('div');
+    item.className = 'mail-account-item';
+    const eligible = himalaya.eligible && !himalaya.disabled;
+    const missingBins = himalaya.missing?.bins?.length;
+    let statusText = 'Not installed';
+    let statusClass = '';
+    if (eligible) { statusText = 'Ready'; statusClass = 'connected'; }
+    else if (himalaya.disabled) { statusText = 'Disabled'; statusClass = 'muted'; }
+    else if (missingBins) { statusText = 'Missing CLI'; statusClass = 'error'; }
+
+    item.innerHTML = `
+      <div class="mail-account-icon">🏔️</div>
+      <div class="mail-account-info">
+        <div class="mail-account-name">Himalaya <span style="font-size:11px;color:var(--text-muted)">(IMAP/SMTP)</span></div>
+        <div class="mail-account-status ${statusClass}">${statusText}</div>
+      </div>
+      ${!eligible && himalaya.install?.length ? `<button class="btn btn-ghost btn-sm mail-himalaya-install">Install</button>` : ''}
+      ${himalaya.disabled ? `<button class="btn btn-ghost btn-sm mail-himalaya-enable">Enable</button>` : ''}
+    `;
+    list.appendChild(item);
+
+    // Wire install/enable buttons
+    item.querySelector('.mail-himalaya-install')?.addEventListener('click', async () => {
+      const inst = himalaya.install?.[0];
+      if (!inst) return;
+      try {
+        showToast('Installing Himalaya...', 'info');
+        await gateway.skillsInstall(himalaya.name, inst.id);
+        showToast('Himalaya installed!', 'success');
+        loadMail();
+      } catch (e) {
+        showToast(`Install failed: ${e instanceof Error ? e.message : e}`, 'error');
+      }
+    });
+    item.querySelector('.mail-himalaya-enable')?.addEventListener('click', async () => {
+      try {
+        await gateway.skillsUpdate(himalaya.skillKey ?? himalaya.name, { enabled: true });
+        showToast('Himalaya enabled', 'success');
+        loadMail();
+      } catch (e) {
+        showToast(`Enable failed: ${e instanceof Error ? e.message : e}`, 'error');
+      }
+    });
+  }
+
+  if (!_mailGmailConfigured && !himalaya) {
+    list.innerHTML = '<div class="mail-no-accounts">No accounts connected</div>';
+  }
+}
+
+async function loadMailInbox() {
+  try {
+    // List sessions — Gmail hook sessions use keys like "hook:gmail:<id>"
+    const result = await gateway.listSessions({ limit: 100, includeDerivedTitles: true, includeLastMessage: true });
+    const hookSessions = (result.sessions ?? []).filter(s => s.key.startsWith('hook:gmail:'));
+
+    _mailMessages = hookSessions.map(s => {
+      // Extract email metadata from the session's first message or label
+      const label = s.label ?? s.displayName ?? s.key;
+      // Try to parse from/subject from the label or derived title
+      const fromMatch = label.match(/from\s+(.+?)(?:\n|$)/i);
+      const subjMatch = label.match(/subject:\s*(.+?)(?:\n|$)/i);
+
+      return {
+        id: s.key,
+        from: fromMatch?.[1] ?? 'Unknown sender',
+        subject: subjMatch?.[1] ?? (label.slice(0, 80) || 'No subject'),
+        snippet: (s as unknown as Record<string, unknown>).lastMessage
+          ? extractContent(((s as unknown as Record<string, unknown>).lastMessage as Record<string, unknown>)?.content).slice(0, 120)
+          : '',
+        date: s.updatedAt ? new Date(s.updatedAt) : new Date(),
+        sessionKey: s.key,
+        read: true, // We don't track read state locally yet
+      };
+    }).sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    renderMailList();
+    showMailEmpty(_mailMessages.length === 0);
+
+    // Update inbox count
+    const countEl = $('mail-inbox-count');
+    if (countEl) countEl.textContent = String(_mailMessages.length);
+  } catch (e) {
+    console.warn('[mail] Inbox load failed:', e);
+    _mailMessages = [];
+    renderMailList();
+    showMailEmpty(true);
+  }
+}
+
+function showMailEmpty(show: boolean) {
+  const empty = $('mail-empty');
+  const items = $('mail-items');
+  if (empty) empty.style.display = show ? 'flex' : 'none';
+  if (items) items.style.display = show ? 'none' : '';
+}
+
+function renderMailList() {
+  const container = $('mail-items');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const filtered = _mailFolder === 'inbox' ? _mailMessages : [];
+  // For now, only inbox has real data. Drafts/Sent/Agent are placeholders.
+
+  if (_mailFolder !== 'inbox') {
+    container.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:13px">
+      ${_mailFolder === 'agent' ? 'Agent-drafted emails will appear here when the agent writes emails for your review.' : 'No messages in this folder.'}
+    </div>`;
+    return;
+  }
+
+  for (const msg of filtered) {
+    const item = document.createElement('div');
+    item.className = `mail-item${msg.id === _mailSelectedId ? ' active' : ''}${!msg.read ? ' unread' : ''}`;
+    item.innerHTML = `
+      <div class="mail-item-sender">${escHtml(msg.from)}</div>
+      <div class="mail-item-subject">${escHtml(msg.subject)}</div>
+      <div class="mail-item-snippet">${escHtml(msg.snippet)}</div>
+      <div class="mail-item-date">${formatMailDate(msg.date)}</div>
+    `;
+    item.addEventListener('click', () => openMailMessage(msg.id));
+    container.appendChild(item);
+  }
+}
+
+function formatMailDate(date: Date): string {
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  if (diff < 86400000 && now.getDate() === date.getDate()) {
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+  if (diff < 604800000) {
+    return date.toLocaleDateString([], { weekday: 'short' });
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+async function openMailMessage(msgId: string) {
+  _mailSelectedId = msgId;
+  renderMailList(); // Re-render to highlight selected
+
+  const msg = _mailMessages.find(m => m.id === msgId);
+  const preview = $('mail-preview');
+  if (!preview || !msg) return;
+
+  // Load full message from session history
+  let body = msg.snippet;
+  if (msg.sessionKey) {
+    try {
+      const result = await gateway.chatHistory(msg.sessionKey);
+      const msgs = result.messages ?? [];
+      // First user message contains the email content from the hook
+      const emailMsg = msgs.find(m => m.role === 'user');
+      if (emailMsg) body = extractContent(emailMsg.content);
+      // Agent response is the reply/processing
+      const agentMsg = [...msgs].reverse().find(m => m.role === 'assistant');
+      const agentReply = agentMsg ? extractContent(agentMsg.content) : null;
+
+      preview.innerHTML = `
+        <div class="mail-preview-header">
+          <div class="mail-preview-from">${escHtml(msg.from)}</div>
+          <div class="mail-preview-date">${msg.date.toLocaleString()}</div>
+        </div>
+        <div class="mail-preview-subject">${escHtml(msg.subject)}</div>
+        <div class="mail-preview-body">${formatMarkdown(body)}</div>
+        ${agentReply ? `
+          <div class="mail-preview-agent-reply">
+            <div class="mail-preview-agent-label">🤖 Agent Response</div>
+            <div class="mail-preview-agent-body">${formatMarkdown(agentReply)}</div>
+          </div>
+        ` : ''}
+        <div class="mail-preview-actions">
+          ${_mailHimalayaReady ? `<button class="btn btn-primary btn-sm mail-reply-btn" data-session="${escAttr(msg.sessionKey ?? '')}">Reply via Agent</button>` : ''}
+          <button class="btn btn-ghost btn-sm mail-open-session-btn" data-session="${escAttr(msg.sessionKey ?? '')}">Open in Chat</button>
+        </div>
+      `;
+
+      // Wire action buttons
+      preview.querySelector('.mail-reply-btn')?.addEventListener('click', () => {
+        composeMailReply(msg);
+      });
+      preview.querySelector('.mail-open-session-btn')?.addEventListener('click', () => {
+        if (msg.sessionKey) {
+          currentSessionKey = msg.sessionKey;
+          switchView('chat');
+        }
+      });
+    } catch (e) {
+      preview.innerHTML = `
+        <div class="mail-preview-header">
+          <div class="mail-preview-from">${escHtml(msg.from)}</div>
+          <div class="mail-preview-date">${msg.date.toLocaleString()}</div>
+        </div>
+        <div class="mail-preview-subject">${escHtml(msg.subject)}</div>
+        <div class="mail-preview-body">${escHtml(body)}</div>
+      `;
+    }
+  }
+}
+
+function composeMailReply(msg: { from: string; subject: string; sessionKey?: string }) {
+  // Switch to chat with a pre-filled message asking the agent to compose a reply
+  const replyPrompt = `Please compose a reply to this email from ${msg.from} with subject "${msg.subject}". Use the himalaya skill to send it when I approve.`;
+  if (msg.sessionKey) {
+    currentSessionKey = msg.sessionKey;
+  }
+  switchView('chat');
+  if (chatInput) {
+    chatInput.value = replyPrompt;
+    chatInput.focus();
+  }
+}
+
+// Compose new email
+$('mail-compose')?.addEventListener('click', () => {
+  if (!_mailHimalayaReady) {
+    showToast('Himalaya skill is required to send emails. Enable it in the Skills view.', 'error');
+    return;
+  }
+  const prompt = 'I want to compose a new email. Please help me draft it and use himalaya to send it when ready.';
+  currentSessionKey = null; // New session
+  switchView('chat');
+  if (chatInput) {
+    chatInput.value = prompt;
+    chatInput.focus();
+  }
+});
+
+// Mail folder switching
+document.querySelectorAll('.mail-folder').forEach(folder => {
+  folder.addEventListener('click', () => {
+    document.querySelectorAll('.mail-folder').forEach(f => f.classList.remove('active'));
+    folder.classList.add('active');
+    _mailFolder = folder.getAttribute('data-folder') ?? 'inbox';
+    const titleEl = $('mail-folder-title');
+    if (titleEl) {
+      const labels: Record<string, string> = { inbox: 'Inbox', drafts: 'Drafts', sent: 'Sent', agent: 'Agent Drafts' };
+      titleEl.textContent = labels[_mailFolder] ?? _mailFolder;
+    }
+    renderMailList();
+    // Clear preview
+    const preview = $('mail-preview');
+    if (preview) preview.innerHTML = '<div class="mail-preview-empty">Select an email to read</div>';
+    _mailSelectedId = null;
+  });
+});
+
+// Refresh
+$('mail-refresh')?.addEventListener('click', () => loadMail());
+
+// Add account / Setup account — opens Gmail hooks setup
+$('mail-add-account')?.addEventListener('click', () => openMailAccountSetup());
+$('mail-setup-account')?.addEventListener('click', () => openMailAccountSetup());
+
+function openMailAccountSetup() {
+  // Re-use the channel setup modal pattern with mail-specific fields
+  const title = $('channel-setup-title');
+  const body = $('channel-setup-body');
+  const modal = $('channel-setup-modal');
+  const footer = $('channel-setup-save') as HTMLButtonElement | null;
+  if (!title || !body || !modal || !footer) return;
+
+  _channelSetupType = '__gmail_hooks__'; // Special marker
+  title.textContent = 'Set Up Gmail';
+  footer.style.display = '';
+  footer.textContent = 'Save & Enable';
+
+  body.innerHTML = `
+    <p class="channel-setup-desc">
+      Connect your Gmail inbox so the agent receives incoming emails in real-time via Google Cloud Pub/Sub hooks.
+      Requires a GCP project with Pub/Sub enabled and the <code>gog</code> CLI tool.
+    </p>
+    <div class="form-group">
+      <label class="form-label" for="ch-field-gmail-account">Gmail Address <span class="required">*</span></label>
+      <input class="form-input" id="ch-field-gmail-account" data-ch-field="gmail-account" type="email" placeholder="you@gmail.com">
+      <div class="form-hint">The Gmail account to watch for incoming emails</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="ch-field-gmail-topic">GCP Pub/Sub Topic <span class="required">*</span></label>
+      <input class="form-input" id="ch-field-gmail-topic" data-ch-field="gmail-topic" type="text" placeholder="projects/my-project/topics/gog-gmail-watch">
+      <div class="form-hint">Full topic path from Google Cloud Console</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="ch-field-gmail-token">Hooks Auth Token <span class="required">*</span></label>
+      <input class="form-input" id="ch-field-gmail-token" data-ch-field="gmail-token" type="password" placeholder="A secret token for webhook auth">
+      <div class="form-hint">Shared token between gog push endpoint and the gateway. Choose any strong random string.</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="ch-field-gmail-label">Gmail Label</label>
+      <input class="form-input" id="ch-field-gmail-label" data-ch-field="gmail-label" type="text" placeholder="INBOX" value="INBOX">
+      <div class="form-hint">Which Gmail label to watch (default: INBOX)</div>
+    </div>
+    <div style="margin-top:12px;padding:12px;background:var(--bg-primary);border-radius:var(--radius-xs);font-size:12px;color:var(--text-secondary);line-height:1.5">
+      <strong>Prerequisites:</strong><br>
+      1. Install <code>gog</code> CLI: <code>brew install gogcli/tap/gog</code><br>
+      2. Run <code>gog auth login</code> to authenticate with Google<br>
+      3. Create a Pub/Sub topic in your GCP project<br>
+      4. The gateway will automatically start the Gmail watcher on save
+    </div>
+  `;
+  modal.style.display = '';
+}
+
+// saveGmailHooksSetup is called from saveChannelSetup when _channelSetupType === '__gmail_hooks__'
+
+async function saveGmailHooksSetup() {
+  const account = ($('ch-field-gmail-account') as HTMLInputElement)?.value.trim();
+  const topic = ($('ch-field-gmail-topic') as HTMLInputElement)?.value.trim();
+  const token = ($('ch-field-gmail-token') as HTMLInputElement)?.value.trim();
+  const label = ($('ch-field-gmail-label') as HTMLInputElement)?.value.trim() || 'INBOX';
+
+  if (!account) { showToast('Gmail address is required', 'error'); return; }
+  if (!topic) { showToast('Pub/Sub topic is required', 'error'); return; }
+  if (!token) { showToast('Auth token is required', 'error'); return; }
+
+  const saveBtn = $('channel-setup-save') as HTMLButtonElement | null;
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+
+  try {
+    // Get current config to merge
+    const current = await gateway.configGet();
+    const cfg = current.config as Record<string, unknown>;
+    const existingHooks = (cfg?.hooks as Record<string, unknown>) ?? {};
+
+    await gateway.configPatch({
+      hooks: {
+        ...existingHooks,
+        enabled: true,
+        token: existingHooks.token ?? token, // Use existing token if set, otherwise use provided one
+        presets: ['gmail'],
+        gmail: {
+          ...((existingHooks.gmail as Record<string, unknown>) ?? {}),
+          account,
+          topic,
+          pushToken: token,
+          label,
+          includeBody: true,
+        },
+      },
+    });
+
+    showToast('Gmail hooks configured! The gateway will start watching your inbox.', 'success');
+    closeChannelSetup();
+    setTimeout(() => loadMail(), 2000);
+  } catch (e) {
+    showToast(`Failed to save: ${e instanceof Error ? e.message : e}`, 'error');
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save & Enable'; }
+  }
+}
 
 // ── Automations / Cron — Card Board ────────────────────────────────────────
 async function loadCron() {
