@@ -1,6 +1,6 @@
 # Paw — Full Architecture, Status & Wiring Plan
 
-> Last updated: 2026-02-15  
+> Last updated: 2026-02-15 (Sprint Plan added)  
 > Cross-referenced against: [github.com/openclaw/openclaw](https://github.com/openclaw/openclaw) main branch
 
 ---
@@ -421,52 +421,55 @@ Wake word system for hands-free activation. Paw has **zero** coverage.
 
 ---
 
-### 21. Usage Tracking ⚪ NOT BUILT
+### 21. Usage Tracking ✅ WIRED
 | Component | Status | Details |
 |-----------|--------|--------|
-| Usage status | ⚪ | `usage.status` — token counts, request counts |
-| Cost breakdown | ⚪ | `usage.cost` — dollar cost per model/provider |
+| Usage status | ✅ | `usage.status` → Settings Usage section with requests, tokens, cost cards |
+| Cost breakdown | ✅ | `usage.cost` → per-model breakdown rows in Usage section |
 
-Critical for users on pay-per-use API keys. Paw has **zero** coverage.
+Fully wired. **Gap**: No per-conversation cost, no budget alerts, no cost-per-feature breakdown (see Community Gap Analysis).
 
 ---
 
-### 22. Onboarding Wizard ⚪ NOT BUILT
+### 22. Onboarding Wizard ✅ WIRED
 | Component | Status | Details |
 |-----------|--------|--------|
-| Start wizard | ⚪ | `wizard.start` — begin guided setup |
-| Step through | ⚪ | `wizard.next` — advance to next step |
-| Cancel | ⚪ | `wizard.cancel` |
-| Status | ⚪ | `wizard.status` — check wizard state |
+| Start wizard | ✅ | `wizard.start` → Start button in Settings Wizard section |
+| Step through | ✅ | `wizard.next` → Next Step button, renders step content |
+| Cancel | ✅ | `wizard.cancel` → Cancel button |
+| Status | ✅ | `wizard.status` → Status badge (active/completed/idle) |
 
-OpenClaw's built-in guided setup flow. Could replace or supplement Paw's manual config form. **High priority** for non-technical users.
+Fully wired in Settings. **Gap**: No error recovery flow, no "gateway crashed" handling (see Community Gap Analysis).
 
 ---
 
-### 23. Browser Control ⚪ NOT BUILT
+### 23. Browser Control ✅ WIRED
 | Component | Status | Details |
 |-----------|--------|--------|
-| Browser request | ⚪ | `browser.request` — CDP Chrome control |
+| Browser status | ✅ | `browser.status` → Settings Browser section with running/stopped badge |
+| Tab list | ✅ | `browser.status` → renders open tabs with title + URL |
+| Start/Stop | ✅ | `browser.start/stop` → control buttons |
 
-Agent-driven browser automation. Single method but powerful feature.
+Fully wired in Settings. **Gap**: No screenshot viewer, no tab interaction (see Community Gap Analysis).
 
 ---
 
-### 24. Self-Update ⚪ NOT BUILT
+### 24. Self-Update ✅ WIRED
 | Component | Status | Details |
 |-----------|--------|--------|
-| Update OpenClaw | ⚪ | `update.run` — update OpenClaw from within Paw |
+| Update OpenClaw | ✅ | `update.run` → "Update OpenClaw" button in Settings About section, shows result toast |
 
-One-click update for non-technical users. **High priority**.
+One-click update fully working.
 
 ---
 
-### 25. Logs Viewer ⚪ NOT BUILT
+### 25. Logs Viewer ✅ WIRED
 | Component | Status | Details |
 |-----------|--------|--------|
-| Tail logs | ⚪ | `logs.tail` typed in gateway.ts but **never called** |
+| Tail logs | ✅ | `logs.tail` → Settings Logs section with auto-refresh, filterable |
 
-Real-time gateway log viewer for debugging. Could be a Settings tab.
+Fully wired in Settings.
+
 ---
 
 ## Critical Gaps — What Needs Wiring
@@ -511,8 +514,8 @@ Real-time gateway log viewer for debugging. Could be a Settings tab.
 | `src/main.ts` | 2,732 | **Core UI logic** — navigation, chat, event handlers (refactored from 5,394) |
 | `src/styles.css` | ~4,500 | **All styling** — Monday.com-inspired light theme, layout, components |
 | `index.html` | ~1,600 | **All DOM structure** — sidebar, views, modals |
-| `src/gateway.ts` | 746 | **WebSocket gateway client** — Protocol v3, ~70 methods typed |
-| `src/types.ts` | 514 | **TypeScript types** — gateway protocol types, ChatAttachment, UI types |
+| `src/gateway.ts` | ~810 | **WebSocket gateway client** — Protocol v3, ~80+ methods typed |
+| `src/types.ts` | ~548 | **TypeScript types** — gateway protocol types, ChatAttachment, UI types |
 | `src/db.ts` | 350 | **SQLite database** — migrations, CRUD |
 | `src/api.ts` | 40 | **HTTP health probe** |
 | `src-tauri/src/lib.rs` | 1,947 | **Rust backend** — Tauri commands, keychain, config |
@@ -527,7 +530,7 @@ Real-time gateway log viewer for debugging. Could be a Settings tab.
 | `skills.ts` | 413 | Skill browser, install, configure |
 | `research.ts` | 360 | Research projects, findings, reports |
 | `automations.ts` | 183 | Cron job management |
-| `settings.ts` | 181 | Gateway config, logs |
+| `settings.ts` | ~630 | Gateway config, logs, usage, presence, wizard, browser, update |
 | **Total views** | **3,838** | Extracted from main.ts |
 
 ---
@@ -846,19 +849,20 @@ These are features that OpenClaw already exposes via gateway methods. Paw just n
 14. ~~**Live approval notifications** — Listen to `exec.approval.requested` event, show approve/deny dialog~~
 15. ~~**Resolve approvals** — Wire approve/deny buttons → `exec.approval.resolve`~~
 
-#### 4b. Usage & Billing
-16. **Usage dashboard** — Call `usage.status` + `usage.cost`, show token/cost breakdown
+#### 4b. Usage & Billing — ✅ WIRED
+16. ~~**Usage dashboard** — Call `usage.status` + `usage.cost`, show token/cost breakdown~~ ✅ Wired in Settings
+    - **Gap**: No per-conversation cost, no budget alerts (see Sprint 1)
 
 #### 4c. TTS (Text-to-Speech)
 17. **TTS settings panel** — `tts.status`, `tts.providers`, enable/disable/setProvider
 18. **TTS toggle in chat** — Enable TTS for responses, preview voices
 19. **Convert button** — `tts.convert` next to assistant messages
 
-#### 4d. Logs Viewer
-20. **Logs tab in Settings** — `logs.tail` with auto-refresh, filterable
+#### ~~4d. Logs Viewer~~ ✅ DONE
+20. ~~**Logs tab in Settings** — `logs.tail` with auto-refresh, filterable~~ ✅ Wired
 
-#### 4e. System Presence
-21. **Connected clients card** — `system-presence` → show who/what is connected (devices, apps, CLI)
+#### ~~4e. System Presence~~ ✅ DONE
+21. ~~**Connected clients card** — `system-presence` → show who/what is connected (devices, apps, CLI)~~ ✅ Wired in Settings
 
 #### ~~4f. Node Management~~ ✅ DONE
 22. ~~**Nodes view** — `node.list` + `node.describe` → list paired nodes with caps/commands~~
@@ -876,17 +880,18 @@ These are features that OpenClaw already exposes via gateway methods. Paw just n
 
 #### ~~4i. Multi-Agent Management~~ ✅ DONE
 30. ~~**Agent CRUD** — `agents.create/update/delete` → manage multiple agents from Paw~~
-31. **Agent routing** — configure which channels/sessions route to which agent
+31. **Agent routing** — configure which channels/sessions route to which agent (see Sprint 4)
 
-#### 4j. Self-Update
-32. **Update button** — `update.run` → update OpenClaw from Paw, show progress
+#### ~~4j. Self-Update~~ ✅ DONE
+32. ~~**Update button** — `update.run` → update OpenClaw from Paw, show progress~~ ✅ Wired
 
-#### 4k. Onboarding Wizard
-33. **Wizard flow** — `wizard.start/next/cancel/status` → guided first-run setup
-34. Could replace/supplement current manual setup form
+#### ~~4k. Onboarding Wizard~~ ✅ DONE
+33. ~~**Wizard flow** — `wizard.start/next/cancel/status` → guided first-run setup~~ ✅ Wired
+34. ~~Could replace/supplement current manual setup form~~
 
-#### 4l. Browser Control
-35. **Browser panel** — `browser.request` → start/stop managed browser, view tabs, take screenshots
+#### ~~4l. Browser Control~~ ✅ DONE
+35. ~~**Browser panel** — `browser.request` → start/stop managed browser, view tabs~~ ✅ Wired
+    - **Gap**: No screenshot viewer, no tab interaction (see Sprint 5)
 
 #### 4m. Gateway Config
 36. **Config validation** — `config.schema` → validate before saving
@@ -905,12 +910,14 @@ These are features that OpenClaw already exposes via gateway methods. Paw just n
 45. ~~**Clean up orphaned DB tables**~~ — `email_accounts` and `emails` now used; `research_findings` and `automation_runs` still orphaned
 
 ### Phase 6: Polish
-46. Add syntax highlighting to Build editor (CodeMirror)
-47. Cron job editing (currently create/delete only)
-48. Real knowledge graph (or remove the mock)
-49. Export research reports
-50. Chat image/file/attachment support (OpenClaw `agent` method supports `attachments` array)
-51. Webhook configuration UI
+54. Add syntax highlighting to Build editor (CodeMirror)
+55. Cron job editing (currently create/delete only) → Sprint 2 item
+56. Real knowledge graph (or remove the mock)
+57. Export research reports
+58. Chat image/file/attachment support (OpenClaw `agent` method supports `attachments` array)
+59. Webhook configuration UI
+60. Memory export to JSON/CSV (Sprint 5)
+61. Screenshot viewer for browser automation (Sprint 5)
 
 ---
 
@@ -934,12 +941,166 @@ The gateway exposes its full API via WebSocket on `ws://127.0.0.1:{port}` (defau
 
 **What's broken**: Build/Content chat responses still not routed, Code view is empty.
 
-**What's missing entirely**: TTS UI (5 typed methods, no UI), Talk Mode UI (2 typed, no UI), Voice Wake UI (2 typed, no UI). That's **~9 methods with zero UI**.
+**What's missing entirely**: TTS UI (5 typed methods, no UI), Talk Mode UI (2 typed, no UI), Voice Wake UI (2 typed, no UI). That's **~9 gateway methods with zero UI**. Beyond gateway wiring, the Community Gap Analysis identifies **19 feature items** across 5 sprints that address real user pain (memory visibility, cost tracking, cron reliability, multi-agent routing).
 
-**Coverage reality**: Paw calls **~77 of ~90 gateway methods** (**~86% UI wired, ~98% typed**). 12 of 18 gateway events consumed (up from 8). Every category except TTS/Talk/Voice Wake is now at **100%**. The gateway WebSocket client (`gateway.ts`) is well-structured with ~800 lines and ~80+ typed methods.
+**Coverage reality**: Paw calls **~77 of ~90 gateway methods** (**~86% UI wired, ~98% typed**). 12 of 18 gateway events consumed. Every category except TTS/Talk/Voice Wake is at **100%**. But "wired" ≠ "complete" — the community gap analysis shows that basic wiring (e.g., usage dashboard exists) is just the foundation. Users need **depth**: per-conversation costs, budget alerts, compaction warnings, cron error highlighting, TTS playback.
 
-**Security posture**: Mail credentials stored in OS keychain (macOS Keychain / libsecret), Himalaya config.toml chmod 600, passwords never returned to JS frontend, agent email actions enforced via per-account permission toggles, all activity logged to SQLite audit trail.
+**Next up**: Sprint 1 (Cost & Memory Visibility) is the highest-impact work — 5 items, mostly building on already-wired methods. See Sprint Plan section for the full 19-item roadmap.
 
-**Core insight**: Phases 1-18 moved Paw from a demo-quality shell (~26% coverage, broken wiring, empty views) to a near-complete desktop client (~86% UI wired / ~98% typed, real security, working mail, nodes, device pairing, visual tool approvals, full gateway status/config/session/wizard/browser/update management). Only TTS/Talk/Voice Wake UI remains unbuilt.
+---
 
-**Priority for "works out of the box" goal**: TTS UI for message audio playback is the highest-impact remaining item. Onboarding Wizard, Self-Update, Usage Tracking, and Browser Control are all now wired.
+## Community Gap Analysis (2026-02-15)
+
+Based on OpenClaw community feedback — Reddit, Discord, GitHub issues. Maps real user pain to Paw's current state.
+
+### 🔴 CRITICAL — Memory Woes
+
+**Community problem**: "It forgets mid-sentence" — silent compaction, no visibility into what the agent remembers.
+
+| What they need | Paw status | Gap |
+|----------------|:---:|-----|
+| Memory inspector (see what's in context window) | ⚪ | NOT BUILT — need real-time context window view showing what the agent "sees" |
+| Memory usage meter (tokens consumed vs limit) | ⚪ | NOT BUILT — `usage.status` exists and is wired but doesn't show per-conversation context consumption |
+| Compaction warning ("about to forget") | ⚪ | NOT BUILT — need to listen for compaction events, warn user before data is lost |
+| Memory embedding toggle + cost savings UI | 🔶 | Have LanceDB setup, no cost comparison UI (embedding vs no embedding) |
+| Backup/export memory | ⚪ | NOT BUILT — users want to download their memory database |
+
+### 🔴 CRITICAL — Cron/Automation Reliability
+
+**Community problem**: Jobs timeout, fail silently, no way to debug what happened.
+
+| What they need | Paw status | Gap |
+|----------------|:---:|-----|
+| Cron run history with errors | ✅ | Have `cron.runs` wired |
+| Job status dashboard with error highlighting | 🔶 | Basic list, no error-state visual treatment (red rows, error icons) |
+| Sub-agent spawn UI | ⚪ | NOT BUILT — users manually configure sub-agent patterns |
+| Timeout visualization | ⚪ | NOT BUILT — no way to see which jobs are timing out or approaching limits |
+| Job editing (not just delete/recreate) | ⚪ | NOT BUILT — cron modal is create/delete only |
+| Test run with live output | ⚪ | Have "run now" button, but no live output stream — user can't see what happened |
+
+### 🔴 CRITICAL — Cost Visibility
+
+**Community problem**: Token costs compound silently, no visibility until the API bill arrives.
+
+| What they need | Paw status | Gap |
+|----------------|:---:|-----|
+| Real-time token usage dashboard | ✅ | `usage.status` + `usage.cost` wired in Settings Usage section |
+| Per-conversation cost tracking | ⚪ | NOT BUILT — no way to see "this chat session cost $0.47" |
+| Model cost comparison | ⚪ | NOT BUILT — no side-by-side model pricing |
+| Budget alerts / spending limits | ⚪ | NOT BUILT — no "warn me at $X" or "stop at $Y" |
+| Cost per feature breakdown | ⚪ | NOT BUILT — heartbeat vs chat vs research vs cron breakdown |
+
+### 🟡 HIGH — Multi-User / Multi-Agent Routing
+
+**Community problem**: "Can two people share one bot with separate workspaces?" — routing is the gap.
+
+| What they need | Paw status | Gap |
+|----------------|:---:|-----|
+| Multi-agent CRUD | ✅ | Fully wired in Foundry |
+| Agent routing (channel → agent mapping) | ⚪ | NOT BUILT — need UI to configure which channel/sender routes to which agent |
+| Per-user workspace selection | ⚪ | NOT BUILT — workspaces exist but no switching UI |
+| Session → agent binding UI | ⚪ | NOT BUILT — sessions don't show which agent they belong to |
+
+### 🟡 HIGH — Morning Brief / Proactive Features
+
+**Community problem**: Most popular use case (ElevenLabs morning briefs), but requires workarounds.
+
+| What they need | Paw status | Gap |
+|----------------|:---:|-----|
+| TTS for audio briefs | ⚪ | NOT BUILT — gateway supports TTS, methods typed, no UI |
+| Cron job templates (morning brief preset) | ⚪ | NOT BUILT — one-click "Create Morning Brief" |
+| Sub-agent spawn from cron | ⚪ | NOT BUILT — cron → agent chain |
+| Voice output preference | ⚪ | NOT BUILT — per-channel/per-cron TTS toggle |
+
+### 🟡 HIGH — Setup & Installation Polish
+
+**Community problem**: npm global install bugs, path issues, Windows struggles.
+
+| What they need | Paw status | Gap |
+|----------------|:---:|-----|
+| Bundled installer | 🔶 | Infrastructure exists, Node.js tarballs missing from `resources/node/` |
+| Onboarding wizard | ✅ | Wired — wizard.start/next/cancel/status in Settings |
+| Error recovery ("gateway crashed") | ⚪ | NOT BUILT — no crash detection, no auto-restart, no user guidance |
+| Config validation before save | 🔶 | `config.schema` typed, not used for pre-save validation |
+| Self-update | ✅ | Wired — "Update OpenClaw" button in Settings |
+
+### 🟡 MEDIUM — Browser Automation
+
+**Community problem**: "browser tasks. plz help" — agent can drive Chrome but no visibility.
+
+| What they need | Paw status | Gap |
+|----------------|:---:|-----|
+| Browser status/control | ✅ | Wired — start/stop + status badge in Settings |
+| Screenshot viewer | ⚪ | NOT BUILT — agent takes screenshots, user can't see them |
+| Tab management (click, navigate, close) | ⚪ | NOT BUILT — tab list is read-only |
+
+### 🟡 MEDIUM — Voice Features
+
+**Community problem**: ElevenLabs morning briefs are beloved, but no desktop UI.
+
+| What they need | Paw status | Gap |
+|----------------|:---:|-----|
+| TTS provider setup | ⚪ | NOT BUILT — `tts.providers / tts.setProvider` typed but no UI |
+| Voice preview / test | ⚪ | NOT BUILT — `tts.convert` typed but no play button |
+| Talk mode toggle | ⚪ | NOT BUILT — `talk.mode` typed but no UI |
+| Wake word config | ⚪ | NOT BUILT — `voicewake.get/set` typed but no UI |
+
+---
+
+## Sprint Plan — Community Pain Points
+
+Priority order based on community pain severity + implementation feasibility.
+
+### Sprint 1: Cost & Memory Visibility (highest pain)
+
+**Why first**: "Where did my money go?" and "it forgot everything" are the top two complaints.
+
+| # | Feature | Gateway methods | Effort | Details |
+|---|---------|----------------|--------|---------|
+| 1 | **Usage Dashboard enhancement** | `usage.status`, `usage.cost` | S | Already wired — add per-model cost cards, session-level breakdown, refresh timer |
+| 2 | **Memory Context Meter** | `usage.status` (token counts) | M | Show current context window usage in chat header as a progress bar (tokens used / max) |
+| 3 | **Compaction indicator** | Listen for compaction events | M | Banner/toast when context is about to be compacted, link to memory view |
+| 4 | **Per-conversation cost** | Track tokens per session locally | M | Accumulate `usage.status` deltas per session ID, show in chat header |
+| 5 | **Budget alert** | Local threshold check | S | Settings input for spending limit, warn when `usage.cost` exceeds it |
+
+### Sprint 2: Cron Reliability (silent failures → visible failures)
+
+**Why second**: Cron is the second most-used feature, and silent failures erode trust.
+
+| # | Feature | Gateway methods | Effort | Details |
+|---|---------|----------------|--------|---------|
+| 6 | **Cron job editor** | `cron.update` | M | Edit existing jobs (schedule, prompt, agent) instead of delete+recreate |
+| 7 | **Run output viewer** | `cron.runs` + run detail | M | Expandable run rows showing output, errors, duration, timeout status |
+| 8 | **Error highlighting** | `cron.runs` (error field) | S | Red rows for failed runs, error icon, filter by status |
+| 9 | **Timeout visualization** | `cron.runs` (duration) | S | Progress bar or timer showing job duration vs configured timeout |
+
+### Sprint 3: TTS & Voice (morning brief enabler)
+
+**Why third**: Morning briefs are the #1 community use case, and all gateway methods are already typed.
+
+| # | Feature | Gateway methods | Effort | Details |
+|---|---------|----------------|--------|---------|
+| 10 | **TTS Settings panel** | `tts.status`, `tts.providers`, `tts.setProvider`, `tts.enable/disable` | M | Provider picker, enable/disable toggle, voice selection |
+| 11 | **TTS in Chat** | `tts.convert` | M | Play button on assistant messages, audio element, voice selector |
+| 12 | **Cron template: Morning Brief** | `cron.create` (preset) | S | One-click "Create Morning Brief" with pre-filled schedule+prompt+TTS flag |
+
+### Sprint 4: Multi-Agent Routing & Polish
+
+**Why fourth**: Multi-agent CRUD exists but routing is the missing piece for shared setups.
+
+| # | Feature | Gateway methods | Effort | Details |
+|---|---------|----------------|--------|---------|
+| 13 | **Agent routing config** | Agent + channel config | M | UI: channel → agent mapping table, default agent selector |
+| 14 | **Session → agent binding** | Session metadata | S | Show which agent owns each session, filter sessions by agent |
+| 15 | **Config validation** | `config.schema` | S | Validate config against schema before saving, show validation errors inline |
+| 16 | **Error recovery** | Gateway health + restart | M | Detect gateway crash, offer auto-restart, show recovery guidance |
+
+### Sprint 5: Browser & Memory Export
+
+**Why last**: Lower pain severity, but still requested.
+
+| # | Feature | Gateway methods | Effort | Details |
+|---|---------|----------------|--------|---------|
+| 17 | **Screenshot viewer** | `browser.status` (screenshots) | M | Display agent screenshots in browser panel, lightbox view |
+| 18 | **Memory export** | Tauri file dialog + `memory_search` | M | Export LanceDB memory to JSON/CSV, downloadable |
+| 19 | **Memory cost comparison** | `usage.cost` + memory config | S | Show embedding cost vs no-embedding, toggle with savings estimate |
