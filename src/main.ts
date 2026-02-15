@@ -492,6 +492,25 @@ async function loadGatewayConfig() {
     const result = await gateway.configGet();
     if (section) section.style.display = '';
     if (editor) editor.value = JSON.stringify(result.config, null, 2);
+
+    // Warn if config contains redacted placeholders
+    const redactWarn = $('settings-config-redact-warning');
+    const configStr = editor?.value ?? '';
+    if (configStr.includes('__OPENCLAW_REDACTED__')) {
+      if (!redactWarn) {
+        // Create warning banner above the editor
+        const warn = document.createElement('div');
+        warn.id = 'settings-config-redact-warning';
+        warn.className = 'config-redact-warning';
+        warn.textContent = 'Some values are redacted by the gateway. Do not save without restoring them or those fields will be corrupted.';
+        editor?.parentElement?.insertBefore(warn, editor);
+      } else {
+        redactWarn.style.display = '';
+      }
+    } else if (redactWarn) {
+      redactWarn.style.display = 'none';
+    }
+
     try {
       const h = await gateway.getHealth();
       if (versionEl) versionEl.textContent = `Gateway: ${h.ts ? 'up since ' + new Date(h.ts).toLocaleString() : 'running'}`;
@@ -507,6 +526,22 @@ $('settings-save-config')?.addEventListener('click', async () => {
   if (!editor) return;
   try {
     const parsed = JSON.parse(editor.value);
+
+    // Safety check: the gateway redacts sensitive values as "__OPENCLAW_REDACTED__".
+    // If the user saves without restoring them, the config gets corrupted
+    // (e.g. maxTokens becomes a string instead of a number).
+    const configStr = JSON.stringify(parsed);
+    if (configStr.includes('__OPENCLAW_REDACTED__')) {
+      const proceed = confirm(
+        'Warning: This config contains redacted values ("__OPENCLAW_REDACTED__"). ' +
+        'Saving will write these placeholder strings into your config, which can break ' +
+        'fields like API keys and model settings.\n\n' +
+        'Either restore the original values or click Cancel to abort.\n\n' +
+        'Save anyway?'
+      );
+      if (!proceed) return;
+    }
+
     await gateway.configSet(parsed);
     alert('Configuration saved!');
   } catch (e) {

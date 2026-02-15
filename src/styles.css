@@ -1111,6 +1111,18 @@ body {
   letter-spacing: 0.06em;
 }
 
+.config-redact-warning {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffc107;
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 /* ─── Memory View ─── */
 .memory-section {
   margin-bottom: 24px;
