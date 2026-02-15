@@ -199,19 +199,16 @@ export type ContentBlock =
   | { type: 'tool_result'; tool_use_id: string; content: string | unknown };
 
 /** Attachment for chat messages (images, documents, etc.) */
+/** Attachment for chat.send - matches OpenClaw gateway format */
 export interface ChatAttachment {
-  /** Unique ID for this attachment */
-  id?: string;
+  /** Type identifier (e.g., 'image') */
+  type?: string;
   /** MIME type (e.g., 'image/png', 'application/pdf') */
-  mimeType: string;
+  mimeType?: string;
   /** Original filename */
-  filename?: string;
-  /** Base64-encoded content (for inline attachments) */
-  data?: string;
-  /** URL to fetch the attachment (alternative to data) */
-  url?: string;
-  /** File size in bytes */
-  size?: number;
+  fileName?: string;
+  /** Base64-encoded content */
+  content?: string;
 }
 
 export interface ChatMessage {
