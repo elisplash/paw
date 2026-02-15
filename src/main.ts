@@ -4,7 +4,7 @@
 import type { AppConfig, Message, InstallProgress, ChatMessage, Session } from './types';
 import { setGatewayConfig, probeHealth } from './api';
 import { gateway } from './gateway';
-import { initDb, listModes, listDocs, saveDoc, getDoc, deleteDoc, listProjects, saveProject, deleteProject, listProjectFiles, saveProjectFile, deleteProjectFile, logCredentialActivity } from './db';
+import { initDb, listModes, listDocs, saveDoc, getDoc, deleteDoc, listProjects, saveProject, listProjectFiles, saveProjectFile, deleteProjectFile, logCredentialActivity } from './db';
 import * as SettingsModule from './views/settings';
 import * as AutomationsModule from './views/automations';
 import * as MemoryPalaceModule from './views/memory-palace';
@@ -12,6 +12,7 @@ import * as MailModule from './views/mail';
 import type { MailPermissions } from './views/mail';
 import * as SkillsModule from './views/skills';
 import * as FoundryModule from './views/foundry';
+import * as ResearchModule from './views/research';
 
 // ── Global error handlers ──────────────────────────────────────────────────
 function crashLog(msg: string) {
@@ -148,7 +149,7 @@ function switchView(viewName: string) {
   // Local-only views (no gateway needed)
   switch (viewName) {
     case 'content': loadContentDocs(); if (wsConnected) loadSpaceCron('content'); break;
-    case 'research': loadResearchProjects(); if (wsConnected) loadSpaceCron('research'); break;
+    case 'research': ResearchModule.loadResearchProjects(); if (wsConnected) loadSpaceCron('research'); break;
     default: break;
   }
   if (viewName === 'settings') syncSettingsForm();
@@ -251,6 +252,7 @@ gateway.on('_connected', () => {
   MailModule.setWsConnected(true);
   SkillsModule.setWsConnected(true);
   FoundryModule.setWsConnected(true);
+  ResearchModule.setWsConnected(true);
   statusDot?.classList.add('connected');
   statusDot?.classList.remove('error');
   if (statusText) statusText.textContent = 'Connected';
@@ -262,6 +264,7 @@ gateway.on('_disconnected', () => {
   MailModule.setWsConnected(false);
   SkillsModule.setWsConnected(false);
   FoundryModule.setWsConnected(false);
+  ResearchModule.setWsConnected(false);
   statusDot?.classList.remove('connected');
   statusDot?.classList.add('error');
   if (statusText) statusText.textContent = 'Reconnecting...';
@@ -913,27 +916,23 @@ gateway.on('agent', (payload: unknown) => {
 
     // Route paw-research-* events to the Research view
     if (evtSession && evtSession.startsWith('paw-research-')) {
-      if (!_researchStreaming) return;
-      if (_researchRunId && runId && runId !== _researchRunId) return;
+      if (!ResearchModule.isStreaming()) return;
+      if (ResearchModule.getRunId() && runId && runId !== ResearchModule.getRunId()) return;
 
       if (stream === 'assistant' && data) {
         const delta = data.delta as string | undefined;
-        if (delta) appendResearchDelta(delta);
+        if (delta) ResearchModule.appendDelta(delta);
       } else if (stream === 'lifecycle' && data) {
         const phase = data.phase as string | undefined;
-        if (phase === 'start' && !_researchRunId && runId) _researchRunId = runId;
-        if (phase === 'end' && _researchResolve) {
-          _researchResolve(_researchContent);
-          _researchResolve = null;
-        }
+        if (phase === 'end') ResearchModule.resolveStream();
       } else if (stream === 'tool' && data) {
         const tool = (data.name ?? data.tool) as string | undefined;
         const phase = data.phase as string | undefined;
-        if (phase === 'start' && tool) appendResearchDelta(`\n\n▶ ${tool}...`);
+        if (phase === 'start' && tool) ResearchModule.appendDelta(`\n\n▶ ${tool}...`);
       } else if (stream === 'error' && data) {
         const error = (data.message ?? data.error ?? '') as string;
-        if (error) appendResearchDelta(`\n\nError: ${error}`);
-        if (_researchResolve) { _researchResolve(_researchContent); _researchResolve = null; }
+        if (error) ResearchModule.appendDelta(`\n\nError: ${error}`);
+        ResearchModule.resolveStream();
       }
       return;
     }
@@ -1044,13 +1043,13 @@ gateway.on('chat', (payload: unknown) => {
 
     // Route paw-research-* final messages to research view
     if (chatEvtSession && chatEvtSession.startsWith('paw-research-')) {
-      if (_researchStreaming && msg) {
+      if (ResearchModule.isStreaming() && msg) {
         const text = extractContent(msg.content);
         if (text) {
-          _researchContent = text;
+          ResearchModule.setContent(text);
           const liveContent = $('research-live-content');
           if (liveContent) liveContent.textContent = text;
-          if (_researchResolve) { _researchResolve(text); _researchResolve = null; }
+          ResearchModule.resolveStream(text);
         }
       }
       return;
@@ -2010,7 +2009,6 @@ $('content-delete-doc')?.addEventListener('click', async () => {
 });
 
 // ── Research Notebook ──────────────────────────────────────────────────────
-let _activeResearchId: string | null = null;
 
 // ── Build — streaming state ────────────────────────────────────────────────
 let _buildStreaming = false;
@@ -2023,331 +2021,6 @@ let _contentStreaming = false;
 let _contentStreamContent = '';
 let _contentStreamRunId: string | null = null;
 let _contentStreamResolve: ((text: string) => void) | null = null;
-
-// ── Research — Agent-powered research ──────────────────────────────────────
-let _researchStreaming = false;
-let _researchContent = '';
-let _researchRunId: string | null = null;
-let _researchResolve: ((text: string) => void) | null = null;
-
-async function loadResearchProjects() {
-  const list = $('research-project-list');
-  const empty = $('research-empty');
-  const workspace = $('research-workspace');
-  if (!list) return;
-
-  const projects = await listProjects('research');
-  list.innerHTML = '';
-
-  if (!projects.length && !_activeResearchId) {
-    if (empty) empty.style.display = 'flex';
-    if (workspace) workspace.style.display = 'none';
-    return;
-  }
-
-  for (const p of projects) {
-    const item = document.createElement('div');
-    item.className = `studio-doc-item${p.id === _activeResearchId ? ' active' : ''}`;
-    item.innerHTML = `
-      <div class="studio-doc-title">${escHtml(p.name)}</div>
-      <div class="studio-doc-meta">${new Date(p.updated_at).toLocaleDateString()}</div>
-    `;
-    item.addEventListener('click', () => openResearchProject(p.id));
-    list.appendChild(item);
-  }
-}
-
-async function openResearchProject(id: string) {
-  _activeResearchId = id;
-  const empty = $('research-empty');
-  const workspace = $('research-workspace');
-  if (empty) empty.style.display = 'none';
-  if (workspace) workspace.style.display = '';
-  await loadResearchFindings(id);
-  loadResearchProjects();
-}
-
-async function loadResearchFindings(projectId: string) {
-  const list = $('research-findings-list');
-  const header = $('research-findings-header');
-  if (!list) return;
-
-  // Load findings saved as content docs linked to this project
-  const allDocs = await listDocs();
-  const findings = allDocs.filter(d => d.project_id === projectId && d.content_type === 'research-finding');
-  const savedReports = allDocs.filter(d => d.project_id === projectId && d.content_type === 'research-report');
-  list.innerHTML = '';
-
-  // Show "View Saved Report" button if a report was previously generated
-  if (savedReports.length) {
-    const reportBtn = document.createElement('button');
-    reportBtn.className = 'btn btn-ghost btn-sm';
-    reportBtn.style.marginBottom = '8px';
-    reportBtn.textContent = `View saved report (${new Date(savedReports[0].created_at).toLocaleDateString()})`;
-    reportBtn.addEventListener('click', () => {
-      const reportArea = $('research-report-area');
-      const findingsArea = $('research-findings-area');
-      const reportContent = $('research-report-content');
-      if (reportArea) reportArea.style.display = '';
-      if (findingsArea) findingsArea.style.display = 'none';
-      if (reportContent) reportContent.innerHTML = formatResearchContent(savedReports[0].content);
-    });
-    list.appendChild(reportBtn);
-  }
-
-  if (findings.length) {
-    if (header) header.style.display = 'flex';
-    for (const f of findings) {
-      list.appendChild(renderFindingCard(f));
-    }
-  } else {
-    if (header) header.style.display = 'none';
-  }
-}
-
-function renderFindingCard(doc: import('./db').ContentDoc): HTMLElement {
-  const card = document.createElement('div');
-  card.className = 'research-finding-card';
-  card.innerHTML = `
-    <div class="research-finding-header">
-      <div class="research-finding-title">${escHtml(doc.title)}</div>
-      <div class="research-finding-actions">
-        <span class="research-finding-meta">${new Date(doc.created_at).toLocaleString()}</span>
-        <button class="btn btn-ghost btn-xs research-finding-delete" data-id="${escAttr(doc.id)}" title="Remove">✕</button>
-      </div>
-    </div>
-    <div class="research-finding-body">${formatResearchContent(doc.content)}</div>
-  `;
-  card.querySelector('.research-finding-delete')?.addEventListener('click', async (e) => {
-    e.stopPropagation();
-    await deleteDoc(doc.id);
-    if (_activeResearchId) loadResearchFindings(_activeResearchId);
-  });
-  return card;
-}
-
-/** Render markdown-like text to HTML (used for chat messages and research findings) */
-function formatMarkdown(text: string): string {
-  // Fenced code blocks first (before escaping)
-  let html = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang, code) => {
-    return `<pre class="code-block" data-lang="${escHtml(lang)}"><code>${escHtml(code.trimEnd())}</code></pre>`;
-  });
-  // Now escape everything else (except already-replaced code blocks)
-  // Split on code blocks, escape non-code parts, rejoin
-  const parts = html.split(/(<pre class="code-block"[\s\S]*?<\/pre>)/);
-  html = parts.map((part, i) => {
-    if (i % 2 === 1) return part; // code block — leave as is
-    return escHtml(part)
-      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/^### (.+)$/gm, '<h4>$1</h4>')
-      .replace(/^## (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^# (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^[-•] (.+)$/gm, '<div class="md-bullet">• $1</div>')
-      .replace(/^\d+\. (.+)$/gm, '<div class="md-bullet">$&</div>')
-      .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
-      .replace(/\n/g, '<br>');
-  }).join('');
-  return html;
-}
-
-function formatResearchContent(text: string): string {
-  // Simple markdown-ish rendering: bold, headers, bullets, links
-  return escHtml(text)
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/^### (.+)$/gm, '<h4>$1</h4>')
-    .replace(/^## (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^# (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^[-•] (.+)$/gm, '<div class="research-bullet">• $1</div>')
-    .replace(/\n/g, '<br>');
-}
-
-async function runResearch() {
-  if (!_activeResearchId || !wsConnected || _researchStreaming) return;
-  const input = $('research-topic-input') as HTMLInputElement | null;
-  const topic = input?.value.trim();
-  if (!topic) return;
-
-  const projectId = _activeResearchId;
-  const sessionKey = 'paw-research-' + projectId;
-
-  // Show live output
-  _researchStreaming = true;
-  _researchContent = '';
-  _researchRunId = null;
-  const liveArea = $('research-live');
-  const liveContent = $('research-live-content');
-  const runBtn = $('research-run-btn');
-  if (liveArea) liveArea.style.display = '';
-  if (liveContent) liveContent.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
-  if (runBtn) runBtn.setAttribute('disabled', 'true');
-  const label = $('research-live-label');
-  if (label) label.textContent = 'Researching…';
-
-  // Promise that resolves when the agent finishes
-  const done = new Promise<string>((resolve) => {
-    _researchResolve = resolve;
-    setTimeout(() => resolve(_researchContent || '(Research timed out)'), 180_000);
-  });
-
-  try {
-    const result = await gateway.chatSend(sessionKey,
-      `Research this topic thoroughly. Browse the web, find multiple sources, and provide detailed findings with key insights, data points, and source URLs. Be comprehensive and structured.\n\nTopic: ${topic}`
-    );
-    if (result.runId) _researchRunId = result.runId;
-
-    const finalText = await done;
-
-    // Save finding to database
-    const findingId = crypto.randomUUID();
-    await saveDoc({
-      id: findingId,
-      project_id: projectId,
-      title: topic,
-      content: finalText,
-      content_type: 'research-finding',
-    });
-
-    // Update UI
-    if (liveArea) liveArea.style.display = 'none';
-    if (input) input.value = '';
-    await loadResearchFindings(projectId);
-  } catch (e) {
-    console.error('[research] Error:', e);
-    if (liveContent) {
-      liveContent.textContent = `Error: ${e instanceof Error ? e.message : e}`;
-    }
-  } finally {
-    _researchStreaming = false;
-    _researchRunId = null;
-    _researchResolve = null;
-    if (runBtn) runBtn.removeAttribute('disabled');
-    if (label) label.textContent = 'Done';
-  }
-}
-
-function appendResearchDelta(text: string) {
-  _researchContent += text;
-  const liveContent = $('research-live-content');
-  if (liveContent) {
-    liveContent.textContent = _researchContent;
-    // Auto-scroll the live area
-    liveContent.scrollTop = liveContent.scrollHeight;
-  }
-}
-
-async function generateResearchReport() {
-  if (!_activeResearchId || !wsConnected) return;
-
-  const allDocs = await listDocs();
-  const findings = allDocs.filter(d => d.project_id === _activeResearchId && d.content_type === 'research-finding');
-  if (!findings.length) { alert('No findings yet — run some research first'); return; }
-
-  const reportArea = $('research-report-area');
-  const findingsArea = $('research-findings-area');
-  const reportContent = $('research-report-content');
-  if (reportArea) reportArea.style.display = '';
-  if (findingsArea) findingsArea.style.display = 'none';
-  if (reportContent) reportContent.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
-
-  // Compile findings into a prompt
-  const findingsText = findings.map((f, i) => `## Finding ${i + 1}: ${f.title}\n${f.content}`).join('\n\n---\n\n');
-
-  const sessionKey = 'paw-research-' + _activeResearchId;
-
-  // Temporarily capture deltas for the report
-  const prevStreaming = _researchStreaming;
-  _researchStreaming = true;
-  _researchContent = '';
-
-  const done = new Promise<string>((resolve) => {
-    _researchResolve = resolve;
-    setTimeout(() => resolve(_researchContent || '(Report generation timed out)'), 180_000);
-  });
-
-  try {
-    const result = await gateway.chatSend(sessionKey,
-      `Based on all the research findings below, write a comprehensive, well-structured report. Include an executive summary, key findings organized by theme, conclusions, and a list of sources. Use markdown formatting.\n\n${findingsText}`
-    );
-    if (result.runId) _researchRunId = result.runId;
-
-    const reportText = await done;
-    if (reportContent) reportContent.innerHTML = formatResearchContent(reportText);
-
-    // Persist report to DB so it survives reload
-    if (reportText && _activeResearchId) {
-      const reportId = crypto.randomUUID();
-      await saveDoc({
-        id: reportId,
-        project_id: _activeResearchId,
-        title: `Research Report — ${new Date().toLocaleDateString()}`,
-        content: reportText,
-        content_type: 'research-report',
-      });
-      showToast('Report saved', 'success');
-    }
-  } catch (e) {
-    if (reportContent) reportContent.textContent = `Error generating report: ${e instanceof Error ? e.message : e}`;
-  } finally {
-    _researchStreaming = prevStreaming;
-    _researchRunId = null;
-    _researchResolve = null;
-  }
-}
-
-async function createNewResearch() {
-  const name = await promptModal('Research project name:', 'My research project');
-  if (!name) return;
-  const id = crypto.randomUUID();
-  await saveProject({ id, name, space: 'research' });
-  openResearchProject(id);
-  loadResearchProjects();
-}
-
-// Wire up research event handlers
-$('research-new-project')?.addEventListener('click', createNewResearch);
-$('research-create-first')?.addEventListener('click', createNewResearch);
-
-$('research-run-btn')?.addEventListener('click', runResearch);
-$('research-topic-input')?.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); runResearch(); }
-});
-
-$('research-abort-btn')?.addEventListener('click', () => {
-  if (!_activeResearchId) return;
-  gateway.chatAbort('paw-research-' + _activeResearchId).catch(console.warn);
-  if (_researchResolve) {
-    _researchResolve(_researchContent || '(Aborted)');
-    _researchResolve = null;
-  }
-});
-
-$('research-generate-report')?.addEventListener('click', generateResearchReport);
-
-$('research-close-report')?.addEventListener('click', () => {
-  const reportArea = $('research-report-area');
-  const findingsArea = $('research-findings-area');
-  if (reportArea) reportArea.style.display = 'none';
-  if (findingsArea) findingsArea.style.display = '';
-});
-
-$('research-delete-project')?.addEventListener('click', async () => {
-  if (!_activeResearchId) return;
-  if (!confirm('Delete this research project and all its findings?')) return;
-  // Delete associated findings
-  const allDocs = await listDocs();
-  for (const d of allDocs.filter(d => d.project_id === _activeResearchId)) {
-    await deleteDoc(d.id);
-  }
-  await deleteProject(_activeResearchId);
-  _activeResearchId = null;
-  const workspace = $('research-workspace');
-  const empty = $('research-empty');
-  if (workspace) workspace.style.display = 'none';
-  if (empty) empty.style.display = 'flex';
-  loadResearchProjects();
-});
 
 // ── Build IDE ──────────────────────────────────────────────────────────────
 let _buildProjectId: string | null = null;
@@ -2641,6 +2314,30 @@ function escHtml(s: string): string {
 function escAttr(s: string): string {
   return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
+/** Render markdown-like text to HTML (used for chat messages) */
+function formatMarkdown(text: string): string {
+  let html = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_m, lang, code) => {
+    return `<pre class="code-block" data-lang="${escHtml(lang)}"><code>${escHtml(code.trimEnd())}</code></pre>`;
+  });
+  const parts = html.split(/(<pre class="code-block"[\s\S]*?<\/pre>)/);
+  html = parts.map((part, i) => {
+    if (i % 2 === 1) return part;
+    return escHtml(part)
+      .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/^### (.+)$/gm, '<h4>$1</h4>')
+      .replace(/^## (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^[-•] (.+)$/gm, '<div class="md-bullet">• $1</div>')
+      .replace(/^\d+\. (.+)$/gm, '<div class="md-bullet">$&</div>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/\n/g, '<br>');
+  }).join('');
+  return html;
+}
+
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -2815,6 +2512,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Foundry module events
     FoundryModule.configure({ promptModal });
     FoundryModule.initFoundryEvents();
+
+    // Initialize Research module events
+    ResearchModule.configure({ promptModal });
+    ResearchModule.initResearchEvents();
 
     loadConfigFromStorage();
     console.log(`[main] After loadConfigFromStorage: configured=${config.configured} url="${config.gateway.url}" tokenLen=${config.gateway.token?.length ?? 0}`);
