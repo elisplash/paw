@@ -24,6 +24,13 @@ function icon(name: string, cls = ''): string {
 }
 import { initDb, initDbEncryption, listModes, listDocs, saveDoc, getDoc, deleteDoc, listProjects, saveProject, listProjectFiles, saveProjectFile, deleteProjectFile, logCredentialActivity, logSecurityEvent } from './db';
 import * as SettingsModule from './views/settings';
+import * as ModelsSettings from './views/settings-models';
+import * as EnvSettings from './views/settings-env';
+import * as AgentDefaultsSettings from './views/settings-agent-defaults';
+import * as SessionsSettings from './views/settings-sessions';
+import * as VoiceSettings from './views/settings-voice';
+import * as AdvancedSettings from './views/settings-advanced';
+import { setConnected as setSettingsConnected, invalidateConfigCache } from './views/settings-config';
 import * as AutomationsModule from './views/automations';
 import * as MemoryPalaceModule from './views/memory-palace';
 import * as MailModule from './views/mail';
@@ -211,7 +218,7 @@ function switchView(viewName: string) {
       case 'memory': MemoryPalaceModule.loadMemoryPalace(); loadMemory(); break;
       case 'build': loadBuildProjects(); loadSpaceCron('build'); break;
       case 'mail': MailModule.loadMail(); loadSpaceCron('mail'); break;
-      case 'settings': syncSettingsForm(); loadGatewayConfig(); SettingsModule.loadSettings(); SettingsModule.startUsageAutoRefresh(); break;
+      case 'settings': syncSettingsForm(); loadGatewayConfig(); SettingsModule.loadSettings(); SettingsModule.startUsageAutoRefresh(); loadActiveSettingsTab(); break;
       default: break;
     }
   }
@@ -269,6 +276,7 @@ async function connectGateway(): Promise<boolean> {
 
     const hello = await gateway.connect({ url: wsUrl, token: config.gateway.token });
     wsConnected = true;
+    setSettingsConnected(true);
     console.log('[main] Gateway connected:', hello);
 
     statusDot?.classList.add('connected');
@@ -338,6 +346,7 @@ async function connectGateway(): Promise<boolean> {
 // Subscribe to gateway lifecycle events
 gateway.on('_connected', () => {
   wsConnected = true;
+  setSettingsConnected(true);
   SettingsModule.setWsConnected(true);
   MemoryPalaceModule.setWsConnected(true);
   MailModule.setWsConnected(true);
@@ -355,6 +364,8 @@ gateway.on('_connected', () => {
 });
 gateway.on('_disconnected', () => {
   wsConnected = false;
+  setSettingsConnected(false);
+  invalidateConfigCache();
   SettingsModule.setWsConnected(false);
   MemoryPalaceModule.setWsConnected(false);
   MailModule.setWsConnected(false);
@@ -660,6 +671,48 @@ $('settings-save-gateway')?.addEventListener('click', async () => {
     alert('Settings saved but could not connect to gateway.');
   }
 });
+
+// ── Settings tab switching ──────────────────────────────────────────────────
+
+let _activeSettingsTab = 'general';
+
+/** Load data for whichever settings tab is currently active. */
+function loadActiveSettingsTab() {
+  switch (_activeSettingsTab) {
+    case 'models': ModelsSettings.loadModelsSettings(); break;
+    case 'env': EnvSettings.loadEnvSettings(); break;
+    case 'agent-defaults': AgentDefaultsSettings.loadAgentDefaultsSettings(); break;
+    case 'sessions': SessionsSettings.loadSessionsSettings(); break;
+    case 'voice': VoiceSettings.loadVoiceSettings(); break;
+    case 'advanced': AdvancedSettings.loadAdvancedSettings(); break;
+    default: break; // general + security load via existing SettingsModule
+  }
+}
+
+function initSettingsTabs() {
+  const bar = $('settings-tab-bar');
+  if (!bar) return;
+  bar.addEventListener('click', (e) => {
+    const btn = (e.target as HTMLElement).closest('.settings-tab') as HTMLElement | null;
+    if (!btn) return;
+    const tab = btn.dataset.settingsTab;
+    if (!tab || tab === _activeSettingsTab) return;
+
+    // Toggle active class
+    bar.querySelectorAll('.settings-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Toggle panel visibility
+    document.querySelectorAll('.settings-tab-panel').forEach(p => {
+      (p as HTMLElement).style.display = 'none';
+    });
+    const panel = $(`settings-panel-${tab}`);
+    if (panel) panel.style.display = '';
+
+    _activeSettingsTab = tab;
+    loadActiveSettingsTab();
+  });
+}
 
 // ── Config editor (Settings > OpenClaw Configuration) ──────────────────────
 async function loadGatewayConfig() {
@@ -3618,6 +3671,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize Settings module (wires approvals save/refresh/add-rule buttons)
     SettingsModule.initSettings();
+
+    // Initialize new settings tab modules
+    initSettingsTabs();
+    ModelsSettings.initModelsSettings();
+    EnvSettings.initEnvSettings();
+    AgentDefaultsSettings.initAgentDefaultsSettings();
+    SessionsSettings.initSessionsSettings();
+    VoiceSettings.initVoiceSettings();
+    AdvancedSettings.initAdvancedSettings();
 
     // Initialize Projects module events
     ProjectsModule.bindEvents();

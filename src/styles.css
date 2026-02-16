@@ -1282,6 +1282,29 @@ body {
   letter-spacing: 0.06em;
 }
 
+/* Settings Tab Bar */
+.settings-tab-bar .settings-tab {
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-bottom: 2px solid transparent;
+  padding: 6px 14px;
+  font-size: 13px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.settings-tab-bar .settings-tab.active {
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.settings-tab-bar .settings-tab:hover:not(.active) {
+  border-bottom-color: var(--border-color);
+}
+.settings-subsection-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 10px;
+}
+
 .config-redact-warning {
   background: #fff3cd;
   color: #856404;

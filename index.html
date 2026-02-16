@@ -1653,8 +1653,23 @@
 
         <!-- ═══ Settings View ═══ -->
         <div class="view settings-view" id="settings-view">
-          <h1 class="view-title" style="margin-bottom: 24px;">Settings</h1>
-          
+          <h1 class="view-title" style="margin-bottom: 12px;">Settings</h1>
+
+          <!-- Settings Tab Navigation -->
+          <div class="settings-tab-bar" id="settings-tab-bar" style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:8px">
+            <button class="btn btn-ghost btn-sm settings-tab active" data-settings-tab="general">General</button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="models">Models</button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="env">Environment</button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="agent-defaults">Agent Defaults</button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="sessions">Sessions</button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="voice">Voice & TTS</button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="advanced">Advanced</button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="security">Security</button>
+          </div>
+
+          <!-- ── Tab: General ── -->
+          <div class="settings-tab-panel" id="settings-panel-general">
+
           <div class="settings-section">
             <h2 class="settings-section-title">Gateway Connection</h2>
             <div class="form-group">
@@ -1795,6 +1810,65 @@
             </div>
             <button class="btn btn-ghost btn-sm" id="settings-refresh-devices" style="margin-top:8px">Refresh</button>
           </div>
+
+          </div><!-- end settings-panel-general -->
+
+          <!-- ── Tab: Models ── -->
+          <div class="settings-tab-panel" id="settings-panel-models" style="display:none">
+            <div class="settings-section" id="settings-models-section">
+              <h2 class="settings-section-title">Models &amp; Providers</h2>
+              <p class="settings-section-desc">Configure AI model providers, API keys, and default model selection.</p>
+              <div id="settings-models-content"></div>
+            </div>
+          </div>
+
+          <!-- ── Tab: Environment ── -->
+          <div class="settings-tab-panel" id="settings-panel-env" style="display:none">
+            <div class="settings-section" id="settings-env-section">
+              <h2 class="settings-section-title">Environment Variables</h2>
+              <p class="settings-section-desc">Manage environment variables passed to agents and shell processes.</p>
+              <div id="settings-env-content"></div>
+            </div>
+          </div>
+
+          <!-- ── Tab: Agent Defaults ── -->
+          <div class="settings-tab-panel" id="settings-panel-agent-defaults" style="display:none">
+            <div class="settings-section" id="settings-agent-defaults-section">
+              <h2 class="settings-section-title">Agent Defaults</h2>
+              <p class="settings-section-desc">Default configuration for all agents — thinking level, timeouts, workspace paths, and display preferences.</p>
+              <div id="settings-agent-defaults-content"></div>
+            </div>
+          </div>
+
+          <!-- ── Tab: Sessions ── -->
+          <div class="settings-tab-panel" id="settings-panel-sessions" style="display:none">
+            <div class="settings-section" id="settings-sessions-section">
+              <h2 class="settings-section-title">Sessions</h2>
+              <p class="settings-section-desc">View and manage active sessions, configure overrides, compact or delete sessions.</p>
+              <div id="settings-sessions-content"></div>
+            </div>
+          </div>
+
+          <!-- ── Tab: Voice & TTS ── -->
+          <div class="settings-tab-panel" id="settings-panel-voice" style="display:none">
+            <div class="settings-section" id="settings-voice-section">
+              <h2 class="settings-section-title">Voice &amp; TTS</h2>
+              <p class="settings-section-desc">Text-to-speech, talk mode, and voice wake triggers.</p>
+              <div id="settings-voice-content"></div>
+            </div>
+          </div>
+
+          <!-- ── Tab: Advanced ── -->
+          <div class="settings-tab-panel" id="settings-panel-advanced" style="display:none">
+            <div class="settings-section" id="settings-advanced-section">
+              <h2 class="settings-section-title">Advanced Configuration</h2>
+              <p class="settings-section-desc">Gateway network, authentication, logging, updates, sandbox, and webhooks.</p>
+              <div id="settings-advanced-content"></div>
+            </div>
+          </div>
+
+          <!-- ── Tab: Security ── -->
+          <div class="settings-tab-panel" id="settings-panel-security" style="display:none">
 
           <!-- Exec Approvals Config -->
           <div class="settings-section" id="settings-approvals-section" style="display:none">
@@ -2003,6 +2077,9 @@
               <button class="btn btn-ghost btn-sm" id="settings-reset-security">Reset to Defaults</button>
             </div>
           </div>
+
+          </div><!-- end settings-panel-security -->
+
         </div>
       </main>
     </div>
