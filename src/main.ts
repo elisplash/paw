@@ -1,5 +1,5 @@
 // Paw — Main Application
-// Wires OpenClaw gateway (WebSocket protocol v3) to the UI
+// Pawz AI command center — calls AI APIs directly, no gateway needed
 
 import type { AppConfig, Message, InstallProgress, ChatMessage, Session } from './types';
 import { setGatewayConfig, probeHealth } from './api';
@@ -216,7 +216,7 @@ function switchView(viewName: string) {
       case 'automations': AutomationsModule.loadCron(); break;
       case 'agents': AgentsModule.loadAgents(); break;
       case 'today': TodayModule.loadToday(); break;
-      case 'skills': SkillsModule.loadSkills(); break;
+      case 'skills': SkillsSettings.loadSkillsSettings(); break;
       case 'foundry': FoundryModule.loadModels(); FoundryModule.loadModes(); FoundryModule.loadAgents(); break;
       case 'nodes': NodesModule.loadNodes(); NodesModule.loadPairingRequests(); break;
       case 'memory': MemoryPalaceModule.loadMemoryPalace(); loadMemory(); break;
@@ -267,11 +267,11 @@ async function connectGateway(): Promise<boolean> {
   }
   _connectInProgress = true;
 
-  // Repair openclaw.json if it was corrupted by a previous Paw version
+  // Repair config if it was corrupted by a previous version
   if (invoke) {
     try {
       const repaired = await invoke<boolean>('repair_openclaw_config');
-      if (repaired) console.log('[main] Repaired openclaw.json (fixed invalid config properties)');
+      if (repaired) console.log('[main] Repaired config (fixed invalid properties)');
     } catch { /* ignore — first run or no config yet */ }
   }
 
@@ -302,8 +302,8 @@ async function connectGateway(): Promise<boolean> {
     if (statusText) statusText.textContent = 'Connected';
     if (modelLabel) modelLabel.textContent = 'Connected';
 
-    // Abort any running agent executions left over from other clients
-    // (e.g. OpenClaw Chat). Stale runs can crash the gateway when
+    // Abort any stale agent executions left over from other clients.
+    // Stale runs can interfere when
     // two operator clients compete for the same session.
     // Also delete paw-* internal sessions (memory palace background calls).
     try {
@@ -489,6 +489,7 @@ async function watchdogRestart(): Promise<void> {
 // ── Status check (fallback for polling) ────────────────────────────────────
 let _wasConnected = false;  // track state transition for crash detection
 
+// @ts-ignore — gateway watchdog (legacy, kept for reference)
 async function checkGatewayStatus() {
   if (_connectInProgress || gateway.isConnecting) return;
 
@@ -556,7 +557,7 @@ $('setup-detect')?.addEventListener('click', async () => {
     showView('install-view');
   } catch (error) {
     console.error('Detection error:', error);
-    alert('Could not detect OpenClaw. Try manual setup or install.');
+    alert('Could not detect Pawz. Try manual setup.');
   }
 });
 
@@ -565,7 +566,7 @@ $('setup-new')?.addEventListener('click', () => showView('install-view'));
 $('gateway-back')?.addEventListener('click', () => showView('setup-view'));
 $('install-back')?.addEventListener('click', () => showView('setup-view'));
 
-// ── Install OpenClaw ───────────────────────────────────────────────────────
+// ── Install Pawz ───────────────────────────────────────────────────────
 $('start-install')?.addEventListener('click', async () => {
   const progressBar = $('install-progress-bar') as HTMLElement;
   const progressText = $('install-progress-text') as HTMLElement;
@@ -636,7 +637,8 @@ function loadConfigFromStorage() {
   setGatewayConfig(config.gateway.url, config.gateway.token);
 }
 
-/** Read live port+token from ~/.openclaw/openclaw.json via Tauri and update config */
+/** Read live config from disk via Tauri and update config */
+// @ts-ignore — gateway config reader (legacy, kept for reference)
 async function refreshConfigFromDisk(): Promise<boolean> {
   if (!invoke) {
     console.log('[main] refreshConfigFromDisk: no Tauri runtime');
@@ -666,7 +668,7 @@ async function refreshConfigFromDisk(): Promise<boolean> {
       console.log(`[main] Config updated: url=${config.gateway.url}`);
       return true;
     } else {
-      console.warn('[main] No token found in config file — check ~/.openclaw/openclaw.json gateway.auth.token');
+      console.warn('[main] No token found in config file');
     }
   } catch (e) {
     console.warn('[main] Failed to read config from disk:', e);
@@ -742,7 +744,7 @@ function initSettingsTabs() {
   });
 }
 
-// ── Config editor (Settings > OpenClaw Configuration) ──────────────────────
+// ── Config editor (Settings > Configuration) ──────────────────────────────
 // Track the baseHash for the raw config editor (set by loadGatewayConfig)
 let _rawConfigHash: string | null = null;
 
@@ -3965,8 +3967,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     MailModule.initMailEvents();
 
-    // Initialize Skills module events
-    SkillsModule.initSkillsEvents();
+    // Initialize Skills — Pawz uses the engine vault, not gateway plugins
+    // Override the refresh button to use the vault loader
+    $('refresh-skills-btn')?.addEventListener('click', () => SkillsSettings.loadSkillsSettings());
 
     // Initialize Foundry module events
     FoundryModule.configure({ promptModal });
@@ -4007,57 +4010,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize Projects module events
     ProjectsModule.bindEvents();
 
+    // ── Pawz: Always engine mode — no gateway needed ──
+    // Force engine mode in localStorage so isEngineMode() returns true everywhere
+    localStorage.setItem('paw-runtime-mode', 'engine');
+
     loadConfigFromStorage();
-    console.log(`[main] After loadConfigFromStorage: configured=${config.configured} url="${config.gateway.url}" tokenLen=${config.gateway.token?.length ?? 0}`);
+    console.log(`[main] Pawz engine mode — starting...`);
 
-    // Always try to read live config from disk — it may have a newer token/port
-    const freshConfig = await refreshConfigFromDisk();
-    console.log(`[main] After refreshConfigFromDisk: fresh=${freshConfig} configured=${config.configured} url="${config.gateway.url}" tokenLen=${config.gateway.token?.length ?? 0}`);
+    // Go straight to dashboard and start engine bridge
+    switchView('dashboard');
+    await connectGateway(); // in engine mode this just starts the Tauri IPC bridge
 
-    if (config.configured && config.gateway.token) {
-      switchView('dashboard');
-
-      // Probe first, then connect
-      const port = getPortFromUrl(config.gateway.url);
-      console.log(`[main] Config ready, probing gateway on port ${port}...`);
-
-      const running = invoke
-        ? await invoke<boolean>('check_gateway_health', { port }).catch(() => false)
-        : await probeHealth().catch(() => false);
-
-      console.log(`[main] Gateway probe: running=${running}`);
-
-      if (running) {
-        console.log('[main] Gateway running, connecting...');
-        await connectGateway();
-      } else {
-        // Gateway not running — try to start it, then connect
-        if (invoke) {
-          console.log('[main] Gateway not responding, attempting to start...');
-          await invoke('start_gateway', { port }).catch((e: unknown) => {
-            console.warn('[main] Gateway start failed:', e);
-          });
-          // Wait for gateway to boot up
-          console.log('[main] Waiting 3s for gateway to start...');
-          await new Promise(r => setTimeout(r, 3000));
-          console.log('[main] Retrying connection after gateway start...');
-          await connectGateway();
-        } else {
-          console.warn('[main] No Tauri runtime — cannot start gateway');
-          if (statusText) statusText.textContent = 'Disconnected';
-        }
-      }
-    } else {
-      console.log(`[main] Not configured or no token, showing setup. configured=${config.configured} hasToken=${!!config.gateway.token}`);
-      showView('setup-view');
-    }
-
-    // Poll status every 15s — reconnect if WS dropped
-    setInterval(() => {
-      checkGatewayStatus().catch(e => console.warn('[main] Status poll error:', e));
-    }, 15_000);
-
-    console.log('[main] Paw initialized');
+    console.log('[main] Pawz initialized');
   } catch (e) {
     console.error('[main] Init error:', e);
     showView('setup-view');

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Paw</title>
+    <title>Pawz</title>
     <link rel="stylesheet" href="/src/styles.css" />
   </head>
   <body>
@@ -17,7 +17,7 @@
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
               </svg>
             </div>
-            <span class="sidebar-title">Paw</span>
+            <span class="sidebar-title">Pawz</span>
           </div>
         </div>
         
@@ -170,8 +170,8 @@
         <!-- ═══ Dashboard ═══ -->
         <div class="view dashboard-view" id="dashboard-view">
           <div class="dashboard-greeting">
-            <h1>Welcome to Paw</h1>
-            <p>Your AI command center — powered by OpenClaw</p>
+            <h1>Welcome to Pawz</h1>
+            <p>Your AI command center — Pawz are safer than Claws</p>
           </div>
 
           <div class="quick-actions">
@@ -326,8 +326,8 @@
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                 </svg>
               </div>
-              <h1 class="setup-title">Welcome to Paw</h1>
-              <p class="setup-subtitle">Connect to your OpenClaw gateway or set up a new one</p>
+              <h1 class="setup-title">Welcome to Pawz</h1>
+              <p class="setup-subtitle">Configure your AI provider to get started</p>
             </div>
             
             <div class="setup-options">
@@ -366,7 +366,7 @@
                 </div>
                 <div class="setup-option-text">
                   <div class="setup-option-title">New Setup</div>
-                  <div class="setup-option-desc">Install and configure OpenClaw</div>
+                  <div class="setup-option-desc">Set up Pawz from scratch</div>
                 </div>
               </button>
             </div>
@@ -384,8 +384,8 @@
                   <line x1="12" y1="15" x2="12" y2="3"/>
                 </svg>
               </div>
-              <h1 class="setup-title">Install OpenClaw</h1>
-              <p class="setup-subtitle">We'll download and set up everything for you</p>
+              <h1 class="setup-title">Set Up Pawz</h1>
+              <p class="setup-subtitle">We'll configure everything for you</p>
             </div>
             
             <div class="install-requirements">
@@ -395,7 +395,7 @@
               </div>
               <div class="requirement-item">
                 <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/></svg>
-                <span>OpenClaw gateway</span>
+                <span>Pawz engine</span>
               </div>
             </div>
             
@@ -422,8 +422,8 @@
                   <line x1="12" y1="17" x2="12" y2="21"/>
                 </svg>
               </div>
-              <h1 class="setup-title">Gateway Configuration</h1>
-              <p class="setup-subtitle">Enter your OpenClaw gateway details</p>
+              <h1 class="setup-title">Engine Configuration</h1>
+              <p class="setup-subtitle">Enter your Pawz engine details</p>
             </div>
             
             <form id="gateway-form">
@@ -433,8 +433,8 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Auth Token</label>
-                <input type="password" class="form-input" id="gateway-token" placeholder="Enter token from openclaw.json" />
-                <p class="form-hint">Find this in ~/.openclaw/openclaw.json under gateway.auth.token</p>
+                <input type="password" class="form-input" id="gateway-token" placeholder="Enter your API key" />
+                <p class="form-hint">Your API key for the configured AI provider</p>
               </div>
               <div class="btn-group">
                 <button type="button" class="btn btn-secondary" id="gateway-back">Back</button>
@@ -1371,78 +1371,29 @@
           <div class="view-loading" id="memory-loading" style="display:none">Loading memory…</div>
         </div>
 
-        <!-- ═══ Skills View — Plugin Manager ═══ -->
+        <!-- ═══ Skills View — Skill Vault ═══ -->
         <div class="view list-view" id="skills-view">
           <div class="view-header">
-            <h1 class="view-title">Skills</h1>
+            <h1 class="view-title">
+              <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline; vertical-align:middle; margin-right:6px"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Skills
+            </h1>
             <div style="display:flex;gap:6px">
               <button class="btn btn-ghost btn-sm" id="refresh-skills-btn">
                 <svg class="icon-sm" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                 Refresh
               </button>
-              <button class="btn btn-primary btn-sm" id="skills-browse-bins">
-                <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-                Browse &amp; Install
-              </button>
             </div>
           </div>
+          <p style="color:var(--text-secondary); font-size:13px; margin-bottom:16px; padding: 0 4px;">
+            Give your agent superpowers — email, Slack, GitHub, REST APIs, webhooks. Credentials are encrypted and stored in your OS keychain. The agent never sees raw keys.
+          </p>
           <!-- Status toast -->
           <div class="skills-toast" id="skills-toast" style="display:none"></div>
-          <div class="skills-sections">
-            <div class="skills-section" id="skills-installed-section">
-              <div class="skills-section-label">Installed</div>
-              <div class="skills-grid" id="skills-installed-list"></div>
-            </div>
-            <div class="skills-section" id="skills-available-section" style="display:none">
-              <div class="skills-section-label">Available to Install</div>
-              <div class="skills-grid" id="skills-available-list"></div>
-            </div>
-          </div>
-          <div class="empty-state" id="skills-empty">
-            <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
-            <div class="empty-title">No skills found</div>
-            <div class="empty-subtitle">Install skills to give your agent new abilities</div>
-          </div>
-          <div class="view-loading" id="skills-loading" style="display:none">Loading skills…</div>
-          <!-- Bins modal -->
-          <div class="modal-backdrop" id="bins-modal-backdrop" style="display:none">
-            <div class="modal" style="max-width:520px">
-              <div class="modal-header">
-                <h2 class="modal-title">Browse Skill Bins</h2>
-                <button class="btn btn-ghost btn-sm" id="bins-modal-close">✕</button>
-              </div>
-              <div class="modal-body">
-                <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:12px">Select a skill bin to install, or enter a custom skill name below.</p>
-                <div id="bins-list" class="bins-list"></div>
-                <div id="bins-loading" style="display:none;padding:1rem;color:var(--text-secondary)">Loading bins…</div>
-                <div id="bins-empty" style="display:none;padding:1rem;color:var(--text-secondary)">No additional bins found. You can install by name below.</div>
-                <div class="bins-custom" style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
-                  <label style="font-size:0.8rem;font-weight:600;color:var(--text-secondary)">Install by name</label>
-                  <div style="display:flex;gap:8px;margin-top:6px">
-                    <input type="text" id="bins-custom-name" class="form-input" placeholder="e.g. memory-palace" style="flex:1">
-                    <button class="btn btn-primary btn-sm" id="bins-custom-install">Install</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <!-- Skill config modal -->
-          <div class="modal-overlay" id="skill-config-modal" style="display:none">
-            <div class="modal-card">
-              <div class="modal-header">
-                <h2 class="modal-title" id="skill-config-title">Configure Skill</h2>
-                <button class="btn btn-ghost btn-sm" id="skill-config-close">✕</button>
-              </div>
-              <div class="modal-body">
-                <p id="skill-config-desc" style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:16px"></p>
-                <div id="skill-config-fields"></div>
-              </div>
-              <div class="modal-footer">
-                <button class="btn btn-ghost btn-sm" id="skill-config-cancel">Cancel</button>
-                <button class="btn btn-primary btn-sm" id="skill-config-save">Save</button>
-              </div>
-            </div>
-          </div>
+          <!-- Vault content -->
+          <div id="skills-vault-loading" style="color:var(--text-muted); font-size:13px; padding:12px 0;">Loading skills...</div>
+          <div id="skills-vault-list"></div>
+          <div id="skills-vault-toast" style="display:none; margin-top:12px; padding:8px 14px; border-radius:8px; font-size:13px;"></div>
         </div>
 
         <!-- ═══ Foundry View — Models & Modes ═══ -->
@@ -1465,7 +1416,7 @@
             <div class="empty-state" id="models-empty">
               <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
               <div class="empty-title">No models available</div>
-              <div class="empty-subtitle">Connect to the gateway to see available models</div>
+              <div class="empty-subtitle">Configure your AI provider in Settings to see available models</div>
             </div>
             <div class="view-loading" id="models-loading" style="display:none">Loading models…</div>
           </div>
@@ -1664,26 +1615,21 @@
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="sessions">Sessions</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="voice">Voice & TTS</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="advanced">Advanced</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="skills">Skills</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="security">Security</button>
           </div>
 
           <!-- ── Tab: General ── -->
           <div class="settings-tab-panel" id="settings-panel-general">
 
-          <!-- Paw Engine Mode Toggle & Provider Config -->
+          <!-- Pawz Engine — AI Provider Config -->
           <div class="settings-section" id="settings-engine-section">
-            <h2 class="settings-section-title">Runtime Mode</h2>
-            <p class="settings-section-desc" style="margin-bottom:12px">Choose how Paw connects to AI. <strong>Built-in Engine</strong> calls AI APIs directly from your machine — no gateway process needed. <strong>OpenClaw Gateway</strong> uses the WebSocket protocol (legacy).</p>
-            <div class="form-group" style="margin-bottom:16px">
-              <label class="form-label">Mode</label>
-              <select class="form-input" id="settings-engine-mode" style="max-width:300px">
-                <option value="gateway">OpenClaw Gateway (WebSocket)</option>
-                <option value="engine">Built-in Paw Engine (Recommended)</option>
-              </select>
-            </div>
-            <div id="engine-config-panel" style="display:none">
-              <h3 style="margin:16px 0 8px; color:var(--text-secondary); font-size:14px;">AI Provider</h3>
+            <h2 class="settings-section-title">AI Provider</h2>
+            <p class="settings-section-desc" style="margin-bottom:12px">Configure your AI provider and API key. Pawz calls APIs directly from your machine — no external gateway needed.</p>
+            <!-- Hidden select kept for compatibility with settings-engine.ts -->
+            <select class="form-input" id="settings-engine-mode" style="display:none">
+              <option value="engine" selected>Built-in Paw Engine</option>
+            </select>
+            <div id="engine-config-panel">
               <div class="form-group">
                 <label class="form-label">Provider</label>
                 <select class="form-input" id="engine-provider-kind" style="max-width:300px">
@@ -1711,146 +1657,14 @@
               <span id="engine-save-status" style="margin-left:12px; color:var(--text-muted); font-size:13px;"></span>
             </div>
           </div>
-
-          <div class="settings-section">
-            <h2 class="settings-section-title">Gateway Connection</h2>
-            <div class="form-group">
-              <label class="form-label">URL</label>
-              <input type="text" class="form-input" id="settings-gateway-url" />
-            </div>
-            <div class="form-group">
-              <label class="form-label">Token</label>
-              <input type="password" class="form-input" id="settings-gateway-token" />
-            </div>
-            <button class="btn btn-primary" id="settings-save-gateway">Save Gateway Settings</button>
-          </div>
-
-          <div class="settings-section" id="settings-status-section" style="display:none">
-            <h2 class="settings-section-title">Gateway Status</h2>
-            <div id="settings-status-content" class="status-grid"></div>
-            <button class="btn btn-ghost btn-sm" id="settings-refresh-status" style="margin-top:8px">Refresh</button>
-          </div>
-
-          <div class="settings-section" id="settings-config-section" style="display:none">
-            <h2 class="settings-section-title">OpenClaw Configuration</h2>
-            <textarea class="form-input" id="settings-config-editor" rows="12" style="font-family:var(--font-mono);font-size:12px;line-height:1.5;resize:vertical"></textarea>
-            <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
-              <button class="btn btn-primary" id="settings-apply-config">Apply Config</button>
-              <button class="btn btn-secondary" id="settings-save-config">Save (no restart)</button>
-              <button class="btn btn-ghost btn-sm" id="settings-reload-config">Reload</button>
-              <button class="btn btn-ghost btn-sm" id="settings-view-schema" title="Show config schema with all available keys">View Schema</button>
-            </div>
-          </div>
           
           <div class="settings-section">
             <h2 class="settings-section-title">About</h2>
             <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-              <strong>Paw</strong> v0.1.0<br>
-              Built on <a href="https://github.com/openclaw/openclaw" target="_blank" style="color: var(--accent);">OpenClaw</a><br>
-              <span id="settings-gateway-version" style="color:var(--text-muted)"></span><br>
-              <a href="https://github.com/elisplash/paw" target="_blank" style="color: var(--text-muted);">View source on GitHub</a>
+              <strong>Pawz</strong> v0.1.0 — Your AI command center<br>
+              Pawz are safer than Claws 🐾<br>
+              <a href="https://github.com/elisplash/paw" target="_blank" style="color: var(--accent);">View source on GitHub</a>
             </p>
-            <div style="margin-top:10px;display:flex;gap:8px">
-              <button class="btn btn-primary btn-sm" id="settings-update-run">
-                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 15 21 19 3 19 3 15"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Update OpenClaw
-              </button>
-            </div>
-          </div>
-
-          <!-- Onboarding Wizard -->
-          <div class="settings-section" id="settings-wizard-section" style="display:none">
-            <h2 class="settings-section-title">Setup Wizard</h2>
-            <p class="settings-section-desc">OpenClaw's guided setup flow. Walk through initial configuration step by step.</p>
-            <div id="settings-wizard-status" class="wizard-status"></div>
-            <div id="settings-wizard-step" class="wizard-step" style="display:none">
-              <div id="settings-wizard-step-content" class="wizard-step-content"></div>
-              <div style="display:flex;gap:8px;margin-top:12px">
-                <button class="btn btn-primary btn-sm" id="settings-wizard-next">Next Step</button>
-                <button class="btn btn-ghost btn-sm" id="settings-wizard-cancel">Cancel Wizard</button>
-              </div>
-            </div>
-            <button class="btn btn-primary btn-sm" id="settings-wizard-start" style="display:none">Start Wizard</button>
-          </div>
-
-          <!-- Browser Control -->
-          <div class="settings-section" id="settings-browser-section" style="display:none">
-            <h2 class="settings-section-title">Browser Control</h2>
-            <p class="settings-section-desc">Agent-driven browser automation via Chrome DevTools Protocol.</p>
-            <div id="settings-browser-status" class="browser-status"></div>
-            <div id="settings-browser-tabs" class="browser-tabs" style="margin-top:8px"></div>
-            <div style="display:flex;gap:8px;margin-top:12px">
-              <button class="btn btn-primary btn-sm" id="settings-browser-start">Start Browser</button>
-              <button class="btn btn-danger btn-sm" id="settings-browser-stop" style="display:none">Stop Browser</button>
-              <button class="btn btn-ghost btn-sm" id="settings-refresh-browser">Refresh</button>
-            </div>
-          </div>
-
-          <!-- Connected Clients -->
-          <div class="settings-section" id="settings-presence-section" style="display:none">
-            <h2 class="settings-section-title">Connected Clients</h2>
-            <div id="settings-presence-list" class="presence-list"></div>
-            <button class="btn btn-ghost btn-sm" id="settings-refresh-presence" style="margin-top:8px">Refresh</button>
-          </div>
-
-          <!-- Usage -->
-          <div class="settings-section" id="settings-usage-section">
-            <h2 class="settings-section-title">Usage &amp; Cost</h2>
-            <!-- Budget alert banner -->
-            <div class="compaction-warning budget-alert" id="budget-alert" style="display:none">
-              <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              <span id="budget-alert-text">Approaching budget limit</span>
-            </div>
-            <div id="settings-usage-content" class="usage-content"></div>
-            <!-- Budget limit input -->
-            <div class="budget-settings">
-              <label class="form-label" style="margin-bottom:4px">Budget Alert (USD)</label>
-              <div style="display:flex;gap:8px;align-items:center">
-                <span style="color:var(--text-muted)">$</span>
-                <input type="number" step="0.01" min="0" class="form-input" id="budget-limit-input" placeholder="e.g. 10.00" style="width:120px">
-                <button class="btn btn-primary btn-sm" id="budget-limit-save">Set</button>
-                <button class="btn btn-ghost btn-sm" id="budget-limit-clear">Clear</button>
-              </div>
-              <p class="form-hint" style="margin-top:4px;font-size:11px;color:var(--text-muted)">Get a warning when total API cost approaches this limit</p>
-            </div>
-            <button class="btn btn-ghost btn-sm" id="settings-refresh-usage" style="margin-top:8px">Refresh</button>
-          </div>
-
-          <!-- Logs -->
-          <div class="settings-section" id="settings-logs-section" style="display:none">
-            <h2 class="settings-section-title">Gateway Logs</h2>
-            <div class="logs-controls">
-              <button class="btn btn-ghost btn-sm" id="settings-refresh-logs">Refresh</button>
-              <select class="form-input" id="settings-logs-lines" style="width:auto;display:inline">
-                <option value="50">50 lines</option>
-                <option value="100" selected>100 lines</option>
-                <option value="200">200 lines</option>
-                <option value="500">500 lines</option>
-              </select>
-            </div>
-            <pre class="logs-output" id="settings-logs-output">Loading…</pre>
-          </div>
-
-          <!-- Paired Nodes -->
-          <div class="settings-section" id="settings-nodes-section" style="display:none">
-            <h2 class="settings-section-title">Paired Nodes</h2>
-            <div id="settings-nodes-list" class="presence-list"></div>
-            <button class="btn btn-ghost btn-sm" id="settings-refresh-nodes" style="margin-top:8px">Refresh</button>
-          </div>
-
-          <!-- Device Pairing -->
-          <div class="settings-section" id="settings-devices-section" style="display:none">
-            <h2 class="settings-section-title">Paired Devices</h2>
-            <p class="settings-section-desc">Devices that have been paired with your gateway. Rotate tokens periodically for security, or revoke access to remove a device.</p>
-            <div id="settings-devices-list" class="device-list"></div>
-            <div id="settings-devices-empty" class="settings-empty" style="display:none">
-              <span>No paired devices</span>
-            </div>
-            <div id="settings-devices-pending" style="display:none">
-              <h3 class="settings-subsection-title">Pending Requests</h3>
-              <div id="settings-devices-pending-list" class="device-list"></div>
-            </div>
-            <button class="btn btn-ghost btn-sm" id="settings-refresh-devices" style="margin-top:8px">Refresh</button>
           </div>
 
           </div><!-- end settings-panel-general -->
@@ -1904,22 +1718,8 @@
           <div class="settings-tab-panel" id="settings-panel-advanced" style="display:none">
             <div class="settings-section" id="settings-advanced-section">
               <h2 class="settings-section-title">Advanced Configuration</h2>
-              <p class="settings-section-desc">Gateway network, authentication, logging, updates, sandbox, and webhooks.</p>
+              <p class="settings-section-desc">Network, authentication, logging, updates, sandbox, and webhook configuration.</p>
               <div id="settings-advanced-content"></div>
-            </div>
-          </div>
-
-          <!-- ── Tab: Skills (Credential Vault) ── -->
-          <div class="settings-tab-panel" id="settings-panel-skills" style="display:none">
-            <div class="settings-section" id="settings-skills-section">
-              <h2 class="settings-section-title">
-                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                Skill Vault
-              </h2>
-              <p class="settings-section-desc">Give your agent superpowers — email, Slack, GitHub, APIs — without pasting passwords in chat. Credentials are encrypted and stored in your OS keychain. The agent never sees raw keys.</p>
-              <div id="skills-vault-loading" style="color:var(--text-muted); font-size:13px; padding:12px 0;">Loading skills...</div>
-              <div id="skills-vault-list"></div>
-              <div id="skills-vault-toast" style="display:none; margin-top:12px; padding:8px 14px; border-radius:8px; font-size:13px;"></div>
             </div>
           </div>
 

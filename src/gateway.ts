@@ -1,4 +1,4 @@
-// Paw — OpenClaw Gateway WebSocket Client (Protocol v3)
+// Paw — Gateway WebSocket Client (Legacy — no longer used by Pawz)
 
 import type {
   GatewayConfig,

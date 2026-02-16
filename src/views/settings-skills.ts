@@ -28,7 +28,7 @@ export async function loadSkillsSettings(): Promise<void> {
   const list = $('skills-vault-list');
 
   if (!isEngineMode()) {
-    if (loading) loading.textContent = 'Skills vault is only available in Engine mode. Switch to Engine in General settings.';
+    if (loading) loading.textContent = 'Pawz engine is required.';
     if (list) list.innerHTML = '';
     return;
   }

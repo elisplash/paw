@@ -1,6 +1,6 @@
 // Paw Agent Engine — Agentic Loop
 // The core orchestration loop: send to model → tool calls → execute → repeat.
-// This is the ~100 lines of logic that replaces the OpenClaw gateway runtime.
+// This is the core agent loop that drives Pawz AI interactions.
 
 use crate::engine::types::*;
 use crate::engine::providers::AnyProvider;

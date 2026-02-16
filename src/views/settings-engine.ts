@@ -2,7 +2,7 @@
 // Manages the runtime mode toggle and AI provider settings.
 
 import { pawEngine, type EngineProviderConfig } from '../engine';
-import { isEngineMode, setEngineMode } from '../engine-bridge';
+import { setEngineMode } from '../engine-bridge';
 
 const $ = (id: string) => document.getElementById(id);
 
@@ -20,9 +20,10 @@ export function initEngineSettings(): void {
 
   if (!modeSelect) return;
 
-  // Set initial state from localStorage
-  modeSelect.value = isEngineMode() ? 'engine' : 'gateway';
-  if (configPanel) configPanel.style.display = isEngineMode() ? '' : 'none';
+  // Pawz always runs in engine mode — force it
+  modeSelect.value = 'engine';
+  setEngineMode(true);
+  if (configPanel) configPanel.style.display = '';
 
   // Mode toggle
   modeSelect.addEventListener('change', () => {
