@@ -81,10 +81,13 @@ pub async fn engine_chat_send(
         Some(id) if !id.is_empty() => id.clone(),
         _ => {
             let new_id = format!("eng-{}", uuid::Uuid::new_v4());
-            let model = request.model.clone().unwrap_or_else(|| {
+            let raw = request.model.clone().unwrap_or_default();
+            let model = if raw.is_empty() || raw.eq_ignore_ascii_case("default") {
                 let cfg = state.config.lock().unwrap();
                 cfg.default_model.clone().unwrap_or_else(|| "gpt-4o".to_string())
-            });
+            } else {
+                raw
+            };
             state.store.create_session(&new_id, &model, request.system_prompt.as_deref())?;
             new_id
         }
@@ -94,9 +97,13 @@ pub async fn engine_chat_send(
     let (provider_config, model) = {
         let cfg = state.config.lock().map_err(|e| format!("Lock error: {}", e))?;
 
-        let model = request.model.unwrap_or_else(|| {
+        let raw_model = request.model.clone().unwrap_or_default();
+        // Treat empty string or "default" as "use the configured default"
+        let model = if raw_model.is_empty() || raw_model.eq_ignore_ascii_case("default") {
             cfg.default_model.clone().unwrap_or_else(|| "gpt-4o".to_string())
-        });
+        } else {
+            raw_model
+        };
 
         // Find provider by ID or use the one that matches the model prefix
         let provider = if let Some(pid) = &request.provider_id {

@@ -90,10 +90,14 @@ export async function engineChatSend(
   } = {},
 ): Promise<{ runId: string; sessionKey: string; status: string }> {
 
+  // Resolve model: filter out sentinel values like 'default' that aren't real model names
+  const rawModel = opts.model ?? opts.agentProfile?.model;
+  const resolvedModel = (rawModel && rawModel !== 'default' && rawModel !== 'Default') ? rawModel : undefined;
+
   const request: EngineChatRequest = {
     session_id: (sessionKey === 'default' || !sessionKey) ? undefined : sessionKey,
     message: content,
-    model: opts.model ?? opts.agentProfile?.model,
+    model: resolvedModel,
     system_prompt: opts.agentProfile?.systemPrompt,
     temperature: opts.temperature,
     tools_enabled: true,

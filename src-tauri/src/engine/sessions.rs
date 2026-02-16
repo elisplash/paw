@@ -240,7 +240,9 @@ impl SessionStore {
 
     /// Convert stored messages to engine Message types for sending to AI provider.
     pub fn load_conversation(&self, session_id: &str, system_prompt: Option<&str>) -> Result<Vec<Message>, String> {
-        let stored = self.get_messages(session_id, 1000)?;
+        // Load messages with a reasonable limit. We'll further truncate by
+        // estimated token count below to avoid exceeding model context windows.
+        let stored = self.get_messages(session_id, 500)?;
         let mut messages = Vec::new();
 
         // Add system prompt if provided
@@ -273,6 +275,61 @@ impl SessionStore {
                 tool_call_id: sm.tool_call_id.clone(),
                 name: sm.name.clone(),
             });
+        }
+
+        // ── Context window truncation ──────────────────────────────────
+        // Estimate tokens (~4 chars per token) and keep only the most recent
+        // messages that fit within ~100k tokens to leave room for the response.
+        // Always keep the system prompt (first message) and the last user message.
+        const MAX_CONTEXT_TOKENS: usize = 100_000;
+        let estimate_tokens = |m: &Message| -> usize {
+            let text_len = match &m.content {
+                MessageContent::Text(t) => t.len(),
+                MessageContent::Blocks(blocks) => blocks.iter().map(|b| match b {
+                    ContentBlock::Text { text } => text.len(),
+                    ContentBlock::ImageUrl { .. } => 1000, // rough estimate for images
+                }).sum(),
+            };
+            let tc_len = m.tool_calls.as_ref().map(|tcs| {
+                tcs.iter().map(|tc| tc.function.arguments.len() + tc.function.name.len() + 20).sum::<usize>()
+            }).unwrap_or(0);
+            (text_len + tc_len) / 4 + 4 // +4 for role/overhead tokens
+        };
+
+        let total_tokens: usize = messages.iter().map(|m| estimate_tokens(m)).sum();
+        if total_tokens > MAX_CONTEXT_TOKENS && messages.len() > 2 {
+            // Keep system prompt (index 0) and trim oldest non-system messages
+            let system_msg = if !messages.is_empty() && messages[0].role == Role::System {
+                Some(messages.remove(0))
+            } else {
+                None
+            };
+
+            // Drop from the front (oldest) until we fit
+            let mut running_tokens: usize = system_msg.as_ref().map(|m| estimate_tokens(m)).unwrap_or(0);
+            let mut keep_from = 0;
+            let msg_tokens: Vec<usize> = messages.iter().map(|m| estimate_tokens(m)).collect();
+            let total_msg_tokens: usize = msg_tokens.iter().sum();
+            let mut drop_tokens = running_tokens + total_msg_tokens;
+
+            for (i, &t) in msg_tokens.iter().enumerate() {
+                if drop_tokens <= MAX_CONTEXT_TOKENS {
+                    break;
+                }
+                drop_tokens -= t;
+                keep_from = i + 1;
+            }
+            let _ = running_tokens; // suppress unused warning
+
+            messages = messages.split_off(keep_from);
+
+            // Re-insert system prompt at the front
+            if let Some(sys) = system_msg {
+                messages.insert(0, sys);
+            }
+
+            log::info!("[engine] Context truncated: kept {} messages (~{} tokens, was ~{})",
+                messages.len(), drop_tokens, total_tokens);
         }
 
         Ok(messages)
