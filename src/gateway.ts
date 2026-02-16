@@ -693,19 +693,15 @@ class GatewayClient {
     return this.request<GatewayConfigResult>('config.get', {});
   }
 
-  /** Write full config object via config.apply. Requires hash from config.get for optimistic locking. */
-  async configWrite(config: Record<string, unknown>, hash?: string): Promise<ConfigApplyResult> {
+  /** Write full config object via config.apply (sends JSON string). */
+  async configWrite(config: Record<string, unknown>): Promise<ConfigApplyResult> {
     const raw = JSON.stringify(config, null, 2);
-    const params: Record<string, unknown> = { raw };
-    if (hash) params.hash = hash;
-    return this.request<ConfigApplyResult>('config.apply', params, 60_000);
+    return this.request<ConfigApplyResult>('config.apply', { raw }, 60_000);
   }
 
   /** Write raw JSON string directly via config.apply. Used by the raw config editor. */
-  async configApplyRaw(rawJson: string, hash?: string): Promise<ConfigApplyResult> {
-    const params: Record<string, unknown> = { raw: rawJson };
-    if (hash) params.hash = hash;
-    return this.request<ConfigApplyResult>('config.apply', params, 60_000);
+  async configApplyRaw(rawJson: string): Promise<ConfigApplyResult> {
+    return this.request<ConfigApplyResult>('config.apply', { raw: rawJson }, 60_000);
   }
 
   async configSchema(): Promise<ConfigSchemaResult> {

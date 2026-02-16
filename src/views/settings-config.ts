@@ -8,7 +8,6 @@ import { showToast } from '../components/toast';
 // ── Config Cache ───────────────────────────────────────────────────────────
 
 let _configCache: Record<string, unknown> | null = null;
-let _configHash: string | null = null;
 let _configLoading: Promise<Record<string, unknown>> | null = null;
 
 /** Fetch config from gateway (cached, deduped). Call invalidate() after writes. */
@@ -17,7 +16,6 @@ export async function getConfig(): Promise<Record<string, unknown>> {
   if (_configLoading) return _configLoading;
   _configLoading = gateway.configGet().then(r => {
     _configCache = r.config as Record<string, unknown>;
-    _configHash = r.hash ?? null;
     _configLoading = null;
     return _configCache;
   }).catch(e => {
@@ -27,20 +25,13 @@ export async function getConfig(): Promise<Record<string, unknown>> {
   return _configLoading;
 }
 
-/** Get the current config hash (for optimistic locking). Must call getConfig() first. */
-export function getConfigHash(): string | null {
-  return _configHash;
-}
-
-/** Force-refresh the config + hash from gateway (bypasses cache). */
-async function freshConfig(): Promise<{ config: Record<string, unknown>; hash: string | null }> {
+/** Force-refresh config from gateway (bypasses cache). */
+async function freshConfig(): Promise<Record<string, unknown>> {
   _configCache = null;
-  _configHash = null;
   _configLoading = null;
   const r = await gateway.configGet();
   _configCache = r.config as Record<string, unknown>;
-  _configHash = r.hash ?? null;
-  return { config: _configCache, hash: _configHash };
+  return _configCache;
 }
 
 /** Deep-get a config value by dot path. Returns undefined if missing. */
@@ -85,13 +76,12 @@ function deepMerge(target: Record<string, unknown>, source: Record<string, unkno
  */
 export async function patchConfig(patch: Record<string, unknown>, silent = false): Promise<boolean> {
   try {
-    // Always get fresh config + hash (gateway requires hash for optimistic locking)
-    const { config: current, hash } = await freshConfig();
+    // Always get fresh config before merging
+    const current = await freshConfig();
     const merged = JSON.parse(JSON.stringify(current));
     deepMerge(merged, patch);
-    const result = await gateway.configWrite(merged, hash ?? undefined);
+    const result = await gateway.configWrite(merged);
     _configCache = null;
-    _configHash = null;
     if (!result.ok && result.errors?.length) {
       showToast(`Config error: ${result.errors.join(', ')}`, 'error');
       return false;
@@ -117,7 +107,7 @@ export async function patchValue(path: string, value: unknown, silent = false): 
  */
 export async function deleteConfigKey(path: string, silent = false): Promise<boolean> {
   try {
-    const { config: current, hash } = await freshConfig();
+    const current = await freshConfig();
     const merged = JSON.parse(JSON.stringify(current));
     const keys = path.split('.');
     let obj: Record<string, unknown> = merged;
@@ -127,9 +117,8 @@ export async function deleteConfigKey(path: string, silent = false): Promise<boo
     }
     delete obj[keys[keys.length - 1]];
 
-    const result = await gateway.configWrite(merged, hash ?? undefined);
+    const result = await gateway.configWrite(merged);
     _configCache = null;
-    _configHash = null;
     if (!result.ok && result.errors?.length) {
       showToast(`Config error: ${result.errors.join(', ')}`, 'error');
       return false;
@@ -147,7 +136,6 @@ export async function deleteConfigKey(path: string, silent = false): Promise<boo
 /** Invalidate cache (call after external config changes or on reconnect) */
 export function invalidateConfigCache(): void {
   _configCache = null;
-  _configHash = null;
   _configLoading = null;
 }
 
