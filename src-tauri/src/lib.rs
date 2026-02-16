@@ -387,9 +387,44 @@ async fn install_openclaw(window: tauri::Window, app_handle: tauri::AppHandle) -
                     "token": token
                 }
             },
+            "models": {
+                "providers": {
+                    "google": {
+                        "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+                        "apiKey": "",
+                        "api": "google-generative-ai",
+                        "models": [
+                            {
+                                "id": "gemini-2.5-pro",
+                                "name": "Gemini 2.5 Pro",
+                                "reasoning": true,
+                                "input": ["text", "image"],
+                                "contextWindow": 1048576,
+                                "maxTokens": 65536
+                            },
+                            {
+                                "id": "gemini-2.5-flash",
+                                "name": "Gemini 2.5 Flash",
+                                "reasoning": true,
+                                "input": ["text", "image"],
+                                "contextWindow": 1048576,
+                                "maxTokens": 65536
+                            }
+                        ]
+                    }
+                }
+            },
             "agents": {
                 "defaults": {
-                    "maxConcurrent": 4
+                    "maxConcurrent": 4,
+                    "model": {
+                        "primary": "google/gemini-2.5-pro"
+                    }
+                }
+            },
+            "env": {
+                "vars": {
+                    "GEMINI_API_KEY": ""
                 }
             }
         });
@@ -1829,6 +1864,91 @@ fn repair_openclaw_config() -> Result<bool, String> {
             if shim.exists() {
                 let _ = fs::remove_file(&shim);
                 info!("Removed stale _paw_openai_shim.js");
+            }
+        }
+
+        // ── Add Google Gemini provider if not already configured ────────────
+        // Uses the google-generative-ai API with the standard Google AI Studio
+        // endpoint.  The GEMINI_API_KEY env var is also set so the gateway's
+        // env-based key resolution works as a fallback.
+        {
+            // Ensure models.providers exists
+            if !obj.contains_key("models") {
+                obj.insert("models".to_string(), serde_json::json!({}));
+            }
+            if let Some(models_obj) = obj.get_mut("models").and_then(|m| m.as_object_mut()) {
+                if !models_obj.contains_key("providers") {
+                    models_obj.insert("providers".to_string(), serde_json::json!({}));
+                }
+                if let Some(providers) = models_obj.get_mut("providers").and_then(|p| p.as_object_mut()) {
+                    if !providers.contains_key("google") {
+                        providers.insert("google".to_string(), serde_json::json!({
+                            "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
+                            "apiKey": "",
+                            "api": "google-generative-ai",
+                            "models": [
+                                {
+                                    "id": "gemini-2.5-pro",
+                                    "name": "Gemini 2.5 Pro",
+                                    "reasoning": true,
+                                    "input": ["text", "image"],
+                                    "contextWindow": 1048576,
+                                    "maxTokens": 65536
+                                },
+                                {
+                                    "id": "gemini-2.5-flash",
+                                    "name": "Gemini 2.5 Flash",
+                                    "reasoning": true,
+                                    "input": ["text", "image"],
+                                    "contextWindow": 1048576,
+                                    "maxTokens": 65536
+                                }
+                            ]
+                        }));
+                        repaired = true;
+                        info!("Added Google Gemini provider with gemini-2.5-pro model");
+                    }
+                }
+            }
+
+            // Set default model to google/gemini-2.5-pro if no primary model is configured
+            if let Some(agents) = obj.get_mut("agents").and_then(|a| a.as_object_mut()) {
+                if !agents.contains_key("defaults") {
+                    agents.insert("defaults".to_string(), serde_json::json!({}));
+                }
+                if let Some(defaults) = agents.get_mut("defaults").and_then(|d| d.as_object_mut()) {
+                    let has_primary = defaults
+                        .get("model")
+                        .and_then(|m| m.get("primary"))
+                        .and_then(|p| p.as_str())
+                        .map(|s| !s.is_empty())
+                        .unwrap_or(false);
+                    if !has_primary {
+                        defaults.insert("model".to_string(), serde_json::json!({
+                            "primary": "google/gemini-2.5-pro"
+                        }));
+                        repaired = true;
+                        info!("Set default model to google/gemini-2.5-pro");
+                    }
+                }
+            }
+
+            // Also inject GEMINI_API_KEY into env.vars as a fallback
+            if !obj.contains_key("env") {
+                obj.insert("env".to_string(), serde_json::json!({}));
+            }
+            if let Some(env_obj) = obj.get_mut("env").and_then(|e| e.as_object_mut()) {
+                if !env_obj.contains_key("vars") {
+                    env_obj.insert("vars".to_string(), serde_json::json!({}));
+                }
+                if let Some(vars) = env_obj.get_mut("vars").and_then(|v| v.as_object_mut()) {
+                    if !vars.contains_key("GEMINI_API_KEY") {
+                        vars.insert("GEMINI_API_KEY".to_string(),
+                            serde_json::json!(""));
+                        repaired = true;
+                        info!("Set GEMINI_API_KEY in env.vars");
+                    }
+                }
             }
         }
 
