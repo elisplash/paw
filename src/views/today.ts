@@ -48,15 +48,39 @@ async function fetchWeather() {
   if (!weatherEl) return;
   
   try {
-    // Simple weather fetch
-    const response = await fetch('https://wttr.in/?format=%c+%t+%C');
-    const text = await response.text();
-    if (text) {
-      weatherEl.innerHTML = `<span class="today-weather-temp">${text.trim()}</span>`;
+    // Simple weather fetch - use proxy-friendly format
+    const response = await fetch('https://wttr.in/?format=j1');
+    const data = await response.json();
+    const current = data?.current_condition?.[0];
+    if (current) {
+      const temp = current.temp_F || current.temp_C;
+      const desc = current.weatherDesc?.[0]?.value || '';
+      const icon = getWeatherIcon(current.weatherCode);
+      weatherEl.innerHTML = `
+        <div class="today-weather-main">
+          <span class="today-weather-icon">${icon}</span>
+          <span class="today-weather-temp">${temp}°F</span>
+        </div>
+        <div class="today-weather-desc">${desc}</div>
+      `;
+    } else {
+      throw new Error('No weather data');
     }
   } catch {
     weatherEl.innerHTML = '<span class="today-weather-unavailable">Weather unavailable</span>';
   }
+}
+
+function getWeatherIcon(code: string): string {
+  const c = parseInt(code);
+  if (c === 113) return '☀️';
+  if (c === 116) return '⛅';
+  if ([119, 122].includes(c)) return '☁️';
+  if ([143, 248, 260].includes(c)) return '🌫️';
+  if ([176, 263, 266, 293, 296, 299, 302, 305, 308, 311, 314, 353, 356, 359].includes(c)) return '🌧️';
+  if ([179, 182, 185, 281, 284, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377].includes(c)) return '🌨️';
+  if ([200, 386, 389, 392, 395].includes(c)) return '⛈️';
+  return '🌤️';
 }
 
 async function fetchUnreadEmails() {
@@ -82,12 +106,26 @@ function renderToday() {
 
   container.innerHTML = `
     <div class="today-header">
-      <div class="today-greeting">${greeting}</div>
+      <div class="today-greeting">${greeting}, Eli</div>
       <div class="today-date">${dateStr}</div>
     </div>
     
     <div class="today-grid">
       <div class="today-main">
+        <!-- Dave's Summary -->
+        <div class="today-card today-dave-card">
+          <div class="today-dave-header">
+            <div class="today-dave-avatar">🧠</div>
+            <div class="today-dave-intro">
+              <div class="today-dave-name">Dave</div>
+              <div class="today-dave-role">Your AI Assistant</div>
+            </div>
+          </div>
+          <div class="today-dave-message" id="today-dave-message">
+            ${getDaveMessage(pendingTasks.length, completedToday.length)}
+          </div>
+        </div>
+        
         <!-- Weather -->
         <div class="today-card">
           <div class="today-card-header">
@@ -292,6 +330,35 @@ function getGreeting(): string {
   if (hour < 12) return 'Good morning';
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
+}
+
+function getDaveMessage(pendingTasks: number, completedToday: number): string {
+  const hour = new Date().getHours();
+  const day = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  
+  let message = '';
+  
+  // Time-based opener
+  if (hour < 12) {
+    message = `Happy ${day}! Ready to make today count? `;
+  } else if (hour < 17) {
+    message = `Hope your ${day} is going well. `;
+  } else {
+    message = `Winding down this ${day}. `;
+  }
+  
+  // Task-based context
+  if (completedToday > 0 && pendingTasks === 0) {
+    message += `You crushed it — ${completedToday} task${completedToday > 1 ? 's' : ''} done and nothing pending! 🎉`;
+  } else if (completedToday > 0) {
+    message += `Nice progress! ${completedToday} down, ${pendingTasks} to go.`;
+  } else if (pendingTasks > 0) {
+    message += `You've got ${pendingTasks} task${pendingTasks > 1 ? 's' : ''} lined up. Let's knock them out.`;
+  } else {
+    message += `No tasks on the board yet. Add something or hit Morning Briefing to get started.`;
+  }
+  
+  return message;
 }
 
 function isToday(dateStr: string): boolean {
