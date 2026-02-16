@@ -289,6 +289,8 @@ pub enum EngineEvent {
         run_id: String,
         text: String,
         tool_calls_count: usize,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        usage: Option<TokenUsage>,
     },
     /// An error occurred during the run
     #[serde(rename = "error")]
@@ -335,6 +337,18 @@ pub struct ChatRequest {
     pub temperature: Option<f64>,
     pub provider_id: Option<String>,
     pub tools_enabled: Option<bool>,
+    #[serde(default)]
+    pub attachments: Vec<ChatAttachment>,
+}
+
+/// Attachment sent with a chat message (images, files).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatAttachment {
+    /// MIME type: "image/png", "image/jpeg", "application/pdf", etc.
+    #[serde(rename = "mimeType")]
+    pub mime_type: String,
+    /// Base64-encoded file content (without data: prefix)
+    pub content: String,
 }
 
 // ── Chat Send Response (to frontend) ───────────────────────────────────
@@ -353,6 +367,7 @@ pub struct StreamChunk {
     pub delta_text: Option<String>,
     pub tool_calls: Vec<ToolCallDelta>,
     pub finish_reason: Option<String>,
+    pub usage: Option<TokenUsage>,
 }
 
 #[derive(Debug, Clone)]
@@ -361,6 +376,14 @@ pub struct ToolCallDelta {
     pub id: Option<String>,
     pub function_name: Option<String>,
     pub arguments_delta: Option<String>,
+}
+
+/// Token usage reported by the API (for metering).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TokenUsage {
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub total_tokens: u64,
 }
 
 // ── Engine State ───────────────────────────────────────────────────────

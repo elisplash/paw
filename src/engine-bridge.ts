@@ -5,9 +5,11 @@
 import { pawEngine, type EngineEvent, type EngineChatRequest } from './engine';
 
 type AgentEventHandler = (payload: unknown) => void;
+type ToolApprovalHandler = (event: EngineEvent) => void;
 
 let _engineListening = false;
 let _agentHandlers: AgentEventHandler[] = [];
+let _toolApprovalHandlers: ToolApprovalHandler[] = [];
 
 /** Whether the engine mode is active (vs gateway mode). */
 export function isEngineMode(): boolean {
@@ -30,6 +32,23 @@ export function onEngineAgent(handler: AgentEventHandler): void {
 }
 
 /**
+ * Register a handler for engine tool approval requests (HIL).
+ * Called when the engine wants to execute a tool and needs user consent.
+ */
+export function onEngineToolApproval(handler: ToolApprovalHandler): void {
+  _toolApprovalHandlers.push(handler);
+}
+
+/**
+ * Resolve a tool approval from the frontend.
+ */
+export function resolveEngineToolApproval(toolCallId: string, approved: boolean): void {
+  pawEngine.approveTool(toolCallId, approved).catch((e) => {
+    console.error('[engine-bridge] Failed to resolve tool approval:', e);
+  });
+}
+
+/**
  * Start listening for engine events and forward them as gateway-style agent events.
  * Call this once at startup if in engine mode.
  */
@@ -40,6 +59,13 @@ export async function startEngineBridge(): Promise<void> {
   await pawEngine.startListening();
 
   pawEngine.on('*', (event: EngineEvent) => {
+    // Dispatch tool_request to approval handlers (HIL security)
+    if (event.kind === 'tool_request') {
+      for (const h of _toolApprovalHandlers) {
+        try { h(event); } catch (e) { console.error('[engine-bridge] approval handler error:', e); }
+      }
+    }
+
     const gatewayEvt = translateEngineEvent(event);
     if (gatewayEvt) {
       for (const h of _agentHandlers) {
@@ -60,6 +86,7 @@ export async function engineChatSend(
     model?: string;
     temperature?: number;
     agentProfile?: { systemPrompt?: string; model?: string };
+    attachments?: Array<{ type?: string; mimeType: string; content: string }>;
   } = {},
 ): Promise<{ runId: string; sessionKey: string; status: string }> {
 
@@ -70,6 +97,10 @@ export async function engineChatSend(
     system_prompt: opts.agentProfile?.systemPrompt,
     temperature: opts.temperature,
     tools_enabled: true,
+    attachments: opts.attachments?.map(a => ({
+      mimeType: a.mimeType,
+      content: a.content,
+    })),
   };
 
   const result = await pawEngine.chatSend(request);
@@ -121,9 +152,21 @@ function translateEngineEvent(event: EngineEvent): Record<string, unknown> | nul
       };
 
     case 'complete':
+      // Only emit lifecycle end for final completions (no more tool calls).
+      // Intermediate completions (tool_calls_count > 0) should not end the stream.
+      if (event.tool_calls_count && event.tool_calls_count > 0) {
+        return null; // intermediate round — don't signal end
+      }
       return {
         stream: 'lifecycle',
-        data: { phase: 'end' },
+        data: {
+          phase: 'end',
+          usage: event.usage ? {
+            input_tokens: event.usage.input_tokens,
+            output_tokens: event.usage.output_tokens,
+            total_tokens: event.usage.total_tokens,
+          } : undefined,
+        },
         runId: event.run_id,
         sessionKey: event.session_id,
       };

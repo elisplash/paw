@@ -5,7 +5,9 @@
 use crate::engine::types::*;
 use crate::engine::providers::AnyProvider;
 use crate::engine::tool_executor;
+use crate::engine::commands::PendingApprovals;
 use log::{info, warn, error};
+use std::time::Duration;
 use tauri::Emitter;
 
 /// Run a complete agent turn: send messages to the model, execute tool calls,
@@ -22,9 +24,13 @@ pub async fn run_agent_turn(
     run_id: &str,
     max_rounds: u32,
     temperature: Option<f64>,
+    pending_approvals: &PendingApprovals,
+    tool_timeout_secs: u64,
 ) -> Result<String, String> {
     let mut round = 0;
     let mut final_text = String::new();
+    let mut total_input_tokens: u64 = 0;
+    let mut total_output_tokens: u64 = 0;
 
     loop {
         round += 1;
@@ -80,6 +86,12 @@ pub async fn run_agent_turn(
                     _finished = true;
                 }
             }
+
+            // Accumulate token usage
+            if let Some(usage) = &chunk.usage {
+                total_input_tokens += usage.input_tokens;
+                total_output_tokens += usage.output_tokens;
+            }
         }
 
         // ── 3. If no tool calls, we're done ──────────────────────────
@@ -96,11 +108,21 @@ pub async fn run_agent_turn(
             });
 
             // Emit completion event
+            let usage = if total_input_tokens > 0 || total_output_tokens > 0 {
+                Some(TokenUsage {
+                    input_tokens: total_input_tokens,
+                    output_tokens: total_output_tokens,
+                    total_tokens: total_input_tokens + total_output_tokens,
+                })
+            } else {
+                None
+            };
             let _ = app_handle.emit("engine-event", EngineEvent::Complete {
                 session_id: session_id.to_string(),
                 run_id: run_id.to_string(),
                 text: final_text.clone(),
                 tool_calls_count: 0,
+                usage,
             });
 
             return Ok(final_text);
@@ -140,21 +162,66 @@ pub async fn run_agent_turn(
             name: None,
         });
 
-        // ── 5. Execute each tool call ─────────────────────────────────
+        // ── 5. Execute each tool call (with HIL approval) ──────────────
         let tc_count = tool_calls.len();
         for tc in &tool_calls {
             info!("[engine] Tool call: {} id={}", tc.function.name, tc.id);
 
-            // Emit tool request event (for HIL approval UI)
+            // Register a oneshot channel for approval
+            let (approval_tx, approval_rx) = tokio::sync::oneshot::channel::<bool>();
+            {
+                let mut map = pending_approvals.lock().unwrap();
+                map.insert(tc.id.clone(), approval_tx);
+            }
+
+            // Emit tool request event — frontend will show approval modal
             let _ = app_handle.emit("engine-event", EngineEvent::ToolRequest {
                 session_id: session_id.to_string(),
                 run_id: run_id.to_string(),
                 tool_call: tc.clone(),
             });
 
+            // Wait for user approval (with timeout)
+            let timeout_duration = Duration::from_secs(tool_timeout_secs);
+            let approved = match tokio::time::timeout(timeout_duration, approval_rx).await {
+                Ok(Ok(allowed)) => allowed,
+                Ok(Err(_)) => {
+                    warn!("[engine] Approval channel closed for {}", tc.id);
+                    false
+                }
+                Err(_) => {
+                    warn!("[engine] Approval timeout ({}s) for tool {}", tool_timeout_secs, tc.function.name);
+                    // Clean up the pending entry
+                    let mut map = pending_approvals.lock().unwrap();
+                    map.remove(&tc.id);
+                    false
+                }
+            };
+
+            if !approved {
+                info!("[engine] Tool DENIED by user: {} id={}", tc.function.name, tc.id);
+
+                // Emit denial as tool result
+                let _ = app_handle.emit("engine-event", EngineEvent::ToolResultEvent {
+                    session_id: session_id.to_string(),
+                    run_id: run_id.to_string(),
+                    tool_call_id: tc.id.clone(),
+                    output: "Tool execution denied by user.".into(),
+                    success: false,
+                });
+
+                // Add denial to message history so the model knows
+                messages.push(Message {
+                    role: Role::Tool,
+                    content: MessageContent::Text("Tool execution denied by user.".into()),
+                    tool_calls: None,
+                    tool_call_id: Some(tc.id.clone()),
+                    name: Some(tc.function.name.clone()),
+                });
+                continue;
+            }
+
             // Execute the tool
-            // TODO: Integrate with Paw's security layer (HIL approval, command classifier)
-            // For now, execute directly — security will be wired in Phase 2
             let result = tool_executor::execute_tool(tc).await;
 
             info!("[engine] Tool result: {} success={} output_len={}",
@@ -182,12 +249,9 @@ pub async fn run_agent_turn(
         // ── 6. Loop: send tool results back to model ──────────────────
         info!("[engine] {} tool calls executed, feeding results back to model", tc_count);
 
-        let _ = app_handle.emit("engine-event", EngineEvent::Complete {
-            session_id: session_id.to_string(),
-            run_id: run_id.to_string(),
-            text: String::new(),
-            tool_calls_count: tc_count,
-        });
+        // NOTE: Do NOT emit Complete here — only emit Complete when the model
+        // produces a final text response (no more tool calls). Intermediate
+        // Complete events were causing premature stream resolution on the frontend.
 
         // Continue the loop — model will see tool results and either respond or call more tools
     }

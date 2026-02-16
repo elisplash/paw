@@ -4,9 +4,26 @@
 
 use crate::engine::types::*;
 use futures::StreamExt;
-use log::{info, error};
+use log::{info, warn, error};
 use reqwest::Client;
 use serde_json::{json, Value};
+use std::time::Duration;
+
+/// Retry configuration for transient API errors.
+const MAX_RETRIES: u32 = 3;
+const INITIAL_RETRY_DELAY_MS: u64 = 1000;
+
+/// Check if an HTTP status code should be retried.
+fn is_retryable_status(status: u16) -> bool {
+    matches!(status, 429 | 500 | 502 | 503 | 529)
+}
+
+/// Sleep with exponential backoff. Returns delay used.
+async fn retry_delay(attempt: u32) -> Duration {
+    let delay = Duration::from_millis(INITIAL_RETRY_DELAY_MS * 2u64.pow(attempt));
+    tokio::time::sleep(delay).await;
+    delay
+}
 
 // ── OpenAI-compatible provider ─────────────────────────────────────────
 // Works for: OpenAI, OpenRouter, Ollama, any OpenAI-compatible API
@@ -30,9 +47,25 @@ impl OpenAiProvider {
 
     fn format_messages(messages: &[Message]) -> Vec<Value> {
         messages.iter().map(|msg| {
+            let content_val = match &msg.content {
+                MessageContent::Text(s) => json!(s),
+                MessageContent::Blocks(blocks) => {
+                    let parts: Vec<Value> = blocks.iter().map(|b| match b {
+                        ContentBlock::Text { text } => json!({"type": "text", "text": text}),
+                        ContentBlock::ImageUrl { image_url } => json!({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image_url.url,
+                                "detail": image_url.detail.as_deref().unwrap_or("auto"),
+                            }
+                        }),
+                    }).collect();
+                    json!(parts)
+                }
+            };
             let mut m = json!({
                 "role": msg.role,
-                "content": msg.content.as_text(),
+                "content": content_val,
             });
             if let Some(tc) = &msg.tool_calls {
                 m["tool_calls"] = json!(tc);
@@ -90,10 +123,27 @@ impl OpenAiProvider {
             }
         }
 
+        // Parse usage from the final chunk (OpenAI includes it when stream_options.include_usage is set,
+        // and also in the last chunk of standard streams)
+        let usage = v.get("usage").and_then(|u| {
+            let input = u["prompt_tokens"].as_u64().unwrap_or(0);
+            let output = u["completion_tokens"].as_u64().unwrap_or(0);
+            if input > 0 || output > 0 {
+                Some(TokenUsage {
+                    input_tokens: input,
+                    output_tokens: output,
+                    total_tokens: u["total_tokens"].as_u64().unwrap_or(input + output),
+                })
+            } else {
+                None
+            }
+        });
+
         Some(StreamChunk {
             delta_text,
             tool_calls,
             finish_reason,
+            usage,
         })
     }
 }
@@ -112,6 +162,7 @@ impl OpenAiProvider {
             "model": model,
             "messages": Self::format_messages(messages),
             "stream": true,
+            "stream_options": {"include_usage": true},
         });
 
         if !tools.is_empty() {
@@ -123,48 +174,69 @@ impl OpenAiProvider {
 
         info!("[engine] OpenAI request to {} model={}", url, model);
 
-        let response = self.client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", self.api_key))
-            .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
+        // Retry loop for transient errors
+        let mut last_error = String::new();
+        for attempt in 0..=MAX_RETRIES {
+            if attempt > 0 {
+                let delay = retry_delay(attempt - 1).await;
+                warn!("[engine] OpenAI retry {}/{} after {}ms", attempt, MAX_RETRIES, delay.as_millis());
+            }
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body_text = response.text().await.unwrap_or_default();
-            error!("[engine] OpenAI error {}: {}", status, &body_text[..body_text.len().min(500)]);
-            return Err(format!("API error {}: {}", status, &body_text[..body_text.len().min(200)]));
-        }
+            let response = match self.client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", self.api_key))
+                .header("Content-Type", "application/json")
+                .json(&body)
+                .send()
+                .await {
+                    Ok(r) => r,
+                    Err(e) => {
+                        last_error = format!("HTTP request failed: {}", e);
+                        if attempt < MAX_RETRIES { continue; }
+                        return Err(last_error);
+                    }
+                };
 
-        // Read SSE stream
-        let mut chunks = Vec::new();
-        let mut byte_stream = response.bytes_stream();
-        let mut buffer = String::new();
+            if !response.status().is_success() {
+                let status = response.status().as_u16();
+                let body_text = response.text().await.unwrap_or_default();
+                last_error = format!("API error {}: {}", status, &body_text[..body_text.len().min(200)]);
+                error!("[engine] OpenAI error {}: {}", status, &body_text[..body_text.len().min(500)]);
+                if is_retryable_status(status) && attempt < MAX_RETRIES {
+                    continue;
+                }
+                return Err(last_error);
+            }
 
-        while let Some(result) = byte_stream.next().await {
-            let bytes = result.map_err(|e| format!("Stream read error: {}", e))?;
-            buffer.push_str(&String::from_utf8_lossy(&bytes));
+            // Read SSE stream
+            let mut chunks = Vec::new();
+            let mut byte_stream = response.bytes_stream();
+            let mut buffer = String::new();
 
-            // Process complete SSE lines
-            while let Some(line_end) = buffer.find('\n') {
-                let line = buffer[..line_end].trim().to_string();
-                buffer = buffer[line_end + 1..].to_string();
+            while let Some(result) = byte_stream.next().await {
+                let bytes = result.map_err(|e| format!("Stream read error: {}", e))?;
+                buffer.push_str(&String::from_utf8_lossy(&bytes));
 
-                if line.starts_with("data: ") {
-                    let data = &line[6..];
-                    if let Some(chunk) = Self::parse_sse_chunk(data) {
-                        chunks.push(chunk);
-                    } else if data == "[DONE]" {
-                        return Ok(chunks);
+                // Process complete SSE lines
+                while let Some(line_end) = buffer.find('\n') {
+                    let line = buffer[..line_end].trim().to_string();
+                    buffer = buffer[line_end + 1..].to_string();
+
+                    if line.starts_with("data: ") {
+                        let data = &line[6..];
+                        if let Some(chunk) = Self::parse_sse_chunk(data) {
+                            chunks.push(chunk);
+                        } else if data == "[DONE]" {
+                            return Ok(chunks);
+                        }
                     }
                 }
             }
+
+            return Ok(chunks);
         }
 
-        Ok(chunks)
+        Err(last_error)
     }
 }
 
@@ -279,6 +351,7 @@ impl AnthropicProvider {
                             delta_text: delta["text"].as_str().map(|s| s.to_string()),
                             tool_calls: vec![],
                             finish_reason: None,
+                            usage: None,
                         })
                     }
                     "input_json_delta" => {
@@ -292,6 +365,7 @@ impl AnthropicProvider {
                                 arguments_delta: delta["partial_json"].as_str().map(|s| s.to_string()),
                             }],
                             finish_reason: None,
+                            usage: None,
                         })
                     }
                     _ => None,
@@ -311,6 +385,7 @@ impl AnthropicProvider {
                             arguments_delta: None,
                         }],
                         finish_reason: None,
+                        usage: None,
                     })
                 } else {
                     None
@@ -318,10 +393,45 @@ impl AnthropicProvider {
             }
             "message_delta" => {
                 let stop_reason = v["delta"]["stop_reason"].as_str().map(|s| s.to_string());
+                // Anthropic reports usage in message_delta
+                let usage = v.get("usage").and_then(|u| {
+                    let output = u["output_tokens"].as_u64().unwrap_or(0);
+                    if output > 0 {
+                        Some(TokenUsage {
+                            input_tokens: 0, // Anthropic reports input in message_start
+                            output_tokens: output,
+                            total_tokens: output,
+                        })
+                    } else {
+                        None
+                    }
+                });
                 Some(StreamChunk {
                     delta_text: None,
                     tool_calls: vec![],
                     finish_reason: stop_reason,
+                    usage,
+                })
+            }
+            "message_start" => {
+                // Anthropic message_start contains input token count
+                let usage = v.get("message").and_then(|m| m.get("usage")).and_then(|u| {
+                    let input = u["input_tokens"].as_u64().unwrap_or(0);
+                    if input > 0 {
+                        Some(TokenUsage {
+                            input_tokens: input,
+                            output_tokens: 0,
+                            total_tokens: input,
+                        })
+                    } else {
+                        None
+                    }
+                });
+                Some(StreamChunk {
+                    delta_text: None,
+                    tool_calls: vec![],
+                    finish_reason: None,
+                    usage,
                 })
             }
             "message_stop" => {
@@ -329,6 +439,7 @@ impl AnthropicProvider {
                     delta_text: None,
                     tool_calls: vec![],
                     finish_reason: Some("stop".into()),
+                    usage: None,
                 })
             }
             _ => None,
@@ -367,45 +478,66 @@ impl AnthropicProvider {
 
         info!("[engine] Anthropic request to {} model={}", url, model);
 
-        let response = self.client
-            .post(&url)
-            .header("x-api-key", &self.api_key)
-            .header("anthropic-version", "2023-06-01")
-            .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
+        // Retry loop for transient errors
+        let mut last_error = String::new();
+        for attempt in 0..=MAX_RETRIES {
+            if attempt > 0 {
+                let delay = retry_delay(attempt - 1).await;
+                warn!("[engine] Anthropic retry {}/{} after {}ms", attempt, MAX_RETRIES, delay.as_millis());
+            }
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body_text = response.text().await.unwrap_or_default();
-            error!("[engine] Anthropic error {}: {}", status, &body_text[..body_text.len().min(500)]);
-            return Err(format!("API error {}: {}", status, &body_text[..body_text.len().min(200)]));
-        }
+            let response = match self.client
+                .post(&url)
+                .header("x-api-key", &self.api_key)
+                .header("anthropic-version", "2023-06-01")
+                .header("Content-Type", "application/json")
+                .json(&body)
+                .send()
+                .await {
+                    Ok(r) => r,
+                    Err(e) => {
+                        last_error = format!("HTTP request failed: {}", e);
+                        if attempt < MAX_RETRIES { continue; }
+                        return Err(last_error);
+                    }
+                };
 
-        let mut chunks = Vec::new();
-        let mut byte_stream = response.bytes_stream();
-        let mut buffer = String::new();
+            if !response.status().is_success() {
+                let status = response.status().as_u16();
+                let body_text = response.text().await.unwrap_or_default();
+                last_error = format!("API error {}: {}", status, &body_text[..body_text.len().min(200)]);
+                error!("[engine] Anthropic error {}: {}", status, &body_text[..body_text.len().min(500)]);
+                if is_retryable_status(status) && attempt < MAX_RETRIES {
+                    continue;
+                }
+                return Err(last_error);
+            }
 
-        while let Some(result) = byte_stream.next().await {
-            let bytes = result.map_err(|e| format!("Stream read error: {}", e))?;
-            buffer.push_str(&String::from_utf8_lossy(&bytes));
+            let mut chunks = Vec::new();
+            let mut byte_stream = response.bytes_stream();
+            let mut buffer = String::new();
 
-            while let Some(line_end) = buffer.find('\n') {
-                let line = buffer[..line_end].trim().to_string();
-                buffer = buffer[line_end + 1..].to_string();
+            while let Some(result) = byte_stream.next().await {
+                let bytes = result.map_err(|e| format!("Stream read error: {}", e))?;
+                buffer.push_str(&String::from_utf8_lossy(&bytes));
 
-                if line.starts_with("data: ") {
-                    let data = &line[6..];
-                    if let Some(chunk) = Self::parse_sse_event(data) {
-                        chunks.push(chunk);
+                while let Some(line_end) = buffer.find('\n') {
+                    let line = buffer[..line_end].trim().to_string();
+                    buffer = buffer[line_end + 1..].to_string();
+
+                    if line.starts_with("data: ") {
+                        let data = &line[6..];
+                        if let Some(chunk) = Self::parse_sse_event(data) {
+                            chunks.push(chunk);
+                        }
                     }
                 }
             }
+
+            return Ok(chunks);
         }
 
-        Ok(chunks)
+        Err(last_error)
     }
 }
 
@@ -567,50 +699,69 @@ impl GoogleProvider {
 
         info!("[engine] Google request model={}", model);
 
-        let response = self.client
-            .post(&url)
-            .header("Content-Type", "application/json")
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| format!("HTTP request failed: {}", e))?;
+        // Retry loop for transient errors
+        let mut last_error = String::new();
+        for attempt in 0..=MAX_RETRIES {
+            if attempt > 0 {
+                let delay = retry_delay(attempt - 1).await;
+                warn!("[engine] Google retry {}/{} after {}ms", attempt, MAX_RETRIES, delay.as_millis());
+            }
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let body_text = response.text().await.unwrap_or_default();
-            error!("[engine] Google error {}: {}", status, &body_text[..body_text.len().min(500)]);
-            return Err(format!("API error {}: {}", status, &body_text[..body_text.len().min(200)]));
-        }
+            let response = match self.client
+                .post(&url)
+                .header("Content-Type", "application/json")
+                .json(&body)
+                .send()
+                .await {
+                    Ok(r) => r,
+                    Err(e) => {
+                        last_error = format!("HTTP request failed: {}", e);
+                        if attempt < MAX_RETRIES { continue; }
+                        return Err(last_error);
+                    }
+                };
 
-        let mut chunks = Vec::new();
-        let mut byte_stream = response.bytes_stream();
-        let mut buffer = String::new();
+            if !response.status().is_success() {
+                let status = response.status().as_u16();
+                let body_text = response.text().await.unwrap_or_default();
+                last_error = format!("API error {}: {}", status, &body_text[..body_text.len().min(200)]);
+                error!("[engine] Google error {}: {}", status, &body_text[..body_text.len().min(500)]);
+                if is_retryable_status(status) && attempt < MAX_RETRIES {
+                    continue;
+                }
+                return Err(last_error);
+            }
 
-        while let Some(result) = byte_stream.next().await {
-            let bytes = result.map_err(|e| format!("Stream read error: {}", e))?;
-            buffer.push_str(&String::from_utf8_lossy(&bytes));
+            let mut chunks = Vec::new();
+            let mut byte_stream = response.bytes_stream();
+            let mut buffer = String::new();
 
-            while let Some(line_end) = buffer.find('\n') {
-                let line = buffer[..line_end].trim().to_string();
-                buffer = buffer[line_end + 1..].to_string();
+            while let Some(result) = byte_stream.next().await {
+                let bytes = result.map_err(|e| format!("Stream read error: {}", e))?;
+                buffer.push_str(&String::from_utf8_lossy(&bytes));
 
-                if line.starts_with("data: ") {
-                    let data = &line[6..];
-                    if let Ok(v) = serde_json::from_str::<Value>(data) {
-                        // Parse Google's streaming format
-                        if let Some(candidates) = v["candidates"].as_array() {
-                            for candidate in candidates {
-                                let content = &candidate["content"];
-                                let finish_reason = candidate["finishReason"].as_str()
-                                    .map(|s| s.to_string());
+                while let Some(line_end) = buffer.find('\n') {
+                    let line = buffer[..line_end].trim().to_string();
+                    buffer = buffer[line_end + 1..].to_string();
 
-                                if let Some(parts) = content["parts"].as_array() {
-                                    for part in parts {
-                                        if let Some(text) = part["text"].as_str() {
-                                            chunks.push(StreamChunk {
-                                                delta_text: Some(text.to_string()),
-                                                tool_calls: vec![],
-                                                finish_reason: finish_reason.clone(),
+                    if line.starts_with("data: ") {
+                        let data = &line[6..];
+                        if let Ok(v) = serde_json::from_str::<Value>(data) {
+                            // Parse Google's streaming format
+                            if let Some(candidates) = v["candidates"].as_array() {
+                                for candidate in candidates {
+                                    let content = &candidate["content"];
+                                    let finish_reason = candidate["finishReason"].as_str()
+                                        .map(|s| s.to_string());
+
+                                    if let Some(parts) = content["parts"].as_array() {
+                                        for part in parts {
+                                            if let Some(text) = part["text"].as_str() {
+                                                chunks.push(StreamChunk {
+                                                    delta_text: Some(text.to_string()),
+                                                    tool_calls: vec![],
+                                                    finish_reason: finish_reason.clone(),
+                                                    usage: None,
                                             });
                                         }
                                         if let Some(fc) = part.get("functionCall") {
@@ -625,10 +776,29 @@ impl GoogleProvider {
                                                     arguments_delta: Some(serde_json::to_string(&args).unwrap_or_default()),
                                                 }],
                                                 finish_reason: finish_reason.clone(),
+                                                usage: None,
                                             });
                                         }
                                     }
                                 }
+                            }
+                        }
+
+                        // Gemini reports usage in usageMetadata
+                        if let Some(um) = v.get("usageMetadata") {
+                            let input = um["promptTokenCount"].as_u64().unwrap_or(0);
+                            let output = um["candidatesTokenCount"].as_u64().unwrap_or(0);
+                            if input > 0 || output > 0 {
+                                chunks.push(StreamChunk {
+                                    delta_text: None,
+                                    tool_calls: vec![],
+                                    finish_reason: None,
+                                    usage: Some(TokenUsage {
+                                        input_tokens: input,
+                                        output_tokens: output,
+                                        total_tokens: um["totalTokenCount"].as_u64().unwrap_or(input + output),
+                                    }),
+                                });
                             }
                         }
                     }
@@ -636,7 +806,10 @@ impl GoogleProvider {
             }
         }
 
-        Ok(chunks)
+            return Ok(chunks);
+        }
+
+        Err(last_error)
     }
 }
 

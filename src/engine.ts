@@ -31,6 +31,7 @@ export interface EngineChatRequest {
   temperature?: number;
   provider_id?: string;
   tools_enabled?: boolean;
+  attachments?: Array<{ mimeType: string; content: string }>;
 }
 
 export interface EngineChatResponse {
@@ -73,6 +74,7 @@ export interface EngineEvent {
   success?: boolean;
   // complete
   tool_calls_count?: number;
+  usage?: { input_tokens: number; output_tokens: number; total_tokens: number };
   // error
   message?: string;
 }
@@ -186,6 +188,11 @@ class PawEngineClient {
   /** Check if the engine is configured and ready. */
   async status(): Promise<EngineStatus> {
     return invoke<EngineStatus>('engine_status');
+  }
+
+  /** Resolve a pending tool approval (HIL — Human In the Loop). */
+  async approveTool(toolCallId: string, approved: boolean): Promise<void> {
+    return invoke('engine_approve_tool', { toolCallId, approved });
   }
 }
 

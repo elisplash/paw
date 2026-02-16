@@ -1,6 +1,6 @@
 # Paw Agent Engine — Implementation Status
 
-> Last updated: 2026-02-16
+> Last updated: 2026-02-17
 
 ## What This Is
 
@@ -13,22 +13,55 @@ Zero network hop, zero open ports, zero auth tokens in engine mode.
 
 ---
 
-## Current Status: Phase 1 COMPLETE ✅
+## Current Status: Phase 2 COMPLETE ✅
 
-Chat works end-to-end in engine mode with Gemini (tested & confirmed 2026-02-16).
+Phase 1 (core engine) was completed 2026-02-16. Phase 2 (security, session management, token metering, error handling, attachments) completed 2026-02-17.
 
-### What's Working
+### Phase 2 Features
+
+#### P1: Human-in-the-Loop (HIL) Tool Approval ✅
+- **Rust:** `PendingApprovals` map with `tokio::sync::oneshot` channels in `EngineState`. Agent loop emits `ToolRequest` event and pauses until frontend resolves via `engine_approve_tool` command. Configurable timeout (`tool_timeout_secs`, default 120s).
+- **Frontend:** `onEngineToolApproval()` / `resolveEngineToolApproval()` in engine-bridge.ts. Full security pipeline in main.ts mirrors gateway approval flow: risk classification (critical/high/medium/low), allowlist/denylist checks, auto-deny for privilege escalation & critical commands, read-only project mode enforcement, session-level overrides, network audit for fetch calls.
+- **UX:** Reuses existing approval modal (`#approval-modal`) with same Allow/Deny/Always Allow UI.
+
+#### P2: Session Management (Dual-Mode) ✅
+- `loadSessions()` routes to `pawEngine.sessionsList()` in engine mode
+- `loadChatHistory()` routes to `pawEngine.chatHistory()` in engine mode
+- Session rename → `pawEngine.sessionRename()` in engine mode
+- Session delete → `pawEngine.sessionDelete()` in engine mode
+
+#### P3: Token Metering ✅
+- **Rust:** `TokenUsage` struct (`input_tokens`, `output_tokens`, `total_tokens`) added to `StreamChunk` and `EngineEvent::Complete`
+- **OpenAI:** Parsed from `usage.prompt_tokens` / `usage.completion_tokens` in final SSE chunk (enabled via `stream_options.include_usage`)
+- **Anthropic:** Parsed from `message_start` (`input_tokens`) and `message_delta` (`output_tokens`) events
+- **Google:** Parsed from `usageMetadata.promptTokenCount` / `candidatesTokenCount`
+- **Accumulation:** Agent loop sums usage across all chunks per turn, forwards total in `Complete` event
+- **Frontend:** Usage data forwarded through bridge in lifecycle end event
+
+#### P4: Error Handling & Retry ✅
+- **Exponential backoff** for all 3 providers: max 3 retries, delays 1s → 2s → 4s
+- **Retryable status codes:** 429 (rate limit), 500, 502, 503, 529
+- **Non-retryable errors** (401, 403, 404, etc.) fail immediately with clear error messages
+- **Provider-level** retry wraps the HTTP request + SSE stream setup
+
+#### P5: Attachment Support ✅
+- **Rust:** `ChatAttachment` struct (mime_type, content) added to `ChatRequest`
+- **OpenAI format:** Attachments converted to `image_url` content blocks with `data:{mime};base64,{content}` URIs in `format_messages()`
+- **Bridge:** `engineChatSend()` passes attachments through from frontend chat options
+- **Commands:** `engine_chat_send` parses attachment objects from frontend and prepends as `ContentBlock::ImageUrl` blocks
+
+### Phase 1 Features (Baseline)
 - **Dual-mode switching** — Settings → General → Runtime Mode → Engine/Gateway
 - **Google Gemini** — tested and working (gemini-2.0-flash confirmed)
-- **OpenAI-compatible** — OpenAI, OpenRouter, Ollama, Custom endpoints (code complete, untested)
-- **Anthropic** — Claude models (code complete, untested)
+- **OpenAI-compatible** — OpenAI, OpenRouter, Ollama, Custom endpoints
+- **Anthropic** — Claude models
 - **SSE streaming** — Real-time token streaming to chat UI
 - **Tool definitions** — exec, fetch, read_file, write_file tools sent to model
 - **Tool execution** — Shell commands, HTTP requests, file I/O
 - **SQLite sessions** — Conversation history stored in `~/.paw/engine.db`
 - **Engine settings UI** — Provider selection, API key, model, base URL config
 
-### Bugs Fixed
+### Bugs Fixed (Phase 1)
 1. **Gemini schema error** — `additionalProperties` not supported by Google; added `sanitize_schema()` recursive stripper
 2. **Events silently dropped** — Engine sessions used `paw-{uuid}` which hit the `paw-*` background session filter in main.ts; changed to `eng-{uuid}`
 
@@ -41,19 +74,19 @@ Chat works end-to-end in engine mode with Gemini (tested & confirmed 2026-02-16)
 | File | LOC | Purpose |
 |------|-----|---------|
 | `mod.rs` | 10 | Module declarations |
-| `types.rs` | ~390 | All data structures: Message, Role, ToolCall, ToolDefinition, EngineEvent, Session, StoredMessage, ChatRequest/Response, EngineConfig, ProviderConfig, ProviderKind, StreamChunk |
-| `providers.rs` | ~685 | AI provider HTTP clients with SSE streaming. `OpenAiProvider` (OpenAI/OpenRouter/Ollama/Custom), `AnthropicProvider`, `GoogleProvider`. `AnyProvider` enum with `from_config()` factory |
-| `agent_loop.rs` | ~195 | Core agentic loop: call model → accumulate chunks → if tool calls → execute → loop back. Emits `engine-event` Tauri events for real-time streaming |
+| `types.rs` | ~420 | All data structures: Message, Role, ToolCall, ToolDefinition, EngineEvent, Session, StoredMessage, ChatRequest/Response, EngineConfig, ProviderConfig, ProviderKind, StreamChunk, **TokenUsage**, **ChatAttachment** |
+| `providers.rs` | ~780 | AI provider HTTP clients with SSE streaming. `OpenAiProvider`, `AnthropicProvider`, `GoogleProvider`. `AnyProvider` enum. **Exponential backoff retry** (3 retries on 429/500/502/503/529). **Token usage parsing** per provider. **Attachment content block formatting** (OpenAI) |
+| `agent_loop.rs` | ~250 | Core agentic loop: call model → accumulate chunks → if tool calls → **HIL approval wait** → execute → loop back. **Token usage accumulation** across chunks. Emits `engine-event` Tauri events |
 | `tool_executor.rs` | ~190 | Tool execution: `exec` (sh -c), `fetch` (reqwest), `read_file`, `write_file`. Output truncation (50KB exec, 50KB fetch, 100KB read) |
 | `sessions.rs` | ~285 | SQLite session/message storage via rusqlite. DB at `~/.paw/engine.db` with WAL mode. Tables: sessions, messages, engine_config |
-| `commands.rs` | ~340 | 10 Tauri `#[tauri::command]` handlers + `EngineState` struct. Smart provider resolution by model prefix (claude→Anthropic, gemini→Google, gpt→OpenAI) |
+| `commands.rs` | ~380 | 11 Tauri `#[tauri::command]` handlers + `EngineState` struct with **`PendingApprovals`** map. **`engine_approve_tool`** command. **Attachment parsing** in chat_send. Smart provider resolution by model prefix |
 
 ### TypeScript Frontend (`src/`)
 
 | File | LOC | Purpose |
 |------|-----|---------|
-| `engine.ts` | ~192 | `PawEngineClient` class — Tauri `invoke()` wrappers for all 10 commands. Event listener system. Exported singleton `pawEngine` |
-| `engine-bridge.ts` | ~142 | Translates engine events → gateway-style agent events. `isEngineMode()`, `startEngineBridge()`, `onEngineAgent()`, `engineChatSend()` |
+| `engine.ts` | ~200 | `PawEngineClient` class — Tauri `invoke()` wrappers for all 11 commands. **`approveTool()`** method. Event listener system. Exported singleton `pawEngine` |
+| `engine-bridge.ts` | ~175 | Translates engine events → gateway-style agent events. `isEngineMode()`, `startEngineBridge()`, `onEngineAgent()`, `engineChatSend()`. **`onEngineToolApproval()`** / **`resolveEngineToolApproval()`** for HIL. **Attachment passthrough**. **Usage data forwarding**. Filters intermediate Complete events |
 | `views/settings-engine.ts` | ~124 | Engine settings UI: mode toggle, provider kind, API key, model, base URL, save button |
 
 ### Modified Files
@@ -61,8 +94,8 @@ Chat works end-to-end in engine mode with Gemini (tested & confirmed 2026-02-16)
 | File | Changes |
 |------|---------|
 | `src-tauri/Cargo.toml` | Added: reqwest 0.12 (json+stream+rustls-tls), tokio 1 (full), tokio-stream 0.1, futures 0.3, uuid 1 (v4), rusqlite 0.31 (bundled) |
-| `src-tauri/src/lib.rs` | Added `pub mod engine;`, `EngineState` init in `run()`, `.manage(engine_state)`, 10 engine commands in `invoke_handler` |
-| `src/main.ts` | Imported engine-bridge, dual-mode in `connectGateway()`, `handleAgentEvent()` extracted as named function, registered with both gateway and engine, `sendMessage()` routes through engine in engine mode |
+| `src-tauri/src/lib.rs` | Added `pub mod engine;`, `EngineState` init with `PendingApprovals`, `.manage(engine_state)`, 11 engine commands in `invoke_handler` |
+| `src/main.ts` | Engine-bridge imports, dual-mode `connectGateway()`, `handleAgentEvent()`, dual-mode `sendMessage()`. **Phase 2:** dual-mode `loadSessions()`, `loadChatHistory()`, session rename/delete. **HIL approval handler** (~150 lines) via `onEngineToolApproval()` with full security pipeline. Attachment type handling |
 | `index.html` | Runtime Mode section in Settings → General with engine config panel |
 
 ---
@@ -80,14 +113,20 @@ User types message
             → spawns async agent_loop::run_agent_turn
               → provider.chat_stream() [SSE to AI API]
               → emits engine-event (Delta/ToolRequest/ToolResult/Complete/Error)
+              → on ToolRequest: PAUSES on oneshot channel
             → stores messages in SQLite
   
   engine-event Tauri events
     → PawEngineClient listener [engine.ts]
       → wildcard dispatch
         → translateEngineEvent() [engine-bridge.ts]
-          → handleAgentEvent() [main.ts]
-            → appendStreamingDelta() / finalizeStreaming()
+          → handleAgentEvent() [main.ts] — chat UI updates
+        → onEngineToolApproval handler [main.ts] — for tool_request events
+          → security classification [security.ts]
+          → approval modal / auto-approve/deny
+          → resolveEngineToolApproval() → pawEngine.approveTool()
+            → invoke('engine_approve_tool') → oneshot channel resolves
+              → agent_loop resumes execution
 ```
 
 ### Session ID Conventions
@@ -117,39 +156,28 @@ When no `provider_id` is specified, the engine resolves by model name prefix:
 
 ---
 
-## Phase 2 — What's Needed Next
+## Phase 3 — What's Needed Next
 
-### Priority 1: Security (HIL — Human In the Loop)
-- **Location:** `tool_executor.rs` has a TODO comment marking where to add this
-- **What:** Before executing `exec` or `write_file`, emit a `ToolRequest` event and WAIT for user approval via a frontend dialog
-- **Frontend:** Need an approval modal/toast in main.ts that responds via a Tauri command (`engine_approve_tool`)
-- **Rust:** Add a oneshot channel or similar mechanism in tool_executor to pause execution until approval arrives
-- **Reference:** Paw's existing `security.ts` has command classification logic that could be reused
-
-### Priority 2: Session Management in Engine Mode
-- **What:** The session list/dropdown and history loading in main.ts still call gateway methods
-- **Need:** Wire `loadSessions()` and `loadChatHistory()` to use `pawEngine.sessionsList()` and `pawEngine.chatHistory()` when in engine mode
-- **Also:** Session rename/delete buttons should call engine equivalents
-
-### Priority 3: Token Metering
-- **What:** The engine doesn't report token usage back to the frontend
-- **Need:** Parse usage info from API responses (each provider returns it differently) and include in Complete events
-- **Frontend:** The `recordTokenUsage()` function in main.ts expects `{ input_tokens, output_tokens }` shape
-
-### Priority 4: Error Handling
-- **Retry logic** for transient API errors (429 rate limit, 500/503 server errors)
-- **Better error display** — currently errors may not always surface clearly in the UI
-- **API key validation** — test the key on save in settings
-
-### Priority 5: Attachments
-- **What:** The gateway path handles file/image attachments via `chatOpts.attachments`
-- **Need:** Add attachment support to `ChatRequest` and format them per provider (base64 images for OpenAI/Anthropic, inline data for Google)
-
-### Priority 6: Multi-Provider Testing
+### Priority 1: Multi-Provider Testing
 - Test with Anthropic API key (Claude models)
 - Test with OpenAI API key (GPT-4o, etc.)
 - Test with OpenRouter
 - Test with local Ollama
+- Verify HIL approval flow works for each provider
+- Verify token metering reports correct values per provider
+
+### Priority 2: Attachment Support — Additional Providers
+- Anthropic: base64 image content blocks (`type: "image"`)
+- Google: inline data parts (`inlineData: { mimeType, data }`)
+- Currently only OpenAI format is implemented
+
+### Priority 3: API Key Validation
+- Test API key on save in engine settings (lightweight test call)
+- Show success/error feedback in settings UI
+
+### Priority 4: Extended Error Surfacing
+- Ensure all error states (auth, rate limit, model not found) display clearly in chat UI
+- Consider a dedicated error toast for non-recoverable errors
 
 ---
 

@@ -2634,6 +2634,7 @@ pub fn run() {
             engine::commands::engine_upsert_provider,
             engine::commands::engine_remove_provider,
             engine::commands::engine_status,
+            engine::commands::engine_approve_tool,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

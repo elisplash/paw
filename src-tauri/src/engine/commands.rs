@@ -6,14 +6,22 @@ use crate::engine::types::*;
 use crate::engine::providers::AnyProvider;
 use crate::engine::sessions::SessionStore;
 use crate::engine::agent_loop;
-use log::{info, error};
-use std::sync::Mutex;
+use log::{info, warn, error};
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
+
+/// Pending tool approvals: maps tool_call_id → oneshot sender.
+/// The agent loop registers a sender before emitting ToolRequest,
+/// then awaits the receiver. The `engine_approve_tool` command
+/// resolves it from the frontend.
+pub type PendingApprovals = Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>>;
 
 /// Engine state managed by Tauri.
 pub struct EngineState {
     pub store: SessionStore,
     pub config: Mutex<EngineConfig>,
+    pub pending_approvals: PendingApprovals,
 }
 
 impl EngineState {
@@ -31,6 +39,7 @@ impl EngineState {
         Ok(EngineState {
             store,
             config: Mutex::new(config),
+            pending_approvals: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 }
@@ -122,6 +131,29 @@ pub async fn engine_chat_send(
         system_prompt.as_deref(),
     )?;
 
+    // If the user message has attachments, replace the last (user) message with
+    // one that includes image content blocks, so the provider can see the images.
+    if !request.attachments.is_empty() {
+        // Pop the plain-text user message we just loaded from DB
+        if let Some(last_msg) = messages.last_mut() {
+            if last_msg.role == Role::User {
+                let mut blocks = vec![ContentBlock::Text { text: request.message.clone() }];
+                for att in &request.attachments {
+                    if att.mime_type.starts_with("image/") {
+                        let data_url = format!("data:{};base64,{}", att.mime_type, att.content);
+                        blocks.push(ContentBlock::ImageUrl {
+                            image_url: ImageUrlData {
+                                url: data_url,
+                                detail: Some("auto".into()),
+                            },
+                        });
+                    }
+                }
+                last_msg.content = MessageContent::Blocks(blocks);
+            }
+        }
+    }
+
     // Build tools
     let tools = if request.tools_enabled.unwrap_or(true) {
         ToolDefinition::builtins()
@@ -137,6 +169,11 @@ pub async fn engine_chat_send(
 
     let session_id_clone = session_id.clone();
     let run_id_clone = run_id.clone();
+    let approvals = state.pending_approvals.clone();
+    let tool_timeout = {
+        let cfg = state.config.lock().map_err(|e| format!("Lock error: {}", e))?;
+        cfg.tool_timeout_secs
+    };
 
     // Spawn the agent loop in a background task
     let app = app_handle.clone();
@@ -153,6 +190,8 @@ pub async fn engine_chat_send(
             &run_id_clone,
             max_rounds,
             temperature,
+            &approvals,
+            tool_timeout,
         ).await {
             Ok(final_text) => {
                 info!("[engine] Agent turn complete: {} chars", final_text.len());
@@ -337,4 +376,25 @@ pub fn engine_status(
         "default_model": cfg.default_model,
         "default_provider": cfg.default_provider,
     }))
+}
+
+/// Resolve a pending tool approval from the frontend.
+/// Called by the approval modal when the user clicks Allow or Deny.
+#[tauri::command]
+pub fn engine_approve_tool(
+    state: State<'_, EngineState>,
+    tool_call_id: String,
+    approved: bool,
+) -> Result<(), String> {
+    let mut map = state.pending_approvals.lock()
+        .map_err(|e| format!("Lock error: {}", e))?;
+
+    if let Some(sender) = map.remove(&tool_call_id) {
+        info!("[engine] Tool approval resolved: {} → {}", tool_call_id, if approved { "ALLOWED" } else { "DENIED" });
+        let _ = sender.send(approved);
+        Ok(())
+    } else {
+        warn!("[engine] No pending approval found for tool_call_id={}", tool_call_id);
+        Err(format!("No pending approval for {}", tool_call_id))
+    }
 }
