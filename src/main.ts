@@ -1344,20 +1344,22 @@ async function sendMessage() {
     }, 120_000);
   });
 
+  // Declare chatOpts outside try — Safari/WebKit has TDZ bugs with let-in-try
+  let chatOpts: {
+    model?: string;
+    systemPrompt?: string;
+    thinkingLevel?: string;
+    temperature?: number;
+    attachments?: import('./types').ChatAttachment[];
+    agentProfile?: Partial<import('./types').Agent>;
+  } = {};
+
   try {
     const sessionKey = currentSessionKey ?? 'default';
 
     // Read selected mode's overrides (model, system prompt, thinking level)
     const modeSelect = $('chat-mode-select') as HTMLSelectElement | null;
     const selectedModeId = modeSelect?.value;
-    let chatOpts: {
-      model?: string;
-      systemPrompt?: string;
-      thinkingLevel?: string;
-      temperature?: number;
-      attachments?: import('./types').ChatAttachment[];
-      agentProfile?: Partial<import('./types').Agent>;
-    } = {};
     if (selectedModeId) {
       const modes = await listModes();
       const mode = modes.find(m => m.id === selectedModeId);
