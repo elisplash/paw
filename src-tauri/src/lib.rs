@@ -1982,24 +1982,30 @@ fn repair_openclaw_config() -> Result<bool, String> {
                 }
             }
 
-            // Set default model to google/gemini-2.5-pro if no primary model is configured
+            // Force default model to google/gemini-2.5-pro.
+            // Previous configs may point to an Anthropic or Azure provider that
+            // is no longer reachable (Azure subscription suspended).  Always
+            // override to Google Gemini so the user has a working model.
+            if !obj.contains_key("agents") {
+                obj.insert("agents".to_string(), serde_json::json!({}));
+            }
             if let Some(agents) = obj.get_mut("agents").and_then(|a| a.as_object_mut()) {
                 if !agents.contains_key("defaults") {
                     agents.insert("defaults".to_string(), serde_json::json!({}));
                 }
                 if let Some(defaults) = agents.get_mut("defaults").and_then(|d| d.as_object_mut()) {
-                    let has_primary = defaults
+                    let current_primary = defaults
                         .get("model")
                         .and_then(|m| m.get("primary"))
                         .and_then(|p| p.as_str())
-                        .map(|s| !s.is_empty())
-                        .unwrap_or(false);
-                    if !has_primary {
+                        .unwrap_or("")
+                        .to_string();
+                    if current_primary != "google/gemini-2.5-pro" {
                         defaults.insert("model".to_string(), serde_json::json!({
                             "primary": "google/gemini-2.5-pro"
                         }));
                         repaired = true;
-                        info!("Set default model to google/gemini-2.5-pro");
+                        info!("Overrode default model from '{}' to google/gemini-2.5-pro", current_primary);
                     }
                 }
             }
