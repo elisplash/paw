@@ -1393,10 +1393,9 @@ body::after {
 }
 
 /* ─── Settings ─── */
-.settings-view {
+.settings-view.active {
   padding: 28px;
   overflow-y: hidden;
-  display: flex;
   flex-direction: column;
 }
 
