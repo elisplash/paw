@@ -1795,6 +1795,14 @@ gateway.on('chat', (payload: unknown) => {
       // Track token usage from chat final event
       const chatUsage = (msg.usage ?? evt.usage) as Record<string, unknown> | undefined;
       recordTokenUsage(chatUsage);
+    } else {
+      // chat.final with no message body — the agent produced no output.
+      // Resolve the grace period immediately instead of waiting.
+      console.warn(`[main] Chat final with no message body (runId=${runId?.slice(0,12)}) — agent produced no output`);
+      if (_streamingResolve) {
+        _streamingResolve(_streamingContent || '');
+        _streamingResolve = null;
+      }
     }
   } catch (e) {
     console.warn('[main] Chat event handler error:', e);
