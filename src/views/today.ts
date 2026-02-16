@@ -48,26 +48,33 @@ async function fetchWeather() {
   if (!weatherEl) return;
   
   try {
-    // Simple weather fetch - use proxy-friendly format
-    const response = await fetch('https://wttr.in/?format=j1');
-    const data = await response.json();
-    const current = data?.current_condition?.[0];
-    if (current) {
-      const temp = current.temp_F || current.temp_C;
-      const desc = current.weatherDesc?.[0]?.value || '';
-      const icon = getWeatherIcon(current.weatherCode);
+    // Use wttr.in with simple text format (more reliable)
+    const response = await fetch('https://wttr.in/?format=%c|%t|%C', {
+      headers: { 'User-Agent': 'curl' }
+    });
+    const text = await response.text();
+    if (text && !text.includes('Unknown')) {
+      const [icon, temp, desc] = text.trim().split('|');
       weatherEl.innerHTML = `
         <div class="today-weather-main">
-          <span class="today-weather-icon">${icon}</span>
-          <span class="today-weather-temp">${temp}°F</span>
+          <span class="today-weather-icon">${icon || '🌤️'}</span>
+          <span class="today-weather-temp">${temp || '--'}</span>
         </div>
-        <div class="today-weather-desc">${desc}</div>
+        <div class="today-weather-desc">${desc || ''}</div>
       `;
     } else {
       throw new Error('No weather data');
     }
-  } catch {
-    weatherEl.innerHTML = '<span class="today-weather-unavailable">Weather unavailable</span>';
+  } catch (e) {
+    console.warn('[today] Weather fetch failed:', e);
+    // Fallback: show a nice message
+    weatherEl.innerHTML = `
+      <div class="today-weather-main">
+        <span class="today-weather-icon">🌤️</span>
+        <span class="today-weather-temp">--</span>
+      </div>
+      <div class="today-weather-desc">Check <a href="https://wttr.in" target="_blank">wttr.in</a></div>
+    `;
   }
 }
 
