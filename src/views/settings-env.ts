@@ -99,11 +99,11 @@ export async function loadEnvSettings() {
     container.appendChild(saveReloadButtons(
       async () => {
         const newVars: Record<string, string | null> = {};
-        // First null-out all old keys (to delete removed ones)
+        // null-out old keys for deletion (RFC 7386: null = delete in config.patch)
         for (const oldKey of Object.keys(vars)) {
           newVars[oldKey] = null;
         }
-        // Then set current rows
+        // Then set current rows (overrides the null for keys that still exist)
         for (const r of rows) {
           const k = r.key.value.trim();
           const v = r.val.value;

@@ -1,6 +1,9 @@
 // Settings Config — shared config read/write/cache utilities
 // Used by all settings panels to read/write OpenClaw gateway config
 // Each panel imports getConfig() and patchConfig() from here
+//
+// All writes go through gateway config.patch (RFC 7386 merge semantics + baseHash).
+// This replaces the old read→merge→config.apply pattern that caused corruption.
 
 import { gateway } from '../gateway';
 import { showToast } from '../components/toast';
@@ -8,6 +11,7 @@ import { showToast } from '../components/toast';
 // ── Config Cache ───────────────────────────────────────────────────────────
 
 let _configCache: Record<string, unknown> | null = null;
+let _configHash: string | null = null;          // baseHash for optimistic concurrency
 let _configLoading: Promise<Record<string, unknown>> | null = null;
 
 /** Fetch config from gateway (cached, deduped). Call invalidate() after writes. */
@@ -16,6 +20,7 @@ export async function getConfig(): Promise<Record<string, unknown>> {
   if (_configLoading) return _configLoading;
   _configLoading = gateway.configGet().then(r => {
     _configCache = r.config as Record<string, unknown>;
+    _configHash = r.hash ?? null;
     _configLoading = null;
     return _configCache;
   }).catch(e => {
@@ -25,12 +30,19 @@ export async function getConfig(): Promise<Record<string, unknown>> {
   return _configLoading;
 }
 
-/** Force-refresh config from gateway (bypasses cache). */
+/** Get the last known baseHash from config.get (used for writes). */
+export function getConfigHash(): string | null {
+  return _configHash;
+}
+
+/** Force-refresh config from gateway (bypasses cache). Returns config + updates hash. */
 async function freshConfig(): Promise<Record<string, unknown>> {
   _configCache = null;
+  _configHash = null;
   _configLoading = null;
   const r = await gateway.configGet();
   _configCache = r.config as Record<string, unknown>;
+  _configHash = r.hash ?? null;
   return _configCache;
 }
 
@@ -55,45 +67,56 @@ export function buildPatch(path: string, value: unknown): Record<string, unknown
   return patch;
 }
 
-/** Deep-merge source into target (mutates target). Arrays are replaced, not merged. */
-function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
-  for (const key of Object.keys(source)) {
-    const sv = source[key];
-    const tv = target[key];
-    if (sv && typeof sv === 'object' && !Array.isArray(sv) && tv && typeof tv === 'object' && !Array.isArray(tv)) {
-      deepMerge(tv as Record<string, unknown>, sv as Record<string, unknown>);
-    } else {
-      target[key] = sv;
-    }
-  }
-  return target;
-}
+const MAX_PATCH_RETRIES = 2;
 
-/** Patch config via read → deep-merge → config.apply (serialized as JSON string).
- *  This ensures partial patches don't wipe the rest of the config.
+/** Patch config via gateway config.patch (RFC 7386 merge semantics).
+ *  Sends only the partial patch — the gateway merges server-side.
+ *  Uses baseHash for optimistic concurrency; retries on hash conflict.
+ *  null values delete keys (RFC 7386). Objects merge recursively.
  *  Invalidates cache on success. Shows toast on error.
  *  Returns true on success, false on error.
  */
 export async function patchConfig(patch: Record<string, unknown>, silent = false): Promise<boolean> {
-  try {
-    // Always get fresh config before merging
-    const current = await freshConfig();
-    const merged = JSON.parse(JSON.stringify(current));
-    deepMerge(merged, patch);
-    const result = await gateway.configWrite(merged);
-    _configCache = null;
-    if (!result.ok && result.errors?.length) {
-      showToast(`Config error: ${result.errors.join(', ')}`, 'error');
+  for (let attempt = 0; attempt <= MAX_PATCH_RETRIES; attempt++) {
+    try {
+      // Ensure we have a fresh hash before writing
+      if (!_configHash) {
+        await freshConfig();
+      }
+
+      const result = await gateway.configPatch(patch, _configHash ?? undefined);
+
+      // Invalidate cache — next read will get fresh config + new hash
+      _configCache = null;
+      _configHash = null;
+
+      if (!result.ok && result.errors?.length) {
+        showToast(`Config error: ${result.errors.join(', ')}`, 'error');
+        return false;
+      }
+      if (!silent) {
+        showToast('Settings saved', 'success');
+      }
+      return true;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+
+      // Hash conflict — re-fetch config and retry
+      if (msg.includes('config changed since last load') || msg.includes('base hash')) {
+        console.warn(`[settings] Config hash conflict (attempt ${attempt + 1}/${MAX_PATCH_RETRIES + 1}), refreshing…`);
+        _configCache = null;
+        _configHash = null;
+        await freshConfig();
+        continue;
+      }
+
+      showToast(`Save failed: ${msg}`, 'error');
       return false;
     }
-    if (!silent) {
-      showToast('Settings saved', 'success');
-    }
-    return true;
-  } catch (e) {
-    showToast(`Save failed: ${e instanceof Error ? e.message : e}`, 'error');
-    return false;
   }
+
+  showToast('Save failed: config changed during save — please try again', 'error');
+  return false;
 }
 
 /** Convenience: patch a single dot-path value */
@@ -102,40 +125,16 @@ export async function patchValue(path: string, value: unknown, silent = false): 
 }
 
 /** Delete a config key by dot path (e.g. 'models.providers.google').
- *  Reads full config, clones, removes the key, then applies the full config.
- *  This avoids sending null values to the gateway.
+ *  Uses config.patch with null value — RFC 7386 semantics: null deletes a key.
  */
 export async function deleteConfigKey(path: string, silent = false): Promise<boolean> {
-  try {
-    const current = await freshConfig();
-    const merged = JSON.parse(JSON.stringify(current));
-    const keys = path.split('.');
-    let obj: Record<string, unknown> = merged;
-    for (let i = 0; i < keys.length - 1; i++) {
-      if (!obj[keys[i]] || typeof obj[keys[i]] !== 'object') return true;
-      obj = obj[keys[i]] as Record<string, unknown>;
-    }
-    delete obj[keys[keys.length - 1]];
-
-    const result = await gateway.configWrite(merged);
-    _configCache = null;
-    if (!result.ok && result.errors?.length) {
-      showToast(`Config error: ${result.errors.join(', ')}`, 'error');
-      return false;
-    }
-    if (!silent) {
-      showToast('Removed', 'success');
-    }
-    return true;
-  } catch (e) {
-    showToast(`Delete failed: ${e instanceof Error ? e.message : e}`, 'error');
-    return false;
-  }
+  return patchConfig(buildPatch(path, null), silent);
 }
 
 /** Invalidate cache (call after external config changes or on reconnect) */
 export function invalidateConfigCache(): void {
   _configCache = null;
+  _configHash = null;
   _configLoading = null;
 }
 

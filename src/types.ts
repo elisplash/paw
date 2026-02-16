@@ -423,12 +423,27 @@ export interface NodeListResult {
 export interface GatewayConfigResult {
   config: Record<string, unknown>;
   path: string;
+  hash?: string;   // SHA-256 of raw file content — pass as baseHash to config.apply / config.patch
+  exists?: boolean;
+  valid?: boolean;
+  issues?: Array<{ path?: string; message: string }>;
+  warnings?: Array<{ path?: string; message: string }>;
 }
 
 export interface ConfigApplyResult {
   ok: boolean;
   restarted?: boolean;
   errors?: string[];
+  path?: string;
+  config?: Record<string, unknown>;
+}
+
+export interface ConfigPatchParams {
+  raw: string;         // JSON5 string with just the keys to change
+  baseHash?: string;   // SHA-256 hash from config.get — required when config exists
+  sessionKey?: string;
+  note?: string;
+  restartDelayMs?: number;
 }
 
 export interface ConfigSchemaResult {

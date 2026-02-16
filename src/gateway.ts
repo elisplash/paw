@@ -693,15 +693,37 @@ class GatewayClient {
     return this.request<GatewayConfigResult>('config.get', {});
   }
 
-  /** Write full config object via config.apply (sends only { raw } — no extra metadata). */
-  async configWrite(config: Record<string, unknown>): Promise<ConfigApplyResult> {
+  /** Partial config update via config.patch (RFC 7386 JSON Merge Patch + baseHash).
+   *  null values delete keys. Objects merge recursively. Arrays replace.
+   *  This is the PREFERRED method for settings panels — avoids full-replace footguns.
+   */
+  async configPatch(patch: Record<string, unknown>, baseHash?: string, opts?: { restartDelayMs?: number; note?: string }): Promise<ConfigApplyResult> {
+    const raw = JSON.stringify(patch, null, 2);
+    return this.request<ConfigApplyResult>('config.patch', {
+      raw,
+      ...(baseHash ? { baseHash } : {}),
+      ...(opts?.restartDelayMs != null ? { restartDelayMs: opts.restartDelayMs } : {}),
+      ...(opts?.note ? { note: opts.note } : {}),
+    }, 60_000);
+  }
+
+  /** Full config replace via config.apply (sends { raw, baseHash }).
+   *  @deprecated Prefer configPatch() for partial updates.
+   */
+  async configWrite(config: Record<string, unknown>, baseHash?: string): Promise<ConfigApplyResult> {
     const raw = JSON.stringify(config, null, 2);
-    return this.request<ConfigApplyResult>('config.apply', { raw }, 60_000);
+    return this.request<ConfigApplyResult>('config.apply', {
+      raw,
+      ...(baseHash ? { baseHash } : {}),
+    }, 60_000);
   }
 
   /** Write raw JSON string directly via config.apply. Used by the raw config editor. */
-  async configApplyRaw(rawJson: string): Promise<ConfigApplyResult> {
-    return this.request<ConfigApplyResult>('config.apply', { raw: rawJson }, 60_000);
+  async configApplyRaw(rawJson: string, baseHash?: string): Promise<ConfigApplyResult> {
+    return this.request<ConfigApplyResult>('config.apply', {
+      raw: rawJson,
+      ...(baseHash ? { baseHash } : {}),
+    }, 60_000);
   }
 
   async configSchema(): Promise<ConfigSchemaResult> {

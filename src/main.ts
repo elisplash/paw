@@ -715,6 +715,9 @@ function initSettingsTabs() {
 }
 
 // ── Config editor (Settings > OpenClaw Configuration) ──────────────────────
+// Track the baseHash for the raw config editor (set by loadGatewayConfig)
+let _rawConfigHash: string | null = null;
+
 async function loadGatewayConfig() {
   const section = $('settings-config-section');
   const editor = $('settings-config-editor') as HTMLTextAreaElement | null;
@@ -725,6 +728,7 @@ async function loadGatewayConfig() {
   }
   try {
     const result = await gateway.configGet();
+    _rawConfigHash = result.hash ?? null;
     if (section) section.style.display = '';
     if (editor) editor.value = JSON.stringify(result.config, null, 2);
 
@@ -777,7 +781,8 @@ $('settings-save-config')?.addEventListener('click', async () => {
       if (!proceed) return;
     }
 
-    await gateway.configWrite(parsed);
+    await gateway.configWrite(parsed, _rawConfigHash ?? undefined);
+    _rawConfigHash = null; // invalidate — next load will refresh
     alert('Configuration saved!');
   } catch (e) {
     alert(`Invalid config: ${e instanceof Error ? e.message : e}`);
@@ -799,7 +804,8 @@ $('settings-apply-config')?.addEventListener('click', async () => {
       );
       if (!proceed) return;
     }
-    const result = await gateway.configApplyRaw(JSON.stringify(parsed, null, 2));
+    const result = await gateway.configApplyRaw(JSON.stringify(parsed, null, 2), _rawConfigHash ?? undefined);
+    _rawConfigHash = null; // invalidate — next load will refresh
     if (result.errors?.length) {
       alert(`Config applied with warnings:\n${result.errors.join('\n')}`);
     } else {
@@ -2191,19 +2197,14 @@ async function saveChannelSetup() {
     // Build the config patch from the setup definition
     const patch = def.buildConfig(values);
 
-    // First, get current config to deep-merge channels
-    const current = await gateway.configGet();
-    const currentChannels = (current.config as Record<string, unknown>)?.channels as Record<string, unknown> ?? {};
-    const patchChannels = (patch as Record<string, unknown>).channels as Record<string, unknown>;
-
-    // Merge: keep existing channel configs, add/replace this one
-    const mergedChannels = { ...currentChannels, ...patchChannels };
-    const fullConfig = JSON.parse(JSON.stringify(current.config));
-    fullConfig.channels = mergedChannels;
-    await gateway.configWrite(fullConfig);
-
-    showToast(`${def.name} configured!`, 'success');
-    closeChannelSetup();
+    // Use config.patch — sends only the channel diff, gateway merges server-side
+    const result = await gateway.configPatch(patch as Record<string, unknown>);
+    if (!result.ok && result.errors?.length) {
+      showToast(`Config error: ${result.errors.join(', ')}`, 'error');
+    } else {
+      showToast(`${def.name} configured!`, 'success');
+      closeChannelSetup();
+    }
 
     // Reload channels after a brief delay (gateway needs to initialize the channel)
     setTimeout(() => loadChannels(), 1500);
@@ -2360,13 +2361,8 @@ async function loadChannels() {
         const chId = (btn as HTMLElement).dataset.ch!;
         if (!confirm(`Remove ${chId} channel configuration? This will disconnect the channel.`)) return;
         try {
-          const current = await gateway.configGet();
-          const cfg = current.config as Record<string, unknown>;
-          const channels = { ...(cfg?.channels as Record<string, unknown> ?? {}) };
-          delete channels[chId];
-          const fullConfig = JSON.parse(JSON.stringify(cfg));
-          fullConfig.channels = channels;
-          await gateway.configWrite(fullConfig);
+          // RFC 7386: setting a key to null deletes it
+          await gateway.configPatch({ channels: { [chId]: null } });
           showToast(`${chId} removed`, 'success');
           setTimeout(() => loadChannels(), 1000);
         } catch (e) {

@@ -1,40 +1,16 @@
 // Settings: Models & Providers
 // CRUD for AI model providers + model definitions + default model selection
 // Uses inline forms instead of window.prompt/confirm (blocked in Tauri WebView)
-// Provider CRUD writes directly to ~/.openclaw/openclaw.json via Tauri (bypasses gateway config.apply)
+// All writes go through gateway config.patch (RFC 7386 merge semantics)
 
 import { gateway } from '../gateway';
 import { showToast } from '../components/toast';
 import {
-  getConfig, patchConfig, getVal, isConnected,
+  getConfig, patchConfig, deleteConfigKey, getVal, isConnected,
   esc, formRow, selectInput, textInput, toggleSwitch, saveReloadButtons
 } from './settings-config';
 
 const $ = (id: string) => document.getElementById(id);
-
-// ── Tauri invoke (direct file I/O) ────────────────────────────────────────
-
-interface TauriWindow {
-  __TAURI__?: {
-    core: { invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T> };
-  };
-}
-const _tw = window as unknown as TauriWindow;
-const invoke = _tw.__TAURI__?.core?.invoke;
-
-/** Read openclaw.json directly from disk */
-async function readConfigFile(): Promise<Record<string, unknown>> {
-  if (!invoke) throw new Error('Tauri not available');
-  const json = await invoke<string>('read_openclaw_config');
-  return JSON.parse(json);
-}
-
-/** Deep-merge a patch into openclaw.json on disk (bypasses gateway) */
-async function patchConfigFile(patch: Record<string, unknown>): Promise<Record<string, unknown>> {
-  if (!invoke) throw new Error('Tauri not available');
-  const json = await invoke<string>('patch_openclaw_config', { patchJson: JSON.stringify(patch) });
-  return JSON.parse(json);
-}
 
 // ── API Types ──────────────────────────────────────────────────────────────
 
@@ -76,19 +52,10 @@ export async function loadModelsSettings() {
     const routeSection = document.createElement('div');
     routeSection.className = 'settings-subsection';
     routeSection.innerHTML = `<h3 class="settings-subsection-title">Service Routing</h3>
-      <p class="settings-section-desc">Active provider endpoints. Reads directly from config file.</p>`;
+      <p class="settings-section-desc">Active provider endpoints from gateway config.</p>`;
 
-    // Read config from disk (not gateway — more reliable)
-    let diskProviders: Record<string, any> = {};
-    try {
-      if (invoke) {
-        const diskCfg = await readConfigFile();
-        diskProviders = (diskCfg?.models as any)?.providers ?? {};
-      }
-    } catch { /* fall through to gateway providers */ }
-
-    // Merge: prefer disk config, fall back to gateway-reported providers
-    const allProviders = { ...providers, ...diskProviders };
+    // Use gateway-reported providers (single source of truth)
+    const allProviders = providers;
 
     const routeTable = document.createElement('table');
     routeTable.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 16px 0';
@@ -356,10 +323,9 @@ export async function loadModelsSettings() {
       try {
         createBtn.disabled = true;
         createBtn.textContent = 'Creating…';
-        // Write directly to config file — bypasses gateway config.apply
-        await patchConfigFile({ models: { providers: { [name]: provObj } } });
-        showToast(`Provider "${name}" added — restart gateway to pick up changes`, 'success');
-        loadModelsSettings();
+        // Write through gateway config.patch — validated, hash-protected, triggers restart
+        const ok = await patchConfig({ models: { providers: { [name]: provObj } } });
+        if (ok) loadModelsSettings();
       } catch (e) {
         showToast(`Failed: ${e instanceof Error ? e.message : e}`, 'error');
         createBtn.disabled = false;
@@ -447,19 +413,13 @@ function renderProviderCard(name: string, prov: Record<string, unknown>): HTMLDi
       }, 4000);
       return;
     }
-    // Second click: actually delete via direct file I/O
+    // Second click: actually delete via gateway config.patch (null = delete in RFC 7386)
     confirmPending = false;
     delBtn.textContent = 'Removing…';
     delBtn.disabled = true;
     try {
-      const cfg = await readConfigFile();
-      const providers = (cfg.models as any)?.providers;
-      if (providers && typeof providers === 'object') {
-        delete providers[name];
-      }
-      await patchConfigFile({ models: { providers: providers ?? {} } });
-      showToast(`Provider "${name}" removed — restart gateway to apply`, 'success');
-      loadModelsSettings();
+      const ok = await deleteConfigKey(`models.providers.${name}`);
+      if (ok) loadModelsSettings();
     } catch (e) {
       showToast(`Remove failed: ${e instanceof Error ? e.message : e}`, 'error');
       delBtn.textContent = 'Remove';
@@ -501,7 +461,7 @@ function renderProviderCard(name: string, prov: Record<string, unknown>): HTMLDi
     : 'No models defined';
   card.appendChild(modelsInfo);
 
-  // Save — direct file I/O
+  // Save — via gateway config.patch
   card.appendChild(saveReloadButtons(
     async () => {
       const patch: Record<string, unknown> = {};
@@ -510,12 +470,7 @@ function renderProviderCard(name: string, prov: Record<string, unknown>): HTMLDi
       if (apiSel.value) patch.api = apiSel.value;
       // Preserve models array from original
       if (models.length) patch.models = models;
-      try {
-        await patchConfigFile({ models: { providers: { [name]: patch } } });
-        showToast('Provider saved — restart gateway to apply', 'success');
-      } catch (e) {
-        showToast(`Save failed: ${e instanceof Error ? e.message : e}`, 'error');
-      }
+      await patchConfig({ models: { providers: { [name]: patch } } });
     },
     () => loadModelsSettings()
   ));
