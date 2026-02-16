@@ -799,7 +799,7 @@ $('settings-apply-config')?.addEventListener('click', async () => {
       );
       if (!proceed) return;
     }
-    const result = await gateway.configApply(parsed);
+    const result = await gateway.configApply(JSON.stringify(parsed, null, 2));
     if (result.errors?.length) {
       alert(`Config applied with warnings:\n${result.errors.join('\n')}`);
     } else {

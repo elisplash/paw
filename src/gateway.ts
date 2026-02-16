@@ -705,8 +705,8 @@ class GatewayClient {
     return this.request<ConfigSchemaResult>('config.schema', {});
   }
 
-  async configApply(config: Record<string, unknown>): Promise<ConfigApplyResult> {
-    return this.request<ConfigApplyResult>('config.apply', { raw: JSON.stringify(config, null, 2) }, 60_000);
+  async configApply(rawJson: string): Promise<ConfigApplyResult> {
+    return this.request<ConfigApplyResult>('config.apply', { raw: rawJson }, 60_000);
   }
 
   // Presence
