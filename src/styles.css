@@ -1470,6 +1470,14 @@ body {
 .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
 .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
 
+.chat-error-inline {
+  color: var(--error);
+  font-size: 13px;
+  line-height: 1.5;
+  display: block;
+  padding: 4px 0;
+}
+
 @keyframes loadingPulse {
   0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
   40% { transform: scale(1); opacity: 1; }

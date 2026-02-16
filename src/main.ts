@@ -1741,12 +1741,44 @@ gateway.on('agent', (payload: unknown) => {
   }
 });
 
-// Listen for chat events — only care about 'final' (assembled message).
+// Listen for chat events — handle 'final' (assembled message) and 'error' states.
 // We skip 'delta' since agent events already handle real-time streaming.
 gateway.on('chat', (payload: unknown) => {
   try {
     const evt = payload as Record<string, unknown>;
     const state = evt.state as string | undefined;
+
+    // Handle error state — the agent/model returned an error (e.g. 401, rate limit)
+    if (state === 'error') {
+      const runId = evt.runId as string | undefined;
+      const errorMsg = (evt.errorMessage ?? evt.error ?? 'Unknown error') as string;
+      console.error(`[main] Chat error event (runId=${runId?.slice(0, 12)}):`, errorMsg);
+      crashLog(`chat-error: ${errorMsg}`);
+
+      // If we're streaming for this run, show the error in the bubble and
+      // resolve the streaming promise so sendMessage() can finalize.
+      if (isLoading || _streamingEl) {
+        if (!_streamingRunId || (runId && runId === _streamingRunId)) {
+          const errorContent = 'Error: ' + errorMsg;
+          _streamingContent = errorContent;
+          if (_streamingEl) {
+            const errorSpan = document.createElement('span');
+            errorSpan.className = 'chat-error-inline';
+            errorSpan.textContent = errorContent;
+            _streamingEl.innerHTML = '';
+            _streamingEl.appendChild(errorSpan);
+            scrollToBottom();
+          }
+          // Resolve the streaming promise with the error text so sendMessage()
+          // flow calls finalizeStreaming() once with the error content.
+          if (_streamingResolve) {
+            _streamingResolve(errorContent);
+            _streamingResolve = null;
+          }
+        }
+      }
+      return;
+    }
 
     // Skip delta events entirely — agent handler already processes deltas
     if (state !== 'final') return;
