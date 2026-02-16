@@ -3,13 +3,16 @@
 // Every tool call goes through here — this is the security enforcement point.
 
 use crate::engine::types::*;
+use crate::engine::commands::EngineState;
+use crate::engine::memory;
 use log::{info, warn, error};
 use std::process::Command as ProcessCommand;
 use std::time::Duration;
+use tauri::Manager;
 
 /// Execute a single tool call and return the result.
 /// This is where security policies are enforced.
-pub async fn execute_tool(tool_call: &ToolCall) -> ToolResult {
+pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle) -> ToolResult {
     let name = &tool_call.function.name;
     let args_str = &tool_call.function.arguments;
 
@@ -22,6 +25,11 @@ pub async fn execute_tool(tool_call: &ToolCall) -> ToolResult {
         "fetch" => execute_fetch(&args).await,
         "read_file" => execute_read_file(&args).await,
         "write_file" => execute_write_file(&args).await,
+        "soul_read" => execute_soul_read(&args, app_handle).await,
+        "soul_write" => execute_soul_write(&args, app_handle).await,
+        "soul_list" => execute_soul_list(app_handle).await,
+        "memory_store" => execute_memory_store(&args, app_handle).await,
+        "memory_search" => execute_memory_search(&args, app_handle).await,
         _ => Err(format!("Unknown tool: {}", name)),
     };
 
@@ -186,4 +194,118 @@ async fn execute_write_file(args: &serde_json::Value) -> Result<String, String> 
         .map_err(|e| format!("Failed to write file '{}': {}", path, e))?;
 
     Ok(format!("Successfully wrote {} bytes to {}", content.len(), path))
+}
+
+// ── soul_read: Read a soul/persona file ────────────────────────────────
+
+async fn execute_soul_read(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let file_name = args["file_name"].as_str()
+        .ok_or("soul_read: missing 'file_name' argument")?;
+
+    info!("[engine] soul_read: {}", file_name);
+
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    let agent_id = "default";
+    match state.store.get_agent_file(agent_id, file_name)? {
+        Some(file) => Ok(format!("# {}\n\n{}", file.file_name, file.content)),
+        None => Ok(format!("File '{}' does not exist yet. You can create it with soul_write.", file_name)),
+    }
+}
+
+// ── soul_write: Write/update a soul/persona file ───────────────────────
+
+async fn execute_soul_write(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let file_name = args["file_name"].as_str()
+        .ok_or("soul_write: missing 'file_name' argument")?;
+    let content = args["content"].as_str()
+        .ok_or("soul_write: missing 'content' argument")?;
+
+    // Validate file name — only allow known soul files to prevent abuse
+    let allowed_files = ["IDENTITY.md", "SOUL.md", "USER.md", "AGENTS.md", "TOOLS.md"];
+    if !allowed_files.contains(&file_name) {
+        return Err(format!(
+            "soul_write: '{}' is not an allowed soul file. Allowed: {}",
+            file_name,
+            allowed_files.join(", ")
+        ));
+    }
+
+    info!("[engine] soul_write: {} ({} bytes)", file_name, content.len());
+
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    let agent_id = "default";
+    state.store.set_agent_file(agent_id, file_name, content)?;
+
+    Ok(format!("Successfully updated {}. This change will take effect in future conversations.", file_name))
+}
+
+// ── soul_list: List all soul/persona files ─────────────────────────────
+
+async fn execute_soul_list(app_handle: &tauri::AppHandle) -> Result<String, String> {
+    info!("[engine] soul_list");
+
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    let agent_id = "default";
+    let files = state.store.list_agent_files(agent_id)?;
+
+    if files.is_empty() {
+        return Ok("No soul files exist yet. You can create them with soul_write. Available files:\n- IDENTITY.md (your name, role, purpose)\n- SOUL.md (personality, values, voice)\n- USER.md (facts about the user)\n- AGENTS.md (other agents)\n- TOOLS.md (tool preferences)".into());
+    }
+
+    let mut output = String::from("Soul files:\n");
+    for f in &files {
+        output.push_str(&format!("- {} ({} bytes, updated {})\n", f.file_name, f.content.len(), f.updated_at));
+    }
+    output.push_str("\nUse soul_read to view a file, soul_write to update one.");
+    Ok(output)
+}
+
+// ── memory_store: Store a memory ───────────────────────────────────────
+
+async fn execute_memory_store(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let content = args["content"].as_str()
+        .ok_or("memory_store: missing 'content' argument")?;
+    let category = args["category"].as_str().unwrap_or("general");
+
+    info!("[engine] memory_store: category={} len={}", category, content.len());
+
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    let emb_client = state.embedding_client();
+    let id = memory::store_memory(&state.store, content, category, 5, emb_client.as_ref()).await?;
+
+    Ok(format!("Memory stored (id: {}). I'll recall this automatically when it's relevant.", &id[..8]))
+}
+
+// ── memory_search: Search memories ─────────────────────────────────────
+
+async fn execute_memory_search(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let query = args["query"].as_str()
+        .ok_or("memory_search: missing 'query' argument")?;
+    let limit = args["limit"].as_u64().unwrap_or(5) as usize;
+
+    info!("[engine] memory_search: query='{}' limit={}", &query[..query.len().min(100)], limit);
+
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    let emb_client = state.embedding_client();
+    let results = memory::search_memories(&state.store, query, limit, 0.1, emb_client.as_ref()).await?;
+
+    if results.is_empty() {
+        return Ok("No relevant memories found.".into());
+    }
+
+    let mut output = format!("Found {} relevant memories:\n\n", results.len());
+    for (i, mem) in results.iter().enumerate() {
+        output.push_str(&format!("{}. [{}] {} (score: {:.2})\n", i + 1, mem.category, mem.content, mem.score.unwrap_or(0.0)));
+    }
+    Ok(output)
 }

@@ -234,6 +234,119 @@ impl ToolDefinition {
         }
     }
 
+    /// Tool to read a soul/persona file (SOUL.md, IDENTITY.md, etc.)
+    pub fn soul_read() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "soul_read".into(),
+                description: "Read one of your own soul/persona files. These files define who you are. Available files: IDENTITY.md (name, role, purpose), SOUL.md (personality, values, voice), USER.md (facts about the user), AGENTS.md (other agents you know about), TOOLS.md (your tool preferences and notes).".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "file_name": {
+                            "type": "string",
+                            "description": "The soul file to read, e.g. 'SOUL.md', 'IDENTITY.md', 'USER.md', 'AGENTS.md', 'TOOLS.md'"
+                        }
+                    },
+                    "required": ["file_name"]
+                }),
+            },
+        }
+    }
+
+    /// Tool to write/update a soul/persona file.
+    pub fn soul_write() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "soul_write".into(),
+                description: "Update one of your own soul/persona files. Use this to evolve your personality, record things about the user, or refine your identity. Be thoughtful — these files shape who you are across all conversations.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "file_name": {
+                            "type": "string",
+                            "description": "The soul file to write, e.g. 'SOUL.md', 'IDENTITY.md', 'USER.md', 'AGENTS.md', 'TOOLS.md'"
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "The full new content for the file (Markdown format)"
+                        }
+                    },
+                    "required": ["file_name", "content"]
+                }),
+            },
+        }
+    }
+
+    /// Tool to list all soul/persona files.
+    pub fn soul_list() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "soul_list".into(),
+                description: "List all your soul/persona files and their sizes. Use this to see what files exist before reading or writing them.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }),
+            },
+        }
+    }
+
+    /// Tool to store a memory for long-term recall.
+    pub fn memory_store() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "memory_store".into(),
+                description: "Store a fact or piece of information in your long-term memory. These memories persist across conversations and are automatically recalled when relevant. Use this to remember user preferences, important facts, project details, etc.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "content": {
+                            "type": "string",
+                            "description": "The fact or information to remember"
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Category for organization: 'user_preference', 'project', 'fact', 'instruction', 'general'",
+                            "enum": ["user_preference", "project", "fact", "instruction", "general"]
+                        }
+                    },
+                    "required": ["content"]
+                }),
+            },
+        }
+    }
+
+    /// Tool to search memories.
+    pub fn memory_search() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "memory_search".into(),
+                description: "Search your long-term memories for information relevant to a query. Returns the most relevant stored facts.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query to find relevant memories"
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Maximum number of memories to return (default: 5)"
+                        }
+                    },
+                    "required": ["query"]
+                }),
+            },
+        }
+    }
+
     /// Return the default set of built-in tools.
     pub fn builtins() -> Vec<Self> {
         vec![
@@ -241,6 +354,11 @@ impl ToolDefinition {
             Self::fetch(),
             Self::read_file(),
             Self::write_file(),
+            Self::soul_read(),
+            Self::soul_write(),
+            Self::soul_list(),
+            Self::memory_store(),
+            Self::memory_search(),
         ]
     }
 }

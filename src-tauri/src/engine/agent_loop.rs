@@ -222,7 +222,7 @@ pub async fn run_agent_turn(
             }
 
             // Execute the tool
-            let result = tool_executor::execute_tool(tc).await;
+            let result = tool_executor::execute_tool(tc, app_handle).await;
 
             info!("[engine] Tool result: {} success={} output_len={}",
                 tc.function.name, result.success, result.output.len());
