@@ -565,7 +565,6 @@ class GatewayClient {
     thinking?: string;
     idempotencyKey?: string;
     model?: string;
-    systemPrompt?: string;
     thinkingLevel?: string;
     temperature?: number;
     attachments?: import('./types').ChatAttachment[];
@@ -574,9 +573,10 @@ class GatewayClient {
     const idempotencyKey = opts?.idempotencyKey ?? crypto.randomUUID();
 
     // -- Agent Profile Injection --
-    // If an agentProfile is provided, construct a system prompt from it.
-    // This allows the UI to override the agent's core personality per-chat.
-    let finalSystemPrompt = opts?.systemPrompt;
+    // If an agentProfile is provided, prepend personality context to the message.
+    // The gateway chat.send does NOT accept a system/systemPrompt param,
+    // so we bake it into the user message instead.
+    let finalMessage = message;
     if (opts?.agentProfile) {
       const profile = opts.agentProfile;
       const parts: string[] = [];
@@ -604,21 +604,20 @@ class GatewayClient {
       }
       
       if (profile.systemPrompt) {
-        parts.push(`Follow these custom instructions:\n${profile.systemPrompt}`);
+        parts.push(profile.systemPrompt);
       }
       
       if (parts.length > 0) {
-        finalSystemPrompt = parts.join('\n\n');
+        finalMessage = `[Context: ${parts.join(' ')}]\n\n${message}`;
       }
     }
 
     const params: Record<string, unknown> = {
       sessionKey,
-      message,
+      message: finalMessage,
       idempotencyKey,
       ...(opts?.thinking ? { thinking: opts.thinking } : {}),
       ...(opts?.model ? { model: opts.model } : {}),
-      ...(finalSystemPrompt ? { system: finalSystemPrompt } : {}),
       ...(opts?.thinkingLevel ? { thinkingLevel: opts.thinkingLevel } : {}),
       ...(opts?.temperature != null ? { temperature: opts.temperature } : {}),
       ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}),

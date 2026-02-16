@@ -1347,7 +1347,6 @@ async function sendMessage() {
   // Declare chatOpts outside try — Safari/WebKit has TDZ bugs with let-in-try
   let chatOpts: {
     model?: string;
-    systemPrompt?: string;
     thinkingLevel?: string;
     temperature?: number;
     attachments?: import('./types').ChatAttachment[];
@@ -1357,7 +1356,7 @@ async function sendMessage() {
   try {
     const sessionKey = currentSessionKey ?? 'default';
 
-    // Read selected mode's overrides (model, system prompt, thinking level)
+    // Read selected mode's overrides (model, thinking level)
     const modeSelect = $('chat-mode-select') as HTMLSelectElement | null;
     const selectedModeId = modeSelect?.value;
     if (selectedModeId) {
@@ -1365,7 +1364,6 @@ async function sendMessage() {
       const mode = modes.find(m => m.id === selectedModeId);
       if (mode) {
         if (mode.model) chatOpts.model = mode.model;
-        if (mode.system_prompt) chatOpts.systemPrompt = mode.system_prompt;
         if (mode.thinking_level) chatOpts.thinkingLevel = mode.thinking_level;
         if (mode.temperature > 0) chatOpts.temperature = mode.temperature;
       }
