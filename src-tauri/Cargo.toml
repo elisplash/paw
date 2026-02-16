@@ -32,4 +32,7 @@ dirs = "5"
 rand = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 keyring = { version = "3", features = ["apple-native", "linux-native"] }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+sha2 = "0.10"
+base64 = "0.22"
 

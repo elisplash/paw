@@ -5,6 +5,10 @@ use std::net::TcpStream;
 use std::time::{Duration, Instant};
 use log::{info, warn, error};
 use tauri::{Emitter, Manager};
+use ed25519_dalek::{SigningKey, Signer, VerifyingKey};
+use sha2::{Sha256, Digest};
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use base64::Engine;
 
 /// Set restrictive file permissions (owner-only read/write) on Unix.
 /// No-op on non-Unix platforms.
@@ -2114,6 +2118,126 @@ fn set_email_flag(account: Option<String>, id: String, flag: String, add: bool) 
     Ok(())
 }
 
+// ── Device Identity (Ed25519) ──────────────────────────────────────────────
+// OpenClaw 2026.2.14+ requires device identity for scope-based auth.
+// Without a device object in the connect handshake, the gateway strips all
+// scopes to empty — even if the shared token is valid.
+//
+// The device identity consists of an Ed25519 key pair stored in
+// ~/.openclaw/paw-device-identity.json.  The deviceId is SHA-256(raw pubkey)
+// encoded as hex.  The public key sent to the gateway is the raw 32-byte
+// public key in base64url (no padding).
+
+/// Path to the device identity file.
+fn device_identity_path() -> Result<PathBuf, String> {
+    let home = dirs::home_dir().ok_or("Cannot find home directory")?;
+    Ok(home.join(".openclaw/paw-device-identity.json"))
+}
+
+/// Load or create an Ed25519 device identity, persisted to disk.
+/// Returns (deviceId_hex, publicKey_base64url, privateKey_bytes_hex).
+fn load_or_create_device_identity() -> Result<(String, String, Vec<u8>), String> {
+    let path = device_identity_path()?;
+
+    // Try to load existing identity
+    if path.exists() {
+        let content = fs::read_to_string(&path)
+            .map_err(|e| format!("Failed to read device identity: {}", e))?;
+        let parsed: serde_json::Value = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse device identity: {}", e))?;
+
+        if parsed["version"].as_i64() == Some(1) {
+            if let (Some(device_id), Some(pub_key_b64), Some(priv_key_hex)) = (
+                parsed["deviceId"].as_str(),
+                parsed["publicKeyBase64Url"].as_str(),
+                parsed["privateKeyHex"].as_str(),
+            ) {
+                let priv_bytes = hex_decode(priv_key_hex)
+                    .map_err(|e| format!("Invalid private key hex: {}", e))?;
+                if priv_bytes.len() == 32 {
+                    info!("Loaded existing device identity: {}...{}", &device_id[..8], &device_id[device_id.len()-4..]);
+                    return Ok((device_id.to_string(), pub_key_b64.to_string(), priv_bytes));
+                }
+            }
+        }
+        info!("Device identity file exists but is invalid, regenerating");
+    }
+
+    // Generate new Ed25519 key pair
+    let mut csprng = rand::rngs::OsRng;
+    let signing_key = SigningKey::generate(&mut csprng);
+    let verifying_key: VerifyingKey = (&signing_key).into();
+
+    let raw_pub_bytes = verifying_key.to_bytes();
+    let pub_key_b64 = URL_SAFE_NO_PAD.encode(raw_pub_bytes);
+
+    // deviceId = SHA-256(raw 32-byte public key) as hex
+    let mut hasher = Sha256::new();
+    hasher.update(raw_pub_bytes);
+    let device_id = format!("{:x}", hasher.finalize());
+
+    let priv_key_bytes = signing_key.to_bytes().to_vec();
+    let priv_key_hex = hex_encode(&priv_key_bytes);
+
+    // Persist to disk with restrictive permissions
+    let identity = serde_json::json!({
+        "version": 1,
+        "deviceId": device_id,
+        "publicKeyBase64Url": pub_key_b64,
+        "privateKeyHex": priv_key_hex,
+        "createdAtMs": chrono::Utc::now().timestamp_millis()
+    });
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).ok();
+    }
+    fs::write(&path, serde_json::to_string_pretty(&identity).unwrap())
+        .map_err(|e| format!("Failed to write device identity: {}", e))?;
+    set_owner_only_permissions(&path)?;
+
+    info!("Generated new device identity: {}...{}", &device_id[..8], &device_id[device_id.len()-4..]);
+    Ok((device_id, pub_key_b64, priv_key_bytes))
+}
+
+fn hex_encode(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+fn hex_decode(hex: &str) -> Result<Vec<u8>, String> {
+    if hex.len() % 2 != 0 {
+        return Err("Odd-length hex string".to_string());
+    }
+    (0..hex.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).map_err(|e| e.to_string()))
+        .collect()
+}
+
+/// Tauri command: get or create device identity.
+/// Returns { deviceId, publicKeyBase64Url } (private key stays on disk).
+#[tauri::command]
+fn get_device_identity() -> Result<serde_json::Value, String> {
+    let (device_id, pub_key_b64, _) = load_or_create_device_identity()?;
+    Ok(serde_json::json!({
+        "deviceId": device_id,
+        "publicKeyBase64Url": pub_key_b64
+    }))
+}
+
+/// Tauri command: sign a device auth payload string with the Ed25519 private key.
+/// Returns the signature as base64url (no padding).
+#[tauri::command]
+fn sign_device_payload(payload: String) -> Result<String, String> {
+    let (_, _, priv_key_bytes) = load_or_create_device_identity()?;
+
+    let priv_array: [u8; 32] = priv_key_bytes.try_into()
+        .map_err(|_| "Private key must be 32 bytes")?;
+    let signing_key = SigningKey::from_bytes(&priv_array);
+
+    let signature = signing_key.sign(payload.as_bytes());
+    Ok(URL_SAFE_NO_PAD.encode(signature.to_bytes()))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -2147,6 +2271,8 @@ pub fn run() {
             memory_search,
             memory_store,
             repair_openclaw_config,
+            get_device_identity,
+            sign_device_payload,
             write_himalaya_config,
             read_himalaya_config,
             remove_himalaya_account,

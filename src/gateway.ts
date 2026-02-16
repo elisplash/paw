@@ -224,7 +224,52 @@ class GatewayClient {
     const token = this.config?.token?.trim();
     const auth = token ? { token } : undefined;
 
-    console.log(`[gateway] Sending connect handshake (auth: ${auth ? 'token present' : 'none'}, nonce: ${this._challengeNonce ? 'yes' : 'no'})`);
+    // ── Device identity (Ed25519) ────────────────────────────────────
+    // OpenClaw 2026.2.14+ requires a device object for scope-based auth.
+    // Without it, scopes are stripped to empty and all RPC calls fail with
+    // "missing scope: operator.*".
+    const role = 'operator';
+    const scopes = ['operator.read', 'operator.write', 'operator.admin'];
+
+    let device: { id: string; publicKey: string; signature: string; signedAt: number; nonce?: string } | undefined;
+    try {
+      const { invoke } = await import('@tauri-apps/api/core');
+      const identity = await invoke<{ deviceId: string; publicKeyBase64Url: string }>('get_device_identity');
+
+      const signedAtMs = Date.now();
+      const nonce = this._challengeNonce ?? undefined;
+      const version = nonce ? 'v2' : 'v1';
+
+      // Build payload matching OpenClaw's buildDeviceAuthPayload():
+      //   version|deviceId|clientId|clientMode|role|scopes_csv|signedAtMs|token[|nonce]
+      const payloadParts = [
+        version,
+        identity.deviceId,
+        'gateway-client',
+        'ui',
+        role,
+        scopes.join(','),
+        String(signedAtMs),
+        token ?? '',
+      ];
+      if (version === 'v2') payloadParts.push(nonce ?? '');
+      const payload = payloadParts.join('|');
+
+      const signature = await invoke<string>('sign_device_payload', { payload });
+
+      device = {
+        id: identity.deviceId,
+        publicKey: identity.publicKeyBase64Url,
+        signature,
+        signedAt: signedAtMs,
+        ...(nonce ? { nonce } : {}),
+      };
+      console.log(`[gateway] Device identity ready: ${identity.deviceId.slice(0, 12)}...`);
+    } catch (e) {
+      console.warn('[gateway] Device identity unavailable (scopes may be limited):', e);
+    }
+
+    console.log(`[gateway] Sending connect handshake (auth: ${auth ? 'token present' : 'none'}, nonce: ${this._challengeNonce ? 'yes' : 'no'}, device: ${device ? 'yes' : 'no'})`);
 
     const hello = await this.request<HelloOk>('connect', {
       minProtocol: PROTOCOL_VERSION,
@@ -236,12 +281,13 @@ class GatewayClient {
         mode: 'ui',
         displayName: 'Paw Desktop',
       },
-      role: 'operator',
-      scopes: ['operator.read', 'operator.write', 'operator.admin'],
+      role,
+      scopes,
       caps: [],
       commands: [],
       permissions: {},
       auth,
+      device,
       locale: navigator.language || 'en-US',
       userAgent: `paw-desktop/0.1.0 (${detectPlatform()})`,
     });
