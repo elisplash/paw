@@ -2650,6 +2650,12 @@ pub fn run() {
             engine::commands::engine_get_memory_config,
             engine::commands::engine_set_memory_config,
             engine::commands::engine_test_embedding,
+            // ── Skill Vault ──
+            engine::commands::engine_skills_list,
+            engine::commands::engine_skill_set_enabled,
+            engine::commands::engine_skill_set_credential,
+            engine::commands::engine_skill_delete_credential,
+            engine::commands::engine_skill_revoke_all,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

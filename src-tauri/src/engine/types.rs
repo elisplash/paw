@@ -347,6 +347,138 @@ impl ToolDefinition {
         }
     }
 
+    // ── Skill-based tools ──────────────────────────────────────────────
+
+    pub fn email_send() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "email_send".into(),
+                description: "Send an email. Credentials are stored securely — you don't need to provide passwords or API keys.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "to": { "type": "string", "description": "Recipient email address" },
+                        "subject": { "type": "string", "description": "Email subject line" },
+                        "body": { "type": "string", "description": "Email body (plain text or HTML)" },
+                        "html": { "type": "boolean", "description": "If true, body is HTML (default: false)" }
+                    },
+                    "required": ["to", "subject", "body"]
+                }),
+            },
+        }
+    }
+
+    pub fn email_read() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "email_read".into(),
+                description: "Read recent emails from the inbox. Returns subjects, senders, and previews.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "limit": { "type": "integer", "description": "Number of emails to fetch (default: 5)" },
+                        "folder": { "type": "string", "description": "Mailbox folder (default: INBOX)" }
+                    },
+                    "required": []
+                }),
+            },
+        }
+    }
+
+    pub fn slack_send() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "slack_send".into(),
+                description: "Send a message to a Slack channel or DM. Credentials are stored securely.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "channel": { "type": "string", "description": "Channel ID (C...) or user ID (U...) to send to. Uses default channel if not specified." },
+                        "text": { "type": "string", "description": "The message text to send" }
+                    },
+                    "required": ["text"]
+                }),
+            },
+        }
+    }
+
+    pub fn slack_read() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "slack_read".into(),
+                description: "Read recent messages from a Slack channel.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "channel": { "type": "string", "description": "Channel ID to read from" },
+                        "limit": { "type": "integer", "description": "Number of messages (default: 10)" }
+                    },
+                    "required": ["channel"]
+                }),
+            },
+        }
+    }
+
+    pub fn github_api() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "github_api".into(),
+                description: "Make a GitHub API call. Credentials are stored securely. Common operations: list repos, create issues, list PRs, read files.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "endpoint": { "type": "string", "description": "GitHub API endpoint path (e.g. /repos/owner/repo/issues)" },
+                        "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"], "description": "HTTP method (default: GET)" },
+                        "body": { "type": "object", "description": "JSON body for POST/PUT/PATCH requests" }
+                    },
+                    "required": ["endpoint"]
+                }),
+            },
+        }
+    }
+
+    pub fn rest_api_call() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "rest_api_call".into(),
+                description: "Make an authenticated API call using stored credentials. The API key is injected automatically — never include credentials in the request.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "path": { "type": "string", "description": "API endpoint path (appended to the stored base URL)" },
+                        "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"], "description": "HTTP method (default: GET)" },
+                        "headers": { "type": "object", "description": "Additional headers (auth is added automatically)" },
+                        "body": { "type": "string", "description": "Request body (JSON string)" }
+                    },
+                    "required": ["path"]
+                }),
+            },
+        }
+    }
+
+    pub fn webhook_send() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "webhook_send".into(),
+                description: "Send a JSON payload to a stored webhook URL (Zapier, IFTTT, n8n, custom). The URL is stored securely.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "payload": { "type": "object", "description": "JSON payload to send to the webhook" }
+                    },
+                    "required": ["payload"]
+                }),
+            },
+        }
+    }
+
     /// Return the default set of built-in tools.
     pub fn builtins() -> Vec<Self> {
         vec![
@@ -360,6 +492,22 @@ impl ToolDefinition {
             Self::memory_store(),
             Self::memory_search(),
         ]
+    }
+
+    /// Return tools for enabled skills.
+    pub fn skill_tools(enabled_skill_ids: &[String]) -> Vec<Self> {
+        let mut tools = Vec::new();
+        for id in enabled_skill_ids {
+            match id.as_str() {
+                "email" => { tools.push(Self::email_send()); tools.push(Self::email_read()); }
+                "slack" => { tools.push(Self::slack_send()); tools.push(Self::slack_read()); }
+                "github" => { tools.push(Self::github_api()); }
+                "rest_api" => { tools.push(Self::rest_api_call()); }
+                "webhook" => { tools.push(Self::webhook_send()); }
+                _ => {}
+            }
+        }
+        tools
     }
 }
 

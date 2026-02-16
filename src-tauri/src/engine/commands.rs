@@ -7,6 +7,7 @@ use crate::engine::providers::AnyProvider;
 use crate::engine::sessions::SessionStore;
 use crate::engine::agent_loop;
 use crate::engine::memory::{self, EmbeddingClient};
+use crate::engine::skills;
 use log::{info, warn, error};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -29,6 +30,9 @@ pub struct EngineState {
 impl EngineState {
     pub fn new() -> Result<Self, String> {
         let store = SessionStore::open()?;
+
+        // Initialize skill vault tables
+        store.init_skill_tables()?;
 
         // Load config from DB or use defaults
         let config = match store.get_config("engine_config") {
@@ -244,7 +248,17 @@ pub async fn engine_chat_send(
 
     // Build tools
     let tools = if request.tools_enabled.unwrap_or(true) {
-        ToolDefinition::builtins()
+        let mut t = ToolDefinition::builtins();
+        // Add tools for enabled skills
+        let enabled_ids: Vec<String> = skills::builtin_skills().iter()
+            .filter(|s| state.store.is_skill_enabled(&s.id).unwrap_or(false))
+            .map(|s| s.id.clone())
+            .collect();
+        if !enabled_ids.is_empty() {
+            info!("[engine] Adding skill tools for: {:?}", enabled_ids);
+            t.extend(ToolDefinition::skill_tools(&enabled_ids));
+        }
+        t
     } else {
         vec![]
     };
@@ -644,4 +658,56 @@ pub async fn engine_test_embedding(
     let dims = client.test_connection().await?;
     info!("[engine] Embedding test passed: {} dimensions", dims);
     Ok(dims)
+}
+
+// ── Skill Vault commands ───────────────────────────────────────────────
+
+#[tauri::command]
+pub fn engine_skills_list(
+    state: State<'_, EngineState>,
+) -> Result<Vec<skills::SkillStatus>, String> {
+    skills::get_all_skill_status(&state.store)
+}
+
+#[tauri::command]
+pub fn engine_skill_set_enabled(
+    state: State<'_, EngineState>,
+    skill_id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    info!("[engine] Skill {} → enabled={}", skill_id, enabled);
+    state.store.set_skill_enabled(&skill_id, enabled)
+}
+
+#[tauri::command]
+pub fn engine_skill_set_credential(
+    state: State<'_, EngineState>,
+    skill_id: String,
+    key: String,
+    value: String,
+) -> Result<(), String> {
+    let vault_key = skills::get_vault_key()?;
+    let encrypted = skills::encrypt_credential(&value, &vault_key);
+    info!("[engine] Setting credential {}:{} ({} chars)", skill_id, key, value.len());
+    state.store.set_skill_credential(&skill_id, &key, &encrypted)
+}
+
+#[tauri::command]
+pub fn engine_skill_delete_credential(
+    state: State<'_, EngineState>,
+    skill_id: String,
+    key: String,
+) -> Result<(), String> {
+    info!("[engine] Deleting credential {}:{}", skill_id, key);
+    state.store.delete_skill_credential(&skill_id, &key)
+}
+
+#[tauri::command]
+pub fn engine_skill_revoke_all(
+    state: State<'_, EngineState>,
+    skill_id: String,
+) -> Result<(), String> {
+    info!("[engine] Revoking all credentials for skill {}", skill_id);
+    state.store.delete_all_skill_credentials(&skill_id)?;
+    state.store.set_skill_enabled(&skill_id, false)
 }

@@ -1664,6 +1664,7 @@
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="sessions">Sessions</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="voice">Voice & TTS</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="advanced">Advanced</button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="skills">Skills</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="security">Security</button>
           </div>
 
@@ -1905,6 +1906,20 @@
               <h2 class="settings-section-title">Advanced Configuration</h2>
               <p class="settings-section-desc">Gateway network, authentication, logging, updates, sandbox, and webhooks.</p>
               <div id="settings-advanced-content"></div>
+            </div>
+          </div>
+
+          <!-- ── Tab: Skills (Credential Vault) ── -->
+          <div class="settings-tab-panel" id="settings-panel-skills" style="display:none">
+            <div class="settings-section" id="settings-skills-section">
+              <h2 class="settings-section-title">
+                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                Skill Vault
+              </h2>
+              <p class="settings-section-desc">Give your agent superpowers — email, Slack, GitHub, APIs — without pasting passwords in chat. Credentials are encrypted and stored in your OS keychain. The agent never sees raw keys.</p>
+              <div id="skills-vault-loading" style="color:var(--text-muted); font-size:13px; padding:12px 0;">Loading skills...</div>
+              <div id="skills-vault-list"></div>
+              <div id="skills-vault-toast" style="display:none; margin-top:12px; padding:8px 14px; border-radius:8px; font-size:13px;"></div>
             </div>
           </div>
 

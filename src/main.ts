@@ -33,6 +33,7 @@ import * as AgentDefaultsSettings from './views/settings-agent-defaults';
 import * as SessionsSettings from './views/settings-sessions';
 import * as VoiceSettings from './views/settings-voice';
 import * as AdvancedSettings from './views/settings-advanced';
+import * as SkillsSettings from './views/settings-skills';
 import { setConnected as setSettingsConnected, invalidateConfigCache } from './views/settings-config';
 import * as AutomationsModule from './views/automations';
 import * as MemoryPalaceModule from './views/memory-palace';
@@ -711,6 +712,7 @@ function loadActiveSettingsTab() {
     case 'sessions': SessionsSettings.loadSessionsSettings(); break;
     case 'voice': VoiceSettings.loadVoiceSettings(); break;
     case 'advanced': AdvancedSettings.loadAdvancedSettings(); break;
+    case 'skills': SkillsSettings.loadSkillsSettings(); break;
     default: break; // general + security load via existing SettingsModule
   }
 }

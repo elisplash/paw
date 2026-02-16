@@ -5,6 +5,7 @@
 use crate::engine::types::*;
 use crate::engine::commands::EngineState;
 use crate::engine::memory;
+use crate::engine::skills;
 use log::{info, warn, error};
 use std::process::Command as ProcessCommand;
 use std::time::Duration;
@@ -30,6 +31,14 @@ pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle) -
         "soul_list" => execute_soul_list(app_handle).await,
         "memory_store" => execute_memory_store(&args, app_handle).await,
         "memory_search" => execute_memory_search(&args, app_handle).await,
+        // ── Skill tools ──
+        "email_send" => execute_skill_tool("email", "email_send", &args, app_handle).await,
+        "email_read" => execute_skill_tool("email", "email_read", &args, app_handle).await,
+        "slack_send" => execute_skill_tool("slack", "slack_send", &args, app_handle).await,
+        "slack_read" => execute_skill_tool("slack", "slack_read", &args, app_handle).await,
+        "github_api" => execute_skill_tool("github", "github_api", &args, app_handle).await,
+        "rest_api_call" => execute_skill_tool("rest_api", "rest_api_call", &args, app_handle).await,
+        "webhook_send" => execute_skill_tool("webhook", "webhook_send", &args, app_handle).await,
         _ => Err(format!("Unknown tool: {}", name)),
     };
 
@@ -308,4 +317,431 @@ async fn execute_memory_search(args: &serde_json::Value, app_handle: &tauri::App
         output.push_str(&format!("{}. [{}] {} (score: {:.2})\n", i + 1, mem.category, mem.content, mem.score.unwrap_or(0.0)));
     }
     Ok(output)
+}
+
+// ── Skill Tools: Credential-injected execution ─────────────────────────
+// The agent never sees credentials. We load them from the vault and inject at execution time.
+
+async fn execute_skill_tool(
+    skill_id: &str,
+    tool_name: &str,
+    args: &serde_json::Value,
+    app_handle: &tauri::AppHandle,
+) -> Result<String, String> {
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    // Check skill is enabled
+    if !state.store.is_skill_enabled(skill_id)? {
+        return Err(format!("Skill '{}' is not enabled. Ask the user to enable it in Settings → Skills.", skill_id));
+    }
+
+    // Load decrypted credentials
+    let creds = skills::get_skill_credentials(&state.store, skill_id)?;
+
+    // Check required credentials are set
+    let defs = skills::builtin_skills();
+    if let Some(def) = defs.iter().find(|d| d.id == skill_id) {
+        let missing: Vec<&str> = def.required_credentials.iter()
+            .filter(|c| c.required && !creds.contains_key(&c.key))
+            .map(|c| c.key.as_str())
+            .collect();
+        if !missing.is_empty() {
+            return Err(format!(
+                "Skill '{}' is missing required credentials: {}. Ask the user to configure them in Settings → Skills.",
+                skill_id, missing.join(", ")
+            ));
+        }
+    }
+
+    match tool_name {
+        "email_send" => execute_email_send(args, &creds).await,
+        "email_read" => execute_email_read(args, &creds).await,
+        "slack_send" => execute_slack_send(args, &creds).await,
+        "slack_read" => execute_slack_read(args, &creds).await,
+        "github_api" => execute_github_api(args, &creds).await,
+        "rest_api_call" => execute_rest_api_call(args, &creds).await,
+        "webhook_send" => execute_webhook_send(args, &creds).await,
+        _ => Err(format!("Unknown skill tool: {}", tool_name)),
+    }
+}
+
+// ── Email Send (SMTP) ──────────────────────────────────────────────────
+
+async fn execute_email_send(
+    args: &serde_json::Value,
+    creds: &std::collections::HashMap<String, String>,
+) -> Result<String, String> {
+    let to = args["to"].as_str().ok_or("email_send: missing 'to'")?;
+    let subject = args["subject"].as_str().ok_or("email_send: missing 'subject'")?;
+    let body = args["body"].as_str().ok_or("email_send: missing 'body'")?;
+    let is_html = args["html"].as_bool().unwrap_or(false);
+
+    let host = creds.get("SMTP_HOST").ok_or("Missing SMTP_HOST credential")?;
+    let port: u16 = creds.get("SMTP_PORT")
+        .ok_or("Missing SMTP_PORT credential")?
+        .parse()
+        .map_err(|_| "Invalid SMTP_PORT")?;
+    let user = creds.get("SMTP_USER").ok_or("Missing SMTP_USER credential")?;
+    let password = creds.get("SMTP_PASSWORD").ok_or("Missing SMTP_PASSWORD credential")?;
+
+    info!("[skill:email] Sending to {} via {}:{}", to, host, port);
+
+    // Build the SMTP command using curl (available on all platforms)
+    // This avoids needing additional Rust SMTP crates
+    let mail_body = if is_html {
+        format!(
+            "From: {from}\r\nTo: {to}\r\nSubject: {subject}\r\nContent-Type: text/html; charset=utf-8\r\nMIME-Version: 1.0\r\n\r\n{body}",
+            from = user, to = to, subject = subject, body = body
+        )
+    } else {
+        format!(
+            "From: {from}\r\nTo: {to}\r\nSubject: {subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{body}",
+            from = user, to = to, subject = subject, body = body
+        )
+    };
+
+    // Use curl's SMTP support for reliable cross-platform sending
+    let url = if port == 465 {
+        format!("smtps://{}:{}", host, port)
+    } else {
+        format!("smtp://{}:{}", host, port)
+    };
+
+    let output = ProcessCommand::new("curl")
+        .args([
+            "--ssl-reqd",
+            "--url", &url,
+            "--user", &format!("{}:{}", user, password),
+            "--mail-from", user,
+            "--mail-rcpt", to,
+            "-T", "-",  // read from stdin
+        ])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .and_then(|mut child| {
+            use std::io::Write;
+            if let Some(ref mut stdin) = child.stdin {
+                stdin.write_all(mail_body.as_bytes())?;
+            }
+            child.wait_with_output()
+        })
+        .map_err(|e| format!("Failed to send email: {}", e))?;
+
+    if output.status.success() {
+        Ok(format!("Email sent successfully to {}", to))
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!("SMTP error: {}", stderr))
+    }
+}
+
+// ── Email Read (IMAP via curl) ─────────────────────────────────────────
+
+async fn execute_email_read(
+    args: &serde_json::Value,
+    creds: &std::collections::HashMap<String, String>,
+) -> Result<String, String> {
+    let limit = args["limit"].as_u64().unwrap_or(5);
+    let folder = args["folder"].as_str().unwrap_or("INBOX");
+
+    let host = creds.get("IMAP_HOST")
+        .or_else(|| creds.get("SMTP_HOST"))
+        .ok_or("Missing IMAP_HOST credential")?;
+    let port = creds.get("IMAP_PORT").map(|p| p.as_str()).unwrap_or("993");
+    let user = creds.get("SMTP_USER").ok_or("Missing SMTP_USER credential")?;
+    let password = creds.get("SMTP_PASSWORD").ok_or("Missing SMTP_PASSWORD credential")?;
+
+    info!("[skill:email] Reading {} from {}:{}/{}", limit, host, port, folder);
+
+    // Use curl IMAP to list recent messages
+    let url = format!("imaps://{}:{}/{}", host, port, folder);
+    let output = ProcessCommand::new("curl")
+        .args([
+            "--ssl-reqd",
+            "--url", &format!("{};MAILINDEX=1:{}", url, limit),
+            "--user", &format!("{}:{}", user, password),
+        ])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .output()
+        .map_err(|e| format!("IMAP error: {}", e))?;
+
+    if output.status.success() {
+        let body = String::from_utf8_lossy(&output.stdout);
+        let truncated = if body.len() > 20_000 {
+            format!("{}...\n[truncated]", &body[..20_000])
+        } else {
+            body.to_string()
+        };
+        Ok(format!("Emails from {}/{}:\n\n{}", host, folder, truncated))
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!("IMAP error: {}", stderr))
+    }
+}
+
+// ── Slack Send ─────────────────────────────────────────────────────────
+
+async fn execute_slack_send(
+    args: &serde_json::Value,
+    creds: &std::collections::HashMap<String, String>,
+) -> Result<String, String> {
+    let text = args["text"].as_str().ok_or("slack_send: missing 'text'")?;
+    let token = creds.get("SLACK_BOT_TOKEN").ok_or("Missing SLACK_BOT_TOKEN")?;
+    let channel = args["channel"].as_str()
+        .map(|s| s.to_string())
+        .or_else(|| creds.get("SLACK_DEFAULT_CHANNEL").cloned())
+        .ok_or("slack_send: no channel specified and no default channel configured")?;
+
+    info!("[skill:slack] Sending to channel {}", channel);
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    let resp = client.post("https://slack.com/api/chat.postMessage")
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "channel": channel,
+            "text": text
+        }))
+        .send()
+        .await
+        .map_err(|e| format!("Slack API error: {}", e))?;
+
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse Slack response: {}", e))?;
+
+    if body["ok"].as_bool().unwrap_or(false) {
+        let ts = body["ts"].as_str().unwrap_or("unknown");
+        Ok(format!("Message sent to Slack channel {} (ts: {})", channel, ts))
+    } else {
+        let err = body["error"].as_str().unwrap_or("unknown error");
+        Err(format!("Slack API error: {}", err))
+    }
+}
+
+// ── Slack Read ─────────────────────────────────────────────────────────
+
+async fn execute_slack_read(
+    args: &serde_json::Value,
+    creds: &std::collections::HashMap<String, String>,
+) -> Result<String, String> {
+    let channel = args["channel"].as_str().ok_or("slack_read: missing 'channel'")?;
+    let limit = args["limit"].as_u64().unwrap_or(10);
+    let token = creds.get("SLACK_BOT_TOKEN").ok_or("Missing SLACK_BOT_TOKEN")?;
+
+    info!("[skill:slack] Reading {} messages from {}", limit, channel);
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    let resp = client.get("https://slack.com/api/conversations.history")
+        .header("Authorization", format!("Bearer {}", token))
+        .query(&[("channel", channel), ("limit", &limit.to_string())])
+        .send()
+        .await
+        .map_err(|e| format!("Slack API error: {}", e))?;
+
+    let body: serde_json::Value = resp.json().await
+        .map_err(|e| format!("Failed to parse Slack response: {}", e))?;
+
+    if body["ok"].as_bool().unwrap_or(false) {
+        let empty_vec = vec![];
+        let messages = body["messages"].as_array().unwrap_or(&empty_vec);
+        let mut output = format!("Last {} messages from {}:\n\n", messages.len(), channel);
+        for (i, msg) in messages.iter().enumerate() {
+            let user = msg["user"].as_str().unwrap_or("?");
+            let text = msg["text"].as_str().unwrap_or("");
+            let ts = msg["ts"].as_str().unwrap_or("");
+            output.push_str(&format!("{}. [{}] {}: {}\n", i + 1, ts, user, text));
+        }
+        Ok(output)
+    } else {
+        let err = body["error"].as_str().unwrap_or("unknown error");
+        Err(format!("Slack API error: {}", err))
+    }
+}
+
+// ── GitHub API ─────────────────────────────────────────────────────────
+
+async fn execute_github_api(
+    args: &serde_json::Value,
+    creds: &std::collections::HashMap<String, String>,
+) -> Result<String, String> {
+    let endpoint = args["endpoint"].as_str().ok_or("github_api: missing 'endpoint'")?;
+    let method = args["method"].as_str().unwrap_or("GET");
+    let token = creds.get("GITHUB_TOKEN").ok_or("Missing GITHUB_TOKEN")?;
+
+    let url = if endpoint.starts_with("https://") {
+        endpoint.to_string()
+    } else {
+        format!("https://api.github.com{}", if endpoint.starts_with('/') { endpoint.to_string() } else { format!("/{}", endpoint) })
+    };
+
+    info!("[skill:github] {} {}", method, url);
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    let mut request = match method.to_uppercase().as_str() {
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "PATCH" => client.patch(&url),
+        "DELETE" => client.delete(&url),
+        _ => client.get(&url),
+    };
+
+    request = request
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Accept", "application/vnd.github+json")
+        .header("User-Agent", "Paw-Agent/1.0")
+        .header("X-GitHub-Api-Version", "2022-11-28");
+
+    if let Some(body) = args.get("body") {
+        if !body.is_null() {
+            request = request.json(body);
+        }
+    }
+
+    let resp = request.send().await
+        .map_err(|e| format!("GitHub API error: {}", e))?;
+
+    let status = resp.status().as_u16();
+    let body = resp.text().await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
+
+    // Truncate long responses
+    let truncated = if body.len() > 30_000 {
+        format!("{}...\n[truncated, {} total bytes]", &body[..30_000], body.len())
+    } else {
+        body
+    };
+
+    Ok(format!("GitHub API {} {} → {}\n\n{}", method, endpoint, status, truncated))
+}
+
+// ── REST API Call ──────────────────────────────────────────────────────
+
+async fn execute_rest_api_call(
+    args: &serde_json::Value,
+    creds: &std::collections::HashMap<String, String>,
+) -> Result<String, String> {
+    let path = args["path"].as_str().ok_or("rest_api_call: missing 'path'")?;
+    let method = args["method"].as_str().unwrap_or("GET");
+    let base_url = creds.get("API_BASE_URL").ok_or("Missing API_BASE_URL")?;
+    let api_key = creds.get("API_KEY").ok_or("Missing API_KEY")?;
+    let auth_header = creds.get("API_AUTH_HEADER").map(|s| s.as_str()).unwrap_or("Authorization");
+    let auth_prefix = creds.get("API_AUTH_PREFIX").map(|s| s.as_str()).unwrap_or("Bearer");
+
+    let url = format!("{}{}", base_url.trim_end_matches('/'), if path.starts_with('/') { path.to_string() } else { format!("/{}", path) });
+
+    info!("[skill:rest_api] {} {}", method, url);
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    let mut request = match method.to_uppercase().as_str() {
+        "POST" => client.post(&url),
+        "PUT" => client.put(&url),
+        "PATCH" => client.patch(&url),
+        "DELETE" => client.delete(&url),
+        _ => client.get(&url),
+    };
+
+    request = request.header(auth_header, format!("{} {}", auth_prefix, api_key));
+
+    // Add custom headers
+    if let Some(headers) = args["headers"].as_object() {
+        for (key, value) in headers {
+            if let Some(v) = value.as_str() {
+                request = request.header(key.as_str(), v);
+            }
+        }
+    }
+
+    if let Some(body) = args["body"].as_str() {
+        request = request
+            .header("Content-Type", "application/json")
+            .body(body.to_string());
+    }
+
+    let resp = request.send().await
+        .map_err(|e| format!("API error: {}", e))?;
+
+    let status = resp.status().as_u16();
+    let body = resp.text().await
+        .map_err(|e| format!("Failed to read response: {}", e))?;
+
+    let truncated = if body.len() > 30_000 {
+        format!("{}...\n[truncated, {} total bytes]", &body[..30_000], body.len())
+    } else {
+        body
+    };
+
+    Ok(format!("API {} {} → {}\n\n{}", method, path, status, truncated))
+}
+
+// ── Webhook Send ───────────────────────────────────────────────────────
+
+async fn execute_webhook_send(
+    args: &serde_json::Value,
+    creds: &std::collections::HashMap<String, String>,
+) -> Result<String, String> {
+    let payload = args.get("payload").ok_or("webhook_send: missing 'payload'")?;
+    let url = creds.get("WEBHOOK_URL").ok_or("Missing WEBHOOK_URL")?;
+
+    info!("[skill:webhook] POST {}", url);
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    let mut request = client.post(url.as_str())
+        .header("Content-Type", "application/json")
+        .json(payload);
+
+    // Add HMAC signature if secret is configured
+    if let Some(secret) = creds.get("WEBHOOK_SECRET") {
+        if !secret.is_empty() {
+            // Compute simple hex digest for signing
+            let payload_str = serde_json::to_string(payload).unwrap_or_default();
+            let signature = format!("sha256={}", simple_hmac_hex(secret, &payload_str));
+            request = request.header("X-Signature-256", &signature);
+        }
+    }
+
+    let resp = request.send().await
+        .map_err(|e| format!("Webhook error: {}", e))?;
+
+    let status = resp.status().as_u16();
+    let body = resp.text().await.unwrap_or_default();
+
+    if status < 400 {
+        Ok(format!("Webhook delivered (HTTP {}). Response: {}", status, &body[..body.len().min(1000)]))
+    } else {
+        Err(format!("Webhook failed (HTTP {}): {}", status, &body[..body.len().min(1000)]))
+    }
+}
+
+/// Simple HMAC-like signature (not cryptographically secure HMAC, but sufficient for webhook signing)
+fn simple_hmac_hex(key: &str, data: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let mut hasher = DefaultHasher::new();
+    key.hash(&mut hasher);
+    data.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
 }

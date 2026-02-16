@@ -19,7 +19,7 @@ fn engine_db_path() -> PathBuf {
 
 /// Thread-safe database wrapper.
 pub struct SessionStore {
-    conn: Mutex<Connection>,
+    pub(crate) conn: Mutex<Connection>,
 }
 
 impl SessionStore {

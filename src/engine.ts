@@ -123,6 +123,29 @@ export interface EngineMemoryStats {
   has_embeddings: boolean;
 }
 
+// ── Skills ─────────────────────────────────────────────────────────────
+
+export interface EngineSkillCredentialField {
+  key: string;
+  label: string;
+  description: string;
+  required: boolean;
+  placeholder: string;
+}
+
+export interface EngineSkillStatus {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  enabled: boolean;
+  required_credentials: EngineSkillCredentialField[];
+  configured_credentials: string[];
+  missing_credentials: string[];
+  is_ready: boolean;
+  tool_names: string[];
+}
+
 // ── Engine Client ──────────────────────────────────────────────────────
 
 class PawEngineClient {
@@ -295,6 +318,28 @@ class PawEngineClient {
 
   async testEmbedding(): Promise<number> {
     return invoke<number>('engine_test_embedding');
+  }
+
+  // ── Skills (Credential Vault) ────────────────────────────────────────
+
+  async skillsList(): Promise<EngineSkillStatus[]> {
+    return invoke<EngineSkillStatus[]>('engine_skills_list');
+  }
+
+  async skillSetEnabled(skillId: string, enabled: boolean): Promise<void> {
+    return invoke('engine_skill_set_enabled', { skillId, enabled });
+  }
+
+  async skillSetCredential(skillId: string, key: string, value: string): Promise<void> {
+    return invoke('engine_skill_set_credential', { skillId, key, value });
+  }
+
+  async skillDeleteCredential(skillId: string, key: string): Promise<void> {
+    return invoke('engine_skill_delete_credential', { skillId, key });
+  }
+
+  async skillRevokeAll(skillId: string): Promise<void> {
+    return invoke('engine_skill_revoke_all', { skillId });
   }
 }
 
