@@ -545,3 +545,25 @@ export interface Message {
   timestamp: Date;
   toolCalls?: ToolCall[];
 }
+
+// ── Paw Frontend Agent Profile ───────────────────────────────────────────
+
+export interface Agent {
+  id: string;
+  name: string;
+  avatar: string; // emoji or initials
+  color: string;
+  bio: string;
+  model: string; // AI model to use
+  template: 'general' | 'research' | 'creative' | 'technical' | 'custom';
+  personality: {
+    tone: 'casual' | 'balanced' | 'formal';
+    initiative: 'reactive' | 'balanced' | 'proactive';
+    detail: 'brief' | 'balanced' | 'thorough';
+  };
+  skills: string[];
+  boundaries: string[];
+  systemPrompt?: string; // Custom instructions
+  createdAt: string;
+  lastUsed?: string;
+}

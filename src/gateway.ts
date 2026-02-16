@@ -569,15 +569,56 @@ class GatewayClient {
     thinkingLevel?: string;
     temperature?: number;
     attachments?: import('./types').ChatAttachment[];
+    agentProfile?: Partial<import('./types').Agent>;
   }): Promise<ChatSendResult> {
     const idempotencyKey = opts?.idempotencyKey ?? crypto.randomUUID();
+
+    // -- Agent Profile Injection --
+    // If an agentProfile is provided, construct a system prompt from it.
+    // This allows the UI to override the agent's core personality per-chat.
+    let finalSystemPrompt = opts?.systemPrompt;
+    if (opts?.agentProfile) {
+      const profile = opts.agentProfile;
+      const parts: string[] = [];
+      
+      if (profile.name) {
+        parts.push(`You are ${profile.name}.`);
+      }
+      if (profile.bio) {
+        parts.push(profile.bio);
+      }
+      
+      if (profile.personality) {
+        const p = profile.personality;
+        const personalityDesc: string[] = [];
+        if (p.tone) personalityDesc.push(`your tone is ${p.tone}`);
+        if (p.initiative) personalityDesc.push(`you are ${p.initiative} in your initiative`);
+        if (p.detail) personalityDesc.push(`you are ${p.detail} in your responses`);
+        if (personalityDesc.length > 0) {
+          parts.push(`Your personality is defined as follows: ${personalityDesc.join(', ')}.`);
+        }
+      }
+      
+      if (profile.boundaries && profile.boundaries.length > 0) {
+        parts.push(`You must strictly follow these rules:\n${profile.boundaries.map(b => `- ${b}`).join('\n')}`);
+      }
+      
+      if (profile.systemPrompt) {
+        parts.push(`Follow these custom instructions:\n${profile.systemPrompt}`);
+      }
+      
+      if (parts.length > 0) {
+        finalSystemPrompt = parts.join('\n\n');
+      }
+    }
+
     const params: Record<string, unknown> = {
       sessionKey,
       message,
       idempotencyKey,
       ...(opts?.thinking ? { thinking: opts.thinking } : {}),
       ...(opts?.model ? { model: opts.model } : {}),
-      ...(opts?.systemPrompt ? { systemPrompt: opts.systemPrompt } : {}),
+      ...(finalSystemPrompt ? { systemPrompt: finalSystemPrompt } : {}),
       ...(opts?.thinkingLevel ? { thinkingLevel: opts.thinkingLevel } : {}),
       ...(opts?.temperature != null ? { temperature: opts.temperature } : {}),
       ...(opts?.attachments?.length ? { attachments: opts.attachments } : {}),

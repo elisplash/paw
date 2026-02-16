@@ -1297,7 +1297,14 @@ async function sendMessage() {
     // Read selected mode's overrides (model, system prompt, thinking level)
     const modeSelect = $('chat-mode-select') as HTMLSelectElement | null;
     const selectedModeId = modeSelect?.value;
-    let chatOpts: { model?: string; systemPrompt?: string; thinkingLevel?: string; temperature?: number; attachments?: import('./types').ChatAttachment[] } = {};
+    let chatOpts: {
+      model?: string;
+      systemPrompt?: string;
+      thinkingLevel?: string;
+      temperature?: number;
+      attachments?: import('./types').ChatAttachment[];
+      agentProfile?: Partial<import('./types').Agent>;
+    } = {};
     if (selectedModeId) {
       const modes = await listModes();
       const mode = modes.find(m => m.id === selectedModeId);
@@ -1309,6 +1316,19 @@ async function sendMessage() {
       }
     }
 
+    // -- Agent Profile Injection --
+    // Get the current agent and inject its profile into the options
+    const currentAgent = AgentsModule.getCurrentAgent();
+    if (currentAgent) {
+      // Use the agent's model if it's not the default
+      if (currentAgent.model && currentAgent.model !== 'default') {
+        chatOpts.model = currentAgent.model;
+      }
+      // Pass the full profile to be constructed into a system prompt by the gateway client
+      (chatOpts as Record<string, unknown>).agentProfile = currentAgent;
+      console.log(`[main] Injecting agent profile for "${currentAgent.name}"`, currentAgent);
+    }
+    
     // Include attachments if any
     if (attachments.length > 0) {
       chatOpts.attachments = attachments;
