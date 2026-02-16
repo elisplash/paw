@@ -87,7 +87,8 @@ async function fetchWeather() {
   }
 }
 
-function getWeatherIcon(code: string): string {
+/** Map WMO weather code to emoji icon (used by weather widget) */
+export function getWeatherIcon(code: string): string {
   const c = parseInt(code);
   if (c === 113) return '☀️';
   if (c === 116) return '⛅';
