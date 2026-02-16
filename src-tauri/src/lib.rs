@@ -2029,109 +2029,54 @@ fn repair_openclaw_config() -> Result<bool, String> {
             }
         }
 
-        // Fix: Azure AI Foundry Anthropic providers need `api-key` header on
-        // model definitions.  The Anthropic TypeScript SDK sends `X-Api-Key`
-        // (Anthropic standard), but Azure AI expects the `api-key` header.
-        // The pi-ai library passes `model.headers` into defaultHeaders on the
-        // SDK client, which adds the correct header.  However, the gateway's
-        // resolveModel() fallback (no `models` array) doesn't populate
-        // `model.headers`.  Adding a `models` array with the `api-key` header
-        // ensures the gateway's `buildInlineProviderModels()` includes headers
-        // via `{ ...model }` spread — fixing the 401.
+        // Remove Azure / Anthropic providers that are no longer functional
+        // (Azure subscription suspended).  These providers cause gateway config
+        // validation errors (models missing required `name` field) and route
+        // requests to endpoints that return HTTP 401.
         if let Some(providers) = obj
             .get_mut("models")
             .and_then(|m| m.get_mut("providers"))
             .and_then(|p| p.as_object_mut())
         {
-            for (provider_name, provider_cfg) in providers.iter_mut() {
-                let is_anthropic_api = provider_cfg
-                    .get("api").and_then(|v| v.as_str()) == Some("anthropic-messages");
-                let base_url = provider_cfg
-                    .get("baseUrl").and_then(|v| v.as_str()).unwrap_or("");
-                let is_azure_anthropic = is_anthropic_api
-                    && (base_url.contains("services.ai.azure.com")
-                        || base_url.contains("cognitiveservices.azure.com"));
+            let stale_providers: Vec<String> = providers.iter()
+                .filter(|(_name, cfg)| {
+                    let api = cfg.get("api").and_then(|v| v.as_str()).unwrap_or("");
+                    let base_url = cfg.get("baseUrl").and_then(|v| v.as_str()).unwrap_or("");
+                    let is_azure = base_url.contains("azure.com")
+                        || base_url.contains("cognitiveservices")
+                        || base_url.contains("openai.azure.com");
+                    let is_anthropic_direct = api == "anthropic-messages"
+                        && !base_url.contains("azure");
+                    is_azure || is_anthropic_direct
+                })
+                .map(|(name, _)| name.clone())
+                .collect();
+            for name in &stale_providers {
+                providers.remove(name);
+                repaired = true;
+                info!("Removed stale provider '{}' (Azure suspended / Anthropic unreachable)", name);
+            }
+        }
 
-                if !is_azure_anthropic { continue; }
-
-                // Determine the API key to use for the `api-key` header.
-                // Prefer the provider-level `headers.api-key` if present,
-                // otherwise fall back to `apiKey`.
-                let api_key_for_header: Option<String> = provider_cfg
-                    .get("headers")
-                    .and_then(|h| h.get("api-key"))
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
-                    .or_else(|| provider_cfg
-                        .get("apiKey")
-                        .and_then(|v| v.as_str())
-                        .map(|s| s.to_string()));
-
-                let api_key_value = match api_key_for_header {
-                    Some(k) if !k.is_empty() => k,
-                    _ => continue, // No key to inject
-                };
-
-                // Common Claude model IDs available on Azure AI Foundry.
-                let claude_model_ids: &[&str] = &[
-                    "claude-opus-4-5",
-                    "claude-opus-4-6",
-                    "claude-sonnet-4",
-                    "claude-sonnet-4-5",
-                    "claude-haiku-4",
-                ];
-
-                let header_obj = serde_json::json!({ "api-key": api_key_value });
-
-                // Ensure a `models` array exists
-                let models_arr = provider_cfg
-                    .as_object_mut()
-                    .and_then(|p| {
-                        if !p.contains_key("models") {
-                            p.insert("models".to_string(), serde_json::json!([]));
-                        }
-                        p.get_mut("models").and_then(|m| m.as_array_mut())
-                    });
-
-                if let Some(arr) = models_arr {
-                    // Collect existing model IDs
-                    let existing_ids: std::collections::HashSet<String> = arr.iter()
-                        .filter_map(|m| m.get("id").and_then(|v| v.as_str()).map(|s| s.to_string()))
-                        .collect();
-
-                    // Update existing models: add/update `api-key` header
-                    for model_entry in arr.iter_mut() {
-                        if let Some(model_obj) = model_entry.as_object_mut() {
-                            if !model_obj.contains_key("headers") {
-                                model_obj.insert("headers".to_string(), header_obj.clone());
-                                repaired = true;
-                            } else if let Some(h) = model_obj.get_mut("headers").and_then(|h| h.as_object_mut()) {
-                                if !h.contains_key("api-key") {
-                                    h.insert("api-key".to_string(), serde_json::json!(&api_key_value));
-                                    repaired = true;
-                                }
-                            }
-                        }
-                    }
-
-                    // Add missing common model IDs
-                    for model_id in claude_model_ids {
-                        if !existing_ids.contains(*model_id) {
-                            arr.push(serde_json::json!({
-                                "id": model_id,
-                                "headers": { "api-key": &api_key_value }
-                            }));
-                            repaired = true;
-                        }
-                    }
-
-                    if repaired {
-                        info!(
-                            "Added api-key headers to {} provider '{}' models (Azure AI Foundry Anthropic auth fix)",
-                            arr.len(), provider_name
-                        );
-                    }
-                }
+        // Clean up Azure-related env vars that are no longer useful
+        if let Some(vars) = obj
+            .get_mut("env")
+            .and_then(|e| e.get_mut("vars"))
+            .and_then(|v| v.as_object_mut())
+        {
+            let azure_keys: Vec<String> = vars.keys()
+                .filter(|k| {
+                    let k_upper = k.to_uppercase();
+                    k_upper.contains("AZURE") || k_upper == "OPENAI_API_KEY"
+                        || k_upper == "OPENAI_BASE_URL" || k_upper == "OPENAI_API_VERSION"
+                        || k_upper == "ANTHROPIC_API_KEY"
+                })
+                .cloned()
+                .collect();
+            for key in &azure_keys {
+                vars.remove(key);
+                repaired = true;
+                info!("Removed stale env var '{}'", key);
             }
         }
     }
