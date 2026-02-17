@@ -439,3 +439,49 @@ pub fn remove_user_generic(
     info!("[{}] User {} removed", config_key, user_id);
     Ok(())
 }
+
+// ── Routed Channel Agent ───────────────────────────────────────────────
+
+/// Convenience wrapper: resolve routing config to determine the agent_id,
+/// then call run_channel_agent with that agent. Channels should prefer this
+/// over calling run_channel_agent directly.
+pub async fn run_routed_channel_agent(
+    app_handle: &tauri::AppHandle,
+    channel_prefix: &str,
+    channel_context: &str,
+    message: &str,
+    user_id: &str,
+    channel_id: Option<&str>,
+) -> Result<String, String> {
+    // Load routing config and resolve agent
+    let engine_state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine not initialized")?;
+
+    let routing_config = crate::engine::routing::load_routing_config(
+        &std::sync::Arc::new(crate::engine::sessions::SessionStore::open()?)
+    );
+
+    let route = crate::engine::routing::resolve_route(
+        &routing_config,
+        channel_prefix,
+        user_id,
+        channel_id,
+    );
+
+    if route.matched_rule_id.is_some() {
+        info!(
+            "[{}] Routed user {} → agent '{}' (rule: {})",
+            channel_prefix, user_id, route.agent_id,
+            route.matched_rule_label.as_deref().unwrap_or("?")
+        );
+    }
+
+    run_channel_agent(
+        app_handle,
+        channel_prefix,
+        channel_context,
+        message,
+        user_id,
+        &route.agent_id,
+    ).await
+}

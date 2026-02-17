@@ -13,6 +13,7 @@ pub mod skills;
 pub mod web;
 pub mod injection;
 pub mod compaction;
+pub mod routing;
 pub mod telegram;
 pub mod channels;
 pub mod orchestrator;
