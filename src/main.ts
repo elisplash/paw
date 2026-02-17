@@ -1,7 +1,7 @@
 // Paw — Main Application
 // Pawz AI command center — calls AI APIs directly, no gateway needed
 
-import type { AppConfig, Message, InstallProgress, ChatMessage, Session } from './types';
+import type { AppConfig, Message, Session } from './types';
 import { isEngineMode, startEngineBridge, onEngineAgent, engineChatSend, onEngineToolApproval, resolveEngineToolApproval } from './engine-bridge';
 import { pawEngine, type EngineEvent } from './engine';
 // ── Inline Lucide-style SVG icons (avoids broken lucide package) ─────────────
@@ -32,11 +32,10 @@ import * as SessionsSettings from './views/settings-sessions';
 import * as VoiceSettings from './views/settings-voice';
 import * as AdvancedSettings from './views/settings-advanced';
 import * as SkillsSettings from './views/settings-skills';
-import { setConnected as setSettingsConnected, invalidateConfigCache } from './views/settings-config';
+import { setConnected as setSettingsConnected } from './views/settings-config';
 import * as AutomationsModule from './views/automations';
 import * as MemoryPalaceModule from './views/memory-palace';
 import * as MailModule from './views/mail';
-import type { MailPermissions } from './views/mail';
 import * as SkillsModule from './views/skills';
 import * as FoundryModule from './views/foundry';
 import * as ResearchModule from './views/research';
@@ -79,7 +78,6 @@ interface TauriWindow {
   };
 }
 const tauriWindow = window as unknown as TauriWindow;
-const invoke = tauriWindow.__TAURI__?.core?.invoke;
 const listen = tauriWindow.__TAURI__?.event?.listen;
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -137,11 +135,6 @@ interface MessageWithAttachments extends Message {
   attachments?: ChatAttachmentLocal[];
 }
 
-function getPortFromUrl(url: string): number {
-  if (!url) return 18789;
-  try { return parseInt(new URL(url).port, 10) || 18789; }
-  catch { return 18789; }
-}
 
 // ── DOM refs ───────────────────────────────────────────────────────────────
 const $ = (id: string) => document.getElementById(id);
@@ -278,8 +271,6 @@ async function refreshModelLabel() {
 (window as unknown as Record<string, unknown>).__refreshModelLabel = refreshModelLabel;
 
 // ── Engine connection ─────────────────────────────────────────────────────
-let _connectInProgress = false;
-
 async function connectEngine(): Promise<boolean> {
   // ── Engine mode: skip WebSocket entirely, connect via Tauri IPC ──
   if (isEngineMode()) {
@@ -350,10 +341,6 @@ async function connectEngine(): Promise<boolean> {
 // (Gateway setup/detect/install handlers removed — engine mode auto-connects)
 
 // ── Config persistence ─────────────────────────────────────────────────────
-function saveConfig() {
-  localStorage.setItem('claw-config', JSON.stringify(config));
-}
-
 function loadConfigFromStorage() {
   const saved = localStorage.getItem('claw-config');
   if (saved) {
@@ -519,22 +506,6 @@ function extractContent(content: unknown): string {
   return String(content);
 }
 
-function chatMsgToMessage(m: ChatMessage): MessageWithAttachments {
-  const ts = m.ts ?? m.timestamp;
-  const result: MessageWithAttachments = {
-    id: m.id ?? undefined,
-    role: m.role as 'user' | 'assistant' | 'system',
-    content: extractContent(m.content),
-    timestamp: ts ? new Date(ts as string | number) : new Date(),
-    toolCalls: m.toolCalls,
-  };
-  // Carry attachments through if present on the gateway message
-  const raw = m as Record<string, unknown>;
-  if (Array.isArray(raw.attachments) && raw.attachments.length > 0) {
-    result.attachments = raw.attachments as ChatAttachmentLocal[];
-  }
-  return result;
-}
 
 // Chat send
 chatSend?.addEventListener('click', sendMessage);
@@ -897,31 +868,6 @@ function recordTokenUsage(usage: Record<string, unknown> | undefined) {
   updateTokenMeter();
 }
 
-/** Try to detect model context limit from engine config */
-async function detectModelContextLimit() {
-  try {
-    const cfg = await pawEngine.getConfig();
-    const modelName = (cfg.default_model ?? '').toLowerCase();
-    // Match model name to known cost/context keys
-    for (const key of Object.keys(_MODEL_COST_PER_TOKEN)) {
-      if (key !== 'default' && modelName.includes(key)) {
-        _activeModelKey = key;
-        console.log(`[token-meter] Matched model cost key: ${key}`);
-        break;
-      }
-    }
-    // Common context limits based on model name
-    const contextLimits: Record<string, number> = {
-      'gpt-4': 128000, 'gpt-3.5': 16384, 'claude': 200000, 'gemini': 1000000,
-      'llama': 8192, 'mistral': 32768, 'deepseek': 128000, 'qwen': 32768,
-    };
-    for (const [key, limit] of Object.entries(contextLimits)) {
-      if (modelName.includes(key)) { _modelContextLimit = limit; break; }
-    }
-  } catch {
-    // Keep default
-  }
-}
 
 // Dismiss compaction warning
 $('compaction-warning-dismiss')?.addEventListener('click', () => {
@@ -2374,16 +2320,6 @@ $('channel-send-btn')?.addEventListener('click', async () => {
   }
 });
 
-// ── Automations / Cron — Card Board ────────────────────────────────────────
-// TODO: Implement engine-native cron/automations via Tauri IPC
-async function loadCron() {
-  const empty = $('cron-empty');
-  const loading = $('cron-loading');
-  const board = document.querySelector('.auto-board') as HTMLElement | null;
-  if (loading) loading.style.display = 'none';
-  if (board) board.style.display = 'none';
-  if (empty) { empty.style.display = 'flex'; empty.textContent = 'Automations coming soon — engine-native scheduler in development'; }
-}
 
 // Cron modal logic
 function showCronModal() {
@@ -2680,11 +2616,6 @@ function formatMarkdown(text: string): string {
   return html;
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / 1048576).toFixed(1) + ' MB';
-}
 
 // ── Global Toast Notification ──────────────────────────────────────────────
 function showToast(message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info', durationMs = 3500) {
@@ -2703,36 +2634,6 @@ function showToast(message: string, type: 'info' | 'success' | 'error' | 'warnin
 
 // Settings view is now in src/views/settings.ts
 
-// ── Exec Approval event handler ────────────────────────────────────────────
-// Maps himalaya CLI subcommands to permission categories
-const HIMALAYA_PERM_MAP: Record<string, keyof MailPermissions> = {
-  'envelope list': 'read', 'envelope get': 'read', 'envelope watch': 'read',
-  'message read': 'read', 'message get': 'read', 'message list': 'read',
-  'message write': 'send', 'message send': 'send', 'message reply': 'send', 'message forward': 'send',
-  'message delete': 'delete', 'message remove': 'delete', 'flag remove': 'delete',
-  'folder create': 'manage', 'folder delete': 'manage', 'folder rename': 'manage',
-  'message move': 'manage', 'message copy': 'manage', 'flag add': 'manage', 'flag set': 'manage',
-};
-
-/** Classify a tool invocation's required permission. Returns null if not a mail tool. */
-function classifyMailPermission(toolName: string, args?: Record<string, unknown>): { perm: keyof MailPermissions; label: string } | null {
-  const name = (toolName || '').toLowerCase();
-  if (!name.includes('himalaya')) return null;
-
-  // Try to match against known subcommands from args or tool name
-  const argsStr = args ? JSON.stringify(args).toLowerCase() : '';
-  for (const [sub, perm] of Object.entries(HIMALAYA_PERM_MAP)) {
-    if (name.includes(sub) || argsStr.includes(sub)) {
-      return { perm, label: sub };
-    }
-  }
-  // Fallback heuristics
-  if (name.includes('send') || argsStr.includes('send')) return { perm: 'send', label: 'send' };
-  if (name.includes('delete') || argsStr.includes('delete')) return { perm: 'delete', label: 'delete' };
-  if (name.includes('move') || name.includes('folder')) return { perm: 'manage', label: 'manage' };
-  // Default: treat as read
-  return { perm: 'read', label: 'read' };
-}
 
 // (Gateway node/device/exec.approval events removed — engine mode uses Tauri listeners)
 
