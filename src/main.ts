@@ -274,6 +274,18 @@ async function connectGateway(): Promise<boolean> {
       });
     }
 
+    // Auto-initialize Ollama for semantic memory (fire and forget)
+    // This starts Ollama if needed and pulls the embedding model
+    pawEngine.ensureEmbeddingReady().then(status => {
+      if (status.error) {
+        console.warn('[main] Ollama embedding setup:', status.error);
+      } else {
+        console.log(`[main] Ollama ready: model=${status.model_name} dims=${status.embedding_dims}` +
+          (status.was_auto_started ? ' (auto-started)' : '') +
+          (status.was_auto_pulled ? ' (model auto-pulled)' : ''));
+      }
+    }).catch(e => console.warn('[main] Ollama auto-init failed (non-fatal):', e));
+
     return true;
   }
 

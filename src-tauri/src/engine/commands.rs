@@ -729,6 +729,43 @@ pub async fn engine_embedding_pull_model(
     Ok("Model pulled successfully".into())
 }
 
+/// Ensure Ollama is running and the embedding model is available.
+/// This is the "just works" function — automatically starts Ollama if needed
+/// and pulls the embedding model if it's not present.
+#[tauri::command]
+pub async fn engine_ensure_embedding_ready(
+    state: State<'_, EngineState>,
+) -> Result<memory::OllamaReadyStatus, String> {
+    let config = {
+        let cfg = state.memory_config.lock().map_err(|e| format!("Lock error: {}", e))?;
+        cfg.clone()
+    };
+
+    let status = memory::ensure_ollama_ready(&config).await;
+
+    // If we discovered the actual dimensions, update the config
+    if status.embedding_dims > 0 {
+        let mut cfg = state.memory_config.lock().map_err(|e| format!("Lock error: {}", e))?;
+        if cfg.embedding_dims != status.embedding_dims {
+            info!("[engine] Updating embedding_dims from {} to {} based on actual model output", cfg.embedding_dims, status.embedding_dims);
+            cfg.embedding_dims = status.embedding_dims;
+            // Save to DB
+            if let Ok(json) = serde_json::to_string(&*cfg) {
+                let _ = state.store.set_config("memory_config", &json);
+            }
+        }
+    }
+
+    // If we auto-pulled the model, backfill any existing memories that lack embeddings
+    if status.was_auto_pulled && status.error.is_none() {
+        if let Some(client) = state.embedding_client() {
+            let _ = memory::backfill_embeddings(&state.store, &client).await;
+        }
+    }
+
+    Ok(status)
+}
+
 /// Backfill embeddings for memories that don't have them.
 #[tauri::command]
 pub async fn engine_memory_backfill(

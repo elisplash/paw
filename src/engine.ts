@@ -124,6 +124,16 @@ export interface EngineMemoryStats {
   has_embeddings: boolean;
 }
 
+export interface OllamaReadyStatus {
+  ollama_running: boolean;
+  was_auto_started: boolean;
+  model_available: boolean;
+  was_auto_pulled: boolean;
+  model_name: string;
+  embedding_dims: number;
+  error: string | null;
+}
+
 // ── Skills ─────────────────────────────────────────────────────────────
 
 export interface EngineSkillCredentialField {
@@ -532,6 +542,10 @@ class PawEngineClient {
 
   async embeddingPullModel(): Promise<string> {
     return invoke<string>('engine_embedding_pull_model');
+  }
+
+  async ensureEmbeddingReady(): Promise<OllamaReadyStatus> {
+    return invoke<OllamaReadyStatus>('engine_ensure_embedding_ready');
   }
 
   async memoryBackfill(): Promise<{ success: number; failed: number }> {

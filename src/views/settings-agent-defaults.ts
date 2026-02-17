@@ -122,7 +122,58 @@ export async function loadAgentDefaultsSettings() {
     // ── Embedding Configuration ──────────────────────────────────────────
     const embSection = document.createElement('div');
     embSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Embedding (Semantic Search)</h3>';
-    embSection.innerHTML += '<p class="form-hint" style="margin:0 0 8px;font-size:11px;color:var(--text-muted)">Ollama runs locally and powers semantic memory search. The embedding model converts text to vectors for similarity matching.</p>';
+    embSection.innerHTML += '<p class="form-hint" style="margin:0 0 8px;font-size:11px;color:var(--text-muted)">Ollama runs locally and powers semantic memory search. The embedding model converts text to vectors for similarity matching. Pawz will auto-start Ollama and pull the model if needed.</p>';
+
+    // Auto-Setup button (prominent)
+    const autoSetupRow = document.createElement('div');
+    autoSetupRow.style.cssText = 'display:flex;align-items:center;gap:10px;margin:0 0 12px 0;padding:10px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary, rgba(255,255,255,0.03))';
+    const autoSetupBtn = document.createElement('button');
+    autoSetupBtn.className = 'btn btn-primary btn-sm';
+    autoSetupBtn.textContent = '🚀 Auto-Setup Ollama Embeddings';
+    autoSetupBtn.style.whiteSpace = 'nowrap';
+    const autoSetupStatus = document.createElement('span');
+    autoSetupStatus.style.cssText = 'font-size:12px;color:var(--text-muted);line-height:1.4';
+    autoSetupStatus.textContent = 'Checks Ollama, starts it if needed, and pulls the embedding model';
+    autoSetupRow.appendChild(autoSetupBtn);
+    autoSetupRow.appendChild(autoSetupStatus);
+    embSection.appendChild(autoSetupRow);
+
+    autoSetupBtn.addEventListener('click', async () => {
+      autoSetupBtn.disabled = true;
+      autoSetupBtn.textContent = '⏳ Setting up…';
+      autoSetupStatus.textContent = 'Starting Ollama and checking embedding model…';
+      autoSetupStatus.style.color = 'var(--text-muted)';
+      try {
+        // Save current form values first
+        const mc = await pawEngine.getMemoryConfig();
+        mc.embedding_base_url = embUrlInp.value.trim() || 'http://localhost:11434';
+        mc.embedding_model = embModelInp.value.trim() || 'nomic-embed-text';
+        mc.embedding_dims = parseInt(embDimsInp.value) || 768;
+        await pawEngine.setMemoryConfig(mc);
+
+        const result = await pawEngine.ensureEmbeddingReady();
+        if (result.error) {
+          autoSetupStatus.textContent = `✗ ${result.error}`;
+          autoSetupStatus.style.color = 'var(--text-danger, #ef4444)';
+        } else {
+          let msg = `✓ Ready! ${result.model_name} — ${result.embedding_dims} dimensions`;
+          if (result.was_auto_started) msg += ' (Ollama auto-started)';
+          if (result.was_auto_pulled) msg += ' (model auto-pulled)';
+          autoSetupStatus.textContent = msg;
+          autoSetupStatus.style.color = 'var(--text-success, #4ade80)';
+          // Update dims field with actual value
+          if (result.embedding_dims > 0) embDimsInp.value = String(result.embedding_dims);
+          showToast('Semantic memory is ready!', 'success');
+        }
+      } catch (e) {
+        const err = e instanceof Error ? e.message : String(e);
+        autoSetupStatus.textContent = `✗ ${err}`;
+        autoSetupStatus.style.color = 'var(--text-danger, #ef4444)';
+      } finally {
+        autoSetupBtn.disabled = false;
+        autoSetupBtn.textContent = '🚀 Auto-Setup Ollama Embeddings';
+      }
+    });
 
     const embUrlRow = formRow('Ollama URL', 'Where Ollama is running (default: http://localhost:11434)');
     const embUrlInp = textInput(memConfig.embedding_base_url || 'http://localhost:11434', 'http://localhost:11434');
@@ -136,7 +187,20 @@ export async function loadAgentDefaultsSettings() {
     embModelRow.appendChild(embModelInp);
     embSection.appendChild(embModelRow);
 
-    const embDimsRow = formRow('Embedding Dimensions', 'Vector dimensions (768 for nomic-embed-text, 384 for all-minilm)');
+    // Model quick-picks
+    const modelChipsRow = document.createElement('div');
+    modelChipsRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 8px 0';
+    for (const m of ['nomic-embed-text', 'all-minilm', 'mxbai-embed-large', 'snowflake-arctic-embed']) {
+      const chip = document.createElement('button');
+      chip.className = 'btn btn-sm';
+      chip.textContent = m;
+      chip.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:12px';
+      chip.addEventListener('click', () => { embModelInp.value = m; });
+      modelChipsRow.appendChild(chip);
+    }
+    embSection.appendChild(modelChipsRow);
+
+    const embDimsRow = formRow('Embedding Dimensions', 'Auto-detected when you run Test or Auto-Setup');
     const embDimsInp = numberInput(memConfig.embedding_dims || 768, { min: 64, max: 4096, placeholder: '768' });
     embDimsInp.style.maxWidth = '120px';
     embDimsRow.appendChild(embDimsInp);
@@ -148,9 +212,14 @@ export async function loadAgentDefaultsSettings() {
     const testBtn = document.createElement('button');
     testBtn.className = 'btn btn-sm';
     testBtn.textContent = 'Test Connection';
+    const backfillBtn = document.createElement('button');
+    backfillBtn.className = 'btn btn-sm';
+    backfillBtn.textContent = 'Backfill Embeddings';
+    backfillBtn.title = 'Embed any memories that were stored without vectors';
     const statusSpan = document.createElement('span');
     statusSpan.style.cssText = 'font-size:12px;color:var(--text-muted)';
     embStatusRow.appendChild(testBtn);
+    embStatusRow.appendChild(backfillBtn);
     embStatusRow.appendChild(statusSpan);
     embSection.appendChild(embStatusRow);
 
@@ -168,13 +237,30 @@ export async function loadAgentDefaultsSettings() {
 
         const dims = await pawEngine.testEmbedding();
         statusSpan.textContent = `✓ Connected — ${dims} dimensions`;
-        statusSpan.style.color = 'var(--text-success, green)';
+        statusSpan.style.color = 'var(--text-success, #4ade80)';
+        if (dims > 0) embDimsInp.value = String(dims);
       } catch (e) {
         const err = e instanceof Error ? e.message : String(e);
         statusSpan.textContent = `✗ ${err}`;
-        statusSpan.style.color = 'var(--text-danger, red)';
+        statusSpan.style.color = 'var(--text-danger, #ef4444)';
       } finally {
         testBtn.disabled = false;
+      }
+    });
+
+    backfillBtn.addEventListener('click', async () => {
+      backfillBtn.disabled = true;
+      statusSpan.textContent = 'Backfilling…';
+      statusSpan.style.color = 'var(--text-muted)';
+      try {
+        const result = await pawEngine.memoryBackfill();
+        statusSpan.textContent = `✓ Backfill: ${result.success} embedded, ${result.failed} failed`;
+        statusSpan.style.color = result.failed > 0 ? 'var(--text-warning, orange)' : 'var(--text-success, #4ade80)';
+      } catch (e) {
+        statusSpan.textContent = `✗ Backfill failed: ${e instanceof Error ? e.message : e}`;
+        statusSpan.style.color = 'var(--text-danger, #ef4444)';
+      } finally {
+        backfillBtn.disabled = false;
       }
     });
 
@@ -184,12 +270,16 @@ export async function loadAgentDefaultsSettings() {
         const embStatus = await pawEngine.embeddingStatus();
         if (embStatus.ollama_running && embStatus.model_available) {
           statusSpan.textContent = `✓ Ollama running, ${embStatus.model_name} available`;
-          statusSpan.style.color = 'var(--text-success, green)';
+          statusSpan.style.color = 'var(--text-success, #4ade80)';
+          autoSetupStatus.textContent = `✓ Ollama is running and ${embStatus.model_name} is available`;
+          autoSetupStatus.style.color = 'var(--text-success, #4ade80)';
         } else if (embStatus.ollama_running) {
-          statusSpan.textContent = `⚠ Ollama running but ${embStatus.model_name} not pulled — click Test to auto-pull`;
+          statusSpan.textContent = `⚠ Ollama running but ${embStatus.model_name} not pulled yet`;
           statusSpan.style.color = 'var(--text-warning, orange)';
+          autoSetupStatus.textContent = `Ollama is running but ${embStatus.model_name} needs to be pulled — click Auto-Setup`;
+          autoSetupStatus.style.color = 'var(--text-warning, orange)';
         } else {
-          statusSpan.textContent = '⚠ Ollama not running — start Ollama for semantic search';
+          statusSpan.textContent = '⚠ Ollama not detected — click Auto-Setup to start it';
           statusSpan.style.color = 'var(--text-warning, orange)';
         }
       } catch { /* ignore */ }
