@@ -1128,6 +1128,12 @@ pub struct ProjectAgent {
     /// Optional per-agent model override (takes highest priority)
     #[serde(default)]
     pub model: Option<String>,
+    /// Custom system prompt for this agent (set at creation time)
+    #[serde(default)]
+    pub system_prompt: Option<String>,
+    /// Capabilities / tool names this agent is allowed to use
+    #[serde(default)]
+    pub capabilities: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

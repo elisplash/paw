@@ -241,6 +241,8 @@ export interface EngineProjectAgent {
   status: string;         // idle, working, done, error
   current_task?: string;
   model?: string;         // per-agent model override
+  system_prompt?: string; // custom system prompt for this agent
+  capabilities?: string[]; // tool names this agent can use
 }
 
 export interface EngineProjectMessage {

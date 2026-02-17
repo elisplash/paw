@@ -93,6 +93,46 @@ pub fn boss_tools() -> Vec<ToolDefinition> {
                 }),
             },
         },
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "create_sub_agent".into(),
+                description: "Create and register a new sub-agent in the current project. The agent will be added to the database and available for task delegation immediately.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string",
+                            "description": "A unique name/id for the agent (e.g. 'code-cat', 'research-owl'). Use lowercase with hyphens."
+                        },
+                        "role": {
+                            "type": "string",
+                            "enum": ["worker", "boss"],
+                            "description": "The agent's role. Usually 'worker' for sub-agents."
+                        },
+                        "specialty": {
+                            "type": "string",
+                            "enum": ["coder", "researcher", "designer", "communicator", "security", "general"],
+                            "description": "The agent's area of expertise"
+                        },
+                        "system_prompt": {
+                            "type": "string",
+                            "description": "Custom system prompt / personality instructions for this agent"
+                        },
+                        "capabilities": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "List of tool names this agent should have access to (e.g. ['exec', 'fetch', 'web_search']). Leave empty for all default tools."
+                        },
+                        "model": {
+                            "type": "string",
+                            "description": "Optional model override for this agent (e.g. 'gemini-2.5-flash'). Leave empty to use project defaults."
+                        }
+                    },
+                    "required": ["name", "role", "specialty", "system_prompt"]
+                }),
+            },
+        },
     ]
 }
 
@@ -309,6 +349,97 @@ pub async fn execute_boss_tool(
             })).ok();
 
             Some(Ok(format!("Project marked as {}. Summary: {}", status, summary)))
+        }
+
+        "create_sub_agent" => {
+            let name = args["name"].as_str().unwrap_or("").to_string();
+            let role = args["role"].as_str().unwrap_or("worker").to_string();
+            let specialty = args["specialty"].as_str().unwrap_or("general").to_string();
+            let system_prompt = args["system_prompt"].as_str().unwrap_or("").to_string();
+            let capabilities: Vec<String> = args["capabilities"].as_array()
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                .unwrap_or_default();
+            let model = args["model"].as_str().map(|s| s.to_string()).filter(|s| !s.is_empty());
+
+            if name.is_empty() {
+                return Some(Err("create_sub_agent requires a 'name' argument".into()));
+            }
+            if system_prompt.is_empty() {
+                return Some(Err("create_sub_agent requires a 'system_prompt' argument".into()));
+            }
+
+            // Generate a slug-style agent_id from the name
+            let agent_id = name.to_lowercase()
+                .chars()
+                .map(|c| if c.is_alphanumeric() || c == '-' { c } else { '-' })
+                .collect::<String>();
+
+            let store = get_store(app_handle);
+            match store {
+                Some(store) => {
+                    // Check if agent already exists in this project
+                    if let Ok(existing) = store.get_project_agents(project_id) {
+                        if existing.iter().any(|a| a.agent_id == agent_id) {
+                            return Some(Err(format!("Agent '{}' already exists in this project", agent_id)));
+                        }
+                    }
+
+                    let agent = ProjectAgent {
+                        agent_id: agent_id.clone(),
+                        role: role.clone(),
+                        specialty: specialty.clone(),
+                        status: "idle".into(),
+                        current_task: None,
+                        model: model.clone(),
+                        system_prompt: Some(system_prompt.clone()),
+                        capabilities: capabilities.clone(),
+                    };
+
+                    match store.add_project_agent(project_id, &agent) {
+                        Ok(()) => {
+                            // Also create an IDENTITY.md agent file so compose_agent_context picks it up
+                            let identity_content = format!(
+                                "# {}\n\n## Identity\nAgent ID: {}\nRole: {}\nSpecialty: {}\n\n## Personality & Instructions\n{}\n",
+                                name, agent_id, role, specialty, system_prompt
+                            );
+                            store.set_agent_file(&agent_id, "IDENTITY.md", &identity_content).ok();
+
+                            // Record creation message in project log
+                            let msg = ProjectMessage {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                project_id: project_id.to_string(),
+                                from_agent: "boss".into(),
+                                to_agent: Some(agent_id.clone()),
+                                kind: "message".into(),
+                                content: format!("Created new agent '{}' (role={}, specialty={})", agent_id, role, specialty),
+                                metadata: Some(serde_json::json!({
+                                    "action": "create_sub_agent",
+                                    "capabilities": capabilities,
+                                    "model": model,
+                                }).to_string()),
+                                created_at: chrono::Utc::now().to_rfc3339(),
+                            };
+                            store.add_project_message(&msg).ok();
+
+                            // Emit event for UI
+                            app_handle.emit("project-event", serde_json::json!({
+                                "kind": "agent_created",
+                                "project_id": project_id,
+                                "agent_id": agent_id,
+                                "role": role,
+                                "specialty": specialty,
+                            })).ok();
+
+                            Some(Ok(format!(
+                                "Successfully created sub-agent '{}' (role={}, specialty={}). You can now delegate tasks to this agent using delegate_task with agent_id='{}'.",
+                                agent_id, role, specialty, agent_id
+                            )))
+                        }
+                        Err(e) => Some(Err(format!("Failed to create agent: {}", e)))
+                    }
+                }
+                None => Some(Err("Could not access engine store".into()))
+            }
         }
 
         _ => None, // Not an orchestrator tool
@@ -615,7 +746,7 @@ async fn run_boss_agent_loop(
     let mut round = 0;
     let mut final_text = String::new();
 
-    let orchestrator_tool_names = ["delegate_task", "check_agent_status", "send_agent_message", "project_complete"];
+    let orchestrator_tool_names = ["delegate_task", "check_agent_status", "send_agent_message", "project_complete", "create_sub_agent"];
     // All built-in tools skip HIL — the agent has full access
     let safe_tools = [
         // Core tools

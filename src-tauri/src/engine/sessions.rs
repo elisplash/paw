@@ -169,6 +169,8 @@ impl SessionStore {
         // ── Migrations: add columns to existing tables ──────────────────
         // SQLite ignores ALTER TABLE ADD COLUMN if it already exists (we catch the error).
         conn.execute("ALTER TABLE project_agents ADD COLUMN model TEXT", []).ok();
+        conn.execute("ALTER TABLE project_agents ADD COLUMN system_prompt TEXT", []).ok();
+        conn.execute("ALTER TABLE project_agents ADD COLUMN capabilities TEXT NOT NULL DEFAULT ''", []).ok();
 
         // ── Phase 2: Memory Intelligence migrations ──────────────────────
         // Add agent_id column to memories (for per-agent memory scope)
@@ -1135,9 +1137,11 @@ impl SessionStore {
         let mut result = Vec::new();
         for mut p in projects {
             let mut agent_stmt = conn.prepare(
-                "SELECT agent_id, role, specialty, status, current_task, model FROM project_agents WHERE project_id=?1"
+                "SELECT agent_id, role, specialty, status, current_task, model, system_prompt, capabilities FROM project_agents WHERE project_id=?1"
             ).map_err(|e| e.to_string())?;
             p.agents = agent_stmt.query_map(params![p.id], |row| {
+                let caps_str: String = row.get::<_, String>(7).unwrap_or_default();
+                let capabilities: Vec<String> = serde_json::from_str(&caps_str).unwrap_or_default();
                 Ok(crate::engine::types::ProjectAgent {
                     agent_id: row.get(0)?,
                     role: row.get(1)?,
@@ -1145,6 +1149,8 @@ impl SessionStore {
                     status: row.get(3)?,
                     current_task: row.get(4)?,
                     model: row.get(5)?,
+                    system_prompt: row.get(6)?,
+                    capabilities,
                 })
             }).map_err(|e| e.to_string())?
             .filter_map(|r| r.ok())
@@ -1184,20 +1190,33 @@ impl SessionStore {
         conn.execute("DELETE FROM project_agents WHERE project_id=?1", params![project_id])
             .map_err(|e| e.to_string())?;
         for a in agents {
+            let caps_json = serde_json::to_string(&a.capabilities).unwrap_or_default();
             conn.execute(
-                "INSERT INTO project_agents (project_id, agent_id, role, specialty, status, current_task, model) VALUES (?1,?2,?3,?4,?5,?6,?7)",
-                params![project_id, a.agent_id, a.role, a.specialty, a.status, a.current_task, a.model],
+                "INSERT INTO project_agents (project_id, agent_id, role, specialty, status, current_task, model, system_prompt, capabilities) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
+                params![project_id, a.agent_id, a.role, a.specialty, a.status, a.current_task, a.model, a.system_prompt, caps_json],
             ).map_err(|e| e.to_string())?;
         }
+        Ok(())
+    }
+
+    pub fn add_project_agent(&self, project_id: &str, agent: &crate::engine::types::ProjectAgent) -> Result<(), String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let caps_json = serde_json::to_string(&agent.capabilities).unwrap_or_default();
+        conn.execute(
+            "INSERT OR REPLACE INTO project_agents (project_id, agent_id, role, specialty, status, current_task, model, system_prompt, capabilities) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
+            params![project_id, agent.agent_id, agent.role, agent.specialty, agent.status, agent.current_task, agent.model, agent.system_prompt, caps_json],
+        ).map_err(|e| format!("Failed to insert agent: {}", e))?;
         Ok(())
     }
 
     pub fn get_project_agents(&self, project_id: &str) -> Result<Vec<crate::engine::types::ProjectAgent>, String> {
         let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
         let mut stmt = conn.prepare(
-            "SELECT agent_id, role, specialty, status, current_task, model FROM project_agents WHERE project_id=?1"
+            "SELECT agent_id, role, specialty, status, current_task, model, system_prompt, capabilities FROM project_agents WHERE project_id=?1"
         ).map_err(|e| e.to_string())?;
         let agents = stmt.query_map(params![project_id], |row| {
+            let caps_str: String = row.get::<_, String>(7).unwrap_or_default();
+            let capabilities: Vec<String> = serde_json::from_str(&caps_str).unwrap_or_default();
             Ok(crate::engine::types::ProjectAgent {
                 agent_id: row.get(0)?,
                 role: row.get(1)?,
@@ -1205,6 +1224,8 @@ impl SessionStore {
                 status: row.get(3)?,
                 current_task: row.get(4)?,
                 model: row.get(5)?,
+                system_prompt: row.get(6)?,
+                capabilities,
             })
         }).map_err(|e| e.to_string())?
         .filter_map(|r| r.ok())
