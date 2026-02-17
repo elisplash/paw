@@ -777,6 +777,9 @@ pub enum EngineEvent {
         tool_calls_count: usize,
         #[serde(skip_serializing_if = "Option::is_none")]
         usage: Option<TokenUsage>,
+        /// The actual model that responded (from the API, not config)
+        #[serde(skip_serializing_if = "Option::is_none")]
+        model: Option<String>,
     },
     /// An error occurred during the run
     #[serde(rename = "error")]
@@ -858,6 +861,8 @@ pub struct StreamChunk {
     pub tool_calls: Vec<ToolCallDelta>,
     pub finish_reason: Option<String>,
     pub usage: Option<TokenUsage>,
+    /// The actual model name returned by the API (proof of which model responded)
+    pub model: Option<String>,
 }
 
 #[derive(Debug, Clone)]

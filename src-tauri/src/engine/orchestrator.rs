@@ -654,6 +654,9 @@ async fn run_boss_agent_loop(
         let mut tool_call_map: std::collections::HashMap<usize, (String, String, String)> = std::collections::HashMap::new();
         let mut has_tool_calls = false;
 
+        // Extract confirmed model from API response
+        let confirmed_model: Option<String> = chunks.iter().find_map(|c| c.model.clone());
+
         for chunk in &chunks {
             if let Some(dt) = &chunk.delta_text {
                 text_accum.push_str(dt);
@@ -688,6 +691,7 @@ async fn run_boss_agent_loop(
                 text: final_text.clone(),
                 tool_calls_count: 0,
                 usage: None,
+                model: confirmed_model.clone(),
             });
             return Ok(final_text);
         }
@@ -1032,6 +1036,9 @@ async fn run_worker_agent_loop(
         let mut text_accum = String::new();
         let mut tool_call_map: std::collections::HashMap<usize, (String, String, String)> = std::collections::HashMap::new();
         let mut has_tool_calls = false;
+
+        // Extract confirmed model from API response
+        let _confirmed_model: Option<String> = chunks.iter().find_map(|c| c.model.clone());
 
         for chunk in &chunks {
             if let Some(dt) = &chunk.delta_text {

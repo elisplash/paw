@@ -107,6 +107,10 @@ impl OpenAiProvider {
         }
 
         let v: Value = serde_json::from_str(data).ok()?;
+
+        // Extract the actual model name returned by the API
+        let model = v["model"].as_str().map(|s| s.to_string());
+
         let choice = v["choices"].get(0)?;
         let delta = &choice["delta"];
         let finish_reason = choice["finish_reason"].as_str().map(|s| s.to_string());
@@ -151,6 +155,7 @@ impl OpenAiProvider {
             tool_calls,
             finish_reason,
             usage,
+            model,
         })
     }
 }
@@ -414,6 +419,7 @@ impl AnthropicProvider {
                             tool_calls: vec![],
                             finish_reason: None,
                             usage: None,
+                            model: None,
                         })
                     }
                     "input_json_delta" => {
@@ -428,6 +434,7 @@ impl AnthropicProvider {
                             }],
                             finish_reason: None,
                             usage: None,
+                            model: None,
                         })
                     }
                     _ => None,
@@ -448,6 +455,7 @@ impl AnthropicProvider {
                         }],
                         finish_reason: None,
                         usage: None,
+                        model: None,
                     })
                 } else {
                     None
@@ -473,11 +481,14 @@ impl AnthropicProvider {
                     tool_calls: vec![],
                     finish_reason: stop_reason,
                     usage,
+                    model: None,
                 })
             }
             "message_start" => {
-                // Anthropic message_start contains input token count
-                let usage = v.get("message").and_then(|m| m.get("usage")).and_then(|u| {
+                // Anthropic message_start contains input token count AND the actual model name
+                let msg = v.get("message");
+                let model = msg.and_then(|m| m["model"].as_str()).map(|s| s.to_string());
+                let usage = msg.and_then(|m| m.get("usage")).and_then(|u| {
                     let input = u["input_tokens"].as_u64().unwrap_or(0);
                     if input > 0 {
                         Some(TokenUsage {
@@ -494,6 +505,7 @@ impl AnthropicProvider {
                     tool_calls: vec![],
                     finish_reason: None,
                     usage,
+                    model,
                 })
             }
             "message_stop" => {
@@ -502,6 +514,7 @@ impl AnthropicProvider {
                     tool_calls: vec![],
                     finish_reason: Some("stop".into()),
                     usage: None,
+                    model: None,
                 })
             }
             _ => None,
@@ -857,6 +870,9 @@ impl GoogleProvider {
                     if line.starts_with("data: ") {
                         let data = &line[6..];
                         if let Ok(v) = serde_json::from_str::<Value>(data) {
+                            // Extract actual model version from Google's response
+                            let api_model = v["modelVersion"].as_str().map(|s| s.to_string());
+
                             // Parse Google's streaming format
                             if let Some(candidates) = v["candidates"].as_array() {
                                 for candidate in candidates {
@@ -872,6 +888,7 @@ impl GoogleProvider {
                                                     tool_calls: vec![],
                                                     finish_reason: finish_reason.clone(),
                                                     usage: None,
+                                                    model: api_model.clone(),
                                             });
                                         }
                                         if let Some(fc) = part.get("functionCall") {
@@ -887,6 +904,7 @@ impl GoogleProvider {
                                                 }],
                                                 finish_reason: finish_reason.clone(),
                                                 usage: None,
+                                                model: api_model.clone(),
                                             });
                                         }
                                     }
@@ -908,6 +926,7 @@ impl GoogleProvider {
                                         output_tokens: output,
                                         total_tokens: um["totalTokenCount"].as_u64().unwrap_or(input + output),
                                     }),
+                                    model: api_model.clone(),
                                 });
                             }
                         }

@@ -1905,6 +1905,17 @@ function handleAgentEvent(payload: unknown): void {
         // Also try root-level usage on the event itself
         const evtUsage = (evt as Record<string, unknown>).usage as Record<string, unknown> | undefined;
         if (evtUsage) recordTokenUsage(evtUsage);
+
+        // Update model label with the API-confirmed model name
+        const confirmedModel = dAny.model as string | undefined;
+        if (confirmedModel) {
+          const modelLabel = document.getElementById('model-label');
+          if (modelLabel) {
+            modelLabel.textContent = `✓ ${confirmedModel}`;
+            modelLabel.title = `API-confirmed model: ${confirmedModel}`;
+          }
+          console.log(`[main] API-confirmed model: ${confirmedModel}`);
+        }
         if (_streamingResolve) {
           // If we already have content from deltas, resolve immediately.
           // Otherwise give the 'chat' final event a 3s grace period to arrive

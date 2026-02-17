@@ -51,6 +51,9 @@ pub async fn run_agent_turn(
         let mut has_tool_calls = false;
         let mut _finished = false;
 
+        // Extract the confirmed model name from the API response
+        let confirmed_model: Option<String> = chunks.iter().find_map(|c| c.model.clone());
+
         for chunk in &chunks {
             // Accumulate text deltas
             if let Some(dt) = &chunk.delta_text {
@@ -123,6 +126,7 @@ pub async fn run_agent_turn(
                 text: final_text.clone(),
                 tool_calls_count: 0,
                 usage,
+                model: confirmed_model.clone(),
             });
 
             return Ok(final_text);

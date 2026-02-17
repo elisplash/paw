@@ -205,6 +205,7 @@ function translateEngineEvent(event: EngineEvent): Record<string, unknown> | nul
             output_tokens: event.usage.output_tokens,
             total_tokens: event.usage.total_tokens,
           } : undefined,
+          model: event.model,
         },
         runId: event.run_id,
         sessionKey: event.session_id,

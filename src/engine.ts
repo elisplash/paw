@@ -91,6 +91,7 @@ export interface EngineEvent {
   // complete
   tool_calls_count?: number;
   usage?: { input_tokens: number; output_tokens: number; total_tokens: number };
+  model?: string;
   // error
   message?: string;
 }
