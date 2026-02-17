@@ -189,9 +189,9 @@ pub async fn run_agent_turn(
             // Security classification still happens on the frontend side for
             // exec/shell commands, but the agent loop itself doesn't block.
             let safe_tools = [
-                // Core tools
-                "exec", "fetch", "read_file", "write_file",
-                "list_directory", "append_file", "delete_file",
+                // Core tools (exec, write_file, append_file, delete_file require HIL)
+                "fetch", "read_file",
+                "list_directory",
                 // Web tools
                 "web_search", "web_read", "web_screenshot", "web_browse",
                 // Soul / persona tools

@@ -749,9 +749,9 @@ async fn run_boss_agent_loop(
     let orchestrator_tool_names = ["delegate_task", "check_agent_status", "send_agent_message", "project_complete", "create_sub_agent"];
     // All built-in tools skip HIL — the agent has full access
     let safe_tools = [
-        // Core tools
-        "exec", "fetch", "read_file", "write_file",
-        "list_directory", "append_file", "delete_file",
+        // Core tools (exec, write_file, append_file, delete_file require HIL)
+        "fetch", "read_file",
+        "list_directory",
         // Web tools
         "web_search", "web_read", "web_screenshot", "web_browse",
         // Soul / persona tools
@@ -1143,9 +1143,9 @@ async fn run_worker_agent_loop(
 
     // All built-in tools skip HIL — the agent has full access
     let safe_tools = [
-        // Core tools
-        "exec", "fetch", "read_file", "write_file",
-        "list_directory", "append_file", "delete_file",
+        // Core tools (exec, write_file, append_file, delete_file require HIL)
+        "fetch", "read_file",
+        "list_directory",
         // Web tools
         "web_search", "web_read", "web_screenshot", "web_browse",
         // Soul / persona tools

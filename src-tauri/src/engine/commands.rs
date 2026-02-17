@@ -2009,6 +2009,29 @@ pub fn engine_project_set_agents(
 }
 
 #[tauri::command]
+pub fn engine_list_all_agents(
+    state: State<'_, EngineState>,
+) -> Result<Vec<serde_json::Value>, String> {
+    let agents = state.store.list_all_agents()?;
+    Ok(agents
+        .into_iter()
+        .map(|(project_id, agent)| {
+            serde_json::json!({
+                "project_id": project_id,
+                "agent_id": agent.agent_id,
+                "role": agent.role,
+                "specialty": agent.specialty,
+                "status": agent.status,
+                "current_task": agent.current_task,
+                "model": agent.model,
+                "system_prompt": agent.system_prompt,
+                "capabilities": agent.capabilities,
+            })
+        })
+        .collect())
+}
+
+#[tauri::command]
 pub fn engine_project_messages(
     state: State<'_, EngineState>,
     project_id: String,

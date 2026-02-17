@@ -86,6 +86,19 @@ const DANGER_PATTERNS: DangerPattern[] = [
                                     level: 'medium', label: 'Service Modification',       reason: 'Stops or disables a system service' },
   { pattern: /\bservice\s+\S+\s+stop/i,
                                     level: 'medium', label: 'Service Stop',               reason: 'Stops a system service' },
+  // ── SQL Destructive Operations ───────────────────
+  { pattern: /\bDELETE\s+FROM\b/i,
+                                    level: 'critical', label: 'SQL Delete',               reason: 'Deletes rows from a database table' },
+  { pattern: /\bDROP\s+(TABLE|DATABASE|SCHEMA|INDEX|VIEW)\b/i,
+                                    level: 'critical', label: 'SQL Drop',                 reason: 'Permanently drops a database object' },
+  { pattern: /\bTRUNCATE\s+(TABLE)?\b/i,
+                                    level: 'critical', label: 'SQL Truncate',             reason: 'Removes all rows from a table' },
+  { pattern: /\bALTER\s+TABLE\b.*\bDROP\b/i,
+                                    level: 'high',     label: 'SQL Alter Drop',           reason: 'Drops a column or constraint from a table' },
+  { pattern: /\bUPDATE\s+\S+\s+SET\b/i,
+                                    level: 'high',     label: 'SQL Update',               reason: 'Modifies existing data in a table' },
+  { pattern: /\bINSERT\s+(INTO|OVERWRITE)\b/i,
+                                    level: 'medium',   label: 'SQL Insert',               reason: 'Inserts data into a database table' },
 ];
 
 // ── Classifier function ────────────────────────────────────────────────────
