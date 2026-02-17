@@ -1,8 +1,15 @@
 // Today View — Daily briefing with weather, calendar, tasks, and unread emails
 
-import { gateway } from '../gateway';
-
 const $ = (id: string) => document.getElementById(id);
+
+// ── Tauri bridge ───────────────────────────────────────────────────────────
+interface TauriWindow {
+  __TAURI__?: {
+    core: { invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T> };
+  };
+}
+const tauriWindow = window as unknown as TauriWindow;
+const invoke = tauriWindow.__TAURI__?.core?.invoke;
 
 interface Task {
   id: string;
@@ -46,43 +53,61 @@ function saveTasks() {
 async function fetchWeather() {
   const weatherEl = $('today-weather');
   if (!weatherEl) return;
-  
+
   try {
-    // Use wttr.in with simple text format — route through gateway proxy to avoid CORS
-    let text = '';
-    try {
-      // Try gateway proxy first (avoids browser CORS restriction)
-      const proxyResult = await gateway.request<{ body?: string }>('http.get', { url: 'https://wttr.in/?format=%c|%t|%C', headers: { 'User-Agent': 'curl' } });
-      text = proxyResult.body ?? '';
-    } catch {
-      // Fallback: direct fetch (works in Tauri webview but not dev browser)
-      const response = await fetch('https://wttr.in/?format=%c|%t|%C', {
-        headers: { 'User-Agent': 'curl' },
-        signal: AbortSignal.timeout(5000),
-      });
-      text = await response.text();
-    }
-    if (text && !text.includes('Unknown')) {
-      const [icon, temp, desc] = text.trim().split('|');
-      weatherEl.innerHTML = `
-        <div class="today-weather-main">
-          <span class="today-weather-icon">${icon || '🌤️'}</span>
-          <span class="today-weather-temp">${temp || '--'}</span>
-        </div>
-        <div class="today-weather-desc">${desc || ''}</div>
-      `;
+    let json: string | null = null;
+
+    // Primary: Use Tauri command (bypasses CSP)
+    if (invoke) {
+      json = await invoke<string>('fetch_weather', { location: null });
     } else {
-      throw new Error('No weather data');
+      // Fallback: direct fetch (only works if CSP allows it)
+      const response = await fetch('https://wttr.in/?format=j1', {
+        headers: { 'User-Agent': 'curl' },
+        signal: AbortSignal.timeout(8000),
+      });
+      json = await response.text();
     }
+
+    if (!json) throw new Error('No weather data');
+
+    const data = JSON.parse(json);
+    const current = data.current_condition?.[0];
+    if (!current) throw new Error('No current weather');
+
+    const tempC = current.temp_C ?? '--';
+    const tempF = current.temp_F ?? '--';
+    const desc = current.weatherDesc?.[0]?.value ?? '';
+    const code = current.weatherCode ?? '';
+    const feelsLikeC = current.FeelsLikeC;
+    const humidity = current.humidity;
+    const windKmph = current.windspeedKmph;
+    const icon = getWeatherIcon(code);
+
+    const area = data.nearest_area?.[0];
+    const location = area ? `${area.areaName?.[0]?.value ?? ''}${area.country?.[0]?.value ? ', ' + area.country[0].value : ''}` : '';
+
+    weatherEl.innerHTML = `
+      <div class="today-weather-main">
+        <span class="today-weather-icon">${icon}</span>
+        <span class="today-weather-temp">${tempC}°C / ${tempF}°F</span>
+      </div>
+      <div class="today-weather-desc">${desc}</div>
+      <div class="today-weather-details">
+        ${feelsLikeC ? `<span>Feels like ${feelsLikeC}°C</span>` : ''}
+        ${humidity ? `<span>💧 ${humidity}%</span>` : ''}
+        ${windKmph ? `<span>💨 ${windKmph} km/h</span>` : ''}
+      </div>
+      ${location ? `<div class="today-weather-location">${escHtml(location)}</div>` : ''}
+    `;
   } catch (e) {
     console.warn('[today] Weather fetch failed:', e);
-    // Fallback: show a nice message
     weatherEl.innerHTML = `
       <div class="today-weather-main">
         <span class="today-weather-icon">🌤️</span>
         <span class="today-weather-temp">--</span>
       </div>
-      <div class="today-weather-desc">Check <a href="https://wttr.in" target="_blank">wttr.in</a></div>
+      <div class="today-weather-desc">Weather unavailable — check connection</div>
     `;
   }
 }
@@ -103,11 +128,92 @@ export function getWeatherIcon(code: string): string {
 async function fetchUnreadEmails() {
   const emailsEl = $('today-emails');
   if (!emailsEl) return;
-  
-  // This would integrate with mail module - for now show placeholder
-  emailsEl.innerHTML = `
-    <div class="today-section-empty">Connect email in Mail view to see unread messages</div>
-  `;
+
+  if (!invoke) {
+    emailsEl.innerHTML = `<div class="today-section-empty">Email requires the desktop app</div>`;
+    return;
+  }
+
+  try {
+    // Load mail accounts from himalaya config (same as mail module)
+    let accounts: { name: string; email: string }[] = [];
+    if (invoke) {
+      try {
+        const toml = await invoke<string>('read_himalaya_config');
+        if (toml) {
+          const accountBlocks = toml.matchAll(/\[accounts\.([^\]]+)\][\s\S]*?email\s*=\s*"([^"]+)"/g);
+          for (const match of accountBlocks) {
+            accounts.push({ name: match[1], email: match[2] });
+          }
+        }
+      } catch { /* no config yet */ }
+    }
+    // Fallback: localStorage
+    if (accounts.length === 0) {
+      try {
+        const raw = localStorage.getItem('mail-accounts-fallback');
+        if (raw) accounts = JSON.parse(raw);
+      } catch { /* ignore */ }
+    }
+
+    if (accounts.length === 0) {
+      emailsEl.innerHTML = `<div class="today-section-empty">Set up email in the <a href="#" class="today-link-mail">Mail</a> view to see messages here</div>`;
+      emailsEl.querySelector('.today-link-mail')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        // Try to switch view via the nav
+        const mailNav = document.querySelector('[data-view="mail"]') as HTMLElement;
+        mailNav?.click();
+      });
+      return;
+    }
+
+    const accountName = accounts[0].name;
+    const jsonResult = await invoke<string>('fetch_emails', {
+      account: accountName,
+      folder: 'INBOX',
+      pageSize: 10,
+    });
+
+    interface EmailEnvelope {
+      id: string;
+      flags: string[];
+      subject: string;
+      from: { name?: string; addr: string };
+      date: string;
+    }
+
+    let envelopes: EmailEnvelope[] = [];
+    try { envelopes = JSON.parse(jsonResult); } catch { /* ignore */ }
+
+    // Filter to unread only
+    const unread = envelopes.filter(e => !e.flags?.includes('Seen'));
+
+    if (unread.length === 0) {
+      emailsEl.innerHTML = `<div class="today-section-empty">📭 No unread emails — you're all caught up!</div>`;
+      return;
+    }
+
+    emailsEl.innerHTML = unread.slice(0, 8).map(email => {
+      const from = email.from?.name || email.from?.addr || 'Unknown';
+      const subject = email.subject || '(No subject)';
+      const date = email.date ? new Date(email.date) : null;
+      const timeStr = date ? date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+      return `
+        <div class="today-email-item">
+          <div class="today-email-from">${escHtml(from)}</div>
+          <div class="today-email-subject">${escHtml(subject)}</div>
+          ${timeStr ? `<div class="today-email-time">${timeStr}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    if (unread.length > 8) {
+      emailsEl.innerHTML += `<div class="today-email-more">+${unread.length - 8} more unread</div>`;
+    }
+  } catch (e) {
+    console.warn('[today] Email fetch failed:', e);
+    emailsEl.innerHTML = `<div class="today-section-empty">Could not load emails — check Mail settings</div>`;
+  }
 }
 
 function renderToday() {

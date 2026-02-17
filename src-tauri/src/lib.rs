@@ -2312,6 +2312,29 @@ fn repair_openclaw_config() -> Result<bool, String> {
     Ok(repaired)
 }
 
+/// Fetch weather data via wttr.in (bypasses CSP for the frontend).
+#[tauri::command]
+async fn fetch_weather(location: Option<String>) -> Result<String, String> {
+    let loc = location.unwrap_or_default();
+    let url = format!("https://wttr.in/{}?format=j1", loc);
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(8))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+    let resp = client
+        .get(&url)
+        .header("User-Agent", "curl")
+        .send()
+        .await
+        .map_err(|e| format!("Weather fetch failed: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Weather API returned {}", resp.status()));
+    }
+    resp.text()
+        .await
+        .map_err(|e| format!("Failed to read weather response: {}", e))
+}
+
 /// Fetch emails from an IMAP account via himalaya CLI.
 #[tauri::command]
 fn fetch_emails(account: Option<String>, folder: Option<String>, page_size: Option<u32>) -> Result<String, String> {
@@ -2614,6 +2637,7 @@ pub fn run() {
             remove_himalaya_account,
             keyring_has_password,
             keyring_delete_password,
+            fetch_weather,
             fetch_emails,
             fetch_email_content,
             send_email,
