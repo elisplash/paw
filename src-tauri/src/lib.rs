@@ -2799,6 +2799,22 @@ pub fn run() {
             engine::commands::engine_project_set_agents,
             engine::commands::engine_project_messages,
             engine::commands::engine_project_run,
+            // ── Browser Profiles ──
+            engine::commands::engine_browser_profiles_list,
+            engine::commands::engine_browser_profile_delete,
+            // ── Screenshot Viewer ──
+            engine::commands::engine_screenshots_list,
+            engine::commands::engine_screenshot_read,
+            engine::commands::engine_screenshot_delete,
+            // ── Per-Agent Workspaces ──
+            engine::commands::engine_workspaces_list,
+            engine::commands::engine_workspace_ensure,
+            engine::commands::engine_workspace_delete,
+            engine::commands::engine_workspace_get_enabled,
+            engine::commands::engine_workspace_set_enabled,
+            // ── Domain Allowlist ──
+            engine::commands::engine_domain_policy_get,
+            engine::commands::engine_domain_policy_set,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

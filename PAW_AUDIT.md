@@ -1,6 +1,6 @@
 # Pawz vs OpenClaw — Full Competitive Audit
 
-> Last updated: 2025-02-17 (P1 complete, P2 complete)
+> Last updated: 2025-02-17 (P1 complete, P2 complete, P4 complete)
 > Source: OpenClaw docs (docs.openclaw.ai) + full Pawz codebase audit
 
 ---
@@ -192,7 +192,7 @@ OpenClaw has managed profiles, Playwright, Chrome Extension relay. Pawz has basi
 | Multi-agent CRUD | ✅ | ✅ |
 | Boss/worker orchestration | ✅ | ❌ |
 | Channel→agent routing | ✅ | ✅ |
-| Per-agent workspaces | ❌ | ✅ |
+| Per-agent workspaces | ✅ | ✅ |
 | Per-agent model selection | ✅ | ✅ |
 | Per-agent tool policies | ✅ | ✅ |
 | Kanban task board | ✅ | ❌ |
@@ -274,10 +274,10 @@ OpenClaw has managed profiles, Playwright, Chrome Extension relay. Pawz has basi
 
 | # | Feature | Effort | Status |
 |---|---------|--------|--------|
-| 16 | **Managed Browser Profiles** — persistent Chrome state | M | ❌ NOT STARTED |
-| 17 | **Screenshot Viewer** — display agent screenshots | S | ❌ NOT STARTED |
-| 18 | **Per-Agent Workspaces** — isolated filesystem | M | ❌ NOT STARTED |
-| 19 | **Outbound Domain Allowlist** — network security | M | ❌ NOT STARTED |
+| 16 | **Managed Browser Profiles** — per-agent Chrome user-data-dir, profile pool | M | ✅ DONE |
+| 17 | **Screenshot Viewer** — list/read/delete screenshots, base64 display | S | ✅ DONE |
+| 18 | **Per-Agent Workspaces** — isolated filesystem with path validation | M | ✅ DONE |
+| 19 | **Outbound Domain Allowlist** — allowlist/denylist with wildcard matching | M | ✅ DONE |
 
 ### Phase 5: Ecosystem & Platform
 
@@ -319,4 +319,4 @@ Backend: `src-tauri/src/engine/{feature}/` or `src-tauri/src/engine/{feature}.rs
 
 ---
 
-**TL;DR**: ~~Close the 6 P1 gaps~~ **All 6 P1 features are DONE. All 4 P2 Memory & Intelligence features are DONE.** WhatsApp remains as Phase 1.5. Next up: Phase 3 (Voice & TTS).
+**TL;DR**: ~~Close the 6 P1 gaps~~ **All 6 P1 features are DONE. All 4 P2 Memory & Intelligence features are DONE. All 4 P4 Browser & Sandbox features are DONE.** WhatsApp remains as Phase 1.5. Next up: Phase 3 (Voice & TTS) or Phase 5 (Ecosystem).

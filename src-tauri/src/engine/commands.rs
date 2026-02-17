@@ -355,6 +355,20 @@ pub async fn engine_chat_send(
     // NEW messages afterward (avoids re-inserting historical messages on every turn).
     let pre_loop_msg_count = messages.len();
 
+    // Build ToolContext: workspace isolation + domain policy for this agent
+    let domain_policy = crate::engine::workspace::load_domain_policy(&state.store, &agent_id_owned);
+    let workspace_path = if crate::engine::workspace::is_workspace_enabled(&state.store, &agent_id_owned) {
+        crate::engine::workspace::ensure_workspace(&agent_id_owned).ok()
+            .map(|p| p.to_string_lossy().to_string())
+    } else {
+        None
+    };
+    let tool_context = ToolContext {
+        agent_id: agent_id_owned.clone(),
+        workspace_path,
+        domain_policy,
+    };
+
     // Spawn the agent loop in a background task
     let app = app_handle.clone();
     let agent_id_for_spawn = agent_id_owned.clone();
@@ -373,6 +387,7 @@ pub async fn engine_chat_send(
             temperature,
             &approvals,
             tool_timeout,
+            &tool_context,
         ).await {
             Ok(final_text) => {
                 info!("[engine] Agent turn complete: {} chars", final_text.len());
@@ -1372,6 +1387,9 @@ pub async fn engine_task_run(
         let all_tools_clone = all_tools.clone();
         let model_clone = model.clone();
 
+        // Build default tool context for task agents
+        let task_tool_context = ToolContext::default();
+
         let handle = tauri::async_runtime::spawn(async move {
             let result = agent_loop::run_agent_turn(
                 &app_handle_clone,
@@ -1385,6 +1403,7 @@ pub async fn engine_task_run(
                 None,
                 &pending_clone,
                 tool_timeout,
+                &task_tool_context,
             ).await;
 
             // Store agent result
@@ -1462,6 +1481,88 @@ pub async fn engine_task_run(
     Ok(run_id)
 }
 
+// ── Browser Profile commands ───────────────────────────────────────────
+
+#[tauri::command]
+pub fn engine_browser_profiles_list() -> Vec<crate::engine::types::BrowserProfileConfig> {
+    crate::engine::browser::list_profiles()
+}
+
+#[tauri::command]
+pub fn engine_browser_profile_delete(agent_id: String) -> Result<(), String> {
+    crate::engine::browser::delete_profile(&agent_id)
+}
+
+// ── Screenshot Viewer commands ─────────────────────────────────────────
+
+#[tauri::command]
+pub fn engine_screenshots_list() -> Vec<crate::engine::types::ScreenshotInfo> {
+    crate::engine::workspace::list_screenshots()
+}
+
+#[tauri::command]
+pub fn engine_screenshot_read(filepath: String) -> Result<String, String> {
+    crate::engine::workspace::read_screenshot_base64(&filepath)
+}
+
+#[tauri::command]
+pub fn engine_screenshot_delete(filepath: String) -> Result<(), String> {
+    crate::engine::workspace::delete_screenshot(&filepath)
+}
+
+// ── Per-Agent Workspace commands ───────────────────────────────────────
+
+#[tauri::command]
+pub fn engine_workspaces_list() -> Vec<crate::engine::types::AgentWorkspace> {
+    crate::engine::workspace::list_workspaces()
+}
+
+#[tauri::command]
+pub fn engine_workspace_ensure(agent_id: String) -> Result<String, String> {
+    let path = crate::engine::workspace::ensure_workspace(&agent_id)?;
+    Ok(path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn engine_workspace_delete(agent_id: String) -> Result<(), String> {
+    crate::engine::workspace::delete_workspace(&agent_id)
+}
+
+#[tauri::command]
+pub fn engine_workspace_get_enabled(
+    state: State<'_, EngineState>,
+    agent_id: String,
+) -> bool {
+    crate::engine::workspace::is_workspace_enabled(&state.store, &agent_id)
+}
+
+#[tauri::command]
+pub fn engine_workspace_set_enabled(
+    state: State<'_, EngineState>,
+    agent_id: String,
+    enabled: bool,
+) -> Result<(), String> {
+    crate::engine::workspace::set_workspace_enabled(&state.store, &agent_id, enabled)
+}
+
+// ── Domain Allowlist commands ──────────────────────────────────────────
+
+#[tauri::command]
+pub fn engine_domain_policy_get(
+    state: State<'_, EngineState>,
+    agent_id: String,
+) -> crate::engine::types::DomainPolicy {
+    crate::engine::workspace::load_domain_policy(&state.store, &agent_id)
+}
+
+#[tauri::command]
+pub fn engine_domain_policy_set(
+    state: State<'_, EngineState>,
+    agent_id: String,
+    policy: crate::engine::types::DomainPolicy,
+) -> Result<(), String> {
+    crate::engine::workspace::save_domain_policy(&state.store, &agent_id, &policy)
+}
 /// Check for due cron tasks and process them.
 /// Returns the IDs of tasks that were due and triggered.
 #[tauri::command]

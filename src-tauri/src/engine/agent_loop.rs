@@ -26,6 +26,7 @@ pub async fn run_agent_turn(
     temperature: Option<f64>,
     pending_approvals: &PendingApprovals,
     tool_timeout_secs: u64,
+    tool_context: &ToolContext,
 ) -> Result<String, String> {
     let mut round = 0;
     let mut final_text = String::new();
@@ -270,7 +271,7 @@ pub async fn run_agent_turn(
             }
 
             // Execute the tool
-            let result = tool_executor::execute_tool(tc, app_handle).await;
+            let result = tool_executor::execute_tool(tc, app_handle, tool_context).await;
 
             info!("[engine] Tool result: {} success={} output_len={}",
                 tc.function.name, result.success, result.output.len());

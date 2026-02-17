@@ -8,20 +8,37 @@ use crate::engine::memory;
 use crate::engine::skills;
 use crate::engine::sandbox;
 use crate::engine::web;
+use crate::engine::workspace;
 use log::{info, warn, error};
 use std::process::Command as ProcessCommand;
 use std::time::Duration;
 use tauri::Manager;
 
 /// Execute a single tool call and return the result.
-/// This is where security policies are enforced.
-pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle) -> ToolResult {
+/// The `ToolContext` carries agent identity, workspace restrictions, and domain policy.
+pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle, context: &ToolContext) -> ToolResult {
     let name = &tool_call.function.name;
     let args_str = &tool_call.function.arguments;
 
-    info!("[engine] Executing tool: {} args={}", name, &args_str[..args_str.len().min(200)]);
+    info!("[engine] Executing tool: {} agent={} args={}", name, context.agent_id, &args_str[..args_str.len().min(200)]);
 
     let args: serde_json::Value = serde_json::from_str(args_str).unwrap_or(serde_json::json!({}));
+
+    // ── Pre-execution checks: domain + workspace ──
+    if let Err(e) = check_domain_for_tool(name, &args, context) {
+        return ToolResult {
+            tool_call_id: tool_call.id.clone(),
+            output: format!("Error: {}", e),
+            success: false,
+        };
+    }
+    if let Err(e) = check_workspace_for_tool(name, &args, context) {
+        return ToolResult {
+            tool_call_id: tool_call.id.clone(),
+            output: format!("Error: {}", e),
+            success: false,
+        };
+    }
 
     let result = match name.as_str() {
         "exec" => execute_exec(&args, app_handle).await,
@@ -37,11 +54,11 @@ pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle) -
         "memory_store" => execute_memory_store(&args, app_handle).await,
         "memory_search" => execute_memory_search(&args, app_handle).await,
         "self_info" => execute_self_info(app_handle).await,
-        // ── Web tools ──
+        // ── Web tools (agent_id for browser profiles) ──
         "web_search" => web::execute_web_search(&args).await,
         "web_read" => web::execute_web_read(&args).await,
-        "web_screenshot" => web::execute_web_screenshot(&args).await,
-        "web_browse" => web::execute_web_browse(&args).await,
+        "web_screenshot" => web::execute_web_screenshot(&args, &context.agent_id).await,
+        "web_browse" => web::execute_web_browse(&args, &context.agent_id).await,
         // ── Skill tools ──
         "email_send" => execute_skill_tool("email", "email_send", &args, app_handle).await,
         "email_read" => execute_skill_tool("email", "email_read", &args, app_handle).await,
@@ -66,6 +83,38 @@ pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle) -
             success: false,
         },
     }
+}
+
+/// Check domain policy for URL-using tools before execution.
+fn check_domain_for_tool(name: &str, args: &serde_json::Value, context: &ToolContext) -> Result<(), String> {
+    let url = match name {
+        "fetch" => args["url"].as_str(),
+        "web_read" => args["url"].as_str(),
+        "web_screenshot" => args["url"].as_str(),
+        "web_browse" => args["url"].as_str(), // Present for navigate action
+        _ => None,
+    };
+    if let Some(url) = url {
+        workspace::check_domain(url, &context.domain_policy)?;
+    }
+    Ok(())
+}
+
+/// Check workspace isolation for file tools before execution.
+fn check_workspace_for_tool(name: &str, args: &serde_json::Value, context: &ToolContext) -> Result<(), String> {
+    let workspace = match &context.workspace_path {
+        Some(wp) => wp,
+        None => return Ok(()), // No workspace restriction
+    };
+    let path = match name {
+        "read_file" | "write_file" | "append_file" | "delete_file" => args["path"].as_str(),
+        "list_directory" => args["path"].as_str(),
+        _ => None,
+    };
+    if let Some(path) = path {
+        workspace::validate_path(path, workspace)?;
+    }
+    Ok(())
 }
 
 // ── exec: Run shell commands ───────────────────────────────────────────

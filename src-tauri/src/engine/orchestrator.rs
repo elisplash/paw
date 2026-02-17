@@ -928,7 +928,7 @@ async fn run_boss_agent_loop(
                 continue;
             }
 
-            let result = crate::engine::tool_executor::execute_tool(tc, app_handle).await;
+            let result = crate::engine::tool_executor::execute_tool(tc, app_handle, &crate::engine::types::ToolContext::default()).await;
             let _ = app_handle.emit("engine-event", EngineEvent::ToolResultEvent {
                 session_id: session_id.to_string(),
                 run_id: run_id.to_string(),
@@ -1308,7 +1308,7 @@ async fn run_worker_agent_loop(
                 continue;
             }
 
-            let result = crate::engine::tool_executor::execute_tool(tc, app_handle).await;
+            let result = crate::engine::tool_executor::execute_tool(tc, app_handle, &crate::engine::types::ToolContext::default()).await;
             messages.push(Message {
                 role: Role::Tool,
                 content: MessageContent::Text(result.output),

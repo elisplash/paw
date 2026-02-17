@@ -251,6 +251,7 @@ pub async fn run_channel_agent(
         None,
         &approvals,
         tool_timeout,
+        &crate::engine::types::ToolContext::default(),
     ).await;
 
     // Stop the auto-approver

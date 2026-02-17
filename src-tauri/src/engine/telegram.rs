@@ -637,6 +637,7 @@ async fn run_telegram_agent(
         None, // temperature
         &approvals,
         tool_timeout,
+        &crate::engine::types::ToolContext::default(),
     ).await;
 
     // Stop the auto-approver

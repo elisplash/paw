@@ -1159,3 +1159,82 @@ pub struct ProjectMessage {
     pub metadata: Option<String>,   // JSON blob for structured data
     pub created_at: String,
 }
+// ── Browser Profiles ───────────────────────────────────────────────────
+
+/// Persistent Chrome browser profile for an agent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BrowserProfileConfig {
+    pub agent_id: String,
+    pub profile_dir: String,
+    pub created_at: String,
+    pub last_used_at: String,
+}
+
+// ── Per-Agent Workspaces ───────────────────────────────────────────────
+
+/// An isolated filesystem workspace for an agent.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentWorkspace {
+    pub agent_id: String,
+    pub workspace_path: String,
+    pub created_at: String,
+    pub size_bytes: Option<u64>,
+}
+
+// ── Screenshot Viewer ──────────────────────────────────────────────────
+
+/// Metadata about a captured screenshot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScreenshotInfo {
+    pub filename: String,
+    pub filepath: String,
+    pub size_bytes: u64,
+    pub created_at: String,
+}
+
+// ── Outbound Domain Policy ─────────────────────────────────────────────
+
+/// Controls which domains an agent can access via fetch / web tools.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DomainPolicy {
+    pub mode: DomainPolicyMode,
+    pub domains: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum DomainPolicyMode {
+    AllowAll,
+    Allowlist,
+    Denylist,
+}
+
+impl Default for DomainPolicy {
+    fn default() -> Self {
+        Self {
+            mode: DomainPolicyMode::AllowAll,
+            domains: Vec::new(),
+        }
+    }
+}
+
+// ── Tool Execution Context ─────────────────────────────────────────────
+
+/// Context passed to every tool execution — carries agent identity,
+/// workspace restrictions, and domain policy.
+#[derive(Debug, Clone)]
+pub struct ToolContext {
+    pub agent_id: String,
+    pub workspace_path: Option<String>,
+    pub domain_policy: DomainPolicy,
+}
+
+impl Default for ToolContext {
+    fn default() -> Self {
+        Self {
+            agent_id: "default".to_string(),
+            workspace_path: None,
+            domain_policy: DomainPolicy::default(),
+        }
+    }
+}
