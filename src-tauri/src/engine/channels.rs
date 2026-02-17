@@ -12,6 +12,7 @@ use crate::engine::providers::AnyProvider;
 use crate::engine::agent_loop;
 use crate::engine::skills;
 use crate::engine::memory;
+use crate::engine::injection;
 use crate::engine::commands::{EngineState, PendingApprovals};
 use log::{info, warn, error};
 use serde::{Deserialize, Serialize};
@@ -96,6 +97,17 @@ pub async fn run_channel_agent(
 ) -> Result<String, String> {
     let engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;
+
+    // ── Prompt injection scan ──────────────────────────────────────
+    let scan = injection::scan_for_injection(message);
+    if scan.is_injection {
+        injection::log_injection_detected(channel_prefix, user_id, &scan);
+        // Block critical injections
+        if scan.severity == Some(injection::InjectionSeverity::Critical) {
+            warn!("[{}] Blocked critical injection from user {}", channel_prefix, user_id);
+            return Ok("⚠️ Your message was blocked by the security scanner. If this is a mistake, please rephrase.".into());
+        }
+    }
 
     // Per-user session: eng-{channel}-{user_id}
     let session_id = format!("eng-{}-{}", channel_prefix, user_id);
