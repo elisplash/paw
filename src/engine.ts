@@ -495,6 +495,18 @@ class PawEngineClient {
     return invoke('engine_session_clear', { sessionId });
   }
 
+  /** Compact a session: summarize old messages and replace them with a summary. */
+  async sessionCompact(sessionId: string): Promise<{
+    session_id: string;
+    messages_before: number;
+    messages_after: number;
+    tokens_before: number;
+    tokens_after: number;
+    summary_length: number;
+  }> {
+    return invoke('engine_session_compact', { sessionId });
+  }
+
   // ── Config ───────────────────────────────────────────────────────────
 
   async getConfig(): Promise<EngineConfig> {

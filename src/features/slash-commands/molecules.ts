@@ -338,42 +338,56 @@ async function executeCompact(ctx: CommandContext): Promise<CommandResult> {
   }
 
   try {
-    // Load current history
-    const history = await pawEngine.chatHistory(ctx.sessionKey, 500);
-    const msgCount = history.length;
+    // Use the engine's native compaction (summarizes with AI then replaces old messages)
+    const result = await pawEngine.sessionCompact(ctx.sessionKey);
+    const saved = result.tokens_before - result.tokens_after;
+    return {
+      handled: true,
+      systemMessage: [
+        `📦 **Session compacted successfully**`,
+        `  Messages: ${result.messages_before} → ${result.messages_after}`,
+        `  Tokens: ~${result.tokens_before.toLocaleString()} → ~${result.tokens_after.toLocaleString()} (saved ~${saved.toLocaleString()})`,
+        `  Summary: ${result.summary_length} chars`,
+      ].join('\n'),
+      preventDefault: true,
+      refreshHistory: true,
+    };
+  } catch (e) {
+    // Fallback: if engine compaction fails (e.g. gateway mode), ask AI to summarize
+    try {
+      const history = await pawEngine.chatHistory(ctx.sessionKey, 500);
+      const msgCount = history.length;
 
-    if (msgCount < 6) {
+      if (msgCount < 6) {
+        return {
+          handled: true,
+          systemMessage: '📦 Session is too short to compact (< 6 messages).',
+          preventDefault: true,
+        };
+      }
+
+      const totalChars = history.reduce((sum, m) => sum + (m.content?.length ?? 0), 0);
+      const estimatedTokens = Math.round(totalChars / 4);
+
+      const summaryPrompt = [
+        'Please provide a concise summary of our conversation so far.',
+        'Focus on: key decisions, important context, action items, and any preferences I expressed.',
+        'Keep it under 500 words. This will be used to resume the conversation with fresh context.',
+      ].join(' ');
+
       return {
         handled: true,
-        systemMessage: '📦 Session is too short to compact (< 6 messages).',
+        systemMessage: `📦 **Compacting session** (${msgCount} messages, ~${estimatedTokens.toLocaleString()} tokens).\nAsking AI to summarize…`,
+        rewrittenInput: summaryPrompt,
+        preventDefault: false,
+      };
+    } catch (inner) {
+      return {
+        handled: true,
+        systemMessage: `❌ Compaction failed: ${e}`,
         preventDefault: true,
       };
     }
-
-    // Estimate tokens (~4 chars per token)
-    const totalChars = history.reduce((sum, m) => sum + (m.content?.length ?? 0), 0);
-    const estimatedTokens = Math.round(totalChars / 4);
-
-    // Build a compaction prompt — ask the AI to summarize
-    const summaryPrompt = [
-      'Please provide a concise summary of our conversation so far.',
-      'Focus on: key decisions, important context, action items, and any preferences I expressed.',
-      'Keep it under 500 words. This will be used to resume the conversation with fresh context.',
-    ].join(' ');
-
-    // For now, return a message showing what would happen + inject the compaction request
-    return {
-      handled: true,
-      systemMessage: `📦 **Compacting session** (${msgCount} messages, ~${estimatedTokens.toLocaleString()} tokens).\nAsking AI to summarize before clearing…`,
-      rewrittenInput: summaryPrompt,
-      preventDefault: false, // Let the summary request go through
-    };
-  } catch (e) {
-    return {
-      handled: true,
-      systemMessage: `❌ Compaction failed: ${e}`,
-      preventDefault: true,
-    };
   }
 }
 

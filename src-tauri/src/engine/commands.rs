@@ -475,6 +475,42 @@ pub fn engine_session_clear(
     state.store.clear_messages(&session_id)
 }
 
+#[tauri::command]
+pub async fn engine_session_compact(
+    state: State<'_, EngineState>,
+    session_id: String,
+) -> Result<crate::engine::compaction::CompactionResult, String> {
+    info!("[engine] Manual compaction requested for session {}", session_id);
+
+    // Resolve provider and model from config
+    let (provider_config, model) = {
+        let cfg = state.config.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let model = cfg.default_model.clone().unwrap_or_else(|| "gpt-4o".to_string());
+        let provider = cfg.default_provider.as_ref()
+            .and_then(|dp| cfg.providers.iter().find(|p| p.id == *dp).cloned())
+            .or_else(|| cfg.providers.first().cloned())
+            .ok_or("No AI provider configured.")?;
+        (provider, model)
+    };
+
+    let provider = crate::engine::providers::AnyProvider::from_config(&provider_config);
+    let compact_config = crate::engine::compaction::CompactionConfig::default();
+
+    // Wrap the existing store in an Arc for the async call
+    // Note: we use a new SessionStore connection since the state's store is behind a State ref
+    let store_arc = std::sync::Arc::new(
+        crate::engine::sessions::SessionStore::open()?
+    );
+
+    crate::engine::compaction::compact_session(
+        &store_arc,
+        &provider,
+        &model,
+        &session_id,
+        &compact_config,
+    ).await
+}
+
 // ── Engine configuration commands ──────────────────────────────────────
 
 #[tauri::command]

@@ -12,6 +12,7 @@ pub mod memory;
 pub mod skills;
 pub mod web;
 pub mod injection;
+pub mod compaction;
 pub mod telegram;
 pub mod channels;
 pub mod orchestrator;

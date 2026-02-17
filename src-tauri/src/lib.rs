@@ -2654,6 +2654,7 @@ pub fn run() {
             engine::commands::engine_session_rename,
             engine::commands::engine_session_delete,
             engine::commands::engine_session_clear,
+            engine::commands::engine_session_compact,
             engine::commands::engine_get_config,
             engine::commands::engine_set_config,
             engine::commands::engine_upsert_provider,
