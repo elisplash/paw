@@ -617,7 +617,11 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
       };
       try {
         await pawEngine.upsertProvider(updated);
-        showToast(`Provider "${provider.id}" updated`, 'success');
+        const modelMsg = updated.default_model ? ` — model: ${updated.default_model}` : '';
+        showToast(`Provider "${provider.id}" updated${modelMsg}`, 'success');
+        // Refresh chat header model label
+        const refreshFn = (window as unknown as Record<string, unknown>).__refreshModelLabel as (() => void) | undefined;
+        if (refreshFn) refreshFn();
         loadModelsSettings();
       } catch (e) {
         showToast(`Save failed: ${e instanceof Error ? e.message : e}`, 'error');

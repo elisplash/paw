@@ -907,6 +907,15 @@ body::after {
 .chat-subtitle {
   font-size: 11px;
   color: var(--text-secondary);
+  font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+  background: var(--bg-tertiary, rgba(255,255,255,0.04));
+  padding: 1px 8px;
+  border-radius: 10px;
+  cursor: default;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── Token Meter ────────────────────────────────────────────────────────── */

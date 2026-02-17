@@ -255,6 +255,30 @@ function showView(viewId: string) {
   $(viewId)?.classList.add('active');
 }
 
+// ── Model label — always show active model in chat header ──────────────────
+async function refreshModelLabel() {
+  if (!modelLabel) return;
+  try {
+    const config = await pawEngine.getConfig();
+    const modelName = config.default_model;
+    const provider = config.providers?.find(
+      (p: { id: string }) => p.id === config.default_provider
+    ) ?? config.providers?.[0];
+    const providerName = provider?.name ?? '';
+    if (modelName) {
+      modelLabel.textContent = modelName;
+      modelLabel.title = providerName ? `Model: ${modelName} via ${providerName}` : `Model: ${modelName}`;
+    } else {
+      modelLabel.textContent = 'No model set';
+      modelLabel.title = 'Go to Settings → Models to configure';
+    }
+  } catch {
+    modelLabel.textContent = 'Paw Engine';
+  }
+}
+// Expose globally so settings can trigger a refresh after saving
+(window as unknown as Record<string, unknown>).__refreshModelLabel = refreshModelLabel;
+
 // ── Gateway connection ─────────────────────────────────────────────────────
 let _connectInProgress = false;
 
@@ -276,8 +300,10 @@ async function connectGateway(): Promise<boolean> {
     statusDot?.classList.add('connected');
     statusDot?.classList.remove('error');
     if (statusText) statusText.textContent = 'Engine';
-    if (modelLabel) modelLabel.textContent = 'Paw Engine';
     if (chatAgentName) chatAgentName.textContent = '🐾 Paw';
+
+    // Show the active model in the chat header
+    refreshModelLabel();
 
     // Start Tasks cron timer & listen for task-updated events
     TasksModule.startCronTimer();

@@ -39,7 +39,16 @@ export async function setEngineConfig(config: EngineConfig, silent = false): Pro
     await pawEngine.setConfig(config);
     _configCache = null;
     _configLoading = null;
-    if (!silent) showToast('Settings saved', 'success');
+    if (!silent) {
+      const modelName = config.default_model;
+      const toastMsg = modelName
+        ? `Settings saved — active model: ${modelName}`
+        : 'Settings saved';
+      showToast(toastMsg, 'success');
+    }
+    // Refresh the chat header model label
+    const refreshFn = (window as unknown as Record<string, unknown>).__refreshModelLabel as (() => void) | undefined;
+    if (refreshFn) refreshFn();
     return true;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
