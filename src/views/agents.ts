@@ -220,12 +220,14 @@ export async function loadAgents() {
   }
 
   renderAgents();
+  renderAgentDock();
 }
 
 function saveAgents() {
   // Only persist local agents to localStorage (backend agents come from SQLite)
   const localAgents = _agents.filter(a => a.source !== 'backend');
   localStorage.setItem('paw-agents', JSON.stringify(localAgents));
+  renderAgentDock();
 }
 
 function renderAgents() {
@@ -745,6 +747,7 @@ interface MiniChatWindow {
   streamingContent: string;
   streamingEl: HTMLElement | null;
   runId: string | null;
+  unreadCount: number;
   unlistenDelta: (() => void) | null;
   unlistenComplete: (() => void) | null;
   unlistenError: (() => void) | null;
@@ -815,6 +818,7 @@ function openMiniChat(agentId: string) {
     streamingContent: '',
     streamingEl: null,
     runId: null,
+    unreadCount: 0,
     unlistenDelta: null,
     unlistenComplete: null,
     unlistenError: null,
@@ -840,7 +844,27 @@ function openMiniChat(agentId: string) {
 
   // Animate in
   requestAnimationFrame(() => el.classList.add('mini-chat-visible'));
+  updateDockActive(agentId, true);
+  updateDockBadge(agentId, 0);
   inputEl.focus();
+}
+
+/** Lightweight markdown → HTML for mini-chat bubbles (bold, italic, code, links) */
+function miniChatMd(raw: string): string {
+  let s = escHtml(raw);
+  // Code blocks: ```...```
+  s = s.replace(/```([\s\S]*?)```/g, '<pre class="mini-chat-code">$1</pre>');
+  // Inline code: `...`
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Bold: **...**
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic: *...*
+  s = s.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+  // Links: [text](url)
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Newlines
+  s = s.replace(/\n/g, '<br>');
+  return s;
 }
 
 function setupMiniChatListeners(mc: MiniChatWindow) {
@@ -849,6 +873,7 @@ function setupMiniChatListeners(mc: MiniChatWindow) {
     if (!mc.runId || event.run_id !== mc.runId) return;
     mc.streamingContent += event.text || '';
     if (mc.streamingEl) {
+      // During streaming: plain text for speed, markdown on finalize
       mc.streamingEl.textContent = mc.streamingContent;
       mc.messagesEl.scrollTop = mc.messagesEl.scrollHeight;
     }
@@ -872,8 +897,16 @@ function finalizeMiniChatStreaming(mc: MiniChatWindow) {
   mc.isStreaming = false;
   mc.runId = null;
   if (mc.streamingEl) {
+    // Render final content with markdown formatting
+    mc.streamingEl.innerHTML = miniChatMd(mc.streamingContent);
     mc.streamingEl.classList.remove('mini-chat-streaming');
     mc.streamingEl = null;
+  }
+  // Track unread when minimized
+  if (mc.isMinimized) {
+    mc.unreadCount++;
+    updateMiniChatBadge(mc);
+    updateDockBadge(mc.agentId, mc.unreadCount);
   }
   mc.inputEl.disabled = false;
   mc.inputEl.focus();
@@ -942,6 +975,12 @@ function toggleMinimizeMiniChat(agentId: string) {
   if (!mc) return;
   mc.isMinimized = !mc.isMinimized;
   mc.el.classList.toggle('mini-chat-minimized', mc.isMinimized);
+  if (!mc.isMinimized) {
+    mc.unreadCount = 0;
+    updateMiniChatBadge(mc);
+    updateDockBadge(agentId, 0);
+    mc.messagesEl.scrollTop = mc.messagesEl.scrollHeight;
+  }
 }
 
 function closeMiniChat(agentId: string) {
@@ -955,6 +994,8 @@ function closeMiniChat(agentId: string) {
   setTimeout(() => mc.el.remove(), 200);
   _miniChats.delete(agentId);
   repositionMiniChats();
+  updateDockBadge(agentId, 0);
+  updateDockActive(agentId, false);
 }
 
 export function getAgents(): Agent[] {
@@ -972,6 +1013,95 @@ export function setSelectedAgent(agentId: string | null) {
 
 /** Open a mini-chat popup for any agent (callable from outside the module). */
 export { openMiniChat };
+
+// ═══ Mini-Chat Badge Helpers ═════════════════════════════════════════════════
+
+/** Update the header badge inside a mini-chat window */
+function updateMiniChatBadge(mc: MiniChatWindow) {
+  let badge = mc.el.querySelector('.mini-chat-unread') as HTMLElement | null;
+  if (mc.unreadCount > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'mini-chat-unread';
+      mc.el.querySelector('.mini-chat-name')?.appendChild(badge);
+    }
+    badge.textContent = mc.unreadCount > 9 ? '9+' : String(mc.unreadCount);
+    badge.style.display = '';
+  } else if (badge) {
+    badge.style.display = 'none';
+  }
+}
+
+/** Update the dock tray badge for a specific agent */
+function updateDockBadge(agentId: string, count: number) {
+  const dockItem = document.querySelector(`.agent-dock-item[data-agent-id="${agentId}"]`);
+  if (!dockItem) return;
+  let badge = dockItem.querySelector('.agent-dock-badge') as HTMLElement | null;
+  if (count > 0) {
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'agent-dock-badge';
+      dockItem.appendChild(badge);
+    }
+    badge.textContent = count > 9 ? '9+' : String(count);
+    badge.style.display = '';
+  } else if (badge) {
+    badge.style.display = 'none';
+  }
+}
+
+/** Set active ring on dock item when mini-chat is open */
+function updateDockActive(agentId: string, active: boolean) {
+  const dockItem = document.querySelector(`.agent-dock-item[data-agent-id="${agentId}"]`);
+  if (dockItem) dockItem.classList.toggle('agent-dock-active', active);
+}
+
+// ═══ Global Agent Dock / Tray (FB Messenger–style) ══════════════════════════
+// Persistent bar of agent avatar circles at the bottom-right of the screen.
+// Clicking an avatar opens or focuses that agent's mini-chat popup.
+
+let _dockEl: HTMLElement | null = null;
+
+/**
+ * Render or refresh the floating agent dock tray.
+ * Called after agents load and whenever agents list changes.
+ */
+export function renderAgentDock() {
+  // Create dock container if needed
+  if (!_dockEl) {
+    _dockEl = document.createElement('div');
+    _dockEl.id = 'agent-dock';
+    _dockEl.className = 'agent-dock';
+    document.body.appendChild(_dockEl);
+  }
+
+  const agents = _agents.filter(a => a.id !== 'default'); // Don't show default Dave in dock
+  if (agents.length === 0) {
+    _dockEl.style.display = 'none';
+    return;
+  }
+  _dockEl.style.display = '';
+
+  _dockEl.innerHTML = agents.map(a => {
+    const isOpen = _miniChats.has(a.id);
+    const mc = _miniChats.get(a.id);
+    const unread = mc?.unreadCount ?? 0;
+    return `
+      <div class="agent-dock-item${isOpen ? ' agent-dock-active' : ''}" data-agent-id="${a.id}" title="${escAttr(a.name)}">
+        <div class="agent-dock-avatar" style="background:${a.color}">${a.avatar}</div>
+        ${unread > 0 ? `<span class="agent-dock-badge">${unread > 9 ? '9+' : unread}</span>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  // Bind click events
+  _dockEl.querySelectorAll('.agent-dock-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const agentId = (item as HTMLElement).dataset.agentId;
+      if (agentId) openMiniChat(agentId);
+    });
+  });
+}
 
 export function initAgents() {
   loadAgents();

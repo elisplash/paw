@@ -9158,6 +9158,25 @@ select.form-input {
   color: var(--text-primary);
   border-bottom-left-radius: 4px;
 }
+.mini-chat-msg-assistant a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.mini-chat-msg-assistant code {
+  background: rgba(0,0,0,.15);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 12px;
+}
+.mini-chat-msg-assistant pre.mini-chat-code {
+  background: rgba(0,0,0,.2);
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  overflow-x: auto;
+  margin: 4px 0;
+  white-space: pre-wrap;
+}
 .mini-chat-streaming {
   opacity: .85;
 }
@@ -9211,4 +9230,82 @@ select.form-input {
 }
 .mini-chat-send:hover {
   filter: brightness(1.1);
+}
+
+/* ═══ Mini-Chat Unread Badge ═══ */
+.mini-chat-unread {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  padding: 0 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* ═══ Agent Dock / Tray (FB Messenger–style) ═══ */
+.agent-dock {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column-reverse; /* newest at bottom */
+  gap: 8px;
+  z-index: 8999; /* just below mini-chat popups */
+  pointer-events: none;
+}
+.agent-dock-item {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: all;
+  transition: transform .15s, box-shadow .15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.agent-dock-item:hover {
+  transform: scale(1.12);
+  box-shadow: 0 4px 16px rgba(0,0,0,.3);
+}
+.agent-dock-active {
+  box-shadow: 0 0 0 3px var(--accent), 0 2px 8px rgba(0,0,0,.2);
+}
+.agent-dock-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  color: #fff;
+  user-select: none;
+}
+.agent-dock-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: 2px solid var(--bg-primary);
+  pointer-events: none;
 }
