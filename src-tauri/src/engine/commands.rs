@@ -35,12 +35,32 @@ impl EngineState {
         store.init_skill_tables()?;
 
         // Load config from DB or use defaults
-        let config = match store.get_config("engine_config") {
+        let mut config = match store.get_config("engine_config") {
             Ok(Some(json)) => {
                 serde_json::from_str::<EngineConfig>(&json).unwrap_or_default()
             }
             _ => EngineConfig::default(),
         };
+
+        // ── Auto-patch system prompt for new tools ──────────────────────
+        // If the saved system prompt doesn't mention create_agent, inject it
+        // so the LLM knows the tool exists (otherwise it falls back to exec+sqlite3).
+        if let Some(ref mut prompt) = config.default_system_prompt {
+            if !prompt.contains("create_agent") {
+                // Insert the create_agent line after self_info
+                if let Some(pos) = prompt.find("- **self_info**") {
+                    if let Some(newline) = prompt[pos..].find('\n') {
+                        let insert_at = pos + newline;
+                        prompt.insert_str(insert_at, "\n- **create_agent**: Create new agent personas that appear in the Agents view. When the user asks you to create an agent, use this tool — don't just describe how to do it.");
+                        // Persist the patched prompt back to DB
+                        if let Ok(json) = serde_json::to_string(&config) {
+                            store.set_config("engine_config", &json).ok();
+                        }
+                        info!("[engine] Auto-patched system prompt to include create_agent tool");
+                    }
+                }
+            }
+        }
 
         // Load memory config from DB or use defaults
         let memory_config = match store.get_config("memory_config") {
