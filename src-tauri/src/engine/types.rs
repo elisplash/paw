@@ -674,6 +674,22 @@ impl ToolDefinition {
         }
     }
 
+    /// Tool for the agent to introspect its own configuration.
+    pub fn self_info() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "self_info".into(),
+                description: "Get information about your own runtime: current model, provider, session, engine settings, configured providers, memory status, and enabled skills. Use this when you need to check which model you're running, verify configuration, or answer questions about your own setup.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }),
+            },
+        }
+    }
+
     /// Return the default set of built-in tools.
     pub fn builtins() -> Vec<Self> {
         vec![
@@ -693,6 +709,7 @@ impl ToolDefinition {
             Self::soul_list(),
             Self::memory_store(),
             Self::memory_search(),
+            Self::self_info(),
         ]
     }
 
@@ -1017,11 +1034,14 @@ You have these capabilities:
 - **web_search / web_read / web_browse / web_screenshot**: Search the internet, read web pages, control a headless browser
 - **memory_store / memory_search**: Store and recall long-term memories across conversations
 - **soul_read / soul_write / soul_list**: Read and update your own personality and knowledge files
+- **self_info**: Check your own configuration — which model you're running, provider, settings, enabled skills, and memory status. Use this proactively when asked about your own setup.
 - **Skill tools**: Email, Slack, GitHub, REST APIs, webhooks, image generation (when configured)
 
 You have FULL ACCESS — use your tools proactively to accomplish tasks. Don't just describe what you would do; actually do it. If a task requires multiple steps, chain your tool calls together. You can read files, execute code, install packages, create projects, search the web, and interact with external services.
 
-Be thorough, resourceful, and action-oriented. When the user asks you to do something, do it completely."#.into()),
+**Self-awareness**: You know which model and provider you're running on (it's in your system context). If asked to verify or confirm anything about your own setup, use the `self_info` tool — never ask the user to look things up for you. You are fully capable of introspecting your own configuration.
+
+Be thorough, resourceful, and action-oriented. When the user asks you to do something, do it completely. Never ask the user to provide file paths, config locations, or technical details you can discover yourself using your tools."#.into()),
             max_tool_rounds: 50,
             tool_timeout_secs: 300,
             model_routing: ModelRouting::default(),

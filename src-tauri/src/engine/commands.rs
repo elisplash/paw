@@ -205,12 +205,34 @@ pub async fn engine_chat_send(
         info!("[engine] Skill instructions injected ({} chars)", skill_instructions.len());
     }
 
-    // Compose the full system prompt: base + agent context + memory context + skill instructions
+    // Build self-awareness context: tell the agent what model/provider it's running on
+    let self_awareness = {
+        let cfg = state.config.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let provider_name = cfg.providers.iter()
+            .find(|p| Some(p.id.clone()) == cfg.default_provider)
+            .or_else(|| cfg.providers.first())
+            .map(|p| format!("{} ({:?})", p.name, p.kind))
+            .unwrap_or_else(|| "unknown".into());
+        format!(
+            "## Your Runtime Identity\n\
+            - **Current model**: {}\n\
+            - **Provider**: {}\n\
+            - **Session**: {}\n\
+            - **Max tool rounds**: {}\n\
+            - **Tool timeout**: {}s\n\
+            You know exactly which model you are and can tell the user. \
+            If you need detailed config info, use the `self_info` tool.",
+            model, provider_name, session_id, cfg.max_tool_rounds, cfg.tool_timeout_secs
+        )
+    };
+
+    // Compose the full system prompt: base + self-awareness + agent context + memory context + skill instructions
     let full_system_prompt = {
         let mut parts: Vec<String> = Vec::new();
         if let Some(sp) = &system_prompt {
             parts.push(sp.clone());
         }
+        parts.push(self_awareness);
         if let Some(ac) = &agent_context {
             parts.push(ac.clone());
         }

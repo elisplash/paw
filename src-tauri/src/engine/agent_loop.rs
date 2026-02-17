@@ -180,6 +180,8 @@ pub async fn run_agent_turn(
                 "soul_read", "soul_write", "soul_list",
                 // Memory tools
                 "memory_store", "memory_search",
+                // Self-awareness
+                "self_info",
                 // Skill tools
                 "email_send", "email_read",
                 "slack_send", "slack_read",

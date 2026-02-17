@@ -627,6 +627,8 @@ async fn run_boss_agent_loop(
         "soul_read", "soul_write", "soul_list",
         // Memory tools
         "memory_store", "memory_search",
+        // Self-awareness
+        "self_info",
         // Skill tools
         "email_send", "email_read",
         "slack_send", "slack_read",
@@ -1006,6 +1008,8 @@ async fn run_worker_agent_loop(
         "soul_read", "soul_write", "soul_list",
         // Memory tools
         "memory_store", "memory_search",
+        // Self-awareness
+        "self_info",
         // Skill tools
         "email_send", "email_read",
         "slack_send", "slack_read",

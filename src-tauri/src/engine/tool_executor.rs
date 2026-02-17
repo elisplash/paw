@@ -35,6 +35,7 @@ pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle) -
         "soul_list" => execute_soul_list(app_handle).await,
         "memory_store" => execute_memory_store(&args, app_handle).await,
         "memory_search" => execute_memory_search(&args, app_handle).await,
+        "self_info" => execute_self_info(app_handle).await,
         // ── Web tools ──
         "web_search" => web::execute_web_search(&args).await,
         "web_read" => web::execute_web_read(&args).await,
@@ -453,6 +454,80 @@ async fn execute_memory_search(args: &serde_json::Value, app_handle: &tauri::App
     for (i, mem) in results.iter().enumerate() {
         output.push_str(&format!("{}. [{}] {} (score: {:.2})\n", i + 1, mem.category, mem.content, mem.score.unwrap_or(0.0)));
     }
+    Ok(output)
+}
+
+// ── self_info: Introspect engine configuration ─────────────────────────
+
+async fn execute_self_info(app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    let cfg = state.config.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let mcfg = state.memory_config.lock().map_err(|e| format!("Lock error: {}", e))?;
+
+    // Provider info
+    let providers_info: Vec<String> = cfg.providers.iter().map(|p| {
+        let is_default = cfg.default_provider.as_ref() == Some(&p.id);
+        format!("  - {} ({:?}) [id: {}]{}", p.name, p.kind, p.id, if is_default { " ← DEFAULT" } else { "" })
+    }).collect();
+
+    // Model routing info
+    let routing = &cfg.model_routing;
+    let routing_info = format!(
+        "  Boss model: {}\n  Worker model: {}\n  Specialties: {}\n  Per-agent overrides: {}",
+        routing.boss_model.as_deref().unwrap_or("(default)"),
+        routing.worker_model.as_deref().unwrap_or("(default)"),
+        if routing.specialty_models.is_empty() { "none".into() }
+        else { routing.specialty_models.iter().map(|(k, v)| format!("{}={}", k, v)).collect::<Vec<_>>().join(", ") },
+        if routing.agent_models.is_empty() { "none".into() }
+        else { routing.agent_models.iter().map(|(k, v)| format!("{}={}", k, v)).collect::<Vec<_>>().join(", ") },
+    );
+
+    // Memory config
+    let memory_info = format!(
+        "  Embedding provider: {}\n  Embedding model: {}\n  Auto-recall: {}\n  Auto-capture: {}\n  Recall limit: {}\n  Base URL: {}",
+        mcfg.embedding_provider,
+        if mcfg.embedding_model.is_empty() { "(not configured)" } else { &mcfg.embedding_model },
+        mcfg.auto_recall,
+        mcfg.auto_capture,
+        mcfg.recall_limit,
+        if mcfg.embedding_base_url.is_empty() { "(not configured)" } else { &mcfg.embedding_base_url },
+    );
+
+    // Enabled skills
+    let skills_list = crate::engine::skills::builtin_skills();
+    let enabled_skills: Vec<String> = skills_list.iter()
+        .filter(|s| state.store.is_skill_enabled(&s.id).unwrap_or(false))
+        .map(|s| format!("  - {} ({})", s.name, s.id))
+        .collect();
+
+    let output = format!(
+        "# Pawz Engine Self-Info\n\n\
+        ## Current Configuration\n\
+        - Default model: {}\n\
+        - Default provider: {}\n\
+        - Max tool rounds: {}\n\
+        - Tool timeout: {}s\n\n\
+        ## Configured Providers\n{}\n\n\
+        ## Model Routing (Orchestrator)\n{}\n\n\
+        ## Memory Configuration\n{}\n\n\
+        ## Enabled Skills\n{}\n\n\
+        ## Data Location\n\
+        - Config stored in: SQLite database (engine_config key)\n\
+        - Soul files: stored in SQLite (agent_files table)\n\
+        - Memories: stored in SQLite (memories table)\n\
+        - Sessions: stored in SQLite (sessions + messages tables)",
+        cfg.default_model.as_deref().unwrap_or("(not set)"),
+        cfg.default_provider.as_deref().unwrap_or("(not set)"),
+        cfg.max_tool_rounds,
+        cfg.tool_timeout_secs,
+        if providers_info.is_empty() { "  (none configured)".into() } else { providers_info.join("\n") },
+        routing_info,
+        memory_info,
+        if enabled_skills.is_empty() { "  (none enabled)".into() } else { enabled_skills.join("\n") },
+    );
+
     Ok(output)
 }
 
