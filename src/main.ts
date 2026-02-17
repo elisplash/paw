@@ -47,7 +47,7 @@ import * as ProjectsModule from './views/projects';
 import * as AgentsModule from './views/agents';
 import * as TodayModule from './views/today';
 import * as TasksModule from './views/tasks';
-import { classifyCommandRisk, isPrivilegeEscalation, loadSecuritySettings, matchesAllowlist, matchesDenylist, auditNetworkRequest, getSessionOverrideRemaining, isFilesystemWriteTool, activateSessionOverride, type RiskClassification } from './security';
+import { classifyCommandRisk, isPrivilegeEscalation, loadSecuritySettings, matchesAllowlist, matchesDenylist, auditNetworkRequest, getSessionOverrideRemaining, isFilesystemWriteTool, activateSessionOverride, extractCommandString, type RiskClassification } from './security';
 
 // ── Global error handlers ──────────────────────────────────────────────────
 function crashLog(msg: string) {
@@ -3570,9 +3570,8 @@ gateway.on('exec.approval.requested', (payload: unknown) => {
   const risk: RiskClassification | null = classifyCommandRisk(tool, args);
 
   // Build a command string for allowlist/denylist matching
-  const cmdStr = args
-    ? Object.values(args).filter(v => typeof v === 'string').join(' ')
-    : tool;
+  // Only use actual command content for exec tools to avoid false positives
+  const cmdStr = extractCommandString(tool, args as Record<string, unknown>);
 
   // ── Network request auditing (C5) ──
   const netAudit = auditNetworkRequest(tool, args);
@@ -3822,9 +3821,9 @@ onEngineToolApproval((event: EngineEvent) => {
   const secSettings = loadSecuritySettings();
   const risk: RiskClassification | null = classifyCommandRisk(toolName, args);
 
-  const cmdStr = args
-    ? Object.values(args).filter(v => typeof v === 'string').join(' ')
-    : toolName;
+  // Build a command string for allowlist/denylist matching
+  // Only use actual command content for exec tools to avoid false positives
+  const cmdStr = extractCommandString(toolName, args);
 
   // ── Network request auditing ──
   const netAudit = auditNetworkRequest(toolName, args);

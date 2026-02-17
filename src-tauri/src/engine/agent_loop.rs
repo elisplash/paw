@@ -167,34 +167,46 @@ pub async fn run_agent_turn(
         for tc in &tool_calls {
             info!("[engine] Tool call: {} id={}", tc.function.name, tc.id);
 
-            // Register a oneshot channel for approval
-            let (approval_tx, approval_rx) = tokio::sync::oneshot::channel::<bool>();
-            {
-                let mut map = pending_approvals.lock().unwrap();
-                map.insert(tc.id.clone(), approval_tx);
-            }
+            // Safe internal tools skip HIL — they don't touch the OS
+            let safe_tools = [
+                "memory_store", "memory_search",
+                "soul_read", "soul_write", "soul_list",
+            ];
+            let skip_hil = safe_tools.contains(&tc.function.name.as_str());
 
-            // Emit tool request event — frontend will show approval modal
-            let _ = app_handle.emit("engine-event", EngineEvent::ToolRequest {
-                session_id: session_id.to_string(),
-                run_id: run_id.to_string(),
-                tool_call: tc.clone(),
-            });
-
-            // Wait for user approval (with timeout)
-            let timeout_duration = Duration::from_secs(tool_timeout_secs);
-            let approved = match tokio::time::timeout(timeout_duration, approval_rx).await {
-                Ok(Ok(allowed)) => allowed,
-                Ok(Err(_)) => {
-                    warn!("[engine] Approval channel closed for {}", tc.id);
-                    false
-                }
-                Err(_) => {
-                    warn!("[engine] Approval timeout ({}s) for tool {}", tool_timeout_secs, tc.function.name);
-                    // Clean up the pending entry
+            let approved = if skip_hil {
+                info!("[engine] Auto-approved safe tool: {}", tc.function.name);
+                true
+            } else {
+                // Register a oneshot channel for approval
+                let (approval_tx, approval_rx) = tokio::sync::oneshot::channel::<bool>();
+                {
                     let mut map = pending_approvals.lock().unwrap();
-                    map.remove(&tc.id);
-                    false
+                    map.insert(tc.id.clone(), approval_tx);
+                }
+
+                // Emit tool request event — frontend will show approval modal
+                let _ = app_handle.emit("engine-event", EngineEvent::ToolRequest {
+                    session_id: session_id.to_string(),
+                    run_id: run_id.to_string(),
+                    tool_call: tc.clone(),
+                });
+
+                // Wait for user approval (with timeout)
+                let timeout_duration = Duration::from_secs(tool_timeout_secs);
+                match tokio::time::timeout(timeout_duration, approval_rx).await {
+                    Ok(Ok(allowed)) => allowed,
+                    Ok(Err(_)) => {
+                        warn!("[engine] Approval channel closed for {}", tc.id);
+                        false
+                    }
+                    Err(_) => {
+                        warn!("[engine] Approval timeout ({}s) for tool {}", tool_timeout_secs, tc.function.name);
+                        // Clean up the pending entry
+                        let mut map = pending_approvals.lock().unwrap();
+                        map.remove(&tc.id);
+                        false
+                    }
                 }
             };
 

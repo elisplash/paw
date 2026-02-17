@@ -126,18 +126,34 @@ export function isPrivilegeEscalation(toolName: string, args?: Record<string, un
 }
 
 /**
- * Build a searchable string from tool name + all arg values (flattened).
+ * Build a searchable string from tool name + relevant args.
+ * Only exec/shell tools have their command checked against danger patterns.
+ * Other tools (memory_store, soul_write, fetch, etc.) only check the tool name
+ * to avoid false positives from content containing security-related words.
  */
 function buildSearchString(toolName: string, args?: Record<string, unknown>): string {
   const parts: string[] = [toolName || ''];
   if (args) {
-    for (const v of Object.values(args)) {
-      if (typeof v === 'string') {
-        parts.push(v);
-      } else if (Array.isArray(v)) {
-        parts.push(v.map(String).join(' '));
-      } else if (v && typeof v === 'object') {
-        parts.push(JSON.stringify(v));
+    // For exec-style tools, include the command argument
+    if (toolName === 'exec' || toolName === 'shell' || toolName === 'run') {
+      for (const v of Object.values(args)) {
+        if (typeof v === 'string') {
+          parts.push(v);
+        } else if (Array.isArray(v)) {
+          parts.push(v.map(String).join(' '));
+        } else if (v && typeof v === 'object') {
+          parts.push(JSON.stringify(v));
+        }
+      }
+    }
+    // For other tools, only include operation-relevant args (url, path, file)
+    // but NOT content/body/text which would cause false positives
+    else {
+      const safeKeys = ['url', 'path', 'file', 'filename', 'destination', 'target'];
+      for (const [k, v] of Object.entries(args)) {
+        if (safeKeys.includes(k) && typeof v === 'string') {
+          parts.push(v);
+        }
       }
     }
   }
@@ -206,6 +222,20 @@ export function loadSecuritySettings(): SecuritySettings {
 
 export function saveSecuritySettings(settings: SecuritySettings): void {
   localStorage.setItem(`${SEC_PREFIX}settings`, JSON.stringify(settings));
+}
+
+/**
+ * Extract the command string for allowlist/denylist matching.
+ * Only returns the actual command for exec-type tools.
+ * For other tools, returns just the tool name to avoid content false positives.
+ */
+export function extractCommandString(toolName: string, args?: Record<string, unknown>): string {
+  if (toolName === 'exec' || toolName === 'shell' || toolName === 'run') {
+    return args
+      ? Object.values(args).filter(v => typeof v === 'string').join(' ')
+      : toolName;
+  }
+  return toolName;
 }
 
 /**
