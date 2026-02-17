@@ -1,5 +1,7 @@
 // Today View — Daily briefing with weather, calendar, tasks, and unread emails
 
+import { pawEngine } from '../engine';
+
 const $ = (id: string) => document.getElementById(id);
 
 // ── Tauri bridge ───────────────────────────────────────────────────────────
@@ -424,7 +426,7 @@ function deleteTask(taskId: string) {
 async function triggerBriefing() {
   showToast('Starting morning briefing...');
   try {
-    await gateway.chatSend('main', 'Give me a morning briefing: weather, any calendar events today, and summarize my unread emails.');
+    await pawEngine.chatSend('main', 'Give me a morning briefing: weather, any calendar events today, and summarize my unread emails.');
   } catch {
     showToast('Failed to start briefing', 'error');
   }
@@ -433,7 +435,7 @@ async function triggerBriefing() {
 async function triggerInboxSummary() {
   showToast('Summarizing inbox...');
   try {
-    await gateway.chatSend('main', 'Check my email inbox and summarize the important unread messages.');
+    await pawEngine.chatSend('main', 'Check my email inbox and summarize the important unread messages.');
   } catch {
     showToast('Failed to summarize inbox', 'error');
   }
@@ -442,7 +444,7 @@ async function triggerInboxSummary() {
 async function triggerScheduleCheck() {
   showToast('Checking schedule...');
   try {
-    await gateway.chatSend('main', 'What do I have scheduled for today? Check my calendar.');
+    await pawEngine.chatSend('main', 'What do I have scheduled for today? Check my calendar.');
   } catch {
     showToast('Failed to check schedule', 'error');
   }

@@ -342,30 +342,7 @@
             </div>
             
             <div class="setup-options">
-              <button class="setup-option" id="setup-detect">
-                <div class="setup-option-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                  </svg>
-                </div>
-                <div class="setup-option-text">
-                  <div class="setup-option-title">Detect Existing</div>
-                  <div class="setup-option-desc">Find a running gateway on this machine</div>
-                </div>
-              </button>
-              
-              <button class="setup-option" id="setup-manual">
-                <div class="setup-option-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                  </svg>
-                </div>
-                <div class="setup-option-text">
-                  <div class="setup-option-title">Manual Setup</div>
-                  <div class="setup-option-desc">Enter gateway URL and token</div>
-                </div>
-              </button>
+
               
               <button class="setup-option" id="setup-new">
                 <div class="setup-option-icon">
@@ -437,21 +414,7 @@
               <p class="setup-subtitle">Enter your Pawz engine details</p>
             </div>
             
-            <form id="gateway-form">
-              <div class="form-group">
-                <label class="form-label">Gateway URL</label>
-                <input type="text" class="form-input" id="gateway-url" value="" placeholder="http://localhost:18789" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Auth Token</label>
-                <input type="password" class="form-input" id="gateway-token" placeholder="Enter your API key" />
-                <p class="form-hint">Your API key for the configured AI provider</p>
-              </div>
-              <div class="btn-group">
-                <button type="button" class="btn btn-secondary" id="gateway-back">Back</button>
-                <button type="submit" class="btn btn-primary">Connect</button>
-              </div>
-            </form>
+
           </div>
         </div>
 
@@ -1759,7 +1722,7 @@
           <!-- Pawz Engine — AI Provider Config -->
           <div class="settings-section" id="settings-engine-section">
             <h2 class="settings-section-title">AI Provider</h2>
-            <p class="settings-section-desc" style="margin-bottom:12px">Configure your AI provider and API key. Pawz calls APIs directly from your machine — no external gateway needed.</p>
+            <p class="settings-section-desc" style="margin-bottom:12px">Configure your AI provider and API key. Pawz calls APIs directly from your machine.</p>
             <!-- Hidden select kept for compatibility with settings-engine.ts -->
             <select class="form-input" id="settings-engine-mode" style="display:none">
               <option value="engine" selected>Built-in Paw Engine</option>
@@ -1933,7 +1896,7 @@
                 <option value="credential_access">Credential access</option>
                 <option value="security_policy">Policy changes</option>
                 <option value="network_request">Network requests</option>
-                <option value="gateway_crash">Gateway crashes</option>
+                <option value="engine_crash">Engine crashes</option>
                 <option value="scope_violation">Scope violations</option>
               </select>
               <select class="form-input audit-filter-select" id="audit-filter-risk">

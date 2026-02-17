@@ -1,8 +1,6 @@
 // Memory Palace View — LanceDB-backed long-term memory
 // Extracted from main.ts for maintainability
 
-import { gateway } from '../gateway';
-import { isEngineMode } from '../engine-bridge';
 import { pawEngine } from '../engine';
 
 const $ = (id: string) => document.getElementById(id);
@@ -76,39 +74,15 @@ export async function loadMemoryPalace() {
   if (!_palaceInitialized) {
     _palaceInitialized = true;
 
-    if (isEngineMode()) {
-      // Engine mode: memory is always available (SQLite-backed)
-      // Check if embedding is configured for semantic search
-      try {
-        const stats = await pawEngine.memoryStats();
-        _palaceAvailable = true;
-        console.log('[memory] Engine mode — memory available, total:', stats.total_memories);
-      } catch (e) {
-        console.warn('[memory] Engine mode — memory check failed:', e);
-        _palaceAvailable = true; // Still available, just might not have embeddings
-      }
-    } else {
-      // Gateway mode: check if memory-lancedb plugin is active
-      let configWritten = false;
-      if (invoke) {
-        try {
-          configWritten = await invoke<boolean>('check_memory_configured');
-        } catch { /* ignore */ }
-      }
-
-      if (configWritten) {
-        try {
-          const healthy = invoke ? await invoke<boolean>('check_gateway_health', { port: null }) : false;
-          if (healthy) {
-            _palaceAvailable = true;
-            console.log('[memory] Memory plugin configured and gateway is running');
-          } else {
-            console.log('[memory] Config written but gateway not running');
-          }
-        } catch {
-          _palaceAvailable = false;
-        }
-      }
+    // Engine mode: memory is always available (SQLite-backed)
+    // Check if embedding is configured for semantic search
+    try {
+      const stats = await pawEngine.memoryStats();
+      _palaceAvailable = true;
+      console.log('[memory] Engine mode — memory available, total:', stats.total_memories);
+    } catch (e) {
+      console.warn('[memory] Engine mode — memory check failed:', e);
+      _palaceAvailable = true; // Still available, just might not have embeddings
     }
   }
 
@@ -120,48 +94,10 @@ export async function loadMemoryPalace() {
 
   const banner = $('palace-install-banner');
   const filesDivider = $('palace-files-divider');
-  // configWritten only relevant in gateway mode
-  let configWritten = false;
-  if (!isEngineMode() && invoke) {
-    try { configWritten = await invoke<boolean>('check_memory_configured'); } catch { /* ignore */ }
-  }
 
   if (!_palaceAvailable && !_palaceSkipped) {
     // Show setup banner
     if (banner) banner.style.display = 'flex';
-    if (configWritten) {
-        // Config is written but gateway hasn't picked it up or plugin failed
-        // Show the form so users can update their settings, plus a restart note
-        console.log('[memory] Config written but plugin not active — show form + restart option');
-        const progressEl = $('palace-progress-text');
-        const progressDiv = $('palace-install-progress');
-        if (progressEl && progressDiv) {
-          progressDiv.style.display = '';
-          progressEl.textContent = 'Memory is configured but not active. Update settings or restart the gateway.';
-        }
-        // Pre-fill from settings if available
-        if (invoke) {
-          try {
-            const existingUrl = await invoke<string | null>('get_embedding_base_url');
-            const existingVersion = await invoke<string | null>('get_azure_api_version');
-            const existingProvider = await invoke<string | null>('get_embedding_provider');
-            const providerSel = $('palace-provider') as HTMLSelectElement | null;
-            if (existingProvider && providerSel) providerSel.value = existingProvider;
-            updateProviderFields();
-            if (existingProvider === 'azure') {
-              const baseUrlInput = $('palace-base-url') as HTMLInputElement | null;
-              if (existingUrl && baseUrlInput && !baseUrlInput.value) baseUrlInput.value = existingUrl;
-            } else {
-              const openaiUrlInput = $('palace-base-url-openai') as HTMLInputElement | null;
-              if (existingUrl && openaiUrlInput && !openaiUrlInput.value) openaiUrlInput.value = existingUrl;
-            }
-            const apiVersionInput = $('palace-api-version') as HTMLInputElement | null;
-            if (existingVersion && apiVersionInput && !apiVersionInput.value) {
-              apiVersionInput.value = existingVersion;
-            }
-          } catch { /* ignore */ }
-        }
-      }
     } else if (!_palaceAvailable && _palaceSkipped) {
       // Skipped — show files mode
       if (banner) banner.style.display = 'none';
@@ -177,10 +113,9 @@ export async function loadMemoryPalace() {
       // Memory is available — full mode
       if (banner) banner.style.display = 'none';
       if (filesDivider) filesDivider.style.display = '';
-      // Settings gear — only for gateway mode (OpenAI/Azure endpoint config)
-      // Engine mode uses the embedding status banner for Ollama config
+      // Settings gear visibility
       const settingsBtn = $('palace-settings');
-      if (settingsBtn) settingsBtn.style.display = isEngineMode() ? 'none' : '';
+      if (settingsBtn) settingsBtn.style.display = 'none';
     }
 
   // Only load stats + sidebar when memory is actually available
@@ -383,27 +318,15 @@ function initPalaceInstall() {
         provider,
       });
 
-      if (progressText) progressText.textContent = 'Configuration saved! Restarting gateway…';
+      if (progressText) progressText.textContent = 'Configuration saved! Reloading…';
 
-      // Restart gateway to pick up the new plugin config
-      try {
-        await invoke('stop_gateway');
-        await new Promise(r => setTimeout(r, 4000));
-        await invoke('start_gateway', { port: null });
-        await new Promise(r => setTimeout(r, 5000));
-      } catch (e) {
-        console.warn('[memory] Gateway restart failed:', e);
-      }
-
-      // Re-check if memory plugin is now active
-      // Config was just written and gateway restarted — check if it's healthy
+      // Reload memory palace to pick up the new config
       _palaceInitialized = false;
       _palaceAvailable = false;
 
       try {
-        const healthy = await invoke<boolean>('check_gateway_health', { port: null });
         const configured = await invoke<boolean>('check_memory_configured');
-        _palaceAvailable = healthy && configured;
+        _palaceAvailable = configured;
       } catch { /* ignore */ }
 
       if (_palaceAvailable) {
@@ -413,22 +336,18 @@ function initPalaceInstall() {
         await loadMemoryPalace();
       } else {
         if (progressText) {
-          progressText.textContent = 'Configuration saved. The gateway may need a manual restart to activate the memory plugin.';
+          progressText.textContent = 'Configuration saved. Memory plugin may need additional setup.';
         }
-        btn.textContent = 'Restart Gateway';
+        btn.textContent = 'Retry';
         btn.disabled = false;
         btn.onclick = async () => {
           btn.disabled = true;
-          btn.textContent = 'Restarting…';
+          btn.textContent = 'Checking…';
           try {
-            await invoke('stop_gateway');
-            await new Promise(r => setTimeout(r, 4000));
-            await invoke('start_gateway', { port: null });
-            await new Promise(r => setTimeout(r, 5000));
             _palaceInitialized = false;
             await loadMemoryPalace();
           } catch (e) {
-            if (progressText) progressText.textContent = `Restart failed: ${e}`;
+            if (progressText) progressText.textContent = `Setup check failed: ${e}`;
             btn.disabled = false;
             btn.textContent = 'Retry';
           }
@@ -465,9 +384,6 @@ async function renderEmbeddingStatus(stats: { total_memories: number; has_embedd
   // Remove old banner if any
   const old = $('palace-embedding-banner');
   if (old) old.remove();
-
-  // Only show in engine mode
-  if (!isEngineMode()) return;
 
   try {
     const status = await pawEngine.embeddingStatus();
@@ -590,60 +506,22 @@ async function loadPalaceStats() {
   const edgesEl = $('palace-graph-edges');
   if (!totalEl) return;
 
-  if (isEngineMode()) {
-    try {
-      const stats = await pawEngine.memoryStats();
-      totalEl.textContent = String(stats.total_memories);
-      if (typesEl) {
-        const catCount = stats.categories.length;
-        typesEl.textContent = catCount > 0 ? String(catCount) : '0';
-        typesEl.title = stats.categories.length > 0
-          ? stats.categories.map(([c, n]) => `${c}: ${n}`).join(', ')
-          : '';
-      }
-      if (edgesEl) edgesEl.textContent = stats.has_embeddings ? '✓' : '✗';
-
-      // Show embedding status banner
-      await renderEmbeddingStatus(stats);
-    } catch (e) {
-      console.warn('[memory] Engine stats failed:', e);
-      totalEl.textContent = '—';
-      if (typesEl) typesEl.textContent = '—';
-      if (edgesEl) edgesEl.textContent = '—';
-    }
-    return;
-  }
-
-  if (!_palaceAvailable || !invoke) {
-    // Show agent file count as fallback stats
-    try {
-      const result = await gateway.agentFilesList();
-      const files = result.files ?? [];
-      totalEl.textContent = String(files.length);
-      if (typesEl) typesEl.textContent = 'files';
-      if (edgesEl) edgesEl.textContent = '—';
-    } catch {
-      totalEl.textContent = '—';
-      if (typesEl) typesEl.textContent = '—';
-      if (edgesEl) edgesEl.textContent = '—';
-    }
-    return;
-  }
-
   try {
-    // Use openclaw ltm stats via Rust command
-    const statsText = await invoke<string>('memory_stats');
-    // Format: "Total memories: N"
-    const countMatch = statsText.match(/(\d+)/);
-    if (countMatch) {
-      totalEl.textContent = countMatch[1];
-    } else {
-      totalEl.textContent = '0';
+    const stats = await pawEngine.memoryStats();
+    totalEl.textContent = String(stats.total_memories);
+    if (typesEl) {
+      const catCount = stats.categories.length;
+      typesEl.textContent = catCount > 0 ? String(catCount) : '0';
+      typesEl.title = stats.categories.length > 0
+        ? stats.categories.map(([c, n]) => `${c}: ${n}`).join(', ')
+        : '';
     }
-    if (typesEl) typesEl.textContent = 'memories';
-    if (edgesEl) edgesEl.textContent = '—'; // LanceDB doesn't have edges
+    if (edgesEl) edgesEl.textContent = stats.has_embeddings ? '✓' : '✗';
+
+    // Show embedding status banner
+    await renderEmbeddingStatus(stats);
   } catch (e) {
-    console.warn('[memory] Stats load failed:', e);
+    console.warn('[memory] Engine stats failed:', e);
     totalEl.textContent = '—';
     if (typesEl) typesEl.textContent = '—';
     if (edgesEl) edgesEl.textContent = '—';
@@ -657,73 +535,8 @@ async function loadPalaceSidebar() {
 
   list.innerHTML = '';
 
-  if (isEngineMode()) {
-    // Engine mode: load from native memory store
-    try {
-      const memories = await pawEngine.memoryList(20);
-      if (!memories.length) {
-        list.innerHTML = '<div class="palace-list-empty">No memories yet</div>';
-        return;
-      }
-      for (const mem of memories) {
-        const card = document.createElement('div');
-        card.className = 'palace-memory-card';
-        card.innerHTML = `
-          <span class="palace-memory-type">${escHtml(mem.category)}</span>
-          <div class="palace-memory-subject">${escHtml(mem.content.slice(0, 60))}${mem.content.length > 60 ? '…' : ''}</div>
-          <div class="palace-memory-preview">${mem.score != null ? `${(mem.score * 100).toFixed(0)}% match` : `importance: ${mem.importance}`}</div>
-        `;
-        card.addEventListener('click', () => palaceRecallById(mem.id));
-        list.appendChild(card);
-      }
-    } catch (e) {
-      console.warn('[memory] Engine sidebar failed:', e);
-      list.innerHTML = '<div class="palace-list-empty">Could not load memories</div>';
-    }
-    return;
-  }
-
-  if (!_palaceAvailable || !invoke) {
-    // Fall back to showing agent files
-    try {
-      const result = await gateway.agentFilesList();
-      const files = result.files ?? [];
-      if (!files.length) {
-        list.innerHTML = `<div class="palace-list-empty">No agent files yet</div>`;
-        return;
-      }
-      for (const file of files) {
-        const displayName = file.path ?? file.name ?? 'unknown';
-        const displaySize = file.sizeBytes ?? file.size;
-        const card = document.createElement('div');
-        card.className = 'palace-memory-card';
-        card.innerHTML = `
-          <span class="palace-memory-type">file</span>
-          <div class="palace-memory-subject">${escHtml(displayName)}</div>
-          <div class="palace-memory-preview">${displaySize ? formatBytes(displaySize) : 'Agent file'}</div>
-        `;
-        card.addEventListener('click', () => {
-          document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
-          document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
-          document.querySelector('.palace-tab[data-palace-tab="files"]')?.classList.add('active');
-          const fp = $('palace-files-panel');
-          if (fp) fp.style.display = 'flex';
-          // Emit custom event for main.ts to handle file opening
-          window.dispatchEvent(new CustomEvent('palace-open-file', { detail: displayName }));
-        });
-        list.appendChild(card);
-      }
-    } catch (e) {
-      console.warn('Agent files load failed:', e);
-      list.innerHTML = '<div class="palace-list-empty">Could not load files</div>';
-    }
-    return;
-  }
-
   try {
-    // Use openclaw ltm search via Rust command
-    const jsonText = await invoke<string>('memory_search', { query: 'recent important information', limit: 20 });
-    const memories: { id?: string; text?: string; category?: string; importance?: number; score?: number }[] = JSON.parse(jsonText);
+    const memories = await pawEngine.memoryList(20);
     if (!memories.length) {
       list.innerHTML = '<div class="palace-list-empty">No memories yet</div>';
       return;
@@ -732,17 +545,15 @@ async function loadPalaceSidebar() {
       const card = document.createElement('div');
       card.className = 'palace-memory-card';
       card.innerHTML = `
-        <span class="palace-memory-type">${escHtml(mem.category ?? 'other')}</span>
-        <div class="palace-memory-subject">${escHtml((mem.text ?? '').slice(0, 60))}${(mem.text?.length ?? 0) > 60 ? '…' : ''}</div>
-        <div class="palace-memory-preview">${mem.score != null ? `${(mem.score * 100).toFixed(0)}% match` : ''}</div>
+        <span class="palace-memory-type">${escHtml(mem.category)}</span>
+        <div class="palace-memory-subject">${escHtml(mem.content.slice(0, 60))}${mem.content.length > 60 ? '…' : ''}</div>
+        <div class="palace-memory-preview">${mem.score != null ? `${(mem.score * 100).toFixed(0)}% match` : `importance: ${mem.importance}`}</div>
       `;
-      card.addEventListener('click', () => {
-        if (mem.id) palaceRecallById(mem.id);
-      });
+      card.addEventListener('click', () => palaceRecallById(mem.id));
       list.appendChild(card);
     }
   } catch (e) {
-    console.warn('Memory sidebar load failed:', e);
+    console.warn('[memory] Sidebar load failed:', e);
     list.innerHTML = '<div class="palace-list-empty">Could not load memories</div>';
   }
 }
@@ -763,33 +574,11 @@ async function palaceRecallById(memoryId: string) {
   resultsEl.innerHTML = '<div style="padding:1rem;color:var(--text-secondary)">Loading…</div>';
   if (emptyEl) emptyEl.style.display = 'none';
 
-  if (isEngineMode()) {
-    try {
-      const memories = await pawEngine.memorySearch(memoryId, 1);
-      resultsEl.innerHTML = '';
-      if (memories.length) {
-        resultsEl.appendChild(renderRecallCard({ id: memories[0].id, text: memories[0].content, category: memories[0].category, importance: memories[0].importance, score: memories[0].score }));
-      } else {
-        resultsEl.innerHTML = '<div style="padding:1rem;color:var(--text-secondary)">Memory not found</div>';
-      }
-    } catch (e) {
-      resultsEl.innerHTML = `<div style="padding:1rem;color:var(--danger)">Error: ${escHtml(String(e))}</div>`;
-    }
-    return;
-  }
-
-  if (!invoke) {
-    resultsEl.innerHTML = '<div style="padding:1rem;color:var(--danger)">Memory not available</div>';
-    return;
-  }
-
   try {
-    // Use openclaw ltm search via Rust command
-    const jsonText = await invoke<string>('memory_search', { query: memoryId, limit: 1 });
-    const memories = JSON.parse(jsonText);
+    const memories = await pawEngine.memorySearch(memoryId, 1);
     resultsEl.innerHTML = '';
-    if (Array.isArray(memories) && memories.length) {
-      resultsEl.appendChild(renderRecallCard(memories[0]));
+    if (memories.length) {
+      resultsEl.appendChild(renderRecallCard({ id: memories[0].id, text: memories[0].content, category: memories[0].category, importance: memories[0].importance, score: memories[0].score }));
     } else {
       resultsEl.innerHTML = '<div style="padding:1rem;color:var(--text-secondary)">Memory not found</div>';
     }
@@ -863,44 +652,15 @@ async function palaceRecallSearch() {
   resultsEl.innerHTML = '<div style="padding:1rem;color:var(--text-secondary)">Searching…</div>';
   if (emptyEl) emptyEl.style.display = 'none';
 
-  if (isEngineMode()) {
-    try {
-      const memories = await pawEngine.memorySearch(query, 10);
-      resultsEl.innerHTML = '';
-      if (!memories.length) {
-        if (emptyEl) emptyEl.style.display = 'flex';
-        return;
-      }
-      for (const mem of memories) {
-        resultsEl.appendChild(renderRecallCard({ id: mem.id, text: mem.content, category: mem.category, importance: mem.importance, score: mem.score }));
-      }
-    } catch (e) {
-      resultsEl.innerHTML = `<div style="padding:1rem;color:var(--danger)">Recall failed: ${escHtml(String(e))}</div>`;
-    }
-    return;
-  }
-
-  if (!_palaceAvailable || !invoke) {
-    resultsEl.innerHTML = `<div class="empty-state" style="padding:1rem;">
-      <div class="empty-title">Memory not enabled</div>
-      <div class="empty-subtitle" style="max-width:380px;line-height:1.6">
-        Enable long-term memory in the Memory tab to use semantic recall.
-      </div>
-    </div>`;
-    return;
-  }
-
   try {
-    // Use openclaw ltm search via Rust command
-    const jsonText = await invoke<string>('memory_search', { query, limit: 10 });
-    const memories: { id?: string; text?: string; category?: string; importance?: number; score?: number }[] = JSON.parse(jsonText);
+    const memories = await pawEngine.memorySearch(query, 10);
     resultsEl.innerHTML = '';
     if (!memories.length) {
       if (emptyEl) emptyEl.style.display = 'flex';
       return;
     }
     for (const mem of memories) {
-      resultsEl.appendChild(renderRecallCard(mem));
+      resultsEl.appendChild(renderRecallCard({ id: mem.id, text: mem.content, category: mem.category, importance: mem.importance, score: mem.score }));
     }
   } catch (e) {
     resultsEl.innerHTML = `<div style="padding:1rem;color:var(--danger)">Recall failed: ${escHtml(String(e))}</div>`;
@@ -923,33 +683,11 @@ function initPalaceRemember() {
       return;
     }
 
-    if (!isEngineMode() && !_palaceAvailable) {
-      alert('Memory not enabled. Enable long-term memory in the Memory tab first.');
-      return;
-    }
-
     btn.textContent = 'Saving…';
     (btn as HTMLButtonElement).disabled = true;
 
     try {
-      if (isEngineMode()) {
-        await pawEngine.memoryStore(content, category, importance);
-      } else if (invoke) {
-        // Call the Tauri command directly for reliable storage
-        await invoke('memory_store', {
-          content,
-          category,
-          importance,
-        });
-      } else {
-        // Fallback: ask agent to store (less reliable, for browser-only dev)
-        const storeSessionKey = currentSessionKey ?? 'default';
-        const storePrompt = `Please store this in long-term memory using memory_store: "${content.replace(/"/g, '\\"')}" with category "${category}" and importance ${importance}. Just confirm when done.`;
-        await Promise.race([
-          gateway.chatSend(storeSessionKey, storePrompt),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 30000)),
-        ]);
-      }
+      await pawEngine.memoryStore(content, category, importance);
 
       // Clear form
       if ($('palace-remember-content') as HTMLTextAreaElement) ($('palace-remember-content') as HTMLTextAreaElement).value = '';
@@ -979,45 +717,17 @@ async function renderPalaceGraph() {
   const emptyEl = $('palace-graph-empty');
   if (!canvas) return;
 
-  if (!isEngineMode() && !_palaceAvailable) {
-    if (emptyEl) {
-      emptyEl.style.display = 'flex';
-      emptyEl.innerHTML = `
-        <div class="empty-title">Memory Map</div>
-        <div class="empty-subtitle">Enable long-term memory to visualize stored knowledge</div>
-      `;
-    }
-    return;
-  }
-
   if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Loading memory map…'; }
 
   let memories: { id?: string; text?: string; category?: string; importance?: number; score?: number }[] = [];
 
-  if (isEngineMode()) {
-    try {
-      const engineMems = await pawEngine.memoryList(50);
-      memories = engineMems.map(m => ({ id: m.id, text: m.content, category: m.category, importance: m.importance, score: m.score }));
-    } catch (e) {
-      console.warn('Engine graph load failed:', e);
-      if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Failed to load memory map.'; }
-      return;
-    }
-  } else {
-    if (!invoke) {
-      if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Memory not available.'; }
-      return;
-    }
-
-    try {
-      // Use openclaw ltm search via Rust command
-      const jsonText = await invoke<string>('memory_search', { query: '*', limit: 50 });
-      try { memories = JSON.parse(jsonText); } catch { /* empty */ }
-    } catch (e) {
-      console.warn('Graph render failed:', e);
-      if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Failed to load memory map.'; }
-      return;
-    }
+  try {
+    const engineMems = await pawEngine.memoryList(50);
+    memories = engineMems.map(m => ({ id: m.id, text: m.content, category: m.category, importance: m.importance, score: m.score }));
+  } catch (e) {
+    console.warn('Graph load failed:', e);
+    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Failed to load memory map.'; }
+    return;
   }
 
   if (!memories.length) {
@@ -1098,25 +808,12 @@ async function renderPalaceGraph() {
 
 /** Export all memories as a JSON file download */
 async function exportMemories() {
-  if (!isEngineMode() && (!_palaceAvailable || !invoke)) {
-    showToast('Memory not available — enable long-term memory first', 'warning');
-    return;
-  }
-
   const btn = $('palace-export') as HTMLButtonElement | null;
   if (btn) btn.disabled = true;
 
   try {
-    let memories: Array<Record<string, unknown>> = [];
-
-    if (isEngineMode()) {
-      const engineMems = await pawEngine.memoryList(500);
-      memories = engineMems.map(m => ({ id: m.id, content: m.content, category: m.category, importance: m.importance, created_at: m.created_at }));
-    } else {
-      // Fetch all memories (large limit)
-      const jsonText = await invoke!<string>('memory_search', { query: '*', limit: 500 });
-      try { memories = JSON.parse(jsonText); } catch { /* empty */ }
-    }
+    const engineMems = await pawEngine.memoryList(500);
+    const memories = engineMems.map(m => ({ id: m.id, content: m.content, category: m.category, importance: m.importance, created_at: m.created_at }));
 
     if (!memories.length) {
       showToast('No memories to export', 'info');

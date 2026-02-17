@@ -482,8 +482,16 @@ class PawEngineClient {
   // ── Chat ─────────────────────────────────────────────────────────────
 
   /** Send a message and start an agent turn. Results stream via events. */
-  async chatSend(request: EngineChatRequest): Promise<EngineChatResponse> {
+  async chatSend(sessionIdOrRequest: string | EngineChatRequest, message?: string): Promise<EngineChatResponse> {
+    const request: EngineChatRequest = typeof sessionIdOrRequest === 'string'
+      ? { session_id: sessionIdOrRequest, message: message ?? '' }
+      : sessionIdOrRequest;
     return invoke<EngineChatResponse>('engine_chat_send', { request });
+  }
+
+  /** Abort a running chat (stub — backend support not yet implemented). */
+  async chatAbort(_sessionId: string): Promise<void> {
+    console.warn('[engine] chatAbort not yet implemented in backend');
   }
 
   /** Get chat history for a session. */

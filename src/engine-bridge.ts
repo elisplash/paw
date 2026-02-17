@@ -1,6 +1,6 @@
 // Paw Engine Bridge
-// Translates Tauri engine events into the same shape as gateway 'agent' events,
-// and provides a drop-in chatSend replacement for engine mode.
+// Translates Tauri engine events into agent events for the frontend,
+// and provides a chatSend wrapper for engine mode.
 
 import { pawEngine, type EngineEvent, type EngineChatRequest } from './engine';
 import { getAgentAllowedTools, ALL_TOOLS } from './features/agent-policies';
@@ -12,20 +12,20 @@ let _engineListening = false;
 let _agentHandlers: AgentEventHandler[] = [];
 let _toolApprovalHandlers: ToolApprovalHandler[] = [];
 
-/** Whether the engine mode is active (vs gateway mode). */
+/** Whether the engine mode is active. */
 export function isEngineMode(): boolean {
   return localStorage.getItem('paw-runtime-mode') === 'engine';
 }
 
 /** Set the runtime mode. */
 export function setEngineMode(enabled: boolean): void {
-  localStorage.setItem('paw-runtime-mode', enabled ? 'engine' : 'gateway');
+  localStorage.setItem('paw-runtime-mode', enabled ? 'engine' : 'disabled');
 }
 
 /**
  * Register a handler that receives agent-style events.
  * In engine mode these come from the Rust engine via Tauri IPC.
- * The payload shape matches the gateway's 'agent' event so the existing
+ * The payload shape matches the agent event format so the existing
  * main.ts handler works unchanged.
  */
 export function onEngineAgent(handler: AgentEventHandler): void {
@@ -50,7 +50,7 @@ export function resolveEngineToolApproval(toolCallId: string, approved: boolean)
 }
 
 /**
- * Start listening for engine events and forward them as gateway-style agent events.
+ * Start listening for engine events and forward them as agent events.
  * Call this once at startup if in engine mode.
  */
 export async function startEngineBridge(): Promise<void> {
@@ -67,10 +67,10 @@ export async function startEngineBridge(): Promise<void> {
       }
     }
 
-    const gatewayEvt = translateEngineEvent(event);
-    if (gatewayEvt) {
+    const agentEvt = translateEngineEvent(event);
+    if (agentEvt) {
       for (const h of _agentHandlers) {
-        try { h(gatewayEvt); } catch (e) { console.error('[engine-bridge] handler error:', e); }
+        try { h(agentEvt); } catch (e) { console.error('[engine-bridge] handler error:', e); }
       }
     }
   });
@@ -78,7 +78,7 @@ export async function startEngineBridge(): Promise<void> {
 
 /**
  * Send a chat message using the engine.
- * Signature intentionally matches the shape of gateway.chatSend.
+ * Send a chat message via the Paw Engine.
  */
 export async function engineChatSend(
   sessionKey: string,
@@ -95,7 +95,7 @@ export async function engineChatSend(
   const rawModel = opts.model ?? opts.agentProfile?.model;
   const resolvedModel = (rawModel && rawModel !== 'default' && rawModel !== 'Default') ? rawModel : undefined;
 
-  // Build a system prompt from the full agent profile (matching what gateway.ts does)
+  // Build a system prompt from the full agent profile
   let agentSystemPrompt: string | undefined;
   if (opts.agentProfile) {
     const profile = opts.agentProfile;

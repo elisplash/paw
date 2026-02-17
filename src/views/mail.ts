@@ -1,7 +1,6 @@
 // Mail View — Email via Gmail Hooks + Himalaya
 // Extracted from main.ts for maintainability
 
-import { gateway } from '../gateway';
 import type { SkillEntry } from '../types';
 import { logCredentialActivity, getCredentialActivityLog } from '../db';
 
@@ -127,7 +126,7 @@ function removeMailPermissions(accountName: string) {
 // ── Main loader ────────────────────────────────────────────────────────────
 export async function loadMail() {
   if (!wsConnected) {
-    console.warn('[mail] loadMail skipped — gateway not connected');
+    console.warn('[mail] loadMail skipped — engine not connected');
     // Still try to render local accounts so user sees their config
     await renderMailAccounts(null, null);
     if (_mailAccounts.length === 0) {
@@ -136,20 +135,9 @@ export async function loadMail() {
     return;
   }
   try {
-    const [cfgResult, skillsResult] = await Promise.all([
-      gateway.configGet().catch(() => null),
-      gateway.skillsStatus().catch(() => null),
-    ]);
-
-    const cfg = cfgResult?.config as Record<string, unknown> | null;
-    const hooks = cfg?.hooks as Record<string, unknown> | null;
-    const gmail = hooks?.gmail as Record<string, unknown> | null;
-    _mailGmailConfigured = !!(hooks?.enabled && gmail?.account);
-
-    const himalaya = skillsResult?.skills?.find(s => s.name === 'himalaya');
-    _mailHimalayaReady = !!(himalaya?.eligible && !himalaya?.disabled);
-
-    await renderMailAccounts(gmail, himalaya ?? null);
+    // Skills status check — engine doesn't have a skills API yet
+    // Just render local accounts from Himalaya config
+    await renderMailAccounts(null, null);
 
     const hasAccounts = _mailAccounts.length > 0 || _mailGmailConfigured;
     if (hasAccounts) {
@@ -317,25 +305,10 @@ async function renderMailAccounts(_gmail: Record<string, unknown> | null, himala
     list.appendChild(item);
 
     item.querySelector('.mail-himalaya-install')?.addEventListener('click', async () => {
-      const inst = himalaya.install?.[0];
-      if (!inst) return;
-      try {
-        showToast('Installing Himalaya...', 'info');
-        await gateway.skillsInstall(himalaya.name, inst.id);
-        showToast('Himalaya installed!', 'success');
-        loadMail();
-      } catch (e) {
-        showToast(`Install failed: ${e instanceof Error ? e.message : e}`, 'error');
-      }
+      showToast('Himalaya skill installation coming soon — install manually via CLI for now', 'info');
     });
     item.querySelector('.mail-himalaya-enable')?.addEventListener('click', async () => {
-      try {
-        await gateway.skillsUpdate(himalaya.skillKey ?? himalaya.name, { enabled: true });
-        showToast('Himalaya enabled', 'success');
-        loadMail();
-      } catch (e) {
-        showToast(`Enable failed: ${e instanceof Error ? e.message : e}`, 'error');
-      }
+      showToast('Himalaya skill management coming soon', 'info');
     });
   }
 

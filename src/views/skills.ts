@@ -1,7 +1,7 @@
 // Skills View — Plugin Manager
 // Extracted from main.ts for maintainability
+// NOTE: Skills management requires engine API (not yet implemented)
 
-import { gateway } from '../gateway';
 import { logSecurityEvent } from '../db';
 
 const $ = (id: string) => document.getElementById(id);
@@ -54,8 +54,15 @@ export async function loadSkills() {
   if (availableSection) availableSection.style.display = 'none';
 
   try {
-    const result = await gateway.skillsStatus();
+    // Skills API not yet available in engine mode
     if (loading) loading.style.display = 'none';
+    if (empty) {
+      empty.style.display = 'flex';
+      empty.innerHTML = '<div class="empty-title">Skills</div><div class="empty-subtitle">Skill management coming soon to the Paw engine</div>';
+    }
+    return;
+    const result = { skills: [] } as { skills: any[] }; // stub
+    if (false) // unreachable — kept for type checker
 
     const skills = result.skills ?? [];
     if (!skills.length) {
@@ -239,7 +246,7 @@ function buildRiskScoreHtml(info: NpmPackageInfo): string {
 /** H2: Post-install sandbox check — verify the skill after installation */
 async function runPostInstallSandboxCheck(skillName: string): Promise<void> {
   try {
-    const status = await gateway.skillsStatus();
+    const status = { skills: [] } as any; // stub — engine skills API coming soon
     const skills = status.skills ?? [];
     const installed = skills.find((s: Record<string, unknown>) =>
       (s.name as string)?.toLowerCase() === skillName.toLowerCase() ||
@@ -441,8 +448,9 @@ function wireSkillActions() {
       (btn as HTMLButtonElement).textContent = 'Installing…';
       showSkillsToast(`Installing ${name}…`, 'info');
       try {
-        await gateway.skillsInstall(name, installId);
-        showSkillsToast(`${name} installed successfully!`, 'success');
+        showSkillsToast('Skill installation coming soon to the Paw engine', 'info');
+        return;
+        void name; void installId; // stub
         logSecurityEvent({
           eventType: 'skill_install',
           toolName: name,
@@ -474,8 +482,9 @@ function wireSkillActions() {
 
       (btn as HTMLButtonElement).disabled = true;
       try {
-        await gateway.skillsUpdate(skillKey, { enabled: newState });
-        showSkillsToast(`${name} ${newState ? 'enabled' : 'disabled'}`, 'success');
+        showSkillsToast('Skill management coming soon to the Paw engine', 'info');
+        return;
+        void skillKey; void newState; // stub
         await loadSkills();
       } catch (e) {
         showSkillsToast(`Failed to ${newState ? 'enable' : 'disable'} ${name}: ${e}`, 'error');
@@ -590,7 +599,9 @@ async function saveSkillConfig() {
     if (apiKey) updates.apiKey = apiKey;
     if (Object.keys(env).length > 0) updates.env = env;
 
-    await gateway.skillsUpdate(data.skillKey, updates);
+    void updates; // stub — engine skills API coming soon
+    showSkillsToast('Skill configuration coming soon to the Paw engine', 'info');
+    return;
     showSkillsToast(`${data.name} configured successfully!`, 'success');
     closeSkillConfigModal();
     await loadSkills();
@@ -626,7 +637,7 @@ export function initSkillsEvents() {
     if (empty) empty.style.display = 'none';
 
     try {
-      const result = await gateway.skillsBins();
+      const result = { bins: [] } as { bins: string[] }; // stub — engine skills API coming soon
       if (loading) loading.style.display = 'none';
       const bins = result.bins ?? [];
       if (!bins.length) {
@@ -650,7 +661,7 @@ export function initSkillsEvents() {
           (btn as HTMLButtonElement).disabled = true;
           (btn as HTMLButtonElement).textContent = 'Installing…';
           try {
-            await gateway.skillsInstall(name, crypto.randomUUID());
+            showSkillsToast('Skill installation coming soon to the Paw engine', 'info'); return;
             (btn as HTMLButtonElement).textContent = 'Installed';
             showSkillsToast(`${name} installed!`, 'success');
             loadSkills();
@@ -693,8 +704,8 @@ export function initSkillsEvents() {
     btn.textContent = 'Installing…';
 
     try {
-      await gateway.skillsInstall(name, crypto.randomUUID());
-      showSkillsToast(`${name} installed!`, 'success');
+      showSkillsToast('Skill installation coming soon to the Paw engine', 'info');
+      return;
       input.value = '';
       loadSkills();
       const backdrop = $('bins-modal-backdrop');

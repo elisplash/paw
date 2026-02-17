@@ -1,7 +1,7 @@
 // Research View — Redesigned with live sources, structured findings, iteration
 // Saves to ~/Documents/Paw/Research as markdown files
 
-import { gateway } from '../gateway';
+import { pawEngine } from '../engine';
 import * as workspace from '../workspace';
 import type { ResearchProject, ResearchFinding, ResearchSource, ResearchReport } from '../workspace';
 
@@ -510,8 +510,8 @@ async function runResearch() {
   });
   
   try {
-    const result = await gateway.chatSend(sessionKey, prompt);
-    if (result.runId) _runId = result.runId;
+    const result = await pawEngine.chatSend(sessionKey, prompt);
+    if (result.run_id) _runId = result.run_id;
     
     const finalText = await done;
     
@@ -555,7 +555,7 @@ async function stopResearch() {
   if (!_activeProject) return;
   
   try {
-    await gateway.chatAbort(`paw-research-${_activeProject.id}`);
+    await pawEngine.chatAbort(`paw-research-${_activeProject.id}`);
   } catch (e) {
     console.warn('[research] Abort error:', e);
   }
@@ -594,7 +594,7 @@ async function generateReport() {
   });
   
   try {
-    await gateway.chatSend(sessionKey,
+    await pawEngine.chatSend(sessionKey,
       `Based on all the research findings below, write a comprehensive, well-structured report. Include:\n\n1. Executive Summary (2-3 paragraphs)\n2. Key Findings (organized by theme)\n3. Detailed Analysis\n4. Conclusions and Recommendations\n5. Sources Bibliography\n\nUse markdown formatting.\n\n${findingsText}`
     );
     

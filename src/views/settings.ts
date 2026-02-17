@@ -1,7 +1,7 @@
 // Settings View — Logs, Usage, Presence, Nodes, Devices, Exec Approvals, Security Policies
 // Extracted from main.ts for maintainability
+// NOTE: Many settings sections require engine API (not yet implemented)
 
-import { gateway } from '../gateway';
 import { loadSecuritySettings, saveSecuritySettings, getSessionOverrideRemaining, clearSessionOverride, type SecuritySettings } from '../security';
 import { getSecurityAuditLog, isEncryptionReady } from '../db';
 
@@ -19,37 +19,14 @@ function escHtml(s: string): string {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// ── Gateway Status ─────────────────────────────────────────────────────────
+// ── Engine Status ──────────────────────────────────────────────────────────
 export async function loadSettingsStatus() {
   if (!wsConnected) return;
   const section = $('settings-status-section');
   const content = $('settings-status-content');
-  try {
-    const [health, status] = await Promise.all([
-      gateway.getHealth().catch(() => null),
-      gateway.getStatus().catch(() => null) as Promise<Record<string, unknown> | null>,
-    ]);
-    if (!health && !status) { if (section) section.style.display = 'none'; return; }
-    if (section) section.style.display = '';
-    let html = '';
-    if (health) {
-      html += `<div class="status-card"><div class="status-card-label">Uptime</div><div class="status-card-value">${health.ts ? new Date(health.ts).toLocaleString() : '—'}</div></div>`;
-      html += `<div class="status-card"><div class="status-card-label">Sessions</div><div class="status-card-value">${health.sessions?.active ?? 0} active / ${health.sessions?.total ?? 0} total</div></div>`;
-      html += `<div class="status-card"><div class="status-card-label">Agents</div><div class="status-card-value">${health.agents?.length ?? 0}</div></div>`;
-      const channelCount = Object.keys(health.channels ?? {}).length;
-      html += `<div class="status-card"><div class="status-card-label">Channels</div><div class="status-card-value">${channelCount}</div></div>`;
-    }
-    if (status) {
-      const version = (status as Record<string, unknown>).version;
-      const nodeVersion = (status as Record<string, unknown>).nodeVersion;
-      if (version) html += `<div class="status-card"><div class="status-card-label">Version</div><div class="status-card-value">${escHtml(String(version))}</div></div>`;
-      if (nodeVersion) html += `<div class="status-card"><div class="status-card-label">Node.js</div><div class="status-card-value">${escHtml(String(nodeVersion))}</div></div>`;
-    }
-    if (content) content.innerHTML = html || '<p style="color:var(--text-muted)">No status data</p>';
-  } catch (e) {
-    console.warn('[settings] Status load failed:', e);
-    if (section) section.style.display = 'none';
-  }
+  // Engine status — show basic info
+  if (section) section.style.display = '';
+  if (content) content.innerHTML = '<div class="status-card"><div class="status-card-label">Runtime</div><div class="status-card-value">Paw Engine (Tauri)</div></div>';
 }
 
 // ── Logs Viewer ────────────────────────────────────────────────────────────
@@ -57,16 +34,9 @@ export async function loadSettingsLogs() {
   if (!wsConnected) return;
   const section = $('settings-logs-section');
   const output = $('settings-logs-output');
-  const linesSelect = $('settings-logs-lines') as HTMLSelectElement | null;
-  try {
-    const lines = parseInt(linesSelect?.value ?? '100', 10);
-    const result = await gateway.logsTail(lines);
-    if (section) section.style.display = '';
-    if (output) output.textContent = (result.lines ?? []).join('\n') || '(no logs)';
-  } catch (e) {
-    console.warn('[settings] Logs load failed:', e);
-    if (section) section.style.display = 'none';
-  }
+  // Engine logs — coming soon via Tauri
+  if (section) section.style.display = '';
+  if (output) output.textContent = '(Engine logs viewer coming soon — check the Tauri console for now)';
 }
 
 // ── Usage Dashboard ────────────────────────────────────────────────────────
@@ -76,79 +46,12 @@ export async function loadSettingsUsage() {
   if (!wsConnected) return;
   const section = $('settings-usage-section');
   const content = $('settings-usage-content');
-  try {
-    const [status, cost] = await Promise.all([
-      gateway.usageStatus().catch(() => null),
-      gateway.usageCost().catch(() => null),
-    ]);
-    // Always show the section — even without gateway data, show helpful state
-    if (section) section.style.display = '';
-    if (!status && !cost) {
-      const emptyHtml = `<div class="usage-empty-state">
-        <p style="color:var(--text-secondary);margin:0 0 8px">No usage data from gateway yet.</p>
-        <p style="color:var(--text-muted);margin:0;font-size:12px">Token tracking is active in chat — send a message to see per-session estimates in the chat header. Gateway-level usage data (total cost, by-model breakdown) requires OpenClaw's usage tracking to be enabled.</p>
-      </div>`;
-      if (content) content.innerHTML = emptyHtml;
-      return;
-    }
-    let html = '';
-    if (status?.total) {
-      html += `<div class="usage-card">
-        <div class="usage-card-label">Requests</div>
-        <div class="usage-card-value">${status.total.requests?.toLocaleString() ?? '—'}</div>
-      </div>
-      <div class="usage-card">
-        <div class="usage-card-label">Tokens</div>
-        <div class="usage-card-value">${status.total.tokens?.toLocaleString() ?? '—'}</div>
-        <div class="usage-card-sub">In: ${(status.total.inputTokens ?? 0).toLocaleString()} / Out: ${(status.total.outputTokens ?? 0).toLocaleString()}</div>
-      </div>`;
-    }
-    if (cost?.totalCost != null) {
-      html += `<div class="usage-card">
-        <div class="usage-card-label">Total Cost</div>
-        <div class="usage-card-value">$${cost.totalCost.toFixed(4)} ${cost.currency ?? ''}</div>
-      </div>`;
-
-      // Budget check
-      checkBudgetAlert(cost.totalCost);
-    }
-    if (cost?.period) {
-      html += `<div class="usage-card">
-        <div class="usage-card-label">Period</div>
-        <div class="usage-card-value">${escHtml(String(cost.period))}</div>
-      </div>`;
-    }
-    // Per-model breakdown with cost
-    if (status?.byModel || cost?.byModel) {
-      html += '<div class="usage-models"><h4>By Model</h4>';
-      const allModels = new Set([
-        ...Object.keys(status?.byModel ?? {}),
-        ...Object.keys(cost?.byModel ?? {}),
-      ]);
-      for (const model of allModels) {
-        const s = (status?.byModel?.[model] ?? {}) as { requests?: number; tokens?: number; inputTokens?: number; outputTokens?: number };
-        const c = (cost?.byModel?.[model] ?? {}) as { cost?: number; requests?: number };
-        const costStr = c.cost != null ? `$${c.cost.toFixed(4)}` : '';
-        const tokStr = s.tokens ? `${s.tokens.toLocaleString()} tok` : '';
-        const reqStr = s.requests ? `${s.requests.toLocaleString()} req` : (c.requests ? `${c.requests.toLocaleString()} req` : '');
-        const parts = [reqStr, tokStr, costStr].filter(Boolean).join(' · ');
-        html += `<div class="usage-model-row">
-          <span class="usage-model-name">${escHtml(model)}</span>
-          <span>${parts}</span>
-        </div>`;
-      }
-      html += '</div>';
-    }
-    if (content) content.innerHTML = html || '<p style="color:var(--text-muted)">No usage data</p>';
-  } catch (e) {
-    console.warn('[settings] Usage load failed:', e);
-    // Don't hide the section — show a helpful message
-    if (section) section.style.display = '';
-    if (content) content.innerHTML = `<div class="usage-empty-state">
-      <p style="color:var(--text-secondary);margin:0 0 8px">Could not load usage data from gateway.</p>
-      <p style="color:var(--text-muted);margin:0;font-size:12px">Token tracking is still active in the chat header. Click Refresh to retry.</p>
-    </div>`;
-  }
+  // Engine usage tracking — coming soon
+  if (section) section.style.display = '';
+  if (content) content.innerHTML = `<div class="usage-empty-state">
+    <p style="color:var(--text-secondary);margin:0 0 8px">Usage tracking coming soon to the Paw engine.</p>
+    <p style="color:var(--text-muted);margin:0;font-size:12px">Token tracking is active in chat — send a message to see per-session estimates in the chat header.</p>
+  </div>`;
 }
 
 /** Start auto-refresh for usage dashboard (every 30s) */
@@ -236,329 +139,61 @@ export function initBudgetSettings() {
 
 // ── System Presence ────────────────────────────────────────────────────────
 export async function loadSettingsPresence() {
-  if (!wsConnected) return;
+  // Presence not available in engine mode
   const section = $('settings-presence-section');
-  const list = $('settings-presence-list');
-  try {
-    const result = await gateway.systemPresence();
-    const entries = result.entries ?? [];
-    if (!entries.length) { if (section) section.style.display = 'none'; return; }
-    if (section) section.style.display = '';
-    if (list) {
-      list.innerHTML = entries.map(e => {
-        const name = e.client?.id ?? e.connId ?? 'Unknown';
-        const platform = e.client?.platform ?? '';
-        const role = e.role ?? '';
-        return `
-          <div class="presence-entry">
-            <div class="presence-dot online"></div>
-            <div class="presence-info">
-              <div class="presence-name">${escHtml(name)}</div>
-              <div class="presence-meta">${escHtml(role)} · ${escHtml(platform)}${e.connectedAt ? ' · ' + new Date(e.connectedAt).toLocaleString() : ''}</div>
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
-  } catch (e) {
-    console.warn('[settings] Presence load failed:', e);
-    if (section) section.style.display = 'none';
-  }
+  if (section) section.style.display = 'none';
 }
 
 // ── Nodes View ─────────────────────────────────────────────────────────────
 export async function loadSettingsNodes() {
-  if (!wsConnected) return;
+  // Nodes not available in engine mode
   const section = $('settings-nodes-section');
-  const list = $('settings-nodes-list');
-  try {
-    const result = await gateway.nodeList();
-    const nodes = result.nodes ?? [];
-    if (!nodes.length) { 
-      if (section) section.style.display = 'none'; 
-      return; 
-    }
-    if (section) section.style.display = '';
-    if (list) {
-      list.innerHTML = nodes.map(n => {
-        const status = n.connected ? 'online' : 'offline';
-        const caps = n.caps?.join(', ') || 'none';
-        return `
-          <div class="node-entry">
-            <div class="presence-dot ${status}"></div>
-            <div class="presence-info">
-              <div class="presence-name">${escHtml(String(n.name || n.id || 'unknown'))}</div>
-              <div class="presence-meta">${escHtml(String(n.platform || ''))} · ${escHtml(String(n.deviceFamily || ''))} · Caps: ${escHtml(String(caps))}</div>
-            </div>
-            ${n.connected ? `<button class="btn btn-ghost btn-sm node-invoke-btn" data-node-id="${escHtml(n.id)}">Invoke</button>` : ''}
-          </div>
-        `;
-      }).join('');
-      
-      // Wire invoke buttons
-      list.querySelectorAll('.node-invoke-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const nodeId = btn.getAttribute('data-node-id');
-          if (!nodeId) return;
-          const command = prompt('Command to invoke (e.g., camera.snap):');
-          if (!command) return;
-          try {
-            const result = await gateway.nodeInvoke(nodeId, command);
-            alert(`Result: ${JSON.stringify(result, null, 2)}`);
-          } catch (e) {
-            alert(`Error: ${e instanceof Error ? e.message : e}`);
-          }
-        });
-      });
-    }
-  } catch (e) {
-    console.warn('[settings] Nodes load failed:', e);
-    if (section) section.style.display = 'none';
-  }
+  if (section) section.style.display = 'none';
 }
 
 // ── Device Pairing ─────────────────────────────────────────────────────────
 export async function loadSettingsDevices() {
-  if (!wsConnected) return;
+  // Device pairing not available in engine mode
   const section = $('settings-devices-section');
-  const list = $('settings-devices-list');
-  const emptyEl = $('settings-devices-empty');
-  try {
-    const result = await gateway.devicePairList();
-    const devices = result.devices ?? [];
-    if (section) section.style.display = '';
-    if (!devices.length) {
-      if (list) list.innerHTML = '';
-      if (emptyEl) emptyEl.style.display = '';
-      return;
-    }
-    if (emptyEl) emptyEl.style.display = 'none';
-    if (list) {
-      list.innerHTML = devices.map(d => {
-        const name = d.name || d.id;
-        const platform = d.platform || 'Unknown';
-        const paired = d.pairedAt ? new Date(d.pairedAt).toLocaleDateString() : '—';
-
-        // B3: Token age display + rotation reminder
-        let tokenAgeHtml = '';
-        if (d.pairedAt) {
-          const ageMs = Date.now() - d.pairedAt;
-          const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24));
-          let ageClass = '';
-          let ageLabel = `Paired ${ageDays}d ago`;
-          if (ageDays > 90) {
-            ageClass = 'critical';
-            ageLabel = `⚠ Token ${ageDays}d old — rotate now`;
-          } else if (ageDays > 30) {
-            ageClass = 'stale';
-            ageLabel = `Token ${ageDays}d old — consider rotating`;
-          }
-          tokenAgeHtml = `<div class="device-token-age ${ageClass}">${escHtml(ageLabel)}</div>`;
-        }
-
-        return `
-          <div class="device-card">
-            <div class="device-card-info">
-              <div class="device-card-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-              </div>
-              <div>
-                <div class="device-card-name">${escHtml(name)}</div>
-                <div class="device-card-meta">${escHtml(platform)} · Paired ${escHtml(paired)}</div>
-                ${tokenAgeHtml}
-              </div>
-            </div>
-            <div class="device-card-actions">
-              <button class="btn btn-ghost btn-sm device-rotate-btn" data-device-id="${escHtml(d.id)}" title="Rotate auth token">
-                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                Rotate Token
-              </button>
-              <button class="btn btn-danger btn-sm device-revoke-btn" data-device-id="${escHtml(d.id)}" title="Revoke device access">
-                <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
-                Revoke
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      // Wire rotate buttons
-      list.querySelectorAll('.device-rotate-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const deviceId = btn.getAttribute('data-device-id');
-          if (!deviceId) return;
-          try {
-            const result = await gateway.deviceTokenRotate(deviceId);
-            showSettingsToast(`Token rotated${result.token ? ' — new token: ' + result.token.slice(0, 8) + '…' : ''}`, 'success');
-          } catch (e) {
-            showSettingsToast(`Failed to rotate token: ${e instanceof Error ? e.message : e}`, 'error');
-          }
-        });
-      });
-
-      // Wire revoke buttons
-      list.querySelectorAll('.device-revoke-btn').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const deviceId = btn.getAttribute('data-device-id');
-          if (!deviceId) return;
-          if (!confirm('Revoke access for this device? It will need to re-pair.')) return;
-          try {
-            await gateway.deviceTokenRevoke(deviceId);
-            showSettingsToast('Device access revoked', 'success');
-            loadSettingsDevices(); // Refresh list
-          } catch (e) {
-            showSettingsToast(`Failed to revoke: ${e instanceof Error ? e.message : e}`, 'error');
-          }
-        });
-      });
-    }
-  } catch (e) {
-    console.warn('[settings] Devices load failed:', e);
-    if (section) section.style.display = 'none';
-  }
+  if (section) section.style.display = 'none';
 }
 
 // ── Onboarding Wizard ──────────────────────────────────────────────────────
 export async function loadSettingsWizard() {
-  if (!wsConnected) return;
+  // Wizard not available in engine mode
   const section = $('settings-wizard-section');
-  const statusEl = $('settings-wizard-status');
-  const stepEl = $('settings-wizard-step');
-  const startBtn = $('settings-wizard-start');
-  try {
-    const result = await gateway.wizardStatus();
-    if (section) section.style.display = '';
-    if (result.active && result.step) {
-      // Wizard is in progress
-      if (statusEl) statusEl.innerHTML = `<span class="wizard-badge active">Wizard active — Step: ${escHtml(result.step)}</span>`;
-      if (stepEl) { stepEl.style.display = ''; }
-      if (startBtn) startBtn.style.display = 'none';
-      const content = $('settings-wizard-step-content');
-      if (content) content.innerHTML = `<p style="color:var(--text-secondary)">Current step: <strong>${escHtml(result.step)}</strong></p>
-        <p style="font-size:12px;color:var(--text-muted)">Click "Next Step" to advance, or "Cancel Wizard" to abort.</p>`;
-    } else if (result.completed) {
-      if (statusEl) statusEl.innerHTML = '<span class="wizard-badge completed">Setup Complete</span>';
-      if (stepEl) stepEl.style.display = 'none';
-      if (startBtn) startBtn.style.display = 'none';
-    } else {
-      if (statusEl) statusEl.innerHTML = '<span class="wizard-badge idle">Not started</span>';
-      if (stepEl) stepEl.style.display = 'none';
-      if (startBtn) startBtn.style.display = '';
-    }
-  } catch (e) {
-    console.warn('[settings] Wizard status failed:', e);
-    // Gateway may not support wizard — hide section
-    if (section) section.style.display = 'none';
-  }
+  if (section) section.style.display = 'none';
 }
 
 async function startWizard() {
-  try {
-    const result = await gateway.wizardStart();
-    showSettingsToast(`Wizard started — step: ${result.step}`, 'success');
-    loadSettingsWizard();
-  } catch (e) {
-    showSettingsToast(`Failed to start wizard: ${e instanceof Error ? e.message : e}`, 'error');
-  }
+  showSettingsToast('Wizard not available in engine mode', 'info');
 }
 
 async function wizardNext() {
-  try {
-    const result = await gateway.wizardNext();
-    if (result.completed) {
-      showSettingsToast('Wizard completed!', 'success');
-    } else if (result.step) {
-      showSettingsToast(`Step: ${result.step}`, 'info');
-    }
-    loadSettingsWizard();
-  } catch (e) {
-    showSettingsToast(`Wizard step failed: ${e instanceof Error ? e.message : e}`, 'error');
-  }
+  showSettingsToast('Wizard not available in engine mode', 'info');
 }
 
 async function cancelWizard() {
-  try {
-    await gateway.wizardCancel();
-    showSettingsToast('Wizard cancelled', 'info');
-    loadSettingsWizard();
-  } catch (e) {
-    showSettingsToast(`Failed to cancel wizard: ${e instanceof Error ? e.message : e}`, 'error');
-  }
+  // no-op
 }
 
-// ── Self-Update ────────────────────────────────────────────────────────────
+// ── Self-Update ────────────────────────────────────────────────────────
 async function runUpdate() {
-  const btn = $('settings-update-run') as HTMLButtonElement | null;
-  if (btn) { btn.disabled = true; btn.textContent = 'Updating…'; }
-  try {
-    const result = await gateway.updateRun();
-    if (result.updated) {
-      showSettingsToast(`Updated to ${result.version ?? 'latest'}! Restart gateway for changes.`, 'success');
-    } else {
-      showSettingsToast('Already up to date', 'info');
-    }
-  } catch (e) {
-    showSettingsToast(`Update failed: ${e instanceof Error ? e.message : e}`, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Update OpenClaw'; }
-  }
+  showSettingsToast('Self-update not available in engine mode — use your package manager', 'info');
 }
 
-// ── Browser Control ────────────────────────────────────────────────────────
+// ── Browser Control ────────────────────────────────────────────────────
 export async function loadSettingsBrowser() {
-  if (!wsConnected) return;
   const section = $('settings-browser-section');
-  const statusEl = $('settings-browser-status');
-  const tabsEl = $('settings-browser-tabs');
-  const startBtn = $('settings-browser-start');
-  const stopBtn = $('settings-browser-stop');
-  try {
-    const result = await gateway.browserStatus();
-    if (section) section.style.display = '';
-    if (result.running) {
-      if (statusEl) statusEl.innerHTML = '<span class="browser-badge running">Browser Running</span>';
-      if (startBtn) startBtn.style.display = 'none';
-      if (stopBtn) stopBtn.style.display = '';
-      if (result.tabs?.length && tabsEl) {
-        tabsEl.innerHTML = '<div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">Open tabs:</div>' +
-          result.tabs.map(t => `<div class="browser-tab-entry"><span class="browser-tab-title">${escHtml(t.title || t.url)}</span><span class="browser-tab-url">${escHtml(t.url)}</span></div>`).join('');
-      } else if (tabsEl) {
-        tabsEl.innerHTML = '';
-      }
-    } else {
-      if (statusEl) statusEl.innerHTML = '<span class="browser-badge stopped">Browser Stopped</span>';
-      if (startBtn) startBtn.style.display = '';
-      if (stopBtn) stopBtn.style.display = 'none';
-      if (tabsEl) tabsEl.innerHTML = '';
-    }
-  } catch (e) {
-    console.warn('[settings] Browser status failed:', e);
-    if (section) section.style.display = 'none';
-  }
+  if (section) section.style.display = 'none';
 }
 
 async function startBrowser() {
-  const btn = $('settings-browser-start') as HTMLButtonElement | null;
-  if (btn) btn.disabled = true;
-  try {
-    await gateway.browserStart();
-    showSettingsToast('Browser started', 'success');
-    loadSettingsBrowser();
-  } catch (e) {
-    showSettingsToast(`Browser start failed: ${e instanceof Error ? e.message : e}`, 'error');
-  } finally {
-    if (btn) btn.disabled = false;
-  }
+  showSettingsToast('Browser control coming soon to the Paw engine', 'info');
 }
 
 async function stopBrowser() {
-  try {
-    await gateway.browserStop();
-    showSettingsToast('Browser stopped', 'info');
-    loadSettingsBrowser();
-  } catch (e) {
-    showSettingsToast(`Browser stop failed: ${e instanceof Error ? e.message : e}`, 'error');
-  }
+  // no-op
 }
 
 // ── Exec Approvals Config ──────────────────────────────────────────────────
@@ -679,31 +314,11 @@ function addToolRule() {
 }
 
 export async function loadSettingsApprovals() {
-  if (!wsConnected) return;
+  // Exec approvals managed locally via security.ts — gateway not needed
   const section = $('settings-approvals-section');
-  try {
-    const snapshot = await gateway.execApprovalsGet();
-    if (section) section.style.display = '';
-
-    // Build tool rules from allow + deny lists
-    const allowSet = new Set(snapshot.gateway?.allow ?? []);
-    const denySet = new Set(snapshot.gateway?.deny ?? []);
-    const allTools = new Set([...allowSet, ...denySet]);
-    _toolRules = [...allTools].map(name => ({
-      name,
-      state: allowSet.has(name) ? 'allow' as const : denySet.has(name) ? 'deny' as const : 'ask' as const,
-    }));
-
-    // Set the ask policy radio
-    const policy = snapshot.gateway?.askPolicy ?? 'ask';
-    const radio = document.querySelector(`input[name="approvals-policy"][value="${policy}"]`) as HTMLInputElement | null;
-    if (radio) radio.checked = true;
-
-    renderToolRules();
-  } catch (e) {
-    console.warn('[settings] Approvals load failed:', e);
-    if (section) section.style.display = 'none';
-  }
+  if (section) section.style.display = '';
+  // Show existing tool rules from local state
+  renderToolRules();
 }
 
 async function saveSettingsApprovals() {
@@ -713,14 +328,9 @@ async function saveSettingsApprovals() {
   const allow = _toolRules.filter(r => r.state === 'allow').map(r => r.name);
   const deny = _toolRules.filter(r => r.state === 'deny').map(r => r.name);
 
-  try {
-    await gateway.execApprovalsSet({
-      gateway: { allow, deny, askPolicy: policy },
-    });
-    showSettingsToast('Approval rules saved', 'success');
-  } catch (e) {
-    showSettingsToast(`Failed to save: ${e instanceof Error ? e.message : e}`, 'error');
-  }
+  // Save locally — engine approvals managed via security.ts
+  localStorage.setItem('paw-tool-approvals', JSON.stringify({ allow, deny, askPolicy: policy }));
+  showSettingsToast('Approval rules saved locally', 'success');
 }
 
 // ── Security Audit Dashboard ───────────────────────────────────────────────
@@ -960,30 +570,7 @@ export function updateSessionOverrideBanner(): void {
 // ── Token auto-rotation check (H4) ────────────────────────────────────────
 
 export async function checkTokenAutoRotation(): Promise<void> {
-  const settings = loadSecuritySettings();
-  if (settings.tokenRotationIntervalDays <= 0) return;
-
-  try {
-    const result = await gateway.devicePairList();
-    const devices = result.devices ?? [];
-    const maxMs = settings.tokenRotationIntervalDays * 24 * 60 * 60 * 1000;
-
-    for (const d of devices) {
-      if (!d.pairedAt) continue;
-      const ageMs = Date.now() - d.pairedAt;
-      if (ageMs > maxMs) {
-        try {
-          await gateway.deviceTokenRotate(d.id);
-          console.log(`[security] Auto-rotated token for device ${d.name || d.id} (${Math.floor(ageMs / 86400000)}d old)`);
-          showSettingsToast(`Auto-rotated token for ${d.name || d.id} (exceeded ${settings.tokenRotationIntervalDays}d)`, 'info');
-        } catch (e) {
-          console.warn(`[security] Auto-rotation failed for device ${d.name || d.id}:`, e);
-        }
-      }
-    }
-  } catch (e) {
-    console.warn('[security] Token auto-rotation check failed:', e);
-  }
+  // Device token rotation not available in engine mode
 }
 
 // ── Settings toast (inline) ────────────────────────────────────────────────

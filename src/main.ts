@@ -2,8 +2,6 @@
 // Pawz AI command center — calls AI APIs directly, no gateway needed
 
 import type { AppConfig, Message, InstallProgress, ChatMessage, Session } from './types';
-import { setGatewayConfig, probeHealth } from './api';
-import { gateway, isLocalhostUrl } from './gateway';
 import { isEngineMode, startEngineBridge, onEngineAgent, engineChatSend, onEngineToolApproval, resolveEngineToolApproval } from './engine-bridge';
 import { pawEngine, type EngineEvent } from './engine';
 // ── Inline Lucide-style SVG icons (avoids broken lucide package) ─────────────
@@ -87,7 +85,6 @@ const listen = tauriWindow.__TAURI__?.event?.listen;
 // ── State ──────────────────────────────────────────────────────────────────
 let config: AppConfig = {
   configured: false,
-  gateway: { url: '', token: '' },
 };
 
 let messages: MessageWithAttachments[] = [];
@@ -235,20 +232,20 @@ function switchView(viewName: string) {
       }
       case 'orchestrator': OrchestratorModule.loadProjects(); break;
       case 'mail': MailModule.loadMail(); loadSpaceCron('mail'); break;
-      case 'settings': syncSettingsForm(); loadGatewayConfig(); SettingsModule.loadSettings(); SettingsModule.startUsageAutoRefresh(); loadActiveSettingsTab(); break;
+      case 'settings': SettingsModule.loadSettings(); SettingsModule.startUsageAutoRefresh(); loadActiveSettingsTab(); break;
       default: break;
     }
   }
   // Stop usage auto-refresh when leaving settings
   if (viewName !== 'settings') SettingsModule.stopUsageAutoRefresh();
-  // Local-only views (no gateway needed)
+  // Local-only views
   switch (viewName) {
     case 'content': loadContentDocs(); if (wsConnected) loadSpaceCron('content'); break;
     case 'research': ResearchModule.loadResearchProjects(); if (wsConnected) loadSpaceCron('research'); break;
     case 'code': ProjectsModule.loadProjects(); break;
     default: break;
   }
-  if (viewName === 'settings') syncSettingsForm();
+  if (viewName === 'settings') SettingsModule.loadSettings();
 }
 
 function showView(viewId: string) {
@@ -265,7 +262,7 @@ async function refreshModelLabel() {
     const provider = config.providers?.find(
       (p: { id: string }) => p.id === config.default_provider
     ) ?? config.providers?.[0];
-    const providerName = provider?.name ?? '';
+    const providerName = provider?.kind ?? '';
     if (modelName) {
       modelLabel.textContent = modelName;
       modelLabel.title = providerName ? `Model: ${modelName} via ${providerName}` : `Model: ${modelName}`;
@@ -280,10 +277,10 @@ async function refreshModelLabel() {
 // Expose globally so settings can trigger a refresh after saving
 (window as unknown as Record<string, unknown>).__refreshModelLabel = refreshModelLabel;
 
-// ── Gateway connection ─────────────────────────────────────────────────────
+// ── Engine connection ─────────────────────────────────────────────────────
 let _connectInProgress = false;
 
-async function connectGateway(): Promise<boolean> {
+async function connectEngine(): Promise<boolean> {
   // ── Engine mode: skip WebSocket entirely, connect via Tauri IPC ──
   if (isEngineMode()) {
     console.log('[main] Engine mode — skipping WebSocket, using Tauri IPC');
@@ -341,374 +338,20 @@ async function connectGateway(): Promise<boolean> {
     return true;
   }
 
-  if (_connectInProgress || gateway.isConnecting) {
-    console.warn('[main] connectGateway called while already connecting, skipping');
-    return false;
-  }
-  _connectInProgress = true;
-
-  // Repair config if it was corrupted by a previous version
-  if (invoke) {
-    try {
-      const repaired = await invoke<boolean>('repair_openclaw_config');
-      if (repaired) console.log('[main] Repaired config (fixed invalid properties)');
-    } catch { /* ignore — first run or no config yet */ }
-  }
-
-  try {
-    const wsUrl = config.gateway.url.replace(/^http/, 'ws');
-    const tokenLen = config.gateway.token?.length ?? 0;
-    console.log(`[main] connectGateway() → url=${wsUrl} tokenLen=${tokenLen}`);
-
-    if (!wsUrl || wsUrl === 'ws://' || wsUrl === 'ws://undefined') {
-      console.error('[main] Invalid gateway URL:', config.gateway.url);
-      return false;
-    }
-
-    // ── Security: block non-localhost gateway URLs ──
-    if (!isLocalhostUrl(wsUrl)) {
-      console.error(`[main] BLOCKED: non-localhost gateway URL "${wsUrl}"`);
-      showToast('Security: gateway URL must be localhost. Connection blocked.', 'error');
-      return false;
-    }
-
-    const hello = await gateway.connect({ url: wsUrl, token: config.gateway.token });
-    wsConnected = true;
-    setSettingsConnected(true);
-    console.log('[main] Gateway connected:', hello);
-
-    statusDot?.classList.add('connected');
-    statusDot?.classList.remove('error');
-    if (statusText) statusText.textContent = 'Connected';
-    if (modelLabel) modelLabel.textContent = 'Connected';
-
-    // Abort any stale agent executions left over from other clients.
-    // Stale runs can interfere when
-    // two operator clients compete for the same session.
-    // Also delete paw-* internal sessions (memory palace background calls).
-    try {
-      const sessResult = await gateway.listSessions({ limit: 50 });
-      const activeSessions = sessResult.sessions ?? [];
-      for (const s of activeSessions) {
-        if (s.key.startsWith('paw-')) {
-          // Delete internal sessions so they don't clutter the UI
-          try { await gateway.deleteSession(s.key); } catch { /* ignore */ }
-        } else {
-          try { await gateway.chatAbort(s.key); } catch { /* no running exec */ }
-        }
-      }
-      const pawSessions = activeSessions.filter(s => s.key.startsWith('paw-'));
-      if (pawSessions.length) console.log(`[main] Cleaned up ${pawSessions.length} internal paw-* session(s)`);
-      if (activeSessions.length - pawSessions.length > 0) {
-        console.log(`[main] Cleared ${activeSessions.length - pawSessions.length} session(s) of stale agent runs`);
-      }
-    } catch (e) {
-      console.warn('[main] Session cleanup failed (non-critical):', e);
-    }
-
-    // Load agent name + identity
-    try {
-      const agents = await gateway.listAgents();
-      if (agents.agents?.length && chatAgentName) {
-        const main = agents.agents.find(a => a.id === agents.defaultId) ?? agents.agents[0];
-        chatAgentName.textContent = main.identity?.name ?? main.name ?? main.id;
-
-        // Fetch detailed identity (emoji, theme) for richer header display
-        try {
-          const identity = await gateway.getAgentIdentity(main.id);
-          const emoji = identity.emoji ?? main.identity?.emoji;
-          const name = identity.name ?? main.identity?.name ?? main.name ?? main.id;
-          if (emoji) {
-            chatAgentName.textContent = `${emoji} ${name}`;
-          } else {
-            chatAgentName.textContent = name;
-          }
-        } catch { /* identity detail not available, keep agents.list name */ }
-      }
-    } catch { /* non-critical */ }
-
-    return true;
-  } catch (e) {
-    console.error('[main] WS connect failed:', e);
-    wsConnected = false;
-    statusDot?.classList.remove('connected');
-    statusDot?.classList.add('error');
-    if (statusText) statusText.textContent = 'Disconnected';
-    if (modelLabel) modelLabel.textContent = 'Disconnected';
-    return false;
-  } finally {
-    _connectInProgress = false;
-  }
+  // Engine mode is always on
+  console.warn('[main] connectEngine called but engine mode should have handled it above');
+  return false;
 }
 
-// Subscribe to gateway lifecycle events
-gateway.on('_connected', () => {
-  wsConnected = true;
-  setSettingsConnected(true);
-  SettingsModule.setWsConnected(true);
-  MemoryPalaceModule.setWsConnected(true);
-  MailModule.setWsConnected(true);
-  SkillsModule.setWsConnected(true);
-  FoundryModule.setWsConnected(true);
-  ResearchModule.setWsConnected(true);
-  NodesModule.setWsConnected(true);
-  AutomationsModule.setWsConnected(true);
-  statusDot?.classList.add('connected');
-  statusDot?.classList.remove('error');
-  if (statusText) statusText.textContent = 'Connected';
-  // Detect model context limit for token meter
-  detectModelContextLimit().catch(() => {});
-  // Show token meter immediately (even at 0/128k) so users know tracking is on
-  updateTokenMeter();
-});
-gateway.on('_disconnected', () => {
-  wsConnected = false;
-  setSettingsConnected(false);
-  invalidateConfigCache();
-  SettingsModule.setWsConnected(false);
-  MemoryPalaceModule.setWsConnected(false);
-  MailModule.setWsConnected(false);
-  SkillsModule.setWsConnected(false);
-  FoundryModule.setWsConnected(false);
-  ResearchModule.setWsConnected(false);
-  NodesModule.setWsConnected(false);
-  AutomationsModule.setWsConnected(false);
-  statusDot?.classList.remove('connected');
-  statusDot?.classList.add('error');
-  if (statusText) statusText.textContent = 'Reconnecting...';
+// (Gateway lifecycle events removed — engine mode manages connection via Tauri IPC)
 
-  // Clean up any in-progress streaming — resolve the promise with what we have
-  // Use a local ref to avoid double-resolution (catch block may also resolve)
-  const resolve = _streamingResolve;
-  if (resolve) {
-    _streamingResolve = null;
-    console.warn('[main] WS disconnected during streaming — finalizing with partial content');
-    resolve(_streamingContent || '(Connection lost)');
-  }
-});
+// (Gateway watchdog and polling removed — engine mode manages connection via Tauri IPC)
 
-gateway.on('_reconnect_exhausted', () => {
-  if (statusText) statusText.textContent = 'Connection lost';
-  console.error('[main] Gateway reconnect exhausted — attempting watchdog restart...');
-  watchdogRestart();
-});
-
-// ── Crash Watchdog (C4) ────────────────────────────────────────────────────
-let _watchdogCrashCount = 0;
-let _watchdogLastCrash = 0;
-let _watchdogRestartInProgress = false;
-const WATCHDOG_MAX_RESTARTS = 5;        // max consecutive restarts before giving up
-const WATCHDOG_RESET_WINDOW = 120_000;  // reset crash count after 2 min of stability
-
-/** Attempt to restart the gateway after a crash. */
-async function watchdogRestart(): Promise<void> {
-  if (_watchdogRestartInProgress || !invoke) return;
-  _watchdogRestartInProgress = true;
-
-  const now = Date.now();
-  // Reset crash counter if it's been stable for a while
-  if (now - _watchdogLastCrash > WATCHDOG_RESET_WINDOW) _watchdogCrashCount = 0;
-  _watchdogCrashCount++;
-  _watchdogLastCrash = now;
-
-  console.warn(`[watchdog] Crash detected (#${_watchdogCrashCount}/${WATCHDOG_MAX_RESTARTS})`);
-
-  // Log crash to security audit
-  logSecurityEvent({
-    eventType: 'gateway_crash',
-    riskLevel: _watchdogCrashCount >= WATCHDOG_MAX_RESTARTS ? 'critical' : 'medium',
-    detail: `Gateway crash #${_watchdogCrashCount} — ${_watchdogCrashCount >= WATCHDOG_MAX_RESTARTS ? 'max restarts exceeded' : 'attempting auto-restart'}`,
-  });
-
-  if (_watchdogCrashCount > WATCHDOG_MAX_RESTARTS) {
-    showToast(`Gateway crashed ${_watchdogCrashCount} times. Please restart Paw manually.`, 'error');
-    if (statusText) statusText.textContent = 'Gateway crashed';
-    _watchdogRestartInProgress = false;
-    return;
-  }
-
-  showToast(`Gateway stopped unexpectedly. Restarting... (attempt ${_watchdogCrashCount}/${WATCHDOG_MAX_RESTARTS})`, 'warning');
-  if (statusText) statusText.textContent = 'Restarting gateway...';
-
-  try {
-    const port = getPortFromUrl(config.gateway.url);
-
-    // Probe first — the gateway may still be alive (e.g. SIGUSR1 restart).
-    // Only attempt start_gateway if nothing is listening.
-    const alreadyRunning = await invoke<boolean>('check_gateway_health', { port }).catch(() => false);
-    if (!alreadyRunning) {
-      await invoke('start_gateway', { port }).catch((e: unknown) => {
-        console.warn('[watchdog] start_gateway failed:', e);
-      });
-      // Wait for gateway to boot
-      await new Promise(r => setTimeout(r, 3000));
-    } else {
-      // Gateway is still up — just wait for the restart to finish
-      console.log('[watchdog] Gateway still responding — waiting for restart to settle...');
-      await new Promise(r => setTimeout(r, 2000));
-    }
-
-    // Verify it's alive
-    const alive = await invoke<boolean>('check_gateway_health', { port }).catch(() => false);
-    if (alive) {
-      console.log('[watchdog] Gateway is up, reconnecting...');
-      wsConnected = false;
-      await connectGateway();
-      if (wsConnected) {
-        showToast('Gateway recovered and reconnected', 'success');
-      }
-    } else {
-      console.error('[watchdog] Gateway restart failed — not responding on port', port);
-      if (statusText) statusText.textContent = 'Restart failed';
-    }
-  } catch (e) {
-    console.error('[watchdog] Restart error:', e);
-  } finally {
-    _watchdogRestartInProgress = false;
-  }
-}
-
-// ── Status check (fallback for polling) ────────────────────────────────────
-let _wasConnected = false;  // track state transition for crash detection
-
-// @ts-ignore — gateway watchdog (legacy, kept for reference)
-async function checkGatewayStatus() {
-  if (_connectInProgress || gateway.isConnecting) return;
-
-  // If we were connected and now we're not, it's a crash/disconnect
-  if (_wasConnected && !wsConnected) {
-    console.warn('[watchdog] Detected gateway disconnect during poll — triggering restart');
-    _wasConnected = false;
-    watchdogRestart();
-    return;
-  }
-
-  // Track connection state for next poll
-  _wasConnected = wsConnected;
-
-  if (wsConnected) return;
-  try {
-    const ok = await probeHealth();
-    if (ok && !wsConnected && !_connectInProgress) {
-      await connectGateway();
-    }
-  } catch {
-    // Try TCP check via Tauri
-    const port = getPortFromUrl(config.gateway.url);
-    const tcpAlive = invoke ? await invoke<boolean>('check_gateway_health', { port }).catch(() => false) : false;
-    if (tcpAlive && !wsConnected) {
-      await connectGateway();
-    } else {
-      statusDot?.classList.remove('connected');
-      statusDot?.classList.add('error');
-      if (statusText) statusText.textContent = 'Disconnected';
-    }
-  }
-}
-
-// ── Setup / Detect / Install handlers ──────────────────────────────────────
-$('setup-detect')?.addEventListener('click', async () => {
-  if (statusText) statusText.textContent = 'Detecting...';
-  try {
-    const installed = invoke ? await invoke<boolean>('check_openclaw_installed') : false;
-    if (installed) {
-      const token = invoke ? await invoke<string | null>('get_gateway_token') : null;
-      if (token) {
-        const cfgPort = invoke ? await invoke<number>('get_gateway_port_setting').catch(() => 18789) : 18789;
-        config.configured = true;
-        config.gateway.url = `http://127.0.0.1:${cfgPort}`;
-        config.gateway.token = token;
-        saveConfig();
-
-        // Probe first — only start gateway if nothing is listening
-        if (invoke) {
-          const alreadyRunning = await invoke<boolean>('check_gateway_health', { port: cfgPort }).catch(() => false);
-          if (!alreadyRunning) {
-            await invoke('start_gateway', { port: cfgPort }).catch((e: unknown) => {
-              console.warn('Gateway start failed (may already be running):', e);
-            });
-            await new Promise(r => setTimeout(r, 2000));
-          }
-        }
-
-        await connectGateway();
-        switchView('dashboard');
-        return;
-      }
-    }
-    showView('install-view');
-  } catch (error) {
-    console.error('Detection error:', error);
-    alert('Could not detect Pawz. Try manual setup.');
-  }
-});
-
-$('setup-manual')?.addEventListener('click', () => showView('manual-setup-view'));
-$('setup-new')?.addEventListener('click', () => showView('install-view'));
-$('gateway-back')?.addEventListener('click', () => showView('setup-view'));
-$('install-back')?.addEventListener('click', () => showView('setup-view'));
-
-// ── Install Pawz ───────────────────────────────────────────────────────
-$('start-install')?.addEventListener('click', async () => {
-  const progressBar = $('install-progress-bar') as HTMLElement;
-  const progressText = $('install-progress-text') as HTMLElement;
-  const installBtn = $('start-install') as HTMLButtonElement;
-  installBtn.disabled = true;
-  installBtn.textContent = 'Installing...';
-
-  try {
-    if (listen) {
-      await listen<InstallProgress>('install-progress', (event: { payload: InstallProgress }) => {
-        const { percent, message } = event.payload;
-        if (progressBar) progressBar.style.width = `${percent}%`;
-        if (progressText) progressText.textContent = message;
-      });
-    }
-    if (invoke) await invoke('install_openclaw');
-
-    const token = invoke ? await invoke<string | null>('get_gateway_token') : null;
-    if (token) {
-      const cfgPort = invoke ? await invoke<number>('get_gateway_port_setting').catch(() => 18789) : 18789;
-      config.configured = true;
-      config.gateway.url = `http://127.0.0.1:${cfgPort}`;
-      config.gateway.token = token;
-      saveConfig();
-      await new Promise(r => setTimeout(r, 1000));
-      await connectGateway();
-      switchView('dashboard');
-    }
-  } catch (error) {
-    console.error('Install error:', error);
-    if (progressText) progressText.textContent = `Error: ${error}`;
-    installBtn.disabled = false;
-    installBtn.textContent = 'Retry Installation';
-  }
-});
-
-// ── Gateway form (manual) ──────────────────────────────────────────────────
-$('gateway-form')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const url = ($('gateway-url') as HTMLInputElement).value;
-  const token = ($('gateway-token') as HTMLInputElement).value;
-  try {
-    config.configured = true;
-    config.gateway = { url, token };
-    saveConfig();
-    const ok = await connectGateway();
-    if (ok) {
-      switchView('dashboard');
-    } else {
-      throw new Error('Connection failed');
-    }
-  } catch {
-    alert('Could not connect to gateway. Check URL and try again.');
-  }
-});
+// (Gateway setup/detect/install handlers removed — engine mode auto-connects)
 
 // ── Config persistence ─────────────────────────────────────────────────────
 function saveConfig() {
   localStorage.setItem('claw-config', JSON.stringify(config));
-  setGatewayConfig(config.gateway.url, config.gateway.token);
 }
 
 function loadConfigFromStorage() {
@@ -716,72 +359,7 @@ function loadConfigFromStorage() {
   if (saved) {
     try { config = JSON.parse(saved); } catch { /* invalid */ }
   }
-  setGatewayConfig(config.gateway.url, config.gateway.token);
 }
-
-/** Read live config from disk via Tauri and update config */
-// @ts-ignore — gateway config reader (legacy, kept for reference)
-async function refreshConfigFromDisk(): Promise<boolean> {
-  if (!invoke) {
-    console.log('[main] refreshConfigFromDisk: no Tauri runtime');
-    return false;
-  }
-  try {
-    const installed = await invoke<boolean>('check_openclaw_installed').catch(() => false);
-    console.log(`[main] refreshConfigFromDisk: installed=${installed}`);
-    if (!installed) return false;
-
-    const token = await invoke<string | null>('get_gateway_token').catch((e) => {
-      console.warn('[main] get_gateway_token invoke failed:', e);
-      return null;
-    });
-    const port = await invoke<number>('get_gateway_port_setting').catch(() => 18789);
-
-    const tokenMasked = token
-      ? (token.length > 8 ? `${token.slice(0, 4)}...${token.slice(-4)}` : '****')
-      : '(null)';
-    console.log(`[main] refreshConfigFromDisk: port=${port} token=${tokenMasked} (${token?.length ?? 0} chars)`);
-
-    if (token) {
-      config.configured = true;
-      config.gateway.url = `http://127.0.0.1:${port}`;
-      config.gateway.token = token;
-      saveConfig();
-      console.log(`[main] Config updated: url=${config.gateway.url}`);
-      return true;
-    } else {
-      console.warn('[main] No token found in config file');
-    }
-  } catch (e) {
-    console.warn('[main] Failed to read config from disk:', e);
-  }
-  return false;
-}
-
-// ── Settings form ──────────────────────────────────────────────────────────
-function syncSettingsForm() {
-  const urlInput = $('settings-gateway-url') as HTMLInputElement;
-  const tokenInput = $('settings-gateway-token') as HTMLInputElement;
-  if (urlInput) urlInput.value = config.gateway.url;
-  if (tokenInput) tokenInput.value = config.gateway.token;
-}
-
-$('settings-save-gateway')?.addEventListener('click', async () => {
-  const url = ($('settings-gateway-url') as HTMLInputElement).value;
-  const token = ($('settings-gateway-token') as HTMLInputElement).value;
-  config.gateway = { url, token };
-  config.configured = true;
-  saveConfig();
-
-  gateway.disconnect();
-  wsConnected = false;
-  const ok = await connectGateway();
-  if (ok) {
-    alert('Connected successfully!');
-  } else {
-    alert('Settings saved but could not connect to gateway.');
-  }
-});
 
 // ── Settings tab switching ──────────────────────────────────────────────────
 
@@ -826,100 +404,7 @@ function initSettingsTabs() {
   });
 }
 
-// ── Config editor (Settings > Configuration) ──────────────────────────────
-// Track the baseHash for the raw config editor (set by loadGatewayConfig)
-let _rawConfigHash: string | null = null;
-
-async function loadGatewayConfig() {
-  // Engine-only mode: hide the raw gateway config editor since we use Tauri IPC.
-  // The engine config is managed through dedicated settings panels instead.
-  const section = $('settings-config-section');
-  if (section) section.style.display = 'none';
-}
-
-$('settings-save-config')?.addEventListener('click', async () => {
-  const editor = $('settings-config-editor') as HTMLTextAreaElement;
-  if (!editor) return;
-  try {
-    const parsed = JSON.parse(editor.value);
-
-    // Safety check: the gateway redacts sensitive values as "__OPENCLAW_REDACTED__".
-    // If the user saves without restoring them, the config gets corrupted
-    // (e.g. maxTokens becomes a string instead of a number).
-    const configStr = JSON.stringify(parsed);
-    if (configStr.includes('__OPENCLAW_REDACTED__')) {
-      const proceed = confirm(
-        'Warning: This config contains redacted values ("__OPENCLAW_REDACTED__"). ' +
-        'Saving will write these placeholder strings into your config, which can break ' +
-        'fields like API keys and model settings.\n\n' +
-        'Either restore the original values or click Cancel to abort.\n\n' +
-        'Save anyway?'
-      );
-      if (!proceed) return;
-    }
-
-    await gateway.configWrite(parsed, _rawConfigHash ?? undefined);
-    _rawConfigHash = null; // invalidate — next load will refresh
-    alert('Configuration saved!');
-  } catch (e) {
-    alert(`Invalid config: ${e instanceof Error ? e.message : e}`);
-  }
-});
-
-// Apply Config (validate + write + restart — safer than configSet)
-$('settings-apply-config')?.addEventListener('click', async () => {
-  const editor = $('settings-config-editor') as HTMLTextAreaElement;
-  if (!editor) return;
-  try {
-    const parsed = JSON.parse(editor.value);
-    const configStr = JSON.stringify(parsed);
-    if (configStr.includes('__OPENCLAW_REDACTED__')) {
-      const proceed = confirm(
-        'Warning: This config contains redacted values ("__OPENCLAW_REDACTED__"). ' +
-        'Applying will write these placeholder strings into your config.\n\n' +
-        'Save anyway?'
-      );
-      if (!proceed) return;
-    }
-    const result = await gateway.configApplyRaw(JSON.stringify(parsed, null, 2), _rawConfigHash ?? undefined);
-    _rawConfigHash = null; // invalidate — next load will refresh
-    if (result.errors?.length) {
-      alert(`Config applied with warnings:\n${result.errors.join('\n')}`);
-    } else {
-      showToast(`Config applied${result.restarted ? ' — gateway restarting' : ''}`, 'success');
-    }
-  } catch (e) {
-    alert(`Apply failed: ${e instanceof Error ? e.message : e}`);
-  }
-});
-
-$('settings-reload-config')?.addEventListener('click', () => loadGatewayConfig());
-
-// View config schema
-$('settings-view-schema')?.addEventListener('click', async () => {
-  if (!wsConnected) return;
-  try {
-    const result = await gateway.configSchema();
-    const editor = $('settings-config-editor') as HTMLTextAreaElement;
-    if (editor) {
-      editor.value = JSON.stringify(result.schema ?? result, null, 2);
-      showToast('Schema loaded — showing available config keys', 'info');
-    }
-  } catch (e) {
-    showToast(`Schema load failed: ${e instanceof Error ? e.message : e}`, 'error');
-  }
-});
-
-// Wake Agent button (dashboard)
-$('wake-agent-btn')?.addEventListener('click', async () => {
-  if (!wsConnected) { showToast('Not connected to gateway', 'error'); return; }
-  try {
-    await gateway.wake();
-    showToast('Agent woken', 'success');
-  } catch (e) {
-    showToast(`Wake failed: ${e instanceof Error ? e.message : e}`, 'error');
-  }
-});
+// (Gateway raw config editor removed — engine config managed through Settings panels)
 
 // ══════════════════════════════════════════════════════════════════════════
 // ═══ DATA VIEWS ════════════════════════════════════════════════════════════
@@ -929,36 +414,20 @@ $('wake-agent-btn')?.addEventListener('click', async () => {
 async function loadSessions(opts?: { skipHistory?: boolean }) {
   if (!wsConnected) return;
   try {
-    if (isEngineMode()) {
-      // Engine mode: use Tauri IPC
-      const engineSessions = await pawEngine.sessionsList(50);
-      sessions = engineSessions.map(s => ({
-        key: s.id,
-        kind: 'direct' as const,
-        label: s.label ?? undefined,
-        displayName: s.label ?? s.id,
-        updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
-      } satisfies Session)) as Session[];
-      renderSessionSelect();
-      if (!currentSessionKey && sessions.length) {
-        currentSessionKey = sessions[0].key;
-      }
-      if (!opts?.skipHistory && currentSessionKey && !isLoading) await loadChatHistory(currentSessionKey);
-      populateModeSelect().catch(() => {});
-    } else {
-      const result = await gateway.listSessions({ limit: 50, includeDerivedTitles: true, includeLastMessage: true });
-      // Filter out internal paw-* sessions (memory palace background calls)
-      sessions = (result.sessions ?? []).filter(s => !s.key.startsWith('paw-'));
-      renderSessionSelect();
-      if (!currentSessionKey && sessions.length) {
-        currentSessionKey = sessions[0].key;
-      }
-      // Don't reload chat history if we're in the middle of streaming
-      // or if the caller explicitly asked to skip (e.g. after sendMessage which already has local messages)
-      if (!opts?.skipHistory && currentSessionKey && !isLoading) await loadChatHistory(currentSessionKey);
-      // Populate mode picker from local DB
-      populateModeSelect().catch(() => {});
+    const engineSessions = await pawEngine.sessionsList(50);
+    sessions = engineSessions.map(s => ({
+      key: s.id,
+      kind: 'direct' as const,
+      label: s.label ?? undefined,
+      displayName: s.label ?? s.id,
+      updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
+    } satisfies Session)) as Session[];
+    renderSessionSelect();
+    if (!currentSessionKey && sessions.length) {
+      currentSessionKey = sessions[0].key;
     }
+    if (!opts?.skipHistory && currentSessionKey && !isLoading) await loadChatHistory(currentSessionKey);
+    populateModeSelect().catch(() => {});
   } catch (e) { console.warn('Sessions load failed:', e); }
 }
 
@@ -1016,23 +485,16 @@ async function populateModeSelect() {
 async function loadChatHistory(sessionKey: string) {
   if (!wsConnected) return;
   try {
-    if (isEngineMode()) {
-      // Engine mode: load from SQLite via Tauri IPC
-      const stored = await pawEngine.chatHistory(sessionKey, 200);
-      messages = stored
-        .filter(m => m.role === 'user' || m.role === 'assistant')
-        .map(m => ({
-          id: m.id,
-          role: m.role as 'user' | 'assistant' | 'system',
-          content: m.content,
-          timestamp: new Date(m.created_at),
-        }));
-      renderMessages();
-    } else {
-      const result = await gateway.chatHistory(sessionKey);
-      messages = (result.messages ?? []).map(chatMsgToMessage);
-      renderMessages();
-    }
+    const stored = await pawEngine.chatHistory(sessionKey, 200);
+    messages = stored
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({
+        id: m.id,
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: m.content,
+        timestamp: new Date(m.created_at),
+      }));
+    renderMessages();
   } catch (e) {
     console.warn('Chat history load failed:', e);
     messages = [];
@@ -1244,7 +706,7 @@ $('new-chat-btn')?.addEventListener('click', () => {
 $('chat-abort-btn')?.addEventListener('click', async () => {
   const key = currentSessionKey ?? 'default';
   try {
-    await gateway.chatAbort(key, _streamingRunId ?? undefined);
+    await pawEngine.chatAbort(key);
     showToast('Agent stopped', 'info');
   } catch (e) {
     console.warn('[main] Abort failed:', e);
@@ -1258,11 +720,7 @@ $('session-rename-btn')?.addEventListener('click', async () => {
   const name = await promptModal('Rename session', 'New name…');
   if (!name) return;
   try {
-    if (isEngineMode()) {
-      await pawEngine.sessionRename(currentSessionKey, name);
-    } else {
-      await gateway.patchSession(currentSessionKey, { label: name });
-    }
+    await pawEngine.sessionRename(currentSessionKey, name);
     showToast('Session renamed', 'success');
     await loadSessions();
   } catch (e) {
@@ -1275,11 +733,7 @@ $('session-delete-btn')?.addEventListener('click', async () => {
   if (!currentSessionKey || !wsConnected) return;
   if (!confirm('Delete this session? This cannot be undone.')) return;
   try {
-    if (isEngineMode()) {
-      await pawEngine.sessionDelete(currentSessionKey);
-    } else {
-      await gateway.deleteSession(currentSessionKey);
-    }
+    await pawEngine.sessionDelete(currentSessionKey);
     currentSessionKey = null;
     messages = [];
     renderMessages();
@@ -1295,11 +749,7 @@ $('session-clear-btn')?.addEventListener('click', async () => {
   if (!currentSessionKey || !wsConnected) return;
   if (!confirm('Clear all messages in this session? The session itself will remain.')) return;
   try {
-    if (isEngineMode()) {
-      await pawEngine.sessionClear(currentSessionKey);
-    } else {
-      await gateway.resetSession(currentSessionKey);
-    }
+    await pawEngine.sessionClear(currentSessionKey);
     messages = [];
     _sessionTokensUsed = 0;
     _sessionInputTokens = 0;
@@ -1318,8 +768,9 @@ $('session-clear-btn')?.addEventListener('click', async () => {
 $('session-compact-btn')?.addEventListener('click', async () => {
   if (!wsConnected) return;
   try {
-    const result = await gateway.sessionsCompact(currentSessionKey ?? undefined);
-    showToast(`Compacted${result.removed ? ` — removed ${result.removed} entries` : ''}`, 'success');
+    // Engine compaction clears old messages beyond the context window
+    if (currentSessionKey) await pawEngine.sessionClear(currentSessionKey);
+    showToast('Session compacted', 'success');
     // Reset token meter after compaction
     _sessionTokensUsed = 0;
     _sessionInputTokens = 0;
@@ -1446,30 +897,26 @@ function recordTokenUsage(usage: Record<string, unknown> | undefined) {
   updateTokenMeter();
 }
 
-/** Try to detect model context limit from models.list or health data */
+/** Try to detect model context limit from engine config */
 async function detectModelContextLimit() {
   try {
-    const result = await gateway.modelsList();
-    const models = (result as unknown as Record<string, unknown>).models as Array<Record<string, unknown>> | undefined;
-    if (models && models.length > 0) {
-      // Find the active/default model's context window
-      for (const m of models) {
-        const ctx = (m.contextWindow ?? m.context_window ?? m.maxTokens ?? m.max_tokens) as number | undefined;
-        if (ctx && ctx > 0) {
-          _modelContextLimit = ctx;
-          console.log(`[token-meter] Detected model context limit: ${ctx}`);
-          // Detect model key for cost estimation
-          const name = ((m.name ?? m.id ?? m.model ?? '') as string).toLowerCase();
-          for (const key of Object.keys(_MODEL_COST_PER_TOKEN)) {
-            if (key !== 'default' && name.includes(key)) {
-              _activeModelKey = key;
-              console.log(`[token-meter] Matched model cost key: ${key}`);
-              break;
-            }
-          }
-          break;
-        }
+    const cfg = await pawEngine.getConfig();
+    const modelName = (cfg.default_model ?? '').toLowerCase();
+    // Match model name to known cost/context keys
+    for (const key of Object.keys(_MODEL_COST_PER_TOKEN)) {
+      if (key !== 'default' && modelName.includes(key)) {
+        _activeModelKey = key;
+        console.log(`[token-meter] Matched model cost key: ${key}`);
+        break;
       }
+    }
+    // Common context limits based on model name
+    const contextLimits: Record<string, number> = {
+      'gpt-4': 128000, 'gpt-3.5': 16384, 'claude': 200000, 'gemini': 1000000,
+      'llama': 8192, 'mistral': 32768, 'deepseek': 128000, 'qwen': 32768,
+    };
+    for (const [key, limit] of Object.entries(contextLimits)) {
+      if (modelName.includes(key)) { _modelContextLimit = limit; break; }
     }
   } catch {
     // Keep default
@@ -1635,12 +1082,10 @@ async function sendMessage() {
     if (slashOverrides.thinkingLevel) chatOpts.thinkingLevel = slashOverrides.thinkingLevel;
     if (slashOverrides.temperature !== undefined) chatOpts.temperature = slashOverrides.temperature;
 
-    const result = isEngineMode()
-      ? await engineChatSend(sessionKey, content, {
+    const result = await engineChatSend(sessionKey, content, {
           ...chatOpts,
           attachments: chatOpts.attachments as Array<{ type?: string; mimeType: string; content: string }> | undefined,
-        }) as unknown as Awaited<ReturnType<typeof gateway.chatSend>>
-      : await gateway.chatSend(sessionKey, content, chatOpts);
+        });
     console.log('[main] chat.send ack:', JSON.stringify(result).slice(0, 300));
 
     // Store the runId so we can filter events precisely
@@ -1651,10 +1096,10 @@ async function sendMessage() {
     const sendUsage = (result as unknown as Record<string, unknown>).usage as Record<string, unknown> | undefined;
     if (sendUsage) recordTokenUsage(sendUsage);
 
-    // Some gateway modes return the full response in the chat.send ack
-    // (non-streaming / sync mode). If so, resolve immediately.
+    // Engine mode streams results via events; the ack only has run_id/session_id.
+    // If a future backend returns inline text, handle it here.
     const resultAny = result as unknown as Record<string, unknown>;
-    const ackText = result.text
+    const ackText = (resultAny.text as string | undefined)
       ?? (typeof resultAny.response === 'string' ? resultAny.response as string : null)
       ?? extractContent(resultAny.response);
     if (ackText && _streamingResolve) {
@@ -1763,18 +1208,17 @@ function finalizeStreaming(finalContent: string, toolCalls?: import('./types').T
       updateTokenMeter();
     }
   } else {
-    // No content received — try fetching the latest history from the gateway
-    // to recover the response (it may have been stored server-side even though
+    // No content received — try fetching the latest history from the engine
+    // to recover the response (it may have been stored even though
     // the streaming events didn't deliver it).
     console.warn(`[main] finalizeStreaming called with empty content (runId=${savedRunId?.slice(0,12) ?? 'null'}). Fetching history fallback...`);
     const sk = currentSessionKey;
     if (sk) {
-      gateway.chatHistory(sk).then(hist => {
-        const msgs = hist.messages ?? [];
+      pawEngine.chatHistory(sk, 10).then(stored => {
         // Find the last assistant message
-        for (let i = msgs.length - 1; i >= 0; i--) {
-          if (msgs[i].role === 'assistant') {
-            const text = extractContent(msgs[i].content);
+        for (let i = stored.length - 1; i >= 0; i--) {
+          if (stored[i].role === 'assistant') {
+            const text = stored[i].content;
             if (text) {
               console.log(`[main] History fallback recovered ${text.length} chars`);
               addMessage({ role: 'assistant', content: text, timestamp: new Date() });
@@ -2059,109 +1503,10 @@ function handleAgentEvent(payload: unknown): void {
   }
 }
 
-// Register with both gateway (WebSocket) and engine bridge (Tauri IPC)
-gateway.on('agent', handleAgentEvent);
+// Register engine bridge (Tauri IPC) agent events
 onEngineAgent(handleAgentEvent);
 
-// Listen for chat events — handle 'final' (assembled message) and 'error' states.
-// We skip 'delta' since agent events already handle real-time streaming.
-gateway.on('chat', (payload: unknown) => {
-  try {
-    const evt = payload as Record<string, unknown>;
-    const state = evt.state as string | undefined;
-
-    // Handle error state — the agent/model returned an error (e.g. 401, rate limit)
-    if (state === 'error') {
-      const runId = evt.runId as string | undefined;
-      const errorMsg = (evt.errorMessage ?? evt.error ?? 'Unknown error') as string;
-      console.error(`[main] Chat error event (runId=${runId?.slice(0, 12)}):`, errorMsg);
-      crashLog(`chat-error: ${errorMsg}`);
-
-      // If we're streaming for this run, show the error in the bubble and
-      // resolve the streaming promise so sendMessage() can finalize.
-      if (isLoading || _streamingEl) {
-        if (!_streamingRunId || (runId && runId === _streamingRunId)) {
-          const errorContent = 'Error: ' + errorMsg;
-          _streamingContent = errorContent;
-          if (_streamingEl) {
-            const errorSpan = document.createElement('span');
-            errorSpan.className = 'chat-error-inline';
-            errorSpan.textContent = errorContent;
-            _streamingEl.innerHTML = '';
-            _streamingEl.appendChild(errorSpan);
-            scrollToBottom();
-          }
-          // Resolve the streaming promise with the error text so sendMessage()
-          // flow calls finalizeStreaming() once with the error content.
-          if (_streamingResolve) {
-            _streamingResolve(errorContent);
-            _streamingResolve = null;
-          }
-        }
-      }
-      return;
-    }
-
-    // Skip delta events entirely — agent handler already processes deltas
-    if (state !== 'final') return;
-
-    const runId = evt.runId as string | undefined;
-    const msg = evt.message as Record<string, unknown> | undefined;
-    const chatEvtSession = evt.sessionKey as string | undefined;
-
-    // Route paw-research-* final messages to research view
-    if (chatEvtSession && chatEvtSession.startsWith('paw-research-')) {
-      if (ResearchModule.isStreaming() && msg) {
-        const text = extractContent(msg.content);
-        if (text) {
-          ResearchModule.setContent(text);
-          const liveContent = $('research-live-content');
-          if (liveContent) liveContent.textContent = text;
-          ResearchModule.resolveStream(text);
-        }
-      }
-      return;
-    }
-
-    // Ignore other background paw-* sessions
-    if (chatEvtSession && chatEvtSession.startsWith('paw-')) return;
-
-    if (!isLoading && !_streamingEl) return;
-    if (_streamingRunId && runId && runId !== _streamingRunId) return;
-
-    if (msg) {
-      // Final assembled message — use as canonical response
-      const text = extractContent(msg.content);
-      if (text) {
-        console.log(`[main] Chat final (${text.length} chars)`);
-        // If streaming hasn't captured the full text, replace with final
-        _streamingContent = text;
-        if (_streamingEl) {
-          _streamingEl.innerHTML = formatMarkdown(text);
-          scrollToBottom();
-        }
-        // Resolve the streaming promise since we have the final text
-        if (_streamingResolve) {
-          _streamingResolve(text);
-          _streamingResolve = null;
-        }
-      }
-      // Track token usage from chat final event
-      const chatUsage = (msg.usage ?? evt.usage) as Record<string, unknown> | undefined;
-      recordTokenUsage(chatUsage);
-    } else {
-      // chat.final with no message body — the agent produced no output.
-      // Resolve the grace period immediately instead of waiting.
-      console.warn(`[main] Chat final with no message body (runId=${runId?.slice(0,12)}) — agent produced no output`);
-      if (_streamingResolve) {
-        _streamingResolve(_streamingContent || '');
-        _streamingResolve = null;
-      }
-    }
-  } catch (e) {
-    console.warn('[main] Chat event handler error:', e);
-  }
-});
+// (Gateway 'chat' event handler removed — engine mode delivers events through Tauri bridge)
 
 // ── Channels — Connection Hub ──────────────────────────────────────────────
 const CHANNEL_CLASSES: Record<string, string> = {
@@ -3010,14 +2355,14 @@ function _emptyChannelConfig(ch: string): Record<string, unknown> {
 }
 $('refresh-channels-btn')?.addEventListener('click', () => loadChannels());
 
-// Direct channel send
+// Direct channel send (engine mode — uses Tauri IPC)
 $('channel-send-btn')?.addEventListener('click', async () => {
   const target = ($('channel-send-target') as HTMLSelectElement)?.value;
   const msgInput = $('channel-send-message') as HTMLInputElement;
   const message = msgInput?.value.trim();
   if (!target || !message || !wsConnected) return;
   try {
-    await gateway.send({ channelId: target, message });
+    await pawEngine.chatSend(target, message);
     showToast(`Sent to ${target}`, 'success');
     if (msgInput) msgInput.value = '';
   } catch (e) {
@@ -3026,114 +2371,14 @@ $('channel-send-btn')?.addEventListener('click', async () => {
 });
 
 // ── Automations / Cron — Card Board ────────────────────────────────────────
+// TODO: Implement engine-native cron/automations via Tauri IPC
 async function loadCron() {
-  const activeCards = $('cron-active-cards');
-  const pausedCards = $('cron-paused-cards');
-  const historyCards = $('cron-history-cards');
   const empty = $('cron-empty');
   const loading = $('cron-loading');
-  const activeCount = $('cron-active-count');
-  const pausedCount = $('cron-paused-count');
   const board = document.querySelector('.auto-board') as HTMLElement | null;
-  if (!wsConnected) return;
-
-  if (loading) loading.style.display = '';
-  if (empty) empty.style.display = 'none';
-  if (board) board.style.display = 'grid';
-  if (activeCards) activeCards.innerHTML = '';
-  if (pausedCards) pausedCards.innerHTML = '';
-  if (historyCards) historyCards.innerHTML = '';
-
-  try {
-    const result = await gateway.cronList();
-    if (loading) loading.style.display = 'none';
-
-    const jobs = result.jobs ?? [];
-    if (!jobs.length) {
-      if (empty) empty.style.display = 'flex';
-      if (board) board.style.display = 'none';
-      return;
-    }
-
-    let active = 0, paused = 0;
-    for (const job of jobs) {
-      const scheduleStr = typeof job.schedule === 'string' ? job.schedule : (job.schedule?.type ?? '');
-      const card = document.createElement('div');
-      card.className = 'auto-card';
-      card.innerHTML = `
-        <div class="auto-card-title">${escHtml(job.label ?? job.id)}</div>
-        <div class="auto-card-schedule">${escHtml(scheduleStr)}</div>
-        ${job.prompt ? `<div class="auto-card-prompt">${escHtml(String(job.prompt))}</div>` : ''}
-        <div class="auto-card-actions">
-          <button class="btn btn-ghost btn-sm cron-run" data-id="${escAttr(job.id)}">▶ Run</button>
-          <button class="btn btn-ghost btn-sm cron-toggle" data-id="${escAttr(job.id)}" data-enabled="${job.enabled}">${job.enabled ? '⏸ Pause' : '▶ Enable'}</button>
-          <button class="btn btn-ghost btn-sm cron-delete" data-id="${escAttr(job.id)}">Delete</button>
-        </div>
-      `;
-      if (job.enabled) {
-        active++;
-        activeCards?.appendChild(card);
-      } else {
-        paused++;
-        pausedCards?.appendChild(card);
-      }
-    }
-    if (activeCount) activeCount.textContent = String(active);
-    if (pausedCount) pausedCount.textContent = String(paused);
-
-    // Wire card actions
-    const wireActions = (container: HTMLElement | null) => {
-      if (!container) return;
-      container.querySelectorAll('.cron-run').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = (btn as HTMLElement).dataset.id!;
-          try { await gateway.cronRun(id); alert('Job triggered!'); }
-          catch (e) { alert(`Failed: ${e}`); }
-        });
-      });
-      container.querySelectorAll('.cron-toggle').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = (btn as HTMLElement).dataset.id!;
-          const enabled = (btn as HTMLElement).dataset.enabled === 'true';
-          try { await gateway.cronUpdate(id, { enabled: !enabled }); loadCron(); }
-          catch (e) { alert(`Failed: ${e}`); }
-        });
-      });
-      container.querySelectorAll('.cron-delete').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const id = (btn as HTMLElement).dataset.id!;
-          if (!confirm('Delete this automation?')) return;
-          try { await gateway.cronRemove(id); loadCron(); }
-          catch (e) { alert(`Failed: ${e}`); }
-        });
-      });
-    };
-    wireActions(activeCards);
-    wireActions(pausedCards);
-
-    // Load run history
-    try {
-      const runs = await gateway.cronRuns(undefined, 20);
-      if (runs.runs?.length && historyCards) {
-        for (const run of runs.runs.slice(0, 10)) {
-          const histCard = document.createElement('div');
-          histCard.className = 'auto-card';
-          const statusClass = run.status === 'success' ? 'success' : (run.status === 'running' ? 'running' : 'failed');
-          histCard.innerHTML = `
-            <div class="auto-card-time">${run.startedAt ? new Date(run.startedAt).toLocaleString() : ''}</div>
-            <div class="auto-card-title">${escHtml(run.jobLabel ?? run.jobId ?? 'Job')}</div>
-            <span class="auto-card-status ${statusClass}">${run.status ?? 'unknown'}</span>
-          `;
-          historyCards.appendChild(histCard);
-        }
-      }
-    } catch { /* run history not available */ }
-  } catch (e) {
-    console.warn('Cron load failed:', e);
-    if (loading) loading.style.display = 'none';
-    if (empty) empty.style.display = 'flex';
-    if (board) board.style.display = 'none';
-  }
+  if (loading) loading.style.display = 'none';
+  if (board) board.style.display = 'none';
+  if (empty) { empty.style.display = 'flex'; empty.textContent = 'Automations coming soon — engine-native scheduler in development'; }
 }
 
 // Cron modal logic
@@ -3167,93 +2412,28 @@ $('cron-form-schedule-preset')?.addEventListener('change', () => {
 });
 
 $('cron-modal-save')?.addEventListener('click', async () => {
-  const label = ($('cron-form-label') as HTMLInputElement).value.trim();
-  const schedule = ($('cron-form-schedule') as HTMLInputElement).value.trim();
-  const prompt_ = ($('cron-form-prompt') as HTMLTextAreaElement).value.trim();
-  if (!label || !schedule || !prompt_) { alert('All fields required'); return; }
-  try {
-    await gateway.cronAdd({ label, schedule, prompt: prompt_, enabled: true });
-    hideCronModal();
-    loadCron();
-  } catch (e) { alert(`Failed: ${e}`); }
+  showToast('Automations scheduler coming soon', 'info');
+  hideCronModal();
 });
 
 // ── Memory / Agent Files — Split View ──────────────────────────────────────
+// TODO: Implement engine-native agent files via Tauri IPC
 async function loadMemory() {
   const list = $('memory-list');
   const empty = $('memory-empty');
   const loading = $('memory-loading');
-  const editorPanel = $('memory-editor');
-  if (!wsConnected || !list) return;
-
-  if (loading) loading.style.display = '';
-  if (empty) empty.style.display = 'none';
-  if (editorPanel) editorPanel.style.display = 'none';
-  list.innerHTML = '';
-
-  try {
-    const result = await gateway.agentFilesList();
-    if (loading) loading.style.display = 'none';
-
-    const files = result.files ?? [];
-    if (!files.length) {
-      if (empty) empty.style.display = 'flex';
-      return;
-    }
-
-    for (const file of files) {
-      const card = document.createElement('div');
-      card.className = 'list-item list-item-clickable';
-      const displayName = file.path ?? file.name ?? 'unknown';
-      const displaySize = file.sizeBytes ?? file.size;
-      card.innerHTML = `
-        <div class="list-item-header">
-          <span class="list-item-title">${escHtml(displayName)}</span>
-          <span class="list-item-meta">${displaySize ? formatBytes(displaySize) : ''}</span>
-        </div>
-      `;
-      card.addEventListener('click', () => openMemoryFile(displayName));
-      list.appendChild(card);
-    }
-  } catch (e) {
-    console.warn('Memory load failed:', e);
-    if (loading) loading.style.display = 'none';
-    if (empty) empty.style.display = 'flex';
-  }
+  if (loading) loading.style.display = 'none';
+  if (list) list.innerHTML = '';
+  if (empty) { empty.style.display = 'flex'; empty.textContent = 'Agent files managed via Memory Palace'; }
 }
 
 async function openMemoryFile(filePath: string) {
-  const editor = $('memory-editor');
-  const content = $('memory-editor-content') as HTMLTextAreaElement | null;
-  const pathEl = $('memory-editor-path');
-  const empty = $('memory-empty');
-  if (!editor || !content) return;
-
-  editor.style.display = '';
-  if (empty) empty.style.display = 'none';
-  if (pathEl) pathEl.textContent = filePath;
-  content.value = 'Loading...';
-  content.disabled = true;
-
-  try {
-    const result = await gateway.agentFilesGet(filePath);
-    content.value = result.content ?? '';
-    content.disabled = false;
-    content.dataset.filePath = filePath;
-  } catch (e) {
-    content.value = `Error loading file: ${e}`;
-  }
+  console.log('[main] openMemoryFile:', filePath);
+  // Memory files are now managed via the Memory Palace module
 }
 
 $('memory-editor-save')?.addEventListener('click', async () => {
-  const content = $('memory-editor-content') as HTMLTextAreaElement | null;
-  if (!content?.dataset.filePath) return;
-  try {
-    await gateway.agentFilesSet(content.dataset.filePath, content.value);
-    alert('File saved!');
-  } catch (e) {
-    alert(`Save failed: ${e}`);
-  }
+  showToast('Use Memory Palace for file management', 'info');
 });
 
 $('memory-editor-close')?.addEventListener('click', () => {
@@ -3266,97 +2446,12 @@ $('refresh-memory-btn')?.addEventListener('click', () => loadMemory());
 // ── Dashboard Cron Widget ──────────────────────────────────────────────────
 async function loadDashboardCron() {
   const section = $('dashboard-cron-section');
-  const list = $('dashboard-cron-list');
-  const empty = $('dashboard-cron-empty');
-  if (!wsConnected || !list) return;
-
-  list.innerHTML = '';
-  if (empty) empty.style.display = 'none';
-
-  try {
-    const result = await gateway.cronList();
-    const jobs = result.jobs ?? [];
-
-    if (!jobs.length) {
-      if (section) section.style.display = '';
-      if (empty) empty.style.display = 'flex';
-      return;
-    }
-
-    if (section) section.style.display = '';
-
-    for (const job of jobs.slice(0, 8)) {
-      const card = document.createElement('div');
-      card.className = 'dash-cron-card';
-      const scheduleStr = typeof job.schedule === 'string' ? job.schedule : (job.schedule?.type ?? '');
-      card.innerHTML = `
-        <span class="dash-cron-dot ${job.enabled ? 'active' : 'paused'}"></span>
-        <div class="dash-cron-info">
-          <div class="dash-cron-name">${escHtml(job.label ?? job.id)}</div>
-          <div class="dash-cron-schedule">${escHtml(scheduleStr)}</div>
-        </div>
-      `;
-      card.addEventListener('click', () => switchView('automations'));
-      list.appendChild(card);
-    }
-  } catch (e) {
-    console.warn('Dashboard cron load failed:', e);
-    if (section) section.style.display = 'none';
-  }
+  if (section) section.style.display = 'none';
 }
 
 // ── Space Cron Mini-Widgets ────────────────────────────────────────────────
-async function loadSpaceCron(space: string) {
-  const widget = $(`${space}-cron-widget`);
-  const count = $(`${space}-cron-count`);
-  const items = $(`${space}-cron-items`);
-  if (!wsConnected || !widget) return;
-
-  widget.style.display = 'none';
-  if (items) items.innerHTML = '';
-
-  try {
-    const result = await gateway.cronList();
-    const jobs = result.jobs ?? [];
-    if (!jobs.length) return;
-
-    // Filter jobs contextually by space keywords
-    const keywords: Record<string, string[]> = {
-      tasks: ['task', 'build', 'deploy', 'compile', 'test', 'ci', 'lint'],
-      content: ['content', 'write', 'publish', 'draft', 'blog', 'post', 'article'],
-      mail: ['mail', 'email', 'send', 'newsletter', 'digest', 'notify', 'inbox'],
-      research: ['research', 'scrape', 'crawl', 'monitor', 'fetch', 'analyze', 'report'],
-    };
-    const spaceKeywords = keywords[space] ?? [];
-
-    const matched = jobs.filter(job => {
-      const label = (job.label ?? '').toLowerCase();
-      const prompt = (typeof job.prompt === 'string' ? job.prompt : '').toLowerCase();
-      return spaceKeywords.some(kw => label.includes(kw) || prompt.includes(kw));
-    });
-
-    // If no keyword matches, show all active jobs as a fallback (max 3)
-    const display = matched.length ? matched : jobs.filter(j => j.enabled).slice(0, 3);
-    if (!display.length) return;
-
-    widget.style.display = '';
-    if (count) count.textContent = String(display.length);
-
-    for (const job of display.slice(0, 5)) {
-      const item = document.createElement('div');
-      item.className = 'space-cron-item';
-      const scheduleStr = typeof job.schedule === 'string' ? job.schedule : (job.schedule?.type ?? '');
-      item.innerHTML = `
-        <span class="dash-cron-dot ${job.enabled ? 'active' : 'paused'}"></span>
-        <span class="space-cron-name">${escHtml(job.label ?? job.id)}</span>
-        <span class="space-cron-schedule">${escHtml(scheduleStr)}</span>
-      `;
-      item.addEventListener('click', () => switchView('automations'));
-      items?.appendChild(item);
-    }
-  } catch (e) {
-    console.warn(`Space cron (${space}) load failed:`, e);
-  }
+async function loadSpaceCron(_space: string) {
+  // TODO: engine-native cron
 }
 // ══════════════════════════════════════════════════════════════════════════
 // ═══ LOCAL APPLICATION SPACES ═══════════════════════════════════════════
@@ -3449,7 +2544,7 @@ $('content-body')?.addEventListener('input', () => {
 });
 
 $('content-ai-improve')?.addEventListener('click', async () => {
-  if (!_activeDocId || !wsConnected) { showToast('Connect to gateway first', 'error'); return; }
+  if (!_activeDocId || !wsConnected) { showToast('Not connected', 'error'); return; }
   const bodyEl = $('content-body') as HTMLTextAreaElement;
   const body = bodyEl?.value.trim();
   if (!body) return;
@@ -3459,12 +2554,11 @@ $('content-ai-improve')?.addEventListener('click', async () => {
   showToast('AI improving your text…', 'info');
 
   try {
-    // Direct agent run (sessionless) — no chat history needed for one-shot improve
-    const run = await gateway.agent({ prompt: `Improve this text. Return only the improved version, no explanations:\n\n${body}` });
-    // Wait for the agent to finish and return the full result
-    const result = await gateway.agentWait(run.runId, 120_000);
-    if (result.text && bodyEl) {
-      bodyEl.value = result.text;
+    // Use engine chat for one-shot improve — response streams via events, so this just gets run_id
+    const result = await pawEngine.chatSend('paw-improve', `Improve this text. Return only the improved version, no explanations:\n\n${body}`);
+    const text = (result as unknown as Record<string, unknown>).text as string | undefined;
+    if (text && bodyEl) {
+      bodyEl.value = text;
       showToast('Text improved!', 'success');
     } else {
       showToast('Agent returned no text', 'error');
@@ -3636,320 +2730,7 @@ function classifyMailPermission(toolName: string, args?: Record<string, unknown>
   return { perm: 'read', label: 'read' };
 }
 
-// ── Node gateway events ────────────────────────────────────────────────────
-gateway.on('node.pair.requested', (payload: unknown) => {
-  NodesModule.handleNodePairRequested(payload);
-});
-gateway.on('node.pair.resolved', (payload: unknown) => {
-  NodesModule.handleNodePairResolved(payload);
-});
-gateway.on('node.invoke.result', (payload: unknown) => {
-  const evt = payload as { nodeId?: string; command?: string; result?: unknown; error?: string };
-  console.log('[main] node.invoke.result:', evt);
-  // Refresh node list in case state changed
-  if (wsConnected && nodesView?.classList.contains('active')) {
-    NodesModule.loadNodes();
-  }
-});
-gateway.on('node.event', (payload: unknown) => {
-  const evt = payload as { nodeId?: string; event?: string; data?: unknown };
-  console.log('[main] node.event:', evt);
-  // Refresh node list (a node may have connected/disconnected)
-  if (wsConnected && nodesView?.classList.contains('active')) {
-    NodesModule.loadNodes();
-  }
-});
-
-// ── Device pairing events ──────────────────────────────────────────────────
-gateway.on('device.pair.requested', (payload: unknown) => {
-  console.log('[main] device.pair.requested:', payload);
-  // Refresh devices list if settings is open
-  if (wsConnected && settingsView?.classList.contains('active')) {
-    SettingsModule.loadSettingsDevices();
-  }
-  showToast('New device pairing request — check Settings', 'info');
-});
-gateway.on('device.pair.resolved', (payload: unknown) => {
-  console.log('[main] device.pair.resolved:', payload);
-  if (wsConnected && settingsView?.classList.contains('active')) {
-    SettingsModule.loadSettingsDevices();
-  }
-});
-
-gateway.on('exec.approval.requested', (payload: unknown) => {
-  const evt = payload as Record<string, unknown>;
-  const id = (evt.id ?? evt.approvalId) as string | undefined;
-  const tool = (evt.tool ?? evt.name ?? '') as string;
-  const desc = (evt.description ?? evt.message ?? `The agent wants to use tool: ${tool}`) as string;
-  const args = evt.args as Record<string, unknown> | undefined;
-
-  const modal = $('approval-modal');
-  const modalCard = $('approval-modal-card');
-  const modalTitle = $('approval-modal-title');
-  const descEl = $('approval-modal-desc');
-  const detailsEl = $('approval-modal-details');
-  const riskBanner = $('approval-risk-banner');
-  const riskIcon = $('approval-risk-icon');
-  const riskLabel = $('approval-risk-label');
-  const riskReason = $('approval-risk-reason');
-  const typeConfirm = $('approval-type-confirm');
-  const typeInput = $('approval-type-input') as HTMLInputElement | null;
-  const allowBtn = $('approval-allow-btn') as HTMLButtonElement | null;
-  if (!modal || !descEl) return;
-
-  const sessionKey = (evt.sessionKey ?? '') as string;
-
-  // ── Permission enforcement for mail/credential tools ──
-  const mailPerm = classifyMailPermission(tool, args);
-  if (mailPerm) {
-    const anyAllowed = MailModule.getMailAccounts().some(acct => {
-      const perms = MailModule.loadMailPermissions(acct.name);
-      return perms[mailPerm.perm];
-    });
-    if (!anyAllowed) {
-      if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
-      logCredentialActivity({
-        action: 'blocked',
-        toolName: tool,
-        detail: `Blocked: "${mailPerm.label}" permission is disabled in Credential Vault`,
-        sessionKey,
-        wasAllowed: false,
-      });
-      showToast(`Blocked: your Credential Vault doesn't allow "${mailPerm.label}" — update permissions in Mail sidebar`, 'warning');
-      return;
-    }
-    logCredentialActivity({
-      action: mailPerm.perm,
-      toolName: tool,
-      detail: `Agent requested: ${tool}${args ? ' ' + JSON.stringify(args).slice(0, 120) : ''}`,
-      sessionKey,
-      wasAllowed: true,
-    });
-  }
-
-  // ── Security: Risk classification ──
-  const secSettings = loadSecuritySettings();
-  const risk: RiskClassification | null = classifyCommandRisk(tool, args);
-
-  // Build a command string for allowlist/denylist matching
-  // Only use actual command content for exec tools to avoid false positives
-  const cmdStr = extractCommandString(tool, args as Record<string, unknown>);
-
-  // ── Network request auditing (C5) ──
-  const netAudit = auditNetworkRequest(tool, args);
-  if (netAudit.isNetworkRequest) {
-    const targetStr = netAudit.targets.length > 0 ? netAudit.targets.join(', ') : '(unknown destination)';
-    logSecurityEvent({
-      eventType: 'network_request',
-      riskLevel: netAudit.isExfiltration ? 'critical' : (netAudit.allTargetsLocal ? null : 'medium'),
-      toolName: tool,
-      command: cmdStr,
-      detail: `Outbound request → ${targetStr}${netAudit.isExfiltration ? ' [EXFILTRATION SUSPECTED]' : ''}${netAudit.allTargetsLocal ? ' (localhost)' : ''}`,
-      sessionKey,
-      wasAllowed: true, // will be updated by allow/deny below
-      matchedPattern: netAudit.isExfiltration ? `exfiltration:${netAudit.exfiltrationReason}` : 'network_tool',
-    });
-  }
-
-  // ── Session override: "Allow all for this session" (C3) ──
-  const overrideRemaining = getSessionOverrideRemaining();
-  if (overrideRemaining > 0) {
-    // Session override is active — auto-approve (but still deny critical privilege escalation)
-    if (!(secSettings.autoDenyPrivilegeEscalation && isPrivilegeEscalation(tool, args))) {
-      if (id) gateway.execApprovalResolve(id, true).catch(console.warn);
-      const minsLeft = Math.ceil(overrideRemaining / 60000);
-      logCredentialActivity({ action: 'approved', toolName: tool, detail: `Session override active (${minsLeft}min remaining): ${tool}`, sessionKey, wasAllowed: true });
-      logSecurityEvent({ eventType: 'session_override', riskLevel: risk?.level ?? null, toolName: tool, command: cmdStr, detail: `Session override auto-approved (${minsLeft}min remaining)`, sessionKey, wasAllowed: true, matchedPattern: 'session_override' });
-      return;
-    }
-  }
-
-  // ── Read-only project mode: block filesystem writes (H3) ──
-  if (secSettings.readOnlyProjects) {
-    const writeCheck = isFilesystemWriteTool(tool, args);
-    if (writeCheck.isWrite) {
-      if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
-      logCredentialActivity({ action: 'blocked', toolName: tool, detail: `Blocked: filesystem write tool in read-only mode${writeCheck.targetPath ? ` → ${writeCheck.targetPath}` : ''}`, sessionKey, wasAllowed: false });
-      logSecurityEvent({ eventType: 'auto_deny', riskLevel: 'medium', toolName: tool, command: cmdStr, detail: `Read-only mode: filesystem write blocked${writeCheck.targetPath ? ` → ${writeCheck.targetPath}` : ''}`, sessionKey, wasAllowed: false, matchedPattern: 'read_only_mode' });
-      showToast('Blocked: filesystem writes are disabled (read-only project mode)', 'warning');
-      return;
-    }
-  }
-
-  // ── Auto-deny: privilege escalation ──
-  if (secSettings.autoDenyPrivilegeEscalation && isPrivilegeEscalation(tool, args)) {
-    if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
-    logCredentialActivity({ action: 'blocked', toolName: tool, detail: `Auto-denied: privilege escalation command (sudo/su/doas/pkexec)`, sessionKey, wasAllowed: false });
-    logSecurityEvent({ eventType: 'auto_deny', riskLevel: 'critical', toolName: tool, command: cmdStr, detail: 'Privilege escalation auto-denied', sessionKey, wasAllowed: false, matchedPattern: 'privilege_escalation' });
-    showToast('Auto-denied: privilege escalation command blocked by security policy', 'warning');
-    return;
-  }
-
-  // ── Auto-deny: all critical-risk commands ──
-  if (secSettings.autoDenyCritical && risk?.level === 'critical') {
-    if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
-    logCredentialActivity({ action: 'blocked', toolName: tool, detail: `Auto-denied: critical risk — ${risk.label}: ${risk.reason}`, sessionKey, wasAllowed: false });
-    logSecurityEvent({ eventType: 'auto_deny', riskLevel: 'critical', toolName: tool, command: cmdStr, detail: `${risk.label}: ${risk.reason}`, sessionKey, wasAllowed: false, matchedPattern: risk.matchedPattern });
-    showToast(`Auto-denied: ${risk.label} — ${risk.reason}`, 'warning');
-    return;
-  }
-
-  // ── Auto-deny: command denylist ──
-  if (secSettings.commandDenylist.length > 0 && matchesDenylist(cmdStr, secSettings.commandDenylist)) {
-    if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
-    logCredentialActivity({ action: 'blocked', toolName: tool, detail: `Auto-denied: matched command denylist pattern`, sessionKey, wasAllowed: false });
-    logSecurityEvent({ eventType: 'auto_deny', riskLevel: risk?.level ?? null, toolName: tool, command: cmdStr, detail: 'Matched command denylist', sessionKey, wasAllowed: false, matchedPattern: 'denylist' });
-    showToast('Auto-denied: command matched your denylist', 'warning');
-    return;
-  }
-
-  // ── Auto-approve: command allowlist (only if no risk detected) ──
-  if (!risk && secSettings.commandAllowlist.length > 0 && matchesAllowlist(cmdStr, secSettings.commandAllowlist)) {
-    if (id) gateway.execApprovalResolve(id, true).catch(console.warn);
-    logCredentialActivity({ action: 'approved', toolName: tool, detail: `Auto-approved: matched command allowlist pattern`, sessionKey, wasAllowed: true });
-    logSecurityEvent({ eventType: 'auto_allow', toolName: tool, command: cmdStr, detail: 'Matched command allowlist', sessionKey, wasAllowed: true, matchedPattern: 'allowlist' });
-    return;
-  }
-
-  // ── Configure modal appearance based on risk ──
-  const isDangerous = risk && (risk.level === 'critical' || risk.level === 'high');
-  const isCritical = risk?.level === 'critical';
-
-  // Reset modal state
-  modalCard?.classList.remove('danger-modal');
-  riskBanner?.classList.remove('risk-critical', 'risk-high', 'risk-medium');
-  if (riskBanner) riskBanner.style.display = 'none';
-  if (typeConfirm) typeConfirm.style.display = 'none';
-  if (typeInput) typeInput.value = '';
-  if (allowBtn) { allowBtn.disabled = false; allowBtn.textContent = 'Allow'; }
-  if (modalTitle) modalTitle.textContent = 'Tool Approval Required';
-
-  if (risk) {
-    // Show danger modal variant
-    if (isDangerous) {
-      modalCard?.classList.add('danger-modal');
-      if (modalTitle) modalTitle.textContent = '⚠ Dangerous Command Detected';
-    }
-
-    // Show risk banner
-    if (riskBanner && riskLabel && riskReason && riskIcon) {
-      riskBanner.style.display = 'flex';
-      riskBanner.classList.add(`risk-${risk.level}`);
-      riskLabel.textContent = `${risk.level.toUpperCase()}: ${risk.label}`;
-      riskReason.textContent = risk.reason;
-      riskIcon.textContent = isCritical ? '☠' : risk.level === 'high' ? '⚠' : '⚡';
-    }
-
-    // Type-to-confirm for critical commands
-    if (isCritical && secSettings.requireTypeToCritical && typeConfirm && typeInput && allowBtn) {
-      typeConfirm.style.display = 'block';
-      allowBtn.disabled = true;
-      allowBtn.textContent = 'Type ALLOW first';
-      const onTypeInput = () => {
-        const val = typeInput.value.trim().toUpperCase();
-        allowBtn.disabled = val !== 'ALLOW';
-        allowBtn.textContent = val === 'ALLOW' ? 'Allow' : 'Type ALLOW first';
-      };
-      typeInput.addEventListener('input', onTypeInput);
-      // Store cleanup ref
-      (typeInput as unknown as Record<string, unknown>)._secCleanup = onTypeInput;
-    }
-  }
-
-  descEl.textContent = desc;
-
-  // ── Network audit banner (C5) ──
-  const netBanner = $('approval-network-banner');
-  if (netBanner) netBanner.style.display = 'none';
-  if (netAudit.isNetworkRequest && netBanner) {
-    netBanner.style.display = 'block';
-    const targetStr = netAudit.targets.length > 0 ? netAudit.targets.join(', ') : 'unknown destination';
-    if (netAudit.isExfiltration) {
-      netBanner.className = 'network-banner network-exfiltration';
-      netBanner.innerHTML = `<strong>⚠ Possible Data Exfiltration</strong><br>Outbound data transfer detected → ${escHtml(targetStr)}`;
-    } else if (!netAudit.allTargetsLocal) {
-      netBanner.className = 'network-banner network-external';
-      netBanner.innerHTML = `<strong>🌐 External Network Request</strong><br>Destination: ${escHtml(targetStr)}`;
-    } else {
-      netBanner.className = 'network-banner network-local';
-      netBanner.innerHTML = `<strong>🔒 Localhost Request</strong><br>Destination: ${escHtml(targetStr)}`;
-    }
-  }
-
-  if (detailsEl) {
-    detailsEl.innerHTML = args
-      ? `<pre class="code-block"><code>${escHtml(JSON.stringify(args, null, 2))}</code></pre>`
-      : '';
-  }
-  modal.style.display = 'flex';
-
-  // Resolve when user clicks Allow/Deny
-  const cleanup = () => {
-    modal.style.display = 'none';
-    // Remove type-input listener
-    if (typeInput) {
-      const fn = (typeInput as unknown as Record<string, unknown>)._secCleanup as (() => void) | undefined;
-      if (fn) typeInput.removeEventListener('input', fn);
-    }
-    $('approval-allow-btn')?.removeEventListener('click', onAllow);
-    $('approval-deny-btn')?.removeEventListener('click', onDeny);
-    $('approval-modal-close')?.removeEventListener('click', onDeny);
-  };
-  const onAllow = () => {
-    cleanup();
-    if (id) gateway.execApprovalResolve(id, true).catch(console.warn);
-    const riskNote = risk ? ` (${risk.level}: ${risk.label})` : '';
-    logCredentialActivity({ action: 'approved', toolName: tool, detail: `User approved${riskNote}: ${tool}${args ? ' ' + JSON.stringify(args).slice(0, 120) : ''}`, sessionKey, wasAllowed: true });
-    logSecurityEvent({ eventType: 'exec_approval', riskLevel: risk?.level ?? null, toolName: tool, command: cmdStr, detail: `User approved${riskNote}`, sessionKey, wasAllowed: true, matchedPattern: risk?.matchedPattern });
-    showToast('Tool approved', 'success');
-  };
-  const onDeny = () => {
-    cleanup();
-    if (id) gateway.execApprovalResolve(id, false).catch(console.warn);
-    const riskNote = risk ? ` (${risk.level}: ${risk.label})` : '';
-    logCredentialActivity({ action: 'denied', toolName: tool, detail: `User denied${riskNote}: ${tool}${args ? ' ' + JSON.stringify(args).slice(0, 120) : ''}`, sessionKey, wasAllowed: false });
-    logSecurityEvent({ eventType: 'exec_approval', riskLevel: risk?.level ?? null, toolName: tool, command: cmdStr, detail: `User denied${riskNote}`, sessionKey, wasAllowed: false, matchedPattern: risk?.matchedPattern });
-    showToast('Tool denied', 'warning');
-  };
-  $('approval-allow-btn')?.addEventListener('click', onAllow);
-  $('approval-deny-btn')?.addEventListener('click', onDeny);
-  $('approval-modal-close')?.addEventListener('click', onDeny);
-
-  // ── Session override dropdown (C3) ──
-  const overrideBtn = $('session-override-btn');
-  const overrideMenu = $('session-override-menu');
-  if (overrideBtn && overrideMenu) {
-    const toggleMenu = (e: Event) => {
-      e.stopPropagation();
-      overrideMenu.style.display = overrideMenu.style.display === 'none' ? 'flex' : 'none';
-    };
-    overrideBtn.addEventListener('click', toggleMenu);
-    overrideMenu.querySelectorAll('.session-override-opt').forEach(opt => {
-      opt.addEventListener('click', () => {
-        const mins = parseInt((opt as HTMLElement).dataset.minutes ?? '30', 10);
-        activateSessionOverride(mins);
-        overrideMenu.style.display = 'none';
-        // Auto-approve this request too
-        cleanup();
-        if (id) gateway.execApprovalResolve(id, true).catch(console.warn);
-        logCredentialActivity({ action: 'approved', toolName: tool, detail: `Session override activated (${mins}min): ${tool}`, sessionKey, wasAllowed: true });
-        logSecurityEvent({ eventType: 'session_override', riskLevel: risk?.level ?? null, toolName: tool, command: cmdStr, detail: `Session override activated (${mins}min)`, sessionKey, wasAllowed: true, matchedPattern: 'session_override' });
-        showToast(`Session override active for ${mins} minutes — all tool requests auto-approved`, 'info');
-      });
-    });
-  }
-});
-
-// ── Additional gateway events ──────────────────────────────────────────────
-gateway.on('exec.approval.resolved', (payload: unknown) => {
-  const evt = payload as { id?: string; tool?: string; allowed?: boolean };
-  console.log('[main] exec.approval.resolved:', evt);
-  // Close modal if it was for this approval
-  const modal = $('approval-modal');
-  if (modal?.style.display !== 'none') {
-    modal!.style.display = 'none';
-  }
-});
+// (Gateway node/device/exec.approval events removed — engine mode uses Tauri listeners)
 
 // ── Engine HIL (Human-In-the-Loop) Tool Approval ───────────────────────────
 // When engine mode requests tool execution, show the same approval modal
@@ -4171,28 +2952,7 @@ onEngineToolApproval((event: EngineEvent) => {
   }
 });
 
-gateway.on('presence', (payload: unknown) => {
-  console.log('[main] presence:', payload);
-  // Refresh presence list if settings is open
-  if (wsConnected && settingsView?.classList.contains('active')) {
-    SettingsModule.loadSettingsPresence();
-  }
-});
-
-gateway.on('cron', (payload: unknown) => {
-  const evt = payload as { jobId?: string; status?: string; label?: string };
-  console.log('[main] cron event:', evt);
-  // Refresh automations if that view is open
-  const autoView = $('automations-view');
-  if (wsConnected && autoView?.classList.contains('active')) {
-    loadCron();
-  }
-});
-
-gateway.on('shutdown', (_payload: unknown) => {
-  console.warn('[main] Gateway shutdown event received');
-  showToast('Gateway is shutting down…', 'warning');
-});
+// (Gateway presence/cron/shutdown events removed — engine mode uses Tauri listeners)
 
 // ── Initialize ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -4295,7 +3055,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Go straight to dashboard and start engine bridge
     switchView('dashboard');
-    await connectGateway(); // in engine mode this just starts the Tauri IPC bridge
+    await connectEngine(); // starts the Tauri IPC bridge
 
     // ── Auto-reconnect configured channels on startup ──────────────
     // Fire-and-forget: start any channel that was previously configured & enabled

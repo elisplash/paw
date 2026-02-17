@@ -1,19 +1,9 @@
-// Paw — OpenClaw Gateway Types
-// Aligned with the OpenClaw WebSocket protocol v3
+// Paw — Type Definitions
 
 // ── App-level config ──────────────────────────────────────────────────────
 
 export interface AppConfig {
   configured: boolean;
-  gateway: {
-    url: string;
-    token: string;
-  };
-}
-
-export interface GatewayConfig {
-  url: string;
-  token: string;
 }
 
 // ── Connect / Hello ───────────────────────────────────────────────────────
@@ -402,35 +392,7 @@ export interface ModelsListResult {
   models: ModelChoice[];
 }
 
-// ── Nodes ──────────────────────────────────────────────────────────────────
 
-export interface GatewayNode {
-  id: string;
-  name?: string;
-  connected: boolean;
-  paired: boolean;
-  caps?: string[];
-  commands?: string[];
-  deviceFamily?: string;
-  modelIdentifier?: string;
-  platform?: string;
-}
-
-export interface NodeListResult {
-  nodes: GatewayNode[];
-}
-
-// ── Config ─────────────────────────────────────────────────────────────────
-
-export interface GatewayConfigResult {
-  config: Record<string, unknown>;
-  path: string;
-  hash?: string;   // SHA-256 of raw file content — pass as baseHash to config.apply / config.patch
-  exists?: boolean;
-  valid?: boolean;
-  issues?: Array<{ path?: string; message: string }>;
-  warnings?: Array<{ path?: string; message: string }>;
-}
 
 export interface ConfigApplyResult {
   ok: boolean;
@@ -465,8 +427,9 @@ export interface PresenceEntry {
 // ── Exec Approvals ─────────────────────────────────────────────────────────
 
 export interface ExecApprovalsSnapshot {
-  gateway: { allow: string[]; deny: string[]; askPolicy: string };
-  node: { allow: string[]; deny: string[]; askPolicy: string };
+  allow: string[];
+  deny: string[];
+  askPolicy: string;
 }
 
 // ── Agent Files (Memory) ───────────────────────────────────────────────────
@@ -527,31 +490,7 @@ export interface InstallProgress {
   message: string;
 }
 
-// ── WS Protocol Frames ────────────────────────────────────────────────────
 
-export interface RequestFrame {
-  type: 'req';
-  id: string;
-  method: string;
-  params?: unknown;
-}
-
-export interface ResponseFrame {
-  type: 'res';
-  id: string;
-  ok: boolean;
-  payload?: unknown;
-  error?: { code?: number; message?: string } | string;
-}
-
-export interface EventFrame {
-  type: 'event';
-  event: string;
-  seq?: number;
-  payload?: unknown;
-}
-
-export type GatewayFrame = RequestFrame | ResponseFrame | EventFrame;
 
 // ── Legacy compat alias (used by main.ts UI messages) ──────────────────────
 

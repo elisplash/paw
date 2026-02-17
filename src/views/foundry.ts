@@ -2,10 +2,8 @@
 // Models: shows configured providers and their available models
 // Chat Modes: named presets (model + system prompt + temperature) for the chat mode selector
 
-import { gateway } from '../gateway';
 import { listModes, saveMode, deleteMode } from '../db';
 import type { AgentMode } from '../db';
-import { isEngineMode } from '../engine-bridge';
 import { pawEngine } from '../engine';
 
 const $ = (id: string) => document.getElementById(id);
@@ -36,106 +34,64 @@ export async function loadModels() {
   const loading = $('models-loading');
   if (!list) return;
 
-  // In engine mode, show configured providers and their models from engine config
-  if (isEngineMode()) {
-    if (loading) loading.style.display = '';
-    if (empty) empty.style.display = 'none';
-    list.innerHTML = '';
-
-    try {
-      const config = await pawEngine.getConfig();
-      if (loading) loading.style.display = 'none';
-
-      const providers = config.providers ?? [];
-      if (!providers.length) {
-        if (empty) empty.style.display = 'flex';
-        return;
-      }
-
-      const KIND_ICONS: Record<string, string> = {
-        ollama: '🦙', openai: '🤖', anthropic: '🧠', google: '🔮', openrouter: '🌐', custom: '🔧',
-      };
-
-      for (const p of providers) {
-        const icon = KIND_ICONS[p.kind] ?? '🔧';
-        const isDefault = p.id === config.default_provider;
-        const card = document.createElement('div');
-        card.className = 'model-card';
-        card.innerHTML = `
-          <div class="model-card-header">
-            <span class="model-card-name">${icon} ${escHtml(p.id)}</span>
-            <span class="model-card-provider">${escHtml(p.kind)}${isDefault ? ' · Default' : ''}</span>
-          </div>
-          <div class="model-card-meta">
-            ${p.default_model ? `<span>Model: ${escHtml(p.default_model)}</span>` : '<span>No default model</span>'}
-            ${p.base_url ? `<span>${escHtml(p.base_url)}</span>` : ''}
-            <span>${p.api_key ? '🔑 Key set' : p.kind === 'ollama' ? '📍 Local' : '⚠️ No key'}</span>
-          </div>
-        `;
-
-        // Cache for mode editor model picker
-        if (p.default_model) {
-          _cachedModels.push({ id: p.default_model, name: p.default_model, provider: p.kind });
-        }
-
-        list.appendChild(card);
-      }
-
-      // Show global default model info
-      if (config.default_model) {
-        const infoCard = document.createElement('div');
-        infoCard.className = 'model-card';
-        infoCard.style.borderLeft = '3px solid var(--accent)';
-        infoCard.innerHTML = `
-          <div class="model-card-header">
-            <span class="model-card-name">⭐ Default Model</span>
-          </div>
-          <div class="model-card-meta">
-            <span>${escHtml(config.default_model)}</span>
-            <span>Used when no agent or mode overrides the model</span>
-          </div>
-        `;
-        list.appendChild(infoCard);
-      }
-    } catch (e) {
-      console.warn('Engine models load failed:', e);
-      if (loading) loading.style.display = 'none';
-      if (empty) empty.style.display = 'flex';
-    }
-    return;
-  }
-
-  // Gateway mode: load from gateway
-  if (!wsConnected) return;
   if (loading) loading.style.display = '';
   if (empty) empty.style.display = 'none';
   list.innerHTML = '';
 
   try {
-    const result = await gateway.modelsList();
+    const config = await pawEngine.getConfig();
     if (loading) loading.style.display = 'none';
 
-    const models = result.models ?? [];
-    _cachedModels = models;
-    if (!models.length) {
+    const providers = config.providers ?? [];
+    if (!providers.length) {
       if (empty) empty.style.display = 'flex';
       return;
     }
 
-    for (const model of models) {
+    const KIND_ICONS: Record<string, string> = {
+      ollama: '🦙', openai: '🤖', anthropic: '🧠', google: '🔮', openrouter: '🌐', custom: '🔧',
+    };
+
+    for (const p of providers) {
+      const icon = KIND_ICONS[p.kind] ?? '🔧';
+      const isDefault = p.id === config.default_provider;
       const card = document.createElement('div');
       card.className = 'model-card';
       card.innerHTML = `
         <div class="model-card-header">
-          <span class="model-card-name">${escHtml(model.name ?? model.id)}</span>
-          ${model.provider ? `<span class="model-card-provider">${escHtml(model.provider)}</span>` : ''}
+          <span class="model-card-name">${icon} ${escHtml(p.id)}</span>
+          <span class="model-card-provider">${escHtml(p.kind)}${isDefault ? ' · Default' : ''}</span>
         </div>
         <div class="model-card-meta">
-          ${model.contextWindow ? `<span>${model.contextWindow.toLocaleString()} tokens</span>` : ''}
-          ${model.reasoning ? `<span class="model-card-badge">Reasoning</span>` : ''}
+          ${p.default_model ? `<span>Model: ${escHtml(p.default_model)}</span>` : '<span>No default model</span>'}
+          ${p.base_url ? `<span>${escHtml(p.base_url)}</span>` : ''}
+          <span>${p.api_key ? '🔑 Key set' : p.kind === 'ollama' ? '📍 Local' : '⚠️ No key'}</span>
         </div>
       `;
+
+      // Cache for mode editor model picker
+      if (p.default_model) {
+        _cachedModels.push({ id: p.default_model, name: p.default_model, provider: p.kind });
+      }
+
       list.appendChild(card);
+    }
+
+    // Show global default model info
+    if (config.default_model) {
+      const infoCard = document.createElement('div');
+      infoCard.className = 'model-card';
+      infoCard.style.borderLeft = '3px solid var(--accent)';
+      infoCard.innerHTML = `
+        <div class="model-card-header">
+          <span class="model-card-name">⭐ Default Model</span>
+        </div>
+        <div class="model-card-meta">
+          <span>${escHtml(config.default_model)}</span>
+          <span>Used when no agent or mode overrides the model</span>
+        </div>
+      `;
+      list.appendChild(infoCard);
     }
   } catch (e) {
     console.warn('Models load failed:', e);

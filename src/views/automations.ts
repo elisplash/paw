@@ -1,7 +1,7 @@
 // Automations / Cron View
 // Extracted from main.ts for maintainability
+// NOTE: Cron/automation requires engine API (not yet implemented)
 
-import { gateway } from '../gateway';
 import type { CronJob, CronRunLogEntry } from '../types';
 
 const $ = (id: string) => document.getElementById(id);
@@ -37,22 +37,18 @@ export async function loadCron() {
   const statusEl = $('cron-service-status');
   if (!wsConnected) return;
 
-  // Fetch and display cron service status
-  if (statusEl) {
-    try {
-      const cronSt = await gateway.cronStatus() as Record<string, unknown>;
-      const running = cronSt.running !== false;
-      const jobCount = typeof cronSt.jobs === 'number' ? cronSt.jobs : undefined;
-      statusEl.className = `cron-service-status ${running ? 'running' : 'stopped'}`;
-      statusEl.textContent = running
-        ? `Scheduler active${jobCount != null ? ` · ${jobCount} jobs` : ''}`
-        : 'Scheduler stopped';
-      statusEl.title = running ? 'Cron scheduler is running' : 'Cron scheduler is not running';
-    } catch {
-      statusEl.className = 'cron-service-status';
-      statusEl.textContent = '';
-    }
+  // Automations/Cron not yet available in engine mode
+  if (loading) loading.style.display = 'none';
+  if (board) board.style.display = 'none';
+  if (empty) {
+    empty.style.display = 'flex';
+    empty.innerHTML = '<div class="empty-title">Automations</div><div class="empty-subtitle">Cron job management coming soon to the Paw engine</div>';
   }
+  if (statusEl) {
+    statusEl.className = 'cron-service-status';
+    statusEl.textContent = 'Coming soon';
+  }
+  return;
 
   if (loading) loading.style.display = '';
   if (empty) empty.style.display = 'none';
@@ -62,7 +58,7 @@ export async function loadCron() {
   if (historyCards) historyCards.innerHTML = '';
 
   try {
-    const result = await gateway.cronList();
+    const result = { jobs: [] } as any; // stub — engine cron API coming soon
     if (loading) loading.style.display = 'none';
 
     const jobs = result.jobs ?? [];
@@ -111,7 +107,7 @@ export async function loadCron() {
 
     // Load run history
     try {
-      const runs = await gateway.cronRuns(undefined, 20);
+      const runs = { runs: [] } as any; // stub
       if (runs.runs?.length && historyCards) {
         for (const run of runs.runs.slice(0, 15)) {
           renderRunHistoryCard(run, historyCards);
@@ -194,7 +190,7 @@ function wireCardActions(container: HTMLElement | null) {
   container.querySelectorAll('.cron-run').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = (btn as HTMLElement).dataset.id!;
-      try { await gateway.cronRun(id); alert('Job triggered!'); }
+      try { alert('Cron management coming soon to the Paw engine'); }
       catch (e) { alert(`Failed: ${e}`); }
     });
   });
@@ -216,7 +212,7 @@ function wireCardActions(container: HTMLElement | null) {
     btn.addEventListener('click', async () => {
       const id = (btn as HTMLElement).dataset.id!;
       const enabled = (btn as HTMLElement).dataset.enabled === 'true';
-      try { await gateway.cronUpdate(id, { enabled: !enabled }); loadCron(); }
+      try { alert('Cron management coming soon'); loadCron(); }
       catch (e) { alert(`Failed: ${e}`); }
     });
   });
@@ -224,7 +220,7 @@ function wireCardActions(container: HTMLElement | null) {
     btn.addEventListener('click', async () => {
       const id = (btn as HTMLElement).dataset.id!;
       if (!confirm('Delete this automation?')) return;
-      try { await gateway.cronRemove(id); loadCron(); }
+      try { alert('Cron management coming soon'); loadCron(); }
       catch (e) { alert(`Failed: ${e}`); }
     });
   });
@@ -290,10 +286,10 @@ async function saveCronJob() {
   try {
     if (_editingJobId) {
       // Update existing job
-      await gateway.cronUpdate(_editingJobId, { label, schedule, prompt: prompt_, agentId });
+      await Promise.reject(new Error('Engine cron API coming soon'));
     } else {
       // Create new job
-      await gateway.cronAdd({ label, schedule, prompt: prompt_, enabled: true, agentId });
+      await Promise.reject(new Error('Engine cron API coming soon'));
     }
     hideCronModal();
     loadCron();
