@@ -215,8 +215,8 @@ Use exec to read the DISCORD_BOT_TOKEN and DISCORD_DEFAULT_CHANNEL from environm
             icon: "🪙".into(),
             category: SkillCategory::Vault,
             required_credentials: vec![
-                CredentialField { key: "CDP_API_KEY_NAME".into(), label: "API Key (Key ID)".into(), description: "The 'id' field from cdp_api_key.json (UUID format)".into(), required: true, placeholder: "38e1a5c0-xxxx-xxxx-xxxx-xxxxxxxxxxxx".into() },
-                CredentialField { key: "CDP_API_KEY_SECRET".into(), label: "API Secret (Private Key)".into(), description: "The 'privateKey' field from cdp_api_key.json. Paste the raw base64 string exactly as given.".into(), required: true, placeholder: "+jSZpC...base64...Wg==".into() },
+                CredentialField { key: "CDP_API_KEY_NAME".into(), label: "API Key Name".into(), description: "The 'name' field from cdp_api_key.json (e.g. organizations/abc.../apiKeys/38e1...)".into(), required: true, placeholder: "organizations/{org_id}/apiKeys/{key_id}".into() },
+                CredentialField { key: "CDP_API_KEY_SECRET".into(), label: "API Secret (Private Key)".into(), description: "The 'privateKey' field from cdp_api_key.json. Paste the raw base64 string or PEM block exactly as given.".into(), required: true, placeholder: "+jSZpC...base64...Wg==".into() },
             ],
             tool_names: vec!["coinbase_prices".into(), "coinbase_balance".into(), "coinbase_wallet_create".into(), "coinbase_trade".into(), "coinbase_transfer".into()],
             required_binaries: vec![], required_env_vars: vec![], install_hint: "Get API keys at portal.cdp.coinbase.com".into(),

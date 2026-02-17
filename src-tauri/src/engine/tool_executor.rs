@@ -1352,10 +1352,15 @@ fn build_cdp_jwt(
     path: &str,
 ) -> Result<String, String> {
     use base64::Engine as _;
+    use rand::Rng;
 
     let now = chrono::Utc::now().timestamp() as u64;
-    // Coinbase expects hex nonce (no dashes)
-    let nonce = uuid::Uuid::new_v4().to_string().replace("-", "");
+    // Coinbase CDP SDK uses numeric-only nonce (16 digits)
+    let nonce: String = {
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
+        (0..16).map(|_| (b'0' + rng.gen_range(0..10u8)) as char).collect()
+    };
     let uri = format!("{} {}{}", method, host, path);
     let secret_clean = key_secret.replace("\\n", "\n").trim().to_string();
 
@@ -1368,6 +1373,7 @@ fn build_cdp_jwt(
 
     info!("[skill:coinbase] JWT: alg={}, key_type={:?}, uri={}", alg, key_type, uri);
 
+    // JWT format from Coinbase CDP SDK (cdp-sdk-python/cdp/cdp_api_client.py)
     let header = serde_json::json!({
         "alg": alg,
         "kid": key_name,
@@ -1375,13 +1381,13 @@ fn build_cdp_jwt(
         "typ": "JWT"
     });
 
-    // Coinbase Cloud REST API JWT format
     let payload = serde_json::json!({
         "sub": key_name,
-        "iss": "coinbase-cloud",
+        "iss": "cdp",
+        "aud": ["cdp_service"],
         "nbf": now,
         "exp": now + 120,
-        "uri": uri
+        "uris": [uri]
     });
 
     let b64_header = base64::engine::general_purpose::URL_SAFE_NO_PAD
