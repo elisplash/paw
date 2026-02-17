@@ -839,7 +839,7 @@ impl ToolDefinition {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "coinbase_prices".into(),
-                description: "Get current spot prices for one or more crypto assets from Coinbase. Returns USD prices. Use this to check market conditions before trading.".into(),
+                description: "Get current spot prices for one or more crypto assets from Coinbase. Returns USD prices. Credentials are auto-injected — just call this tool directly.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -859,7 +859,7 @@ impl ToolDefinition {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "coinbase_balance".into(),
-                description: "Check wallet/account balances on Coinbase. Returns all non-zero balances with USD values.".into(),
+                description: "Check wallet/account balances on Coinbase. Returns all non-zero balances with USD values. Credentials are auto-injected — just call this tool directly.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {

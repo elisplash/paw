@@ -215,12 +215,14 @@ Use exec to read the DISCORD_BOT_TOKEN and DISCORD_DEFAULT_CHANNEL from environm
             icon: "🪙".into(),
             category: SkillCategory::Vault,
             required_credentials: vec![
-                CredentialField { key: "CDP_API_KEY_NAME".into(), label: "API Key (Key ID)".into(), description: "The Key ID shown in the CDP portal (e.g. 38e1a5c0-...)".into(), required: true, placeholder: "38e1a5c0-xxxx-xxxx-xxxx-xxxxxxxxxxxx".into() },
-                CredentialField { key: "CDP_API_KEY_SECRET".into(), label: "API Secret (Private Key)".into(), description: "The secret or private key from Coinbase. Paste exactly as given.".into(), required: true, placeholder: "-----BEGIN EC PRIVATE KEY-----\n...".into() },
+                CredentialField { key: "CDP_API_KEY_NAME".into(), label: "API Key (Key ID)".into(), description: "The 'id' field from cdp_api_key.json (UUID format)".into(), required: true, placeholder: "38e1a5c0-xxxx-xxxx-xxxx-xxxxxxxxxxxx".into() },
+                CredentialField { key: "CDP_API_KEY_SECRET".into(), label: "API Secret (Private Key)".into(), description: "The 'privateKey' field from cdp_api_key.json. Paste the raw base64 string exactly as given.".into(), required: true, placeholder: "+jSZpC...base64...Wg==".into() },
             ],
             tool_names: vec!["coinbase_prices".into(), "coinbase_balance".into(), "coinbase_wallet_create".into(), "coinbase_trade".into(), "coinbase_transfer".into()],
             required_binaries: vec![], required_env_vars: vec![], install_hint: "Get API keys at portal.cdp.coinbase.com".into(),
             agent_instructions: r#"You have Coinbase CDP (Developer Platform) access for crypto trading and wallet management.
+
+IMPORTANT: Credentials are already configured and injected automatically. Do NOT read, inspect, or validate API key files. Do NOT tell the user their key format is wrong. Just call the tools — the engine handles all authentication (Ed25519 signing, JWT construction). If a tool call fails, report the exact error message — do not guess at the cause.
 
 Available tools:
 - **coinbase_prices**: Get current spot prices for crypto assets (e.g. BTC, ETH). Read-only, no approval needed.
@@ -237,7 +239,7 @@ Risk Management Rules:
 - Check balances before proposing any trade
 - If the user hasn't set risk parameters, ask before trading
 
-Credentials are injected securely — never ask the user for API keys in chat."#.into(),
+Credentials are injected securely — never ask the user for API keys in chat. Never read cdp_api_key.json or any credential files."#.into(),
         },
         SkillDefinition {
             id: "notion".into(),
