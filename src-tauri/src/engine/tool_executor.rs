@@ -84,6 +84,22 @@ async fn execute_exec(args: &serde_json::Value, app_handle: &tauri::AppHandle) -
 
     info!("[engine] exec: {}", &command[..command.len().min(200)]);
 
+    // Block installing packages that duplicate built-in skill tools
+    let cmd_lower = command.to_lowercase();
+    let blocked_packages = ["cdp-sdk", "coinbase-sdk", "coinbase-advanced-py", "cbpro", "coinbase"];
+    if cmd_lower.contains("pip") || cmd_lower.contains("npm") {
+        for pkg in &blocked_packages {
+            if cmd_lower.contains(pkg) {
+                return Err(format!(
+                    "Do not install '{}'. Coinbase access is handled by built-in tools: \
+                     coinbase_balance, coinbase_prices, coinbase_trade, coinbase_transfer. \
+                     Call those tools directly.",
+                    pkg
+                ));
+            }
+        }
+    }
+
     // Check sandbox config — if enabled, route through Docker container
     let sandbox_config = {
         let state = app_handle.state::<EngineState>();
@@ -242,6 +258,19 @@ async fn execute_write_file(args: &serde_json::Value) -> Result<String, String> 
         .ok_or("write_file: missing 'content' argument")?;
 
     info!("[engine] write_file: {} ({} bytes)", path, content.len());
+
+    // Block writing files that contain credential-like patterns
+    let content_lower = content.to_lowercase();
+    let has_private_key = content.contains("-----BEGIN") && content.contains("PRIVATE KEY");
+    let has_api_secret = content_lower.contains("api_key_secret") || content_lower.contains("cdp_api_key");
+    let has_raw_b64_key = content.len() > 40 && content.contains("==") && (content_lower.contains("secret") || content_lower.contains("private"));
+    if has_private_key || has_api_secret || has_raw_b64_key {
+        return Err(
+            "Cannot write files containing API secrets or private keys. \
+             Credentials are managed securely by the engine — use built-in skill tools directly."
+            .into()
+        );
+    }
 
     // Create parent directories if needed
     if let Some(parent) = std::path::Path::new(path).parent() {

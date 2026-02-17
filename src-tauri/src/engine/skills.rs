@@ -1053,7 +1053,9 @@ pub fn get_enabled_skill_instructions(store: &SessionStore) -> Result<String, St
         if base_instructions.is_empty() { continue; }
 
         // For skills with credentials, inject actual values into the instructions
-        let instructions = if !def.required_credentials.is_empty() {
+        // UNLESS the skill has built-in tool_executor auth (credentials stay server-side)
+        let hidden_credential_skills = ["coinbase"];
+        let instructions = if !def.required_credentials.is_empty() && !hidden_credential_skills.contains(&def.id.as_str()) {
             inject_credentials_into_instructions(store, &def.id, &def.required_credentials, &base_instructions)
         } else {
             base_instructions
