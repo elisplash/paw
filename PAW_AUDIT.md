@@ -1,6 +1,6 @@
 # Pawz vs OpenClaw — Full Competitive Audit
 
-> Last updated: 2025-02-17 (P1 complete)
+> Last updated: 2025-02-17 (P1 complete, P2 complete)
 > Source: OpenClaw docs (docs.openclaw.ai) + full Pawz codebase audit
 
 ---
@@ -95,9 +95,9 @@ OpenClaw automatically compacts conversation history when context fills up with 
 
 | Feature | OpenClaw | Pawz |
 |---------|----------|------|
-| Hybrid search | BM25 + vector with MMR re-ranking | Vector-only (keyword fallback) |
-| Temporal decay | Yes — recent memories weighted higher | No |
-| Conversation-aware | Filters by session/agent | No filtering |
+| Hybrid search | BM25 + vector with MMR re-ranking | ✅ BM25 FTS5 + vector, weighted merge, MMR |
+| Temporal decay | Yes — recent memories weighted higher | ✅ Exponential decay (30-day half-life) |
+| Conversation-aware | Filters by session/agent | ✅ Per-agent memory scope |
 
 ### 2.6 HIGH: Text-to-Speech
 
@@ -176,10 +176,10 @@ OpenClaw has managed profiles, Playwright, Chrome Extension relay. Pawz has basi
 |---------|:----:|:--------:|
 | Long-term memory store | ✅ (SQLite) | ✅ (Markdown/QMD) |
 | Vector search | ✅ (Ollama embeddings) | ✅ |
-| BM25 text search | ❌ | ✅ |
-| Hybrid BM25+vector | ❌ | ✅ |
-| MMR re-ranking | ❌ | ✅ |
-| Temporal decay | ❌ | ✅ |
+| BM25 text search | ✅ | ✅ |
+| Hybrid BM25+vector | ✅ | ✅ |
+| MMR re-ranking | ✅ | ✅ |
+| Temporal decay | ✅ | ✅ |
 | Auto-recall | ✅ | ✅ |
 | Auto-capture | ✅ | ✅ |
 | Memory export | ✅ | ❌ |
@@ -256,10 +256,10 @@ OpenClaw has managed profiles, Playwright, Chrome Extension relay. Pawz has basi
 
 | # | Feature | Effort | Status |
 |---|---------|--------|--------|
-| 8 | **BM25 Full-Text Search** — SQLite FTS5 | S | ❌ NOT STARTED |
-| 9 | **Temporal Decay** — recency weighting | S | ❌ NOT STARTED |
-| 10 | **MMR Re-ranking** — diversity in recall | S | ❌ NOT STARTED |
-| 11 | **Per-Agent Memory Scope** — memories tagged by agent | M | ❌ NOT STARTED |
+| 8 | **BM25 Full-Text Search** — SQLite FTS5 virtual table, BM25 scoring | S | ✅ DONE (66ae16f) |
+| 9 | **Temporal Decay** — exponential decay with 30-day half-life | S | ✅ DONE (66ae16f) |
+| 10 | **MMR Re-ranking** — Jaccard-based diversity, lambda=0.7 | S | ✅ DONE (66ae16f) |
+| 11 | **Per-Agent Memory Scope** — agent_id column, filtered search | M | ✅ DONE (66ae16f) |
 
 ### Phase 3: Voice & TTS
 
@@ -319,4 +319,4 @@ Backend: `src-tauri/src/engine/{feature}/` or `src-tauri/src/engine/{feature}.rs
 
 ---
 
-**TL;DR**: ~~Close the 6 P1 gaps~~ **All 6 P1 features are DONE.** WhatsApp remains as Phase 1.5. Next up: Phase 2 (Memory & Intelligence) and Phase 3 (Voice & TTS).
+**TL;DR**: ~~Close the 6 P1 gaps~~ **All 6 P1 features are DONE. All 4 P2 Memory & Intelligence features are DONE.** WhatsApp remains as Phase 1.5. Next up: Phase 3 (Voice & TTS).
