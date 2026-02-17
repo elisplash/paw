@@ -703,6 +703,9 @@ pub struct ChatAttachment {
     pub mime_type: String,
     /// Base64-encoded file content (without data: prefix)
     pub content: String,
+    /// Original filename (optional)
+    #[serde(default)]
+    pub name: Option<String>,
 }
 
 // ── Chat Send Response (to frontend) ───────────────────────────────────

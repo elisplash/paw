@@ -86,7 +86,7 @@ export async function engineChatSend(
     model?: string;
     temperature?: number;
     agentProfile?: { name?: string; bio?: string; systemPrompt?: string; model?: string; personality?: { tone?: string; initiative?: string; detail?: string }; boundaries?: string[] };
-    attachments?: Array<{ type?: string; mimeType: string; content: string }>;
+    attachments?: Array<{ type?: string; mimeType: string; content: string; name?: string; fileName?: string }>;
   } = {},
 ): Promise<{ runId: string; sessionKey: string; status: string }> {
 
@@ -138,6 +138,7 @@ export async function engineChatSend(
     attachments: opts.attachments?.map(a => ({
       mimeType: a.mimeType,
       content: a.content,
+      name: a.name || a.fileName,
     })),
   };
 

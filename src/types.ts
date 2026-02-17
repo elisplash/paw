@@ -215,12 +215,14 @@ export type ContentBlock =
 /** Attachment for chat messages (images, documents, etc.) */
 /** Attachment for chat.send - matches OpenClaw gateway format */
 export interface ChatAttachment {
-  /** Type identifier (e.g., 'image') */
+  /** Type identifier (e.g., 'image', 'file') */
   type?: string;
   /** MIME type (e.g., 'image/png', 'application/pdf') */
   mimeType?: string;
   /** Original filename */
   fileName?: string;
+  /** Original filename (engine format) */
+  name?: string;
   /** Base64-encoded content */
   content?: string;
 }

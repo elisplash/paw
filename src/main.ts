@@ -1376,15 +1376,17 @@ async function sendMessage() {
   if (!content || isLoading) return;
 
   // Convert pending File[] to attachments (matching webchat format)
-  const attachments: Array<{ type: string; mimeType: string; content: string }> = [];
+  const attachments: Array<{ type: string; mimeType: string; content: string; name?: string }> = [];
   if (_pendingAttachments.length > 0) {
     for (const file of _pendingAttachments) {
       try {
         const base64 = await fileToBase64(file);
+        const mime = file.type || (file.name?.match(/\.(txt|md|csv|json|xml|html|css|js|ts|py|rs|sh|yaml|yml|toml|log)$/i) ? 'text/plain' : 'application/octet-stream');
         attachments.push({
-          type: 'image',
-          mimeType: file.type || 'image/png',
+          type: mime.startsWith('image/') ? 'image' : 'file',
+          mimeType: mime,
           content: base64,
+          name: file.name,
         });
       } catch (e) {
         console.error('[Chat] Failed to encode attachment:', file.name, e);

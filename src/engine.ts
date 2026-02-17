@@ -32,7 +32,7 @@ export interface EngineChatRequest {
   provider_id?: string;
   tools_enabled?: boolean;
   agent_id?: string;
-  attachments?: Array<{ mimeType: string; content: string }>;
+  attachments?: Array<{ mimeType: string; content: string; name?: string }>;
 }
 
 export interface EngineChatResponse {

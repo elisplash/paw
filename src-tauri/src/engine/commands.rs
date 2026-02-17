@@ -234,14 +234,15 @@ pub async fn engine_chat_send(
     )?;
 
     // If the user message has attachments, replace the last (user) message with
-    // one that includes image content blocks, so the provider can see the images.
+    // content blocks so the provider can see images and text files.
     if !request.attachments.is_empty() {
-        // Pop the plain-text user message we just loaded from DB
         if let Some(last_msg) = messages.last_mut() {
             if last_msg.role == Role::User {
                 let mut blocks = vec![ContentBlock::Text { text: request.message.clone() }];
                 for att in &request.attachments {
+                    let label = att.name.as_deref().unwrap_or("attachment");
                     if att.mime_type.starts_with("image/") {
+                        // Images → send as vision content blocks (native LLM vision)
                         let data_url = format!("data:{};base64,{}", att.mime_type, att.content);
                         blocks.push(ContentBlock::ImageUrl {
                             image_url: ImageUrlData {
@@ -249,6 +250,29 @@ pub async fn engine_chat_send(
                                 detail: Some("auto".into()),
                             },
                         });
+                    } else {
+                        // Non-image files → decode base64 to text and inline
+                        use base64::Engine as _;
+                        match base64::engine::general_purpose::STANDARD.decode(&att.content) {
+                            Ok(bytes) => {
+                                let text_content = String::from_utf8_lossy(&bytes);
+                                blocks.push(ContentBlock::Text {
+                                    text: format!(
+                                        "[Attached file: {} ({})]\n```\n{}\n```",
+                                        label, att.mime_type, text_content
+                                    ),
+                                });
+                            }
+                            Err(e) => {
+                                warn!("[engine] Failed to decode attachment '{}': {}", label, e);
+                                blocks.push(ContentBlock::Text {
+                                    text: format!(
+                                        "[Attached file: {} ({}) — could not decode content]",
+                                        label, att.mime_type
+                                    ),
+                                });
+                            }
+                        }
                     }
                 }
                 last_msg.content = MessageContent::Blocks(blocks);
