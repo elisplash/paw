@@ -4254,6 +4254,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     ResearchModule.configure({ promptModal });
     ResearchModule.initResearchEvents();
 
+    // ── Pawz: Always engine mode — no gateway needed ──
+    // Force engine mode in localStorage so isEngineMode() returns true everywhere
+    // Must be set BEFORE initAgents() so backend agents are loaded on first call
+    localStorage.setItem('paw-runtime-mode', 'engine');
+
     // Initialize Agents module
     AgentsModule.configure({
       switchView,
@@ -4285,10 +4290,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize Orchestrator module
     OrchestratorModule.initOrchestrator();
-
-    // ── Pawz: Always engine mode — no gateway needed ──
-    // Force engine mode in localStorage so isEngineMode() returns true everywhere
-    localStorage.setItem('paw-runtime-mode', 'engine');
 
     loadConfigFromStorage();
     console.log(`[main] Pawz engine mode — starting...`);
