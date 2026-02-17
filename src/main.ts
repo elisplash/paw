@@ -274,6 +274,18 @@ async function connectGateway(): Promise<boolean> {
       });
     }
 
+    // Auto-setup: detect Ollama on first run and add it as a provider
+    pawEngine.autoSetup().then(result => {
+      if (result.action === 'ollama_added') {
+        console.log(`[main] Auto-setup: ${result.message}`);
+        showToast(result.message || `Ollama detected! Using model '${result.model}'.`, 'success');
+        // Refresh engine settings UI if visible
+        if (typeof initEngineSettings === 'function') initEngineSettings();
+      } else if (result.action === 'none' && result.message) {
+        console.log('[main] Auto-setup:', result.message);
+      }
+    }).catch(e => console.warn('[main] Auto-setup failed (non-fatal):', e));
+
     // Auto-initialize Ollama for semantic memory (fire and forget)
     // This starts Ollama if needed and pulls the embedding model
     pawEngine.ensureEmbeddingReady().then(status => {

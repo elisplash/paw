@@ -553,6 +553,139 @@ pub fn engine_status(
     }))
 }
 
+/// Auto-setup: detect Ollama on first run and add it as a provider.
+/// Returns what was done so the frontend can show a toast.
+#[tauri::command]
+pub async fn engine_auto_setup(
+    state: State<'_, EngineState>,
+) -> Result<serde_json::Value, String> {
+    // Only run if no providers are configured yet
+    {
+        let cfg = state.config.lock().map_err(|e| format!("Lock: {}", e))?;
+        if !cfg.providers.is_empty() {
+            return Ok(serde_json::json!({ "action": "none", "reason": "providers_exist" }));
+        }
+    }
+
+    info!("[engine] First run — no providers configured, attempting Ollama auto-detect");
+
+    // Try to reach Ollama
+    let base_url = "http://localhost:11434";
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(3))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    // Check if Ollama is reachable
+    let ollama_up = match client.get(format!("{}/api/tags", base_url)).send().await {
+        Ok(resp) if resp.status().is_success() => true,
+        _ => {
+            // Try to start Ollama if the binary exists
+            if let Ok(_child) = std::process::Command::new("ollama").arg("serve").spawn() {
+                info!("[engine] Attempting to auto-start Ollama...");
+                // Wait for it to come up
+                let mut up = false;
+                for _ in 0..10 {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    if client.get(format!("{}/api/tags", base_url)).send().await.is_ok() {
+                        up = true;
+                        break;
+                    }
+                }
+                up
+            } else {
+                false
+            }
+        }
+    };
+
+    if !ollama_up {
+        info!("[engine] Ollama not found — user will need to configure a provider manually");
+        return Ok(serde_json::json!({
+            "action": "none",
+            "reason": "ollama_not_found",
+            "message": "No AI provider configured. Install Ollama from ollama.ai for free local AI, or add an API key in Settings → Engine."
+        }));
+    }
+
+    // Ollama is up — check what models are available
+    let models: Vec<String> = match client.get(format!("{}/api/tags", base_url)).send().await {
+        Ok(resp) => {
+            if let Ok(data) = resp.json::<serde_json::Value>().await {
+                data["models"].as_array()
+                    .map(|arr| arr.iter().filter_map(|m| m["name"].as_str().map(String::from)).collect())
+                    .unwrap_or_default()
+            } else {
+                vec![]
+            }
+        }
+        _ => vec![],
+    };
+
+    // Pick the best available model, or pull a small one
+    let preferred = ["llama3.2:3b", "llama3.2:1b", "llama3.1:8b", "llama3:8b", "mistral:7b", "gemma2:2b", "phi3:mini", "qwen2.5:3b"];
+    let chosen_model = models.iter()
+        .find(|m| preferred.iter().any(|p| m.starts_with(p.split(':').next().unwrap_or(""))))
+        .cloned()
+        .or_else(|| models.first().cloned());
+
+    let model_name = if let Some(m) = chosen_model {
+        m
+    } else {
+        // No models at all — pull a small one
+        info!("[engine] Ollama has no models — pulling llama3.2:3b");
+        let pull_body = serde_json::json!({ "name": "llama3.2:3b", "stream": false });
+        match client.post(format!("{}/api/pull", base_url))
+            .json(&pull_body)
+            .timeout(std::time::Duration::from_secs(300))
+            .send().await
+        {
+            Ok(resp) if resp.status().is_success() => {
+                info!("[engine] Successfully pulled llama3.2:3b");
+                "llama3.2:3b".to_string()
+            }
+            Ok(resp) => {
+                let status = resp.status();
+                warn!("[engine] Model pull returned {}", status);
+                "llama3.2:3b".to_string() // set it anyway, user can fix
+            }
+            Err(e) => {
+                warn!("[engine] Model pull failed: {}", e);
+                "llama3.2:3b".to_string()
+            }
+        }
+    };
+
+    // Add Ollama as a provider
+    let provider = ProviderConfig {
+        id: "ollama".to_string(),
+        kind: ProviderKind::Ollama,
+        api_key: String::new(),
+        base_url: Some(base_url.to_string()),
+        default_model: Some(model_name.clone()),
+    };
+
+    {
+        let mut cfg = state.config.lock().map_err(|e| format!("Lock: {}", e))?;
+        cfg.providers.push(provider);
+        cfg.default_provider = Some("ollama".to_string());
+        cfg.default_model = Some(model_name.clone());
+
+        let json = serde_json::to_string(&*cfg)
+            .map_err(|e| format!("Serialize: {}", e))?;
+        state.store.set_config("engine_config", &json)?;
+    }
+
+    info!("[engine] Auto-setup complete: Ollama added as default provider with model '{}'", model_name);
+
+    Ok(serde_json::json!({
+        "action": "ollama_added",
+        "model": model_name,
+        "available_models": models,
+        "message": format!("Ollama detected! Set up with model '{}' — ready to chat.", model_name)
+    }))
+}
+
 /// Resolve a pending tool approval from the frontend.
 /// Called by the approval modal when the user clicks Allow or Deny.
 #[tauri::command]

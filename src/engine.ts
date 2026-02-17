@@ -469,6 +469,11 @@ class PawEngineClient {
     return invoke<EngineStatus>('engine_status');
   }
 
+  /** Auto-detect Ollama on first run and add it as a provider. */
+  async autoSetup(): Promise<{ action: string; model?: string; message?: string; available_models?: string[] }> {
+    return invoke('engine_auto_setup');
+  }
+
   /** Resolve a pending tool approval (HIL — Human In the Loop). */
   async approveTool(toolCallId: string, approved: boolean): Promise<void> {
     return invoke('engine_approve_tool', { toolCallId, approved });
