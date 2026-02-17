@@ -46,8 +46,8 @@ pub async fn run_agent_turn(
 
         // ── 2. Assemble the response from chunks ──────────────────────
         let mut text_accum = String::new();
-        let mut tool_call_map: std::collections::HashMap<usize, (String, String, String, Option<String>)> = std::collections::HashMap::new();
-        // (id, name, arguments, thought_signature)
+        let mut tool_call_map: std::collections::HashMap<usize, (String, String, String, Option<String>, Vec<ThoughtPart>)> = std::collections::HashMap::new();
+        // (id, name, arguments, thought_signature, thought_parts)
         let mut has_tool_calls = false;
         let mut _finished = false;
 
@@ -71,7 +71,7 @@ pub async fn run_agent_turn(
             for tc_delta in &chunk.tool_calls {
                 has_tool_calls = true;
                 let entry = tool_call_map.entry(tc_delta.index)
-                    .or_insert_with(|| (String::new(), String::new(), String::new(), None));
+                    .or_insert_with(|| (String::new(), String::new(), String::new(), None, Vec::new()));
 
                 if let Some(id) = &tc_delta.id {
                     entry.0 = id.clone();
@@ -85,6 +85,15 @@ pub async fn run_agent_turn(
                 if tc_delta.thought_signature.is_some() {
                     entry.3 = tc_delta.thought_signature.clone();
                 }
+            }
+
+            // Collect thought parts from chunks that have tool calls
+            if !chunk.thought_parts.is_empty() {
+                // Attach to the first tool call index
+                let first_idx = chunk.tool_calls.first().map(|tc| tc.index).unwrap_or(0);
+                let entry = tool_call_map.entry(first_idx)
+                    .or_insert_with(|| (String::new(), String::new(), String::new(), None, Vec::new()));
+                entry.4.extend(chunk.thought_parts.clone());
             }
 
             if let Some(reason) = &chunk.finish_reason {
@@ -141,7 +150,7 @@ pub async fn run_agent_turn(
         sorted_indices.sort();
 
         for idx in sorted_indices {
-            let (id, name, arguments, thought_sig) = tool_call_map.get(&idx).unwrap();
+            let (id, name, arguments, thought_sig, thoughts) = tool_call_map.get(&idx).unwrap();
 
             // Generate ID if provider didn't supply one
             let call_id = if id.is_empty() {
@@ -158,6 +167,7 @@ pub async fn run_agent_turn(
                     arguments: arguments.clone(),
                 },
                 thought_signature: thought_sig.clone(),
+                thought_parts: thoughts.clone(),
             });
         }
 

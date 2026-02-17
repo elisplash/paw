@@ -122,6 +122,16 @@ pub struct ToolCall {
     /// Google Gemini thought_signature — must be echoed back in functionCall parts
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thought_signature: Option<String>,
+    /// Gemini thought parts that preceded this function call (must be echoed back)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub thought_parts: Vec<ThoughtPart>,
+}
+
+/// A Gemini "thought" part that must be echoed back with function calls
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThoughtPart {
+    pub text: String,
+    pub thought_signature: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -870,6 +880,8 @@ pub struct StreamChunk {
     pub usage: Option<TokenUsage>,
     /// The actual model name returned by the API (proof of which model responded)
     pub model: Option<String>,
+    /// Gemini thought parts that arrived alongside function calls (must be echoed back)
+    pub thought_parts: Vec<ThoughtPart>,
 }
 
 #[derive(Debug, Clone)]

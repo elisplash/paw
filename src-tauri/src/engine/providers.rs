@@ -157,6 +157,7 @@ impl OpenAiProvider {
             finish_reason,
             usage,
             model,
+            thought_parts: vec![],
         })
     }
 }
@@ -421,6 +422,7 @@ impl AnthropicProvider {
                             finish_reason: None,
                             usage: None,
                             model: None,
+                            thought_parts: vec![],
                         })
                     }
                     "input_json_delta" => {
@@ -437,6 +439,7 @@ impl AnthropicProvider {
                             finish_reason: None,
                             usage: None,
                             model: None,
+                            thought_parts: vec![],
                         })
                     }
                     _ => None,
@@ -459,6 +462,7 @@ impl AnthropicProvider {
                         finish_reason: None,
                         usage: None,
                         model: None,
+                        thought_parts: vec![],
                     })
                 } else {
                     None
@@ -485,6 +489,7 @@ impl AnthropicProvider {
                     finish_reason: stop_reason,
                     usage,
                     model: None,
+                    thought_parts: vec![],
                 })
             }
             "message_start" => {
@@ -509,6 +514,7 @@ impl AnthropicProvider {
                     finish_reason: None,
                     usage,
                     model,
+                    thought_parts: vec![],
                 })
             }
             "message_stop" => {
@@ -518,6 +524,7 @@ impl AnthropicProvider {
                     finish_reason: Some("stop".into()),
                     usage: None,
                     model: None,
+                    thought_parts: vec![],
                 })
             }
             _ => None,
@@ -679,20 +686,33 @@ impl GoogleProvider {
                     if !text.is_empty() {
                         parts.push(json!({"text": text}));
                     }
+                    // Echo back thought parts (from thinking models) before functionCall parts
+                    for tc in tool_calls {
+                        for tp in &tc.thought_parts {
+                            let mut thought_part = json!({
+                                "thought": true,
+                                "text": tp.text,
+                            });
+                            if !tp.thought_signature.is_empty() {
+                                thought_part["thoughtSignature"] = json!(tp.thought_signature);
+                            }
+                            parts.push(thought_part);
+                        }
+                    }
                     for tc in tool_calls {
                         let args: Value = serde_json::from_str(&tc.function.arguments)
                             .unwrap_or(json!({}));
-                        let mut fc_obj = json!({
+                        // Build the functionCall part — thought_signature goes at part level (sibling of functionCall)
+                        let mut fc_part = json!({
                             "functionCall": {
                                 "name": tc.function.name,
                                 "args": args,
                             }
                         });
-                        // Echo thought_signature back to Gemini if present
                         if let Some(sig) = &tc.thought_signature {
-                            fc_obj["functionCall"]["thoughtSignature"] = json!(sig);
+                            fc_part["thoughtSignature"] = json!(sig);
                         }
-                        parts.push(fc_obj);
+                        parts.push(fc_part);
                     }
                     contents.push(json!({
                         "role": "model",
@@ -889,7 +909,29 @@ impl GoogleProvider {
                                         .map(|s| s.to_string());
 
                                     if let Some(parts) = content["parts"].as_array() {
+                                        // First pass: collect thought parts (they accompany function calls)
+                                        let mut collected_thoughts: Vec<ThoughtPart> = Vec::new();
                                         for part in parts {
+                                            if part.get("thought").and_then(|v| v.as_bool()).unwrap_or(false) {
+                                                if let (Some(text), Some(sig)) = (
+                                                    part["text"].as_str(),
+                                                    part.get("thoughtSignature").or_else(|| part.get("thought_signature")).and_then(|v| v.as_str())
+                                                ) {
+                                                    info!("[engine] Google: captured thought part with signature (len={})", text.len());
+                                                    collected_thoughts.push(ThoughtPart {
+                                                        text: text.to_string(),
+                                                        thought_signature: sig.to_string(),
+                                                    });
+                                                }
+                                            }
+                                        }
+
+                                        // Second pass: process text and functionCall parts
+                                        for part in parts {
+                                            // Skip thought parts (already collected)
+                                            if part.get("thought").and_then(|v| v.as_bool()).unwrap_or(false) {
+                                                continue;
+                                            }
                                             if let Some(text) = part["text"].as_str() {
                                                 chunks.push(StreamChunk {
                                                     delta_text: Some(text.to_string()),
@@ -897,15 +939,24 @@ impl GoogleProvider {
                                                     finish_reason: finish_reason.clone(),
                                                     usage: None,
                                                     model: api_model.clone(),
+                                                    thought_parts: vec![],
                                             });
                                         }
                                         if let Some(fc) = part.get("functionCall") {
                                             let name = fc["name"].as_str().unwrap_or("").to_string();
                                             let args = fc["args"].clone();
-                                            let thought_sig = fc.get("thoughtSignature")
+                                            // thought_signature can be at the part level OR inside functionCall
+                                            let thought_sig = part.get("thoughtSignature")
+                                                .or_else(|| part.get("thought_signature"))
+                                                .or_else(|| fc.get("thoughtSignature"))
                                                 .or_else(|| fc.get("thought_signature"))
                                                 .and_then(|v| v.as_str())
                                                 .map(|s| s.to_string());
+                                            if thought_sig.is_some() {
+                                                info!("[engine] Google: captured thoughtSignature for fn={}", name);
+                                            } else {
+                                                warn!("[engine] Google: NO thoughtSignature found for fn={} (part keys: {:?})", name, part.as_object().map(|o| o.keys().collect::<Vec<_>>()));
+                                            }
                                             chunks.push(StreamChunk {
                                                 delta_text: None,
                                                 tool_calls: vec![ToolCallDelta {
@@ -918,7 +969,11 @@ impl GoogleProvider {
                                                 finish_reason: finish_reason.clone(),
                                                 usage: None,
                                                 model: api_model.clone(),
+                                                // Attach thought parts to the first functionCall chunk
+                                                thought_parts: collected_thoughts.clone(),
                                             });
+                                            // Only attach thoughts to first function call chunk
+                                            collected_thoughts.clear();
                                         }
                                     }
                                 }
@@ -940,6 +995,7 @@ impl GoogleProvider {
                                         total_tokens: um["totalTokenCount"].as_u64().unwrap_or(input + output),
                                     }),
                                     model: api_model.clone(),
+                                    thought_parts: vec![],
                                 });
                             }
                         }
