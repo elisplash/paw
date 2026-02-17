@@ -59,6 +59,13 @@ impl OpenAiProvider {
                                 "detail": image_url.detail.as_deref().unwrap_or("auto"),
                             }
                         }),
+                        ContentBlock::Document { mime_type, data, name } => json!({
+                            "type": "file",
+                            "file": {
+                                "filename": name.as_deref().unwrap_or("document.pdf"),
+                                "file_data": format!("data:{};base64,{}", mime_type, data),
+                            }
+                        }),
                     }).collect();
                     json!(parts)
                 }
@@ -350,6 +357,17 @@ impl AnthropicProvider {
                                             }
                                         }));
                                     }
+                                }
+                                ContentBlock::Document { mime_type, data, name: _ } => {
+                                    // Anthropic supports PDFs natively as document content blocks
+                                    content_blocks.push(json!({
+                                        "type": "document",
+                                        "source": {
+                                            "type": "base64",
+                                            "media_type": mime_type,
+                                            "data": data,
+                                        }
+                                    }));
                                 }
                             }
                         }
@@ -694,6 +712,15 @@ impl GoogleProvider {
                                             }
                                         }));
                                     }
+                                }
+                                ContentBlock::Document { mime_type, data, name: _ } => {
+                                    // Gemini supports PDFs natively via inlineData
+                                    parts.push(json!({
+                                        "inlineData": {
+                                            "mimeType": mime_type,
+                                            "data": data,
+                                        }
+                                    }));
                                 }
                             }
                         }

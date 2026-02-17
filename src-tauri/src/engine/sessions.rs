@@ -361,6 +361,7 @@ impl SessionStore {
                 MessageContent::Blocks(blocks) => blocks.iter().map(|b| match b {
                     ContentBlock::Text { text } => text.len(),
                     ContentBlock::ImageUrl { .. } => 1000, // rough estimate for images
+                    ContentBlock::Document { data, .. } => data.len() / 4, // rough: base64 → chars
                 }).sum(),
             };
             let tc_len = m.tool_calls.as_ref().map(|tcs| {

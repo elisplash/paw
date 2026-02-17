@@ -252,8 +252,15 @@ pub async fn engine_chat_send(
                                 detail: Some("auto".into()),
                             },
                         });
+                    } else if att.mime_type == "application/pdf" {
+                        // PDFs → send as native document blocks (Claude, Gemini, OpenAI all support this)
+                        blocks.push(ContentBlock::Document {
+                            mime_type: att.mime_type.clone(),
+                            data: att.content.clone(),
+                            name: att.name.clone(),
+                        });
                     } else {
-                        // Non-image files → decode base64 to text and inline
+                        // Text-based files → decode base64 to text and inline
                         use base64::Engine as _;
                         match base64::engine::general_purpose::STANDARD.decode(&att.content) {
                             Ok(bytes) => {

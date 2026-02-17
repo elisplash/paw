@@ -93,6 +93,15 @@ pub enum ContentBlock {
     Text { text: String },
     #[serde(rename = "image_url")]
     ImageUrl { image_url: ImageUrlData },
+    /// Binary document (PDF, etc.) — base64-encoded, sent natively to providers
+    #[serde(rename = "document")]
+    Document {
+        mime_type: String,
+        /// Raw base64 content (no data: prefix)
+        data: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
