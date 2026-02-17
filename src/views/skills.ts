@@ -62,8 +62,8 @@ export async function loadSkills() {
     }
     return;
     const result = { skills: [] } as { skills: any[] }; // stub
-    if (false) // unreachable — kept for type checker
-
+    if (false) { // unreachable — kept for type checker
+    }
     const skills = result.skills ?? [];
     if (!skills.length) {
       if (empty) empty.style.display = 'flex';
