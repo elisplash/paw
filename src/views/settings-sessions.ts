@@ -1,40 +1,19 @@
 // Settings: Sessions
-// List sessions, preview, patch overrides, reset/delete, compact
-// ~250 lines
+// List sessions, rename, clear, delete — all via Paw engine (Tauri IPC)
+// No gateway WebSocket.
 
-import { gateway } from '../gateway';
+import { pawEngine, type EngineSession } from '../engine';
 import { showToast } from '../components/toast';
 import {
-  getConfig, patchConfig, getVal, isConnected,
-  esc, formRow, selectInput, saveReloadButtons
+  isConnected,
+  esc
 } from './settings-config';
-import type { Session } from '../types';
 
 const $ = (id: string) => document.getElementById(id);
 
-// ── Option enums ────────────────────────────────────────────────────────────
-
-const THINKING_OPTS = [
-  { value: '', label: '(inherit default)' },
-  { value: 'off', label: 'Off' }, { value: 'minimal', label: 'Minimal' },
-  { value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' }, { value: 'xhigh', label: 'Extra High' },
-];
-
-const VERBOSE_OPTS = [
-  { value: '', label: '(inherit default)' },
-  { value: 'off', label: 'Off' }, { value: 'on', label: 'On' }, { value: 'full', label: 'Full' },
-];
-
-const ELEVATED_OPTS = [
-  { value: '', label: '(inherit default)' },
-  { value: 'off', label: 'Off' }, { value: 'on', label: 'On' },
-  { value: 'ask', label: 'Ask' }, { value: 'full', label: 'Full' },
-];
-
 // ── State ───────────────────────────────────────────────────────────────────
 
-let _sessions: Session[] = [];
+let _sessions: EngineSession[] = [];
 
 // ── Render session list ─────────────────────────────────────────────────────
 
@@ -45,14 +24,7 @@ export async function loadSessionsSettings() {
   container.innerHTML = '<p style="color:var(--text-muted)">Loading sessions…</p>';
 
   try {
-    const result = await gateway.listSessions({
-      limit: 100,
-      includeGlobal: true,
-      includeUnknown: true,
-      includeDerivedTitles: true,
-      includeLastMessage: true,
-    });
-    _sessions = result.sessions ?? [];
+    _sessions = await pawEngine.sessionsList(100);
 
     container.innerHTML = '';
 
@@ -68,19 +40,6 @@ export async function loadSessionsSettings() {
     const acts = document.createElement('div');
     acts.style.cssText = 'display:flex; gap:6px';
 
-    const compactAllBtn = document.createElement('button');
-    compactAllBtn.className = 'btn btn-sm';
-    compactAllBtn.textContent = 'Compact All';
-    compactAllBtn.title = 'Remove redundant messages from all sessions';
-    compactAllBtn.onclick = async () => {
-      try {
-        await gateway.sessionsCompact();
-        showToast('All sessions compacted', 'success');
-        loadSessionsSettings();
-      } catch (e: any) { showToast(e.message || String(e), 'error'); }
-    };
-    acts.appendChild(compactAllBtn);
-
     const refreshBtn = document.createElement('button');
     refreshBtn.className = 'btn btn-sm';
     refreshBtn.textContent = 'Refresh';
@@ -89,43 +48,6 @@ export async function loadSessionsSettings() {
 
     toolbar.appendChild(acts);
     container.appendChild(toolbar);
-
-    // ── Global session config ────────────────────────────────────────────
-    try {
-      const config = await getConfig();
-      const sessConf = (getVal(config, 'sessions') ?? {}) as Record<string, any>;
-      const globalSection = document.createElement('div');
-      globalSection.className = 'settings-card';
-      globalSection.style.cssText = 'margin-bottom:16px; padding:12px; border:1px solid var(--border-color); border-radius:8px';
-      globalSection.innerHTML = '<h4 style="margin:0 0 8px">Session Defaults</h4>';
-
-      const maxRow = formRow('Max Session Turns', 'Auto-compact sessions exceeding this turn count');
-      const maxInp = document.createElement('input');
-      maxInp.type = 'number'; maxInp.className = 'input'; maxInp.min = '0';
-      maxInp.value = String(sessConf.maxTurns ?? '');
-      maxInp.placeholder = '50'; maxInp.style.maxWidth = '120px';
-      maxRow.appendChild(maxInp);
-      globalSection.appendChild(maxRow);
-
-      const ttlRow = formRow('Session TTL (minutes)', 'Auto-expire inactive sessions after N minutes');
-      const ttlInp = document.createElement('input');
-      ttlInp.type = 'number'; ttlInp.className = 'input'; ttlInp.min = '0';
-      ttlInp.value = String(sessConf.ttlMinutes ?? '');
-      ttlInp.placeholder = '0 (no expiry)'; ttlInp.style.maxWidth = '160px';
-      ttlRow.appendChild(ttlInp);
-      globalSection.appendChild(ttlRow);
-
-      globalSection.appendChild(saveReloadButtons(
-        async () => {
-          const patch: Record<string, unknown> = {};
-          if (maxInp.value) patch.maxTurns = parseInt(maxInp.value);
-          if (ttlInp.value) patch.ttlMinutes = parseInt(ttlInp.value);
-          await patchConfig({ sessions: patch });
-        },
-        () => loadSessionsSettings()
-      ));
-      container.appendChild(globalSection);
-    } catch (_) { /* config read may fail — skip global section */ }
 
     // ── Session cards ────────────────────────────────────────────────────
     if (_sessions.length === 0) {
@@ -147,13 +69,13 @@ export async function loadSessionsSettings() {
 
 // ── Session card ────────────────────────────────────────────────────────────
 
-function buildSessionCard(sess: Session): HTMLElement {
+function buildSessionCard(sess: EngineSession): HTMLElement {
   const card = document.createElement('div');
   card.className = 'settings-card';
   card.style.cssText = 'margin-bottom:10px; padding:12px; border:1px solid var(--border-color); border-radius:8px';
 
-  const ts = sess.updatedAt ? new Date(sess.updatedAt * 1000).toLocaleString() : '—';
-  const label = sess.displayName || sess.label || sess.key;
+  const ts = sess.updated_at ? new Date(sess.updated_at).toLocaleString() : '—';
+  const label = sess.label || sess.id;
 
   // Header row
   const header = document.createElement('div');
@@ -162,97 +84,73 @@ function buildSessionCard(sess: Session): HTMLElement {
     <div style="flex:1; min-width:200px">
       <strong style="font-size:14px">${esc(label)}</strong>
       <div style="color:var(--text-muted); font-size:12px; margin-top:2px">
-        <span class="badge" style="font-size:11px">${esc(sess.kind)}</span>
-        ${sess.channel ? `<span class="badge" style="font-size:11px; margin-left:4px">${esc(sess.channel)}</span>` : ''}
+        <span class="badge" style="font-size:11px">${esc(sess.model)}</span>
+        <span style="margin-left:6px">${sess.message_count} messages</span>
         <span style="margin-left:6px">${esc(ts)}</span>
       </div>
-      <div style="color:var(--text-muted); font-size:11px; margin-top:2px; font-family:monospace">${esc(sess.key)}</div>
+      <div style="color:var(--text-muted); font-size:11px; margin-top:2px; font-family:monospace">${esc(sess.id)}</div>
     </div>
   `;
   card.appendChild(header);
 
-  // ── Overrides (expandable) ─────────────────────────────────────────────
+  // ── Actions (expandable) ───────────────────────────────────────────────
   const details = document.createElement('details');
   details.style.marginTop = '8px';
   const summary = document.createElement('summary');
   summary.style.cssText = 'cursor:pointer; color:var(--text-muted); font-size:13px';
-  summary.textContent = 'Session Overrides & Actions';
+  summary.textContent = 'Actions';
   details.appendChild(summary);
 
-  const overridesBody = document.createElement('div');
-  overridesBody.style.cssText = 'margin-top:8px; display:flex; flex-direction:column; gap:6px';
+  const actionsBody = document.createElement('div');
+  actionsBody.style.cssText = 'margin-top:8px; display:flex; flex-direction:column; gap:6px';
 
-  // Thinking override
-  const thinkRow = formRow('Thinking');
-  const thinkSel = selectInput(THINKING_OPTS, sess.thinkingLevel ?? '');
-  thinkSel.style.maxWidth = '180px';
-  thinkRow.appendChild(thinkSel);
-  overridesBody.appendChild(thinkRow);
-
-  // Verbose override
-  const verbRow = formRow('Verbose');
-  const verbSel = selectInput(VERBOSE_OPTS, '');
-  verbSel.style.maxWidth = '180px';
-  verbRow.appendChild(verbSel);
-  overridesBody.appendChild(verbRow);
-
-  // Elevated override
-  const elevRow = formRow('Elevated');
-  const elevSel = selectInput(ELEVATED_OPTS, '');
-  elevSel.style.maxWidth = '180px';
-  elevRow.appendChild(elevSel);
-  overridesBody.appendChild(elevRow);
-
-  // Actions row
-  const actRow = document.createElement('div');
-  actRow.style.cssText = 'display:flex; gap:6px; margin-top:8px; flex-wrap:wrap';
-
-  const patchBtn = document.createElement('button');
-  patchBtn.className = 'btn btn-sm btn-primary';
-  patchBtn.textContent = 'Save Overrides';
-  patchBtn.onclick = async () => {
+  // Rename
+  const renameRow = document.createElement('div');
+  renameRow.style.cssText = 'display:flex;gap:6px;align-items:center';
+  const renameInp = document.createElement('input');
+  renameInp.type = 'text';
+  renameInp.className = 'form-input';
+  renameInp.value = sess.label || '';
+  renameInp.placeholder = 'Session label';
+  renameInp.style.cssText = 'flex:1;max-width:280px;font-size:13px';
+  const renameBtn = document.createElement('button');
+  renameBtn.className = 'btn btn-sm btn-primary';
+  renameBtn.textContent = 'Rename';
+  renameBtn.onclick = async () => {
     try {
-      const patch: Record<string, unknown> = {};
-      if (thinkSel.value) patch.thinkingLevel = thinkSel.value;
-      if (verbSel.value) patch.verbose = verbSel.value;
-      if (elevSel.value) patch.elevated = elevSel.value;
-      await gateway.patchSession(sess.key, patch);
-      showToast(`Session "${label}" updated`, 'success');
-    } catch (e: any) { showToast(e.message || String(e), 'error'); }
-  };
-  actRow.appendChild(patchBtn);
-
-  const compactBtn = document.createElement('button');
-  compactBtn.className = 'btn btn-sm';
-  compactBtn.textContent = 'Compact';
-  compactBtn.onclick = async () => {
-    try {
-      await gateway.sessionsCompact(sess.key);
-      showToast(`Session "${label}" compacted`, 'success');
-    } catch (e: any) { showToast(e.message || String(e), 'error'); }
-  };
-  actRow.appendChild(compactBtn);
-
-  const resetBtn = document.createElement('button');
-  resetBtn.className = 'btn btn-sm';
-  resetBtn.textContent = 'Reset';
-  resetBtn.style.color = 'var(--warning)';
-  let resetPending = false;
-  resetBtn.onclick = async () => {
-    if (!resetPending) {
-      resetPending = true;
-      resetBtn.textContent = 'Confirm Reset?';
-      setTimeout(() => { if (resetPending) { resetPending = false; resetBtn.textContent = 'Reset'; } }, 4000);
-      return;
-    }
-    resetPending = false;
-    try {
-      await gateway.resetSession(sess.key);
-      showToast(`Session "${label}" reset`, 'success');
+      await pawEngine.sessionRename(sess.id, renameInp.value.trim());
+      showToast(`Session renamed`, 'success');
       loadSessionsSettings();
     } catch (e: any) { showToast(e.message || String(e), 'error'); }
   };
-  actRow.appendChild(resetBtn);
+  renameRow.appendChild(renameInp);
+  renameRow.appendChild(renameBtn);
+  actionsBody.appendChild(renameRow);
+
+  // Action buttons row
+  const actRow = document.createElement('div');
+  actRow.style.cssText = 'display:flex; gap:6px; margin-top:4px; flex-wrap:wrap';
+
+  const clearBtn = document.createElement('button');
+  clearBtn.className = 'btn btn-sm';
+  clearBtn.textContent = 'Clear Messages';
+  clearBtn.style.color = 'var(--warning)';
+  let clearPending = false;
+  clearBtn.onclick = async () => {
+    if (!clearPending) {
+      clearPending = true;
+      clearBtn.textContent = 'Confirm Clear?';
+      setTimeout(() => { if (clearPending) { clearPending = false; clearBtn.textContent = 'Clear Messages'; } }, 4000);
+      return;
+    }
+    clearPending = false;
+    try {
+      await pawEngine.sessionClear(sess.id);
+      showToast(`Session "${label}" cleared`, 'success');
+      loadSessionsSettings();
+    } catch (e: any) { showToast(e.message || String(e), 'error'); }
+  };
+  actRow.appendChild(clearBtn);
 
   const deleteBtn = document.createElement('button');
   deleteBtn.className = 'btn btn-sm';
@@ -269,16 +167,16 @@ function buildSessionCard(sess: Session): HTMLElement {
     }
     deletePending = false;
     try {
-      await gateway.deleteSession(sess.key);
+      await pawEngine.sessionDelete(sess.id);
       showToast(`Session "${label}" deleted`, 'success');
       card.remove();
-      _sessions = _sessions.filter(s => s.key !== sess.key);
+      _sessions = _sessions.filter(s => s.id !== sess.id);
     } catch (e: any) { showToast(e.message || String(e), 'error'); }
   };
   actRow.appendChild(deleteBtn);
 
-  overridesBody.appendChild(actRow);
-  details.appendChild(overridesBody);
+  actionsBody.appendChild(actRow);
+  details.appendChild(actionsBody);
   card.appendChild(details);
   return card;
 }

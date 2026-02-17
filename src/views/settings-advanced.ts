@@ -1,37 +1,43 @@
-// Settings: Advanced — Gateway, Logging, Updates, Sandbox, Hooks
-// ~230 lines
+// Settings: Advanced — Engine Config, Ollama, Providers, Tool Limits, System Prompt
+// All config goes through the Paw engine (Tauri IPC). No gateway.
 
+import { pawEngine, type EngineProviderConfig } from '../engine';
+import { showToast } from '../components/toast';
 import {
-  getConfig, patchConfig, getVal, isConnected,
-  esc, formRow, selectInput, textInput, numberInput, toggleSwitch, saveReloadButtons
+  isConnected,
+  esc, formRow, selectInput, textInput, numberInput, saveReloadButtons
 } from './settings-config';
 
 const $ = (id: string) => document.getElementById(id);
 
-// ── Option sets ─────────────────────────────────────────────────────────────
+// ── Provider Kinds ──────────────────────────────────────────────────────────
 
-const LOG_LEVELS = [
-  { value: 'error', label: 'Error' }, { value: 'warn', label: 'Warn' },
-  { value: 'info', label: 'Info' }, { value: 'debug', label: 'Debug' },
-  { value: 'trace', label: 'Trace' },
+const PROVIDER_KINDS: Array<{ value: string; label: string }> = [
+  { value: 'ollama', label: 'Ollama (local)' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'anthropic', label: 'Anthropic' },
+  { value: 'google', label: 'Google' },
+  { value: 'openrouter', label: 'OpenRouter' },
+  { value: 'custom', label: 'Custom / Compatible' },
 ];
 
-const LOG_STYLES = [
-  { value: 'text', label: 'Plain text' }, { value: 'json', label: 'JSON' },
-];
+const DEFAULT_BASE_URLS: Record<string, string> = {
+  ollama: 'http://localhost:11434',
+  openai: 'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com',
+  google: 'https://generativelanguage.googleapis.com/v1beta',
+  openrouter: 'https://openrouter.ai/api/v1',
+  custom: '',
+};
 
-const UPDATE_CHANNELS = [
-  { value: 'stable', label: 'Stable' },
-  { value: 'beta', label: 'Beta' },
-  { value: 'none', label: 'Disabled' },
-];
-
-const SANDBOX_MODES = [
-  { value: 'off', label: 'Off' },
-  { value: 'docker', label: 'Docker' },
-  { value: 'nsjail', label: 'nsjail' },
-  { value: 'firejail', label: 'Firejail' },
-];
+const POPULAR_MODELS: Record<string, string[]> = {
+  ollama: ['llama3.2:3b', 'llama3.1:8b', 'llama3.1:70b', 'mistral:7b', 'codellama:13b', 'deepseek-coder:6.7b', 'phi3:mini', 'qwen2.5:7b'],
+  openai: ['gpt-4o', 'gpt-4o-mini', 'o1', 'o3-mini'],
+  anthropic: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022', 'claude-opus-4-20250514'],
+  google: ['gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-flash-8b'],
+  openrouter: ['meta-llama/llama-3.1-405b-instruct', 'anthropic/claude-sonnet-4-20250514'],
+  custom: [],
+};
 
 // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -39,251 +45,329 @@ export async function loadAdvancedSettings() {
   if (!isConnected()) return;
   const container = $('settings-advanced-content');
   if (!container) return;
-  container.innerHTML = '<p style="color:var(--text-muted)">Loading…</p>';
+  container.innerHTML = '<p style="color:var(--text-muted)">Loading engine config…</p>';
 
   try {
-    const config = await getConfig();
+    const config = await pawEngine.getConfig();
     container.innerHTML = '';
 
-    // ── Gateway Network ──────────────────────────────────────────────────
-    const netSection = document.createElement('div');
-    netSection.innerHTML = '<h3 class="settings-subsection-title">Gateway Network</h3>';
-    const gw = (getVal(config, 'gateway') ?? {}) as Record<string, any>;
+    // ── Ollama Quick Setup ───────────────────────────────────────────────
+    const ollamaSection = document.createElement('div');
+    ollamaSection.className = 'settings-subsection';
 
-    const portRow = formRow('Port', 'Gateway listen port');
-    const portInp = numberInput(gw.port, { min: 1, max: 65535, placeholder: '3578' });
-    portInp.style.maxWidth = '120px';
-    portRow.appendChild(portInp);
-    netSection.appendChild(portRow);
+    const hasOllama = config.providers.some(p => p.kind === 'ollama');
 
-    const bindRow = formRow('Bind Address', 'Interface to bind (0.0.0.0 = all)');
-    const bindInp = textInput(gw.bind ?? '', '0.0.0.0');
-    bindInp.style.maxWidth = '200px';
-    bindRow.appendChild(bindInp);
-    netSection.appendChild(bindRow);
+    ollamaSection.innerHTML = `
+      <h3 class="settings-subsection-title">🦙 Ollama (Local AI)</h3>
+      <p class="form-hint" style="margin:0 0 12px;font-size:12px;color:var(--text-muted)">
+        Run AI models on your own machine — free, private, no API key needed.
+        ${!hasOllama ? '<br><strong style="color:var(--warning)">Not configured yet.</strong> Install Ollama from <a href="https://ollama.ai" target="_blank" style="color:var(--accent)">ollama.ai</a> then add it below.' : ''}
+      </p>
+    `;
 
-    // TLS
-    const { container: tlsToggle, checkbox: tlsCb } = toggleSwitch(gw.tls?.enabled === true, 'Enable TLS');
-    netSection.appendChild(tlsToggle);
+    const ollamaProvider = config.providers.find(p => p.kind === 'ollama');
 
-    const certRow = formRow('TLS Certificate Path');
-    const certInp = textInput(gw.tls?.cert ?? '', '/path/to/cert.pem');
-    certRow.appendChild(certInp);
-    netSection.appendChild(certRow);
+    const ollamaUrlRow = formRow('Ollama URL', 'Where Ollama is running (default: http://localhost:11434)');
+    const ollamaUrlInp = textInput(ollamaProvider?.base_url ?? 'http://localhost:11434', 'http://localhost:11434');
+    ollamaUrlInp.style.maxWidth = '320px';
+    ollamaUrlRow.appendChild(ollamaUrlInp);
+    ollamaSection.appendChild(ollamaUrlRow);
 
-    const keyRow = formRow('TLS Key Path');
-    const keyInp = textInput(gw.tls?.key ?? '', '/path/to/key.pem');
-    keyRow.appendChild(keyInp);
-    netSection.appendChild(keyRow);
+    const ollamaModelRow = formRow('Default Model', 'Which Ollama model to use');
+    const ollamaModelInp = textInput(ollamaProvider?.default_model ?? '', 'llama3.2:3b');
+    ollamaModelInp.style.maxWidth = '280px';
+    ollamaModelRow.appendChild(ollamaModelInp);
+    ollamaSection.appendChild(ollamaModelRow);
 
-    container.appendChild(netSection);
+    // Popular models hint
+    const modelsHint = document.createElement('div');
+    modelsHint.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 8px 0';
+    for (const m of POPULAR_MODELS.ollama) {
+      const chip = document.createElement('button');
+      chip.className = 'btn btn-sm';
+      chip.textContent = m;
+      chip.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:12px';
+      chip.addEventListener('click', () => { ollamaModelInp.value = m; });
+      modelsHint.appendChild(chip);
+    }
+    ollamaSection.appendChild(modelsHint);
 
-    // ── Auth ─────────────────────────────────────────────────────────────
-    const authSection = document.createElement('div');
-    authSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Authentication</h3>';
-    const auth = (getVal(config, 'auth') ?? {}) as Record<string, any>;
+    // Test connection button
+    const testRow = document.createElement('div');
+    testRow.style.cssText = 'display:flex;gap:8px;align-items:center;margin:8px 0';
+    const testBtn = document.createElement('button');
+    testBtn.className = 'btn btn-sm';
+    testBtn.textContent = 'Test Connection';
+    const testStatus = document.createElement('span');
+    testStatus.style.cssText = 'font-size:12px;color:var(--text-muted)';
+    testBtn.addEventListener('click', async () => {
+      testStatus.textContent = 'Testing…';
+      testStatus.style.color = 'var(--text-muted)';
+      try {
+        const url = ollamaUrlInp.value.replace(/\/+$/, '');
+        const resp = await fetch(`${url}/api/tags`);
+        if (resp.ok) {
+          const data = await resp.json();
+          const models = (data.models ?? []) as Array<{ name: string }>;
+          testStatus.textContent = `Connected! ${models.length} model${models.length !== 1 ? 's' : ''} available: ${models.map(m => m.name).join(', ')}`;
+          testStatus.style.color = 'var(--success, #4ade80)';
+        } else {
+          testStatus.textContent = `Ollama responded with ${resp.status}`;
+          testStatus.style.color = 'var(--danger, #ef4444)';
+        }
+      } catch (e) {
+        testStatus.textContent = `Cannot reach Ollama — is it running? (${e instanceof Error ? e.message : e})`;
+        testStatus.style.color = 'var(--danger, #ef4444)';
+      }
+    });
+    testRow.appendChild(testBtn);
+    testRow.appendChild(testStatus);
+    ollamaSection.appendChild(testRow);
 
-    const { container: authToggle, checkbox: authCb } = toggleSwitch(auth.enabled !== false, 'Require Auth Token');
-    authSection.appendChild(authToggle);
+    // Save Ollama button
+    const ollamaSaveRow = document.createElement('div');
+    ollamaSaveRow.style.cssText = 'margin:8px 0 16px';
+    const ollamaSaveBtn = document.createElement('button');
+    ollamaSaveBtn.className = 'btn btn-primary btn-sm';
+    ollamaSaveBtn.textContent = hasOllama ? 'Update Ollama' : 'Add Ollama';
+    ollamaSaveBtn.addEventListener('click', async () => {
+      try {
+        const provider: EngineProviderConfig = {
+          id: 'ollama',
+          kind: 'ollama',
+          api_key: '', // Ollama doesn't need an API key
+          base_url: ollamaUrlInp.value || 'http://localhost:11434',
+          default_model: ollamaModelInp.value || undefined,
+        };
+        await pawEngine.upsertProvider(provider);
 
-    const tokenRow = formRow('Auth Token', 'Gateway access token');
-    const tokenInp = textInput(auth.token ?? '', '(auto-generated)', 'password');
-    tokenRow.appendChild(tokenInp);
-    authSection.appendChild(tokenRow);
+        // If this is the only provider, set it as default
+        const freshCfg = await pawEngine.getConfig();
+        if (freshCfg.providers.length === 1 || !freshCfg.default_provider) {
+          freshCfg.default_provider = 'ollama';
+          if (ollamaModelInp.value && !freshCfg.default_model) {
+            freshCfg.default_model = ollamaModelInp.value;
+          }
+          await pawEngine.setConfig(freshCfg);
+        }
 
-    container.appendChild(authSection);
+        showToast(hasOllama ? 'Ollama updated' : 'Ollama added!', 'success');
+        loadAdvancedSettings();
+      } catch (e) {
+        showToast(`Failed: ${e instanceof Error ? e.message : e}`, 'error');
+      }
+    });
+    ollamaSaveRow.appendChild(ollamaSaveBtn);
+    ollamaSection.appendChild(ollamaSaveRow);
 
-    // ── Logging ──────────────────────────────────────────────────────────
-    const logSection = document.createElement('div');
-    logSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Logging</h3>';
-    const log = (getVal(config, 'logging') ?? {}) as Record<string, any>;
+    container.appendChild(ollamaSection);
 
-    const lvlRow = formRow('Log Level');
-    const lvlSel = selectInput(LOG_LEVELS, log.level ?? 'info');
-    lvlSel.style.maxWidth = '160px';
-    lvlRow.appendChild(lvlSel);
-    logSection.appendChild(lvlRow);
+    // ── All Providers ────────────────────────────────────────────────────
+    const provSection = document.createElement('div');
+    provSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">AI Providers</h3>';
 
-    const styleRow = formRow('Log Style');
-    const styleSel = selectInput(LOG_STYLES, log.style ?? 'text');
-    styleSel.style.maxWidth = '160px';
-    styleRow.appendChild(styleSel);
-    logSection.appendChild(styleRow);
+    if (config.providers.length === 0) {
+      const empty = document.createElement('p');
+      empty.style.cssText = 'color:var(--text-muted);font-size:13px';
+      empty.textContent = 'No providers configured. Add Ollama above, or add a cloud provider below.';
+      provSection.appendChild(empty);
+    }
 
-    const fileRow = formRow('Log File Path', 'Leave empty for stdout only');
-    const fileInp = textInput(log.file ?? '', '/var/log/openclaw.log');
-    fileRow.appendChild(fileInp);
-    logSection.appendChild(fileRow);
+    for (const prov of config.providers) {
+      const card = document.createElement('div');
+      card.style.cssText = 'padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px';
+      const kindLabel = PROVIDER_KINDS.find(k => k.value === prov.kind)?.label ?? prov.kind;
+      card.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <strong>${esc(kindLabel)}</strong>
+            <span style="color:var(--text-muted);font-size:12px;margin-left:8px">${esc(prov.id)}</span>
+            ${prov.default_model ? `<span style="color:var(--text-muted);font-size:11px;margin-left:8px">${esc(prov.default_model)}</span>` : ''}
+          </div>
+          <div style="display:flex;gap:4px">
+            ${config.default_provider === prov.id ? '<span class="badge" style="font-size:10px;background:var(--accent);color:white">default</span>' : ''}
+          </div>
+        </div>
+        ${prov.base_url ? `<div style="color:var(--text-muted);font-size:11px;margin-top:2px;font-family:monospace">${esc(prov.base_url)}</div>` : ''}
+      `;
 
-    container.appendChild(logSection);
+      const actRow = document.createElement('div');
+      actRow.style.cssText = 'display:flex;gap:6px;margin-top:6px';
 
-    // ── Updates ──────────────────────────────────────────────────────────
-    const updSection = document.createElement('div');
-    updSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Auto Updates</h3>';
-    const upd = (getVal(config, 'updates') ?? {}) as Record<string, any>;
+      if (config.default_provider !== prov.id) {
+        const defaultBtn = document.createElement('button');
+        defaultBtn.className = 'btn btn-sm';
+        defaultBtn.textContent = 'Make Default';
+        defaultBtn.addEventListener('click', async () => {
+          const cfg = await pawEngine.getConfig();
+          cfg.default_provider = prov.id;
+          await pawEngine.setConfig(cfg);
+          showToast(`${kindLabel} is now the default provider`, 'success');
+          loadAdvancedSettings();
+        });
+        actRow.appendChild(defaultBtn);
+      }
 
-    const chanRow = formRow('Update Channel');
-    const chanSel = selectInput(UPDATE_CHANNELS, upd.channel ?? 'stable');
-    chanSel.style.maxWidth = '160px';
-    chanRow.appendChild(chanSel);
-    updSection.appendChild(chanRow);
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'btn btn-sm';
+      removeBtn.textContent = 'Remove';
+      removeBtn.style.color = 'var(--danger)';
+      let removePending = false;
+      removeBtn.addEventListener('click', async () => {
+        if (!removePending) {
+          removePending = true;
+          removeBtn.textContent = 'Confirm Remove?';
+          setTimeout(() => { if (removePending) { removePending = false; removeBtn.textContent = 'Remove'; } }, 4000);
+          return;
+        }
+        removePending = false;
+        try {
+          await pawEngine.removeProvider(prov.id);
+          showToast(`${kindLabel} removed`, 'success');
+          loadAdvancedSettings();
+        } catch (e) { showToast(`Remove failed: ${e}`, 'error'); }
+      });
+      actRow.appendChild(removeBtn);
 
-    const { container: autoToggle, checkbox: autoCb } = toggleSwitch(
-      upd.autoInstall !== false, 'Auto-install updates'
-    );
-    updSection.appendChild(autoToggle);
+      card.appendChild(actRow);
+      provSection.appendChild(card);
+    }
 
-    container.appendChild(updSection);
+    // ── Add New Provider ─────────────────────────────────────────────────
+    const addSection = document.createElement('details');
+    addSection.style.cssText = 'margin-top:12px';
+    const addSummary = document.createElement('summary');
+    addSummary.style.cssText = 'cursor:pointer;color:var(--accent);font-size:13px';
+    addSummary.textContent = '+ Add Cloud Provider';
+    addSection.appendChild(addSummary);
 
-    // ── Sandbox ──────────────────────────────────────────────────────────
-    const sandSection = document.createElement('div');
-    sandSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Sandbox</h3>';
-    const sand = (getVal(config, 'sandbox') ?? {}) as Record<string, any>;
+    const addBody = document.createElement('div');
+    addBody.style.cssText = 'margin-top:8px;display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--border-color);border-radius:8px';
 
-    const modeRow = formRow('Sandbox Mode', 'Isolate agent code execution');
-    const modeSel = selectInput(SANDBOX_MODES, sand.mode ?? 'off');
-    modeSel.style.maxWidth = '180px';
-    modeRow.appendChild(modeSel);
-    sandSection.appendChild(modeRow);
+    const kindRow = formRow('Provider Type');
+    const kindSel = selectInput(PROVIDER_KINDS.filter(k => k.value !== 'ollama'), 'anthropic');
+    kindSel.style.maxWidth = '220px';
+    kindRow.appendChild(kindSel);
+    addBody.appendChild(kindRow);
 
-    const imgRow = formRow('Docker Image', 'Custom image for Docker sandbox');
-    const imgInp = textInput(sand.dockerImage ?? '', 'openclaw/sandbox:latest');
-    imgRow.appendChild(imgInp);
-    sandSection.appendChild(imgRow);
+    const newKeyRow = formRow('API Key');
+    const newKeyInp = textInput('', 'sk-...', 'password');
+    newKeyRow.appendChild(newKeyInp);
+    addBody.appendChild(newKeyRow);
 
-    container.appendChild(sandSection);
+    const newModelRow = formRow('Default Model', 'Leave blank to auto-detect');
+    const newModelInp = textInput('', '');
+    newModelRow.appendChild(newModelInp);
+    addBody.appendChild(newModelRow);
 
-    // ── Hooks ────────────────────────────────────────────────────────────
-    const hookSection = document.createElement('div');
-    hookSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Webhooks</h3>';
-    const hooks = (getVal(config, 'hooks') ?? {}) as Record<string, any>;
+    const newUrlRow = formRow('Base URL', 'Only needed for custom/self-hosted providers');
+    const newUrlInp = textInput('', DEFAULT_BASE_URLS.openai);
+    newUrlRow.appendChild(newUrlInp);
+    addBody.appendChild(newUrlRow);
 
-    const whRow = formRow('Webhook URL', 'POST events to this URL');
-    const whInp = textInput(hooks.url ?? '', 'https://example.com/webhook');
-    whRow.appendChild(whInp);
-    hookSection.appendChild(whRow);
+    // Update model hints when kind changes
+    kindSel.addEventListener('change', () => {
+      const kind = kindSel.value;
+      newUrlInp.placeholder = DEFAULT_BASE_URLS[kind] ?? '';
+      const models = POPULAR_MODELS[kind] ?? [];
+      newModelInp.placeholder = models[0] ?? '';
+    });
 
-    const secretRow = formRow('Webhook Secret', 'HMAC signing secret');
-    const secretInp = textInput(hooks.secret ?? '', '', 'password');
-    secretRow.appendChild(secretInp);
-    hookSection.appendChild(secretRow);
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-primary btn-sm';
+    addBtn.textContent = 'Add Provider';
+    addBtn.style.alignSelf = 'flex-start';
+    addBtn.addEventListener('click', async () => {
+      const kind = kindSel.value;
+      const apiKey = newKeyInp.value.trim();
+      if (!apiKey && kind !== 'ollama') {
+        showToast('API key is required', 'error');
+        return;
+      }
+      try {
+        const provider: EngineProviderConfig = {
+          id: kind,
+          kind: kind as EngineProviderConfig['kind'],
+          api_key: apiKey,
+          base_url: newUrlInp.value.trim() || undefined,
+          default_model: newModelInp.value.trim() || undefined,
+        };
+        await pawEngine.upsertProvider(provider);
+        showToast(`${PROVIDER_KINDS.find(k => k.value === kind)?.label ?? kind} added`, 'success');
+        loadAdvancedSettings();
+      } catch (e) { showToast(`Failed: ${e}`, 'error'); }
+    });
+    addBody.appendChild(addBtn);
+    addSection.appendChild(addBody);
+    provSection.appendChild(addSection);
 
-    container.appendChild(hookSection);
+    container.appendChild(provSection);
 
-    // ── Heartbeat ────────────────────────────────────────────────────────
-    const hbSection = document.createElement('div');
-    hbSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Heartbeat</h3>';
-    const hb = (getVal(config, 'heartbeat') ?? {}) as Record<string, any>;
+    // ── Engine Defaults ──────────────────────────────────────────────────
+    const engSection = document.createElement('div');
+    engSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Engine Settings</h3>';
 
-    const hbEveryRow = formRow('Interval', 'How often the heartbeat runs (e.g. 1h, 30m, 5m)');
-    const hbEveryInp = textInput(hb.every ?? '', '1h');
-    hbEveryInp.style.maxWidth = '120px';
-    hbEveryRow.appendChild(hbEveryInp);
-    hbSection.appendChild(hbEveryRow);
+    const modelRow = formRow('Default Model', 'The model used when no override is set');
+    const modelInp = textInput(config.default_model ?? '', 'gpt-4o');
+    modelInp.style.maxWidth = '280px';
+    modelRow.appendChild(modelInp);
+    engSection.appendChild(modelRow);
 
-    const hbModelRow = formRow('Model', 'Route heartbeats to a cheap/local model (e.g. ollama/llama3.2:3b)');
-    const hbModelInp = textInput(hb.model ?? '', 'ollama/llama3.2:3b');
-    hbModelRow.appendChild(hbModelInp);
-    hbSection.appendChild(hbModelRow);
+    const providerRow = formRow('Default Provider', 'Which provider to use by default');
+    const providerOpts = [{ value: '', label: '(auto-detect from model)' }, ...config.providers.map(p => ({ value: p.id, label: `${PROVIDER_KINDS.find(k => k.value === p.kind)?.label ?? p.kind} (${p.id})` }))];
+    const providerSel = selectInput(providerOpts, config.default_provider ?? '');
+    providerSel.style.maxWidth = '280px';
+    providerRow.appendChild(providerSel);
+    engSection.appendChild(providerRow);
 
-    const hbSessionRow = formRow('Session', 'Session key for heartbeats');
-    const hbSessionInp = textInput(hb.session ?? '', 'main');
-    hbSessionInp.style.maxWidth = '180px';
-    hbSessionRow.appendChild(hbSessionInp);
-    hbSection.appendChild(hbSessionRow);
+    const roundsRow = formRow('Max Tool Rounds', 'How many tool call rounds before stopping (default: 20)');
+    const roundsInp = numberInput(config.max_tool_rounds, { min: 1, max: 100, placeholder: '20' });
+    roundsInp.style.maxWidth = '120px';
+    roundsRow.appendChild(roundsInp);
+    engSection.appendChild(roundsRow);
 
-    const hbTargetRow = formRow('Target', 'Channel to send heartbeat results to (e.g. slack, discord)');
-    const hbTargetInp = textInput(hb.target ?? '', 'slack');
-    hbTargetInp.style.maxWidth = '180px';
-    hbTargetRow.appendChild(hbTargetInp);
-    hbSection.appendChild(hbTargetRow);
+    const timeoutRow = formRow('Tool Timeout (seconds)', 'Max seconds for a single tool execution');
+    const timeoutInp = numberInput(config.tool_timeout_secs, { min: 5, step: 5, placeholder: '120' });
+    timeoutInp.style.maxWidth = '140px';
+    timeoutRow.appendChild(timeoutInp);
+    engSection.appendChild(timeoutRow);
 
-    const hbPromptRow = formRow('Prompt', 'What the heartbeat asks the agent');
-    const hbPromptInp = textInput(hb.prompt ?? '', 'Check: Any blockers, opportunities, or progress updates needed?');
-    hbPromptRow.appendChild(hbPromptInp);
-    hbSection.appendChild(hbPromptRow);
+    container.appendChild(engSection);
 
-    container.appendChild(hbSection);
+    // ── System Prompt ────────────────────────────────────────────────────
+    const promptSection = document.createElement('div');
+    promptSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Default System Prompt</h3>';
 
-    // ── Budget Controls ──────────────────────────────────────────────────
-    const budgetSection = document.createElement('div');
-    budgetSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Budget Controls</h3>';
-    const budget = (getVal(config, 'budget') ?? {}) as Record<string, any>;
+    const promptArea = document.createElement('textarea');
+    promptArea.className = 'form-input';
+    promptArea.style.cssText = 'width:100%;min-height:120px;font-family:var(--font-mono);font-size:12px;resize:vertical';
+    promptArea.value = config.default_system_prompt ?? '';
+    promptArea.placeholder = 'You are a helpful AI assistant...';
+    promptSection.appendChild(promptArea);
 
-    const dailyRow = formRow('Daily Budget ($)', 'Max daily API spend');
-    const dailyInp = numberInput(budget.daily, { min: 0, step: 0.5, placeholder: '5.00' });
-    dailyInp.style.maxWidth = '120px';
-    dailyRow.appendChild(dailyInp);
-    budgetSection.appendChild(dailyRow);
+    container.appendChild(promptSection);
 
-    const monthlyRow = formRow('Monthly Budget ($)', 'Max monthly API spend');
-    const monthlyInp = numberInput(budget.monthly, { min: 0, step: 1, placeholder: '200' });
-    monthlyInp.style.maxWidth = '120px';
-    monthlyRow.appendChild(monthlyInp);
-    budgetSection.appendChild(monthlyRow);
-
-    const warnRow = formRow('Warning Threshold (%)', 'Show warning at this percentage of budget');
-    const warnInp = numberInput(budget.warningPercent ?? 75, { min: 0, max: 100, step: 5, placeholder: '75' });
-    warnInp.style.maxWidth = '100px';
-    warnRow.appendChild(warnInp);
-    budgetSection.appendChild(warnRow);
-
-    container.appendChild(budgetSection);
-
-    // ── Save all ─────────────────────────────────────────────────────────
+    // ── Save All ─────────────────────────────────────────────────────────
     container.appendChild(saveReloadButtons(
       async () => {
-        const patch: Record<string, unknown> = {
-          gateway: {
-            port: parseInt(portInp.value) || undefined,
-            bind: bindInp.value || undefined,
-            tls: {
-              enabled: tlsCb.checked,
-              cert: certInp.value || undefined,
-              key: keyInp.value || undefined,
-            },
-          },
-          auth: {
-            enabled: authCb.checked,
-            token: tokenInp.value || undefined,
-          },
-          logging: {
-            level: lvlSel.value,
-            style: styleSel.value,
-            file: fileInp.value || undefined,
-          },
-          updates: {
-            channel: chanSel.value,
-            autoInstall: autoCb.checked,
-          },
-          sandbox: {
-            mode: modeSel.value,
-            dockerImage: imgInp.value || undefined,
-          },
-          hooks: {
-            url: whInp.value || undefined,
-            secret: secretInp.value || undefined,
-          },
-          heartbeat: {
-            every: hbEveryInp.value || undefined,
-            model: hbModelInp.value || undefined,
-            session: hbSessionInp.value || undefined,
-            target: hbTargetInp.value || undefined,
-            prompt: hbPromptInp.value || undefined,
-          },
-          budget: {
-            daily: parseFloat(dailyInp.value) || undefined,
-            monthly: parseFloat(monthlyInp.value) || undefined,
-            warningPercent: parseInt(warnInp.value) || undefined,
-          },
-        };
-        await patchConfig(patch);
+        try {
+          const cfg = await pawEngine.getConfig();
+          cfg.default_model = modelInp.value.trim() || undefined;
+          cfg.default_provider = providerSel.value || undefined;
+          cfg.max_tool_rounds = parseInt(roundsInp.value) || 20;
+          cfg.tool_timeout_secs = parseInt(timeoutInp.value) || 120;
+          cfg.default_system_prompt = promptArea.value.trim() || undefined;
+          await pawEngine.setConfig(cfg);
+          showToast('Engine settings saved', 'success');
+        } catch (e) {
+          showToast(`Save failed: ${e instanceof Error ? e.message : e}`, 'error');
+        }
       },
       () => loadAdvancedSettings()
     ));
 
   } catch (e) {
-    container.innerHTML = `<p style="color:var(--danger)">Failed to load: ${esc(String(e))}</p>`;
+    container.innerHTML = `<p style="color:var(--danger)">Failed to load engine config: ${esc(String(e))}</p>`;
   }
 }
 

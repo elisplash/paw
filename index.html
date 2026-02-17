@@ -1002,13 +1002,17 @@
           <div class="empty-state" id="channels-empty">
             <div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M15 10l4.553-2.276A1 1 0 0 1 21 8.618v6.764a1 1 0 0 1-1.447.894L15 14"/><rect x="1" y="6" width="14" height="12" rx="2"/></svg></div>
             <div class="empty-title">No channels configured</div>
-            <div class="empty-subtitle">Connect your agent to messaging platforms</div>
+            <div class="empty-subtitle">Connect your agent to messaging platforms — chat with Paw from anywhere</div>
             <div class="channel-picker-grid" id="channels-picker-empty">
               <button class="channel-pick-btn" data-ch-type="telegram"><span class="channel-pick-icon telegram">TG</span><span>Telegram</span></button>
               <button class="channel-pick-btn" data-ch-type="discord"><span class="channel-pick-icon discord">DC</span><span>Discord</span></button>
-              <button class="channel-pick-btn" data-ch-type="whatsapp"><span class="channel-pick-icon whatsapp">WA</span><span>WhatsApp</span></button>
-              <button class="channel-pick-btn" data-ch-type="slack"><span class="channel-pick-icon slack">SK</span><span>Slack</span></button>
-              <button class="channel-pick-btn" data-ch-type="signal"><span class="channel-pick-icon signal">SG</span><span>Signal</span></button>
+              <button class="channel-pick-btn" data-ch-type="slack"><span class="channel-pick-icon slack">SL</span><span>Slack</span></button>
+              <button class="channel-pick-btn" data-ch-type="matrix"><span class="channel-pick-icon matrix">MX</span><span>Matrix</span></button>
+              <button class="channel-pick-btn" data-ch-type="irc"><span class="channel-pick-icon irc">IRC</span><span>IRC</span></button>
+              <button class="channel-pick-btn" data-ch-type="mattermost"><span class="channel-pick-icon mattermost">MM</span><span>Mattermost</span></button>
+              <button class="channel-pick-btn" data-ch-type="nextcloud"><span class="channel-pick-icon nextcloud">NC</span><span>Nextcloud</span></button>
+              <button class="channel-pick-btn" data-ch-type="nostr"><span class="channel-pick-icon nostr">NS</span><span>Nostr</span></button>
+              <button class="channel-pick-btn" data-ch-type="twitch"><span class="channel-pick-icon twitch">TW</span><span>Twitch</span></button>
             </div>
           </div>
           <div class="view-loading" id="channels-loading" style="display:none">Loading channels…</div>
@@ -1757,7 +1761,7 @@
           <div class="settings-tab-panel" id="settings-panel-models" style="display:none">
             <div class="settings-section" id="settings-models-section">
               <h2 class="settings-section-title">Models &amp; Providers</h2>
-              <p class="settings-section-desc">Configure AI model providers, API keys, and default model selection.</p>
+              <p class="settings-section-desc">Manage AI providers and models — add Ollama, OpenAI, Anthropic, Google, OpenRouter, and more.</p>
               <div id="settings-models-content"></div>
             </div>
           </div>
@@ -1765,8 +1769,8 @@
           <!-- ── Tab: Environment ── -->
           <div class="settings-tab-panel" id="settings-panel-env" style="display:none">
             <div class="settings-section" id="settings-env-section">
-              <h2 class="settings-section-title">Environment Variables</h2>
-              <p class="settings-section-desc">Manage environment variables passed to agents and shell processes.</p>
+              <h2 class="settings-section-title">API Keys &amp; Environment</h2>
+              <p class="settings-section-desc">Provider API keys, skill credentials, and system environment.</p>
               <div id="settings-env-content"></div>
             </div>
           </div>
@@ -1775,7 +1779,7 @@
           <div class="settings-tab-panel" id="settings-panel-agent-defaults" style="display:none">
             <div class="settings-section" id="settings-agent-defaults-section">
               <h2 class="settings-section-title">Agent Defaults</h2>
-              <p class="settings-section-desc">Default configuration for all agents — thinking level, timeouts, workspace paths, and display preferences.</p>
+              <p class="settings-section-desc">Default model, tool execution limits, system prompt, and memory settings.</p>
               <div id="settings-agent-defaults-content"></div>
             </div>
           </div>
@@ -1784,7 +1788,7 @@
           <div class="settings-tab-panel" id="settings-panel-sessions" style="display:none">
             <div class="settings-section" id="settings-sessions-section">
               <h2 class="settings-section-title">Sessions</h2>
-              <p class="settings-section-desc">View and manage active sessions, configure overrides, compact or delete sessions.</p>
+              <p class="settings-section-desc">View, rename, and manage chat sessions.</p>
               <div id="settings-sessions-content"></div>
             </div>
           </div>
@@ -1802,7 +1806,7 @@
           <div class="settings-tab-panel" id="settings-panel-advanced" style="display:none">
             <div class="settings-section" id="settings-advanced-section">
               <h2 class="settings-section-title">Advanced Configuration</h2>
-              <p class="settings-section-desc">Network, authentication, logging, updates, sandbox, and webhook configuration.</p>
+              <p class="settings-section-desc">Ollama setup, provider configuration, tool limits, and system prompt.</p>
               <div id="settings-advanced-content"></div>
             </div>
           </div>

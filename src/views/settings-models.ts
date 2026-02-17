@@ -1,28 +1,48 @@
 // Settings: Models & Providers
-// CRUD for AI model providers + model definitions + default model selection
-// Uses inline forms instead of window.prompt/confirm (blocked in Tauri WebView)
-// All writes go through gateway config.patch (RFC 7386 merge semantics)
+// Multi-provider management — add/edit/remove AI providers, set default model
+// All config goes through the Paw engine (Tauri IPC). No gateway.
 
-import { gateway } from '../gateway';
+import { pawEngine, type EngineProviderConfig, type EngineConfig } from '../engine';
 import { showToast } from '../components/toast';
 import {
-  getConfig, patchConfig, deleteConfigKey, getVal, isConnected,
-  esc, formRow, selectInput, textInput, toggleSwitch, saveReloadButtons
+  isConnected, getEngineConfig, setEngineConfig,
+  esc, formRow, selectInput, textInput, numberInput, saveReloadButtons
 } from './settings-config';
 
 const $ = (id: string) => document.getElementById(id);
 
-// ── API Types ──────────────────────────────────────────────────────────────
+// ── Provider Kinds ──────────────────────────────────────────────────────────
 
-const API_TYPES = [
-  { value: 'openai-completions', label: 'OpenAI Completions' },
-  { value: 'openai-responses', label: 'OpenAI Responses' },
-  { value: 'anthropic-messages', label: 'Anthropic Messages' },
-  { value: 'google-generative-ai', label: 'Google Generative AI' },
-  { value: 'github-copilot', label: 'GitHub Copilot' },
-  { value: 'bedrock-converse-stream', label: 'AWS Bedrock' },
-  { value: 'ollama', label: 'Ollama' },
+const PROVIDER_KINDS: Array<{ value: string; label: string }> = [
+  { value: 'ollama', label: 'Ollama (local)' },
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'anthropic', label: 'Anthropic' },
+  { value: 'google', label: 'Google' },
+  { value: 'openrouter', label: 'OpenRouter' },
+  { value: 'custom', label: 'Custom / Compatible' },
 ];
+
+const DEFAULT_BASE_URLS: Record<string, string> = {
+  ollama: 'http://localhost:11434',
+  openai: 'https://api.openai.com/v1',
+  anthropic: 'https://api.anthropic.com',
+  google: 'https://generativelanguage.googleapis.com/v1beta',
+  openrouter: 'https://openrouter.ai/api/v1',
+  custom: '',
+};
+
+const POPULAR_MODELS: Record<string, string[]> = {
+  ollama: ['llama3.2:3b', 'llama3.1:8b', 'llama3.1:70b', 'mistral:7b', 'codellama:13b', 'deepseek-coder:6.7b', 'phi3:mini', 'qwen2.5:7b'],
+  openai: ['gpt-4o', 'gpt-4o-mini', 'o1', 'o3-mini'],
+  anthropic: ['claude-sonnet-4-20250514', 'claude-3-5-haiku-20241022', 'claude-opus-4-20250514'],
+  google: ['gemini-2.0-flash', 'gemini-2.0-pro', 'gemini-1.5-flash-8b'],
+  openrouter: ['meta-llama/llama-3.1-405b-instruct', 'anthropic/claude-sonnet-4-20250514'],
+  custom: [],
+};
+
+const KIND_ICONS: Record<string, string> = {
+  ollama: '🦙', openai: '🤖', anthropic: '🧠', google: '🔮', openrouter: '🌐', custom: '🔧',
+};
 
 // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -33,326 +53,167 @@ export async function loadModelsSettings() {
   container.innerHTML = '<p style="color:var(--text-muted)">Loading…</p>';
 
   try {
-    const config = await getConfig();
-    const providers = (getVal(config, 'models.providers') ?? {}) as Record<string, any>;
-    const defaultModel = getVal(config, 'agents.defaults.model.primary') as string | undefined;
-    const fallbacks = (getVal(config, 'agents.defaults.model.fallbacks') ?? []) as string[];
-
-    // Also fetch resolved models for the dropdown
-    let modelChoices: Array<{ id: string; name?: string }> = [];
-    try {
-      const res = await gateway.modelsList();
-      modelChoices = (res.models ?? []) as Array<{ id: string; name?: string }>;
-    } catch { /* offline — use provider models instead */ }
+    const config = await getEngineConfig();
+    const providers = config.providers ?? [];
 
     container.innerHTML = '';
 
-    // ── Service Routing Table ────────────────────────────────────────────
-    // Shows a visual map of all configured providers and their endpoints
-    const routeSection = document.createElement('div');
-    routeSection.className = 'settings-subsection';
-    routeSection.innerHTML = `<h3 class="settings-subsection-title">Service Routing</h3>
-      <p class="settings-section-desc">Active provider endpoints from gateway config.</p>`;
+    // ── Provider Overview ────────────────────────────────────────────────
+    const overviewSection = document.createElement('div');
+    overviewSection.className = 'settings-subsection';
+    overviewSection.innerHTML = `<h3 class="settings-subsection-title">Configured Providers</h3>
+      <p class="settings-section-desc">All your AI providers. Agents can use any of these — add as many as you need.</p>`;
 
-    // Use gateway-reported providers (single source of truth)
-    const allProviders = providers;
+    if (providers.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding:24px;text-align:center;border:1px dashed var(--border);border-radius:8px;margin:12px 0';
+      empty.innerHTML = `<p style="color:var(--text-muted);margin:0 0 8px 0">No providers configured yet.</p>
+        <p style="color:var(--text-muted);font-size:12px;margin:0">Add Ollama for local models, or connect OpenAI, Anthropic, Google, OpenRouter, and more.</p>`;
+      overviewSection.appendChild(empty);
+    } else {
+      // Provider status table
+      const table = document.createElement('table');
+      table.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 16px 0';
+      table.innerHTML = `<thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
+        <th style="padding:6px 12px 6px 0">Provider</th>
+        <th style="padding:6px 12px">Type</th>
+        <th style="padding:6px 12px">Endpoint</th>
+        <th style="padding:6px 12px">Default Model</th>
+        <th style="padding:6px 12px">Status</th>
+      </tr></thead>`;
+      const tbody = document.createElement('tbody');
 
-    const routeTable = document.createElement('table');
-    routeTable.style.cssText = 'width:100%;border-collapse:collapse;font-size:13px;margin:8px 0 16px 0';
-    routeTable.innerHTML = `<thead><tr style="text-align:left;border-bottom:1px solid var(--border)">
-      <th style="padding:6px 12px 6px 0">Provider</th>
-      <th style="padding:6px 12px">Endpoint</th>
-      <th style="padding:6px 12px">API</th>
-      <th style="padding:6px 12px">Status</th>
-    </tr></thead>`;
-    const tbody = document.createElement('tbody');
+      for (const p of providers) {
+        const icon = KIND_ICONS[p.kind] ?? '🔧';
+        const kindLabel = PROVIDER_KINDS.find(k => k.value === p.kind)?.label ?? p.kind;
+        const endpoint = p.base_url || DEFAULT_BASE_URLS[p.kind] || '(default)';
+        const hasKey = !!p.api_key;
+        const isLocal = p.kind === 'ollama';
+        const isDefault = p.id === config.default_provider;
+        const statusBadge = hasKey
+          ? '<span style="color:#4ade80">● Key set</span>'
+          : isLocal
+            ? '<span style="color:#60a5fa">● Local</span>'
+            : '<span style="color:#fbbf24">● No key</span>';
 
-    // Always show gateway
-    const gatewayRow = document.createElement('tr');
-    gatewayRow.style.borderBottom = '1px solid var(--border-light, rgba(255,255,255,0.06))';
-    gatewayRow.innerHTML = `<td style="padding:6px 12px 6px 0;font-weight:600">🔌 Gateway</td>
-      <td style="padding:6px 12px;font-family:monospace;font-size:12px">ws://127.0.0.1:18789</td>
-      <td style="padding:6px 12px;color:var(--text-muted)">WebSocket v3</td>
-      <td style="padding:6px 12px">${isConnected() ? '<span style="color:#4ade80">● Connected</span>' : '<span style="color:#ef4444">● Disconnected</span>'}</td>`;
-    tbody.appendChild(gatewayRow);
+        const row = document.createElement('tr');
+        row.style.borderBottom = '1px solid var(--border-light, rgba(255,255,255,0.06))';
+        row.innerHTML = `<td style="padding:6px 12px 6px 0;font-weight:600">${icon} ${esc(p.id)}${isDefault ? ' <span style="font-size:10px;color:var(--accent);font-weight:normal">★ default</span>' : ''}</td>
+          <td style="padding:6px 12px;color:var(--text-muted)">${esc(kindLabel)}</td>
+          <td style="padding:6px 12px;font-family:monospace;font-size:11px">${esc(String(endpoint))}</td>
+          <td style="padding:6px 12px;font-family:monospace;font-size:11px">${esc(p.default_model ?? '—')}</td>
+          <td style="padding:6px 12px">${statusBadge}</td>`;
+        tbody.appendChild(row);
+      }
 
-    for (const [provName, prov] of Object.entries(allProviders)) {
-      if (!prov || typeof prov !== 'object') continue;
-      const url = (prov as any).baseUrl || '(default)';
-      const api = (prov as any).api || '—';
-      const hasKey = !!(prov as any).apiKey;
-      const row = document.createElement('tr');
-      row.style.borderBottom = '1px solid var(--border-light, rgba(255,255,255,0.06))';
-      row.innerHTML = `<td style="padding:6px 12px 6px 0;font-weight:600">${esc(provName)}</td>
-        <td style="padding:6px 12px;font-family:monospace;font-size:12px">${esc(String(url))}</td>
-        <td style="padding:6px 12px">${esc(String(api))}</td>
-        <td style="padding:6px 12px">${hasKey ? '🔑 Key set' : url.includes('127.0.0.1') || url.includes('localhost') ? '🏠 Local' : '—'}</td>`;
-      tbody.appendChild(row);
+      table.appendChild(tbody);
+      overviewSection.appendChild(table);
     }
 
-    routeTable.appendChild(tbody);
-    routeSection.appendChild(routeTable);
-    container.appendChild(routeSection);
+    container.appendChild(overviewSection);
 
-    // ── Default Model Selection ──────────────────────────────────────────
+    // ── Default Model / Provider ─────────────────────────────────────────
     const defaultSection = document.createElement('div');
     defaultSection.className = 'settings-subsection';
-    defaultSection.innerHTML = `<h3 class="settings-subsection-title">Default Model</h3>
-      <p class="settings-section-desc">Primary model used for all conversations unless overridden per-agent.</p>`;
+    defaultSection.style.marginTop = '20px';
+    defaultSection.innerHTML = `<h3 class="settings-subsection-title">Default Model & Provider</h3>
+      <p class="settings-section-desc">The model and provider used for conversations unless overridden per-agent.</p>`;
 
-    const modelOpts = modelChoices.map(m => ({ value: m.id, label: m.name ?? m.id }));
-    if (defaultModel && !modelOpts.find(o => o.value === defaultModel)) {
-      modelOpts.unshift({ value: defaultModel, label: defaultModel });
+    // Default provider dropdown
+    const providerOpts = [
+      { value: '', label: '— auto (first available) —' },
+      ...providers.map(p => ({ value: p.id, label: `${KIND_ICONS[p.kind] ?? ''} ${p.id}` }))
+    ];
+    const defProvRow = formRow('Default Provider', 'Which provider to use by default');
+    const defProvSel = selectInput(providerOpts, config.default_provider ?? '');
+    defProvSel.style.maxWidth = '320px';
+    defProvRow.appendChild(defProvSel);
+    defaultSection.appendChild(defProvRow);
+
+    // Default model — build list from popular models of all providers
+    const allModelOpts: Array<{ value: string; label: string }> = [
+      { value: '', label: '— use provider default —' },
+    ];
+    for (const p of providers) {
+      if (p.default_model) {
+        allModelOpts.push({ value: p.default_model, label: `${p.default_model} (${p.id})` });
+      }
+      const popular = POPULAR_MODELS[p.kind] ?? [];
+      for (const m of popular) {
+        if (!allModelOpts.find(o => o.value === m)) {
+          allModelOpts.push({ value: m, label: `${m} (${p.kind})` });
+        }
+      }
     }
-    modelOpts.unshift({ value: '', label: '— select —' });
+    // Include current value if not in list
+    if (config.default_model && !allModelOpts.find(o => o.value === config.default_model)) {
+      allModelOpts.splice(1, 0, { value: config.default_model, label: config.default_model });
+    }
 
-    const primaryRow = formRow('Primary Model');
-    const primarySel = selectInput(modelOpts, defaultModel ?? '');
-    primarySel.style.maxWidth = '320px';
-    primaryRow.appendChild(primarySel);
-    defaultSection.appendChild(primaryRow);
+    const defModelRow = formRow('Default Model', 'Model ID to use — or type a custom one');
+    const defModelInp = textInput(config.default_model ?? '', 'gpt-4o, claude-sonnet-4-20250514, llama3.1:8b …');
+    defModelInp.style.maxWidth = '400px';
+    defModelInp.setAttribute('list', 'default-model-datalist');
+    // Use datalist for suggestions but allow free-form input
+    const datalist = document.createElement('datalist');
+    datalist.id = 'default-model-datalist';
+    for (const opt of allModelOpts) {
+      if (!opt.value) continue;
+      const o = document.createElement('option');
+      o.value = opt.value;
+      o.textContent = opt.label;
+      datalist.appendChild(o);
+    }
+    defModelRow.appendChild(defModelInp);
+    defModelRow.appendChild(datalist);
+    defaultSection.appendChild(defModelRow);
 
-    const fallbackRow = formRow('Fallback Models', 'Comma-separated list of fallback model IDs');
-    const fallbackInp = textInput(fallbacks.join(', '), 'provider/model, provider/model');
-    fallbackInp.style.maxWidth = '400px';
-    fallbackRow.appendChild(fallbackInp);
-    defaultSection.appendChild(fallbackRow);
+    // Tool limits
+    const roundsRow = formRow('Max Tool Rounds', 'How many tool-call rounds before stopping (default: 25)');
+    const roundsInp = numberInput(config.max_tool_rounds ?? 25, { min: 1, max: 200, step: 1 });
+    roundsInp.style.maxWidth = '120px';
+    roundsRow.appendChild(roundsInp);
+    defaultSection.appendChild(roundsRow);
+
+    const timeoutRow = formRow('Tool Timeout (seconds)', 'Max time per tool execution (default: 120)');
+    const timeoutInp = numberInput(config.tool_timeout_secs ?? 120, { min: 5, max: 3600, step: 5 });
+    timeoutInp.style.maxWidth = '120px';
+    timeoutRow.appendChild(timeoutInp);
+    defaultSection.appendChild(timeoutRow);
 
     defaultSection.appendChild(saveReloadButtons(
       async () => {
-        const primary = primarySel.value || undefined;
-        const fb = fallbackInp.value.split(',').map(s => s.trim()).filter(Boolean);
-        const patch: Record<string, unknown> = { agents: { defaults: { model: { primary, fallbacks: fb } } } };
-        await patchConfig(patch);
+        const updated: EngineConfig = {
+          ...config,
+          default_provider: defProvSel.value || undefined,
+          default_model: defModelInp.value.trim() || undefined,
+          max_tool_rounds: parseInt(roundsInp.value, 10) || 25,
+          tool_timeout_secs: parseInt(timeoutInp.value, 10) || 120,
+        };
+        const ok = await setEngineConfig(updated);
+        if (ok) loadModelsSettings();
       },
       () => loadModelsSettings()
     ));
     container.appendChild(defaultSection);
 
-    // ── Model Aliases ────────────────────────────────────────────────────
-    const aliasSection = document.createElement('div');
-    aliasSection.style.marginTop = '20px';
-    aliasSection.innerHTML = `<h3 class="settings-subsection-title">Model Aliases</h3>
-      <p class="settings-section-desc">Short names to reference models in prompts (e.g. "use sonnet"). One model ID per alias.</p>`;
-
-    const aliasModels = (getVal(config, 'agents.defaults.models') ?? {}) as Record<string, any>;
-    const aliasTableBody = document.createElement('div');
-
-    const renderAliasRows = () => {
-      aliasTableBody.innerHTML = '';
-      const entries = Object.entries(aliasModels);
-      if (entries.length === 0) {
-        const hint = document.createElement('p');
-        hint.style.cssText = 'color:var(--text-muted);font-size:12px;margin:4px 0';
-        hint.textContent = 'No aliases configured yet.';
-        aliasTableBody.appendChild(hint);
-      }
-      for (const [modelId, val] of entries) {
-        const alias = (val && typeof val === 'object') ? (val as Record<string, unknown>).alias ?? '' : '';
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px';
-        const modelInp = textInput(modelId, 'anthropic/claude-sonnet-4-5');
-        modelInp.style.flex = '1';
-        modelInp.readOnly = true;
-        modelInp.style.opacity = '0.7';
-        const aliasInp = textInput(String(alias), 'sonnet');
-        aliasInp.style.maxWidth = '140px';
-        aliasInp.dataset.model = modelId;
-        const rmBtn = document.createElement('button');
-        rmBtn.className = 'btn btn-ghost btn-sm';
-        rmBtn.textContent = '✕';
-        rmBtn.style.color = 'var(--danger)';
-        rmBtn.onclick = () => { delete aliasModels[modelId]; renderAliasRows(); };
-        row.appendChild(modelInp);
-        row.appendChild(aliasInp);
-        row.appendChild(rmBtn);
-        aliasTableBody.appendChild(row);
-      }
-    };
-    renderAliasRows();
-    aliasSection.appendChild(aliasTableBody);
-
-    // Inline add-alias form (no window.prompt)
-    const addAliasRow = document.createElement('div');
-    addAliasRow.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:8px';
-    const addAliasModelInp = textInput('', 'anthropic/claude-haiku-4-5');
-    addAliasModelInp.style.flex = '1';
-    const addAliasBtn = document.createElement('button');
-    addAliasBtn.className = 'btn btn-ghost btn-sm';
-    addAliasBtn.textContent = '+ Add';
-    addAliasBtn.onclick = () => {
-      const modelId = addAliasModelInp.value.trim();
-      if (!modelId) {
-        showToast('Enter a model ID first', 'error');
-        return;
-      }
-      aliasModels[modelId] = { alias: '' };
-      addAliasModelInp.value = '';
-      renderAliasRows();
-    };
-    addAliasRow.appendChild(addAliasModelInp);
-    addAliasRow.appendChild(addAliasBtn);
-    aliasSection.appendChild(addAliasRow);
-
-    aliasSection.appendChild(saveReloadButtons(
-      async () => {
-        // Read aliases from rendered inputs
-        const modelsMap: Record<string, unknown> = {};
-        aliasTableBody.querySelectorAll('input[data-model]').forEach((inp) => {
-          const el = inp as HTMLInputElement;
-          const modelId = el.dataset.model!;
-          modelsMap[modelId] = { alias: el.value.trim() || undefined };
-        });
-        await patchConfig({ agents: { defaults: { models: modelsMap } } });
-      },
-      () => loadModelsSettings()
-    ));
-    container.appendChild(aliasSection);
-
-    // ── Prompt Caching ───────────────────────────────────────────────────
-    const cacheSection = document.createElement('div');
-    cacheSection.style.marginTop = '20px';
-    cacheSection.innerHTML = `<h3 class="settings-subsection-title">Prompt Caching</h3>
-      <p class="settings-section-desc">Cache system prompts and stable context for up to 90% token discount on reuse (Claude 3.5+ Sonnet).</p>`;
-
-    const cacheConf = (getVal(config, 'agents.defaults.cache') ?? {}) as Record<string, any>;
-
-    const { container: cacheToggle, checkbox: cacheCb } = toggleSwitch(
-      cacheConf.enabled === true,
-      'Enable Prompt Caching'
-    );
-    cacheSection.appendChild(cacheToggle);
-
-    const ttlRow = formRow('Cache TTL', 'How long cached prompts stay valid (e.g. 5m, 30m, 24h)');
-    const ttlInp = textInput(cacheConf.ttl ?? '', '5m');
-    ttlInp.style.maxWidth = '120px';
-    ttlRow.appendChild(ttlInp);
-    cacheSection.appendChild(ttlRow);
-
-    const cachePrioRow = formRow('Priority');
-    const cachePrioSel = selectInput(
-      [{ value: 'high', label: 'High (maximize caching)' }, { value: 'low', label: 'Low (balance cost/speed)' }],
-      cacheConf.priority ?? 'high'
-    );
-    cachePrioSel.style.maxWidth = '260px';
-    cachePrioRow.appendChild(cachePrioSel);
-    cacheSection.appendChild(cachePrioRow);
-
-    cacheSection.appendChild(saveReloadButtons(
-      async () => {
-        await patchConfig({
-          agents: { defaults: { cache: {
-            enabled: cacheCb.checked,
-            ttl: ttlInp.value || undefined,
-            priority: cachePrioSel.value,
-          } } }
-        });
-      },
-      () => loadModelsSettings()
-    ));
-    container.appendChild(cacheSection);
-
-    // ── Provider Cards ───────────────────────────────────────────────────
+    // ── Provider Cards (edit/remove each) ────────────────────────────────
     const provHeader = document.createElement('div');
     provHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-top:24px';
-    provHeader.innerHTML = `<h3 class="settings-subsection-title" style="margin:0">Providers</h3>`;
+    provHeader.innerHTML = `<h3 class="settings-subsection-title" style="margin:0">Manage Providers</h3>`;
     const addBtn = document.createElement('button');
     addBtn.className = 'btn btn-primary btn-sm';
     addBtn.textContent = '+ Add Provider';
-    addBtn.addEventListener('click', () => toggleAddProviderForm(container));
+    addBtn.addEventListener('click', () => toggleAddProviderForm());
     provHeader.appendChild(addBtn);
     container.appendChild(provHeader);
 
     // Inline add-provider form (hidden by default)
-    const addForm = document.createElement('div');
-    addForm.id = 'add-provider-form';
-    addForm.style.cssText = 'display:none;margin-top:12px;padding:16px;border:1px solid var(--accent);border-radius:8px;background:var(--bg-secondary, rgba(255,255,255,0.03))';
-    addForm.innerHTML = `<h4 style="margin:0 0 12px 0;font-size:14px">New Provider</h4>`;
+    container.appendChild(buildAddProviderForm(config));
 
-    const nameRow = formRow('Provider Name', 'Lowercase identifier (e.g. google, openai, ollama)');
-    const nameInp = textInput('', 'ollama');
-    nameInp.style.maxWidth = '240px';
-    nameInp.id = 'add-provider-name';
-    nameRow.appendChild(nameInp);
-    addForm.appendChild(nameRow);
-
-    const newUrlRow = formRow('Base URL');
-    const newUrlInp = textInput('', 'http://127.0.0.1:11434');
-    newUrlInp.style.maxWidth = '400px';
-    newUrlInp.id = 'add-provider-url';
-    newUrlRow.appendChild(newUrlInp);
-    addForm.appendChild(newUrlRow);
-
-    const newKeyRow = formRow('API Key', 'Leave blank for local providers like Ollama');
-    const newKeyInp = textInput('', 'sk-…', 'password');
-    newKeyInp.style.maxWidth = '320px';
-    newKeyInp.id = 'add-provider-key';
-    newKeyRow.appendChild(newKeyInp);
-    addForm.appendChild(newKeyRow);
-
-    const newApiRow = formRow('API Type');
-    const newApiSel = selectInput(
-      [{ value: '', label: '— select —' }, ...API_TYPES],
-      ''
-    );
-    newApiSel.style.maxWidth = '260px';
-    newApiSel.id = 'add-provider-api';
-    newApiRow.appendChild(newApiSel);
-    addForm.appendChild(newApiRow);
-
-    const formBtns = document.createElement('div');
-    formBtns.style.cssText = 'display:flex;gap:8px;margin-top:16px';
-    const createBtn = document.createElement('button');
-    createBtn.className = 'btn btn-primary';
-    createBtn.textContent = 'Create Provider';
-    createBtn.addEventListener('click', async () => {
-      const name = nameInp.value.trim();
-      if (!name) {
-        showToast('Enter a provider name', 'error');
-        return;
-      }
-      if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(name)) {
-        showToast('Name must start with a letter (letters, numbers, hyphens only)', 'error');
-        return;
-      }
-      const provObj: Record<string, unknown> = { models: [] };
-      if (newUrlInp.value.trim()) provObj.baseUrl = newUrlInp.value.trim();
-      if (newKeyInp.value.trim()) provObj.apiKey = newKeyInp.value.trim();
-      if (newApiSel.value) provObj.api = newApiSel.value;
-
-      try {
-        createBtn.disabled = true;
-        createBtn.textContent = 'Creating…';
-        // Write through gateway config.patch — validated, hash-protected, triggers restart
-        const ok = await patchConfig({ models: { providers: { [name]: provObj } } });
-        if (ok) loadModelsSettings();
-      } catch (e) {
-        showToast(`Failed: ${e instanceof Error ? e.message : e}`, 'error');
-        createBtn.disabled = false;
-        createBtn.textContent = 'Create Provider';
-      }
-    });
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'btn btn-ghost';
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.addEventListener('click', () => { addForm.style.display = 'none'; });
-    formBtns.appendChild(createBtn);
-    formBtns.appendChild(cancelBtn);
-    addForm.appendChild(formBtns);
-    container.appendChild(addForm);
-
-    const providerNames = Object.keys(providers);
-    if (providerNames.length === 0) {
-      const empty = document.createElement('p');
-      empty.style.cssText = 'color:var(--text-muted);padding:12px 0';
-      empty.textContent = 'No providers configured. Click "+ Add Provider" to get started.';
-      container.appendChild(empty);
-    }
-
-    for (const name of providerNames) {
-      const prov = providers[name];
-      if (!prov || typeof prov !== 'object') continue;
-      container.appendChild(renderProviderCard(name, prov));
+    // Render each provider as a card
+    for (const p of providers) {
+      container.appendChild(renderProviderCard(p, config));
     }
 
   } catch (e) {
@@ -360,50 +221,177 @@ export async function loadModelsSettings() {
   }
 }
 
-function toggleAddProviderForm(_container: HTMLElement) {
+// ── Add Provider Form ───────────────────────────────────────────────────────
+
+function buildAddProviderForm(config: EngineConfig): HTMLDivElement {
+  const form = document.createElement('div');
+  form.id = 'add-provider-form';
+  form.style.cssText = 'display:none;margin-top:12px;padding:16px;border:1px solid var(--accent);border-radius:8px;background:var(--bg-secondary, rgba(255,255,255,0.03))';
+  form.innerHTML = `<h4 style="margin:0 0 12px 0;font-size:14px">New Provider</h4>`;
+
+  const idRow = formRow('Provider ID', 'Unique lowercase identifier (e.g. my-openai, ollama-local)');
+  const idInp = textInput('', 'ollama');
+  idInp.style.maxWidth = '240px';
+  idRow.appendChild(idInp);
+  form.appendChild(idRow);
+
+  const kindRow = formRow('Provider Type');
+  const kindSel = selectInput(PROVIDER_KINDS, 'ollama');
+  kindSel.style.maxWidth = '260px';
+  kindRow.appendChild(kindSel);
+  form.appendChild(kindRow);
+
+  const urlRow = formRow('Base URL', 'Leave blank for default');
+  const urlInp = textInput('', 'http://localhost:11434');
+  urlInp.style.maxWidth = '400px';
+  urlRow.appendChild(urlInp);
+  form.appendChild(urlRow);
+
+  const keyRow = formRow('API Key', 'Leave blank for local providers like Ollama');
+  const keyInp = textInput('', 'sk-…', 'password');
+  keyInp.style.maxWidth = '320px';
+  keyRow.appendChild(keyInp);
+  form.appendChild(keyRow);
+
+  const modelRow = formRow('Default Model', 'Optional default model for this provider');
+  const modelInp = textInput('', 'gpt-4o');
+  modelInp.style.maxWidth = '320px';
+  modelRow.appendChild(modelInp);
+  form.appendChild(modelRow);
+
+  // Auto-fill URL when kind changes
+  kindSel.addEventListener('change', () => {
+    const kind = kindSel.value;
+    if (!urlInp.value || Object.values(DEFAULT_BASE_URLS).includes(urlInp.value)) {
+      urlInp.value = DEFAULT_BASE_URLS[kind] ?? '';
+    }
+    urlInp.placeholder = DEFAULT_BASE_URLS[kind] ?? '';
+    // Auto-fill ID if empty
+    if (!idInp.value) {
+      idInp.value = kind;
+    }
+    // Suggest models
+    const models = POPULAR_MODELS[kind] ?? [];
+    if (models.length && !modelInp.value) {
+      modelInp.placeholder = models[0];
+    }
+  });
+
+  // Trigger initial fill
+  kindSel.dispatchEvent(new Event('change'));
+
+  const formBtns = document.createElement('div');
+  formBtns.style.cssText = 'display:flex;gap:8px;margin-top:16px';
+  const createBtn = document.createElement('button');
+  createBtn.className = 'btn btn-primary';
+  createBtn.textContent = 'Add Provider';
+  createBtn.addEventListener('click', async () => {
+    const id = idInp.value.trim();
+    if (!id) {
+      showToast('Enter a provider ID', 'error');
+      return;
+    }
+    if (!/^[a-zA-Z][a-zA-Z0-9_-]*$/.test(id)) {
+      showToast('ID must start with a letter (letters, numbers, hyphens)', 'error');
+      return;
+    }
+    if (config.providers.some(p => p.id === id)) {
+      showToast(`Provider "${id}" already exists`, 'error');
+      return;
+    }
+    const provider: EngineProviderConfig = {
+      id,
+      kind: kindSel.value as EngineProviderConfig['kind'],
+      api_key: keyInp.value.trim(),
+      base_url: urlInp.value.trim() || undefined,
+      default_model: modelInp.value.trim() || undefined,
+    };
+    try {
+      createBtn.disabled = true;
+      createBtn.textContent = 'Adding…';
+      await pawEngine.upsertProvider(provider);
+      showToast(`Provider "${id}" added`, 'success');
+      loadModelsSettings();
+    } catch (e) {
+      showToast(`Failed: ${e instanceof Error ? e.message : e}`, 'error');
+      createBtn.disabled = false;
+      createBtn.textContent = 'Add Provider';
+    }
+  });
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn btn-ghost';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.addEventListener('click', () => { form.style.display = 'none'; });
+  formBtns.appendChild(createBtn);
+  formBtns.appendChild(cancelBtn);
+  form.appendChild(formBtns);
+
+  return form;
+}
+
+function toggleAddProviderForm() {
   const form = document.getElementById('add-provider-form');
   if (!form) return;
   const visible = form.style.display !== 'none';
   form.style.display = visible ? 'none' : 'block';
   if (!visible) {
-    // Clear + focus name field
-    const nameInp = document.getElementById('add-provider-name') as HTMLInputElement | null;
-    if (nameInp) { nameInp.value = ''; nameInp.focus(); }
-    const urlInp = document.getElementById('add-provider-url') as HTMLInputElement | null;
-    if (urlInp) urlInp.value = '';
-    const keyInp = document.getElementById('add-provider-key') as HTMLInputElement | null;
-    if (keyInp) keyInp.value = '';
-    const apiSel = document.getElementById('add-provider-api') as HTMLSelectElement | null;
-    if (apiSel) apiSel.value = '';
+    const firstInput = form.querySelector('input') as HTMLInputElement | null;
+    if (firstInput) firstInput.focus();
   }
 }
 
-function renderProviderCard(name: string, prov: Record<string, unknown>): HTMLDivElement {
+// ── Provider Card ───────────────────────────────────────────────────────────
+
+function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig): HTMLDivElement {
   const card = document.createElement('div');
   card.className = 'settings-card';
   card.style.cssText = 'margin-top:12px;padding:16px;border:1px solid var(--border);border-radius:8px;';
 
+  const icon = KIND_ICONS[provider.kind] ?? '🔧';
+  const isDefault = provider.id === config.default_provider;
+
   // Header
   const header = document.createElement('div');
   header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
-  const title = document.createElement('strong');
-  title.textContent = name;
-  title.style.fontSize = '14px';
-  header.appendChild(title);
+  const titleWrap = document.createElement('div');
+  titleWrap.style.cssText = 'display:flex;align-items:center;gap:8px';
+  titleWrap.innerHTML = `<span style="font-size:18px">${icon}</span>
+    <strong style="font-size:14px">${esc(provider.id)}</strong>
+    <span style="font-size:11px;color:var(--text-muted);background:var(--bg-tertiary,rgba(255,255,255,0.06));padding:2px 8px;border-radius:4px">${esc(provider.kind)}</span>
+    ${isDefault ? '<span style="font-size:10px;color:var(--accent);background:rgba(var(--accent-rgb,99,102,241),0.15);padding:2px 8px;border-radius:4px">★ default</span>' : ''}`;
+  header.appendChild(titleWrap);
 
   const actions = document.createElement('div');
   actions.style.cssText = 'display:flex;gap:6px';
+
+  // Set as default button
+  if (!isDefault) {
+    const defBtn = document.createElement('button');
+    defBtn.className = 'btn btn-ghost btn-sm';
+    defBtn.textContent = 'Set Default';
+    defBtn.addEventListener('click', async () => {
+      try {
+        const updated: EngineConfig = { ...config, default_provider: provider.id };
+        await setEngineConfig(updated, true);
+        showToast(`${provider.id} set as default provider`, 'success');
+        loadModelsSettings();
+      } catch (e) {
+        showToast(`Failed: ${e instanceof Error ? e.message : e}`, 'error');
+      }
+    });
+    actions.appendChild(defBtn);
+  }
+
+  // Delete button with confirm
   const delBtn = document.createElement('button');
   delBtn.className = 'btn btn-danger btn-sm';
   delBtn.textContent = 'Remove';
   let confirmPending = false;
   delBtn.addEventListener('click', async () => {
     if (!confirmPending) {
-      // First click: change to confirm state
       confirmPending = true;
       delBtn.textContent = 'Confirm Remove?';
       delBtn.style.fontWeight = 'bold';
-      // Auto-reset after 4 seconds
       setTimeout(() => {
         if (confirmPending) {
           confirmPending = false;
@@ -413,13 +401,13 @@ function renderProviderCard(name: string, prov: Record<string, unknown>): HTMLDi
       }, 4000);
       return;
     }
-    // Second click: actually delete via gateway config.patch (null = delete in RFC 7386)
     confirmPending = false;
     delBtn.textContent = 'Removing…';
     delBtn.disabled = true;
     try {
-      const ok = await deleteConfigKey(`models.providers.${name}`);
-      if (ok) loadModelsSettings();
+      await pawEngine.removeProvider(provider.id);
+      showToast(`Provider "${provider.id}" removed`, 'success');
+      loadModelsSettings();
     } catch (e) {
       showToast(`Remove failed: ${e instanceof Error ? e.message : e}`, 'error');
       delBtn.textContent = 'Remove';
@@ -430,47 +418,77 @@ function renderProviderCard(name: string, prov: Record<string, unknown>): HTMLDi
   header.appendChild(actions);
   card.appendChild(header);
 
-  // Fields
-  const baseUrlRow = formRow('Base URL');
-  const baseUrlInp = textInput(String(prov.baseUrl ?? ''), 'https://api.example.com/v1');
-  baseUrlInp.style.maxWidth = '400px';
-  baseUrlRow.appendChild(baseUrlInp);
-  card.appendChild(baseUrlRow);
+  // Editable fields
+  const kindRow = formRow('Provider Type');
+  const kindSel = selectInput(PROVIDER_KINDS, provider.kind);
+  kindSel.style.maxWidth = '260px';
+  kindRow.appendChild(kindSel);
+  card.appendChild(kindRow);
 
-  const apiKeyRow = formRow('API Key');
-  const apiKeyInp = textInput(String(prov.apiKey ?? ''), 'sk-…', 'password');
-  apiKeyInp.style.maxWidth = '320px';
-  apiKeyRow.appendChild(apiKeyInp);
-  card.appendChild(apiKeyRow);
+  const urlRow = formRow('Base URL');
+  const urlInp = textInput(provider.base_url ?? '', DEFAULT_BASE_URLS[provider.kind] ?? 'https://api.example.com/v1');
+  urlInp.style.maxWidth = '400px';
+  urlRow.appendChild(urlInp);
+  card.appendChild(urlRow);
 
-  const apiRow = formRow('API Type');
-  const apiSel = selectInput(
-    [{ value: '', label: '— inherit —' }, ...API_TYPES],
-    String(prov.api ?? '')
-  );
-  apiSel.style.maxWidth = '260px';
-  apiRow.appendChild(apiSel);
-  card.appendChild(apiRow);
+  const keyRow = formRow('API Key');
+  const keyInp = textInput(provider.api_key ?? '', 'sk-…', 'password');
+  keyInp.style.maxWidth = '320px';
+  keyRow.appendChild(keyInp);
+  card.appendChild(keyRow);
 
-  // Models summary
-  const models = Array.isArray(prov.models) ? prov.models : [];
-  const modelsInfo = document.createElement('p');
-  modelsInfo.style.cssText = 'font-size:12px;color:var(--text-muted);margin-top:8px';
-  modelsInfo.textContent = models.length
-    ? `${models.length} model(s): ${models.map((m: any) => m.name ?? m.id ?? '?').join(', ')}`
-    : 'No models defined';
-  card.appendChild(modelsInfo);
+  const modelRow = formRow('Default Model', 'Model used when no specific model is requested');
+  const modelInp = textInput(provider.default_model ?? '', '');
+  modelInp.style.maxWidth = '320px';
+  // Add datalist with popular models for this kind
+  const popular = POPULAR_MODELS[provider.kind] ?? [];
+  if (popular.length) {
+    const dlId = `models-${provider.id}`;
+    const dl = document.createElement('datalist');
+    dl.id = dlId;
+    for (const m of popular) {
+      const o = document.createElement('option');
+      o.value = m;
+      dl.appendChild(o);
+    }
+    modelInp.setAttribute('list', dlId);
+    modelRow.appendChild(dl);
+  }
+  modelRow.appendChild(modelInp);
+  card.appendChild(modelRow);
 
-  // Save — via gateway config.patch
+  // Popular models as quick-select chips
+  if (popular.length) {
+    const chipsWrap = document.createElement('div');
+    chipsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px';
+    for (const m of popular.slice(0, 6)) {
+      const chip = document.createElement('button');
+      chip.className = 'btn btn-ghost btn-sm';
+      chip.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:12px;border:1px solid var(--border)';
+      chip.textContent = m;
+      chip.addEventListener('click', () => { modelInp.value = m; });
+      chipsWrap.appendChild(chip);
+    }
+    card.appendChild(chipsWrap);
+  }
+
+  // Save / Reload
   card.appendChild(saveReloadButtons(
     async () => {
-      const patch: Record<string, unknown> = {};
-      if (baseUrlInp.value) patch.baseUrl = baseUrlInp.value;
-      if (apiKeyInp.value) patch.apiKey = apiKeyInp.value;
-      if (apiSel.value) patch.api = apiSel.value;
-      // Preserve models array from original
-      if (models.length) patch.models = models;
-      await patchConfig({ models: { providers: { [name]: patch } } });
+      const updated: EngineProviderConfig = {
+        id: provider.id,
+        kind: kindSel.value as EngineProviderConfig['kind'],
+        api_key: keyInp.value.trim(),
+        base_url: urlInp.value.trim() || undefined,
+        default_model: modelInp.value.trim() || undefined,
+      };
+      try {
+        await pawEngine.upsertProvider(updated);
+        showToast(`Provider "${provider.id}" updated`, 'success');
+        loadModelsSettings();
+      } catch (e) {
+        showToast(`Save failed: ${e instanceof Error ? e.message : e}`, 'error');
+      }
     },
     () => loadModelsSettings()
   ));

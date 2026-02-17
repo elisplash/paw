@@ -193,6 +193,165 @@ export interface EngineTaskActivity {
   created_at: string;
 }
 
+// ── Telegram ───────────────────────────────────────────────────────────
+
+export interface TelegramConfig {
+  bot_token: string;
+  enabled: boolean;
+  dm_policy: string;
+  allowed_users: number[];
+  pending_users: TelegramPendingUser[];
+  agent_id?: string;
+  context_window?: number;
+}
+
+export interface TelegramPendingUser {
+  user_id: number;
+  username: string;
+  first_name: string;
+  requested_at: string;
+}
+
+export interface TelegramStatus {
+  running: boolean;
+  connected: boolean;
+  bot_username?: string;
+  bot_name?: string;
+  message_count: number;
+  last_message_at?: string;
+  allowed_users: number[];
+  pending_users: TelegramPendingUser[];
+  dm_policy: string;
+}
+
+// ── Shared Channel Types ───────────────────────────────────────────────
+
+export interface ChannelPendingUser {
+  user_id: string;
+  username: string;
+  display_name: string;
+  requested_at: string;
+}
+
+export interface ChannelStatus {
+  running: boolean;
+  connected: boolean;
+  bot_name?: string;
+  bot_id?: string;
+  message_count: number;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  dm_policy: string;
+}
+
+// ── Discord ────────────────────────────────────────────────────────────
+
+export interface DiscordConfig {
+  bot_token: string;
+  enabled: boolean;
+  dm_policy: string;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  agent_id?: string;
+  respond_to_mentions: boolean;
+}
+
+// ── IRC ────────────────────────────────────────────────────────────────
+
+export interface IrcConfig {
+  server: string;
+  port: number;
+  tls: boolean;
+  nick: string;
+  password?: string;
+  channels_to_join: string[];
+  enabled: boolean;
+  dm_policy: string;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  agent_id?: string;
+  respond_in_channels: boolean;
+}
+
+// ── Slack ──────────────────────────────────────────────────────────────
+
+export interface SlackConfig {
+  bot_token: string;
+  app_token: string;
+  enabled: boolean;
+  dm_policy: string;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  agent_id?: string;
+  respond_to_mentions: boolean;
+}
+
+// ── Matrix ─────────────────────────────────────────────────────────────
+
+export interface MatrixConfig {
+  homeserver: string;
+  access_token: string;
+  enabled: boolean;
+  dm_policy: string;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  agent_id?: string;
+  respond_in_rooms: boolean;
+}
+
+// ── Mattermost ─────────────────────────────────────────────────────────
+
+export interface MattermostConfig {
+  server_url: string;
+  token: string;
+  enabled: boolean;
+  dm_policy: string;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  agent_id?: string;
+  respond_to_mentions: boolean;
+}
+
+// ── Nextcloud Talk ─────────────────────────────────────────────────────
+
+export interface NextcloudConfig {
+  server_url: string;
+  username: string;
+  password: string;
+  enabled: boolean;
+  dm_policy: string;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  agent_id?: string;
+  respond_in_groups: boolean;
+}
+
+// ── Nostr ──────────────────────────────────────────────────────────────
+
+export interface NostrConfig {
+  private_key_hex: string;
+  relays: string[];
+  enabled: boolean;
+  dm_policy: string;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  agent_id?: string;
+}
+
+// ── Twitch ─────────────────────────────────────────────────────────────
+
+export interface TwitchConfig {
+  oauth_token: string;
+  bot_username: string;
+  channels_to_join: string[];
+  enabled: boolean;
+  dm_policy: string;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  agent_id?: string;
+  require_mention: boolean;
+}
+
 // ── Engine Client ──────────────────────────────────────────────────────
 
 class PawEngineClient {
@@ -434,6 +593,128 @@ class PawEngineClient {
   async tasksCronTick(): Promise<string[]> {
     return invoke<string[]>('engine_tasks_cron_tick');
   }
+
+  // ── Telegram Bridge ──────────────────────────────────────────────────
+
+  async telegramStart(): Promise<void> {
+    return invoke('engine_telegram_start');
+  }
+
+  async telegramStop(): Promise<void> {
+    return invoke('engine_telegram_stop');
+  }
+
+  async telegramStatus(): Promise<TelegramStatus> {
+    return invoke<TelegramStatus>('engine_telegram_status');
+  }
+
+  async telegramGetConfig(): Promise<TelegramConfig> {
+    return invoke<TelegramConfig>('engine_telegram_get_config');
+  }
+
+  async telegramSetConfig(config: TelegramConfig): Promise<void> {
+    return invoke('engine_telegram_set_config', { config });
+  }
+
+  async telegramApproveUser(userId: number): Promise<void> {
+    return invoke('engine_telegram_approve_user', { userId });
+  }
+
+  async telegramDenyUser(userId: number): Promise<void> {
+    return invoke('engine_telegram_deny_user', { userId });
+  }
+
+  async telegramRemoveUser(userId: number): Promise<void> {
+    return invoke('engine_telegram_remove_user', { userId });
+  }
+
+  // ── Discord Bridge ───────────────────────────────────────────────────
+
+  async discordStart(): Promise<void> { return invoke('engine_discord_start'); }
+  async discordStop(): Promise<void> { return invoke('engine_discord_stop'); }
+  async discordStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_discord_status'); }
+  async discordGetConfig(): Promise<DiscordConfig> { return invoke<DiscordConfig>('engine_discord_get_config'); }
+  async discordSetConfig(config: DiscordConfig): Promise<void> { return invoke('engine_discord_set_config', { config }); }
+  async discordApproveUser(userId: string): Promise<void> { return invoke('engine_discord_approve_user', { userId }); }
+  async discordDenyUser(userId: string): Promise<void> { return invoke('engine_discord_deny_user', { userId }); }
+  async discordRemoveUser(userId: string): Promise<void> { return invoke('engine_discord_remove_user', { userId }); }
+
+  // ── IRC Bridge ───────────────────────────────────────────────────────
+
+  async ircStart(): Promise<void> { return invoke('engine_irc_start'); }
+  async ircStop(): Promise<void> { return invoke('engine_irc_stop'); }
+  async ircStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_irc_status'); }
+  async ircGetConfig(): Promise<IrcConfig> { return invoke<IrcConfig>('engine_irc_get_config'); }
+  async ircSetConfig(config: IrcConfig): Promise<void> { return invoke('engine_irc_set_config', { config }); }
+  async ircApproveUser(userId: string): Promise<void> { return invoke('engine_irc_approve_user', { userId }); }
+  async ircDenyUser(userId: string): Promise<void> { return invoke('engine_irc_deny_user', { userId }); }
+  async ircRemoveUser(userId: string): Promise<void> { return invoke('engine_irc_remove_user', { userId }); }
+
+  // ── Slack Bridge ─────────────────────────────────────────────────────
+
+  async slackStart(): Promise<void> { return invoke('engine_slack_start'); }
+  async slackStop(): Promise<void> { return invoke('engine_slack_stop'); }
+  async slackStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_slack_status'); }
+  async slackGetConfig(): Promise<SlackConfig> { return invoke<SlackConfig>('engine_slack_get_config'); }
+  async slackSetConfig(config: SlackConfig): Promise<void> { return invoke('engine_slack_set_config', { config }); }
+  async slackApproveUser(userId: string): Promise<void> { return invoke('engine_slack_approve_user', { userId }); }
+  async slackDenyUser(userId: string): Promise<void> { return invoke('engine_slack_deny_user', { userId }); }
+  async slackRemoveUser(userId: string): Promise<void> { return invoke('engine_slack_remove_user', { userId }); }
+
+  // ── Matrix Bridge ────────────────────────────────────────────────────
+
+  async matrixStart(): Promise<void> { return invoke('engine_matrix_start'); }
+  async matrixStop(): Promise<void> { return invoke('engine_matrix_stop'); }
+  async matrixStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_matrix_status'); }
+  async matrixGetConfig(): Promise<MatrixConfig> { return invoke<MatrixConfig>('engine_matrix_get_config'); }
+  async matrixSetConfig(config: MatrixConfig): Promise<void> { return invoke('engine_matrix_set_config', { config }); }
+  async matrixApproveUser(userId: string): Promise<void> { return invoke('engine_matrix_approve_user', { userId }); }
+  async matrixDenyUser(userId: string): Promise<void> { return invoke('engine_matrix_deny_user', { userId }); }
+  async matrixRemoveUser(userId: string): Promise<void> { return invoke('engine_matrix_remove_user', { userId }); }
+
+  // ── Mattermost Bridge ────────────────────────────────────────────────
+
+  async mattermostStart(): Promise<void> { return invoke('engine_mattermost_start'); }
+  async mattermostStop(): Promise<void> { return invoke('engine_mattermost_stop'); }
+  async mattermostStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_mattermost_status'); }
+  async mattermostGetConfig(): Promise<MattermostConfig> { return invoke<MattermostConfig>('engine_mattermost_get_config'); }
+  async mattermostSetConfig(config: MattermostConfig): Promise<void> { return invoke('engine_mattermost_set_config', { config }); }
+  async mattermostApproveUser(userId: string): Promise<void> { return invoke('engine_mattermost_approve_user', { userId }); }
+  async mattermostDenyUser(userId: string): Promise<void> { return invoke('engine_mattermost_deny_user', { userId }); }
+  async mattermostRemoveUser(userId: string): Promise<void> { return invoke('engine_mattermost_remove_user', { userId }); }
+
+  // ── Nextcloud Talk Bridge ────────────────────────────────────────────
+
+  async nextcloudStart(): Promise<void> { return invoke('engine_nextcloud_start'); }
+  async nextcloudStop(): Promise<void> { return invoke('engine_nextcloud_stop'); }
+  async nextcloudStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_nextcloud_status'); }
+  async nextcloudGetConfig(): Promise<NextcloudConfig> { return invoke<NextcloudConfig>('engine_nextcloud_get_config'); }
+  async nextcloudSetConfig(config: NextcloudConfig): Promise<void> { return invoke('engine_nextcloud_set_config', { config }); }
+  async nextcloudApproveUser(userId: string): Promise<void> { return invoke('engine_nextcloud_approve_user', { userId }); }
+  async nextcloudDenyUser(userId: string): Promise<void> { return invoke('engine_nextcloud_deny_user', { userId }); }
+  async nextcloudRemoveUser(userId: string): Promise<void> { return invoke('engine_nextcloud_remove_user', { userId }); }
+
+  // ── Nostr Bridge ─────────────────────────────────────────────────────
+
+  async nostrStart(): Promise<void> { return invoke('engine_nostr_start'); }
+  async nostrStop(): Promise<void> { return invoke('engine_nostr_stop'); }
+  async nostrStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_nostr_status'); }
+  async nostrGetConfig(): Promise<NostrConfig> { return invoke<NostrConfig>('engine_nostr_get_config'); }
+  async nostrSetConfig(config: NostrConfig): Promise<void> { return invoke('engine_nostr_set_config', { config }); }
+  async nostrApproveUser(userId: string): Promise<void> { return invoke('engine_nostr_approve_user', { userId }); }
+  async nostrDenyUser(userId: string): Promise<void> { return invoke('engine_nostr_deny_user', { userId }); }
+  async nostrRemoveUser(userId: string): Promise<void> { return invoke('engine_nostr_remove_user', { userId }); }
+
+  // ── Twitch Bridge ────────────────────────────────────────────────────
+
+  async twitchStart(): Promise<void> { return invoke('engine_twitch_start'); }
+  async twitchStop(): Promise<void> { return invoke('engine_twitch_stop'); }
+  async twitchStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_twitch_status'); }
+  async twitchGetConfig(): Promise<TwitchConfig> { return invoke<TwitchConfig>('engine_twitch_get_config'); }
+  async twitchSetConfig(config: TwitchConfig): Promise<void> { return invoke('engine_twitch_set_config', { config }); }
+  async twitchApproveUser(userId: string): Promise<void> { return invoke('engine_twitch_approve_user', { userId }); }
+  async twitchDenyUser(userId: string): Promise<void> { return invoke('engine_twitch_deny_user', { userId }); }
+  async twitchRemoveUser(userId: string): Promise<void> { return invoke('engine_twitch_remove_user', { userId }); }
 }
 
 export const pawEngine = new PawEngineClient();

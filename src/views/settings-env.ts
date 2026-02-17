@@ -1,10 +1,12 @@
-// Settings: Environment Variables
-// CRUD for env.vars + shell env toggle
-// ~120 lines
+// Settings: Environment & API Keys
+// Manages API keys via the Paw engine's skill credential vault.
+// Environment variables are inherited from the system — no gateway config.
 
+import { pawEngine } from '../engine';
+import { showToast } from '../components/toast';
 import {
-  getConfig, patchConfig, getVal, isConnected,
-  esc, formRow, textInput, toggleSwitch, numberInput, saveReloadButtons
+  isConnected,
+  esc, textInput
 } from './settings-config';
 
 const $ = (id: string) => document.getElementById(id);
@@ -18,108 +20,120 @@ export async function loadEnvSettings() {
   container.innerHTML = '<p style="color:var(--text-muted)">Loading…</p>';
 
   try {
-    const config = await getConfig();
-    const vars = (getVal(config, 'env.vars') ?? {}) as Record<string, string>;
-    const shellEnabled = getVal(config, 'env.shellEnv.enabled') as boolean | undefined;
-    const shellTimeout = getVal(config, 'env.shellEnv.timeoutMs') as number | undefined;
-
     container.innerHTML = '';
 
-    // ── Shell Env ────────────────────────────────────────────────────────
-    const shellSection = document.createElement('div');
-    shellSection.style.cssText = 'margin-bottom:16px';
-    const { container: shellToggle, checkbox: shellCb } = toggleSwitch(
-      shellEnabled !== false,
-      'Inherit shell environment variables'
-    );
-    shellSection.appendChild(shellToggle);
+    // ── System Environment ───────────────────────────────────────────────
+    const sysSection = document.createElement('div');
+    sysSection.style.cssText = 'margin-bottom:16px';
+    sysSection.innerHTML = `
+      <h3 class="settings-subsection-title">System Environment</h3>
+      <p class="form-hint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted)">
+        Paw inherits environment variables from your system automatically.
+        Set variables in your shell profile (<code>~/.bashrc</code>, <code>~/.zshrc</code>, etc.)
+        or your desktop environment. Changes take effect on app restart.
+      </p>
+    `;
+    container.appendChild(sysSection);
 
-    const timeoutRow = formRow('Shell env timeout (ms)');
-    const timeoutInp = numberInput(shellTimeout ?? 5000, { min: 0, step: 500, placeholder: '5000' });
-    timeoutInp.style.maxWidth = '140px';
-    timeoutRow.appendChild(timeoutInp);
-    shellSection.appendChild(timeoutRow);
-    container.appendChild(shellSection);
+    // ── Provider API Keys ────────────────────────────────────────────────
+    const provSection = document.createElement('div');
+    provSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:16px">Provider API Keys</h3>';
+    provSection.innerHTML += '<p class="form-hint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted)">API keys are stored in the engine config and encrypted at rest. Manage providers in Settings → Advanced.</p>';
 
-    // ── Variables Table ──────────────────────────────────────────────────
-    const tableHeader = document.createElement('div');
-    tableHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px';
-    tableHeader.innerHTML = '<h3 class="settings-subsection-title" style="margin:0">Environment Variables</h3>';
-    const addBtn = document.createElement('button');
-    addBtn.className = 'btn btn-primary btn-sm';
-    addBtn.textContent = '+ Add Variable';
-    tableHeader.appendChild(addBtn);
-    container.appendChild(tableHeader);
+    const config = await pawEngine.getConfig();
+    if (config.providers.length === 0) {
+      const empty = document.createElement('p');
+      empty.style.cssText = 'color:var(--text-muted);font-size:13px;padding:8px 0';
+      empty.textContent = 'No providers configured yet. Go to Settings → Advanced to add providers.';
+      provSection.appendChild(empty);
+    } else {
+      for (const prov of config.providers) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px';
 
-    const table = document.createElement('div');
-    table.className = 'env-table';
-    table.style.cssText = 'display:flex;flex-direction:column;gap:6px';
-    const rows: Array<{ key: HTMLInputElement; val: HTMLInputElement; row: HTMLElement }> = [];
+        const label = document.createElement('span');
+        label.style.cssText = 'min-width:100px;font-weight:600;font-size:13px';
+        label.textContent = prov.kind.charAt(0).toUpperCase() + prov.kind.slice(1);
+        row.appendChild(label);
 
-    function addRow(key = '', value = '') {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:8px;align-items:center';
-      const keyInp = textInput(key, 'KEY');
-      keyInp.style.cssText = 'flex:1;max-width:200px;font-family:var(--font-mono);font-size:12px';
-      const valInp = textInput(value, 'value', key.toLowerCase().includes('key') || key.toLowerCase().includes('secret') || key.toLowerCase().includes('token') ? 'password' : 'text');
-      valInp.style.cssText = 'flex:2;font-family:var(--font-mono);font-size:12px';
-      const delBtn = document.createElement('button');
-      delBtn.className = 'btn btn-danger btn-sm';
-      delBtn.textContent = '✕';
-      delBtn.title = 'Remove';
-      delBtn.addEventListener('click', () => {
-        row.remove();
-        const idx = rows.findIndex(r => r.row === row);
-        if (idx !== -1) rows.splice(idx, 1);
-      });
-      row.appendChild(keyInp);
-      row.appendChild(valInp);
-      row.appendChild(delBtn);
-      table.appendChild(row);
-      rows.push({ key: keyInp, val: valInp, row });
-    }
+        const keyInp = textInput(prov.api_key, prov.kind === 'ollama' ? '(not required)' : 'sk-...', 'password');
+        keyInp.style.cssText = 'flex:1;font-family:var(--font-mono);font-size:12px';
+        row.appendChild(keyInp);
 
-    // Populate existing vars
-    for (const [k, v] of Object.entries(vars)) {
-      addRow(k, String(v));
-    }
-
-    addBtn.addEventListener('click', () => addRow());
-    container.appendChild(table);
-
-    // Empty state
-    if (Object.keys(vars).length === 0) {
-      const hint = document.createElement('p');
-      hint.style.cssText = 'color:var(--text-muted);font-size:12px;padding:8px 0';
-      hint.textContent = 'No environment variables set. Add API keys and custom variables here.';
-      container.appendChild(hint);
-    }
-
-    // ── Save ─────────────────────────────────────────────────────────────
-    container.appendChild(saveReloadButtons(
-      async () => {
-        const newVars: Record<string, string | null> = {};
-        // null-out old keys for deletion (RFC 7386: null = delete in config.patch)
-        for (const oldKey of Object.keys(vars)) {
-          newVars[oldKey] = null;
-        }
-        // Then set current rows (overrides the null for keys that still exist)
-        for (const r of rows) {
-          const k = r.key.value.trim();
-          const v = r.val.value;
-          if (k) newVars[k] = v;
-        }
-        const patch: Record<string, unknown> = {
-          env: {
-            vars: newVars,
-            shellEnv: { enabled: shellCb.checked, timeoutMs: parseInt(timeoutInp.value) || 5000 }
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'btn btn-sm btn-primary';
+        saveBtn.textContent = 'Save';
+        saveBtn.addEventListener('click', async () => {
+          try {
+            const updated = { ...prov, api_key: keyInp.value };
+            await pawEngine.upsertProvider(updated);
+            showToast(`${prov.kind} API key updated`, 'success');
+          } catch (e) {
+            showToast(`Failed: ${e instanceof Error ? e.message : e}`, 'error');
           }
-        };
-        const ok = await patchConfig(patch);
-        if (ok) loadEnvSettings(); // reload to reflect deletions
-      },
-      () => loadEnvSettings()
-    ));
+        });
+        row.appendChild(saveBtn);
+
+        provSection.appendChild(row);
+      }
+    }
+    container.appendChild(provSection);
+
+    // ── Skill Credentials ────────────────────────────────────────────────
+    const skillSection = document.createElement('div');
+    skillSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Skill Credentials</h3>';
+    skillSection.innerHTML += '<p class="form-hint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted)">Credentials for enabled skills (email, Slack, GitHub, etc.) are managed in Skills settings. Stored encrypted in the local vault.</p>';
+
+    try {
+      const skills = await pawEngine.skillsList();
+      const configured = skills.filter(s => s.configured_credentials.length > 0);
+
+      if (configured.length === 0) {
+        const hint = document.createElement('p');
+        hint.style.cssText = 'color:var(--text-muted);font-size:13px;padding:4px 0';
+        hint.textContent = 'No skill credentials configured yet. Enable skills and add credentials in the Skills view.';
+        skillSection.appendChild(hint);
+      } else {
+        for (const skill of configured) {
+          const row = document.createElement('div');
+          row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:4px;padding:6px 0;border-bottom:1px solid var(--border-light, rgba(255,255,255,0.06))';
+          row.innerHTML = `
+            <span style="font-size:16px">${esc(skill.icon)}</span>
+            <span style="font-weight:600;font-size:13px;min-width:80px">${esc(skill.name)}</span>
+            <span style="color:var(--text-muted);font-size:12px">${skill.configured_credentials.length} credential${skill.configured_credentials.length !== 1 ? 's' : ''} stored</span>
+            ${skill.missing_credentials.length > 0 ? `<span style="color:var(--warning);font-size:11px">Missing: ${skill.missing_credentials.join(', ')}</span>` : '<span style="color:var(--success, #4ade80);font-size:11px">Ready</span>'}
+          `;
+          skillSection.appendChild(row);
+        }
+      }
+    } catch (e) {
+      // Skills may not be available
+      const hint = document.createElement('p');
+      hint.style.cssText = 'color:var(--text-muted);font-size:12px;padding:4px 0';
+      hint.textContent = 'Could not load skill credentials.';
+      skillSection.appendChild(hint);
+    }
+
+    container.appendChild(skillSection);
+
+    // ── Common Environment Variables Guide ────────────────────────────────
+    const guideSection = document.createElement('div');
+    guideSection.innerHTML = `
+      <h3 class="settings-subsection-title" style="margin-top:20px">Common Environment Variables</h3>
+      <p class="form-hint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted)">
+        Set these in your shell profile if needed. Paw picks them up automatically.
+      </p>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.8">
+        <div><code>OPENAI_API_KEY</code> — OpenAI API key (alternative to provider config)</div>
+        <div><code>ANTHROPIC_API_KEY</code> — Anthropic API key</div>
+        <div><code>GOOGLE_API_KEY</code> — Google AI API key</div>
+        <div><code>OLLAMA_HOST</code> — Ollama server URL (default: http://localhost:11434)</div>
+        <div><code>GITHUB_TOKEN</code> — GitHub personal access token for the GitHub skill</div>
+        <div><code>SLACK_TOKEN</code> — Slack bot token for the Slack skill</div>
+        <div><code>PATH</code> — System PATH (for tools like git, docker, etc.)</div>
+      </div>
+    `;
+    container.appendChild(guideSection);
 
   } catch (e) {
     container.innerHTML = `<p style="color:var(--danger)">Failed to load: ${esc(String(e))}</p>`;

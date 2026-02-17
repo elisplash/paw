@@ -1,43 +1,15 @@
 // Settings: Agent Defaults
-// Configure agents.defaults — thinking, verbose, timeout, workspace, etc.
-// ~180 lines
+// Configure engine defaults — model, system prompt, tool rounds, timeout
+// All reads/writes go through the Paw engine (Tauri IPC). No gateway.
 
+import { pawEngine } from '../engine';
+import { showToast } from '../components/toast';
 import {
-  getConfig, patchConfig, getVal, isConnected,
+  isConnected,
   esc, formRow, selectInput, textInput, numberInput, toggleSwitch, saveReloadButtons
 } from './settings-config';
 
 const $ = (id: string) => document.getElementById(id);
-
-// ── Option sets ─────────────────────────────────────────────────────────────
-
-const THINKING_LEVELS = [
-  { value: 'off', label: 'Off' }, { value: 'minimal', label: 'Minimal' },
-  { value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' }, { value: 'xhigh', label: 'Extra High' },
-];
-
-const VERBOSE_MODES = [
-  { value: 'off', label: 'Off' }, { value: 'on', label: 'On' }, { value: 'full', label: 'Full' },
-];
-
-const ELEVATED_MODES = [
-  { value: 'off', label: 'Off' }, { value: 'on', label: 'On' },
-  { value: 'ask', label: 'Ask' }, { value: 'full', label: 'Full' },
-];
-
-const TIME_FORMATS = [
-  { value: 'auto', label: 'Auto' }, { value: '12', label: '12-hour' }, { value: '24', label: '24-hour' },
-];
-
-const TYPING_MODES = [
-  { value: 'never', label: 'Never' }, { value: 'instant', label: 'Instant' },
-  { value: 'thinking', label: 'While thinking' }, { value: 'message', label: 'While messaging' },
-];
-
-const STREAMING_MODES = [
-  { value: 'off', label: 'Off (stream)' }, { value: 'on', label: 'On (block)' },
-];
 
 // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -48,140 +20,129 @@ export async function loadAgentDefaultsSettings() {
   container.innerHTML = '<p style="color:var(--text-muted)">Loading…</p>';
 
   try {
-    const config = await getConfig();
-    const d = (getVal(config, 'agents.defaults') ?? {}) as Record<string, any>;
+    const config = await pawEngine.getConfig();
+    const memConfig = await pawEngine.getMemoryConfig();
     container.innerHTML = '';
 
-    // ── AI Behaviour ─────────────────────────────────────────────────────
-    const aiSection = document.createElement('div');
-    aiSection.innerHTML = '<h3 class="settings-subsection-title">AI Behaviour</h3>';
+    // ── Default Model & Provider ─────────────────────────────────────────
+    const modelSection = document.createElement('div');
+    modelSection.innerHTML = '<h3 class="settings-subsection-title">Model & Provider</h3>';
 
-    const thinkRow = formRow('Thinking Level', 'How much reasoning the model does before responding');
-    const thinkSel = selectInput(THINKING_LEVELS, String(d.thinkingDefault ?? 'off'));
-    thinkSel.style.maxWidth = '200px';
-    thinkRow.appendChild(thinkSel);
-    aiSection.appendChild(thinkRow);
+    const modelRow = formRow('Default Model', 'The AI model used for new conversations');
+    const modelInp = textInput(config.default_model ?? '', 'gpt-4o');
+    modelInp.style.maxWidth = '280px';
+    modelRow.appendChild(modelInp);
+    modelSection.appendChild(modelRow);
 
-    const verbRow = formRow('Verbose Output', 'Level of detail in agent responses');
-    const verbSel = selectInput(VERBOSE_MODES, String(d.verboseDefault ?? 'off'));
-    verbSel.style.maxWidth = '200px';
-    verbRow.appendChild(verbSel);
-    aiSection.appendChild(verbRow);
+    // Quick-pick model chips from configured providers
+    if (config.providers.length > 0) {
+      const chipsRow = document.createElement('div');
+      chipsRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin:4px 0 8px 0';
+      for (const prov of config.providers) {
+        if (prov.default_model) {
+          const chip = document.createElement('button');
+          chip.className = 'btn btn-sm';
+          chip.textContent = `${prov.default_model} (${prov.kind})`;
+          chip.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:12px';
+          chip.addEventListener('click', () => { modelInp.value = prov.default_model!; });
+          chipsRow.appendChild(chip);
+        }
+      }
+      if (chipsRow.children.length > 0) modelSection.appendChild(chipsRow);
+    }
 
-    const elevRow = formRow('Elevated Mode', 'Grant agent elevated tool permissions');
-    const elevSel = selectInput(ELEVATED_MODES, String(d.elevatedDefault ?? 'off'));
-    elevSel.style.maxWidth = '200px';
-    elevRow.appendChild(elevSel);
-    aiSection.appendChild(elevRow);
+    const providerRow = formRow('Default Provider', 'Which provider to use when auto-detection fails');
+    const providerOpts = [
+      { value: '', label: '(auto-detect from model name)' },
+      ...config.providers.map(p => ({ value: p.id, label: `${p.kind} (${p.id})` }))
+    ];
+    const providerSel = selectInput(providerOpts, config.default_provider ?? '');
+    providerSel.style.maxWidth = '280px';
+    providerRow.appendChild(providerSel);
+    modelSection.appendChild(providerRow);
 
-    const streamRow = formRow('Block Streaming', 'Wait for full response instead of streaming');
-    const streamSel = selectInput(STREAMING_MODES, String(d.blockStreamingDefault ?? 'off'));
-    streamSel.style.maxWidth = '200px';
-    streamRow.appendChild(streamSel);
-    aiSection.appendChild(streamRow);
+    container.appendChild(modelSection);
 
-    container.appendChild(aiSection);
+    // ── Tool Execution ───────────────────────────────────────────────────
+    const toolSection = document.createElement('div');
+    toolSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Tool Execution</h3>';
 
-    // ── Limits ───────────────────────────────────────────────────────────
-    const limSection = document.createElement('div');
-    limSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Limits & Timeouts</h3>';
+    const roundsRow = formRow('Max Tool Rounds', 'How many tool call rounds before the agent stops (default: 20)');
+    const roundsInp = numberInput(config.max_tool_rounds, { min: 1, max: 100, placeholder: '20' });
+    roundsInp.style.maxWidth = '120px';
+    roundsRow.appendChild(roundsInp);
+    toolSection.appendChild(roundsRow);
 
-    const ctxRow = formRow('Context Tokens', 'Maximum context window size for conversations');
-    const ctxInp = numberInput(d.contextTokens, { min: 1000, step: 1000, placeholder: '200000' });
-    ctxInp.style.maxWidth = '160px';
-    ctxRow.appendChild(ctxInp);
-    limSection.appendChild(ctxRow);
+    const timeoutRow = formRow('Tool Timeout (seconds)', 'Max seconds for a single tool execution (default: 120)');
+    const timeoutInp = numberInput(config.tool_timeout_secs, { min: 5, step: 5, placeholder: '120' });
+    timeoutInp.style.maxWidth = '140px';
+    timeoutRow.appendChild(timeoutInp);
+    toolSection.appendChild(timeoutRow);
 
-    const concRow = formRow('Max Concurrent Agents', 'How many agents can run simultaneously');
-    const concInp = numberInput(d.maxConcurrent, { min: 1, max: 50, placeholder: '5' });
-    concInp.style.maxWidth = '120px';
-    concRow.appendChild(concInp);
-    limSection.appendChild(concRow);
+    container.appendChild(toolSection);
 
-    const timeRow = formRow('Timeout (seconds)', 'Max seconds per agent turn before timeout');
-    const timeInp = numberInput(d.timeoutSeconds, { min: 10, step: 10, placeholder: '300' });
-    timeInp.style.maxWidth = '140px';
-    timeRow.appendChild(timeInp);
-    limSection.appendChild(timeRow);
+    // ── System Prompt ────────────────────────────────────────────────────
+    const promptSection = document.createElement('div');
+    promptSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Default System Prompt</h3>';
+    promptSection.innerHTML += '<p class="form-hint" style="margin:0 0 8px;font-size:11px;color:var(--text-muted)">Base instructions prepended to every conversation. Agent soul files (SOUL.md, IDENTITY.md, etc.) are appended on top of this.</p>';
 
-    const mediaRow = formRow('Media Max MB', 'Maximum file size for media attachments');
-    const mediaInp = numberInput(d.mediaMaxMb, { min: 0, step: 1, placeholder: '25' });
-    mediaInp.style.maxWidth = '120px';
-    mediaRow.appendChild(mediaInp);
-    limSection.appendChild(mediaRow);
+    const promptArea = document.createElement('textarea');
+    promptArea.className = 'form-input';
+    promptArea.style.cssText = 'width:100%;min-height:140px;font-family:var(--font-mono);font-size:12px;resize:vertical';
+    promptArea.value = config.default_system_prompt ?? '';
+    promptArea.placeholder = 'You are a helpful AI assistant. You have access to tools...';
+    promptSection.appendChild(promptArea);
 
-    container.appendChild(limSection);
+    container.appendChild(promptSection);
 
-    // ── Workspace & Paths ────────────────────────────────────────────────
-    const pathSection = document.createElement('div');
-    pathSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Workspace & Paths</h3>';
+    // ── Memory Defaults ──────────────────────────────────────────────────
+    const memSection = document.createElement('div');
+    memSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Memory Defaults</h3>';
 
-    const wsRow = formRow('Workspace Path', 'Default agent workspace directory');
-    const wsInp = textInput(d.workspace ?? '', '/path/to/workspace');
-    wsRow.appendChild(wsInp);
-    pathSection.appendChild(wsRow);
-
-    const repoRow = formRow('Repo Root', 'Root directory for git operations');
-    const repoInp = textInput(d.repoRoot ?? '', '/path/to/repo');
-    repoRow.appendChild(repoInp);
-    pathSection.appendChild(repoRow);
-
-    const { container: skipToggle, checkbox: skipCb } = toggleSwitch(
-      d.skipBootstrap === true,
-      'Skip Bootstrap (don\'t run bootstrap on agent start)'
+    const { container: recallToggle, checkbox: recallCb } = toggleSwitch(
+      memConfig.auto_recall,
+      'Auto-recall relevant memories before each turn'
     );
-    pathSection.appendChild(skipToggle);
+    memSection.appendChild(recallToggle);
 
-    container.appendChild(pathSection);
+    const { container: captureToggle, checkbox: captureCb } = toggleSwitch(
+      memConfig.auto_capture,
+      'Auto-capture facts from conversations'
+    );
+    memSection.appendChild(captureToggle);
 
-    // ── Display ──────────────────────────────────────────────────────────
-    const dispSection = document.createElement('div');
-    dispSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Display Preferences</h3>';
+    const recallLimitRow = formRow('Recall Limit', 'Max memories to inject per turn');
+    const recallLimitInp = numberInput(memConfig.recall_limit, { min: 1, max: 50, placeholder: '5' });
+    recallLimitInp.style.maxWidth = '100px';
+    recallLimitRow.appendChild(recallLimitInp);
+    memSection.appendChild(recallLimitRow);
 
-    const tzRow = formRow('User Timezone', 'Timezone for timestamps (e.g. America/New_York)');
-    const tzInp = textInput(d.userTimezone ?? '', 'America/New_York');
-    tzInp.style.maxWidth = '260px';
-    tzRow.appendChild(tzInp);
-    dispSection.appendChild(tzRow);
-
-    const tfRow = formRow('Time Format');
-    const tfSel = selectInput(TIME_FORMATS, String(d.timeFormat ?? 'auto'));
-    tfSel.style.maxWidth = '160px';
-    tfRow.appendChild(tfSel);
-    dispSection.appendChild(tfRow);
-
-    const typRow = formRow('Typing Indicator', 'When to show typing indicator in channels');
-    const typSel = selectInput(TYPING_MODES, String(d.typingMode ?? 'never'));
-    typSel.style.maxWidth = '200px';
-    typRow.appendChild(typSel);
-    dispSection.appendChild(typRow);
-
-    container.appendChild(dispSection);
+    container.appendChild(memSection);
 
     // ── Save ─────────────────────────────────────────────────────────────
     container.appendChild(saveReloadButtons(
       async () => {
-        const patch: Record<string, unknown> = {
-          thinkingDefault: thinkSel.value,
-          verboseDefault: verbSel.value,
-          elevatedDefault: elevSel.value,
-          blockStreamingDefault: streamSel.value,
-          contextTokens: parseInt(ctxInp.value) || undefined,
-          maxConcurrent: parseInt(concInp.value) || undefined,
-          timeoutSeconds: parseInt(timeInp.value) || undefined,
-          mediaMaxMb: parseFloat(mediaInp.value) || undefined,
-          workspace: wsInp.value || undefined,
-          repoRoot: repoInp.value || undefined,
-          skipBootstrap: skipCb.checked,
-          userTimezone: tzInp.value || undefined,
-          timeFormat: tfSel.value,
-          typingMode: typSel.value,
-        };
-        // Remove undefined values
-        for (const k of Object.keys(patch)) {
-          if (patch[k] === undefined) delete patch[k];
+        try {
+          // Save engine config
+          const cfg = await pawEngine.getConfig();
+          cfg.default_model = modelInp.value.trim() || undefined;
+          cfg.default_provider = providerSel.value || undefined;
+          cfg.max_tool_rounds = parseInt(roundsInp.value) || 20;
+          cfg.tool_timeout_secs = parseInt(timeoutInp.value) || 120;
+          cfg.default_system_prompt = promptArea.value.trim() || undefined;
+          await pawEngine.setConfig(cfg);
+
+          // Save memory config
+          const mc = await pawEngine.getMemoryConfig();
+          mc.auto_recall = recallCb.checked;
+          mc.auto_capture = captureCb.checked;
+          mc.recall_limit = parseInt(recallLimitInp.value) || 5;
+          await pawEngine.setMemoryConfig(mc);
+
+          showToast('Agent defaults saved', 'success');
+        } catch (e) {
+          showToast(`Save failed: ${e instanceof Error ? e.message : e}`, 'error');
         }
-        await patchConfig({ agents: { defaults: patch } });
       },
       () => loadAgentDefaultsSettings()
     ));

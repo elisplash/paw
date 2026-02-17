@@ -317,10 +317,54 @@ impl AnthropicProvider {
                     }));
                 }
             } else {
-                formatted.push(json!({
-                    "role": role,
-                    "content": msg.content.as_text(),
-                }));
+                // Handle user messages — support vision (image) blocks
+                match &msg.content {
+                    MessageContent::Blocks(blocks) => {
+                        let mut content_blocks: Vec<Value> = Vec::new();
+                        for block in blocks {
+                            match block {
+                                ContentBlock::Text { text } => {
+                                    content_blocks.push(json!({"type": "text", "text": text}));
+                                }
+                                ContentBlock::ImageUrl { image_url } => {
+                                    // Anthropic uses base64 source format, not URL
+                                    // data:image/png;base64,... → extract media_type and data
+                                    if let Some(rest) = image_url.url.strip_prefix("data:") {
+                                        if let Some((media_type, b64)) = rest.split_once(";base64,") {
+                                            content_blocks.push(json!({
+                                                "type": "image",
+                                                "source": {
+                                                    "type": "base64",
+                                                    "media_type": media_type,
+                                                    "data": b64,
+                                                }
+                                            }));
+                                        }
+                                    } else {
+                                        // Plain URL — use url source type
+                                        content_blocks.push(json!({
+                                            "type": "image",
+                                            "source": {
+                                                "type": "url",
+                                                "url": image_url.url,
+                                            }
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                        formatted.push(json!({
+                            "role": role,
+                            "content": content_blocks,
+                        }));
+                    }
+                    MessageContent::Text(s) => {
+                        formatted.push(json!({
+                            "role": role,
+                            "content": s,
+                        }));
+                    }
+                }
             }
         }
 
@@ -622,10 +666,49 @@ impl GoogleProvider {
                     }));
                 }
             } else {
-                contents.push(json!({
-                    "role": role,
-                    "parts": [{"text": msg.content.as_text()}]
-                }));
+                // Handle user messages — support vision (image) blocks
+                match &msg.content {
+                    MessageContent::Blocks(blocks) => {
+                        let mut parts: Vec<Value> = Vec::new();
+                        for block in blocks {
+                            match block {
+                                ContentBlock::Text { text } => {
+                                    parts.push(json!({"text": text}));
+                                }
+                                ContentBlock::ImageUrl { image_url } => {
+                                    // Gemini uses inlineData format for base64 images
+                                    if let Some(rest) = image_url.url.strip_prefix("data:") {
+                                        if let Some((mime_type, b64)) = rest.split_once(";base64,") {
+                                            parts.push(json!({
+                                                "inlineData": {
+                                                    "mimeType": mime_type,
+                                                    "data": b64,
+                                                }
+                                            }));
+                                        }
+                                    } else {
+                                        // External URL — use fileData
+                                        parts.push(json!({
+                                            "fileData": {
+                                                "fileUri": image_url.url,
+                                            }
+                                        }));
+                                    }
+                                }
+                            }
+                        }
+                        contents.push(json!({
+                            "role": role,
+                            "parts": parts,
+                        }));
+                    }
+                    MessageContent::Text(s) => {
+                        contents.push(json!({
+                            "role": role,
+                            "parts": [{"text": s}]
+                        }));
+                    }
+                }
             }
         }
 

@@ -1,5 +1,5 @@
 // Projects View — Browse local project folders as a file tree
-// Uses Tauri filesystem APIs or falls back to a placeholder in browser
+// Uses Tauri filesystem APIs + shell plugin for git integration
 
 import { showToast } from '../components/toast';
 import { logSecurityEvent } from '../db';
@@ -24,6 +24,17 @@ interface ProjectFolder {
   addedAt: string;
 }
 
+interface GitInfo {
+  isRepo: boolean;
+  branch?: string;
+  remote?: string;
+  dirty?: number;     // count of changed files
+  ahead?: number;     // commits ahead of remote
+  behind?: number;    // commits behind remote
+  lastCommit?: string; // short message
+  lastCommitDate?: string;
+}
+
 // ── Module State ───────────────────────────────────────────────────────────
 
 let _projects: ProjectFolder[] = [];
@@ -31,10 +42,13 @@ let _selectedFile: FileEntry | null = null;
 let _fileTreeCache = new Map<string, FileEntry[]>(); // path → children
 let _expandedPaths = new Set<string>();
 let _tauriAvailable = false;
+let _shellAvailable = false;
 let _readDir: any = null;
 let _readTextFile: any = null;
 let _homeDir: any = null;
 let _join: any = null;
+let _shellCommand: any = null; // Command class from @tauri-apps/plugin-shell
+let _gitInfoCache = new Map<string, GitInfo>(); // path → git info
 
 // ── Tauri Detection ────────────────────────────────────────────────────────
 
@@ -52,6 +66,85 @@ async function initTauri(): Promise<boolean> {
     _tauriAvailable = false;
     return false;
   }
+}
+
+async function initShell(): Promise<boolean> {
+  try {
+    const shell = await import('@tauri-apps/plugin-shell');
+    _shellCommand = shell.Command;
+    _shellAvailable = true;
+    return true;
+  } catch {
+    _shellAvailable = false;
+    return false;
+  }
+}
+
+// ── Git helpers ────────────────────────────────────────────────────────────
+
+/** Run a git command in a directory and return stdout (or null on error). */
+async function gitExec(cwd: string, ...args: string[]): Promise<string | null> {
+  if (!_shellAvailable || !_shellCommand) return null;
+  try {
+    const cmd = _shellCommand.create('git', args, { cwd });
+    const result = await cmd.execute();
+    if (result.code !== 0) return null;
+    return (result.stdout as string).trim();
+  } catch {
+    return null;
+  }
+}
+
+/** Gather git info for a project path. Cached until invalidated. */
+async function getGitInfo(projectPath: string, forceRefresh = false): Promise<GitInfo> {
+  if (!forceRefresh && _gitInfoCache.has(projectPath)) {
+    return _gitInfoCache.get(projectPath)!;
+  }
+
+  const noGit: GitInfo = { isRepo: false };
+
+  // Check if it's a git repo
+  const topLevel = await gitExec(projectPath, 'rev-parse', '--show-toplevel');
+  if (!topLevel) {
+    _gitInfoCache.set(projectPath, noGit);
+    return noGit;
+  }
+
+  const info: GitInfo = { isRepo: true };
+
+  // Branch
+  info.branch = await gitExec(projectPath, 'rev-parse', '--abbrev-ref', 'HEAD') ?? undefined;
+
+  // Remote URL
+  info.remote = await gitExec(projectPath, 'config', '--get', 'remote.origin.url') ?? undefined;
+
+  // Dirty file count
+  const statusOut = await gitExec(projectPath, 'status', '--porcelain');
+  if (statusOut !== null) {
+    info.dirty = statusOut === '' ? 0 : statusOut.split('\n').filter(l => l.trim()).length;
+  }
+
+  // Ahead/behind (only if upstream is set)
+  const upstream = await gitExec(projectPath, 'rev-parse', '--abbrev-ref', '@{upstream}');
+  if (upstream) {
+    const abOut = await gitExec(projectPath, 'rev-list', '--left-right', '--count', `HEAD...@{upstream}`);
+    if (abOut) {
+      const [ahead, behind] = abOut.split(/\s+/).map(Number);
+      info.ahead = ahead || 0;
+      info.behind = behind || 0;
+    }
+  }
+
+  // Last commit
+  const logOut = await gitExec(projectPath, 'log', '-1', '--format=%s|||%ar');
+  if (logOut) {
+    const [msg, date] = logOut.split('|||');
+    info.lastCommit = msg;
+    info.lastCommitDate = date;
+  }
+
+  _gitInfoCache.set(projectPath, info);
+  return info;
 }
 
 // ── Persistence ────────────────────────────────────────────────────────────
@@ -143,6 +236,7 @@ function isOutOfProjectScope(filePath: string): string | null {
 
 export async function loadProjects(): Promise<void> {
   await initTauri();
+  await initShell();
   _projects = loadSavedProjects();
   renderProjectsSidebar();
 
@@ -298,7 +392,15 @@ function renderProjectsSidebar(): void {
     return;
   }
 
-  sidebar.innerHTML = _projects.map(p => `
+  sidebar.innerHTML = _projects.map(p => {
+    const cached = _gitInfoCache.get(p.path);
+    const branchHint = cached?.isRepo && cached.branch
+      ? `<span style="font-size:10px;color:var(--accent);font-family:var(--font-mono);opacity:0.8">${escapeHtml(cached.branch)}</span>`
+      : '';
+    const dirtyDot = cached?.isRepo && cached.dirty
+      ? '<span style="color:var(--warning, #facc15);font-size:8px;margin-left:2px">●</span>'
+      : '';
+    return `
     <div class="projects-folder-item${_selectedFile && getProjectRoot(_selectedFile.path) === p.path ? ' active' : ''}" 
          data-path="${escapeAttr(p.path)}" title="${escapeAttr(p.path)}">
       <div class="projects-folder-row">
@@ -306,15 +408,16 @@ function renderProjectsSidebar(): void {
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
         </svg>
         <span class="projects-folder-name">${escapeHtml(p.name)}</span>
+        ${dirtyDot}
         <button class="btn-icon projects-remove-btn" data-remove="${escapeAttr(p.path)}" title="Remove project">
           <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
           </svg>
         </button>
       </div>
-      <div class="projects-folder-path">${escapeHtml(shortenPath(p.path))}</div>
-    </div>
-  `).join('');
+      <div class="projects-folder-path">${escapeHtml(shortenPath(p.path))}${branchHint ? ' · ' + branchHint : ''}</div>
+    </div>`;
+  }).join('');
 
   // Bind clicks
   sidebar.querySelectorAll('.projects-folder-item').forEach(el => {
@@ -366,8 +469,14 @@ async function selectProject(project: ProjectFolder): Promise<void> {
     bindTreeEvents(treeContainer);
   }
 
-  // Show welcome in viewer
+  // Gather git info (async, non-blocking for file tree)
+  const gitInfo = await getGitInfo(project.path);
+
+  // Show welcome + git info in viewer
   if (viewer) {
+    const dirCount = entries.filter(e => e.isDirectory).length;
+    const fileCount = entries.filter(e => !e.isDirectory).length;
+
     viewer.innerHTML = `
       <div class="projects-viewer-welcome">
         <div class="projects-viewer-welcome-icon">
@@ -376,12 +485,161 @@ async function selectProject(project: ProjectFolder): Promise<void> {
           </svg>
         </div>
         <div class="projects-viewer-welcome-title">${escapeHtml(project.name)}</div>
-        <div class="projects-viewer-welcome-sub">${entries.filter(e => e.isDirectory).length} folders, ${entries.filter(e => !e.isDirectory).length} files</div>
+        <div class="projects-viewer-welcome-sub">${dirCount} folders, ${fileCount} files</div>
         <div class="projects-viewer-welcome-path">${escapeHtml(project.path)}</div>
-      </div>`;
+      </div>
+      ${renderGitBanner(gitInfo, project.path)}
+    `;
+    bindGitActions(viewer, project.path);
   }
 
   _selectedFile = null;
+}
+
+// ── Git Banner & Actions ───────────────────────────────────────────────────
+
+function renderGitBanner(git: GitInfo, projectPath: string): string {
+  if (!git.isRepo) {
+    return `
+      <div class="git-banner git-banner--none" style="margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--surface-2, rgba(255,255,255,0.04));font-size:12px;color:var(--text-muted)">
+        <span style="opacity:0.6">📁 Not a git repository</span>
+        <button class="btn btn-sm git-action" data-action="init" data-path="${escapeAttr(projectPath)}" style="margin-left:auto;font-size:11px">
+          git init
+        </button>
+      </div>`;
+  }
+
+  const branchBadge = git.branch
+    ? `<span style="font-weight:600;font-family:var(--font-mono);font-size:12px;background:var(--accent-alpha, rgba(99,102,241,0.15));color:var(--accent);padding:2px 8px;border-radius:4px">${escapeHtml(git.branch)}</span>`
+    : '';
+
+  const dirtyBadge = git.dirty !== undefined && git.dirty > 0
+    ? `<span style="font-size:11px;color:var(--warning, #facc15)">● ${git.dirty} changed</span>`
+    : `<span style="font-size:11px;color:var(--success, #4ade80)">● Clean</span>`;
+
+  let syncBadge = '';
+  if (git.ahead || git.behind) {
+    const parts: string[] = [];
+    if (git.ahead) parts.push(`↑${git.ahead}`);
+    if (git.behind) parts.push(`↓${git.behind}`);
+    syncBadge = `<span style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">${parts.join(' ')}</span>`;
+  }
+
+  const remoteBadge = git.remote
+    ? `<span style="font-size:11px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:250px" title="${escapeAttr(git.remote)}">${escapeHtml(shortenRemote(git.remote))}</span>`
+    : '';
+
+  const lastCommitLine = git.lastCommit
+    ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        Latest: ${escapeHtml(git.lastCommit)}${git.lastCommitDate ? ` <span style="opacity:0.6">(${escapeHtml(git.lastCommitDate)})</span>` : ''}
+      </div>`
+    : '';
+
+  return `
+    <div class="git-banner" style="margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--surface-2, rgba(255,255,255,0.04))">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="flex-shrink:0;opacity:0.7">
+          <circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/>
+        </svg>
+        ${branchBadge}
+        ${dirtyBadge}
+        ${syncBadge}
+        ${remoteBadge}
+      </div>
+      ${lastCommitLine}
+      <div class="git-actions" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        ${git.remote ? `<button class="btn btn-sm git-action" data-action="pull" data-path="${escapeAttr(projectPath)}">⬇ Pull</button>` : ''}
+        ${git.remote ? `<button class="btn btn-sm git-action" data-action="push" data-path="${escapeAttr(projectPath)}">⬆ Push</button>` : ''}
+        <button class="btn btn-sm git-action" data-action="commit" data-path="${escapeAttr(projectPath)}">💾 Commit</button>
+        <button class="btn btn-sm git-action" data-action="status" data-path="${escapeAttr(projectPath)}" style="margin-left:auto;opacity:0.7;font-size:11px">↻ Refresh</button>
+      </div>
+    </div>`;
+}
+
+function shortenRemote(url: string): string {
+  // git@github.com:user/repo.git → user/repo
+  const sshMatch = url.match(/:([^/]+\/[^.]+)/);
+  if (sshMatch) return sshMatch[1];
+  // https://github.com/user/repo.git → user/repo
+  const httpsMatch = url.match(/(?:github\.com|gitlab\.com|bitbucket\.org)[/:]([^/]+\/[^/.]+)/);
+  if (httpsMatch) return httpsMatch[1];
+  return url;
+}
+
+function bindGitActions(container: HTMLElement, projectPath: string): void {
+  container.querySelectorAll('.git-action').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const action = (btn as HTMLElement).dataset.action;
+      const path = (btn as HTMLElement).dataset.path || projectPath;
+      if (!action) return;
+
+      const origText = btn.textContent;
+      btn.textContent = '…';
+      (btn as HTMLButtonElement).disabled = true;
+
+      try {
+        switch (action) {
+          case 'pull': {
+            const out = await gitExec(path, 'pull');
+            if (out !== null) {
+              showToast(out.includes('Already up to date') ? 'Already up to date' : 'Pull complete', 'success');
+            } else {
+              showToast('Pull failed — check remote & credentials', 'error');
+            }
+            break;
+          }
+          case 'push': {
+            const out = await gitExec(path, 'push');
+            if (out !== null) {
+              showToast('Push complete', 'success');
+            } else {
+              showToast('Push failed — check remote & credentials', 'error');
+            }
+            break;
+          }
+          case 'commit': {
+            const msg = prompt('Commit message:');
+            if (!msg) break;
+            // Stage all + commit
+            const addOut = await gitExec(path, 'add', '-A');
+            if (addOut === null) { showToast('git add failed', 'error'); break; }
+            const commitOut = await gitExec(path, 'commit', '-m', msg);
+            if (commitOut !== null) {
+              showToast('Committed!', 'success');
+            } else {
+              showToast('Commit failed — nothing to commit?', 'error');
+            }
+            break;
+          }
+          case 'init': {
+            const initOut = await gitExec(path, 'init');
+            if (initOut !== null) {
+              showToast('Initialized git repo', 'success');
+            } else {
+              showToast('git init failed', 'error');
+            }
+            break;
+          }
+          case 'status': {
+            // Just refresh git info
+            break;
+          }
+        }
+
+        // Refresh git info
+        _gitInfoCache.delete(path);
+        const project = _projects.find(p => p.path === path);
+        if (project) await selectProject(project);
+
+      } catch (err) {
+        showToast(`Git error: ${err instanceof Error ? err.message : err}`, 'error');
+      } finally {
+        btn.textContent = origText;
+        (btn as HTMLButtonElement).disabled = false;
+      }
+    });
+  });
 }
 
 function renderTreeEntries(entries: FileEntry[], depth: number): string {
@@ -549,7 +807,28 @@ function showProjectsEmpty(): void {
 
   if (treeContainer) treeContainer.style.display = 'none';
   if (viewer) viewer.style.display = 'none';
-  if (empty) empty.style.display = '';
+  if (empty) {
+    empty.style.display = '';
+    empty.innerHTML = `
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <div class="empty-title">Your Projects</div>
+      <div class="empty-subtitle" style="max-width:340px;text-align:center;line-height:1.6">
+        Add a local folder to browse files, view git status, and give your agent
+        project context. Works with any git repo or plain folder.
+      </div>
+      <div style="margin-top:16px;padding:12px 16px;border-radius:8px;background:var(--surface-2, rgba(255,255,255,0.04));font-size:12px;color:var(--text-muted);line-height:1.8;text-align:left;max-width:360px">
+        <div style="font-weight:600;margin-bottom:4px;color:var(--text)">What Projects does:</div>
+        <div>📁 <strong>Browse</strong> — file tree with code viewer</div>
+        <div>🔀 <strong>Git</strong> — branch, status, pull, push, commit</div>
+        <div>🤖 <strong>Agent context</strong> — your agent can read, edit, and run commands in project folders</div>
+        <div>🔒 <strong>Scoped</strong> — agent access is confined to the project you select</div>
+      </div>
+    `;
+  }
 }
 
 // ── Add Folder Dialog ──────────────────────────────────────────────────────
@@ -604,6 +883,7 @@ export function bindEvents(): void {
 
   refreshBtn?.addEventListener('click', async () => {
     _fileTreeCache.clear();
+    _gitInfoCache.clear();
     const activePath = document.querySelector('.projects-folder-item.active')?.getAttribute('data-path');
     const project = _projects.find(p => p.path === activePath);
     if (project) {

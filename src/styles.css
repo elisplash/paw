@@ -4210,6 +4210,12 @@ button:focus:not(:focus-visible) { outline: none; }
 .channel-card-icon.whatsapp { background: rgba(57, 255, 20, 0.12); }
 .channel-card-icon.signal { background: rgba(0, 136, 204, 0.15); }
 .channel-card-icon.slack { background: rgba(255, 221, 0, 0.12); }
+.channel-card-icon.irc { background: rgba(0, 200, 100, 0.12); }
+.channel-card-icon.matrix { background: rgba(0, 189, 170, 0.15); }
+.channel-card-icon.mattermost { background: rgba(0, 100, 180, 0.15); }
+.channel-card-icon.nextcloud { background: rgba(0, 130, 201, 0.15); }
+.channel-card-icon.nostr { background: rgba(128, 0, 255, 0.12); }
+.channel-card-icon.twitch { background: rgba(145, 70, 255, 0.15); }
 .channel-card-icon.default { background: var(--bg-primary); }
 .channel-card-title {
   font-size: 14px;
@@ -4281,6 +4287,12 @@ button:focus:not(:focus-visible) { outline: none; }
 .channel-pick-icon.whatsapp { background: rgba(57, 255, 20, 0.12); }
 .channel-pick-icon.signal { background: rgba(0, 136, 204, 0.15); }
 .channel-pick-icon.slack { background: rgba(255, 221, 0, 0.12); }
+.channel-pick-icon.irc { background: rgba(0, 200, 100, 0.12); }
+.channel-pick-icon.matrix { background: rgba(0, 189, 170, 0.15); }
+.channel-pick-icon.mattermost { background: rgba(0, 100, 180, 0.15); }
+.channel-pick-icon.nextcloud { background: rgba(0, 130, 201, 0.15); }
+.channel-pick-icon.nostr { background: rgba(128, 0, 255, 0.12); }
+.channel-pick-icon.twitch { background: rgba(145, 70, 255, 0.15); }
 .channel-pick-icon.default { background: var(--bg-primary); }
 
 /* ── Channel Setup Modal ── */

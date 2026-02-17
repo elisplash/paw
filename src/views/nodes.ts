@@ -1,436 +1,190 @@
-// Nodes View — Device Management
-// Controls paired iOS/Android/macOS nodes (camera, screen, location, etc.)
+// Nodes View — Connections & Status Dashboard
+// Shows engine status, configured providers, Ollama health, and skill readiness.
+// Replaces the legacy gateway device-pairing view.
 
-import { gateway } from '../gateway';
-import type { GatewayNode } from '../types';
+import { pawEngine } from '../engine';
+import { showToast } from '../components/toast';
 
 const $ = (id: string) => document.getElementById(id);
 
-// ── Module state ───────────────────────────────────────────────────────────
-let wsConnected = false;
-let _nodes: GatewayNode[] = [];
-let _selectedNodeId: string | null = null;
-let _pendingPairRequests: Array<{ id: string; nodeId: string; name?: string; requestedAt: number }> = [];
-
-export function setWsConnected(connected: boolean) {
-  wsConnected = connected;
-}
+// ── Compat stubs (called from main.ts — kept to avoid breaking imports) ───
+export function setWsConnected(_connected: boolean) { /* engine is always local */ }
+export function loadPairingRequests() { /* no pairing in engine mode */ }
+export function handleNodePairRequested(_payload: unknown) { /* noop */ }
+export function handleNodePairResolved(_payload: unknown) { /* noop */ }
+export function configureCallbacks(_opts: Record<string, unknown>) { /* noop */ }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-function escHtml(s: string): string {
+function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-let _toastTimer: number | null = null;
-function showToast(message: string, type: 'success' | 'error' | 'info') {
-  const toast = $('nodes-toast');
-  if (!toast) return;
-  toast.className = `nodes-toast ${type}`;
-  toast.textContent = message;
-  toast.style.display = 'flex';
-
-  if (_toastTimer) clearTimeout(_toastTimer);
-  _toastTimer = window.setTimeout(() => {
-    toast.style.display = 'none';
-    _toastTimer = null;
-  }, type === 'error' ? 8000 : 4000);
-}
-
-function formatTimestamp(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleString();
-}
-
-// ── Getters ────────────────────────────────────────────────────────────────
-export function getNodes(): GatewayNode[] {
-  return _nodes;
-}
-
-export function getSelectedNode(): GatewayNode | null {
-  return _nodes.find(n => n.id === _selectedNodeId) ?? null;
-}
-
 // ── Main loader ────────────────────────────────────────────────────────────
 export async function loadNodes() {
+  const container = $('nodes-list') ?? $('nodes-detail') ?? $('nodes-empty');
+  // Try to find and use the main content area
+  const parent = container?.parentElement ?? container;
+  if (!parent) return;
+
+  // If separate containers exist, unify into the parent
   const list = $('nodes-list');
+  const detail = $('nodes-detail');
   const empty = $('nodes-empty');
   const loading = $('nodes-loading');
-  const detail = $('nodes-detail');
-
-  if (!wsConnected) return;
-
-  if (loading) loading.style.display = '';
+  if (loading) loading.style.display = 'none';
   if (empty) empty.style.display = 'none';
-  if (list) list.innerHTML = '';
+  if (detail) detail.style.display = 'none';
+
+  // Use the list container as our main render target, or fall back
+  const target = list ?? parent;
+  target.innerHTML = '<p style="color:var(--text-muted)">Loading connections…</p>';
+  target.style.display = '';
 
   try {
-    const result = await gateway.nodeList();
-    _nodes = result.nodes ?? [];
+    // Gather status from engine
+    const [status, config] = await Promise.all([
+      pawEngine.status(),
+      pawEngine.getConfig(),
+    ]);
 
-    if (loading) loading.style.display = 'none';
+    let skillsInfo: Array<{ name: string; icon: string; configured_credentials: string[]; missing_credentials: string[] }> = [];
+    try { skillsInfo = await pawEngine.skillsList(); } catch { /* skills may not be loaded */ }
 
-    if (!_nodes.length) {
-      if (empty) empty.style.display = 'flex';
-      if (detail) detail.style.display = 'none';
-      return;
-    }
+    target.innerHTML = '';
 
-    renderNodeList();
-
-    // Auto-select first node if none selected
-    if (!_selectedNodeId && _nodes.length) {
-      selectNode(_nodes[0].id);
-    } else if (_selectedNodeId) {
-      // Refresh detail for currently selected
-      selectNode(_selectedNodeId);
-    }
-
-  } catch (e) {
-    if (loading) loading.style.display = 'none';
-    console.error('[nodes] Failed to load:', e);
-    showToast(`Failed to load nodes: ${e instanceof Error ? e.message : e}`, 'error');
-  }
-}
-
-function renderNodeList() {
-  const list = $('nodes-list');
-  if (!list) return;
-
-  list.innerHTML = '';
-
-  for (const node of _nodes) {
-    const item = document.createElement('div');
-    item.className = `nodes-item${node.id === _selectedNodeId ? ' active' : ''}${node.connected ? '' : ' disconnected'}`;
-    item.dataset.nodeId = node.id;
-
-    const icon = getNodeIcon(node);
-    const statusDot = node.connected ? '🟢' : '🔴';
-
-    item.innerHTML = `
-      <div class="nodes-item-icon">${icon}</div>
-      <div class="nodes-item-info">
-        <div class="nodes-item-name">${escHtml(node.name || node.id)}</div>
-        <div class="nodes-item-status">${statusDot} ${node.connected ? 'Connected' : 'Disconnected'}</div>
+    // ── Engine Status ──────────────────────────────────────────────────
+    const engineSection = document.createElement('div');
+    engineSection.style.cssText = 'margin-bottom:16px';
+    const engineRunning = status && (status as unknown as Record<string, unknown>).running !== false;
+    engineSection.innerHTML = `
+      <h3 class="settings-subsection-title">Engine Status</h3>
+      <div style="display:flex;gap:12px;align-items:center;padding:8px 0">
+        <span style="font-size:24px">${engineRunning ? '🟢' : '🔴'}</span>
+        <div>
+          <div style="font-weight:600;font-size:14px">Paw Engine</div>
+          <div style="font-size:12px;color:var(--text-muted)">${engineRunning ? 'Running — Tauri IPC connected' : 'Not responding'}</div>
+        </div>
       </div>
     `;
+    target.appendChild(engineSection);
 
-    item.addEventListener('click', () => selectNode(node.id));
-    list.appendChild(item);
-  }
-}
+    // ── Providers ──────────────────────────────────────────────────────
+    const provSection = document.createElement('div');
+    provSection.style.cssText = 'margin-bottom:16px';
+    provSection.innerHTML = '<h3 class="settings-subsection-title">Configured Providers</h3>';
 
-function getNodeIcon(node: GatewayNode): string {
-  const platform = (node.platform || node.deviceFamily || '').toLowerCase();
-  if (platform.includes('ios') || platform.includes('iphone')) return '📱';
-  if (platform.includes('ipad')) return '📱';
-  if (platform.includes('android')) return '🤖';
-  if (platform.includes('mac')) return '💻';
-  if (platform.includes('windows')) return '🖥️';
-  if (platform.includes('linux')) return '🐧';
-  return '📟';
-}
-
-// ── Node selection & detail ────────────────────────────────────────────────
-async function selectNode(nodeId: string) {
-  _selectedNodeId = nodeId;
-
-  // Update list selection
-  const items = document.querySelectorAll('.nodes-item');
-  items.forEach(item => {
-    item.classList.toggle('active', (item as HTMLElement).dataset.nodeId === nodeId);
-  });
-
-  const detail = $('nodes-detail');
-  const empty = $('nodes-empty');
-  const node = _nodes.find(n => n.id === nodeId);
-
-  if (!node) {
-    if (detail) detail.style.display = 'none';
-    return;
-  }
-
-  if (empty) empty.style.display = 'none';
-  if (detail) detail.style.display = '';
-
-  // Fetch detailed info
-  try {
-    const info = await gateway.nodeDescribe(nodeId);
-    renderNodeDetail(node, info);
-  } catch (e) {
-    // Fall back to basic info
-    renderNodeDetail(node, null);
-  }
-}
-
-function renderNodeDetail(node: GatewayNode, info: { node: GatewayNode; caps?: string[]; commands?: string[] } | null) {
-  const detail = $('nodes-detail');
-  if (!detail) return;
-
-  const caps = info?.caps ?? node.caps ?? [];
-  const commands = info?.commands ?? node.commands ?? [];
-  const statusDot = node.connected ? '🟢' : '🔴';
-
-  detail.innerHTML = `
-    <div class="nodes-detail-header">
-      <div class="nodes-detail-icon">${getNodeIcon(node)}</div>
-      <div class="nodes-detail-title">
-        <h3>${escHtml(node.name || node.id)}</h3>
-        <div class="nodes-detail-status">${statusDot} ${node.connected ? 'Connected' : 'Disconnected'}</div>
-      </div>
-      <button class="nodes-rename-btn" data-node-id="${node.id}" title="Rename">✏️</button>
-    </div>
-
-    <div class="nodes-detail-meta">
-      <div class="nodes-meta-item">
-        <span class="nodes-meta-label">ID</span>
-        <span class="nodes-meta-value">${escHtml(node.id)}</span>
-      </div>
-      ${node.platform ? `
-      <div class="nodes-meta-item">
-        <span class="nodes-meta-label">Platform</span>
-        <span class="nodes-meta-value">${escHtml(node.platform)}</span>
-      </div>
-      ` : ''}
-      ${node.deviceFamily ? `
-      <div class="nodes-meta-item">
-        <span class="nodes-meta-label">Device</span>
-        <span class="nodes-meta-value">${escHtml(node.deviceFamily)}</span>
-      </div>
-      ` : ''}
-      ${node.modelIdentifier ? `
-      <div class="nodes-meta-item">
-        <span class="nodes-meta-label">Model</span>
-        <span class="nodes-meta-value">${escHtml(node.modelIdentifier)}</span>
-      </div>
-      ` : ''}
-    </div>
-
-    ${caps.length ? `
-    <div class="nodes-detail-section">
-      <h4>Capabilities</h4>
-      <div class="nodes-caps-list">
-        ${caps.map(c => `<span class="nodes-cap-badge">${escHtml(c)}</span>`).join('')}
-      </div>
-    </div>
-    ` : ''}
-
-    ${commands.length ? `
-    <div class="nodes-detail-section">
-      <h4>Commands</h4>
-      <div class="nodes-commands-grid">
-        ${renderCommandButtons(node, commands)}
-      </div>
-    </div>
-    ` : ''}
-
-    ${!node.connected ? `
-    <div class="nodes-offline-notice">
-      <p>This node is currently offline. Commands will be unavailable until it reconnects.</p>
-    </div>
-    ` : ''}
-  `;
-
-  // Wire up rename button
-  detail.querySelector('.nodes-rename-btn')?.addEventListener('click', () => promptRenameNode(node.id));
-
-  // Wire up command buttons
-  detail.querySelectorAll('.nodes-cmd-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cmd = (btn as HTMLElement).dataset.command;
-      if (cmd) invokeCommand(node.id, cmd);
-    });
-  });
-}
-
-function renderCommandButtons(node: GatewayNode, commands: string[]): string {
-  const commandMeta: Record<string, { icon: string; label: string }> = {
-    'camera.snap': { icon: '📷', label: 'Take Photo' },
-    'camera.list': { icon: '📹', label: 'List Cameras' },
-    'camera.clip': { icon: '🎬', label: 'Record Clip' },
-    'screen.record': { icon: '🖥️', label: 'Record Screen' },
-    'location.get': { icon: '📍', label: 'Get Location' },
-    'notify': { icon: '🔔', label: 'Send Notification' },
-    'clipboard.get': { icon: '📋', label: 'Get Clipboard' },
-    'clipboard.set': { icon: '📝', label: 'Set Clipboard' },
-  };
-
-  return commands.map(cmd => {
-    const meta = commandMeta[cmd] ?? { icon: '⚡', label: cmd };
-    const disabled = !node.connected ? 'disabled' : '';
-    return `<button class="nodes-cmd-btn" data-command="${escHtml(cmd)}" ${disabled}>
-      <span class="nodes-cmd-icon">${meta.icon}</span>
-      <span class="nodes-cmd-label">${escHtml(meta.label)}</span>
-    </button>`;
-  }).join('');
-}
-
-// ── Commands ───────────────────────────────────────────────────────────────
-async function invokeCommand(nodeId: string, command: string) {
-  const node = _nodes.find(n => n.id === nodeId);
-  if (!node?.connected) {
-    showToast('Node is offline', 'error');
-    return;
-  }
-
-  showToast(`Running ${command}...`, 'info');
-
-  try {
-    const result = await gateway.nodeInvoke(nodeId, command);
-    console.log(`[nodes] ${command} result:`, result);
-
-    // Handle specific command results
-    if (command === 'camera.snap' && result) {
-      handleCameraSnapResult(result);
-    } else if (command === 'location.get' && result) {
-      handleLocationResult(result);
+    if (!config.providers.length) {
+      provSection.innerHTML += '<p style="color:var(--text-muted);font-size:13px;padding:4px 0">No providers configured. Go to Settings → Advanced to add Ollama or cloud providers.</p>';
     } else {
-      showToast(`${command} completed`, 'success');
+      for (const prov of config.providers) {
+        const card = document.createElement('div');
+        card.style.cssText = 'display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-light, rgba(255,255,255,0.06))';
+
+        const kindIcons: Record<string, string> = {
+          ollama: '🦙', openai: '🤖', anthropic: '🧠', google: '🔮', openrouter: '🌐', custom: '⚙️'
+        };
+        const icon = kindIcons[prov.kind.toLowerCase()] ?? '⚡';
+        const isDefault = prov.id === config.default_provider;
+        const hasKey = prov.kind.toLowerCase() === 'ollama' || (prov.api_key && prov.api_key.length > 0);
+        const url = prov.base_url || (prov.kind.toLowerCase() === 'ollama' ? 'http://localhost:11434' : '—');
+
+        card.innerHTML = `
+          <span style="font-size:20px">${icon}</span>
+          <div style="flex:1">
+            <div style="font-weight:600;font-size:13px">${esc(prov.kind)}${isDefault ? ' <span style="color:var(--accent);font-size:11px">(default)</span>' : ''}</div>
+            <div style="font-size:11px;color:var(--text-muted)">${esc(url)}</div>
+          </div>
+          <span style="font-size:11px;color:${hasKey ? 'var(--success, #4ade80)' : 'var(--warning, #facc15)'}">${hasKey ? '● Key set' : '○ No key'}</span>
+        `;
+
+        // Test button for Ollama
+        if (prov.kind.toLowerCase() === 'ollama') {
+          const testBtn = document.createElement('button');
+          testBtn.className = 'btn btn-sm';
+          testBtn.textContent = 'Test';
+          testBtn.addEventListener('click', async () => {
+            testBtn.disabled = true;
+            testBtn.textContent = '…';
+            try {
+              const testUrl = (prov.base_url || 'http://localhost:11434').replace(/\/$/, '');
+              const resp = await fetch(`${testUrl}/api/tags`);
+              if (resp.ok) {
+                const data = await resp.json() as { models?: Array<{ name: string }> };
+                const count = data.models?.length ?? 0;
+                showToast(`Ollama connected — ${count} model${count !== 1 ? 's' : ''} available`, 'success');
+              } else {
+                showToast(`Ollama returned ${resp.status}`, 'error');
+              }
+            } catch (e) {
+              showToast(`Cannot reach Ollama: ${e instanceof Error ? e.message : e}`, 'error');
+            } finally {
+              testBtn.disabled = false;
+              testBtn.textContent = 'Test';
+            }
+          });
+          card.appendChild(testBtn);
+        }
+
+        provSection.appendChild(card);
+      }
     }
-  } catch (e) {
-    console.error(`[nodes] ${command} failed:`, e);
-    showToast(`${command} failed: ${e instanceof Error ? e.message : e}`, 'error');
-  }
-}
+    target.appendChild(provSection);
 
-function handleCameraSnapResult(result: unknown) {
-  const r = result as { path?: string; url?: string; data?: string };
-  if (r.path || r.url || r.data) {
-    showToast('Photo captured!', 'success');
-    // Could show a preview modal here
-    if (_onCommandResult) _onCommandResult('camera.snap', result);
-  } else {
-    showToast('Photo captured', 'success');
-  }
-}
-
-function handleLocationResult(result: unknown) {
-  const r = result as { latitude?: number; longitude?: number; accuracy?: number };
-  if (r.latitude != null && r.longitude != null) {
-    showToast(`Location: ${r.latitude.toFixed(4)}, ${r.longitude.toFixed(4)}`, 'success');
-    if (_onCommandResult) _onCommandResult('location.get', result);
-  } else {
-    showToast('Location retrieved', 'success');
-  }
-}
-
-// ── Rename ─────────────────────────────────────────────────────────────────
-async function promptRenameNode(nodeId: string) {
-  const node = _nodes.find(n => n.id === nodeId);
-  if (!node) return;
-
-  const newName = prompt('Enter new name for this node:', node.name || '');
-  if (newName === null) return; // cancelled
-  if (newName === node.name) return; // no change
-
-  try {
-    await gateway.nodeRename(nodeId, newName);
-    showToast('Node renamed', 'success');
-    await loadNodes(); // refresh
-  } catch (e) {
-    showToast(`Rename failed: ${e instanceof Error ? e.message : e}`, 'error');
-  }
-}
-
-// ── Pairing requests ───────────────────────────────────────────────────────
-export async function loadPairingRequests() {
-  try {
-    const result = await gateway.nodePairList();
-    _pendingPairRequests = result.requests ?? [];
-    renderPairingRequests();
-  } catch (e) {
-    console.error('[nodes] Failed to load pairing requests:', e);
-  }
-}
-
-function renderPairingRequests() {
-  const container = $('nodes-pairing-requests');
-  if (!container) return;
-
-  if (!_pendingPairRequests.length) {
-    container.style.display = 'none';
-    return;
-  }
-
-  container.style.display = '';
-  container.innerHTML = `
-    <h4>Pending Pairing Requests</h4>
-    <div class="nodes-pairing-list">
-      ${_pendingPairRequests.map(req => `
-        <div class="nodes-pairing-item" data-request-id="${req.id}">
-          <div class="nodes-pairing-info">
-            <div class="nodes-pairing-name">${escHtml(req.name || req.nodeId)}</div>
-            <div class="nodes-pairing-time">Requested ${formatTimestamp(req.requestedAt)}</div>
-          </div>
-          <div class="nodes-pairing-actions">
-            <button class="nodes-pair-approve" data-request-id="${req.id}">✓ Approve</button>
-            <button class="nodes-pair-reject" data-request-id="${req.id}">✕ Reject</button>
-          </div>
+    // ── Default Model ──────────────────────────────────────────────────
+    if (config.default_model) {
+      const modelSection = document.createElement('div');
+      modelSection.style.cssText = 'margin-bottom:16px';
+      modelSection.innerHTML = `
+        <h3 class="settings-subsection-title">Active Model</h3>
+        <div style="display:flex;gap:8px;align-items:center;padding:6px 0">
+          <span style="font-size:16px">🎯</span>
+          <span style="font-weight:600;font-size:13px;font-family:var(--font-mono)">${esc(config.default_model)}</span>
+          ${config.default_provider ? `<span style="font-size:11px;color:var(--text-muted)">via ${esc(config.default_provider)}</span>` : ''}
         </div>
-      `).join('')}
-    </div>
-  `;
+      `;
+      target.appendChild(modelSection);
+    }
 
-  // Wire up buttons
-  container.querySelectorAll('.nodes-pair-approve').forEach(btn => {
-    btn.addEventListener('click', () => approvePairing((btn as HTMLElement).dataset.requestId!));
-  });
-  container.querySelectorAll('.nodes-pair-reject').forEach(btn => {
-    btn.addEventListener('click', () => rejectPairing((btn as HTMLElement).dataset.requestId!));
-  });
-}
+    // ── Skills Readiness ───────────────────────────────────────────────
+    if (skillsInfo.length > 0) {
+      const skillSection = document.createElement('div');
+      skillSection.innerHTML = '<h3 class="settings-subsection-title">Skills</h3>';
 
-async function approvePairing(requestId: string) {
-  try {
-    await gateway.nodePairApprove(requestId);
-    showToast('Pairing approved', 'success');
-    await loadPairingRequests();
-    await loadNodes();
+      for (const skill of skillsInfo) {
+        const ready = skill.missing_credentials.length === 0;
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13px';
+        row.innerHTML = `
+          <span>${esc(skill.icon)}</span>
+          <span style="font-weight:600;min-width:80px">${esc(skill.name)}</span>
+          <span style="color:${ready ? 'var(--success, #4ade80)' : 'var(--warning, #facc15)'};font-size:11px">${ready ? '● Ready' : `○ Missing: ${skill.missing_credentials.join(', ')}`}</span>
+        `;
+        skillSection.appendChild(row);
+      }
+      target.appendChild(skillSection);
+    }
+
+    // ── Engine Config Summary ──────────────────────────────────────────
+    const cfgSection = document.createElement('div');
+    cfgSection.style.cssText = 'margin-top:12px';
+    cfgSection.innerHTML = `
+      <h3 class="settings-subsection-title">Engine Config</h3>
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);line-height:1.8">
+        <div>max_tool_rounds: ${config.max_tool_rounds ?? '—'}</div>
+        <div>tool_timeout_secs: ${config.tool_timeout_secs ?? '—'}</div>
+        <div>providers: ${config.providers.length}</div>
+        <div>default_model: ${config.default_model ? esc(config.default_model) : '(not set)'}</div>
+      </div>
+    `;
+    target.appendChild(cfgSection);
+
   } catch (e) {
-    showToast(`Approve failed: ${e instanceof Error ? e.message : e}`, 'error');
+    target.innerHTML = `<p style="color:var(--danger)">Failed to load status: ${esc(String(e))}</p>`;
   }
 }
 
-async function rejectPairing(requestId: string) {
-  try {
-    await gateway.nodePairReject(requestId);
-    showToast('Pairing rejected', 'info');
-    await loadPairingRequests();
-  } catch (e) {
-    showToast(`Reject failed: ${e instanceof Error ? e.message : e}`, 'error');
-  }
-}
-
-// ── Event handlers ─────────────────────────────────────────────────────────
+// ── Init ───────────────────────────────────────────────────────────────────
 export function initNodesEvents() {
-  // Refresh button
-  $('nodes-refresh')?.addEventListener('click', () => {
-    loadNodes();
-    loadPairingRequests();
-  });
-}
-
-// ── Gateway event listeners (called from main.ts) ──────────────────────────
-export function handleNodePairRequested(payload: unknown) {
-  const p = payload as { id: string; nodeId: string; name?: string };
-  showToast(`New pairing request from ${p.name || p.nodeId}`, 'info');
-  loadPairingRequests();
-}
-
-export function handleNodePairResolved(payload: unknown) {
-  const p = payload as { nodeId: string; approved: boolean };
-  if (p.approved) {
-    showToast('Node paired successfully', 'success');
-    loadNodes();
-  }
-  loadPairingRequests();
-}
-
-// ── Callbacks ──────────────────────────────────────────────────────────────
-let _onCommandResult: ((command: string, result: unknown) => void) | null = null;
-
-export function configureCallbacks(opts: {
-  onCommandResult?: (command: string, result: unknown) => void;
-}) {
-  if (opts.onCommandResult) _onCommandResult = opts.onCommandResult;
+  $('nodes-refresh')?.addEventListener('click', () => loadNodes());
 }

@@ -1,26 +1,24 @@
 // Settings Config — shared config read/write/cache utilities
-// Used by all settings panels to read/write OpenClaw gateway config
+// Used by all settings panels to read/write Paw engine config
 // Each panel imports getConfig() and patchConfig() from here
 //
-// All writes go through gateway config.patch (RFC 7386 merge semantics + baseHash).
-// This replaces the old read→merge→config.apply pattern that caused corruption.
+// All reads/writes go through the Paw engine (Tauri IPC).
+// No gateway, no WebSocket — direct Rust calls.
 
-import { gateway } from '../gateway';
+import { pawEngine, type EngineConfig } from '../engine';
 import { showToast } from '../components/toast';
 
 // ── Config Cache ───────────────────────────────────────────────────────────
 
 let _configCache: Record<string, unknown> | null = null;
-let _configHash: string | null = null;          // baseHash for optimistic concurrency
 let _configLoading: Promise<Record<string, unknown>> | null = null;
 
-/** Fetch config from gateway (cached, deduped). Call invalidate() after writes. */
+/** Fetch config from engine (cached, deduped). Call invalidate() after writes. */
 export async function getConfig(): Promise<Record<string, unknown>> {
   if (_configCache) return _configCache;
   if (_configLoading) return _configLoading;
-  _configLoading = gateway.configGet().then(r => {
-    _configCache = r.config as Record<string, unknown>;
-    _configHash = r.hash ?? null;
+  _configLoading = pawEngine.getConfig().then(cfg => {
+    _configCache = cfg as unknown as Record<string, unknown>;
     _configLoading = null;
     return _configCache;
   }).catch(e => {
@@ -30,20 +28,24 @@ export async function getConfig(): Promise<Record<string, unknown>> {
   return _configLoading;
 }
 
-/** Get the last known baseHash from config.get (used for writes). */
-export function getConfigHash(): string | null {
-  return _configHash;
+/** Get raw typed engine config. */
+export async function getEngineConfig(): Promise<EngineConfig> {
+  return pawEngine.getConfig();
 }
 
-/** Force-refresh config from gateway (bypasses cache). Returns config + updates hash. */
-async function freshConfig(): Promise<Record<string, unknown>> {
-  _configCache = null;
-  _configHash = null;
-  _configLoading = null;
-  const r = await gateway.configGet();
-  _configCache = r.config as Record<string, unknown>;
-  _configHash = r.hash ?? null;
-  return _configCache;
+/** Save full engine config. */
+export async function setEngineConfig(config: EngineConfig, silent = false): Promise<boolean> {
+  try {
+    await pawEngine.setConfig(config);
+    _configCache = null;
+    _configLoading = null;
+    if (!silent) showToast('Settings saved', 'success');
+    return true;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    showToast(`Save failed: ${msg}`, 'error');
+    return false;
+  }
 }
 
 /** Deep-get a config value by dot path. Returns undefined if missing. */
@@ -51,10 +53,7 @@ export function getVal(config: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce((obj: any, key) => obj?.[key], config);
 }
 
-/** Build a nested patch object from a dot path + value.
- *  e.g. buildPatch('agents.defaults.thinkingDefault', 'high')
- *  → { agents: { defaults: { thinkingDefault: 'high' } } }
- */
+/** Build a nested patch object from a dot path + value. */
 export function buildPatch(path: string, value: unknown): Record<string, unknown> {
   const keys = path.split('.');
   const patch: Record<string, unknown> = {};
@@ -67,56 +66,38 @@ export function buildPatch(path: string, value: unknown): Record<string, unknown
   return patch;
 }
 
-const MAX_PATCH_RETRIES = 2;
-
-/** Patch config via gateway config.patch (RFC 7386 merge semantics).
- *  Sends only the partial patch — the gateway merges server-side.
- *  Uses baseHash for optimistic concurrency; retries on hash conflict.
- *  null values delete keys (RFC 7386). Objects merge recursively.
- *  Invalidates cache on success. Shows toast on error.
+/** Patch config — reads current engine config, merges the patch, and saves.
  *  Returns true on success, false on error.
  */
 export async function patchConfig(patch: Record<string, unknown>, silent = false): Promise<boolean> {
-  for (let attempt = 0; attempt <= MAX_PATCH_RETRIES; attempt++) {
-    try {
-      // Ensure we have a fresh hash before writing
-      if (!_configHash) {
-        await freshConfig();
-      }
+  try {
+    const current = await pawEngine.getConfig();
+    const merged = deepMerge(current as unknown as Record<string, unknown>, patch);
+    await pawEngine.setConfig(merged as unknown as EngineConfig);
+    _configCache = null;
+    _configLoading = null;
+    if (!silent) showToast('Settings saved', 'success');
+    return true;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    showToast(`Save failed: ${msg}`, 'error');
+    return false;
+  }
+}
 
-      const result = await gateway.configPatch(patch, _configHash ?? undefined);
-
-      // Invalidate cache — next read will get fresh config + new hash
-      _configCache = null;
-      _configHash = null;
-
-      if (!result.ok && result.errors?.length) {
-        showToast(`Config error: ${result.errors.join(', ')}`, 'error');
-        return false;
-      }
-      if (!silent) {
-        showToast('Settings saved', 'success');
-      }
-      return true;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-
-      // Hash conflict — re-fetch config and retry
-      if (msg.includes('config changed since last load') || msg.includes('base hash')) {
-        console.warn(`[settings] Config hash conflict (attempt ${attempt + 1}/${MAX_PATCH_RETRIES + 1}), refreshing…`);
-        _configCache = null;
-        _configHash = null;
-        await freshConfig();
-        continue;
-      }
-
-      showToast(`Save failed: ${msg}`, 'error');
-      return false;
+/** Deep merge source into target. null values delete keys. */
+function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...target };
+  for (const [key, value] of Object.entries(source)) {
+    if (value === null || value === undefined) {
+      delete result[key];
+    } else if (typeof value === 'object' && !Array.isArray(value) && typeof result[key] === 'object' && !Array.isArray(result[key])) {
+      result[key] = deepMerge(result[key] as Record<string, unknown>, value as Record<string, unknown>);
+    } else {
+      result[key] = value;
     }
   }
-
-  showToast('Save failed: config changed during save — please try again', 'error');
-  return false;
+  return result;
 }
 
 /** Convenience: patch a single dot-path value */
@@ -124,31 +105,26 @@ export async function patchValue(path: string, value: unknown, silent = false): 
   return patchConfig(buildPatch(path, value), silent);
 }
 
-/** Delete a config key by dot path (e.g. 'models.providers.google').
- *  Uses config.patch with null value — RFC 7386 semantics: null deletes a key.
- */
+/** Delete a config key by dot path. */
 export async function deleteConfigKey(path: string, silent = false): Promise<boolean> {
   return patchConfig(buildPatch(path, null), silent);
 }
 
-/** Invalidate cache (call after external config changes or on reconnect) */
+/** Invalidate cache (call after external config changes) */
 export function invalidateConfigCache(): void {
   _configCache = null;
-  _configHash = null;
   _configLoading = null;
 }
 
 // ── Connected state ────────────────────────────────────────────────────────
+// Engine is always "connected" — no WebSocket needed.
 
-let _wsConnected = false;
-
-export function setConnected(connected: boolean) {
-  _wsConnected = connected;
-  if (!connected) invalidateConfigCache();
+export function setConnected(_connected: boolean) {
+  invalidateConfigCache();
 }
 
 export function isConnected(): boolean {
-  return _wsConnected;
+  return true; // Engine is always available via Tauri IPC
 }
 
 // ── UI Helpers ─────────────────────────────────────────────────────────────
