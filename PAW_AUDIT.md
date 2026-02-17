@@ -1,6 +1,6 @@
 # Pawz vs OpenClaw — Full Competitive Audit
 
-> Last updated: 2026-02-17
+> Last updated: 2025-02-17 (P1 complete)
 > Source: OpenClaw docs (docs.openclaw.ai) + full Pawz codebase audit
 
 ---
@@ -36,9 +36,9 @@ Pawz and OpenClaw solve the same problem (personal AI agent gateway) with fundam
 | Feature | OpenClaw | Pawz Status | Priority |
 |---------|----------|-------------|----------|
 | **WhatsApp channel** | Full via Baileys library (QR login, media, groups) | Missing entirely | P1 — CRITICAL (separate phase) |
-| **Docker sandboxing** | Modes (off/non-main/all), scope (session/agent/shared), workspace bind mounts, custom images | No sandboxing — agent runs commands directly on host OS | P1 — CRITICAL |
-| **Slash commands** | 25+ commands: `/model`, `/think`, `/verbose`, `/reasoning`, `/compact`, `/exec`, `/mesh`, `/web`, `/img`, `/tts`, `/remember`, `/forget` | None | P1 — HIGH |
-| **Session compaction** | Auto-compaction when context fills, `/compact` command, pre-compaction memory flush, pruning | Basic session clear only | P1 — HIGH |
+| **Docker sandboxing** | Modes (off/non-main/all), scope (session/agent/shared), workspace bind mounts, custom images | ✅ bollard crate, ephemeral containers, cap_drop ALL, memory/CPU limits | P1 — DONE |
+| **Slash commands** | 25+ commands: `/model`, `/think`, `/verbose`, `/reasoning`, `/compact`, `/exec`, `/mesh`, `/web`, `/img`, `/tts`, `/remember`, `/forget` | ✅ 20 commands with autocomplete | P1 — DONE |
+| **Session compaction** | Auto-compaction when context fills, `/compact` command, pre-compaction memory flush, pruning | ✅ AI-powered compaction with threshold detection | P1 — DONE |
 | **Memory: Hybrid search** | BM25 + vector search, MMR re-ranking, temporal decay, conversation-aware filtering | Ollama embeddings + cosine similarity only, keyword fallback | P2 — HIGH |
 | **TTS / Voice** | ElevenLabs, OpenAI, Edge TTS on all channels; Talk Mode (continuous voice conversation); Voice Wake (wake words) | Gateway methods typed, zero UI built | P2 — HIGH |
 | **ClawHub skill registry** | Public discovery/install/publish marketplace | No skill discovery — 37 hardcoded skills | P2 — MEDIUM |
@@ -158,10 +158,10 @@ OpenClaw has managed profiles, Playwright, Chrome Extension relay. Pawz has basi
 | Auto-deny privilege escalation | ✅ | ❌ |
 | Network exfiltration detection | ✅ | ❌ |
 | Npm package risk scoring | ✅ | ❌ |
-| Docker sandboxing | ❌ | ✅ |
-| Per-agent tool policies | ❌ | ✅ |
-| Per-agent access profiles | ❌ | ✅ |
-| Prompt injection defense | ❌ | ✅ (docs) |
+| Docker sandboxing | ✅ | ✅ |
+| Per-agent tool policies | ✅ | ✅ |
+| Per-agent access profiles | ✅ | ✅ |
+| Prompt injection defense | ✅ | ✅ (docs) |
 | OS keychain credentials | ✅ | ❌ |
 | AES-256-GCM encryption at rest | ✅ | ❌ |
 | Credential activity audit log | ✅ | ❌ |
@@ -191,10 +191,10 @@ OpenClaw has managed profiles, Playwright, Chrome Extension relay. Pawz has basi
 |---------|:----:|:--------:|
 | Multi-agent CRUD | ✅ | ✅ |
 | Boss/worker orchestration | ✅ | ❌ |
-| Channel→agent routing | ❌ | ✅ |
+| Channel→agent routing | ✅ | ✅ |
 | Per-agent workspaces | ❌ | ✅ |
 | Per-agent model selection | ✅ | ✅ |
-| Per-agent tool policies | ❌ | ✅ |
+| Per-agent tool policies | ✅ | ✅ |
 | Kanban task board | ✅ | ❌ |
 | Multi-agent parallel execution | ✅ | ❌ |
 
@@ -239,12 +239,12 @@ OpenClaw has managed profiles, Playwright, Chrome Extension relay. Pawz has basi
 
 | # | Feature | Effort | Status |
 |---|---------|--------|--------|
-| 1 | **Container Sandboxing** — `bollard` crate, 3 modes (off/sandboxed/strict) | L | ❌ NOT STARTED |
-| 2 | **Per-Agent Tool Policies** — allow/deny tool lists per agent | M | ❌ NOT STARTED |
-| 3 | **Prompt Injection Scanner** — pattern detection on incoming messages | S | ❌ NOT STARTED |
-| 4 | **Slash Commands** — `/model`, `/think`, `/compact`, `/remember`, `/forget`, `/web`, `/img`, `/exec` | M | ❌ NOT STARTED |
-| 5 | **Session Compaction** — auto-summarize + pre-compaction memory flush | M | ❌ NOT STARTED |
-| 6 | **Per-Agent Channel Routing** — bindings config in agent settings | M | ❌ NOT STARTED |
+| 1 | **Container Sandboxing** — `bollard` crate, ephemeral Docker containers, cap_drop ALL, memory/CPU limits | L | ✅ DONE (2c45553) |
+| 2 | **Per-Agent Tool Policies** — allowlist/denylist/presets per agent | M | ✅ DONE (fd06206) |
+| 3 | **Prompt Injection Scanner** — 30+ patterns, 4 severities, dual TS+Rust impl | S | ✅ DONE (d1eb0f6) |
+| 4 | **Slash Commands** — 20 commands, autocomplete, session overrides | M | ✅ DONE (90e2d20) |
+| 5 | **Session Compaction** — AI-powered summarization, threshold detection | M | ✅ DONE (31cfe8d) |
+| 6 | **Per-Agent Channel Routing** — rule-based routing with UI config | M | ✅ DONE (110d860) |
 
 ### Phase 1.5: WhatsApp (dedicated phase)
 
@@ -319,4 +319,4 @@ Backend: `src-tauri/src/engine/{feature}/` or `src-tauri/src/engine/{feature}.rs
 
 ---
 
-**TL;DR**: Close the 6 P1 gaps (sandboxing, per-agent policies, prompt injection, slash commands, compaction, channel routing) + WhatsApp as its own phase, and Pawz becomes the definitively superior product.
+**TL;DR**: ~~Close the 6 P1 gaps~~ **All 6 P1 features are DONE.** WhatsApp remains as Phase 1.5. Next up: Phase 2 (Memory & Intelligence) and Phase 3 (Voice & TTS).

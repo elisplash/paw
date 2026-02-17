@@ -679,12 +679,17 @@ impl GoogleProvider {
                     for tc in tool_calls {
                         let args: Value = serde_json::from_str(&tc.function.arguments)
                             .unwrap_or(json!({}));
-                        parts.push(json!({
+                        let mut fc_obj = json!({
                             "functionCall": {
                                 "name": tc.function.name,
                                 "args": args,
                             }
-                        }));
+                        });
+                        // Echo thought_signature back to Gemini if present
+                        if let Some(sig) = &tc.thought_signature {
+                            fc_obj["functionCall"]["thoughtSignature"] = json!(sig);
+                        }
+                        parts.push(fc_obj);
                     }
                     contents.push(json!({
                         "role": "model",
@@ -894,6 +899,10 @@ impl GoogleProvider {
                                         if let Some(fc) = part.get("functionCall") {
                                             let name = fc["name"].as_str().unwrap_or("").to_string();
                                             let args = fc["args"].clone();
+                                            let thought_sig = fc.get("thoughtSignature")
+                                                .or_else(|| fc.get("thought_signature"))
+                                                .and_then(|v| v.as_str())
+                                                .map(|s| s.to_string());
                                             chunks.push(StreamChunk {
                                                 delta_text: None,
                                                 tool_calls: vec![ToolCallDelta {
@@ -901,6 +910,7 @@ impl GoogleProvider {
                                                     id: Some(format!("call_{}", uuid::Uuid::new_v4())),
                                                     function_name: Some(name),
                                                     arguments_delta: Some(serde_json::to_string(&args).unwrap_or_default()),
+                                                    thought_signature: thought_sig,
                                                 }],
                                                 finish_reason: finish_reason.clone(),
                                                 usage: None,
