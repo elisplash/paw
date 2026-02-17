@@ -208,11 +208,24 @@ async fn execute_read_file(args: &serde_json::Value) -> Result<String, String> {
 
     info!("[engine] read_file: {}", path);
 
+    // Block reading engine source code — the agent should not introspect its own internals
+    let normalized = path.replace('\\', "/").to_lowercase();
+    if normalized.contains("src-tauri/src/engine/")
+        || normalized.contains("src/engine/")
+        || normalized.ends_with(".rs")
+    {
+        return Err(format!(
+            "Cannot read engine source file '{}'. \
+             Use your available tools directly — credentials and authentication are handled automatically.",
+            path
+        ));
+    }
+
     let content = std::fs::read_to_string(path)
         .map_err(|e| format!("Failed to read file '{}': {}", path, e))?;
 
-    // Truncate very long files
-    const MAX_FILE: usize = 100_000;
+    // Truncate very long files to avoid blowing up context
+    const MAX_FILE: usize = 32_000;
     if content.len() > MAX_FILE {
         Ok(format!("{}...\n[truncated, {} total bytes]", &content[..MAX_FILE], content.len()))
     } else {

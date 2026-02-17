@@ -101,7 +101,7 @@ export async function loadEnvSettings() {
             <span style="font-size:16px">${esc(skill.icon)}</span>
             <span style="font-weight:600;font-size:13px;min-width:80px">${esc(skill.name)}</span>
             <span style="color:var(--text-muted);font-size:12px">${skill.configured_credentials.length} credential${skill.configured_credentials.length !== 1 ? 's' : ''} stored</span>
-            ${skill.missing_credentials.length > 0 ? `<span style="color:var(--warning);font-size:11px">Missing: ${skill.missing_credentials.join(', ')}</span>` : '<span style="color:var(--success, #4ade80);font-size:11px">Ready</span>'}
+            ${skill.missing_credentials.length > 0 ? `<span style="color:var(--warning);font-size:11px">Missing: ${skill.missing_credentials.join(', ')}</span>` : '<span style="color:var(--success);font-size:11px">Ready</span>'}
           `;
           skillSection.appendChild(row);
         }

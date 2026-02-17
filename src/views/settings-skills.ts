@@ -16,8 +16,8 @@ function showVaultToast(message: string, type: 'success' | 'error' | 'info') {
   if (!toast) return;
   toast.textContent = message;
   toast.style.display = 'block';
-  toast.style.background = type === 'error' ? 'var(--bg-danger, #f87171)' :
-    type === 'success' ? 'var(--bg-success, #34d399)' : 'var(--bg-info, #60a5fa)';
+  toast.style.background = type === 'error' ? 'var(--bg-danger)' :
+    type === 'success' ? 'var(--bg-success)' : 'var(--bg-info)';
   toast.style.color = '#fff';
   setTimeout(() => { toast.style.display = 'none'; }, type === 'error' ? 6000 : 3000);
 }
@@ -161,7 +161,7 @@ function renderSkillCard(s: EngineSkillStatus): string {
     padding:14px 16px;
     margin-bottom:8px;
     background:var(--bg-secondary);
-    ${s.enabled ? 'border-left:3px solid var(--accent-color, #7c3aed);' : ''}
+    ${s.enabled ? 'border-left:3px solid var(--accent-color);' : ''}
   ">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
       <div style="display:flex; align-items:center; gap:8px;">
@@ -176,7 +176,7 @@ function renderSkillCard(s: EngineSkillStatus): string {
           <input type="checkbox" class="skill-enabled-toggle" data-skill="${escHtml(s.id)}" ${s.enabled ? 'checked' : ''} />
           Enable
         </label>
-        ${hasCreds ? `<button class="btn btn-ghost btn-sm skill-revoke-btn" data-skill="${escHtml(s.id)}" title="Revoke all credentials" style="color:var(--text-danger, red); font-size:11px;">Revoke</button>` : ''}
+        ${hasCreds ? `<button class="btn btn-ghost btn-sm skill-revoke-btn" data-skill="${escHtml(s.id)}" title="Revoke all credentials" style="color:var(--text-danger); font-size:11px;">Revoke</button>` : ''}
       </div>
     </div>
     <p style="color:var(--text-secondary); font-size:12px; margin:0 0 8px 0;">${escHtml(s.description)}</p>
@@ -197,7 +197,7 @@ function renderBinaryStatus(s: EngineSkillStatus): string {
   return `<div style="
     background:var(--bg-tertiary); border-radius:6px; padding:8px 10px; margin-bottom:6px; font-size:12px;
   ">
-    <div style="color:var(--text-danger, #f87171); margin-bottom:4px;">
+    <div style="color:var(--text-danger); margin-bottom:4px;">
       ⚠️ Missing binaries: ${s.missing_binaries.map(b => `<code style="font-weight:600;">${escHtml(b)}</code>`).join(', ')}
     </div>
     ${s.install_hint ? `<div style="color:var(--text-muted);">
@@ -223,7 +223,7 @@ function renderCredentialFields(skill: EngineSkillStatus): string {
 
   const rows = skill.required_credentials.map(cred => {
     const isSet = skill.configured_credentials.includes(cred.key);
-    const reqBadge = cred.required ? '<span style="color:var(--text-danger, red);font-size:11px;">*</span>' : '';
+    const reqBadge = cred.required ? '<span style="color:var(--text-danger);font-size:11px;">*</span>' : '';
 
     return `
     <div class="skill-cred-row" style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
@@ -243,9 +243,9 @@ function renderCredentialFields(skill: EngineSkillStatus): string {
         <button class="btn btn-ghost btn-sm skill-cred-save" data-skill="${escHtml(skill.id)}" data-key="${escHtml(cred.key)}" style="font-size:10px; padding:3px 7px;">
           ${isSet ? 'Update' : 'Set'}
         </button>
-        ${isSet ? `<button class="btn btn-ghost btn-sm skill-cred-delete" data-skill="${escHtml(skill.id)}" data-key="${escHtml(cred.key)}" style="font-size:10px; padding:3px 7px; color:var(--text-danger, red);">✕</button>` : ''}
+        ${isSet ? `<button class="btn btn-ghost btn-sm skill-cred-delete" data-skill="${escHtml(skill.id)}" data-key="${escHtml(cred.key)}" style="font-size:10px; padding:3px 7px; color:var(--text-danger);">✕</button>` : ''}
       </div>
-      ${isSet ? '<span style="color:var(--text-success, green); font-size:11px;">✓</span>' : '<span style="color:var(--text-muted); font-size:11px;">—</span>'}
+      ${isSet ? '<span style="color:var(--text-success); font-size:11px;">✓</span>' : '<span style="color:var(--text-muted); font-size:11px;">—</span>'}
     </div>`;
   }).join('');
 
@@ -265,7 +265,7 @@ function renderAdvancedSection(s: EngineSkillStatus): string {
     <details class="skill-advanced-toggle" data-skill="${escHtml(s.id)}">
       <summary style="font-size:11px; font-weight:600; color:var(--text-secondary); cursor:pointer; user-select:none; margin-bottom:6px;">
         ⚙️ Advanced — Agent Instructions
-        ${hasCustom ? '<span style="color:var(--accent-color, #7c3aed); font-size:10px; margin-left:6px;">customized</span>' : ''}
+        ${hasCustom ? '<span style="color:var(--accent-color); font-size:10px; margin-left:6px;">customized</span>' : ''}
       </summary>
       <p style="font-size:10px; color:var(--text-muted); margin:0 0 6px 0;">
         These instructions are injected into the agent's system prompt when this skill is enabled. Edit to customize how the agent uses this skill.

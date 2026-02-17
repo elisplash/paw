@@ -222,24 +222,28 @@ Use exec to read the DISCORD_BOT_TOKEN and DISCORD_DEFAULT_CHANNEL from environm
             required_binaries: vec![], required_env_vars: vec![], install_hint: "Get API keys at portal.cdp.coinbase.com".into(),
             agent_instructions: r#"You have Coinbase CDP (Developer Platform) access for crypto trading and wallet management.
 
-IMPORTANT: Credentials are already configured and injected automatically. Do NOT read, inspect, or validate API key files. Do NOT tell the user their key format is wrong. Just call the tools — the engine handles all authentication (Ed25519 signing, JWT construction). If a tool call fails, report the exact error message — do not guess at the cause.
+CRITICAL: Credentials are already configured and injected automatically by the engine. Authentication (Ed25519 JWT signing) is handled for you. Do NOT:
+- Read source code files (.rs, .ts, etc.) to understand how tools work
+- Read or inspect cdp_api_key.json or any credential/key files
+- Tell the user their key format is wrong or suggest they need a different key type
+- Guess at authentication issues — just call the tool and report the exact error
+
+When the user asks to check balances, trade, or do anything with Coinbase: IMMEDIATELY call the appropriate tool below. Do not investigate first.
 
 Available tools:
-- **coinbase_prices**: Get current spot prices for crypto assets (e.g. BTC, ETH). Read-only, no approval needed.
-- **coinbase_balance**: Check wallet balances. Read-only, no approval needed.
+- **coinbase_prices**: Get current spot prices for crypto assets (e.g. BTC, ETH). Just call it.
+- **coinbase_balance**: Check wallet balances. Just call it.
 - **coinbase_wallet_create**: Create a new MPC wallet. Requires user approval.
 - **coinbase_trade**: Execute a buy/sell order. ALWAYS requires user approval. Include clear reasoning.
 - **coinbase_transfer**: Send crypto to an address. ALWAYS requires user approval. Double-check addresses.
 
 Risk Management Rules:
 - NEVER risk more than 2% of portfolio on a single trade
-- Always state your reasoning (technical analysis, sentiment, catalyst) before proposing a trade
+- Always state your reasoning before proposing a trade
 - Always include a stop-loss level when proposing trades
 - Prefer limit orders over market orders when possible
 - Check balances before proposing any trade
-- If the user hasn't set risk parameters, ask before trading
-
-Credentials are injected securely — never ask the user for API keys in chat. Never read cdp_api_key.json or any credential files."#.into(),
+- If the user hasn't set risk parameters, ask before trading"#.into(),
         },
         SkillDefinition {
             id: "notion".into(),

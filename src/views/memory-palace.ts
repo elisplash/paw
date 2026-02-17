@@ -216,22 +216,22 @@ function initPalaceInstall() {
         const targetId = provider === 'azure' ? 'palace-base-url' : 'palace-base-url-openai';
         const bi = $(targetId) as HTMLInputElement | null;
         if (bi) bi.value = baseUrl;
-        if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.style.borderColor = '#e44'; apiKeyInput.focus(); apiKeyInput.placeholder = 'Enter your API key here (not a URL)'; }
+        if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.style.borderColor = 'var(--error)'; apiKeyInput.focus(); apiKeyInput.placeholder = 'Enter your API key here (not a URL)'; }
         return null;
       } else {
-        if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.style.borderColor = '#e44'; apiKeyInput.focus(); apiKeyInput.placeholder = 'This looks like a URL — enter your API key instead'; }
+        if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.style.borderColor = 'var(--error)'; apiKeyInput.focus(); apiKeyInput.placeholder = 'This looks like a URL — enter your API key instead'; }
         return null;
       }
     }
 
     if (provider === 'azure' && !baseUrl) {
       const bi = $('palace-base-url') as HTMLInputElement | null;
-      if (bi) { bi.style.borderColor = '#e44'; bi.focus(); bi.placeholder = 'Azure endpoint is required'; }
+      if (bi) { bi.style.borderColor = 'var(--error)'; bi.focus(); bi.placeholder = 'Azure endpoint is required'; }
       return null;
     }
 
     if (!apiKey) {
-      if (apiKeyInput) { apiKeyInput.style.borderColor = '#e44'; apiKeyInput.focus(); apiKeyInput.placeholder = 'API key is required'; }
+      if (apiKeyInput) { apiKeyInput.style.borderColor = 'var(--error)'; apiKeyInput.focus(); apiKeyInput.placeholder = 'API key is required'; }
       return null;
     }
     if (apiKeyInput) apiKeyInput.style.borderColor = '';

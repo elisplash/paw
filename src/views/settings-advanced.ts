@@ -110,14 +110,14 @@ export async function loadAdvancedSettings() {
           const data = await resp.json();
           const models = (data.models ?? []) as Array<{ name: string }>;
           testStatus.textContent = `Connected! ${models.length} model${models.length !== 1 ? 's' : ''} available: ${models.map(m => m.name).join(', ')}`;
-          testStatus.style.color = 'var(--success, #4ade80)';
+          testStatus.style.color = 'var(--success)';
         } else {
           testStatus.textContent = `Ollama responded with ${resp.status}`;
-          testStatus.style.color = 'var(--danger, #ef4444)';
+          testStatus.style.color = 'var(--error)';
         }
       } catch (e) {
         testStatus.textContent = `Cannot reach Ollama — is it running? (${e instanceof Error ? e.message : e})`;
-        testStatus.style.color = 'var(--danger, #ef4444)';
+        testStatus.style.color = 'var(--error)';
       }
     });
     testRow.appendChild(testBtn);

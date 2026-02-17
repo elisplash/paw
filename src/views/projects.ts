@@ -398,7 +398,7 @@ function renderProjectsSidebar(): void {
       ? `<span style="font-size:10px;color:var(--accent);font-family:var(--font-mono);opacity:0.8">${escapeHtml(cached.branch)}</span>`
       : '';
     const dirtyDot = cached?.isRepo && cached.dirty
-      ? '<span style="color:var(--warning, #facc15);font-size:8px;margin-left:2px">●</span>'
+      ? '<span style="color:var(--warning);font-size:8px;margin-left:2px">●</span>'
       : '';
     return `
     <div class="projects-folder-item${_selectedFile && getProjectRoot(_selectedFile.path) === p.path ? ' active' : ''}" 
@@ -514,8 +514,8 @@ function renderGitBanner(git: GitInfo, projectPath: string): string {
     : '';
 
   const dirtyBadge = git.dirty !== undefined && git.dirty > 0
-    ? `<span style="font-size:11px;color:var(--warning, #facc15)">● ${git.dirty} changed</span>`
-    : `<span style="font-size:11px;color:var(--success, #4ade80)">● Clean</span>`;
+    ? `<span style="font-size:11px;color:var(--warning)">● ${git.dirty} changed</span>`
+    : `<span style="font-size:11px;color:var(--success)">● Clean</span>`;
 
   let syncBadge = '';
   if (git.ahead || git.behind) {

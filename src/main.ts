@@ -2892,6 +2892,37 @@ onEngineToolApproval((event: EngineEvent) => {
 
 // (Gateway presence/cron/shutdown events removed — engine mode uses Tauri listeners)
 
+// ── Theme Toggle ───────────────────────────────────────────────────────────
+const THEME_KEY = 'paw-theme';
+
+function getTheme(): 'dark' | 'light' {
+  return (localStorage.getItem(THEME_KEY) as 'dark' | 'light') || 'dark';
+}
+
+function setTheme(theme: 'dark' | 'light') {
+  if (theme === 'dark') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+  localStorage.setItem(THEME_KEY, theme);
+  const label = document.getElementById('theme-label');
+  if (label) label.textContent = theme === 'dark' ? 'Dark' : 'Light';
+}
+
+function initTheme() {
+  const saved = getTheme();
+  setTheme(saved);
+
+  const toggle = document.getElementById('theme-toggle');
+  if (toggle) {
+    toggle.addEventListener('click', () => {
+      const current = getTheme();
+      setTheme(current === 'dark' ? 'light' : 'dark');
+    });
+  }
+}
+
 // ── Initialize ─────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -2902,6 +2933,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const name = el.dataset.icon;
       if (name) el.innerHTML = icon(name);
     }
+
+    // ── Theme: restore saved preference ──
+    initTheme();
 
     // Check for crash log from previous run
     try {

@@ -95,7 +95,7 @@ export async function loadNodes() {
             <div style="font-weight:600;font-size:13px">${esc(prov.kind)}${isDefault ? ' <span style="color:var(--accent);font-size:11px">(default)</span>' : ''}</div>
             <div style="font-size:11px;color:var(--text-muted)">${esc(url)}</div>
           </div>
-          <span style="font-size:11px;color:${hasKey ? 'var(--success, #4ade80)' : 'var(--warning, #facc15)'}">${hasKey ? '● Key set' : '○ No key'}</span>
+          <span style="font-size:11px;color:${hasKey ? 'var(--success)' : 'var(--warning)'}">${hasKey ? '● Key set' : '○ No key'}</span>
         `;
 
         // Test button for Ollama
@@ -158,7 +158,7 @@ export async function loadNodes() {
         row.innerHTML = `
           <span>${esc(skill.icon)}</span>
           <span style="font-weight:600;min-width:80px">${esc(skill.name)}</span>
-          <span style="color:${ready ? 'var(--success, #4ade80)' : 'var(--warning, #facc15)'};font-size:11px">${ready ? '● Ready' : `○ Missing: ${skill.missing_credentials.join(', ')}`}</span>
+          <span style="color:${ready ? 'var(--success)' : 'var(--warning)'};font-size:11px">${ready ? '● Ready' : `○ Missing: ${skill.missing_credentials.join(', ')}`}</span>
         `;
         skillSection.appendChild(row);
       }

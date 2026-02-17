@@ -91,10 +91,10 @@ export async function loadModelsSettings() {
         const isLocal = p.kind === 'ollama';
         const isDefault = p.id === config.default_provider;
         const statusBadge = hasKey
-          ? '<span style="color:#4ade80">● Key set</span>'
+          ? '<span style="color:var(--status-success)">● Key set</span>'
           : isLocal
-            ? '<span style="color:#60a5fa">● Local</span>'
-            : '<span style="color:#fbbf24">● No key</span>';
+            ? '<span style="color:var(--status-info)">● Local</span>'
+            : '<span style="color:var(--status-warning)">● No key</span>';
 
         const row = document.createElement('tr');
         row.style.borderBottom = '1px solid var(--border-light, rgba(255,255,255,0.06))';

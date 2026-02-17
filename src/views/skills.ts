@@ -543,7 +543,7 @@ function openSkillConfigModal(data: SkillConfigData) {
     const isPrimary = envName === data.primaryEnv;
     return `
       <div class="skill-config-field">
-        <label for="skill-env-${escAttr(envName)}">${escHtml(envName)}${isMissing ? ' <span style="color:var(--warning,#E8A317)">(not set)</span>' : ' <span style="color:var(--success)">✓</span>'}</label>
+        <label for="skill-env-${escAttr(envName)}">${escHtml(envName)}${isMissing ? ' <span style="color:var(--warning)">(not set)</span>' : ' <span style="color:var(--success)">✓</span>'}</label>
         <input type="password" id="skill-env-${escAttr(envName)}" class="form-input"
           data-env-name="${escAttr(envName)}"
           data-is-primary="${isPrimary}"
