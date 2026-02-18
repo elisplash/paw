@@ -823,12 +823,13 @@ Alpha Hunting Workflow:
             icon: "☀️".into(),
             category: SkillCategory::Vault,
             required_credentials: vec![
+                CredentialField { key: "JUPITER_API_KEY".into(), label: "Jupiter API Key".into(), description: "Required for Jupiter swap quotes. Get a free key at https://dev.jup.ag — go to Dashboard → API Keys.".into(), required: true, placeholder: "your-jupiter-api-key".into() },
                 CredentialField { key: "SOLANA_RPC_URL".into(), label: "Solana RPC URL".into(), description: "JSON-RPC endpoint for Solana mainnet (from Alchemy, Helius, QuickNode, or your own node). Example: https://solana-mainnet.g.alchemy.com/v2/YOUR_KEY".into(), required: false, placeholder: "https://solana-mainnet.g.alchemy.com/v2/abc123...".into() },
                 CredentialField { key: "SOLANA_PRIVATE_KEY".into(), label: "Wallet Private Key".into(), description: "Auto-generated when you use sol_wallet_create. Or paste your own base58-encoded keypair. Stored encrypted in OS keychain vault.".into(), required: false, placeholder: "Auto-generated — leave blank".into() },
                 CredentialField { key: "SOLANA_WALLET_ADDRESS".into(), label: "Wallet Address".into(), description: "Auto-populated when wallet is created. Or paste your own Solana address if importing a key.".into(), required: false, placeholder: "Auto-generated — leave blank".into() },
             ],
             tool_names: vec!["sol_wallet_create".into(), "sol_balance".into(), "sol_quote".into(), "sol_swap".into(), "sol_transfer".into(), "sol_portfolio".into(), "sol_token_info".into()],
-            required_binaries: vec![], required_env_vars: vec![], install_hint: "Get a Solana RPC URL at alchemy.com, helius.dev, or quicknode.com (free tier works)".into(),
+            required_binaries: vec![], required_env_vars: vec![], install_hint: "Get a Jupiter API key free at dev.jup.ag (Dashboard → API Keys), and a Solana RPC URL at alchemy.com, helius.dev, or quicknode.com (free tier works)".into(),
             agent_instructions: r#"You have a self-custody Solana wallet for DEX trading via Jupiter aggregator.
 
 CRITICAL: Your private key is stored encrypted in the OS keychain vault. You NEVER see it — the engine signs transactions internally. Do NOT:

@@ -37,8 +37,8 @@ const KNOWN_TOKENS: &[(&str, &str, u8)] = &[
     ("JITOSOL", "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn", 9),
 ];
 
-/// Jupiter API base URL
-const JUPITER_API: &str = "https://quote-api.jup.ag/v6";
+/// Jupiter API base URL (Metis Swap API v1 — requires API key from jup.ag)
+const JUPITER_API: &str = "https://api.jup.ag/swap/v1";
 
 /// Solana Token Program IDs
 const TOKEN_PROGRAM_ID: &str = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
@@ -337,6 +337,8 @@ pub async fn execute_sol_quote(
 ) -> Result<String, String> {
     let _rpc_url = creds.get("SOLANA_RPC_URL")
         .ok_or("Missing SOLANA_RPC_URL.")?;
+    let api_key = creds.get("JUPITER_API_KEY")
+        .ok_or("Missing JUPITER_API_KEY. Get one free at jup.ag/developers")?;
 
     let token_in_str = args["token_in"].as_str().ok_or("sol_quote: missing 'token_in'")?;
     let token_out_str = args["token_out"].as_str().ok_or("sol_quote: missing 'token_out'")?;
@@ -360,16 +362,17 @@ pub async fn execute_sol_quote(
 
     let amount_raw = amount_to_lamports(amount_str, in_decimals)?;
 
-    // Call Jupiter Quote API
+    // Call Jupiter Quote API (Metis v1)
     let client = reqwest::Client::new();
     let url = format!(
-        "{}/quote?inputMint={}&outputMint={}&amount={}&slippageBps={}",
+        "{}/quote?inputMint={}&outputMint={}&amount={}&slippageBps={}&restrictIntermediateTokens=true",
         JUPITER_API, input_mint, output_mint, amount_raw, slippage_bps
     );
 
     info!("[sol_dex] Getting Jupiter quote: {} {} → {}", amount_str, token_in_str, token_out_str);
 
     let resp = client.get(&url)
+        .header("x-api-key", api_key)
         .timeout(Duration::from_secs(15))
         .send()
         .await
@@ -456,6 +459,8 @@ pub async fn execute_sol_swap(
         .ok_or("No Solana wallet. Use sol_wallet_create first.")?;
     let private_key_b58 = creds.get("SOLANA_PRIVATE_KEY")
         .ok_or("No Solana private key. Use sol_wallet_create first.")?;
+    let api_key = creds.get("JUPITER_API_KEY")
+        .ok_or("Missing JUPITER_API_KEY. Get one free at jup.ag/developers")?;
 
     let token_in_str = args["token_in"].as_str().ok_or("sol_swap: missing 'token_in'")?;
     let token_out_str = args["token_out"].as_str().ok_or("sol_swap: missing 'token_out'")?;
@@ -475,15 +480,16 @@ pub async fn execute_sol_swap(
 
     let client = reqwest::Client::new();
 
-    // Step 1: Get Jupiter quote
+    // Step 1: Get Jupiter quote (Metis v1)
     let quote_url = format!(
-        "{}/quote?inputMint={}&outputMint={}&amount={}&slippageBps={}",
+        "{}/quote?inputMint={}&outputMint={}&amount={}&slippageBps={}&restrictIntermediateTokens=true",
         JUPITER_API, input_mint, output_mint, amount_raw, slippage_bps
     );
 
     info!("[sol_dex] Getting Jupiter quote for swap: {} {} → {}", amount_str, token_in_str, token_out_str);
 
     let quote_resp = client.get(&quote_url)
+        .header("x-api-key", api_key.as_str())
         .timeout(Duration::from_secs(15))
         .send()
         .await
@@ -515,10 +521,17 @@ pub async fn execute_sol_swap(
         "userPublicKey": wallet,
         "wrapAndUnwrapSol": true,
         "dynamicComputeUnitLimit": true,
-        "prioritizationFeeLamports": "auto"
+        "dynamicSlippage": true,
+        "prioritizationFeeLamports": {
+            "priorityLevelWithMaxLamports": {
+                "maxLamports": 1_000_000,
+                "priorityLevel": "veryHigh"
+            }
+        }
     });
 
     let swap_resp = client.post(&format!("{}/swap", JUPITER_API))
+        .header("x-api-key", api_key.as_str())
         .json(&swap_body)
         .timeout(Duration::from_secs(30))
         .send()
