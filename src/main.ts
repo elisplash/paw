@@ -1243,6 +1243,9 @@ function finalizeStreaming(finalContent: string, toolCalls?: import('./types').T
   if (finalContent) {
     addMessage({ role: 'assistant', content: finalContent, timestamp: new Date(), toolCalls });
 
+    // Auto-speak if enabled
+    autoSpeakIfEnabled(finalContent);
+
     // Fallback token estimation: if no real usage data came through events,
     // estimate from character count (~4 chars per token is a rough average).
     // This ensures the token meter always shows something useful.
@@ -1417,6 +1420,17 @@ function renderMessages() {
       div.appendChild(retryBtn);
     }
 
+    // TTS speak button on assistant messages
+    if (msg.role === 'assistant' && msg.content && !msg.content.startsWith('Error:')) {
+      const ttsBtn = document.createElement('button');
+      ttsBtn.className = 'message-tts-btn';
+      ttsBtn.title = 'Read aloud';
+      ttsBtn.innerHTML = `<span class="ms">volume_up</span>`;
+      const msgContent = msg.content;
+      ttsBtn.addEventListener('click', () => speakMessage(msgContent, ttsBtn));
+      div.appendChild(ttsBtn);
+    }
+
     frag.appendChild(div);
   }
   // Insert before any streaming message, or at end
@@ -1427,6 +1441,91 @@ function renderMessages() {
     chatMessages.appendChild(frag);
   }
   scrollToBottom();
+}
+
+// ── TTS Audio Playback ─────────────────────────────────────────────────────
+let _ttsAudio: HTMLAudioElement | null = null;
+let _ttsActiveBtn: HTMLButtonElement | null = null;
+
+async function speakMessage(text: string, btn: HTMLButtonElement) {
+  // If already playing, stop
+  if (_ttsAudio && _ttsActiveBtn === btn) {
+    _ttsAudio.pause();
+    _ttsAudio = null;
+    btn.innerHTML = `<span class="ms">volume_up</span>`;
+    btn.classList.remove('tts-playing');
+    _ttsActiveBtn = null;
+    return;
+  }
+
+  // Stop any other playing audio
+  if (_ttsAudio) {
+    _ttsAudio.pause();
+    _ttsAudio = null;
+    if (_ttsActiveBtn) {
+      _ttsActiveBtn.innerHTML = `<span class="ms">volume_up</span>`;
+      _ttsActiveBtn.classList.remove('tts-playing');
+    }
+  }
+
+  btn.innerHTML = `<span class="ms">hourglass_top</span>`;
+  btn.classList.add('tts-loading');
+
+  try {
+    const base64Audio = await pawEngine.ttsSpeak(text);
+    const audioBytes = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0));
+    const blob = new Blob([audioBytes], { type: 'audio/mp3' });
+    const url = URL.createObjectURL(blob);
+
+    _ttsAudio = new Audio(url);
+    _ttsActiveBtn = btn;
+
+    btn.innerHTML = `<span class="ms">stop_circle</span>`;
+    btn.classList.remove('tts-loading');
+    btn.classList.add('tts-playing');
+
+    _ttsAudio.addEventListener('ended', () => {
+      btn.innerHTML = `<span class="ms">volume_up</span>`;
+      btn.classList.remove('tts-playing');
+      URL.revokeObjectURL(url);
+      _ttsAudio = null;
+      _ttsActiveBtn = null;
+    });
+
+    _ttsAudio.addEventListener('error', () => {
+      btn.innerHTML = `<span class="ms">volume_up</span>`;
+      btn.classList.remove('tts-playing');
+      URL.revokeObjectURL(url);
+      _ttsAudio = null;
+      _ttsActiveBtn = null;
+    });
+
+    _ttsAudio.play();
+  } catch (e) {
+    console.error('[tts] Error:', e);
+    btn.innerHTML = `<span class="ms">volume_up</span>`;
+    btn.classList.remove('tts-loading', 'tts-playing');
+    const { showToast } = await import('./components/toast');
+    showToast(e instanceof Error ? e.message : 'TTS failed — check Voice settings', 'error');
+  }
+}
+
+/** Auto-speak new assistant responses if enabled in TTS config */
+async function autoSpeakIfEnabled(text: string) {
+  try {
+    const config = await pawEngine.ttsGetConfig();
+    if (!config.auto_speak) return;
+    const base64Audio = await pawEngine.ttsSpeak(text);
+    const audioBytes = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0));
+    const blob = new Blob([audioBytes], { type: 'audio/mp3' });
+    const url = URL.createObjectURL(blob);
+    if (_ttsAudio) { _ttsAudio.pause(); }
+    _ttsAudio = new Audio(url);
+    _ttsAudio.addEventListener('ended', () => { URL.revokeObjectURL(url); _ttsAudio = null; });
+    _ttsAudio.play();
+  } catch (e) {
+    console.warn('[tts] Auto-speak failed:', e);
+  }
 }
 
 // Listen for streaming agent events — update chat bubble in real-time

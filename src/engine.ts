@@ -225,6 +225,16 @@ export interface TradingPolicy {
   max_transfer_usd: number;
 }
 
+// ── Text-to-Speech ─────────────────────────────────────────────────────
+
+export interface TtsConfig {
+  provider: string;        // "google" | "openai"
+  voice: string;           // e.g. "en-US-Chirp3-HD-Achernar" or "alloy"
+  speed: number;           // 0.25–4.0
+  language_code: string;   // e.g. "en-US"
+  auto_speak: boolean;     // automatically speak new responses
+}
+
 // ── Tasks ──────────────────────────────────────────────────────────────
 
 export type TaskStatus = 'inbox' | 'assigned' | 'in_progress' | 'review' | 'blocked' | 'done';
@@ -729,6 +739,23 @@ class PawEngineClient {
 
   async tradingPolicySet(policy: TradingPolicy): Promise<void> {
     return invoke('engine_trading_policy_set', { policy });
+  }
+
+  // ── Text-to-Speech ──────────────────────────────────────────────────
+
+  /** Synthesize speech from text. Returns base64-encoded MP3 audio. */
+  async ttsSpeak(text: string): Promise<string> {
+    return invoke<string>('engine_tts_speak', { text });
+  }
+
+  /** Get TTS config */
+  async ttsGetConfig(): Promise<TtsConfig> {
+    return invoke<TtsConfig>('engine_tts_get_config');
+  }
+
+  /** Save TTS config */
+  async ttsSetConfig(config: TtsConfig): Promise<void> {
+    return invoke('engine_tts_set_config', { config });
   }
 
   // ── Tasks (Kanban Board) ─────────────────────────────────────────────

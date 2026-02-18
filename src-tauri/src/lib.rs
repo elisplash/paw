@@ -2714,6 +2714,10 @@ pub fn run() {
             engine::commands::engine_trading_summary,
             engine::commands::engine_trading_policy_get,
             engine::commands::engine_trading_policy_set,
+            // ── Text-to-Speech ──
+            engine::commands::engine_tts_speak,
+            engine::commands::engine_tts_get_config,
+            engine::commands::engine_tts_set_config,
             // ── Tasks (Kanban Board) ──
             engine::commands::engine_tasks_list,
             engine::commands::engine_task_create,
