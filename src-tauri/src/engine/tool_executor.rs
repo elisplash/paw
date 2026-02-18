@@ -2058,7 +2058,7 @@ async fn execute_coinbase_transfer(
 
     info!("[skill:coinbase] Transfer {} {} to {} (reason: {})", amount, currency, &to_address[..to_address.len().min(12)], reason);
 
-    // Use v3 Advanced Trade to find the account, then send via the withdraw endpoint
+    // Step 1: List accounts via v3 Advanced Trade API to find the account UUID
     let accounts_data = cdp_request(creds, "GET", "/api/v3/brokerage/accounts?limit=250", None).await?;
     let accounts = accounts_data["accounts"].as_array().ok_or("Cannot list accounts")?;
 
@@ -2078,29 +2078,33 @@ async fn execute_coinbase_transfer(
         return Err(format!("Insufficient {} balance: {} available, {} requested", currency, available, amount));
     }
 
-    // Use crypto withdraw endpoint
+    // Step 2: Send via v2 API — /v2/accounts/:account_id/transactions
+    // This is the correct endpoint for crypto sends with CDP keys
+    let send_path = format!("/v2/accounts/{}/transactions", account_uuid);
     let mut body = serde_json::json!({
+        "type": "send",
+        "to": to_address,
         "amount": amount,
         "currency": currency.to_uppercase(),
-        "crypto_address": to_address,
-        "account_id": account_uuid
+        "description": reason
     });
 
     if let Some(net) = network {
-        body["network_id"] = serde_json::json!(net);
+        body["network"] = serde_json::json!(net);
     }
 
-    let data = cdp_request(creds, "POST", "/api/v3/brokerage/crypto_withdraw", Some(&body)).await?;
+    let data = cdp_request(creds, "POST", &send_path, Some(&body)).await?;
 
-    let tx_id = data["id"].as_str()
-        .or_else(|| data["transaction_id"].as_str())
-        .unwrap_or("?");
-    let status = data["status"].as_str().unwrap_or("pending");
+    // v2 API wraps response in "data"
+    let tx_data = data.get("data").unwrap_or(&data);
+    let tx_id = tx_data["id"].as_str().unwrap_or("?");
+    let status = tx_data["status"].as_str().unwrap_or("pending");
+    let tx_network = tx_data["network"]["name"].as_str().unwrap_or("unknown");
 
     Ok(format!(
-        "Transfer initiated!\n  {} {} → {}\n  Status: {}\n  TX ID: {}\n  Reason: {}",
+        "Transfer initiated!\n  {} {} → {}\n  Network: {}\n  Status: {}\n  TX ID: {}\n  Reason: {}",
         amount, currency.to_uppercase(), &to_address[..to_address.len().min(20)],
-        status, tx_id, reason
+        tx_network, status, tx_id, reason
     ))
 }
 
