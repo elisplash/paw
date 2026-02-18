@@ -279,6 +279,103 @@ fn encode_allowance(owner: &[u8; 20], spender: &[u8; 20]) -> Vec<u8> {
     data
 }
 
+/// Encode Uniswap V3 QuoterV2.quoteExactInput for multi-hop paths
+/// quoteExactInput(bytes path, uint256 amountIn) → (uint256 amountOut, ...)
+fn encode_quote_exact_input(
+    path: &[u8],
+    amount_in: &[u8; 32],
+) -> Vec<u8> {
+    let selector = function_selector("quoteExactInput(bytes,uint256)");
+    let mut data = selector.to_vec();
+    // ABI: offset to path (dynamic), amountIn
+    let mut offset = [0u8; 32];
+    offset[31] = 64; // offset = 0x40 (2 * 32 bytes)
+    data.extend_from_slice(&offset);
+    data.extend_from_slice(&abi_encode_uint256(amount_in));
+    // path: length + data (padded to 32 bytes)
+    let mut path_len = [0u8; 32];
+    let plen = path.len();
+    path_len[28] = ((plen >> 24) & 0xFF) as u8;
+    path_len[29] = ((plen >> 16) & 0xFF) as u8;
+    path_len[30] = ((plen >> 8) & 0xFF) as u8;
+    path_len[31] = (plen & 0xFF) as u8;
+    data.extend_from_slice(&path_len);
+    data.extend_from_slice(path);
+    // Pad to 32-byte boundary
+    let pad = (32 - (plen % 32)) % 32;
+    data.extend(vec![0u8; pad]);
+    data
+}
+
+/// Encode Uniswap V3 SwapRouter02.exactInput for multi-hop swaps
+/// exactInput((bytes path, address recipient, uint256 amountIn, uint256 amountOutMinimum))
+fn encode_exact_input(
+    path: &[u8],
+    recipient: &[u8; 20],
+    amount_in: &[u8; 32],
+    amount_out_minimum: &[u8; 32],
+) -> Vec<u8> {
+    let selector = function_selector("exactInput((bytes,address,uint256,uint256))");
+    let mut data = selector.to_vec();
+    // Struct with dynamic field: offset to start of struct = 0x20
+    let mut struct_offset = [0u8; 32];
+    struct_offset[31] = 32;
+    data.extend_from_slice(&struct_offset);
+    // Inside struct: offset to path data, recipient, amountIn, amountOutMinimum
+    let mut path_offset = [0u8; 32];
+    path_offset[31] = 128; // 4 * 32 bytes offset
+    data.extend_from_slice(&path_offset);
+    data.extend_from_slice(&abi_encode_address(recipient));
+    data.extend_from_slice(&abi_encode_uint256(amount_in));
+    data.extend_from_slice(&abi_encode_uint256(amount_out_minimum));
+    // path: length + data (padded to 32 bytes)
+    let mut path_len = [0u8; 32];
+    let plen = path.len();
+    path_len[28] = ((plen >> 24) & 0xFF) as u8;
+    path_len[29] = ((plen >> 16) & 0xFF) as u8;
+    path_len[30] = ((plen >> 8) & 0xFF) as u8;
+    path_len[31] = (plen & 0xFF) as u8;
+    data.extend_from_slice(&path_len);
+    data.extend_from_slice(path);
+    let pad = (32 - (plen % 32)) % 32;
+    data.extend(vec![0u8; pad]);
+    data
+}
+
+/// Build a Uniswap V3 multi-hop path: token0 + fee + token1 + fee + token2 ...
+/// Each hop is: 20 bytes (address) + 3 bytes (fee as uint24, big-endian)
+fn build_multihop_path(tokens: &[&[u8; 20]], fees: &[u32]) -> Vec<u8> {
+    let mut path = Vec::new();
+    for (i, token) in tokens.iter().enumerate() {
+        path.extend_from_slice(*token);
+        if i < fees.len() {
+            path.push(((fees[i] >> 16) & 0xFF) as u8);
+            path.push(((fees[i] >> 8) & 0xFF) as u8);
+            path.push((fees[i] & 0xFF) as u8);
+        }
+    }
+    path
+}
+
+/// Strip leading zero bytes from a byte slice (for RLP encoding of r, s values)
+fn strip_leading_zeros(data: &[u8]) -> Vec<u8> {
+    let first_nonzero = data.iter().position(|&b| b != 0);
+    match first_nonzero {
+        Some(pos) => data[pos..].to_vec(),
+        None => vec![],
+    }
+}
+
+/// Convert a u256 (big-endian [u8; 32]) to a quantity hex string ("0x1234", no leading zeros)
+fn u256_to_quantity_hex(val: &[u8; 32]) -> String {
+    let stripped = strip_leading_zeros(val);
+    if stripped.is_empty() {
+        "0x0".to_string()
+    } else {
+        format!("0x{}", stripped.iter().map(|b| format!("{:02x}", b)).collect::<String>())
+    }
+}
+
 /// Encode Uniswap V3 QuoterV2.quoteExactInputSingle
 /// quoteExactInputSingle((address,address,uint256,uint24,uint160))
 fn encode_quote_exact_input_single(
@@ -431,10 +528,11 @@ fn sign_eip1559_transaction(
     let v = recovery_id.to_byte(); // 0 or 1
 
     // Signed tx: 0x02 || RLP([chain_id, nonce, max_priority_fee, max_fee, gas, to, value, data, access_list, v, r, s])
+    // Note: v is encoded as an integer (0 = empty bytes, 1 = [0x01]), r and s strip leading zeros
     let mut signed_items = items;
-    signed_items.push(rlp_encode_bytes(&[v]));
-    signed_items.push(rlp_encode_bytes(r));
-    signed_items.push(rlp_encode_bytes(s));
+    signed_items.push(rlp_encode_bytes(&u64_to_minimal_be(v as u64)));
+    signed_items.push(rlp_encode_bytes(&strip_leading_zeros(r)));
+    signed_items.push(rlp_encode_bytes(&strip_leading_zeros(s)));
 
     let signed_rlp = rlp_encode_list(&signed_items);
 
@@ -561,6 +659,45 @@ async fn eth_chain_id(rpc_url: &str) -> Result<u64, String> {
 async fn eth_get_transaction_receipt(rpc_url: &str, tx_hash: &str) -> Result<Option<serde_json::Value>, String> {
     let result = rpc_call(rpc_url, "eth_getTransactionReceipt", serde_json::json!([tx_hash])).await?;
     if result.is_null() { Ok(None) } else { Ok(Some(result)) }
+}
+
+/// Chunked eth_getLogs — splits large block ranges into smaller chunks to avoid
+/// RPC provider limits (many free tiers limit to 500-2000 blocks per request).
+/// Returns all matching logs combined from all chunks.
+async fn chunked_get_logs(
+    rpc_url: &str,
+    address: Option<&str>,
+    from_block: u64,
+    to_block: u64,
+    topics: Vec<Option<serde_json::Value>>,
+    chunk_size: u64,
+) -> Result<Vec<serde_json::Value>, String> {
+    let mut all_logs: Vec<serde_json::Value> = Vec::new();
+    let mut chunk_from = from_block;
+
+    while chunk_from <= to_block {
+        let chunk_to = std::cmp::min(chunk_from + chunk_size - 1, to_block);
+        let from_hex = format!("0x{:x}", chunk_from);
+        let to_hex = format!("0x{:x}", chunk_to);
+
+        let mut filter = serde_json::json!({
+            "fromBlock": from_hex,
+            "toBlock": to_hex,
+            "topics": topics,
+        });
+        if let Some(addr) = address {
+            filter["address"] = serde_json::json!(addr);
+        }
+
+        let result = rpc_call(rpc_url, "eth_getLogs", serde_json::json!([filter])).await?;
+        if let Some(logs) = result.as_array() {
+            all_logs.extend(logs.iter().cloned());
+        }
+
+        chunk_from = chunk_to + 1;
+    }
+
+    Ok(all_logs)
 }
 
 // ── Token Helpers ──────────────────────────────────────────────────────
@@ -741,15 +878,34 @@ pub async fn execute_dex_quote(
 
     let token_in_bytes = parse_address(&token_in_addr)?;
     let token_out_bytes = parse_address(&token_out_addr)?;
+    let weth_bytes = parse_address(WETH_ADDRESS)?;
 
-    let calldata = encode_quote_exact_input_single(
-        &token_in_bytes,
-        &token_out_bytes,
-        &amount_u256,
-        fee_tier,
-    );
-
-    let result = eth_call(rpc_url, UNISWAP_QUOTER_V2, &calldata).await?;
+    // Try single-hop first, then multi-hop through WETH if direct pool doesn't exist
+    let mut used_multihop = false;
+    let result = {
+        let single_calldata = encode_quote_exact_input_single(
+            &token_in_bytes,
+            &token_out_bytes,
+            &amount_u256,
+            fee_tier,
+        );
+        match eth_call(rpc_url, UNISWAP_QUOTER_V2, &single_calldata).await {
+            Ok(r) => Ok(r),
+            Err(_) if token_in_bytes != weth_bytes && token_out_bytes != weth_bytes => {
+                // Try multi-hop: tokenIn → WETH → tokenOut
+                info!("[dex] Single-hop quote failed, trying multi-hop through WETH");
+                used_multihop = true;
+                let path = build_multihop_path(
+                    &[&token_in_bytes, &weth_bytes, &token_out_bytes],
+                    &[fee_tier, fee_tier],
+                );
+                let multi_calldata = encode_quote_exact_input(&path, &amount_u256);
+                eth_call(rpc_url, UNISWAP_QUOTER_V2, &multi_calldata).await
+                    .map_err(|e| format!("Both single-hop and multi-hop (via WETH) quotes failed: {}", e))
+            }
+            Err(e) => Err(e),
+        }
+    }?;
 
     // The quoter returns (amountOut, sqrtPriceX96After, initializedTicksCrossed, gasEstimate)
     // amountOut is the first 32 bytes
@@ -773,8 +929,14 @@ pub async fn execute_dex_quote(
 
     let min_out = out_f64 * (10000.0 - slippage_bps as f64) / 10000.0;
 
+    let route_info = if used_multihop {
+        format!("Route: {} → WETH → {} (multi-hop)", token_in_sym.to_uppercase(), token_out_sym.to_uppercase())
+    } else {
+        format!("Route: {} → {} (direct)", token_in_sym.to_uppercase(), token_out_sym.to_uppercase())
+    };
+
     Ok(format!(
-        "Swap Quote: {} {} → {} {}\n\nInput: {} {}\nExpected Output: {} {}\nMinimum Output ({}% slippage): {:.6} {}\nExchange Rate: 1 {} = {:.6} {}\nFee Tier: {}%\n\nUse dex_swap to execute this trade.",
+        "Swap Quote: {} {} → {} {}\n\nInput: {} {}\nExpected Output: {} {}\nMinimum Output ({}% slippage): {:.6} {}\nExchange Rate: 1 {} = {:.6} {}\n{}\nFee Tier: {}%\n\nUse dex_swap to execute this trade.",
         amount, token_in_sym.to_uppercase(),
         amount_out, token_out_sym.to_uppercase(),
         amount, token_in_sym.to_uppercase(),
@@ -782,6 +944,7 @@ pub async fn execute_dex_quote(
         slippage_bps as f64 / 100.0,
         min_out, token_out_sym.to_uppercase(),
         token_in_sym.to_uppercase(), price, token_out_sym.to_uppercase(),
+        route_info,
         fee_tier as f64 / 10000.0,
     ))
 }
@@ -824,21 +987,39 @@ pub async fn execute_dex_swap(
 
     info!("[dex] Swap: {} {} → {} (wallet: {})", amount, token_in_sym, token_out_sym, wallet_address);
 
-    // Step 1: Get quote for minimum output calculation
-    let quote_calldata = encode_quote_exact_input_single(
-        &token_in_bytes,
-        &token_out_bytes,
-        &amount_u256,
-        fee_tier,
-    );
-
-    let quote_result = eth_call(rpc_url, UNISWAP_QUOTER_V2, &quote_calldata).await?;
-    let quote_bytes = hex_decode(&quote_result)?;
-    if quote_bytes.len() < 32 {
-        return Err("Invalid quoter response".into());
-    }
-
-    let expected_out: [u8; 32] = quote_bytes[..32].try_into().unwrap();
+    // Step 1: Get quote for minimum output calculation — try single-hop, fall back to multi-hop via WETH
+    let weth_bytes = parse_address(WETH_ADDRESS)?;
+    let mut use_multihop = false;
+    let expected_out: [u8; 32] = {
+        let single_calldata = encode_quote_exact_input_single(
+            &token_in_bytes,
+            &token_out_bytes,
+            &amount_u256,
+            fee_tier,
+        );
+        match eth_call(rpc_url, UNISWAP_QUOTER_V2, &single_calldata).await {
+            Ok(r) => {
+                let qb = hex_decode(&r)?;
+                if qb.len() < 32 { return Err("Invalid quoter response".into()); }
+                qb[..32].try_into().unwrap()
+            },
+            Err(_) if token_in_bytes != weth_bytes && token_out_bytes != weth_bytes => {
+                info!("[dex] Single-hop quote failed, trying multi-hop through WETH");
+                use_multihop = true;
+                let path = build_multihop_path(
+                    &[&token_in_bytes, &weth_bytes, &token_out_bytes],
+                    &[fee_tier, fee_tier],
+                );
+                let multi_calldata = encode_quote_exact_input(&path, &amount_u256);
+                let r = eth_call(rpc_url, UNISWAP_QUOTER_V2, &multi_calldata).await
+                    .map_err(|e| format!("Both single-hop and multi-hop quotes failed: {}", e))?;
+                let qb = hex_decode(&r)?;
+                if qb.len() < 32 { return Err("Invalid quoter response".into()); }
+                qb[..32].try_into().unwrap()
+            },
+            Err(e) => return Err(e),
+        }
+    };
 
     // Apply slippage to get minimum output
     let expected_out_hex = hex_encode(&expected_out);
@@ -905,15 +1086,28 @@ pub async fn execute_dex_swap(
         }
     }
 
-    // Step 3: Build the swap transaction
-    let swap_data = encode_exact_input_single(
-        &token_in_bytes,
-        &token_out_bytes,
-        fee_tier,
-        &wallet_bytes,
-        &amount_u256,
-        &min_out_u256,
-    );
+    // Step 3: Build the swap transaction (single-hop or multi-hop as determined by quote)
+    let swap_data = if use_multihop {
+        let path = build_multihop_path(
+            &[&token_in_bytes, &weth_bytes, &token_out_bytes],
+            &[fee_tier, fee_tier],
+        );
+        encode_exact_input(
+            &path,
+            &wallet_bytes,
+            &amount_u256,
+            &min_out_u256,
+        )
+    } else {
+        encode_exact_input_single(
+            &token_in_bytes,
+            &token_out_bytes,
+            fee_tier,
+            &wallet_bytes,
+            &amount_u256,
+            &min_out_u256,
+        )
+    };
 
     let pk_bytes = hex_decode(private_key_hex)?;
     let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)
@@ -925,7 +1119,7 @@ pub async fn execute_dex_swap(
 
     // Value is the ETH amount if swapping from ETH, otherwise 0
     let value = if is_eth_in { amount_u256 } else { [0u8; 32] };
-    let value_hex = if is_eth_in { hex_encode(&value) } else { "0x0".into() };
+    let value_hex = if is_eth_in { u256_to_quantity_hex(&value) } else { "0x0".into() };
 
     let router_bytes = parse_address(UNISWAP_SWAP_ROUTER_02)?;
     let gas = eth_estimate_gas(rpc_url, wallet_address, UNISWAP_SWAP_ROUTER_02, &swap_data, &value_hex).await
@@ -1771,39 +1965,41 @@ pub async fn execute_dex_watch_wallet(
     let wallet_topic = format!("0x000000000000000000000000{}", &addr_clean[2..].to_lowercase());
 
     // Outgoing transfers (wallet is sender = topic[1])
-    let outgoing_logs = rpc_call(rpc_url, "eth_getLogs", serde_json::json!([{
-        "fromBlock": format!("0x{:x}", from_block),
-        "toBlock": "latest",
-        "topics": [TRANSFER_EVENT_TOPIC, wallet_topic]
-    }])).await;
+    let outgoing_logs = chunked_get_logs(
+        rpc_url,
+        None,
+        from_block,
+        block_num,
+        vec![Some(serde_json::json!(TRANSFER_EVENT_TOPIC)), Some(serde_json::json!(wallet_topic))],
+        500,
+    ).await;
 
     // Incoming transfers (wallet is receiver = topic[2])
-    let incoming_logs = rpc_call(rpc_url, "eth_getLogs", serde_json::json!([{
-        "fromBlock": format!("0x{:x}", from_block),
-        "toBlock": "latest",
-        "topics": [TRANSFER_EVENT_TOPIC, serde_json::Value::Null, wallet_topic]
-    }])).await;
+    let incoming_logs = chunked_get_logs(
+        rpc_url,
+        None,
+        from_block,
+        block_num,
+        vec![Some(serde_json::json!(TRANSFER_EVENT_TOPIC)), None, Some(serde_json::json!(wallet_topic))],
+        500,
+    ).await;
 
     let mut transfers: Vec<(u64, String, String, String, String, String)> = Vec::new(); // (block, direction, token_addr, counterparty, amount_raw, symbol)
 
     // Process outgoing
     if let Ok(logs) = outgoing_logs {
-        if let Some(arr) = logs.as_array() {
-            for log in arr.iter().take(50) {
-                if let Some(parsed) = parse_transfer_log(log, "SELL/SEND", rpc_url).await {
-                    transfers.push(parsed);
-                }
+        for log in logs.iter().take(50) {
+            if let Some(parsed) = parse_transfer_log(log, "SELL/SEND", rpc_url).await {
+                transfers.push(parsed);
             }
         }
     }
 
     // Process incoming
     if let Ok(logs) = incoming_logs {
-        if let Some(arr) = logs.as_array() {
-            for log in arr.iter().take(50) {
-                if let Some(parsed) = parse_transfer_log(log, "BUY/RECV", rpc_url).await {
-                    transfers.push(parsed);
-                }
+        for log in logs.iter().take(50) {
+            if let Some(parsed) = parse_transfer_log(log, "BUY/RECV", rpc_url).await {
+                transfers.push(parsed);
             }
         }
     }
@@ -1875,16 +2071,16 @@ pub async fn execute_dex_whale_transfers(
     };
     let from_block = block_num.saturating_sub(blocks_back);
 
-    // Get all Transfer events for this token
-    let logs = rpc_call(rpc_url, "eth_getLogs", serde_json::json!([{
-        "address": addr_clean,
-        "fromBlock": format!("0x{:x}", from_block),
-        "toBlock": "latest",
-        "topics": [TRANSFER_EVENT_TOPIC]
-    }])).await
+    // Get all Transfer events for this token (chunked to avoid RPC limits)
+    let log_arr = chunked_get_logs(
+        rpc_url,
+        Some(&addr_clean),
+        from_block,
+        block_num,
+        vec![Some(serde_json::json!(TRANSFER_EVENT_TOPIC))],
+        500,
+    ).await
         .map_err(|e| format!("Failed to get transfer logs: {}", e))?;
-
-    let log_arr = logs.as_array().ok_or("No log array returned")?;
 
     if log_arr.is_empty() {
         output.push_str(&format!("No transfers found in last {} blocks.\n", blocks_back));
@@ -1899,7 +2095,7 @@ pub async fn execute_dex_whale_transfers(
     let mut accumulation_map: HashMap<String, f64> = HashMap::new(); // net inflow per address
     let mut total_volume = 0.0f64;
 
-    for log in log_arr {
+    for log in &log_arr {
         let topics = match log["topics"].as_array() {
             Some(t) if t.len() >= 3 => t,
             _ => continue,
@@ -2129,16 +2325,16 @@ pub async fn execute_dex_top_traders(
     };
     let from_block = block_num.saturating_sub(blocks_back);
 
-    // Fetch all Transfer events for this token
-    let logs = rpc_call(rpc_url, "eth_getLogs", serde_json::json!([{
-        "address": addr_clean,
-        "fromBlock": format!("0x{:x}", from_block),
-        "toBlock": "latest",
-        "topics": [TRANSFER_EVENT_TOPIC]
-    }])).await
+    // Fetch all Transfer events for this token (chunked to avoid RPC limits)
+    let log_arr = chunked_get_logs(
+        rpc_url,
+        Some(&addr_clean),
+        from_block,
+        block_num,
+        vec![Some(serde_json::json!(TRANSFER_EVENT_TOPIC))],
+        500,
+    ).await
         .map_err(|e| format!("Failed to get transfer logs: {}", e))?;
-
-    let log_arr = logs.as_array().ok_or("No log array returned")?;
 
     if log_arr.is_empty() {
         output.push_str(&format!("No transfers found in last {} blocks.\n", blocks_back));
@@ -2159,7 +2355,7 @@ pub async fn execute_dex_top_traders(
     let mut profiles: HashMap<String, WalletProfile> = HashMap::new();
     let zero_addr = "0x0000000000000000000000000000000000000000";
 
-    for log in log_arr {
+    for log in &log_arr {
         let topics = match log["topics"].as_array() {
             Some(t) if t.len() >= 3 => t,
             _ => continue,
