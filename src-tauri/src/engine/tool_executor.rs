@@ -1525,7 +1525,9 @@ async fn cdp_request(
     let key_secret = creds.get("CDP_API_KEY_SECRET").ok_or("Missing CDP_API_KEY_SECRET")?;
 
     let host = "api.coinbase.com";
-    let jwt = build_cdp_jwt(key_name, key_secret, method, host, path)?;
+    // JWT URI must NOT include query params (SDK: format_jwt_uri uses clean path only)
+    let jwt_path = path.split('?').next().unwrap_or(path);
+    let jwt = build_cdp_jwt(key_name, key_secret, method, host, jwt_path)?;
 
     let url = format!("https://{}{}", host, path);
     let client = reqwest::Client::new();
@@ -1536,10 +1538,10 @@ async fn cdp_request(
         _ => client.get(&url),
     };
 
+    // Match SDK headers exactly: Authorization + Content-Type only (no CB-VERSION)
     req = req
         .header("Authorization", format!("Bearer {}", jwt))
         .header("Content-Type", "application/json")
-        .header("CB-VERSION", "2024-01-01")
         .timeout(Duration::from_secs(30));
 
     if let Some(b) = body {
@@ -1573,12 +1575,12 @@ async fn execute_coinbase_prices(
 
     let mut results = Vec::new();
     for sym in &symbols {
-        let path = format!("/v2/prices/{}-USD/spot", sym);
+        let product_id = format!("{}-USD", sym);
+        let path = format!("/api/v3/brokerage/products/{}", product_id);
         match cdp_request(creds, "GET", &path, None).await {
             Ok(data) => {
-                let amount = data["data"]["amount"].as_str().unwrap_or("?");
-                let currency = data["data"]["currency"].as_str().unwrap_or("USD");
-                results.push(format!("{}: ${} {}", sym, amount, currency));
+                let price = data["price"].as_str().unwrap_or("?");
+                results.push(format!("{}: ${} USD", sym, price));
             }
             Err(e) => {
                 results.push(format!("{}: error — {}", sym, e));
@@ -1599,20 +1601,24 @@ async fn execute_coinbase_balance(
 
     info!("[skill:coinbase] Fetching account balances");
 
-    let data = cdp_request(creds, "GET", "/v2/accounts?limit=100", None).await?;
-    let accounts = data["data"].as_array().ok_or("Unexpected response format")?;
+    // Use v3 Advanced Trade API for accounts
+    let data = cdp_request(creds, "GET", "/api/v3/brokerage/accounts?limit=250", None).await?;
+    let accounts = data["accounts"].as_array().ok_or("Unexpected response format — no 'accounts' array")?;
 
     let mut lines = Vec::new();
     let mut total_usd = 0.0_f64;
 
     for acct in accounts {
-        let currency = acct["balance"]["currency"].as_str().unwrap_or("?");
-        let amount = acct["balance"]["amount"].as_str().unwrap_or("0");
-        let native_amount = acct["native_balance"]["amount"].as_str().unwrap_or("0");
+        let currency = acct["currency"].as_str().unwrap_or("?");
+        let available = acct["available_balance"]["value"].as_str().unwrap_or("0");
+        let hold = acct["hold"]["value"].as_str().unwrap_or("0");
+
+        let avail_f: f64 = available.parse().unwrap_or(0.0);
+        let hold_f: f64 = hold.parse().unwrap_or(0.0);
+        let total = avail_f + hold_f;
 
         // Skip zero balances unless specifically requested
-        let amt: f64 = amount.parse().unwrap_or(0.0);
-        if amt == 0.0 && filter_currency.is_none() {
+        if total == 0.0 && filter_currency.is_none() {
             continue;
         }
 
@@ -1622,16 +1628,19 @@ async fn execute_coinbase_balance(
             }
         }
 
-        let usd: f64 = native_amount.parse().unwrap_or(0.0);
-        total_usd += usd;
         let name = acct["name"].as_str().unwrap_or(currency);
-        lines.push(format!("  {} ({}): {} {} ≈ ${:.2} USD", name, currency, amount, currency, usd));
+        if hold_f > 0.0 {
+            lines.push(format!("  {} ({}): {} available + {} hold", name, currency, available, hold));
+        } else {
+            lines.push(format!("  {} ({}): {}", name, currency, available));
+        }
+        // v3 doesn't return native/USD amounts directly; we'll skip total USD
     }
 
     if lines.is_empty() {
         Ok("No non-zero balances found.".into())
     } else {
-        Ok(format!("Account Balances:\n{}\n\nTotal: ${:.2} USD", lines.join("\n"), total_usd))
+        Ok(format!("Account Balances:\n{}", lines.join("\n")))
     }
 }
 
@@ -1645,16 +1654,20 @@ async fn execute_coinbase_wallet_create(
 
     info!("[skill:coinbase] Creating wallet: {}", name);
 
+    // v3 Advanced Trade doesn't have a direct "create account" endpoint.
+    // Accounts (wallets) are created automatically when you trade a currency.
+    // Use portfolios API to create a named portfolio instead.
     let body = serde_json::json!({
         "name": name
     });
 
-    let data = cdp_request(creds, "POST", "/v2/accounts", Some(&body)).await?;
-    let id = data["data"]["id"].as_str().unwrap_or("?");
-    let created_name = data["data"]["name"].as_str().unwrap_or(name);
-    let currency = data["data"]["currency"]["code"].as_str().unwrap_or("?");
+    let data = cdp_request(creds, "POST", "/api/v3/brokerage/portfolios", Some(&body)).await?;
+    let portfolio = &data["portfolio"];
+    let id = portfolio["uuid"].as_str().unwrap_or("?");
+    let created_name = portfolio["name"].as_str().unwrap_or(name);
+    let ptype = portfolio["type"].as_str().unwrap_or("DEFAULT");
 
-    Ok(format!("Wallet created!\n  Name: {}\n  ID: {}\n  Currency: {}", created_name, id, currency))
+    Ok(format!("Portfolio created!\n  Name: {}\n  ID: {}\n  Type: {}", created_name, id, ptype))
 }
 
 // ── coinbase_trade ─────────────────────────────────────────────────────
@@ -1748,39 +1761,48 @@ async fn execute_coinbase_transfer(
 
     info!("[skill:coinbase] Transfer {} {} to {} (reason: {})", amount, currency, &to_address[..to_address.len().min(12)], reason);
 
-    // First, find the account for this currency
-    let accounts_data = cdp_request(creds, "GET", "/v2/accounts?limit=100", None).await?;
-    let accounts = accounts_data["data"].as_array().ok_or("Cannot list accounts")?;
+    // Use v3 Advanced Trade to find the account, then send via the withdraw endpoint
+    let accounts_data = cdp_request(creds, "GET", "/api/v3/brokerage/accounts?limit=250", None).await?;
+    let accounts = accounts_data["accounts"].as_array().ok_or("Cannot list accounts")?;
 
-    let account_id = accounts.iter()
+    let account = accounts.iter()
         .find(|a| {
-            a["balance"]["currency"].as_str().unwrap_or("").eq_ignore_ascii_case(currency)
+            a["currency"].as_str().unwrap_or("").eq_ignore_ascii_case(currency)
         })
-        .and_then(|a| a["id"].as_str())
         .ok_or(format!("No account found for currency: {}", currency))?;
 
+    let account_uuid = account["uuid"].as_str().ok_or("Account missing UUID")?;
+    let available = account["available_balance"]["value"].as_str().unwrap_or("0");
+
+    // Verify sufficient balance
+    let avail_f: f64 = available.parse().unwrap_or(0.0);
+    let amount_f: f64 = amount.parse().unwrap_or(0.0);
+    if amount_f > avail_f {
+        return Err(format!("Insufficient {} balance: {} available, {} requested", currency, available, amount));
+    }
+
+    // Use crypto withdraw endpoint
     let mut body = serde_json::json!({
-        "type": "send",
-        "to": to_address,
         "amount": amount,
         "currency": currency.to_uppercase(),
-        "description": reason
+        "crypto_address": to_address,
+        "account_id": account_uuid
     });
 
     if let Some(net) = network {
-        body["network"] = serde_json::json!(net);
+        body["network_id"] = serde_json::json!(net);
     }
 
-    let path = format!("/v2/accounts/{}/transactions", account_id);
-    let data = cdp_request(creds, "POST", &path, Some(&body)).await?;
+    let data = cdp_request(creds, "POST", "/api/v3/brokerage/crypto_withdraw", Some(&body)).await?;
 
-    let tx_id = data["data"]["id"].as_str().unwrap_or("?");
-    let status = data["data"]["status"].as_str().unwrap_or("pending");
-    let native_amount = data["data"]["native_amount"]["amount"].as_str().unwrap_or("?");
+    let tx_id = data["id"].as_str()
+        .or_else(|| data["transaction_id"].as_str())
+        .unwrap_or("?");
+    let status = data["status"].as_str().unwrap_or("pending");
 
     Ok(format!(
-        "Transfer initiated!\n  {} {} → {}\n  Status: {}\n  TX ID: {}\n  USD value: ${}\n  Reason: {}",
+        "Transfer initiated!\n  {} {} → {}\n  Status: {}\n  TX ID: {}\n  Reason: {}",
         amount, currency.to_uppercase(), &to_address[..to_address.len().min(20)],
-        status, tx_id, native_amount, reason
+        status, tx_id, reason
     ))
 }
