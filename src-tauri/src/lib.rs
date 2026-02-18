@@ -2608,6 +2608,24 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
+        .setup(|app| {
+            // ── Cron Heartbeat: autonomous task execution ──
+            // Spawns a background loop that checks for due cron tasks
+            // every 60 seconds and auto-executes them.
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                // Initial delay: let the app fully initialize
+                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                log::info!("[heartbeat] Cron heartbeat started (60s interval)");
+
+                loop {
+                    engine::commands::run_cron_heartbeat(&app_handle).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                }
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             // ── Existing OpenClaw gateway commands ──
             check_node_installed,

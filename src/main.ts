@@ -251,7 +251,12 @@ function switchView(viewName: string) {
       case 'dashboard': loadDashboardCron(); break;
       case 'chat': loadSessions(); populateAgentSelect(); break;
       case 'channels': loadChannels(); break;
-      case 'automations': AutomationsModule.loadCron(); break;
+      case 'automations': {
+        const agentsList = AgentsModule.getAgents();
+        AutomationsModule.setAgents(agentsList.map(a => ({ id: a.id, name: a.name, avatar: a.avatar })));
+        AutomationsModule.loadCron();
+        break;
+      }
       case 'agents': AgentsModule.loadAgents(); break;
       case 'today': TodayModule.loadToday(); break;
       case 'skills': SkillsSettings.loadSkillsSettings(); break;

@@ -1,15 +1,21 @@
 // Automations / Cron View
-// Extracted from main.ts for maintainability
-// NOTE: Cron/automation requires engine API (not yet implemented)
+// Uses the engine Tasks API with cron_schedule + cron_enabled fields.
+// The backend heartbeat (60s interval) auto-executes due cron tasks.
 
-import type { CronJob, CronRunLogEntry } from '../types';
+import { pawEngine } from '../engine';
+import type { EngineTask, EngineTaskActivity } from '../engine';
 
 const $ = (id: string) => document.getElementById(id);
 
 let wsConnected = false;
+let _agents: { id: string; name: string; avatar: string }[] = [];
 
 export function setWsConnected(connected: boolean) {
   wsConnected = connected;
+}
+
+export function setAgents(agents: { id: string; name: string; avatar: string }[]) {
+  _agents = agents;
 }
 
 function escHtml(s: string): string {
@@ -21,10 +27,10 @@ function escAttr(s: string): string {
   return escHtml(s).replace(/\n/g, '&#10;');
 }
 
-/** Currently editing job id (null = creating new) */
-let _editingJobId: string | null = null;
+/** Currently editing task id (null = creating new) */
+let _editingTaskId: string | null = null;
 
-// ── Load Cron Jobs ─────────────────────────────────────────────────────────
+// ── Load Automations ───────────────────────────────────────────────────────
 export async function loadCron() {
   const activeCards = $('cron-active-cards');
   const pausedCards = $('cron-paused-cards');
@@ -37,19 +43,6 @@ export async function loadCron() {
   const statusEl = $('cron-service-status');
   if (!wsConnected) return;
 
-  // Automations/Cron not yet available in engine mode
-  if (loading) loading.style.display = 'none';
-  if (board) board.style.display = 'none';
-  if (empty) {
-    empty.style.display = 'flex';
-    empty.innerHTML = '<div class="empty-title">Automations</div><div class="empty-subtitle">Cron job management coming soon to the Paw engine</div>';
-  }
-  if (statusEl) {
-    statusEl.className = 'cron-service-status';
-    statusEl.textContent = 'Coming soon';
-  }
-  return;
-
   if (loading) loading.style.display = '';
   if (empty) empty.style.display = 'none';
   if (board) board.style.display = 'grid';
@@ -58,39 +51,53 @@ export async function loadCron() {
   if (historyCards) historyCards.innerHTML = '';
 
   try {
-    const result = { jobs: [] } as any; // stub — engine cron API coming soon
+    // Get all tasks — filter to those with a cron_schedule
+    const tasks = await pawEngine.tasksList();
+    const cronTasks = tasks.filter(t => t.cron_schedule && t.cron_schedule.length > 0);
+
     if (loading) loading.style.display = 'none';
 
-    const jobs = result.jobs ?? [];
-    if (!jobs.length) {
+    // Status indicator
+    if (statusEl) {
+      statusEl.className = 'cron-service-status active';
+      statusEl.textContent = 'Heartbeat active';
+      statusEl.title = 'Background heartbeat running (60s interval)';
+    }
+
+    if (!cronTasks.length) {
       if (empty) empty.style.display = 'flex';
       if (board) board.style.display = 'none';
       return;
     }
 
     let active = 0, paused = 0;
-    for (const job of jobs) {
-      const scheduleStr = typeof job.schedule === 'string' ? job.schedule : (job.schedule?.type ?? '');
-      const nextRun = job.nextRunAt ? new Date(job.nextRunAt).toLocaleString() : '';
-      const lastRun = job.lastRunAt ? new Date(job.lastRunAt).toLocaleString() : '';
+    for (const task of cronTasks) {
+      const nextRun = task.next_run_at ? new Date(task.next_run_at).toLocaleString() : '';
+      const lastRun = task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '';
+      const agentNames = task.assigned_agents.length
+        ? task.assigned_agents.map(a => a.agent_id).join(', ')
+        : task.assigned_agent ?? 'default';
+
       const card = document.createElement('div');
-      card.className = 'auto-card';
+      card.className = `auto-card${task.status === 'in_progress' ? ' auto-card-running' : ''}`;
       card.innerHTML = `
-        <div class="auto-card-title">${escHtml(job.label ?? job.id)}</div>
-        <div class="auto-card-schedule">${escHtml(scheduleStr)}</div>
-        ${job.prompt ? `<div class="auto-card-prompt">${escHtml(String(job.prompt))}</div>` : ''}
+        <div class="auto-card-title">${escHtml(task.title)}</div>
+        <div class="auto-card-schedule">${escHtml(task.cron_schedule ?? '')}</div>
+        ${task.description ? `<div class="auto-card-prompt">${escHtml(task.description)}</div>` : ''}
+        <div class="auto-card-meta">Agent: ${escHtml(agentNames)}</div>
         ${nextRun ? `<div class="auto-card-meta">Next: ${escHtml(nextRun)}</div>` : ''}
         ${lastRun ? `<div class="auto-card-meta">Last: ${escHtml(lastRun)}</div>` : ''}
+        <div class="auto-card-status-badge ${task.status}">${escHtml(task.status)}</div>
         <div class="auto-card-actions">
-          <button class="btn btn-ghost btn-sm cron-run" data-id="${escAttr(job.id)}" title="Run now">▶ Run</button>
-          <button class="btn btn-ghost btn-sm cron-edit" data-id="${escAttr(job.id)}" title="Edit">✎ Edit</button>
-          <button class="btn btn-ghost btn-sm cron-toggle" data-id="${escAttr(job.id)}" data-enabled="${job.enabled}">${job.enabled ? 'Pause' : 'Enable'}</button>
-          <button class="btn btn-ghost btn-sm cron-delete" data-id="${escAttr(job.id)}">Delete</button>
+          <button class="btn btn-ghost btn-sm cron-run" data-id="${escAttr(task.id)}" title="Run now">▶ Run</button>
+          <button class="btn btn-ghost btn-sm cron-edit" data-id="${escAttr(task.id)}" title="Edit">✎ Edit</button>
+          <button class="btn btn-ghost btn-sm cron-toggle" data-id="${escAttr(task.id)}" data-enabled="${task.cron_enabled}">${task.cron_enabled ? 'Pause' : 'Enable'}</button>
+          <button class="btn btn-ghost btn-sm cron-delete" data-id="${escAttr(task.id)}">Delete</button>
         </div>
       `;
-      // Store job data for editing
-      (card as unknown as Record<string, unknown>)._job = job;
-      if (job.enabled) {
+      // Store task data for editing
+      (card as unknown as Record<string, unknown>)._task = task;
+      if (task.cron_enabled) {
         active++;
         activeCards?.appendChild(card);
       } else {
@@ -105,82 +112,48 @@ export async function loadCron() {
     wireCardActions(activeCards);
     wireCardActions(pausedCards);
 
-    // Load run history
+    // Load run history (recent cron-related activity)
     try {
-      const runs = { runs: [] } as any; // stub
-      if (runs.runs?.length && historyCards) {
-        for (const run of runs.runs.slice(0, 15)) {
-          renderRunHistoryCard(run, historyCards);
+      const activities = await pawEngine.taskActivity(undefined, 30);
+      const cronActivities = activities.filter(a =>
+        a.kind === 'cron_triggered' || a.kind === 'cron_error' ||
+        a.kind === 'agent_completed' || a.kind === 'agent_error'
+      );
+      if (cronActivities.length && historyCards) {
+        for (const activity of cronActivities.slice(0, 15)) {
+          renderActivityCard(activity, historyCards);
         }
       }
-    } catch { /* run history not available */ }
+    } catch { /* history not available */ }
   } catch (e) {
-    console.warn('Cron load failed:', e);
+    console.warn('Automations load failed:', e);
     if (loading) loading.style.display = 'none';
-    if (empty) empty.style.display = 'flex';
+    if (empty) {
+      empty.style.display = 'flex';
+      empty.innerHTML = `<div class="empty-title">Automations</div><div class="empty-subtitle">Failed to load: ${e}</div>`;
+    }
     if (board) board.style.display = 'none';
   }
 }
 
-// ── Run History Card (with error highlighting + timeout visualization) ──────
-function renderRunHistoryCard(run: CronRunLogEntry, container: HTMLElement) {
+// ── Run History Card ───────────────────────────────────────────────────────
+function renderActivityCard(activity: EngineTaskActivity, container: HTMLElement) {
   const card = document.createElement('div');
-  const isFailed = run.status === 'error' || run.status === 'failed' || run.status === 'timeout';
-  const isRunning = run.status === 'running';
-  const statusClass = isFailed ? 'failed' : (isRunning ? 'running' : 'success');
+  const isFailed = activity.kind === 'cron_error' || activity.kind === 'agent_error';
+  const statusClass = isFailed ? 'failed' : 'success';
   card.className = `auto-card${isFailed ? ' auto-card-error' : ''}`;
 
-  // Duration calculation
-  let durationStr = '';
-  let durationPct = 0;
-  if (run.startedAt) {
-    const endMs = run.finishedAt ?? Date.now();
-    const durationMs = endMs - run.startedAt;
-    if (durationMs < 1000) durationStr = `${durationMs}ms`;
-    else if (durationMs < 60_000) durationStr = `${(durationMs / 1000).toFixed(1)}s`;
-    else durationStr = `${(durationMs / 60_000).toFixed(1)}m`;
-    // Timeout bar: assume 5 min default timeout for visualization
-    const timeoutMs = 300_000;
-    durationPct = Math.min((durationMs / timeoutMs) * 100, 100);
-  }
-
-  // Error icon for failed runs
-  const errorIcon = isFailed
-    ? '<svg class="icon-sm auto-card-error-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
-    : '';
-
-  const timeStr = run.startedAt ? new Date(run.startedAt).toLocaleString() : '';
+  const timeStr = activity.created_at ? new Date(activity.created_at).toLocaleString() : '';
+  const kindLabel = activity.kind.replace(/_/g, ' ');
 
   card.innerHTML = `
     <div class="auto-card-header-row">
-      ${errorIcon}
       <div class="auto-card-time">${timeStr}</div>
-      <span class="auto-card-status ${statusClass}">${run.status ?? 'unknown'}</span>
+      <span class="auto-card-status ${statusClass}">${escHtml(kindLabel)}</span>
     </div>
-    <div class="auto-card-title">${escHtml(run.jobLabel ?? run.jobId ?? 'Job')}</div>
-    ${durationStr ? `<div class="auto-card-duration">
-      <span class="auto-card-duration-text">${durationStr}</span>
-      <div class="auto-card-duration-bar"><div class="auto-card-duration-fill${durationPct >= 80 ? ' danger' : durationPct >= 50 ? ' warning' : ''}" style="width:${durationPct}%"></div></div>
-    </div>` : ''}
-    ${run.error ? `<div class="auto-card-error-detail auto-card-error-collapsed" data-expandable="true">
-      <div class="auto-card-error-toggle">Error details ▸</div>
-      <div class="auto-card-error-content"><pre>${escHtml(run.error)}</pre></div>
-    </div>` : ''}
+    ${activity.agent ? `<div class="auto-card-meta">Agent: ${escHtml(activity.agent)}</div>` : ''}
+    <div class="auto-card-prompt">${escHtml(activity.content.substring(0, 200))}</div>
   `;
-
-  // Wire error detail expansion
-  const expandable = card.querySelector('[data-expandable]');
-  if (expandable) {
-    const toggle = expandable.querySelector('.auto-card-error-toggle');
-    toggle?.addEventListener('click', () => {
-      expandable.classList.toggle('auto-card-error-collapsed');
-      if (toggle) {
-        toggle.textContent = expandable.classList.contains('auto-card-error-collapsed')
-          ? 'Error details ▸'
-          : 'Error details ▾';
-      }
-    });
-  }
 
   container.appendChild(card);
 }
@@ -190,21 +163,18 @@ function wireCardActions(container: HTMLElement | null) {
   container.querySelectorAll('.cron-run').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = (btn as HTMLElement).dataset.id!;
-      try { alert('Cron management coming soon to the Paw engine'); }
-      catch (e) { alert(`Failed: ${e}`); }
+      try {
+        await pawEngine.taskRun(id);
+        (btn as HTMLElement).textContent = '⏳ Running…';
+        setTimeout(() => loadCron(), 3000);
+      } catch (e) { alert(`Run failed: ${e}`); }
     });
   });
   container.querySelectorAll('.cron-edit').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = (btn as HTMLElement).dataset.id!;
-      // Find job data from card
-      const card = (btn as HTMLElement).closest('.auto-card') as (HTMLElement & { _job?: CronJob }) | null;
-      if (card?._job) {
-        openEditModal(card._job);
-      } else {
-        // Fallback: just open with ID, fields blank
-        _editingJobId = id;
-        openEditModal({ id, enabled: true });
+      const card = (btn as HTMLElement).closest('.auto-card') as (HTMLElement & { _task?: EngineTask }) | null;
+      if (card?._task) {
+        openEditModal(card._task);
       }
     });
   });
@@ -212,23 +182,64 @@ function wireCardActions(container: HTMLElement | null) {
     btn.addEventListener('click', async () => {
       const id = (btn as HTMLElement).dataset.id!;
       const enabled = (btn as HTMLElement).dataset.enabled === 'true';
-      try { alert('Cron management coming soon'); loadCron(); }
-      catch (e) { alert(`Failed: ${e}`); }
+      try {
+        // Toggle cron_enabled
+        const tasks = await pawEngine.tasksList();
+        const task = tasks.find(t => t.id === id);
+        if (task) {
+          task.cron_enabled = !enabled;
+          // If enabling and no next_run_at, set it to now (will trigger on next heartbeat)
+          if (task.cron_enabled && !task.next_run_at) {
+            task.next_run_at = new Date().toISOString();
+          }
+          await pawEngine.taskUpdate(task);
+          loadCron();
+        }
+      } catch (e) { alert(`Toggle failed: ${e}`); }
     });
   });
   container.querySelectorAll('.cron-delete').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = (btn as HTMLElement).dataset.id!;
       if (!confirm('Delete this automation?')) return;
-      try { alert('Cron management coming soon'); loadCron(); }
-      catch (e) { alert(`Failed: ${e}`); }
+      try {
+        await pawEngine.taskDelete(id);
+        loadCron();
+      } catch (e) { alert(`Delete failed: ${e}`); }
     });
   });
 }
 
+// ── Agent Dropdown ─────────────────────────────────────────────────────────
+function populateAgentDropdown() {
+  const el = $('cron-form-agent');
+  if (!el) return;
+
+  // If it's an input, replace with a select
+  if (el.tagName === 'INPUT') {
+    const newSelect = document.createElement('select');
+    newSelect.id = 'cron-form-agent';
+    newSelect.className = 'form-input';
+    el.replaceWith(newSelect);
+    populateAgentDropdownElement(newSelect);
+  } else {
+    populateAgentDropdownElement(el as HTMLSelectElement);
+  }
+}
+
+function populateAgentDropdownElement(select: HTMLSelectElement) {
+  select.innerHTML = '<option value="default">default</option>';
+  for (const agent of _agents) {
+    const opt = document.createElement('option');
+    opt.value = agent.id;
+    opt.textContent = `${agent.name} (${agent.id})`;
+    select.appendChild(opt);
+  }
+}
+
 // ── Cron Modal (Create + Edit) ─────────────────────────────────────────────
 function openCreateModal() {
-  _editingJobId = null;
+  _editingTaskId = null;
   const modal = $('cron-modal');
   const title = $('cron-modal-title');
   const saveBtn = $('cron-modal-save');
@@ -240,16 +251,15 @@ function openCreateModal() {
   const schedule = $('cron-form-schedule') as HTMLInputElement;
   const prompt_ = $('cron-form-prompt') as HTMLTextAreaElement;
   const preset = $('cron-form-schedule-preset') as HTMLSelectElement;
-  const agentId = $('cron-form-agent') as HTMLInputElement | null;
   if (label) label.value = '';
   if (schedule) schedule.value = '';
   if (prompt_) prompt_.value = '';
   if (preset) preset.value = '';
-  if (agentId) agentId.value = '';
+  populateAgentDropdown();
 }
 
-function openEditModal(job: CronJob) {
-  _editingJobId = job.id;
+function openEditModal(task: EngineTask) {
+  _editingTaskId = task.id;
   const modal = $('cron-modal');
   const title = $('cron-modal-title');
   const saveBtn = $('cron-modal-save');
@@ -261,41 +271,96 @@ function openEditModal(job: CronJob) {
   const schedule = $('cron-form-schedule') as HTMLInputElement;
   const prompt_ = $('cron-form-prompt') as HTMLTextAreaElement;
   const preset = $('cron-form-schedule-preset') as HTMLSelectElement;
-  const agentId = $('cron-form-agent') as HTMLInputElement | null;
-  if (label) label.value = job.label ?? '';
-  const schedStr = typeof job.schedule === 'string' ? job.schedule : '';
-  if (schedule) schedule.value = schedStr;
+  if (label) label.value = task.title;
+  if (schedule) schedule.value = task.cron_schedule ?? '';
   if (preset) preset.value = '';
-  if (prompt_) prompt_.value = job.prompt ?? '';
-  if (agentId) agentId.value = (job.agentId as string) ?? '';
+  if (prompt_) prompt_.value = task.description;
+  populateAgentDropdown();
+  // Select the assigned agent
+  const agentSelect = $('cron-form-agent') as HTMLSelectElement;
+  if (agentSelect) {
+    const assignedAgent = task.assigned_agents.length
+      ? task.assigned_agents[0].agent_id
+      : task.assigned_agent ?? 'default';
+    agentSelect.value = assignedAgent;
+  }
 }
 
 function hideCronModal() {
   const modal = $('cron-modal');
   if (modal) modal.style.display = 'none';
-  _editingJobId = null;
+  _editingTaskId = null;
 }
 
 async function saveCronJob() {
   const label = ($('cron-form-label') as HTMLInputElement).value.trim();
   const schedule = ($('cron-form-schedule') as HTMLInputElement).value.trim();
   const prompt_ = ($('cron-form-prompt') as HTMLTextAreaElement).value.trim();
-  const agentId = ($('cron-form-agent') as HTMLInputElement | null)?.value.trim() || undefined;
+  const agentId = ($('cron-form-agent') as HTMLInputElement | HTMLSelectElement)?.value.trim() || 'default';
   if (!label || !schedule || !prompt_) { alert('Name, schedule, and prompt are required'); return; }
 
+  // Validate schedule format
+  if (!isValidSchedule(schedule)) {
+    alert('Invalid schedule format. Use: every 5m, every 1h, daily 09:00');
+    return;
+  }
+
   try {
-    if (_editingJobId) {
-      // Update existing job
-      await Promise.reject(new Error('Engine cron API coming soon'));
+    if (_editingTaskId) {
+      // Update existing task
+      const tasks = await pawEngine.tasksList();
+      const existing = tasks.find(t => t.id === _editingTaskId);
+      if (existing) {
+        existing.title = label;
+        existing.description = prompt_;
+        existing.cron_schedule = schedule;
+        existing.cron_enabled = true;
+        // Recompute next_run_at (set to now so heartbeat picks it up)
+        existing.next_run_at = new Date().toISOString();
+        await pawEngine.taskUpdate(existing);
+        // Update agent assignment
+        await pawEngine.taskSetAgents(_editingTaskId, [{ agent_id: agentId, role: 'lead' }]);
+      }
     } else {
-      // Create new job
-      await Promise.reject(new Error('Engine cron API coming soon'));
+      // Create new cron task
+      const id = crypto.randomUUID();
+      const now = new Date().toISOString();
+      const task: EngineTask = {
+        id,
+        title: label,
+        description: prompt_,
+        status: 'assigned',
+        priority: 'medium',
+        assigned_agent: agentId,
+        assigned_agents: [{ agent_id: agentId, role: 'lead' }],
+        cron_schedule: schedule,
+        cron_enabled: true,
+        next_run_at: now, // Run on next heartbeat
+        created_at: now,
+        updated_at: now,
+      };
+      await pawEngine.taskCreate(task);
+      // Set agents via the multi-agent API
+      await pawEngine.taskSetAgents(id, [{ agent_id: agentId, role: 'lead' }]);
     }
     hideCronModal();
     loadCron();
   } catch (e) {
-    alert(`Failed to ${_editingJobId ? 'update' : 'create'}: ${e instanceof Error ? e.message : e}`);
+    alert(`Failed to ${_editingTaskId ? 'update' : 'create'}: ${e instanceof Error ? e.message : e}`);
   }
+}
+
+function isValidSchedule(s: string): boolean {
+  const lower = s.trim().toLowerCase();
+  if (lower.startsWith('every ')) {
+    const rest = lower.slice(6).trim();
+    if (/^\d+m$/.test(rest) || /^\d+h$/.test(rest)) return true;
+  }
+  if (lower.startsWith('daily ')) {
+    const time = lower.slice(6).trim();
+    if (/^\d{2}:\d{2}$/.test(time)) return true;
+  }
+  return false;
 }
 
 // ── Initialize ─────────────────────────────────────────────────────────────
@@ -304,12 +369,26 @@ export function initAutomations() {
   $('cron-empty-add')?.addEventListener('click', openCreateModal);
   $('cron-modal-close')?.addEventListener('click', hideCronModal);
   $('cron-modal-cancel')?.addEventListener('click', hideCronModal);
-  
+
   $('cron-form-schedule-preset')?.addEventListener('change', () => {
     const preset = ($('cron-form-schedule-preset') as HTMLSelectElement).value;
     const scheduleInput = $('cron-form-schedule') as HTMLInputElement;
     if (preset && scheduleInput) scheduleInput.value = preset;
   });
-  
+
   $('cron-modal-save')?.addEventListener('click', saveCronJob);
+
+  // Listen for heartbeat events from backend
+  (async () => {
+    try {
+      const { listen } = await import('@tauri-apps/api/event');
+      listen('cron-heartbeat', () => {
+        // Refresh automations view if it's currently visible
+        const view = $('automations-view');
+        if (view && view.style.display !== 'none') {
+          loadCron();
+        }
+      });
+    } catch { /* not in Tauri context */ }
+  })();
 }

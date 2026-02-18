@@ -1278,6 +1278,17 @@ pub async fn engine_task_run(
     state: State<'_, EngineState>,
     task_id: String,
 ) -> Result<String, String> {
+    // Delegate to the standalone function (usable from heartbeat too)
+    execute_task(&app_handle, &state, &task_id).await
+}
+
+/// Standalone task execution — callable from both the Tauri command and the
+/// background cron heartbeat. This is the core logic for running a task.
+pub async fn execute_task(
+    app_handle: &tauri::AppHandle,
+    state: &EngineState,
+    task_id: &str,
+) -> Result<String, String> {
     let run_id = uuid::Uuid::new_v4().to_string();
 
     // Load the task
@@ -1308,7 +1319,7 @@ pub async fn engine_task_run(
     for agent_id in &agent_ids {
         let aid = uuid::Uuid::new_v4().to_string();
         state.store.add_task_activity(
-            &aid, &task_id, "agent_started", Some(agent_id),
+            &aid, task_id, "agent_started", Some(agent_id),
             &format!("Agent {} started working on: {}", agent_id, task.title),
         )?;
     }
@@ -1345,7 +1356,7 @@ pub async fn engine_task_run(
 
     let pending = state.pending_approvals.clone();
     let store_path = crate::engine::sessions::engine_db_path();
-    let task_id_for_spawn = task_id.clone();
+    let task_id_for_spawn = task_id.to_string();
     let agent_count = agent_ids.len();
 
     // For each agent, spawn a parallel agent loop
@@ -1427,7 +1438,7 @@ pub async fn engine_task_run(
 
         let provider = AnyProvider::from_config(&provider_config);
         let pending_clone = pending.clone();
-        let task_id_clone = task_id.clone();
+        let task_id_clone = task_id.to_string();
         let store_path_clone = store_path.clone();
         let run_id_clone = run_id.clone();
         let app_handle_clone = app_handle.clone();
@@ -1589,6 +1600,77 @@ fn compute_next_run(schedule: &Option<String>, from: &chrono::DateTime<chrono::U
 
     // Default: 1 hour from now
     Some((*from + chrono::Duration::hours(1)).to_rfc3339())
+}
+
+// ── Cron Heartbeat (background autonomous execution) ───────────────────
+
+/// Background cron heartbeat — called every 60 seconds from the Tauri
+/// setup hook. Finds due cron tasks, updates their timestamps, and
+/// auto-executes each one via `execute_task`.
+pub async fn run_cron_heartbeat(app_handle: &tauri::AppHandle) {
+    let state = app_handle.state::<EngineState>();
+
+    // 1) Find all due cron tasks
+    let due_tasks = match state.store.get_due_cron_tasks() {
+        Ok(tasks) => tasks,
+        Err(e) => {
+            warn!("[heartbeat] Failed to query due cron tasks: {}", e);
+            return;
+        }
+    };
+
+    if due_tasks.is_empty() {
+        return;
+    }
+
+    info!("[heartbeat] {} cron task(s) due", due_tasks.len());
+
+    for task in due_tasks {
+        let task_id = task.id.clone();
+        let task_title = task.title.clone();
+
+        // 2) Update cron timestamps (last_run_at → now, compute next_run_at)
+        let now = chrono::Utc::now();
+        let next = compute_next_run(&task.cron_schedule, &now);
+        if let Err(e) = state.store.update_task_cron_run(&task_id, &now.to_rfc3339(), next.as_deref()) {
+            error!("[heartbeat] Failed to update cron timestamps for '{}': {}", task_title, e);
+            continue;
+        }
+
+        // 3) Log cron trigger activity
+        let aid = uuid::Uuid::new_v4().to_string();
+        state.store.add_task_activity(
+            &aid, &task_id, "cron_triggered", None,
+            &format!("Cron triggered: {}", task.cron_schedule.as_deref().unwrap_or("unknown")),
+        ).ok();
+
+        // 4) Execute the task (spawns agent loops)
+        let app = app_handle.clone();
+        tauri::async_runtime::spawn(async move {
+            let st = app.state::<EngineState>();
+            match execute_task(&app, &st, &task_id).await {
+                Ok(run_id) => {
+                    info!("[heartbeat] Cron task '{}' started, run_id={}", task_title, run_id);
+                }
+                Err(e) => {
+                    error!("[heartbeat] Cron task '{}' failed to start: {}", task_title, e);
+                    // Log the failure
+                    if let Ok(conn) = rusqlite::Connection::open(crate::engine::sessions::engine_db_path()) {
+                        let aid = uuid::Uuid::new_v4().to_string();
+                        conn.execute(
+                            "INSERT INTO task_activity (id, task_id, kind, content) VALUES (?1, ?2, 'cron_error', ?3)",
+                            rusqlite::params![aid, task_id, format!("Cron execution failed: {}", e)],
+                        ).ok();
+                    }
+                }
+            }
+        });
+    }
+
+    // Emit event so frontend knows automations ran
+    app_handle.emit("cron-heartbeat", serde_json::json!({
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+    })).ok();
 }
 
 // ── Telegram Bridge Commands ───────────────────────────────────────────

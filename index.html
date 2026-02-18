@@ -1064,17 +1064,17 @@
                 <div class="form-group">
                   <label class="form-label">Schedule</label>
                   <select class="form-input" id="cron-form-schedule-preset">
-                    <option value="">Custom cron...</option>
-                    <option value="*/5 * * * *">Every 5 minutes</option>
-                    <option value="*/15 * * * *">Every 15 minutes</option>
-                    <option value="*/30 * * * *">Every 30 minutes</option>
-                    <option value="0 * * * *">Every hour</option>
-                    <option value="0 */6 * * *">Every 6 hours</option>
-                    <option value="0 9 * * *">Daily at 9 AM</option>
-                    <option value="0 9 * * 1">Weekly — Monday 9 AM</option>
-                    <option value="0 9 1 * *">Monthly — 1st at 9 AM</option>
+                    <option value="">Custom schedule...</option>
+                    <option value="every 5m">Every 5 minutes</option>
+                    <option value="every 15m">Every 15 minutes</option>
+                    <option value="every 30m">Every 30 minutes</option>
+                    <option value="every 1h">Every hour</option>
+                    <option value="every 6h">Every 6 hours</option>
+                    <option value="daily 09:00">Daily at 9 AM</option>
+                    <option value="daily 12:00">Daily at noon</option>
+                    <option value="daily 18:00">Daily at 6 PM</option>
                   </select>
-                  <input type="text" class="form-input" id="cron-form-schedule" placeholder="0 * * * *" style="margin-top:8px" />
+                  <input type="text" class="form-input" id="cron-form-schedule" placeholder="every 5m, every 1h, daily 09:00" style="margin-top:8px" />
                 </div>
                 <div class="form-group">
                   <label class="form-label">Task prompt</label>
