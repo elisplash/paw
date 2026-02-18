@@ -332,6 +332,12 @@ export async function loadAdvancedSettings() {
     timeoutRow.appendChild(timeoutInp);
     engSection.appendChild(timeoutRow);
 
+    const concurrencyRow = formRow('Max Concurrent Runs', 'How many agent runs (chat + cron + tasks) can execute in parallel. Chat always gets priority. Increase if you have multiple providers or a high rate limit.');
+    const concurrencyInp = numberInput(config.max_concurrent_runs ?? 4, { min: 1, max: 20, placeholder: '4' });
+    concurrencyInp.style.maxWidth = '120px';
+    concurrencyRow.appendChild(concurrencyInp);
+    engSection.appendChild(concurrencyRow);
+
     container.appendChild(engSection);
 
     // ── System Prompt ────────────────────────────────────────────────────
@@ -356,6 +362,7 @@ export async function loadAdvancedSettings() {
           cfg.default_provider = providerSel.value || undefined;
           cfg.max_tool_rounds = parseInt(roundsInp.value) || 20;
           cfg.tool_timeout_secs = parseInt(timeoutInp.value) || 120;
+          cfg.max_concurrent_runs = parseInt(concurrencyInp.value) || 4;
           cfg.default_system_prompt = promptArea.value.trim() || undefined;
           await pawEngine.setConfig(cfg);
           showToast('Engine settings saved', 'success');

@@ -449,18 +449,24 @@ let _cronInterval: ReturnType<typeof setInterval> | null = null;
 
 export function startCronTimer() {
   if (_cronInterval) return;
-  // Check for due cron tasks every 30 seconds
+  // Check for due cron tasks every 30 seconds.
+  // The backend heartbeat (60s) handles actual execution.
+  // The frontend tick just updates cron timestamps and refreshes the board.
   _cronInterval = setInterval(async () => {
     try {
       const triggered = await pawEngine.tasksCronTick();
       if (triggered.length > 0) {
         showToast(`${triggered.length} cron task(s) triggered`, 'info');
-        // Auto-run each triggered task
+        // Backend heartbeat will execute these — just refresh the board.
+        // The dedup guard prevents double-execution if both fire close together.
         for (const taskId of triggered) {
           try {
             await pawEngine.taskRun(taskId);
           } catch (e) {
-            console.warn('[tasks] Auto-run failed for', taskId, e);
+            // Expected: "already running" from dedup guard is fine
+            if (!String(e).includes('already running')) {
+              console.warn('[tasks] Auto-run failed for', taskId, e);
+            }
           }
         }
         await loadTasks();

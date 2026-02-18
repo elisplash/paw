@@ -1782,7 +1782,12 @@ pub struct EngineConfig {
     /// Model routing for multi-agent orchestration
     #[serde(default)]
     pub model_routing: ModelRouting,
+    /// Maximum simultaneous agent runs (chat + cron + manual). Chat always gets priority.
+    #[serde(default = "default_max_concurrent_runs")]
+    pub max_concurrent_runs: u32,
 }
+
+fn default_max_concurrent_runs() -> u32 { 4 }
 
 impl Default for EngineConfig {
     fn default() -> Self {
@@ -1814,6 +1819,7 @@ Be thorough, resourceful, and action-oriented. When the user asks you to do some
             tool_timeout_secs: 300,
             user_timezone: default_user_timezone(),
             model_routing: ModelRouting::default(),
+            max_concurrent_runs: default_max_concurrent_runs(),
         }
     }
 }

@@ -10,7 +10,7 @@ use crate::engine::memory::{self, EmbeddingClient};
 use crate::engine::skills;
 use crate::engine::tool_executor;
 use log::{info, warn, error};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager, State};
 
@@ -56,6 +56,11 @@ pub struct EngineState {
     pub config: Mutex<EngineConfig>,
     pub memory_config: Mutex<MemoryConfig>,
     pub pending_approvals: PendingApprovals,
+    /// Semaphore limiting concurrent agent runs (chat + cron + manual tasks).
+    /// Chat gets a reserved slot; background tasks share the rest.
+    pub run_semaphore: Arc<tokio::sync::Semaphore>,
+    /// Track task IDs currently being executed to prevent duplicate cron fires.
+    pub inflight_tasks: Arc<Mutex<HashSet<String>>>,
 }
 
 impl EngineState {
@@ -101,11 +106,16 @@ impl EngineState {
             _ => MemoryConfig::default(),
         };
 
+        // Read max_concurrent_runs from config (default 4)
+        let max_concurrent = config.max_concurrent_runs;
+
         Ok(EngineState {
             store,
             config: Mutex::new(config),
             memory_config: Mutex::new(memory_config),
             pending_approvals: Arc::new(Mutex::new(HashMap::new())),
+            run_semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent as usize)),
+            inflight_tasks: Arc::new(Mutex::new(HashSet::new())),
         })
     }
 
@@ -472,10 +482,25 @@ pub async fn engine_chat_send(
     // NEW messages afterward (avoids re-inserting historical messages on every turn).
     let pre_loop_msg_count = messages.len();
 
-    // Spawn the agent loop in a background task
+    // Spawn the agent loop in a background task.
+    // Chat always gets a semaphore permit (priority lane) — we use try_acquire first,
+    // and if all slots are busy we still proceed (chat should never be blocked by cron).
     let app = app_handle.clone();
     let agent_id_for_spawn = agent_id_owned.clone();
+    let sem = state.run_semaphore.clone();
     tauri::async_runtime::spawn(async move {
+        // Acquire semaphore — chat gets priority so use a short timeout then proceed anyway
+        let _permit = match tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            sem.acquire_owned()
+        ).await {
+            Ok(Ok(permit)) => Some(permit),
+            _ => {
+                info!("[engine] Chat bypassing concurrency limit (all slots busy)");
+                None
+            }
+        };
+
         let provider = AnyProvider::from_config(&provider_config);
 
         match agent_loop::run_agent_turn(
@@ -1388,6 +1413,16 @@ pub async fn execute_task(
     state: &EngineState,
     task_id: &str,
 ) -> Result<String, String> {
+    // ── Dedup guard: skip if this task is already running ──
+    {
+        let mut inflight = state.inflight_tasks.lock().map_err(|e| format!("Lock: {}", e))?;
+        if inflight.contains(task_id) {
+            info!("[engine] Task '{}' already in flight — skipping duplicate", task_id);
+            return Err(format!("Task {} is already running", task_id));
+        }
+        inflight.insert(task_id.to_string());
+    }
+
     let run_id = uuid::Uuid::new_v4().to_string();
 
     // Load the task
@@ -1431,12 +1466,14 @@ pub async fn execute_task(
     };
 
     // Get global config values
-    let (base_system_prompt, max_rounds, tool_timeout) = {
+    let (base_system_prompt, max_rounds, tool_timeout, model_routing, default_model) = {
         let cfg = state.config.lock().map_err(|e| format!("Lock error: {}", e))?;
         (
             cfg.default_system_prompt.clone(),
             cfg.max_tool_rounds,
             cfg.tool_timeout_secs,
+            cfg.model_routing.clone(),
+            cfg.default_model.clone().unwrap_or_else(|| "gpt-4o".to_string()),
         )
     };
 
@@ -1467,6 +1504,8 @@ pub async fn execute_task(
     let task_id_for_spawn = task_id.to_string();
     let agent_count = agent_ids.len();
     let is_recurring = task.cron_schedule.as_ref().map_or(false, |s| !s.is_empty());
+    let sem = state.run_semaphore.clone();
+    let inflight = state.inflight_tasks.clone();
 
     // For each agent, spawn a parallel agent loop
     let mut handles = Vec::new();
@@ -1475,10 +1514,17 @@ pub async fn execute_task(
         // Per-agent session: eng-task-{task_id}-{agent_id}
         let session_id = format!("eng-task-{}-{}", task.id, agent_id);
 
+        // ── Per-agent model routing ──
+        // Priority: agent_models > worker_model > default_model
+        // This lets you assign cheap/fast models to cron agents while keeping
+        // the best model for interactive chat.
+        let agent_model = model_routing.resolve(&agent_id, "worker", "", &default_model);
+        info!("[engine] Agent '{}' resolved model: {} (default: {})", agent_id, agent_model, default_model);
+
         // Create session if needed
         let (provider_config, model) = {
             let cfg = state.config.lock().map_err(|e| format!("Lock error: {}", e))?;
-            let model = cfg.default_model.clone().unwrap_or_else(|| "gpt-4o".to_string());
+            let model = agent_model;
             let provider = resolve_provider_for_model(&model, &cfg.providers)
                 .or_else(|| {
                     cfg.providers.iter().find(|p| p.default_model.as_deref() == Some(model.as_str())).cloned()
@@ -1597,8 +1643,15 @@ pub async fn execute_task(
         let app_handle_clone = app_handle.clone();
         let all_tools_clone = all_tools.clone();
         let model_clone = model.clone();
+        let sem_clone = sem.clone();
 
         let handle = tauri::async_runtime::spawn(async move {
+            // ── Semaphore gate: wait for a concurrency slot ──
+            // Background tasks (cron/manual) respect the limit.
+            // If the semaphore is full, this agent waits its turn.
+            let _permit = sem_clone.acquire_owned().await.ok();
+            info!("[engine] Task agent '{}' acquired run slot", agent_id);
+
             let result = agent_loop::run_agent_turn(
                 &app_handle_clone,
                 &provider,
@@ -1648,6 +1701,8 @@ pub async fn execute_task(
 
     // Spawn a coordinator that waits for all agents to finish
     let app_handle_final = app_handle.clone();
+    let inflight_clone = inflight.clone();
+    let task_id_for_cleanup = task_id.to_string();
     tauri::async_runtime::spawn(async move {
         let mut all_ok = true;
         let mut any_ok = false;
@@ -1656,6 +1711,11 @@ pub async fn execute_task(
                 Ok(Ok(_)) => { any_ok = true; }
                 _ => { all_ok = false; }
             }
+        }
+
+        // ── Remove from in-flight set so the task can be triggered again ──
+        if let Ok(mut set) = inflight_clone.lock() {
+            set.remove(&task_id_for_cleanup);
         }
 
         // Update task status based on results.

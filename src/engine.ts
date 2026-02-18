@@ -22,6 +22,8 @@ export interface EngineConfig {
   max_tool_rounds: number;
   tool_timeout_secs: number;
   model_routing?: ModelRouting;
+  /** Max simultaneous agent runs (chat + cron + tasks). Chat always gets priority. Default: 4 */
+  max_concurrent_runs?: number;
 }
 
 /** Model routing for multi-agent orchestration.
