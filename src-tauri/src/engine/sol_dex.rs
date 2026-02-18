@@ -46,12 +46,13 @@ const TOKEN_2022_PROGRAM_ID: &str = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb
 
 /// Default slippage tolerance (0.5% = 50 bps)
 const DEFAULT_SLIPPAGE_BPS: u64 = 50;
-/// Maximum allowed slippage (5%)
-const MAX_SLIPPAGE_BPS: u64 = 500;
+/// Maximum allowed slippage (50% — needed for volatile meme/pump.fun tokens)
+const MAX_SLIPPAGE_BPS: u64 = 5000;
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
 /// Resolve a token symbol or mint address to (mint_address, decimals)
+/// Returns decimals=0 for unknown tokens — caller should use resolve_decimals_on_chain()
 fn resolve_token(sym_or_addr: &str) -> Result<(String, u8), String> {
     let upper = sym_or_addr.trim().to_uppercase();
 
@@ -195,6 +196,30 @@ async fn get_mint_info(rpc_url: &str, mint: &str) -> Result<serde_json::Value, S
         Ok(info.clone())
     } else {
         Err(format!("Could not parse mint info for {}", mint))
+    }
+}
+
+/// Resolve actual decimals for a token mint by querying on-chain.
+/// Falls back to 9 (SOL-like) if the query fails.
+async fn resolve_decimals_on_chain(rpc_url: &str, mint: &str, known_decimals: u8) -> u8 {
+    if known_decimals > 0 {
+        return known_decimals;
+    }
+    // Query on-chain mint info
+    match get_mint_info(rpc_url, mint).await {
+        Ok(info) => {
+            if let Some(d) = info.get("decimals").and_then(|v| v.as_u64()) {
+                info!("[sol_dex] Resolved on-chain decimals for {}: {}", &mint[..8.min(mint.len())], d);
+                d as u8
+            } else {
+                info!("[sol_dex] No decimals in mint info for {}, defaulting to 9", &mint[..8.min(mint.len())]);
+                9
+            }
+        }
+        Err(e) => {
+            info!("[sol_dex] Failed to get mint info for {}: {}, defaulting to 9", &mint[..8.min(mint.len())], e);
+            9
+        }
     }
 }
 
@@ -352,13 +377,8 @@ pub async fn execute_sol_quote(
     let (input_mint, input_decimals) = resolve_token(token_in_str)?;
     let (output_mint, _output_decimals) = resolve_token(token_out_str)?;
 
-    // For unknown tokens, try to fetch decimals on-chain
-    let in_decimals = if input_decimals == 0 {
-        // Default to 9 for SOL-like tokens; for accurate results would need mint query
-        9
-    } else {
-        input_decimals
-    };
+    // Resolve actual decimals on-chain for unknown tokens (critical for correct amount)
+    let in_decimals = resolve_decimals_on_chain(_rpc_url, &input_mint, input_decimals).await;
 
     let amount_raw = amount_to_lamports(amount_str, in_decimals)?;
 
@@ -399,11 +419,8 @@ pub async fn execute_sol_quote(
 
     let price_impact_pct = body.get("priceImpactPct").and_then(|v| v.as_str()).unwrap_or("0");
 
-    // Get output token decimals from known list or default
-    let out_decimals = KNOWN_TOKENS.iter()
-        .find(|(_, addr, _)| *addr == output_mint)
-        .map(|(_, _, d)| *d)
-        .unwrap_or(9);
+    // Get output token decimals — resolve on-chain for unknown tokens
+    let out_decimals = resolve_decimals_on_chain(_rpc_url, &output_mint, _output_decimals).await;
 
     let out_human = lamports_to_amount(out_amount, out_decimals);
     let min_human = lamports_to_amount(min_out, out_decimals);
@@ -475,7 +492,8 @@ pub async fn execute_sol_swap(
     let (input_mint, input_decimals) = resolve_token(token_in_str)?;
     let (output_mint, _output_decimals) = resolve_token(token_out_str)?;
 
-    let in_decimals = if input_decimals == 0 { 9 } else { input_decimals };
+    // Resolve actual decimals on-chain for unknown tokens (critical for sells)
+    let in_decimals = resolve_decimals_on_chain(rpc_url, &input_mint, input_decimals).await;
     let amount_raw = amount_to_lamports(amount_str, in_decimals)?;
 
     let client = reqwest::Client::new();
@@ -507,10 +525,7 @@ pub async fn execute_sol_swap(
 
     let out_amount_str = quote.get("outAmount").and_then(|v| v.as_str()).unwrap_or("0");
     let out_amount: u64 = out_amount_str.parse().unwrap_or(0);
-    let out_decimals = KNOWN_TOKENS.iter()
-        .find(|(_, addr, _)| *addr == output_mint)
-        .map(|(_, _, d)| *d)
-        .unwrap_or(9);
+    let out_decimals = resolve_decimals_on_chain(rpc_url, &output_mint, _output_decimals).await;
     let out_human = lamports_to_amount(out_amount, out_decimals);
 
     // Step 2: Get swap transaction from Jupiter
@@ -763,13 +778,17 @@ pub async fn execute_sol_token_info(
 
 // ── Transaction Signing ────────────────────────────────────────────────
 
-/// Sign a Solana transaction (versioned or legacy)
+/// Sign a Solana transaction (versioned v0 or legacy)
 ///
-/// Solana transaction binary format:
-/// - [num_signatures] (compact-u16, usually 1 byte for <=127)
-/// - [signature_slots] (num_signatures × 64 bytes — initially zeroed)
-/// - [message_bytes] (everything after signatures)
+/// Solana transaction binary formats:
 ///
+/// **Legacy:**
+///   [num_signatures (compact-u16)] [signature_slots (N×64)] [message]
+///
+/// **Versioned (v0):**
+///   [0x80 version prefix] [num_signatures (compact-u16)] [signature_slots (N×64)] [versioned_message]
+///
+/// If byte 0 has high bit set (>= 0x80), it's a versioned tx (version = byte & 0x7F).
 /// We sign the message portion with ed25519 and place the signature in the first slot.
 fn sign_solana_transaction(tx_bytes: &[u8], secret_key: &[u8; 32]) -> Result<Vec<u8>, String> {
     if tx_bytes.is_empty() {
@@ -780,28 +799,50 @@ fn sign_solana_transaction(tx_bytes: &[u8], secret_key: &[u8; 32]) -> Result<Vec
 
     let signing_key = SigningKey::from_bytes(secret_key);
 
-    // Parse compact-u16 for num_signatures
-    let (num_sigs, sig_header_len) = decode_compact_u16(tx_bytes)?;
+    // Detect versioned vs legacy transaction
+    // If first byte has high bit set, it's a versioned transaction prefix
+    let (version_prefix_len, is_versioned) = if tx_bytes[0] >= 0x80 {
+        let version = tx_bytes[0] & 0x7F;
+        info!("[sol_dex] Detected versioned transaction (v{})", version);
+        (1usize, true)
+    } else {
+        (0usize, false)
+    };
+
+    // Parse compact-u16 for num_signatures (after version prefix if present)
+    let (num_sigs, sig_header_len) = decode_compact_u16(&tx_bytes[version_prefix_len..])?;
     if num_sigs == 0 {
         return Err("Transaction has 0 signatures required".into());
     }
 
-    let sigs_start = sig_header_len;
+    let sigs_start = version_prefix_len + sig_header_len;
     let sigs_end = sigs_start + (num_sigs as usize * 64);
     if sigs_end > tx_bytes.len() {
-        return Err(format!("Transaction too short: need {} bytes for signatures, have {}", sigs_end, tx_bytes.len()));
+        return Err(format!("Transaction too short: need {} bytes for {} signatures, have {} (versioned={})",
+            sigs_end, num_sigs, tx_bytes.len(), is_versioned));
     }
 
     // Message is everything after the signature slots
     let message = &tx_bytes[sigs_end..];
 
-    // Sign the message
-    let signature = signing_key.sign(message);
+    // For versioned transactions, we need to sign: [version_prefix] + [message]
+    // For legacy transactions, we just sign: [message]
+    let signature = if is_versioned {
+        // Versioned: the "message" that gets signed includes the version prefix byte
+        let mut signable = Vec::with_capacity(1 + message.len());
+        signable.push(tx_bytes[0]); // version prefix (0x80 for v0)
+        signable.extend_from_slice(message);
+        signing_key.sign(&signable)
+    } else {
+        signing_key.sign(message)
+    };
 
     // Build the signed transaction
     let mut signed = tx_bytes.to_vec();
     // Place our signature in the first slot
     signed[sigs_start..sigs_start + 64].copy_from_slice(&signature.to_bytes());
+
+    info!("[sol_dex] Transaction signed (versioned={}, sigs={}, msg_len={})", is_versioned, num_sigs, message.len());
 
     Ok(signed)
 }
