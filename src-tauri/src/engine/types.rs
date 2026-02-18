@@ -1837,6 +1837,9 @@ pub struct Task {
     #[serde(default)]
     pub assigned_agents: Vec<TaskAgent>,  // multi-agent assignments
     pub session_id: Option<String>,
+    /// Override model for this task (e.g. "gemini-2.0-flash"). If empty, uses agent routing / default.
+    #[serde(default)]
+    pub model: Option<String>,
     pub cron_schedule: Option<String>,  // e.g. "every 1h", "daily 09:00", cron expression
     pub cron_enabled: bool,
     pub last_run_at: Option<String>,

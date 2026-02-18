@@ -573,6 +573,20 @@
                     </label>
                   </div>
                 </div>
+                <div class="tasks-modal-field">
+                  <label>Model Override</label>
+                  <input type="text" id="tasks-modal-input-model" class="input" placeholder="(use default)" style="max-width:280px" list="tasks-model-suggestions">
+                  <datalist id="tasks-model-suggestions">
+                    <option value="gemini-2.0-flash">
+                    <option value="gpt-4o-mini">
+                    <option value="claude-3-5-haiku-20241022">
+                    <option value="claude-sonnet-4-20250514">
+                    <option value="gpt-4o">
+                    <option value="gemini-2.0-pro">
+                    <option value="deepseek-chat">
+                  </datalist>
+                  <div class="tasks-modal-hint">Leave empty to use the agent's default model. Set a specific model to override for this task only.</div>
+                </div>
                 <div class="tasks-modal-field" id="tasks-modal-activity-section" style="display:none">
                   <label>Activity</label>
                   <div class="tasks-modal-activity" id="tasks-modal-activity"></div>

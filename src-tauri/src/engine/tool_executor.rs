@@ -839,6 +839,7 @@ async fn execute_create_task(args: &serde_json::Value, app_handle: &tauri::AppHa
         next_run_at,
         created_at: now.clone(),
         updated_at: now,
+        model: None,
     };
 
     state.store.create_task(&task)?;

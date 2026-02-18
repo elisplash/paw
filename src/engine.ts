@@ -255,6 +255,8 @@ export interface EngineTask {
   assigned_agent?: string;        // legacy single agent
   assigned_agents: TaskAgent[];   // multi-agent assignments
   session_id?: string;
+  /** Override model for this task (e.g. 'gemini-2.0-flash'). If empty, uses agent routing / default. */
+  model?: string;
   cron_schedule?: string;
   cron_enabled: boolean;
   last_run_at?: string;

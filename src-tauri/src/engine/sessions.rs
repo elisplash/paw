@@ -113,6 +113,7 @@ impl SessionStore {
                 priority TEXT NOT NULL DEFAULT 'medium',
                 assigned_agent TEXT,
                 session_id TEXT,
+                model TEXT,
                 cron_schedule TEXT,
                 cron_enabled INTEGER NOT NULL DEFAULT 0,
                 last_run_at TEXT,
@@ -1087,9 +1088,13 @@ impl SessionStore {
     /// List all tasks, ordered by updated_at DESC.
     pub fn list_tasks(&self) -> Result<Vec<Task>, String> {
         let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+
+        // Auto-migrate: add model column if not present
+        let _ = conn.execute("ALTER TABLE tasks ADD COLUMN model TEXT", []);
+
         let mut stmt = conn.prepare(
             "SELECT id, title, description, status, priority, assigned_agent, session_id,
-                    cron_schedule, cron_enabled, last_run_at, next_run_at, created_at, updated_at
+                    cron_schedule, cron_enabled, last_run_at, next_run_at, created_at, updated_at, model
              FROM tasks ORDER BY updated_at DESC"
         ).map_err(|e| e.to_string())?;
 
@@ -1103,6 +1108,7 @@ impl SessionStore {
                 assigned_agent: row.get(5)?,
                 assigned_agents: Vec::new(), // populated below
                 session_id: row.get(6)?,
+                model: row.get(13)?,
                 cron_schedule: row.get(7)?,
                 cron_enabled: row.get::<_, i32>(8)? != 0,
                 last_run_at: row.get(9)?,
@@ -1138,11 +1144,11 @@ impl SessionStore {
         let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
         conn.execute(
             "INSERT INTO tasks (id, title, description, status, priority, assigned_agent, session_id,
-                               cron_schedule, cron_enabled, last_run_at, next_run_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                               model, cron_schedule, cron_enabled, last_run_at, next_run_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             params![
                 task.id, task.title, task.description, task.status, task.priority,
-                task.assigned_agent, task.session_id, task.cron_schedule,
+                task.assigned_agent, task.session_id, task.model, task.cron_schedule,
                 task.cron_enabled as i32, task.last_run_at, task.next_run_at,
             ],
         ).map_err(|e| e.to_string())?;
@@ -1154,12 +1160,12 @@ impl SessionStore {
         let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
         conn.execute(
             "UPDATE tasks SET title=?2, description=?3, status=?4, priority=?5,
-                    assigned_agent=?6, session_id=?7, cron_schedule=?8, cron_enabled=?9,
-                    last_run_at=?10, next_run_at=?11, updated_at=datetime('now')
+                    assigned_agent=?6, session_id=?7, model=?8, cron_schedule=?9, cron_enabled=?10,
+                    last_run_at=?11, next_run_at=?12, updated_at=datetime('now')
              WHERE id=?1",
             params![
                 task.id, task.title, task.description, task.status, task.priority,
-                task.assigned_agent, task.session_id, task.cron_schedule,
+                task.assigned_agent, task.session_id, task.model, task.cron_schedule,
                 task.cron_enabled as i32, task.last_run_at, task.next_run_at,
             ],
         ).map_err(|e| e.to_string())?;
@@ -1242,7 +1248,7 @@ impl SessionStore {
         let now = chrono::Utc::now().to_rfc3339();
         let mut stmt = conn.prepare(
             "SELECT id, title, description, status, priority, assigned_agent, session_id,
-                    cron_schedule, cron_enabled, last_run_at, next_run_at, created_at, updated_at
+                    cron_schedule, cron_enabled, last_run_at, next_run_at, created_at, updated_at, model
              FROM tasks WHERE cron_enabled = 1 AND next_run_at IS NOT NULL AND next_run_at <= ?1"
         ).map_err(|e| e.to_string())?;
 
@@ -1256,6 +1262,7 @@ impl SessionStore {
                 assigned_agent: row.get(5)?,
                 assigned_agents: Vec::new(),
                 session_id: row.get(6)?,
+                model: row.get(13)?,
                 cron_schedule: row.get(7)?,
                 cron_enabled: row.get::<_, i32>(8)? != 0,
                 last_run_at: row.get(9)?,

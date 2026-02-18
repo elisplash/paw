@@ -89,6 +89,9 @@ function createTaskCard(task: EngineTask): HTMLElement {
   const cronHtml = task.cron_enabled && task.cron_schedule
     ? `<span class="task-card-cron">🔄 ${escHtml(task.cron_schedule)}</span>`
     : '';
+  const modelHtml = task.model
+    ? `<span class="task-card-model" title="Model override">${escHtml(task.model)}</span>`
+    : '';
   const timeAgo = formatTimeAgo(task.updated_at || task.created_at);
   
   // Show run button for tasks with agents
@@ -110,6 +113,7 @@ function createTaskCard(task: EngineTask): HTMLElement {
       ${agentHtml}
       ${agentCountHtml}
       ${cronHtml}
+      ${modelHtml}
       <span style="margin-left:auto">${timeAgo}</span>
     </div>
   `;
@@ -209,6 +213,7 @@ function openTaskModal(task?: EngineTask) {
   const inputAgent = $('tasks-modal-input-agent') as HTMLSelectElement;
   const inputCron = $('tasks-modal-input-cron') as HTMLInputElement;
   const inputCronEnabled = $('tasks-modal-input-cron-enabled') as HTMLInputElement;
+  const inputModel = $('tasks-modal-input-model') as HTMLInputElement;
   const deleteBtn = $('tasks-modal-delete');
   const runBtn = $('tasks-modal-run');
   const activitySection = $('tasks-modal-activity-section');
@@ -219,6 +224,7 @@ function openTaskModal(task?: EngineTask) {
   if (inputPriority) inputPriority.value = task?.priority || 'medium';
   if (inputCron) inputCron.value = task?.cron_schedule || '';
   if (inputCronEnabled) inputCronEnabled.checked = task?.cron_enabled || false;
+  if (inputModel) inputModel.value = task?.model || '';
   if (deleteBtn) deleteBtn.style.display = isNew ? 'none' : '';
   const hasAgents = task?.assigned_agents?.length || task?.assigned_agent;
   if (runBtn) runBtn.style.display = hasAgents ? '' : 'none';
@@ -325,12 +331,14 @@ async function saveTask() {
   const inputPriority = $('tasks-modal-input-priority') as HTMLSelectElement;
   const inputCron = $('tasks-modal-input-cron') as HTMLInputElement;
   const inputCronEnabled = $('tasks-modal-input-cron-enabled') as HTMLInputElement;
+  const inputModel = $('tasks-modal-input-model') as HTMLInputElement;
 
   const title = inputTitle?.value.trim();
   if (!title) { showToast('Task title is required', 'warning'); return; }
 
   const cronSchedule = inputCron?.value.trim() || undefined;
   const cronEnabled = inputCronEnabled?.checked || false;
+  const taskModel = inputModel?.value.trim() || undefined;
 
   // Primary agent = first lead or first agent in the multi-select
   const primaryAgent = _modalSelectedAgents.find(a => a.role === 'lead')
@@ -351,6 +359,7 @@ async function saveTask() {
     assigned_agent: agentId,
     assigned_agents: _modalSelectedAgents,
     session_id: _editingTask?.session_id,
+    model: taskModel,
     cron_schedule: cronSchedule,
     cron_enabled: cronEnabled,
     last_run_at: _editingTask?.last_run_at,

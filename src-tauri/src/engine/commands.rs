@@ -1514,12 +1514,21 @@ pub async fn execute_task(
         // Per-agent session: eng-task-{task_id}-{agent_id}
         let session_id = format!("eng-task-{}-{}", task.id, agent_id);
 
-        // ── Per-agent model routing ──
-        // Priority: agent_models > worker_model > default_model
-        // This lets you assign cheap/fast models to cron agents while keeping
-        // the best model for interactive chat.
-        let agent_model = model_routing.resolve(&agent_id, "worker", "", &default_model);
-        info!("[engine] Agent '{}' resolved model: {} (default: {})", agent_id, agent_model, default_model);
+        // ── Per-task / per-agent model routing ──
+        // Priority: task.model (highest) > agent_models > worker_model > default_model
+        // This lets you assign different models to different tasks,
+        // cheap/fast models to cron agents, and keep the best for chat.
+        let agent_model = if let Some(ref task_model) = task.model {
+            if !task_model.is_empty() {
+                info!("[engine] Task '{}' has explicit model override: {}", task.title, task_model);
+                task_model.clone()
+            } else {
+                model_routing.resolve(&agent_id, "worker", "", &default_model)
+            }
+        } else {
+            model_routing.resolve(&agent_id, "worker", "", &default_model)
+        };
+        info!("[engine] Agent '{}' resolved model: {} (task_override: {:?}, default: {})", agent_id, agent_model, task.model, default_model);
 
         // Create session if needed
         let (provider_config, model) = {

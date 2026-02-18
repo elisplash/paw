@@ -2283,6 +2283,19 @@ button:focus:not(:focus-visible) { outline: none; }
   color: var(--text-muted);
   font-size: 10px;
 }
+.task-card-model {
+  display: inline-block;
+  background: var(--accent-dim, rgba(99,102,241,0.15));
+  color: var(--accent, #6366f1);
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-weight: 500;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .task-card-actions {
   position: absolute;
   top: 6px;
