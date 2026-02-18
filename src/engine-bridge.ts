@@ -86,7 +86,7 @@ export async function engineChatSend(
   opts: {
     model?: string;
     temperature?: number;
-    agentProfile?: { name?: string; bio?: string; systemPrompt?: string; model?: string; personality?: { tone?: string; initiative?: string; detail?: string }; boundaries?: string[] };
+    agentProfile?: { id?: string; name?: string; bio?: string; systemPrompt?: string; model?: string; personality?: { tone?: string; initiative?: string; detail?: string }; boundaries?: string[] };
     attachments?: Array<{ type?: string; mimeType: string; content: string; name?: string; fileName?: string }>;
   } = {},
 ): Promise<{ runId: string; sessionKey: string; status: string }> {
@@ -130,7 +130,7 @@ export async function engineChatSend(
   }
 
   // Resolve per-agent tool policy filter
-  const agentId = opts.agentProfile?.name ?? 'default';
+  const agentId = opts.agentProfile?.id ?? 'default';
   const allowedTools = getAgentAllowedTools(agentId, [...ALL_TOOLS]);
   // Only send filter if it's actually restrictive (not all tools)
   const toolFilter = allowedTools.length < ALL_TOOLS.length ? allowedTools : undefined;

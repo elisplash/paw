@@ -8,6 +8,67 @@ import { listen } from '@tauri-apps/api/event';
 
 const $ = (id: string) => document.getElementById(id);
 
+/**
+ * Seed initial soul files for a new agent so it knows who it is from the first conversation.
+ * Only writes files that don't already exist to avoid overwriting user edits.
+ */
+async function seedSoulFiles(agent: Agent): Promise<void> {
+  try {
+    const existing = await pawEngine.agentFileList(agent.id);
+    const existingNames = new Set(existing.map(f => f.file_name));
+
+    if (!existingNames.has('IDENTITY.md')) {
+      const personality = agent.personality;
+      const personalityDesc = [
+        personality.tone !== 'balanced' ? `Tone: ${personality.tone}` : '',
+        personality.initiative !== 'balanced' ? `Initiative: ${personality.initiative}` : '',
+        personality.detail !== 'balanced' ? `Detail level: ${personality.detail}` : '',
+      ].filter(Boolean).join(', ');
+
+      const identity = [
+        `# ${agent.name}`,
+        '',
+        `## Identity`,
+        `- **Name**: ${agent.name}`,
+        `- **Agent ID**: ${agent.id}`,
+        `- **Role**: ${agent.bio || 'AI assistant'}`,
+        agent.template !== 'general' && agent.template !== 'custom' ? `- **Specialty**: ${agent.template}` : '',
+        personalityDesc ? `- **Personality**: ${personalityDesc}` : '',
+        '',
+        agent.boundaries.length > 0 ? `## Boundaries\n${agent.boundaries.map(b => `- ${b}`).join('\n')}` : '',
+        '',
+        agent.systemPrompt ? `## Custom Instructions\n${agent.systemPrompt}` : '',
+      ].filter(Boolean).join('\n');
+
+      await pawEngine.agentFileSet('IDENTITY.md', identity.trim(), agent.id);
+    }
+
+    if (!existingNames.has('SOUL.md')) {
+      const soul = [
+        `# Soul`,
+        '',
+        `Write your personality, values, and communication style here.`,
+        `Use \`soul_write\` to update this file as you develop your voice.`,
+      ].join('\n');
+      await pawEngine.agentFileSet('SOUL.md', soul, agent.id);
+    }
+
+    if (!existingNames.has('USER.md')) {
+      const user = [
+        `# About the User`,
+        '',
+        `Record what you learn about the user here — their name, preferences, projects, etc.`,
+        `Use \`soul_write\` to update this file when you learn new things.`,
+      ].join('\n');
+      await pawEngine.agentFileSet('USER.md', user, agent.id);
+    }
+
+    console.log(`[agents] Seeded soul files for ${agent.name} (${agent.id})`);
+  } catch (e) {
+    console.warn(`[agents] Failed to seed soul files for ${agent.id}:`, e);
+  }
+}
+
 export interface Agent {
   id: string;
   name: string;
@@ -269,6 +330,13 @@ export async function loadAgents() {
 
   renderAgents();
   renderAgentDock();
+
+  // Seed soul files for all agents that don't have them yet (one-time migration)
+  if (isEngineMode()) {
+    for (const agent of _agents) {
+      seedSoulFiles(agent);
+    }
+  }
 }
 
 function saveAgents() {
@@ -479,6 +547,9 @@ function openAgentCreator() {
       system_prompt: undefined,
       capabilities: template?.skills || [],
     }).catch(e => console.warn('[agents] Backend persist failed:', e));
+
+    // Seed initial soul files so the agent knows who it is
+    seedSoulFiles(newAgent);
 
     renderAgents();
     close();

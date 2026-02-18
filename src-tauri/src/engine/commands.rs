@@ -315,16 +315,29 @@ pub async fn engine_chat_send(
         parts.push(self_awareness);
         parts.push(local_time_context);
 
-        // Agent workspace context
+        // Agent workspace context + soul file guidance
         let ws = tool_executor::agent_workspace(&agent_id_owned);
+        let has_soul_files = agent_context.is_some();
+        let soul_hint = if has_soul_files {
+            "Your soul files (IDENTITY.md, SOUL.md, USER.md, etc.) are loaded below. \
+            Use `soul_write` to update them when you learn new things about yourself or the user.".to_string()
+        } else {
+            "You have no soul files yet. Use `soul_list` to see available files, then \
+            `soul_write` to create IDENTITY.md (who you are), SOUL.md (your personality), \
+            and USER.md (what you know about the user). These persist across conversations \
+            and define your identity.".to_string()
+        };
         parts.push(format!(
             "## Your Workspace\n\
             - **Agent ID**: {}\n\
             - **Workspace path**: {}\n\
             Relative file paths (e.g. `notes.md`, `project/`) resolve within your workspace. \
-            You can also use absolute paths to access files elsewhere on the system.",
+            You can also use absolute paths to access files elsewhere on the system.\n\n\
+            ## Your Soul Files\n\
+            {}",
             agent_id_owned,
             ws.display(),
+            soul_hint,
         ));
 
         if let Some(ac) = &agent_context {
