@@ -272,17 +272,37 @@ pub async fn engine_chat_send(
 
     // Build local time context so the agent knows the user's current time
     let local_time_context = {
-        let now = chrono::Local::now();
-        format!(
-            "## Local Time\n\
-            - **Current time**: {}\n\
-            - **Timezone**: {} (UTC{})\n\
-            - **Day of week**: {}",
-            now.format("%Y-%m-%d %H:%M:%S"),
-            now.format("%Z"),
-            now.format("%:z"),
-            now.format("%A"),
-        )
+        let user_tz = {
+            let cfg = state.config.lock().map_err(|e| format!("Lock: {}", e))?;
+            cfg.user_timezone.clone()
+        };
+        let now_utc = chrono::Utc::now();
+        let display = if let Ok(tz) = user_tz.parse::<chrono_tz::Tz>() {
+            let local: chrono::DateTime<chrono_tz::Tz> = now_utc.with_timezone(&tz);
+            format!(
+                "## Local Time\n\
+                - **Current time**: {}\n\
+                - **Timezone**: {} (UTC{})\n\
+                - **Day of week**: {}",
+                local.format("%Y-%m-%d %H:%M:%S"),
+                tz.name(),
+                local.format("%:z"),
+                local.format("%A"),
+            )
+        } else {
+            let local = chrono::Local::now();
+            format!(
+                "## Local Time\n\
+                - **Current time**: {}\n\
+                - **Timezone**: {} (UTC{})\n\
+                - **Day of week**: {}",
+                local.format("%Y-%m-%d %H:%M:%S"),
+                local.format("%Z"),
+                local.format("%:z"),
+                local.format("%A"),
+            )
+        };
+        display
     };
 
     // Compose the full system prompt: base + self-awareness + local time + agent context + memory context + skill instructions
@@ -1458,17 +1478,36 @@ pub async fn execute_task(
 
         // Local time context for task agents
         {
-            let now = chrono::Local::now();
-            parts.push(format!(
-                "## Local Time\n\
-                - **Current time**: {}\n\
-                - **Timezone**: {} (UTC{})\n\
-                - **Day of week**: {}",
-                now.format("%Y-%m-%d %H:%M:%S"),
-                now.format("%Z"),
-                now.format("%:z"),
-                now.format("%A"),
-            ));
+            let user_tz = {
+                let cfg = state.config.lock().map_err(|e| format!("Lock: {}", e))?;
+                cfg.user_timezone.clone()
+            };
+            let now_utc = chrono::Utc::now();
+            if let Ok(tz) = user_tz.parse::<chrono_tz::Tz>() {
+                let local: chrono::DateTime<chrono_tz::Tz> = now_utc.with_timezone(&tz);
+                parts.push(format!(
+                    "## Local Time\n\
+                    - **Current time**: {}\n\
+                    - **Timezone**: {} (UTC{})\n\
+                    - **Day of week**: {}",
+                    local.format("%Y-%m-%d %H:%M:%S"),
+                    tz.name(),
+                    local.format("%:z"),
+                    local.format("%A"),
+                ));
+            } else {
+                let local = chrono::Local::now();
+                parts.push(format!(
+                    "## Local Time\n\
+                    - **Current time**: {}\n\
+                    - **Timezone**: {} (UTC{})\n\
+                    - **Day of week**: {}",
+                    local.format("%Y-%m-%d %H:%M:%S"),
+                    local.format("%Z"),
+                    local.format("%:z"),
+                    local.format("%A"),
+                ));
+            }
         }
 
         // Multi-agent context

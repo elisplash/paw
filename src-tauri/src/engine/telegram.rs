@@ -577,6 +577,39 @@ async fn run_telegram_agent(
              Keep responses concise and mobile-friendly. Use Markdown formatting supported by Telegram \
              (bold, italic, code, links). Avoid very long responses unless explicitly asked."
         ));
+        // Local time context
+        {
+            let user_tz = {
+                let cfg = engine_state.config.lock().map_err(|e| format!("Lock: {}", e))?;
+                cfg.user_timezone.clone()
+            };
+            let now_utc = chrono::Utc::now();
+            if let Ok(tz) = user_tz.parse::<chrono_tz::Tz>() {
+                let local: chrono::DateTime<chrono_tz::Tz> = now_utc.with_timezone(&tz);
+                parts.push(format!(
+                    "## Local Time\n\
+                    - **Current time**: {}\n\
+                    - **Timezone**: {} (UTC{})\n\
+                    - **Day of week**: {}",
+                    local.format("%Y-%m-%d %H:%M:%S"),
+                    tz.name(),
+                    local.format("%:z"),
+                    local.format("%A"),
+                ));
+            } else {
+                let local = chrono::Local::now();
+                parts.push(format!(
+                    "## Local Time\n\
+                    - **Current time**: {}\n\
+                    - **Timezone**: {} (UTC{})\n\
+                    - **Day of week**: {}",
+                    local.format("%Y-%m-%d %H:%M:%S"),
+                    local.format("%Z"),
+                    local.format("%:z"),
+                    local.format("%A"),
+                ));
+            }
+        }
         if let Some(sp) = &system_prompt {
             parts.push(sp.clone());
         }

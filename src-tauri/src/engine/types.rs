@@ -850,6 +850,7 @@ impl ToolDefinition {
                         "title": { "type": "string", "description": "New title (update only)" },
                         "description": { "type": "string", "description": "New description/prompt (update only)" },
                         "priority": { "type": "string", "description": "New priority (update only)", "enum": ["low", "medium", "high", "urgent"] },
+                        "status": { "type": "string", "description": "New status (update only)", "enum": ["inbox", "assigned", "in_progress", "review", "blocked", "done"] },
                         "cron_schedule": { "type": "string", "description": "New schedule (update only)" },
                         "agent_id": { "type": "string", "description": "New agent assignment (update only)" }
                     },
@@ -1436,6 +1437,10 @@ impl ModelRouting {
 
 // ── Engine State ───────────────────────────────────────────────────────
 
+fn default_user_timezone() -> String {
+    "America/Chicago".to_string()
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EngineConfig {
     pub providers: Vec<ProviderConfig>,
@@ -1444,6 +1449,9 @@ pub struct EngineConfig {
     pub default_system_prompt: Option<String>,
     pub max_tool_rounds: u32,
     pub tool_timeout_secs: u64,
+    /// IANA timezone for local time display (e.g. "America/Chicago")
+    #[serde(default = "default_user_timezone")]
+    pub user_timezone: String,
     /// Model routing for multi-agent orchestration
     #[serde(default)]
     pub model_routing: ModelRouting,
@@ -1477,6 +1485,7 @@ You have FULL ACCESS — use your tools proactively to accomplish tasks. Don't j
 Be thorough, resourceful, and action-oriented. When the user asks you to do something, do it completely. Never ask the user to provide file paths, config locations, or technical details you can discover yourself using your tools."#.into()),
             max_tool_rounds: 50,
             tool_timeout_secs: 300,
+            user_timezone: default_user_timezone(),
             model_routing: ModelRouting::default(),
         }
     }

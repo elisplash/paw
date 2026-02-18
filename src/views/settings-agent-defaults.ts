@@ -79,6 +79,16 @@ export async function loadAgentDefaultsSettings() {
     timeoutRow.appendChild(timeoutInp);
     toolSection.appendChild(timeoutRow);
 
+    const tzRow = formRow('User Timezone', 'IANA timezone (e.g. America/Chicago, America/New_York, Europe/London). Used for agent time awareness.');
+    const tzInp = document.createElement('input');
+    tzInp.className = 'form-input';
+    tzInp.type = 'text';
+    tzInp.value = (config as any).user_timezone ?? 'America/Chicago';
+    tzInp.placeholder = 'America/Chicago';
+    tzInp.style.maxWidth = '240px';
+    tzRow.appendChild(tzInp);
+    toolSection.appendChild(tzRow);
+
     container.appendChild(toolSection);
 
     // ── System Prompt ────────────────────────────────────────────────────
@@ -297,6 +307,7 @@ export async function loadAgentDefaultsSettings() {
           cfg.default_provider = providerSel.value || undefined;
           cfg.max_tool_rounds = parseInt(roundsInp.value) || 20;
           cfg.tool_timeout_secs = parseInt(timeoutInp.value) || 120;
+          (cfg as any).user_timezone = tzInp.value.trim() || 'America/Chicago';
           cfg.default_system_prompt = promptArea.value.trim() || undefined;
           await pawEngine.setConfig(cfg);
 

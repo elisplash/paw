@@ -907,6 +907,7 @@ async fn execute_manage_task(args: &serde_json::Value, app_handle: &tauri::AppHa
                 if let Some(t) = args["title"].as_str() { task.title = t.to_string(); }
                 if let Some(d) = args["description"].as_str() { task.description = d.to_string(); }
                 if let Some(p) = args["priority"].as_str() { task.priority = p.to_string(); }
+                if let Some(s) = args["status"].as_str() { task.status = s.to_string(); }
                 if let Some(s) = args["cron_schedule"].as_str() {
                     task.cron_schedule = Some(s.to_string());
                     task.cron_enabled = true;
