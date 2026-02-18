@@ -68,14 +68,25 @@ fn hex_encode(data: &[u8]) -> String {
 }
 
 /// Hex-decode a 0x-prefixed string
+/// Handles Ethereum RPC's minimal hex encoding (e.g. "0x0", "0x1a3")
+/// by left-padding to even length.
 fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
     let s = s.strip_prefix("0x").unwrap_or(s);
-    if s.len() % 2 != 0 {
-        return Err("Odd-length hex string".into());
+    // Handle empty hex
+    if s.is_empty() {
+        return Ok(vec![0]);
     }
-    (0..s.len())
+    // Left-pad to even length (Ethereum RPC returns minimal hex like "0x0" or "0x1a3")
+    let padded;
+    let hex_str = if s.len() % 2 != 0 {
+        padded = format!("0{}", s);
+        &padded
+    } else {
+        s
+    };
+    (0..hex_str.len())
         .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).map_err(|e| format!("Hex decode: {}", e)))
+        .map(|i| u8::from_str_radix(&hex_str[i..i + 2], 16).map_err(|e| format!("Hex decode: {}", e)))
         .collect()
 }
 
@@ -108,9 +119,10 @@ fn eip55_checksum(addr_bytes: &[u8]) -> String {
 
 /// Parse an address string to 20 bytes
 fn parse_address(addr: &str) -> Result<[u8; 20], String> {
+    let addr = addr.trim();
     let bytes = hex_decode(addr)?;
     if bytes.len() != 20 {
-        return Err(format!("Invalid address length: {} bytes", bytes.len()));
+        return Err(format!("Invalid address length: {} bytes (expected 20). Address: '{}'", bytes.len(), addr));
     }
     let mut arr = [0u8; 20];
     arr.copy_from_slice(&bytes);
