@@ -106,8 +106,44 @@ let _sessionTokensUsed = 0;         // accumulated tokens for current session
 let _sessionInputTokens = 0;
 let _sessionOutputTokens = 0;
 let _sessionCost = 0;               // estimated session cost in USD
-let _modelContextLimit = 128_000;   // default context window (will be updated from models.list)
+let _modelContextLimit = 128_000;   // default context window (updated from confirmed model name)
 const COMPACTION_WARN_THRESHOLD = 0.80; // warn at 80% context usage
+
+// Known context window sizes for common models (tokens)
+const _MODEL_CONTEXT_SIZES: Record<string, number> = {
+  // Gemini
+  'gemini-2.5-pro':           1_048_576,
+  'gemini-2.5-flash':         1_048_576,
+  'gemini-2.0-flash':         1_048_576,
+  'gemini-2.0-pro':           1_048_576,
+  'gemini-1.5-pro':           2_097_152,
+  'gemini-1.5-flash':         1_048_576,
+  // OpenAI
+  'gpt-4o':                   128_000,
+  'gpt-4o-mini':              128_000,
+  'gpt-4-turbo':              128_000,
+  'gpt-4':                    8_192,
+  'gpt-3.5-turbo':            16_385,
+  'o1':                       200_000,
+  'o1-mini':                  128_000,
+  'o1-pro':                   200_000,
+  'o3':                       200_000,
+  'o3-mini':                  200_000,
+  'o4-mini':                  200_000,
+  // Anthropic
+  'claude-3-opus':            200_000,
+  'claude-3.5-sonnet':        200_000,
+  'claude-3-haiku':           200_000,
+  'claude-sonnet':            200_000,
+  'claude-opus':              200_000,
+  'claude-4':                 200_000,
+  // DeepSeek
+  'deepseek-chat':            128_000,
+  'deepseek-reasoner':        128_000,
+  // Llama
+  'llama-3':                  128_000,
+  'llama-4':                  128_000,
+};
 let _compactionDismissed = false;
 let _lastRecordedTotal = 0; // tracks last real usage recording to detect fallback need
 
@@ -881,6 +917,25 @@ function updateCompactionWarning(pct: number) {
   }
 }
 
+/** Update context limit based on the confirmed model name from the API */
+function updateContextLimitFromModel(modelName: string) {
+  const lower = modelName.toLowerCase();
+  // Match against known prefixes (models often have suffixes like -preview, -latest, etc.)
+  for (const [prefix, limit] of Object.entries(_MODEL_CONTEXT_SIZES)) {
+    if (lower.includes(prefix)) {
+      if (_modelContextLimit !== limit) {
+        console.log(`[token-meter] Updated context limit: ${_modelContextLimit.toLocaleString()} → ${limit.toLocaleString()} (model: ${modelName})`);
+        _modelContextLimit = limit;
+        updateTokenMeter();
+      }
+      // Also update the active model key for cost estimation
+      _activeModelKey = prefix;
+      return;
+    }
+  }
+  console.log(`[token-meter] No context size known for model "${modelName}", keeping ${_modelContextLimit.toLocaleString()}`);
+}
+
 /** Record token usage from a chat/agent event and update the meter */
 function recordTokenUsage(usage: Record<string, unknown> | undefined) {
   if (!usage) return;
@@ -892,15 +947,20 @@ function recordTokenUsage(usage: Record<string, unknown> | undefined) {
   const inputTokens = (inner.promptTokens ?? inner.prompt_tokens ?? inner.inputTokens ?? inner.input_tokens ?? inner.prompt_token_count ?? 0) as number;
   const outputTokens = (inner.completionTokens ?? inner.completion_tokens ?? inner.outputTokens ?? inner.output_tokens ?? inner.completion_token_count ?? 0) as number;
 
+
   if (totalTokens > 0) {
-    _sessionInputTokens += inputTokens;
+    // input_tokens = current context size (not cumulative across turns)
+    // output_tokens = new tokens generated this turn
+    // For the context meter, input_tokens already includes all prior messages,
+    // so we SET it (not add) to show actual context window usage.
+    _sessionInputTokens = inputTokens;
     _sessionOutputTokens += outputTokens;
-    _sessionTokensUsed += totalTokens;
+    _sessionTokensUsed = inputTokens + _sessionOutputTokens;
     _lastRecordedTotal = _sessionTokensUsed;
   } else if (inputTokens > 0 || outputTokens > 0) {
-    _sessionInputTokens += inputTokens;
+    _sessionInputTokens = inputTokens;
     _sessionOutputTokens += outputTokens;
-    _sessionTokensUsed += inputTokens + outputTokens;
+    _sessionTokensUsed = inputTokens + _sessionOutputTokens;
     _lastRecordedTotal = _sessionTokensUsed;
   }
 
@@ -1440,6 +1500,9 @@ function handleAgentEvent(payload: unknown): void {
             modelLabel.title = `API-confirmed model: ${confirmedModel}`;
           }
           console.log(`[main] API-confirmed model: ${confirmedModel}`);
+
+          // Update context limit from confirmed model name
+          updateContextLimitFromModel(confirmedModel);
         }
         if (_streamingResolve) {
           // If we already have content from deltas, resolve immediately.

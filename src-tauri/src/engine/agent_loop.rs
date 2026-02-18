@@ -29,8 +29,8 @@ pub async fn run_agent_turn(
 ) -> Result<String, String> {
     let mut round = 0;
     let mut final_text = String::new();
-    let mut total_input_tokens: u64 = 0;
-    let mut total_output_tokens: u64 = 0;
+    let mut last_input_tokens: u64 = 0;   // Only the LAST round's input (= actual context size)
+    let mut total_output_tokens: u64 = 0;  // Sum of all rounds' output tokens
 
     loop {
         round += 1;
@@ -102,9 +102,11 @@ pub async fn run_agent_turn(
                 }
             }
 
-            // Accumulate token usage
+            // Track token usage — input tokens reflect the full context sent
+            // each round, so we keep only the LAST round's input tokens (not a sum).
+            // Output tokens are truly incremental, so we sum those across rounds.
             if let Some(usage) = &chunk.usage {
-                total_input_tokens += usage.input_tokens;
+                last_input_tokens = usage.input_tokens; // overwrite, not accumulate
                 total_output_tokens += usage.output_tokens;
             }
         }
@@ -123,11 +125,11 @@ pub async fn run_agent_turn(
             });
 
             // Emit completion event
-            let usage = if total_input_tokens > 0 || total_output_tokens > 0 {
+            let usage = if last_input_tokens > 0 || total_output_tokens > 0 {
                 Some(TokenUsage {
-                    input_tokens: total_input_tokens,
+                    input_tokens: last_input_tokens,
                     output_tokens: total_output_tokens,
-                    total_tokens: total_input_tokens + total_output_tokens,
+                    total_tokens: last_input_tokens + total_output_tokens,
                 })
             } else {
                 None
