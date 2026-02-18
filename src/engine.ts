@@ -190,7 +190,7 @@ export interface EngineSkillStatus {
 
 export interface TradeRecord {
   id: string;
-  trade_type: 'trade' | 'transfer';
+  trade_type: 'trade' | 'transfer' | 'dex_swap';
   side: string | null;
   product_id: string | null;
   currency: string | null;
@@ -210,9 +210,12 @@ export interface TradingSummary {
   date: string;
   trade_count: number;
   transfer_count: number;
+  dex_swap_count: number;
   buy_total_usd: number;
   sell_total_usd: number;
   transfer_total_usd: number;
+  dex_volume_raw: number;
+  dex_pairs: string[];
   net_pnl_usd: number;
   daily_spent_usd: number;
 }

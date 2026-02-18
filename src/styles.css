@@ -5089,6 +5089,78 @@ select.form-input {
   color: var(--orange);
 }
 
+.trading-badge.dex_swap {
+  background: rgba(0, 255, 170, 0.15);
+  color: #00ffaa;
+}
+
+.trading-swap {
+  color: #00ffaa !important;
+}
+
+.trading-pair {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trading-amount {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.trading-card-accent {
+  border-color: rgba(0, 255, 170, 0.3);
+}
+
+.trading-card-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.trading-dex-pairs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+  padding: 10px 14px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.trading-dex-pairs-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trading-dex-pair-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  background: rgba(0, 255, 170, 0.1);
+  color: #00ffaa;
+  border: 1px solid rgba(0, 255, 170, 0.2);
+}
+
+.trading-history-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
 .trading-status {
   font-size: 11px;
   font-weight: 600;

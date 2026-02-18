@@ -1,5 +1,5 @@
 // Trading Dashboard — Portfolio, P&L, Trade History, Auto-Trade Policy
-// Visual representation of Coinbase trading activity and automated guidelines.
+// Visual representation of Coinbase + DEX trading activity and automated guidelines.
 
 import { pawEngine, type TradeRecord, type TradingSummary, type TradingPolicy } from '../engine';
 
@@ -31,6 +31,17 @@ function formatUsd(value: number | string | null): string {
   return num < 0 ? `-$${Math.abs(num).toFixed(2)}` : `$${num.toFixed(2)}`;
 }
 
+function formatAmount(value: string | number): string {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return String(value);
+  if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
+  if (num >= 10_000) return `${(num / 1_000).toFixed(1)}K`;
+  if (num < 0.0001 && num > 0) return num.toExponential(2);
+  if (num >= 100) return num.toFixed(2);
+  return num.toPrecision(6);
+}
+
 function formatTime(isoStr: string): string {
   try {
     const d = new Date(isoStr + (isoStr.includes('Z') ? '' : 'Z'));
@@ -44,6 +55,26 @@ function pnlClass(value: number): string {
   return 'trading-neutral';
 }
 
+function tradeTypeLabel(t: TradeRecord): string {
+  if (t.trade_type === 'dex_swap') return 'DEX_SWAP';
+  if (t.trade_type === 'transfer') return 'TRANSFER';
+  return 'TRADE';
+}
+
+function tradeSideLabel(t: TradeRecord): string {
+  if (t.trade_type === 'dex_swap') return 'swap';
+  return t.side || '-';
+}
+
+function tradePairLabel(t: TradeRecord): string {
+  if (t.trade_type === 'dex_swap' && t.product_id) return t.product_id;
+  if (t.trade_type === 'dex_swap' && t.currency) {
+    const out = t.to_address && !t.to_address.startsWith('0x') ? t.to_address : '?';
+    return `${t.currency.toUpperCase()} → ${out.toUpperCase()}`;
+  }
+  return t.product_id || t.currency || '-';
+}
+
 // ── Main Loader ────────────────────────────────────────────────────────────
 export async function loadTrading() {
   if (!wsConnected) return;
@@ -53,7 +84,7 @@ export async function loadTrading() {
 
   try {
     const [trades, summary, policy] = await Promise.all([
-      pawEngine.tradingHistory(50),
+      pawEngine.tradingHistory(100),
       pawEngine.tradingSummary(),
       pawEngine.tradingPolicyGet(),
     ]);
@@ -71,32 +102,47 @@ function renderDashboard(
   summary: TradingSummary,
   policy: TradingPolicy,
 ) {
-  const totalTrades = summary.trade_count + summary.transfer_count;
+  const totalOps = summary.trade_count + summary.transfer_count + summary.dex_swap_count;
+  const hasDex = summary.dex_swap_count > 0;
+
+  // Recent activity streak
+  const recentTrades = trades.slice(0, 5);
+  const latestStatus = recentTrades.length > 0 ? recentTrades[0].status : 'none';
+  const streakEmoji = latestStatus === 'completed' ? '🟢' : latestStatus === 'pending' ? '🟡' : '⚪';
 
   container.innerHTML = `
     <!-- Summary Cards -->
     <div class="trading-cards">
-      <div class="trading-card">
+      <div class="trading-card ${pnlClass(summary.net_pnl_usd)}">
         <div class="trading-card-label">Today's P&L</div>
         <div class="trading-card-value ${pnlClass(summary.net_pnl_usd)}">
           ${formatUsd(summary.net_pnl_usd)}
         </div>
+        ${summary.net_pnl_usd !== 0 ? `<div class="trading-card-sub">${summary.net_pnl_usd > 0 ? '↑' : '↓'} ${Math.abs(summary.net_pnl_usd).toFixed(2)} USD</div>` : ''}
       </div>
       <div class="trading-card">
         <div class="trading-card-label">Bought Today</div>
         <div class="trading-card-value">${formatUsd(summary.buy_total_usd)}</div>
+        ${summary.trade_count > 0 ? `<div class="trading-card-sub">${summary.trade_count} trade${summary.trade_count > 1 ? 's' : ''}</div>` : ''}
       </div>
       <div class="trading-card">
         <div class="trading-card-label">Sold Today</div>
         <div class="trading-card-value">${formatUsd(summary.sell_total_usd)}</div>
       </div>
       <div class="trading-card">
-        <div class="trading-card-label">Transfers Today</div>
-        <div class="trading-card-value">${formatUsd(summary.transfer_total_usd)}</div>
+        <div class="trading-card-label">Transfers</div>
+        <div class="trading-card-value">${summary.transfer_count > 0 ? formatUsd(summary.transfer_total_usd) : summary.transfer_count.toString()}</div>
+        ${summary.transfer_count > 0 ? `<div class="trading-card-sub">${summary.transfer_count} transfer${summary.transfer_count > 1 ? 's' : ''}</div>` : ''}
+      </div>
+      <div class="trading-card trading-card-accent">
+        <div class="trading-card-label">DEX Swaps</div>
+        <div class="trading-card-value">${summary.dex_swap_count}</div>
+        ${hasDex ? `<div class="trading-card-sub">${formatAmount(summary.dex_volume_raw)} tokens swapped</div>` : ''}
       </div>
       <div class="trading-card">
-        <div class="trading-card-label">Trades Today</div>
-        <div class="trading-card-value">${totalTrades}</div>
+        <div class="trading-card-label">Total Operations</div>
+        <div class="trading-card-value">${streakEmoji} ${totalOps}</div>
+        <div class="trading-card-sub">${latestStatus === 'completed' ? 'All systems go' : latestStatus === 'pending' ? 'Pending...' : 'Idle'}</div>
       </div>
       <div class="trading-card">
         <div class="trading-card-label">Daily Spent</div>
@@ -107,6 +153,14 @@ function renderDashboard(
         </div>
       </div>
     </div>
+
+    ${hasDex && summary.dex_pairs && summary.dex_pairs.length > 0 ? `
+    <!-- Active DEX Pairs -->
+    <div class="trading-dex-pairs">
+      <span class="trading-dex-pairs-label">Active pairs:</span>
+      ${summary.dex_pairs.map((p: string) => `<span class="trading-dex-pair-tag">${escHtml(p)}</span>`).join('')}
+    </div>
+    ` : ''}
 
     <!-- Auto-Trade Policy -->
     <div class="trading-section">
@@ -150,9 +204,12 @@ function renderDashboard(
 
     <!-- Trade History -->
     <div class="trading-section">
-      <h3>Trade History</h3>
+      <div class="trading-section-header">
+        <h3>Trade History</h3>
+        <span class="trading-history-count">${trades.length} record${trades.length !== 1 ? 's' : ''}</span>
+      </div>
       ${trades.length === 0
-        ? '<div class="trading-empty">No trades recorded yet. Your agents\' Coinbase trades will appear here.</div>'
+        ? '<div class="trading-empty">No trades recorded yet. Your agents\' trades and swaps will appear here.</div>'
         : `<div class="trading-table-wrap">
             <table class="trading-table">
               <thead>
@@ -160,24 +217,29 @@ function renderDashboard(
                   <th>Time</th>
                   <th>Type</th>
                   <th>Side</th>
-                  <th>Pair / Currency</th>
+                  <th>Pair / Token</th>
                   <th>Amount</th>
                   <th>Status</th>
                   <th>Reason</th>
                 </tr>
               </thead>
               <tbody>
-                ${trades.map(t => `
+                ${trades.map(t => {
+                  const sideClass = t.side === 'buy' ? 'trading-positive'
+                    : t.side === 'sell' ? 'trading-negative'
+                    : t.trade_type === 'dex_swap' ? 'trading-swap'
+                    : '';
+                  return `
                   <tr class="trading-row ${t.trade_type}">
                     <td class="trading-time">${formatTime(t.created_at)}</td>
-                    <td><span class="trading-badge ${t.trade_type}">${t.trade_type}</span></td>
-                    <td class="${t.side === 'buy' ? 'trading-positive' : t.side === 'sell' ? 'trading-negative' : ''}">${escHtml(t.side || '-')}</td>
-                    <td>${escHtml(t.product_id || t.currency || '-')}</td>
-                    <td>${escHtml(t.amount)}${t.usd_value ? ` <span class="trading-usd">(${formatUsd(t.usd_value)})</span>` : ''}</td>
+                    <td><span class="trading-badge ${t.trade_type}">${tradeTypeLabel(t)}</span></td>
+                    <td class="${sideClass}">${escHtml(tradeSideLabel(t))}</td>
+                    <td class="trading-pair">${escHtml(tradePairLabel(t))}</td>
+                    <td class="trading-amount">${formatAmount(t.amount)}${t.usd_value ? ` <span class="trading-usd">(${formatUsd(t.usd_value)})</span>` : ''}</td>
                     <td><span class="trading-status ${t.status}">${escHtml(t.status)}</span></td>
-                    <td class="trading-reason">${escHtml(t.reason || '-')}</td>
-                  </tr>
-                `).join('')}
+                    <td class="trading-reason" title="${escHtml(t.reason || '')}">${escHtml(t.reason || '-')}</td>
+                  </tr>`;
+                }).join('')}
               </tbody>
             </table>
           </div>`

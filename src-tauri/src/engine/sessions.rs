@@ -655,48 +655,76 @@ impl SessionStore {
     pub fn daily_trade_summary(&self) -> Result<serde_json::Value, String> {
         let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
         let today = Utc::now().format("%Y-%m-%d").to_string();
+        let today_start = format!("{}T00:00:00", today);
 
+        // Coinbase trades
         let trade_count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM trade_history WHERE trade_type = 'trade' AND created_at >= ?1",
-            params![format!("{}T00:00:00", today)],
+            params![&today_start],
             |row| row.get(0),
         ).unwrap_or(0);
 
         let transfer_count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM trade_history WHERE trade_type = 'transfer' AND created_at >= ?1",
-            params![format!("{}T00:00:00", today)],
+            params![&today_start],
             |row| row.get(0),
         ).unwrap_or(0);
 
-        // Sum USD values for buys and sells today
+        // DEX swap count
+        let dex_swap_count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM trade_history WHERE trade_type = 'dex_swap' AND created_at >= ?1",
+            params![&today_start],
+            |row| row.get(0),
+        ).unwrap_or(0);
+
+        // Sum USD values for buys and sells today (Coinbase)
         let buy_total: f64 = conn.query_row(
             "SELECT COALESCE(SUM(CAST(usd_value AS REAL)), 0.0) FROM trade_history WHERE trade_type = 'trade' AND side = 'buy' AND created_at >= ?1",
-            params![format!("{}T00:00:00", today)],
+            params![&today_start],
             |row| row.get(0),
         ).unwrap_or(0.0);
 
         let sell_total: f64 = conn.query_row(
             "SELECT COALESCE(SUM(CAST(usd_value AS REAL)), 0.0) FROM trade_history WHERE trade_type = 'trade' AND side = 'sell' AND created_at >= ?1",
-            params![format!("{}T00:00:00", today)],
+            params![&today_start],
             |row| row.get(0),
         ).unwrap_or(0.0);
 
         let transfer_total: f64 = conn.query_row(
             "SELECT COALESCE(SUM(CAST(usd_value AS REAL)), 0.0) FROM trade_history WHERE trade_type = 'transfer' AND created_at >= ?1",
-            params![format!("{}T00:00:00", today)],
+            params![&today_start],
             |row| row.get(0),
         ).unwrap_or(0.0);
 
-        // Total spent today (buys + transfers out) for daily loss tracking
+        // DEX swap volume (sum of amounts — not USD-denominated, but tracks activity)
+        let dex_volume_raw: f64 = conn.query_row(
+            "SELECT COALESCE(SUM(CAST(amount AS REAL)), 0.0) FROM trade_history WHERE trade_type = 'dex_swap' AND created_at >= ?1",
+            params![&today_start],
+            |row| row.get(0),
+        ).unwrap_or(0.0);
+
+        // Unique tokens swapped today
+        let dex_pairs: Vec<String> = {
+            let mut stmt = conn.prepare(
+                "SELECT DISTINCT product_id FROM trade_history WHERE trade_type = 'dex_swap' AND product_id IS NOT NULL AND created_at >= ?1"
+            ).unwrap();
+            let rows = stmt.query_map(params![&today_start], |row| row.get::<_, String>(0)).unwrap();
+            rows.filter_map(|r| r.ok()).collect()
+        };
+
+        // Total operations today (buys + transfers out) for daily loss tracking
         let daily_spent = buy_total + transfer_total;
 
         Ok(serde_json::json!({
             "date": today,
             "trade_count": trade_count,
             "transfer_count": transfer_count,
+            "dex_swap_count": dex_swap_count,
             "buy_total_usd": buy_total,
             "sell_total_usd": sell_total,
             "transfer_total_usd": transfer_total,
+            "dex_volume_raw": dex_volume_raw,
+            "dex_pairs": dex_pairs,
             "net_pnl_usd": sell_total - buy_total,
             "daily_spent_usd": daily_spent,
         }))

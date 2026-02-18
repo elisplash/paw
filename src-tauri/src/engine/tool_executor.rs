@@ -1100,10 +1100,13 @@ async fn execute_skill_tool(
         "dex_swap" => {
             let result = crate::engine::dex::execute_dex_swap(args, &creds).await;
             if result.is_ok() {
+                let token_in = args["token_in"].as_str().unwrap_or("?");
+                let token_out = args["token_out"].as_str().unwrap_or("?");
+                let pair = format!("{} → {}", token_in.to_uppercase(), token_out.to_uppercase());
                 let _ = state.store.insert_trade(
                     "dex_swap",
                     Some("swap"),
-                    None,
+                    Some(&pair),
                     args["token_in"].as_str(),
                     args["amount"].as_str().unwrap_or("0"),
                     None,
