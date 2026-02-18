@@ -969,6 +969,8 @@ impl ToolDefinition {
                     tools.push(Self::dex_token_info());
                     tools.push(Self::dex_check_token());
                     tools.push(Self::dex_search_token());
+                    tools.push(Self::dex_watch_wallet());
+                    tools.push(Self::dex_whale_transfers());
                 }
                 _ => {}
             }
@@ -1313,6 +1315,63 @@ impl ToolDefinition {
                         }
                     },
                     "required": ["query"]
+                }),
+            },
+        }
+    }
+
+    pub fn dex_watch_wallet() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "dex_watch_wallet".into(),
+                description: "Monitor any wallet address: shows ETH balance, known token holdings, and recent ERC-20 transfers (buys/sells). Use this to track smart money wallets, alpha traders, and whale activity. Scans Transfer event logs directly from the blockchain.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "wallet_address": {
+                            "type": "string",
+                            "description": "The wallet address to monitor (0x-prefixed)"
+                        },
+                        "blocks_back": {
+                            "type": "integer",
+                            "description": "How many blocks back to scan for transfers (default 1000, ~3 hours on mainnet). Use 5000+ for deeper history."
+                        },
+                        "tokens": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "Additional token contract addresses to check holdings for"
+                        }
+                    },
+                    "required": ["wallet_address"]
+                }),
+            },
+        }
+    }
+
+    pub fn dex_whale_transfers() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "dex_whale_transfers".into(),
+                description: "Scan recent large transfers of a specific token to detect whale accumulation or distribution. Shows the biggest transfers, identifies top accumulators (smart money buying) and top distributors (insiders selling). Essential for spotting whale moves before retail follows.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "token_address": {
+                            "type": "string",
+                            "description": "The ERC-20 token contract address to scan"
+                        },
+                        "blocks_back": {
+                            "type": "integer",
+                            "description": "How many blocks back to scan (default 2000). Use higher for more history."
+                        },
+                        "min_amount": {
+                            "type": "string",
+                            "description": "Minimum transfer amount to show (in token units, e.g. '1000000'). Filters out small transfers."
+                        }
+                    },
+                    "required": ["token_address"]
                 }),
             },
         }

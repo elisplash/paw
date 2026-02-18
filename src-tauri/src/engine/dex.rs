@@ -1661,3 +1661,424 @@ fn urlencoding(s: &str) -> String {
     }
     result
 }
+
+// ── Whale Monitoring ───────────────────────────────────────────────────
+
+/// ERC-20 Transfer event topic: keccak256("Transfer(address,address,uint256)")
+const TRANSFER_EVENT_TOPIC: &str = "0xddf252ad1be2c89b69c2b068fc378daa0952e8da11aeba5c4f27ead9083c756cc2";
+
+/// Monitor a wallet address: show ETH balance, recent ERC-20 transfers (in/out),
+/// and current holdings of known tokens. Use this to track alpha traders.
+pub async fn execute_dex_watch_wallet(
+    args: &serde_json::Value,
+    creds: &HashMap<String, String>,
+) -> Result<String, String> {
+    let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
+    let wallet = args["wallet_address"].as_str()
+        .ok_or("dex_watch_wallet: missing 'wallet_address'")?;
+    let blocks_back = args["blocks_back"].as_u64().unwrap_or(1000); // ~3.3 hours on mainnet
+    let addr_clean = wallet.trim();
+    if !addr_clean.starts_with("0x") || addr_clean.len() != 42 {
+        return Err(format!("Invalid wallet address: '{}'", addr_clean));
+    }
+
+    let mut output = format!("Wallet Monitor: {}\n\n", addr_clean);
+
+    // 1. ETH balance
+    match eth_get_balance(rpc_url, addr_clean).await {
+        Ok(bal_hex) => {
+            if let Ok(eth_bal) = raw_to_amount(&bal_hex, 18) {
+                output.push_str(&format!("ETH Balance: {} ETH\n", eth_bal));
+            }
+        }
+        Err(e) => { output.push_str(&format!("ETH Balance: error ({})\n", e)); }
+    }
+
+    // 2. Check known token balances
+    let wallet_bytes = parse_address(addr_clean)?;
+    output.push_str("\nToken Holdings:\n");
+    let mut has_tokens = false;
+    for (symbol, addr, decimals) in KNOWN_TOKENS {
+        if *symbol == "ETH" { continue; }
+        let token_bytes = match parse_address(addr) {
+            Ok(b) => b,
+            Err(_) => continue,
+        };
+        let call_data = encode_balance_of(&wallet_bytes);
+        if let Ok(result) = eth_call(rpc_url, addr, &call_data).await {
+            if let Ok(amount) = raw_to_amount(&result, *decimals) {
+                let amt_f: f64 = amount.parse().unwrap_or(0.0);
+                if amt_f > 0.0 {
+                    output.push_str(&format!("  {}: {}\n", symbol, amount));
+                    has_tokens = true;
+                }
+            }
+        }
+    }
+
+    // Also check user-specified tokens
+    if let Some(extra_tokens) = args["tokens"].as_array() {
+        for token_val in extra_tokens {
+            if let Some(token_addr) = token_val.as_str() {
+                let token_addr = token_addr.trim();
+                if token_addr.starts_with("0x") && token_addr.len() == 42 {
+                    let call_data = encode_balance_of(&wallet_bytes);
+                    if let Ok(result) = eth_call(rpc_url, token_addr, &call_data).await {
+                        // Try to get symbol
+                        let symbol = match eth_call(rpc_url, token_addr, &encode_symbol()).await {
+                            Ok(s) => decode_abi_string(&s).unwrap_or_else(|_| token_addr[..10].to_string()),
+                            Err(_) => token_addr[..10].to_string(),
+                        };
+                        let decimals = match eth_call(rpc_url, token_addr, &encode_decimals()).await {
+                            Ok(d) => {
+                                let b = hex_decode(&d).unwrap_or_default();
+                                if b.len() >= 32 { b[31] } else { 18 }
+                            }
+                            Err(_) => 18,
+                        };
+                        if let Ok(amount) = raw_to_amount(&result, decimals) {
+                            let amt_f: f64 = amount.parse().unwrap_or(0.0);
+                            if amt_f > 0.0 {
+                                output.push_str(&format!("  {}: {}\n", symbol, amount));
+                                has_tokens = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if !has_tokens {
+        output.push_str("  (no known token holdings)\n");
+    }
+
+    // 3. Get current block number
+    let block_num = match rpc_call(rpc_url, "eth_blockNumber", serde_json::json!([])).await {
+        Ok(val) => {
+            let hex = val.as_str().unwrap_or("0x0");
+            u64::from_str_radix(hex.trim_start_matches("0x"), 16).unwrap_or(0)
+        }
+        Err(e) => return Err(format!("Cannot get block number: {}", e)),
+    };
+    let from_block = block_num.saturating_sub(blocks_back);
+
+    // 4. Scan Transfer events where this wallet is sender or receiver
+    output.push_str(&format!("\nRecent Transfers (last {} blocks, ~{} to #{}):\n",
+        blocks_back, from_block, block_num));
+
+    // Pad wallet to 32 bytes for topic filter
+    let wallet_topic = format!("0x000000000000000000000000{}", &addr_clean[2..].to_lowercase());
+
+    // Outgoing transfers (wallet is sender = topic[1])
+    let outgoing_logs = rpc_call(rpc_url, "eth_getLogs", serde_json::json!([{
+        "fromBlock": format!("0x{:x}", from_block),
+        "toBlock": "latest",
+        "topics": [TRANSFER_EVENT_TOPIC, wallet_topic]
+    }])).await;
+
+    // Incoming transfers (wallet is receiver = topic[2])
+    let incoming_logs = rpc_call(rpc_url, "eth_getLogs", serde_json::json!([{
+        "fromBlock": format!("0x{:x}", from_block),
+        "toBlock": "latest",
+        "topics": [TRANSFER_EVENT_TOPIC, serde_json::Value::Null, wallet_topic]
+    }])).await;
+
+    let mut transfers: Vec<(u64, String, String, String, String, String)> = Vec::new(); // (block, direction, token_addr, counterparty, amount_raw, symbol)
+
+    // Process outgoing
+    if let Ok(logs) = outgoing_logs {
+        if let Some(arr) = logs.as_array() {
+            for log in arr.iter().take(50) {
+                if let Some(parsed) = parse_transfer_log(log, "SELL/SEND", rpc_url).await {
+                    transfers.push(parsed);
+                }
+            }
+        }
+    }
+
+    // Process incoming
+    if let Ok(logs) = incoming_logs {
+        if let Some(arr) = logs.as_array() {
+            for log in arr.iter().take(50) {
+                if let Some(parsed) = parse_transfer_log(log, "BUY/RECV", rpc_url).await {
+                    transfers.push(parsed);
+                }
+            }
+        }
+    }
+
+    // Sort by block number
+    transfers.sort_by_key(|t| t.0);
+
+    if transfers.is_empty() {
+        output.push_str("  No ERC-20 transfers found in this range.\n");
+    } else {
+        for (block, direction, token_addr, counterparty, amount, symbol) in &transfers {
+            output.push_str(&format!("  Block {} | {} | {} {} | {} | counterparty: {}\n",
+                block, direction, amount, symbol, &token_addr[..10], &counterparty[..10]));
+        }
+        output.push_str(&format!("\n  Total: {} transfers found\n", transfers.len()));
+    }
+
+    // Chain info
+    if let Ok(chain_id) = eth_chain_id(rpc_url).await {
+        let chain = match chain_id {
+            1 => "Ethereum Mainnet", 8453 => "Base", 42161 => "Arbitrum",
+            10 => "Optimism", 137 => "Polygon", _ => "Unknown",
+        };
+        output.push_str(&format!("\nNetwork: {} (chain ID {})\n", chain, chain_id));
+    }
+
+    Ok(output)
+}
+
+/// Scan recent large transfers of a specific token to detect whale activity.
+/// Shows accumulation/distribution patterns and identifies major holders moving tokens.
+pub async fn execute_dex_whale_transfers(
+    args: &serde_json::Value,
+    creds: &HashMap<String, String>,
+) -> Result<String, String> {
+    let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
+    let token_address = args["token_address"].as_str()
+        .ok_or("dex_whale_transfers: missing 'token_address'")?;
+    let blocks_back = args["blocks_back"].as_u64().unwrap_or(2000);
+    let min_amount_str = args["min_amount"].as_str().unwrap_or("0");
+
+    let addr_clean = token_address.trim();
+    if !addr_clean.starts_with("0x") || addr_clean.len() != 42 {
+        return Err(format!("Invalid token address: '{}'", addr_clean));
+    }
+
+    // Get token info
+    let symbol = match eth_call(rpc_url, addr_clean, &encode_symbol()).await {
+        Ok(s) => decode_abi_string(&s).unwrap_or_else(|_| "???".into()),
+        Err(_) => "???".into(),
+    };
+    let decimals = match eth_call(rpc_url, addr_clean, &encode_decimals()).await {
+        Ok(d) => {
+            let b = hex_decode(&d).unwrap_or_default();
+            if b.len() >= 32 { b[31] } else { 18 }
+        }
+        Err(_) => 18,
+    };
+
+    let mut output = format!("Whale Transfer Scanner: {} ({})\nContract: {}\n\n", symbol, decimals, addr_clean);
+
+    // Get current block
+    let block_num = match rpc_call(rpc_url, "eth_blockNumber", serde_json::json!([])).await {
+        Ok(val) => {
+            let hex = val.as_str().unwrap_or("0x0");
+            u64::from_str_radix(hex.trim_start_matches("0x"), 16).unwrap_or(0)
+        }
+        Err(e) => return Err(format!("Cannot get block number: {}", e)),
+    };
+    let from_block = block_num.saturating_sub(blocks_back);
+
+    // Get all Transfer events for this token
+    let logs = rpc_call(rpc_url, "eth_getLogs", serde_json::json!([{
+        "address": addr_clean,
+        "fromBlock": format!("0x{:x}", from_block),
+        "toBlock": "latest",
+        "topics": [TRANSFER_EVENT_TOPIC]
+    }])).await
+        .map_err(|e| format!("Failed to get transfer logs: {}", e))?;
+
+    let log_arr = logs.as_array().ok_or("No log array returned")?;
+
+    if log_arr.is_empty() {
+        output.push_str(&format!("No transfers found in last {} blocks.\n", blocks_back));
+        return Ok(output);
+    }
+
+    // Parse min_amount filter
+    let min_amount_f: f64 = min_amount_str.parse().unwrap_or(0.0);
+
+    // Collect transfers and identify large ones
+    let mut transfers: Vec<Transfer> = Vec::new();
+    let mut accumulation_map: HashMap<String, f64> = HashMap::new(); // net inflow per address
+    let mut total_volume = 0.0f64;
+
+    for log in log_arr {
+        let topics = match log["topics"].as_array() {
+            Some(t) if t.len() >= 3 => t,
+            _ => continue,
+        };
+
+        let from_topic = topics[1].as_str().unwrap_or("");
+        let to_topic = topics[2].as_str().unwrap_or("");
+        let data = log["data"].as_str().unwrap_or("0x");
+        let block_hex = log["blockNumber"].as_str().unwrap_or("0x0");
+        let tx_hash = log["transactionHash"].as_str().unwrap_or("").to_string();
+
+        let block = u64::from_str_radix(block_hex.trim_start_matches("0x"), 16).unwrap_or(0);
+
+        // Decode amount from data
+        let amount_str = match raw_to_amount(data, decimals) {
+            Ok(a) => a,
+            Err(_) => continue,
+        };
+        let amount_f: f64 = amount_str.parse().unwrap_or(0.0);
+
+        if amount_f < min_amount_f { continue; }
+
+        // Decode addresses from topics (last 20 bytes of 32-byte topic)
+        let from_addr = if from_topic.len() >= 42 {
+            format!("0x{}", &from_topic[from_topic.len()-40..])
+        } else { "0x?".into() };
+        let to_addr = if to_topic.len() >= 42 {
+            format!("0x{}", &to_topic[to_topic.len()-40..])
+        } else { "0x?".into() };
+
+        total_volume += amount_f;
+
+        // Track net accumulation
+        let from_lower = from_addr.to_lowercase();
+        let to_lower = to_addr.to_lowercase();
+        *accumulation_map.entry(to_lower.clone()).or_insert(0.0) += amount_f;
+        *accumulation_map.entry(from_lower.clone()).or_insert(0.0) -= amount_f;
+
+        transfers.push(Transfer {
+            block, from: from_addr, to: to_addr,
+            amount: amount_f, amount_str, tx_hash,
+        });
+    }
+
+    // Sort by amount descending to show largest first
+    transfers.sort_by(|a, b| b.amount.partial_cmp(&a.amount).unwrap_or(std::cmp::Ordering::Equal));
+
+    output.push_str(&format!("Scanned blocks {} → {} ({} blocks)\n", from_block, block_num, blocks_back));
+    output.push_str(&format!("Total transfers found: {}\n", transfers.len()));
+    output.push_str(&format!("Total volume: {} {}\n\n", format_large_number(total_volume), symbol));
+
+    // Show top 20 largest transfers
+    output.push_str("Largest Transfers:\n");
+    for (i, t) in transfers.iter().take(20).enumerate() {
+        output.push_str(&format!("  {}. {} {} | {} → {} | block {} | tx: {}...\n",
+            i + 1,
+            format_large_number(t.amount), symbol,
+            &t.from[..8], &t.to[..8],
+            t.block,
+            if t.tx_hash.len() > 14 { &t.tx_hash[..14] } else { &t.tx_hash },
+        ));
+    }
+
+    // Show top accumulators (net buyers) and distributors (net sellers)
+    let mut accumulators: Vec<(String, f64)> = Vec::new();
+    let mut distributors: Vec<(String, f64)> = Vec::new();
+    for (addr, net) in &accumulation_map {
+        if addr.contains("000000000000000000000000000000000") { continue; }
+        if *net > 0.0 {
+            accumulators.push((addr.clone(), *net));
+        } else if *net < 0.0 {
+            distributors.push((addr.clone(), net.abs()));
+        }
+    }
+    accumulators.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+    distributors.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    if !accumulators.is_empty() {
+        output.push_str("\nTop Accumulators (net buyers — potential smart money):\n");
+        for (i, (addr, net)) in accumulators.iter().take(10).enumerate() {
+            output.push_str(&format!("  {}. {} | net +{} {}\n",
+                i + 1, addr, format_large_number(*net), symbol));
+        }
+    }
+
+    if !distributors.is_empty() {
+        output.push_str("\nTop Distributors (net sellers — potential exit signals):\n");
+        for (i, (addr, net)) in distributors.iter().take(10).enumerate() {
+            output.push_str(&format!("  {}. {} | net -{} {}\n",
+                i + 1, addr, format_large_number(*net), symbol));
+        }
+    }
+
+    // Chain info
+    if let Ok(chain_id) = eth_chain_id(rpc_url).await {
+        let chain = match chain_id {
+            1 => "Ethereum Mainnet", 8453 => "Base", 42161 => "Arbitrum",
+            10 => "Optimism", 137 => "Polygon", _ => "Unknown",
+        };
+        output.push_str(&format!("\nNetwork: {} (chain ID {})\n", chain, chain_id));
+    }
+
+    output.push_str("\nTip: Use dex_watch_wallet on top accumulator addresses to see their full portfolio and trading history.\n");
+
+    Ok(output)
+}
+
+/// Helper: parse a single Transfer event log into a transfer tuple
+async fn parse_transfer_log(
+    log: &serde_json::Value,
+    direction: &str,
+    rpc_url: &str,
+) -> Option<(u64, String, String, String, String, String)> {
+    let topics = log["topics"].as_array()?;
+    if topics.len() < 3 { return None; }
+
+    let token_addr = log["address"].as_str()?.to_string();
+    let block_hex = log["blockNumber"].as_str()?;
+    let block = u64::from_str_radix(block_hex.trim_start_matches("0x"), 16).ok()?;
+
+    // Data field contains the amount
+    let data = log["data"].as_str()?;
+
+    // Get counterparty from topics
+    let counterparty = if direction.contains("SELL") || direction.contains("SEND") {
+        // Outgoing: recipient is topic[2]
+        let to_topic = topics[2].as_str()?;
+        if to_topic.len() >= 42 {
+            format!("0x{}", &to_topic[to_topic.len()-40..])
+        } else { "0x?".into() }
+    } else {
+        // Incoming: sender is topic[1]
+        let from_topic = topics[1].as_str()?;
+        if from_topic.len() >= 42 {
+            format!("0x{}", &from_topic[from_topic.len()-40..])
+        } else { "0x?".into() }
+    };
+
+    // Try to look up token symbol
+    let symbol = match eth_call(rpc_url, &token_addr, &encode_symbol()).await {
+        Ok(s) => decode_abi_string(&s).unwrap_or_else(|_| token_addr[..8].to_string()),
+        Err(_) => token_addr[..8].to_string(),
+    };
+
+    // Try to get decimals
+    let decimals = match eth_call(rpc_url, &token_addr, &encode_decimals()).await {
+        Ok(d) => {
+            let b = hex_decode(&d).unwrap_or_default();
+            if b.len() >= 32 { b[31] } else { 18 }
+        }
+        Err(_) => 18,
+    };
+
+    let amount = raw_to_amount(data, decimals).unwrap_or_else(|_| "?".into());
+
+    Some((block, direction.to_string(), token_addr, counterparty, amount, symbol))
+}
+
+/// Format a large number with K/M/B suffix for readability
+fn format_large_number(n: f64) -> String {
+    if n >= 1_000_000_000.0 {
+        format!("{:.2}B", n / 1_000_000_000.0)
+    } else if n >= 1_000_000.0 {
+        format!("{:.2}M", n / 1_000_000.0)
+    } else if n >= 1_000.0 {
+        format!("{:.2}K", n / 1_000.0)
+    } else if n >= 1.0 {
+        format!("{:.4}", n)
+    } else {
+        format!("{:.8}", n)
+    }
+}
+
+/// Transfer struct used internally by whale scanning
+struct Transfer {
+    block: u64,
+    from: String,
+    to: String,
+    amount: f64,
+    amount_str: String,
+    tx_hash: String,
+}
