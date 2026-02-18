@@ -63,3 +63,6 @@ bollard = "0.16"
 k256 = { version = "0.13", features = ["ecdsa"] }
 tiny-keccak = { version = "2", features = ["keccak"] }
 
+# ── Solana DEX Trading ───────────────────────────────────────
+bs58 = "0.5"
+

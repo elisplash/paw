@@ -974,6 +974,14 @@ impl ToolDefinition {
                     tools.push(Self::dex_top_traders());
                     tools.push(Self::dex_trending());
                 }
+                "solana_dex" => {
+                    tools.push(Self::sol_wallet_create());
+                    tools.push(Self::sol_balance());
+                    tools.push(Self::sol_quote());
+                    tools.push(Self::sol_swap());
+                    tools.push(Self::sol_portfolio());
+                    tools.push(Self::sol_token_info());
+                }
                 _ => {}
             }
         }
@@ -1426,6 +1434,152 @@ impl ToolDefinition {
                         }
                     },
                     "required": []
+                }),
+            },
+        }
+    }
+
+    // ── Solana DEX / Jupiter tools ─────────────────────────────────────
+
+    pub fn sol_wallet_create() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "sol_wallet_create".into(),
+                description: "Create a new self-custody Solana wallet (ed25519). The private key is encrypted and stored in the OS keychain vault — you never see it. Returns the wallet address.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }),
+            },
+        }
+    }
+
+    pub fn sol_balance() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "sol_balance".into(),
+                description: "Check SOL and SPL token balances for the Solana wallet. If no token specified, shows SOL and all tokens with non-zero balances.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "token": {
+                            "type": "string",
+                            "description": "Specific token to check (e.g. 'USDC', 'BONK', 'JUP', or a mint address). Omit to check all tokens."
+                        }
+                    },
+                    "required": []
+                }),
+            },
+        }
+    }
+
+    pub fn sol_quote() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "sol_quote".into(),
+                description: "Get a swap quote from Jupiter aggregator on Solana without executing. Shows expected output amount, exchange rate, price impact, and route. ALWAYS use this before sol_swap.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "token_in": {
+                            "type": "string",
+                            "description": "Token to sell (e.g. 'SOL', 'USDC', 'BONK', or mint address)"
+                        },
+                        "token_out": {
+                            "type": "string",
+                            "description": "Token to buy (e.g. 'USDC', 'SOL', 'JUP', or mint address)"
+                        },
+                        "amount": {
+                            "type": "string",
+                            "description": "Amount of token_in to swap (e.g. '1.5', '100')"
+                        },
+                        "slippage_bps": {
+                            "type": "integer",
+                            "description": "Slippage tolerance in basis points. Default: 50 (0.5%). Max: 500 (5%)"
+                        }
+                    },
+                    "required": ["token_in", "token_out", "amount"]
+                }),
+            },
+        }
+    }
+
+    pub fn sol_swap() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "sol_swap".into(),
+                description: "Execute a token swap on Solana via Jupiter aggregator. REQUIRES USER APPROVAL. Gets a quote from Jupiter, builds and signs the transaction, then broadcasts it. The private key never leaves the vault. Supports all Solana tokens with Jupiter liquidity.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "token_in": {
+                            "type": "string",
+                            "description": "Token to sell (e.g. 'SOL', 'USDC', 'BONK')"
+                        },
+                        "token_out": {
+                            "type": "string",
+                            "description": "Token to buy (e.g. 'USDC', 'SOL', 'JUP')"
+                        },
+                        "amount": {
+                            "type": "string",
+                            "description": "Amount of token_in to swap (e.g. '0.5', '100')"
+                        },
+                        "reason": {
+                            "type": "string",
+                            "description": "Reason for this swap (shown in approval modal and trade history)"
+                        },
+                        "slippage_bps": {
+                            "type": "integer",
+                            "description": "Slippage tolerance in basis points. Default: 50 (0.5%). Max: 500 (5%)"
+                        }
+                    },
+                    "required": ["token_in", "token_out", "amount", "reason"]
+                }),
+            },
+        }
+    }
+
+    pub fn sol_portfolio() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "sol_portfolio".into(),
+                description: "Get a complete Solana portfolio view: SOL balance + all SPL token balances + network info.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "tokens": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "Additional SPL token mint addresses to check beyond auto-detected holdings"
+                        }
+                    },
+                    "required": []
+                }),
+            },
+        }
+    }
+
+    pub fn sol_token_info() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "sol_token_info".into(),
+                description: "Get on-chain info about any SPL token: decimals, total supply, mint authority, freeze authority, and token program. Queries the blockchain directly. Use a mint address or known symbol (SOL, USDC, USDT, BONK, JUP, etc.).".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "mint_address": {
+                            "type": "string",
+                            "description": "The SPL token mint address or known symbol (e.g. 'USDC', 'BONK', or a base58 mint address)"
+                        }
+                    },
+                    "required": ["mint_address"]
                 }),
             },
         }

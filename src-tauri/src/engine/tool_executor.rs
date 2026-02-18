@@ -80,6 +80,13 @@ pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle, a
         "coinbase_wallet_create" => execute_skill_tool("coinbase", "coinbase_wallet_create", &args, app_handle).await,
         "coinbase_trade" => execute_skill_tool("coinbase", "coinbase_trade", &args, app_handle).await,
         "coinbase_transfer" => execute_skill_tool("coinbase", "coinbase_transfer", &args, app_handle).await,
+        // ── Solana DEX / Jupiter tools ──
+        "sol_wallet_create" => execute_skill_tool("solana_dex", "sol_wallet_create", &args, app_handle).await,
+        "sol_balance" => execute_skill_tool("solana_dex", "sol_balance", &args, app_handle).await,
+        "sol_quote" => execute_skill_tool("solana_dex", "sol_quote", &args, app_handle).await,
+        "sol_swap" => execute_skill_tool("solana_dex", "sol_swap", &args, app_handle).await,
+        "sol_portfolio" => execute_skill_tool("solana_dex", "sol_portfolio", &args, app_handle).await,
+        "sol_token_info" => execute_skill_tool("solana_dex", "sol_token_info", &args, app_handle).await,
         // ── DEX / Uniswap tools ──
         "dex_wallet_create" => execute_skill_tool("dex", "dex_wallet_create", &args, app_handle).await,
         "dex_balance" => execute_skill_tool("dex", "dex_balance", &args, app_handle).await,
@@ -1130,6 +1137,36 @@ async fn execute_skill_tool(
         "dex_whale_transfers" => crate::engine::dex::execute_dex_whale_transfers(args, &creds).await,
         "dex_top_traders" => crate::engine::dex::execute_dex_top_traders(args, &creds).await,
         "dex_trending" => crate::engine::dex::execute_dex_trending(args, &creds).await,
+        // ── Solana DEX / Jupiter ──
+        "sol_wallet_create" => crate::engine::sol_dex::execute_sol_wallet_create(args, &creds, app_handle).await,
+        "sol_balance" => crate::engine::sol_dex::execute_sol_balance(args, &creds).await,
+        "sol_quote" => crate::engine::sol_dex::execute_sol_quote(args, &creds).await,
+        "sol_swap" => {
+            let result = crate::engine::sol_dex::execute_sol_swap(args, &creds).await;
+            if result.is_ok() {
+                let token_in = args["token_in"].as_str().unwrap_or("?");
+                let token_out = args["token_out"].as_str().unwrap_or("?");
+                let pair = format!("{} → {}", token_in.to_uppercase(), token_out.to_uppercase());
+                let _ = state.store.insert_trade(
+                    "sol_swap",
+                    Some("swap"),
+                    Some(&pair),
+                    args["token_in"].as_str(),
+                    args["amount"].as_str().unwrap_or("0"),
+                    None,
+                    None,
+                    "completed",
+                    None,
+                    args["token_out"].as_str(),
+                    args["reason"].as_str().unwrap_or(""),
+                    None, None,
+                    result.as_ref().ok().map(|s| s.as_str()),
+                );
+            }
+            result
+        }
+        "sol_portfolio" => crate::engine::sol_dex::execute_sol_portfolio(args, &creds).await,
+        "sol_token_info" => crate::engine::sol_dex::execute_sol_token_info(args, &creds).await,
         _ => Err(format!("Unknown skill tool: {}", tool_name)),
     }
 }
