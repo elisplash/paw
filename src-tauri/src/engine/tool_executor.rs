@@ -53,6 +53,8 @@ pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle) -
         "email_read" => execute_skill_tool("email", "email_read", &args, app_handle).await,
         "slack_send" => execute_skill_tool("slack", "slack_send", &args, app_handle).await,
         "slack_read" => execute_skill_tool("slack", "slack_read", &args, app_handle).await,
+        "telegram_send" => execute_telegram_send(&args, app_handle).await,
+        "telegram_read" => execute_telegram_read(&args, app_handle).await,
         "github_api" => execute_skill_tool("github", "github_api", &args, app_handle).await,
         "rest_api_call" => execute_skill_tool("rest_api", "rest_api_call", &args, app_handle).await,
         "webhook_send" => execute_skill_tool("webhook", "webhook_send", &args, app_handle).await,
@@ -2010,4 +2012,130 @@ async fn execute_coinbase_transfer(
         amount, currency.to_uppercase(), &to_address[..to_address.len().min(20)],
         status, tx_id, reason
     ))
+}
+
+// ── Telegram Send ──────────────────────────────────────────────────────
+
+async fn execute_telegram_send(
+    args: &serde_json::Value,
+    app_handle: &tauri::AppHandle,
+) -> Result<String, String> {
+    use crate::engine::telegram::{load_telegram_config, save_telegram_config};
+
+    let text = args["text"].as_str().ok_or("telegram_send: missing 'text'")?;
+    let config = load_telegram_config(app_handle)?;
+
+    if config.bot_token.is_empty() {
+        return Err("Telegram bot is not configured. Ask the user to set up their Telegram bot token in the Telegram channel settings.".into());
+    }
+
+    // Resolve chat_id: explicit chat_id > username lookup > first known user > first allowed user
+    let chat_id: i64 = if let Some(cid) = args["chat_id"].as_i64() {
+        cid
+    } else if let Some(username) = args["username"].as_str() {
+        let key = username.trim_start_matches('@').to_lowercase();
+        *config.known_users.get(&key)
+            .ok_or_else(|| format!(
+                "telegram_send: unknown username '{}'. Known users: {}. The user needs to message the bot first.",
+                username,
+                if config.known_users.is_empty() {
+                    "none — no users have messaged the bot yet".into()
+                } else {
+                    config.known_users.keys().map(|k| format!("@{}", k)).collect::<Vec<_>>().join(", ")
+                }
+            ))?
+    } else if let Some((&ref _name, &cid)) = config.known_users.iter().next() {
+        // Default to first known user (typically the owner)
+        cid
+    } else if let Some(&uid) = config.allowed_users.first() {
+        // Fallback: use first allowed user ID as chat_id (works for DMs)
+        uid
+    } else {
+        return Err("telegram_send: no target specified and no known users. Someone needs to message the bot first so we learn their chat_id.".into());
+    };
+
+    info!("[tool:telegram_send] Sending to chat_id {}: {}...", chat_id,
+        if text.len() > 50 { &text[..50] } else { text });
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(15))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    // Split long messages (Telegram limit: 4096 chars)
+    let chunks: Vec<String> = if text.len() > 4000 {
+        text.chars().collect::<Vec<_>>()
+            .chunks(4000)
+            .map(|c| c.iter().collect::<String>())
+            .collect()
+    } else {
+        vec![text.to_string()]
+    };
+
+    for chunk in &chunks {
+        let body = serde_json::json!({
+            "chat_id": chat_id,
+            "text": chunk,
+            "parse_mode": "Markdown",
+        });
+
+        let resp = client.post(format!("https://api.telegram.org/bot{}/sendMessage", config.bot_token))
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Telegram API error: {}", e))?;
+
+        let result: serde_json::Value = resp.json().await
+            .map_err(|e| format!("Failed to parse Telegram response: {}", e))?;
+
+        if !result["ok"].as_bool().unwrap_or(false) {
+            let desc = result["description"].as_str().unwrap_or("unknown error");
+            return Err(format!("Telegram API error: {}", desc));
+        }
+    }
+
+    Ok(format!("Message sent to Telegram (chat_id: {}, {} chars, {} chunk(s))", chat_id, text.len(), chunks.len()))
+}
+
+// ── Telegram Read (Status/Users) ───────────────────────────────────────
+
+async fn execute_telegram_read(
+    args: &serde_json::Value,
+    app_handle: &tauri::AppHandle,
+) -> Result<String, String> {
+    use crate::engine::telegram::{load_telegram_config, TelegramConfig};
+
+    let info = args["info"].as_str().unwrap_or("status");
+    let config = load_telegram_config(app_handle)?;
+
+    match info {
+        "users" => {
+            let mut output = String::from("Known Telegram users:\n\n");
+            if config.known_users.is_empty() {
+                output.push_str("No users have messaged the bot yet.\n");
+            } else {
+                for (username, chat_id) in &config.known_users {
+                    output.push_str(&format!("  @{} (chat_id: {})\n", username, chat_id));
+                }
+            }
+            output.push_str(&format!("\nAllowed user IDs: {:?}\n", config.allowed_users));
+            if !config.pending_users.is_empty() {
+                output.push_str(&format!("Pending approvals: {}\n", config.pending_users.len()));
+            }
+            Ok(output)
+        }
+        _ => {
+            // Status
+            let running = crate::engine::telegram::is_bridge_running();
+            Ok(format!(
+                "Telegram Bridge Status:\n  Running: {}\n  Bot configured: {}\n  DM policy: {}\n  Allowed users: {}\n  Known users: {}\n  Agent: {}",
+                running,
+                !config.bot_token.is_empty(),
+                config.dm_policy,
+                config.allowed_users.len(),
+                config.known_users.len(),
+                config.agent_id.as_deref().unwrap_or("default"),
+            ))
+        }
+    }
 }

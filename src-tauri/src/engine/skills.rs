@@ -144,6 +144,17 @@ pub fn builtin_skills() -> Vec<SkillDefinition> {
             agent_instructions: "You can post to and read from Slack channels. Use slack_send to post messages. Use slack_read to fetch recent messages from a channel.".into(),
         },
         SkillDefinition {
+            id: "telegram".into(),
+            name: "Telegram".into(),
+            description: "Send proactive messages to Telegram users via the bot bridge. No extra credentials needed — uses the Telegram bot token configured in the channel bridge.".into(),
+            icon: "✈️".into(),
+            category: SkillCategory::Vault,
+            required_credentials: vec![],
+            tool_names: vec!["telegram_send".into(), "telegram_read".into()],
+            required_binaries: vec![], required_env_vars: vec![], install_hint: String::new(),
+            agent_instructions: "You can send proactive messages to Telegram users. Use telegram_send to push messages — specify a username or it defaults to the owner. Use telegram_read to check bridge status and known users. The Telegram bot must be set up in channel settings first, and the user must have messaged the bot at least once.".into(),
+        },
+        SkillDefinition {
             id: "github".into(),
             name: "GitHub".into(),
             description: "Create issues, PRs, read repos, manage projects via gh CLI and GitHub API".into(),

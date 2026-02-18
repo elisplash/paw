@@ -210,6 +210,7 @@ pub async fn run_agent_turn(
                 // Skill tools
                 "email_send", "email_read",
                 "slack_send", "slack_read",
+                "telegram_send", "telegram_read",
                 "github_api",
                 "rest_api_call",
                 "webhook_send",

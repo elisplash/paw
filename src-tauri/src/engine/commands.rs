@@ -367,6 +367,16 @@ pub async fn engine_chat_send(
             info!("[engine] Adding skill tools for: {:?}", enabled_ids);
             t.extend(ToolDefinition::skill_tools(&enabled_ids));
         }
+        // Auto-add telegram tools if bridge is configured (even without explicit skill enable)
+        if !enabled_ids.contains(&"telegram".into()) {
+            if let Ok(tg_cfg) = crate::engine::telegram::load_telegram_config(&app_handle) {
+                if !tg_cfg.bot_token.is_empty() {
+                    info!("[engine] Auto-adding telegram tools (bridge configured)");
+                    t.push(ToolDefinition::telegram_send());
+                    t.push(ToolDefinition::telegram_read());
+                }
+            }
+        }
         // Apply per-agent tool filter (if provided by frontend policy)
         if let Some(ref filter) = request.tool_filter {
             let before = t.len();
@@ -1376,6 +1386,15 @@ pub async fn execute_task(
         .collect();
     if !enabled_ids.is_empty() {
         all_tools.extend(ToolDefinition::skill_tools(&enabled_ids));
+    }
+    // Auto-add telegram tools if bridge is configured
+    if !enabled_ids.contains(&"telegram".into()) {
+        if let Ok(tg_cfg) = crate::engine::telegram::load_telegram_config(app_handle) {
+            if !tg_cfg.bot_token.is_empty() {
+                all_tools.push(ToolDefinition::telegram_send());
+                all_tools.push(ToolDefinition::telegram_read());
+            }
+        }
     }
 
     let pending = state.pending_approvals.clone();

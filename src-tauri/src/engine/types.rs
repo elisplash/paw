@@ -488,6 +488,41 @@ impl ToolDefinition {
         }
     }
 
+    pub fn telegram_send() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "telegram_send".into(),
+                description: "Send a proactive message to a Telegram user. The user must have messaged the bot at least once so their chat_id is known. You can specify the user by their @username (without the @) or by numeric chat_id. If neither is specified, sends to the first known user (the owner). Bot token is loaded automatically from the Telegram bridge config.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "text": { "type": "string", "description": "The message text to send" },
+                        "username": { "type": "string", "description": "Telegram username (without @) to send to. Optional — defaults to first known user." },
+                        "chat_id": { "type": "integer", "description": "Numeric Telegram chat ID. Alternative to username." }
+                    },
+                    "required": ["text"]
+                }),
+            },
+        }
+    }
+
+    pub fn telegram_read() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "telegram_read".into(),
+                description: "Get information about the Telegram bridge status, known users, and configuration. Useful for checking if the Telegram bridge is running and who has messaged the bot.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "info": { "type": "string", "enum": ["status", "users"], "description": "What to retrieve: 'status' for bridge health, 'users' for list of known users (default: status)" }
+                    }
+                }),
+            },
+        }
+    }
+
     pub fn slack_send() -> Self {
         ToolDefinition {
             tool_type: "function".into(),
@@ -912,6 +947,7 @@ impl ToolDefinition {
             match id.as_str() {
                 "email" => { tools.push(Self::email_send()); tools.push(Self::email_read()); }
                 "slack" => { tools.push(Self::slack_send()); tools.push(Self::slack_read()); }
+                "telegram" => { tools.push(Self::telegram_send()); tools.push(Self::telegram_read()); }
                 "github" => { tools.push(Self::github_api()); }
                 "rest_api" => { tools.push(Self::rest_api_call()); }
                 "webhook" => { tools.push(Self::webhook_send()); }

@@ -81,6 +81,9 @@ pub struct TelegramConfig {
     pub agent_id: Option<String>,
     /// Max messages to keep as context per user session
     pub context_window: Option<usize>,
+    /// Known users: maps username (lowercase, no @) → chat_id for proactive messaging
+    #[serde(default)]
+    pub known_users: std::collections::HashMap<String, i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,6 +104,7 @@ impl Default for TelegramConfig {
             pending_users: vec![],
             agent_id: None,
             context_window: Some(50),
+            known_users: std::collections::HashMap::new(),
         }
     }
 }
@@ -267,6 +271,11 @@ fn split_message(text: &str, max_len: usize) -> Vec<String> {
     chunks
 }
 
+/// Check if the Telegram bridge is currently running.
+pub fn is_bridge_running() -> bool {
+    BRIDGE_RUNNING.load(Ordering::Relaxed)
+}
+
 // ── Bridge Core ────────────────────────────────────────────────────────
 
 /// Start the Telegram polling bridge. Returns immediately;
@@ -424,6 +433,15 @@ async fn run_polling_loop(app_handle: tauri::AppHandle, config: TelegramConfig) 
                         }
 
                         MESSAGE_COUNT.fetch_add(1, Ordering::Relaxed);
+
+                        // ── Store username → chat_id for proactive messaging ──
+                        if let Some(uname) = &user.username {
+                            let key = uname.to_lowercase();
+                            if !current_config.known_users.contains_key(&key) || current_config.known_users.get(&key) != Some(&chat_id) {
+                                current_config.known_users.insert(key, chat_id);
+                                let _ = save_telegram_config(&app_handle, &current_config);
+                            }
+                        }
 
                         // ── Send "typing" indicator ─────────────────────
                         let _ = tg_send_chat_action(&client, &token, chat_id).await;
