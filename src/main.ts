@@ -1652,9 +1652,9 @@ function handleAgentEvent(payload: unknown): void {
       return;
     }
 
-    // Route paw-task-* events to the Tasks view (agent working on tasks)
-    if (evtSession && evtSession.startsWith('eng-task-')) {
-      // Refresh task board when a task agent completes
+    // Route background task events: only drop eng-task-* events if the user
+    // is NOT currently viewing that task session (they can chat on task sessions).
+    if (evtSession && evtSession.startsWith('eng-task-') && evtSession !== currentSessionKey) {
       return;
     }
 
