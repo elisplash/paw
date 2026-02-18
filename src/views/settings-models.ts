@@ -6,7 +6,7 @@ import { pawEngine, type EngineProviderConfig, type EngineConfig, type ModelRout
 import { showToast } from '../components/toast';
 import {
   isConnected, getEngineConfig, setEngineConfig,
-  esc, formRow, selectInput, textInput, numberInput, saveReloadButtons
+  esc, formRow, selectInput, textInput, saveReloadButtons
 } from './settings-config';
 
 const $ = (id: string) => document.getElementById(id);
@@ -168,27 +168,12 @@ export async function loadModelsSettings() {
     defModelRow.appendChild(datalist);
     defaultSection.appendChild(defModelRow);
 
-    // Tool limits
-    const roundsRow = formRow('Max Tool Rounds', 'How many tool-call rounds before stopping (default: 25)');
-    const roundsInp = numberInput(config.max_tool_rounds ?? 25, { min: 1, max: 200, step: 1 });
-    roundsInp.style.maxWidth = '120px';
-    roundsRow.appendChild(roundsInp);
-    defaultSection.appendChild(roundsRow);
-
-    const timeoutRow = formRow('Tool Timeout (seconds)', 'Max time per tool execution (default: 120)');
-    const timeoutInp = numberInput(config.tool_timeout_secs ?? 120, { min: 5, max: 3600, step: 5 });
-    timeoutInp.style.maxWidth = '120px';
-    timeoutRow.appendChild(timeoutInp);
-    defaultSection.appendChild(timeoutRow);
-
     defaultSection.appendChild(saveReloadButtons(
       async () => {
         const updated: EngineConfig = {
           ...config,
           default_provider: defProvSel.value || undefined,
           default_model: defModelInp.value.trim() || undefined,
-          max_tool_rounds: parseInt(roundsInp.value, 10) || 25,
-          tool_timeout_secs: parseInt(timeoutInp.value, 10) || 120,
         };
         const ok = await setEngineConfig(updated);
         if (ok) loadModelsSettings();

@@ -2,7 +2,7 @@
 // Pawz AI command center — calls AI APIs directly, no gateway needed
 
 import type { AppConfig, Message, Session } from './types';
-import { isEngineMode, startEngineBridge, onEngineAgent, engineChatSend, onEngineToolApproval, resolveEngineToolApproval } from './engine-bridge';
+import { isEngineMode, setEngineMode, startEngineBridge, onEngineAgent, engineChatSend, onEngineToolApproval, resolveEngineToolApproval } from './engine-bridge';
 import { pawEngine, type EngineEvent } from './engine';
 // ── Material Symbols icon helper ─────────────────────────────────────────────
 // Maps legacy icon names → Material Symbols ligature names
@@ -25,13 +25,10 @@ function icon(name: string, cls = ''): string {
 }
 import { initDb, initDbEncryption, listDocs, saveDoc, getDoc, deleteDoc, logCredentialActivity, logSecurityEvent } from './db';
 import * as SettingsModule from './views/settings';
-import { initEngineSettings } from './views/settings-engine';
 import * as ModelsSettings from './views/settings-models';
-import * as EnvSettings from './views/settings-env';
 import * as AgentDefaultsSettings from './views/settings-agent-defaults';
 import * as SessionsSettings from './views/settings-sessions';
 import * as VoiceSettings from './views/settings-voice';
-import * as AdvancedSettings from './views/settings-advanced';
 import * as SkillsSettings from './views/settings-skills';
 import { setConnected as setSettingsConnected } from './views/settings-config';
 import * as AutomationsModule from './views/automations';
@@ -363,8 +360,8 @@ async function connectEngine(): Promise<boolean> {
       if (result.action === 'ollama_added') {
         console.log(`[main] Auto-setup: ${result.message}`);
         showToast(result.message || `Ollama detected! Using model '${result.model}'.`, 'success');
-        // Refresh engine settings UI if visible
-        if (typeof initEngineSettings === 'function') initEngineSettings();
+        // Refresh models settings if visible
+        ModelsSettings.loadModelsSettings();
       } else if (result.action === 'none' && result.message) {
         console.log('[main] Auto-setup:', result.message);
       }
@@ -412,11 +409,9 @@ let _activeSettingsTab = 'general';
 function loadActiveSettingsTab() {
   switch (_activeSettingsTab) {
     case 'models': ModelsSettings.loadModelsSettings(); break;
-    case 'env': EnvSettings.loadEnvSettings(); break;
     case 'agent-defaults': AgentDefaultsSettings.loadAgentDefaultsSettings(); break;
     case 'sessions': SessionsSettings.loadSessionsSettings(); break;
     case 'voice': VoiceSettings.loadVoiceSettings(); break;
-    case 'advanced': AdvancedSettings.loadAdvancedSettings(); break;
     case 'skills': SkillsSettings.loadSkillsSettings(); break;
     default: break; // general + security load via existing SettingsModule
   }
@@ -3097,12 +3092,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize new settings tab modules
     initSettingsTabs();
     ModelsSettings.initModelsSettings();
-    EnvSettings.initEnvSettings();
     AgentDefaultsSettings.initAgentDefaultsSettings();
     SessionsSettings.initSessionsSettings();
     VoiceSettings.initVoiceSettings();
-    AdvancedSettings.initAdvancedSettings();
-    initEngineSettings();
+
+    // Ensure engine mode is always active (Pawz runs exclusively in engine mode)
+    setEngineMode(true);
 
     // Initialize Projects module events
     ProjectsModule.bindEvents();

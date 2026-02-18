@@ -1612,67 +1612,21 @@
           <!-- Settings Tab Navigation -->
           <div class="settings-tab-bar" id="settings-tab-bar" style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:8px">
             <button class="btn btn-ghost btn-sm settings-tab active" data-settings-tab="general">General</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="models">Models</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="env">Environment</button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="models">Providers</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="agent-defaults">Agent Defaults</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="sessions">Sessions</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="voice">Voice & TTS</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="advanced">Advanced</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="security">Security</button>
           </div>
 
           <!-- ── Tab: General ── -->
           <div class="settings-tab-panel" id="settings-panel-general">
 
-          <!-- Pawz Engine — AI Provider Config -->
-          <div class="settings-section" id="settings-engine-section">
-            <h2 class="settings-section-title">AI Provider</h2>
-            <p class="settings-section-desc" style="margin-bottom:12px">Configure your AI provider and API key. Pawz calls APIs directly from your machine.</p>
-            <!-- Hidden select kept for compatibility with settings-engine.ts -->
-            <select class="form-input" id="settings-engine-mode" style="display:none">
-              <option value="engine" selected>Built-in Paw Engine</option>
-            </select>
-            <div id="engine-config-panel">
-              <div class="form-group">
-                <label class="form-label">Provider</label>
-                <select class="form-input" id="engine-provider-kind" style="max-width:300px">
-                  <option value="anthropic" data-kind="anthropic">Anthropic (Claude)</option>
-                  <option value="openai" data-kind="openai">OpenAI (GPT)</option>
-                  <option value="google" data-kind="google">Google (Gemini)</option>
-                  <option value="openrouter" data-kind="openrouter">OpenRouter</option>
-                  <option value="ollama" data-kind="ollama">Ollama (Local)</option>
-                  <option value="custom" data-kind="custom" data-base-url="">Custom (OpenAI-compatible)</option>
-                  <optgroup label="OpenAI-compatible providers">
-                    <option value="azure" data-kind="custom" data-base-url="" data-model="">Azure AI Services</option>
-                    <option value="moonshot" data-kind="custom" data-base-url="https://api.moonshot.cn/v1" data-model="moonshot-v1-128k">Kimi / Moonshot AI</option>
-                    <option value="deepseek" data-kind="custom" data-base-url="https://api.deepseek.com/v1" data-model="deepseek-chat">DeepSeek</option>
-                    <option value="xai" data-kind="custom" data-base-url="https://api.x.ai/v1" data-model="grok-3">xAI (Grok)</option>
-                    <option value="mistral" data-kind="custom" data-base-url="https://api.mistral.ai/v1" data-model="mistral-large-latest">Mistral AI</option>
-                    <option value="together" data-kind="custom" data-base-url="https://api.together.xyz/v1" data-model="meta-llama/Llama-3-70b-chat-hf">Together AI</option>
-                    <option value="fireworks" data-kind="custom" data-base-url="https://api.fireworks.ai/inference/v1" data-model="accounts/fireworks/models/llama-v3p1-70b-instruct">Fireworks AI</option>
-                    <option value="groq" data-kind="custom" data-base-url="https://api.groq.com/openai/v1" data-model="llama-3.3-70b-versatile">Groq</option>
-                    <option value="google-openai" data-kind="custom" data-base-url="https://generativelanguage.googleapis.com/v1beta/openai/" data-model="gemini-2.5-flash">Google AI (OpenAI-compat)</option>
-                  </optgroup>
-                </select>
-              </div>
-              <!-- Configured providers list -->
-              <div id="engine-providers-list" style="margin-bottom:16px"></div>
-              <div class="form-group">
-                <label class="form-label">API Key</label>
-                <input type="password" class="form-input" id="engine-api-key" placeholder="sk-..." />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Model</label>
-                <input type="text" class="form-input" id="engine-model" placeholder="claude-sonnet-4-20250514" style="max-width:400px" />
-              </div>
-              <div class="form-group" id="engine-base-url-group">
-                <label class="form-label">Base URL <span style="color:var(--text-muted);font-weight:normal">(auto-filled for known providers)</span></label>
-                <input type="text" class="form-input" id="engine-base-url" placeholder="https://api.openai.com/v1" style="max-width:500px" />
-              </div>
-              <button class="btn btn-primary" id="engine-save-btn">Save Engine Settings</button>
-              <span id="engine-save-status" style="margin-left:12px; color:var(--text-muted); font-size:13px;"></span>
-            </div>
-          </div>
+          <!-- Hidden select kept for compatibility -->
+          <select class="form-input" id="settings-engine-mode" style="display:none">
+            <option value="engine" selected>Built-in Paw Engine</option>
+          </select>
+          <div id="engine-config-panel" style="display:none"></div>
           
           <!-- Appearance — Theme Toggle -->
           <div class="settings-section" id="settings-appearance-section">
@@ -1702,21 +1656,12 @@
 
           </div><!-- end settings-panel-general -->
 
-          <!-- ── Tab: Models ── -->
+          <!-- ── Tab: Providers ── -->
           <div class="settings-tab-panel" id="settings-panel-models" style="display:none">
             <div class="settings-section" id="settings-models-section">
-              <h2 class="settings-section-title">Models &amp; Providers</h2>
-              <p class="settings-section-desc">Manage AI providers and models — add Ollama, OpenAI, Anthropic, Google, OpenRouter, and more.</p>
+              <h2 class="settings-section-title">Providers &amp; Models</h2>
+              <p class="settings-section-desc">Add AI providers, manage API keys, and configure model routing. Pawz calls APIs directly from your machine.</p>
               <div id="settings-models-content"></div>
-            </div>
-          </div>
-
-          <!-- ── Tab: Environment ── -->
-          <div class="settings-tab-panel" id="settings-panel-env" style="display:none">
-            <div class="settings-section" id="settings-env-section">
-              <h2 class="settings-section-title">API Keys &amp; Environment</h2>
-              <p class="settings-section-desc">Provider API keys, skill credentials, and system environment.</p>
-              <div id="settings-env-content"></div>
             </div>
           </div>
 
@@ -1747,14 +1692,7 @@
             </div>
           </div>
 
-          <!-- ── Tab: Advanced ── -->
-          <div class="settings-tab-panel" id="settings-panel-advanced" style="display:none">
-            <div class="settings-section" id="settings-advanced-section">
-              <h2 class="settings-section-title">Advanced Configuration</h2>
-              <p class="settings-section-desc">Ollama setup, provider configuration, tool limits, and system prompt.</p>
-              <div id="settings-advanced-content"></div>
-            </div>
-          </div>
+
 
           <!-- ── Tab: Security ── -->
           <div class="settings-tab-panel" id="settings-panel-security" style="display:none">

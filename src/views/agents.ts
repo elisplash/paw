@@ -272,9 +272,8 @@ export async function loadAgents() {
 }
 
 function saveAgents() {
-  // Only persist local agents to localStorage (backend agents come from SQLite)
-  const localAgents = _agents.filter(a => a.source !== 'backend');
-  localStorage.setItem('paw-agents', JSON.stringify(localAgents));
+  // Persist all agents to localStorage (backend agents too so edits to name/avatar/personality survive reload)
+  localStorage.setItem('paw-agents', JSON.stringify(_agents));
   renderAgentDock();
 }
 
@@ -292,17 +291,17 @@ function renderAgents() {
           <div class="agent-name">${escHtml(agent.name)}</div>
           <div class="agent-template">${agent.source === 'backend' ? 'AI-Created' : agent.template.charAt(0).toUpperCase() + agent.template.slice(1)}</div>
         </div>
-        ${agent.source !== 'backend' ? '<button class="btn-icon agent-menu-btn" title="Options">⋮</button>' : ''}
+        <button class="btn-icon agent-menu-btn" title="Options">⋮</button>
       </div>
       <div class="agent-bio">${escHtml(agent.bio)}</div>
       <div class="agent-stats">
         <span class="agent-stat">${agent.skills.length} skills</span>
-        ${agent.source === 'backend' ? `<span class="agent-stat agent-stat-backend">orchestrator</span>` : `<span class="agent-stat">${agent.boundaries.length} rules</span>`}
+        <span class="agent-stat">${agent.boundaries.length} rules</span>
       </div>
       <div class="agent-actions">
         <button class="btn btn-primary btn-sm agent-chat-btn">Chat</button>
         <button class="btn btn-ghost btn-sm agent-minichat-btn" title="Open mini chat window">💬</button>
-        ${agent.source !== 'backend' ? '<button class="btn btn-ghost btn-sm agent-edit-btn">Edit</button>' : ''}
+        <button class="btn btn-ghost btn-sm agent-edit-btn">Edit</button>
       </div>
     </div>
   `).join('') + `
