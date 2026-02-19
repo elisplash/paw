@@ -6,3 +6,6 @@
 
 pub mod chat;
 pub mod agent;
+pub mod memory;
+pub mod skills;
+pub mod project;
