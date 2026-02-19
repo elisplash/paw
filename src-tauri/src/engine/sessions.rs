@@ -411,6 +411,50 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Prune a session's message history, keeping only the most recent `keep`
+    /// messages.  Used by the cron heartbeat to prevent context accumulation
+    /// across recurring task runs — the #1 cause of runaway token costs.
+    ///
+    /// Returns the number of messages deleted.
+    pub fn prune_session_messages(&self, session_id: &str, keep: i64) -> Result<usize, String> {
+        let conn = self.conn.lock().map_err(|e| format!("Lock error: {}", e))?;
+
+        // Count current messages
+        let total: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM messages WHERE session_id = ?1",
+            params![session_id],
+            |r| r.get(0),
+        ).map_err(|e| format!("Count error: {}", e))?;
+
+        if total <= keep {
+            return Ok(0);
+        }
+
+        // Delete oldest messages, keeping the most recent `keep`
+        let deleted = conn.execute(
+            "DELETE FROM messages WHERE session_id = ?1 AND id NOT IN (
+                SELECT id FROM messages WHERE session_id = ?1
+                ORDER BY created_at DESC LIMIT ?2
+            )",
+            params![session_id, keep],
+        ).map_err(|e| format!("Prune error: {}", e))?;
+
+        // Update session message count
+        conn.execute(
+            "UPDATE sessions SET
+                message_count = (SELECT COUNT(*) FROM messages WHERE session_id = ?1),
+                updated_at = datetime('now')
+             WHERE id = ?1",
+            params![session_id],
+        ).map_err(|e| format!("Update session error: {}", e))?;
+
+        if deleted > 0 {
+            info!("[engine] Pruned {} old messages from session {} (kept {})", deleted, session_id, keep);
+        }
+
+        Ok(deleted)
+    }
+
     // ── Message CRUD ───────────────────────────────────────────────────
 
     pub fn add_message(&self, msg: &StoredMessage) -> Result<(), String> {

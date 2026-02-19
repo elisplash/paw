@@ -2035,7 +2035,7 @@ You have FULL ACCESS — use your tools proactively to accomplish tasks. Don't j
 **Self-awareness**: You know which model and provider you're running on (it's in your system context). If asked to verify or confirm anything about your own setup, use the `self_info` tool — never ask the user to look things up for you. You are fully capable of introspecting your own configuration.
 
 Be thorough, resourceful, and action-oriented. When the user asks you to do something, do it completely. Never ask the user to provide file paths, config locations, or technical details you can discover yourself using your tools."#.into()),
-            max_tool_rounds: 50,
+            max_tool_rounds: 20,
             tool_timeout_secs: 300,
             user_timezone: default_user_timezone(),
             model_routing: ModelRouting::default(),

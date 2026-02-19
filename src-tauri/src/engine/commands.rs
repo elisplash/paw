@@ -1507,12 +1507,37 @@ pub async fn execute_task(
     let sem = state.run_semaphore.clone();
     let inflight = state.inflight_tasks.clone();
 
+    // ── Cost control constants for cron/background tasks ──
+    // Cron sessions reuse the same session_id across runs, causing context to
+    // grow unboundedly (up to 500 messages / 100k tokens). This is the #1
+    // driver of runaway API costs. We prune old messages before each run and
+    // cap the number of tool rounds to keep costs predictable.
+    const CRON_SESSION_KEEP_MESSAGES: i64 = 20;   // keep ~2-3 runs of context
+    const CRON_MAX_TOOL_ROUNDS: u32 = 10;         // prevent runaway tool loops
+
     // For each agent, spawn a parallel agent loop
     let mut handles = Vec::new();
 
     for agent_id in agent_ids.clone() {
         // Per-agent session: eng-task-{task_id}-{agent_id}
         let session_id = format!("eng-task-{}-{}", task.id, agent_id);
+
+        // ── Cron cost control: prune accumulated history ──
+        // Recurring cron tasks reuse the same session, so context grows every
+        // run. Prune to the last CRON_SESSION_KEEP_MESSAGES messages before
+        // adding the new user prompt, keeping costs bounded.
+        if is_recurring {
+            match state.store.prune_session_messages(&session_id, CRON_SESSION_KEEP_MESSAGES) {
+                Ok(pruned) if pruned > 0 => {
+                    info!("[engine] Pruned {} old messages from cron session {} (kept {})",
+                        pruned, session_id, CRON_SESSION_KEEP_MESSAGES);
+                }
+                Err(e) => {
+                    warn!("[engine] Failed to prune cron session {}: {}", session_id, e);
+                }
+                _ => {}
+            }
+        }
 
         // ── Per-task / per-agent model routing ──
         // Priority: task.model (highest) > agent_models > worker_model > default_model
@@ -1654,6 +1679,13 @@ pub async fn execute_task(
         let model_clone = model.clone();
         let sem_clone = sem.clone();
 
+        // Cap tool rounds for cron tasks to prevent runaway agent loops
+        let effective_max_rounds = if is_recurring {
+            max_rounds.min(CRON_MAX_TOOL_ROUNDS)
+        } else {
+            max_rounds
+        };
+
         let handle = tauri::async_runtime::spawn(async move {
             // ── Semaphore gate: wait for a concurrency slot ──
             // Background tasks (cron/manual) respect the limit.
@@ -1669,7 +1701,7 @@ pub async fn execute_task(
                 &all_tools_clone,
                 &session_id,
                 &run_id_clone,
-                max_rounds,
+                effective_max_rounds,
                 None,
                 &pending_clone,
                 tool_timeout,

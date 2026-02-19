@@ -526,6 +526,15 @@ async fn run_telegram_agent(
         engine_state.store.create_session(&session_id, &model, system_prompt.as_deref(), Some(agent_id))?;
     }
 
+    // ── Cost control: prune old Telegram session messages ──
+    // Telegram sessions persist per-user and grow unboundedly.
+    // Keep the last 50 messages (~5-10 conversation turns) to provide
+    // useful context without sending huge histories to the API.
+    const TG_SESSION_KEEP_MESSAGES: i64 = 50;
+    if let Err(e) = engine_state.store.prune_session_messages(&session_id, TG_SESSION_KEEP_MESSAGES) {
+        warn!("[telegram] Failed to prune session {}: {}", session_id, e);
+    }
+
     // Store user message
     let user_msg = StoredMessage {
         id: uuid::Uuid::new_v4().to_string(),
@@ -675,6 +684,10 @@ async fn run_telegram_agent(
 
     let pre_loop_msg_count = messages.len();
 
+    // Cap tool rounds for Telegram — mobile context, keep it snappy
+    const TG_MAX_TOOL_ROUNDS: u32 = 15;
+    let effective_max_rounds = max_rounds.min(TG_MAX_TOOL_ROUNDS);
+
     // Run the agent loop
     let result = agent_loop::run_agent_turn(
         app_handle,
@@ -684,7 +697,7 @@ async fn run_telegram_agent(
         &tools,
         &session_id,
         &run_id,
-        max_rounds,
+        effective_max_rounds,
         None, // temperature
         &approvals,
         tool_timeout,
