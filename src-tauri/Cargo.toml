@@ -49,6 +49,7 @@ async-trait = "0.1"
 futures = "0.3"
 uuid = { version = "1", features = ["v4"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
+paste = "1"
 
 # ── Web Browsing & Scraping ──────────────────────────────────────
 headless_chrome = "1"

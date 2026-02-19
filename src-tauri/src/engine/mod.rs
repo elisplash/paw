@@ -7,7 +7,7 @@ pub mod providers;
 pub mod agent_loop;
 pub mod tool_executor;
 pub mod sessions;
-pub mod commands;
+// commands module moved to crate::commands::channels — see src/commands/channels.rs
 pub mod chat;
 pub mod memory;
 pub mod skills;

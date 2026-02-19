@@ -5,6 +5,7 @@
 // only deserialise, delegate, and serialise.
 
 pub mod state;
+pub mod channels;
 pub mod chat;
 pub mod agent;
 pub mod memory;
