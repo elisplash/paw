@@ -521,6 +521,12 @@ impl AnthropicProvider {
                 let model = msg.and_then(|m| m["model"].as_str()).map(|s| s.to_string());
                 let usage = msg.and_then(|m| m.get("usage")).and_then(|u| {
                     let input = u["input_tokens"].as_u64().unwrap_or(0);
+                    let cache_create = u["cache_creation_input_tokens"].as_u64().unwrap_or(0);
+                    let cache_read = u["cache_read_input_tokens"].as_u64().unwrap_or(0);
+                    if cache_create > 0 || cache_read > 0 {
+                        info!("[engine] Anthropic cache: {} tokens created, {} tokens read (input: {})",
+                            cache_create, cache_read, input);
+                    }
                     if input > 0 {
                         Some(TokenUsage {
                             input_tokens: input,
