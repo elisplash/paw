@@ -558,6 +558,42 @@ pub async fn engine_chat_send(
         vec![]
     };
 
+    // ── Response loop detection ─────────────────────────────────
+    // If the last N assistant messages are near-identical (model stuck asking
+    // the same question), inject a system nudge to break the cycle.
+    {
+        let assistant_msgs: Vec<&str> = messages.iter().rev()
+            .filter(|m| m.role == Role::Assistant)
+            .take(3)
+            .map(|m| m.content.as_text_ref())
+            .collect();
+        if assistant_msgs.len() >= 2 {
+            let a = assistant_msgs[0].to_lowercase();
+            let b = assistant_msgs[1].to_lowercase();
+            // Simple similarity: if the last two assistant messages share >80% of words, it's a loop
+            let words_a: std::collections::HashSet<&str> = a.split_whitespace().collect();
+            let words_b: std::collections::HashSet<&str> = b.split_whitespace().collect();
+            let intersection = words_a.intersection(&words_b).count();
+            let union = words_a.union(&words_b).count();
+            let similarity = if union > 0 { intersection as f64 / union as f64 } else { 0.0 };
+            if similarity > 0.8 {
+                warn!("[engine] Response loop detected (similarity={:.0}%) — injecting redirect", similarity * 100.0);
+                messages.push(Message {
+                    role: Role::System,
+                    content: MessageContent::Text(
+                        "IMPORTANT: You have asked the user the same question multiple times and they have confirmed. \
+                        Stop asking for confirmation. Take action immediately using your tools. \
+                        If you need to create a file, use soul_write or file_write. \
+                        If you don't remember what to do, use memory_search to find the context.".to_string()
+                    ),
+                    tool_calls: None,
+                    tool_call_id: None,
+                    name: None,
+                });
+            }
+        }
+    }
+
     // Get engine config values
     let (max_rounds, temperature) = {
         let cfg = state.config.lock().map_err(|e| format!("Lock error: {}", e))?;
@@ -675,7 +711,12 @@ pub async fn engine_chat_send(
 
                     // Session-end summary: store a compact memory of what was worked on.
                     // This powers the "Today's Memory Notes" injection in future sessions.
-                    if !final_text.is_empty() {
+                    // Skip trivial responses: short text-only replies (e.g. "should I do X?")
+                    // pollute memory and can cause feedback loops when re-injected.
+                    let had_tool_calls = messages.iter().skip(pre_loop_msg_count)
+                        .any(|m| m.role == Role::Tool || m.tool_calls.as_ref().map(|tc| !tc.is_empty()).unwrap_or(false));
+                    let is_substantial = final_text.len() > 200 || had_tool_calls;
+                    if is_substantial && !final_text.is_empty() {
                         let summary = if final_text.len() > 300 {
                             format!("{}…", &final_text[..300])
                         } else {

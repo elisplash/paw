@@ -103,6 +103,14 @@ impl MessageContent {
             }
         }
     }
+
+    /// Borrow the text content without cloning (returns "" for non-text blocks).
+    pub fn as_text_ref(&self) -> &str {
+        match self {
+            MessageContent::Text(s) => s.as_str(),
+            MessageContent::Blocks(_) => "",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
