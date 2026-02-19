@@ -488,7 +488,13 @@ pub async fn engine_chat_send(
     let app = app_handle.clone();
     let agent_id_for_spawn = agent_id_owned.clone();
     let sem = state.run_semaphore.clone();
-    tauri::async_runtime::spawn(async move {
+
+    // Clone session_id and run_id for the panic-safety wrapper
+    let panic_session_id = session_id.clone();
+    let panic_run_id = run_id.clone();
+    let panic_app = app_handle.clone();
+
+    let handle = tauri::async_runtime::spawn(async move {
         // Acquire semaphore — chat gets priority so use a short timeout then proceed anyway
         let _permit = match tokio::time::timeout(
             std::time::Duration::from_secs(2),
@@ -555,7 +561,7 @@ pub async fn engine_chat_send(
                                 match memory::store_memory(
                                     &engine_state.store, content, category, 5, emb_client.as_ref(), Some(&agent_id_for_spawn)
                                 ).await {
-                                    Ok(id) => info!("[engine] Auto-captured memory: {}", &id[..8]),
+                                    Ok(id) => info!("[engine] Auto-captured memory: {}", crate::engine::types::truncate_utf8(&id, 8)),
                                     Err(e) => warn!("[engine] Auto-capture failed: {}", e),
                                 }
                             }
@@ -571,6 +577,22 @@ pub async fn engine_chat_send(
                     message: e,
                 });
             }
+        }
+    });
+
+    // ── Panic safety: if the spawned task panics (e.g. from a bug in tool
+    // execution), the frontend would hang forever because no Complete or Error
+    // event ever fires. Spawn a monitor that awaits the JoinHandle and emits
+    // an Error event if the task panicked.
+    tauri::async_runtime::spawn(async move {
+        if let Err(join_err) = handle.await {
+            let msg = format!("Internal error: agent task crashed — {}", join_err);
+            error!("[engine] {}", msg);
+            let _ = panic_app.emit("engine-event", EngineEvent::Error {
+                session_id: panic_session_id,
+                run_id: panic_run_id,
+                message: msg,
+            });
         }
     });
 
