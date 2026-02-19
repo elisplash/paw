@@ -234,8 +234,8 @@ impl OpenAiProvider {
             if !response.status().is_success() {
                 let status = response.status().as_u16();
                 let body_text = response.text().await.unwrap_or_default();
-                last_error = format!("API error {}: {}", status, &body_text[..body_text.len().min(200)]);
-                error!("[engine] OpenAI error {}: {}", status, &body_text[..body_text.len().min(500)]);
+                last_error = format!("API error {}: {}", status, crate::engine::types::truncate_utf8(&body_text, 200));
+                error!("[engine] OpenAI error {}: {}", status, crate::engine::types::truncate_utf8(&body_text, 500));
                 if is_retryable_status(status) && attempt < MAX_RETRIES {
                     continue;
                 }
@@ -630,8 +630,8 @@ impl AnthropicProvider {
             if !response.status().is_success() {
                 let status = response.status().as_u16();
                 let body_text = response.text().await.unwrap_or_default();
-                last_error = format!("API error {}: {}", status, &body_text[..body_text.len().min(200)]);
-                error!("[engine] Anthropic error {}: {}", status, &body_text[..body_text.len().min(500)]);
+                last_error = format!("API error {}: {}", status, crate::engine::types::truncate_utf8(&body_text, 200));
+                error!("[engine] Anthropic error {}: {}", status, crate::engine::types::truncate_utf8(&body_text, 500));
                 if is_retryable_status(status) && attempt < MAX_RETRIES {
                     continue;
                 }

@@ -214,7 +214,7 @@ fn build_patterns() -> Vec<InjectionPattern> {
                     let trimmed = line.trim();
                     if trimmed.starts_with("System:") || trimmed.starts_with("Human:")
                         || trimmed.starts_with("Assistant:") {
-                        return Some(format!("Role prefix: {}", &trimmed[..trimmed.len().min(20)]));
+                        return Some(format!("Role prefix: {}", crate::engine::types::truncate_utf8(trimmed, 20)));
                     }
                 }
                 None

@@ -1721,7 +1721,7 @@ pub async fn execute_task(
                         let aid = uuid::Uuid::new_v4().to_string();
                         conn.execute(
                             "INSERT INTO task_activity (id, task_id, kind, agent, content) VALUES (?1, ?2, 'agent_completed', ?3, ?4)",
-                            rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} completed. Summary: {}", agent_id, &text[..text.len().min(200)])],
+                            rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} completed. Summary: {}", agent_id, crate::engine::types::truncate_utf8(&text, 200))],
                         ).ok();
                     }
                     Err(err) => {
@@ -2505,7 +2505,7 @@ pub async fn engine_project_run(
     // Spawn the orchestrator in background
     tauri::async_runtime::spawn(async move {
         match crate::engine::orchestrator::run_project(&app, &pid).await {
-            Ok(text) => info!("[orchestrator] Project {} completed: {}...", pid, &text[..text.len().min(200)]),
+            Ok(text) => info!("[orchestrator] Project {} completed: {}...", pid, crate::engine::types::truncate_utf8(&text, 200)),
             Err(e) => error!("[orchestrator] Project {} failed: {}", pid, e),
         }
     });

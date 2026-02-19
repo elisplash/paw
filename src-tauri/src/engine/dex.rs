@@ -2592,7 +2592,7 @@ pub async fn execute_dex_trending(
 
                             output.push_str(&format!("  {}. {} on {}\n", count + 1, token_addr, chain));
                             if !description.is_empty() {
-                                output.push_str(&format!("     {}\n", &description[..description.len().min(100)]));
+                                output.push_str(&format!("     {}\n", crate::engine::types::truncate_utf8(description, 100)));
                             }
                             if amount > 0.0 {
                                 output.push_str(&format!("     Boost amount: ${:.0}\n", amount));
@@ -2635,7 +2635,7 @@ pub async fn execute_dex_trending(
 
                             output.push_str(&format!("  {}. {} on {}\n", count + 1, token_addr, chain));
                             if !description.is_empty() {
-                                let desc_trimmed = &description[..description.len().min(120)];
+                                let desc_trimmed = crate::engine::types::truncate_utf8(description, 120);
                                 output.push_str(&format!("     {}\n", desc_trimmed));
                             }
                             if !url.is_empty() {

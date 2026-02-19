@@ -295,7 +295,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> Re
 
             info!("[twitch] {} in {}: {}",
                 display_name, channel,
-                if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
+                if content.len() > 50 { format!("{}...", crate::engine::types::truncate_utf8(&content, 50)) } else { content.clone() });
 
             // Access control
             let sender_lower = sender.to_lowercase();

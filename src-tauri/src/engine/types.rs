@@ -4,6 +4,25 @@
 
 use serde::{Deserialize, Serialize};
 
+// ── Utility ────────────────────────────────────────────────────────────
+
+/// UTF-8–safe string truncation.  Returns a `&str` of at most `max_bytes`
+/// bytes, backing up to the previous char boundary if `max_bytes` falls
+/// inside a multi-byte character.  Appends "…" when truncated.
+///
+/// Use this instead of `&s[..s.len().min(N)]` which panics on non-ASCII.
+pub fn truncate_utf8(s: &str, max_bytes: usize) -> &str {
+    if s.len() <= max_bytes {
+        return s;
+    }
+    // Walk backwards from max_bytes to find a valid char boundary
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    &s[..end]
+}
+
 // ── Model / Provider Config ────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
