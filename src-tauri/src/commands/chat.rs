@@ -11,7 +11,7 @@
 use tauri::{State, Emitter, Manager};
 use log::{info, warn, error};
 
-use crate::engine::commands::{EngineState, normalize_model_name, resolve_provider_for_model};
+use crate::commands::state::{EngineState, normalize_model_name, resolve_provider_for_model};
 use crate::engine::types::*;
 use crate::engine::providers::AnyProvider;
 use crate::engine::agent_loop;

@@ -780,7 +780,7 @@ pub async fn execute_dex_wallet_create(
     // Store private key encrypted in vault
     let private_key_hex = hex_encode(&signing_key.to_bytes());
 
-    let state = app_handle.try_state::<crate::engine::commands::EngineState>()
+    let state = app_handle.try_state::<crate::commands::state::EngineState>()
         .ok_or("Engine state not available")?;
     let vault_key = crate::engine::skills::get_vault_key()?;
 

@@ -3,7 +3,7 @@
 // Every tool call goes through here — this is the security enforcement point.
 
 use crate::engine::types::*;
-use crate::engine::commands::EngineState;
+use crate::commands::state::EngineState;
 use crate::engine::memory;
 use crate::engine::skills;
 use crate::engine::sandbox;

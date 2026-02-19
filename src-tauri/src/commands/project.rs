@@ -1,7 +1,7 @@
 // commands/project.rs — Thin wrappers for project/orchestrator commands.
 // Orchestration logic lives in engine/orchestrator.rs.
 
-use crate::engine::commands::EngineState;
+use crate::commands::state::EngineState;
 use crate::engine::types::*;
 use log::{info, error};
 use tauri::State;

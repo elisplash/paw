@@ -9,7 +9,7 @@
 use tauri::State;
 use log::info;
 
-use crate::engine::commands::EngineState;
+use crate::commands::state::EngineState;
 use crate::engine::types::*;
 
 // ── Agent CRUD ────────────────────────────────────────────────────────────────

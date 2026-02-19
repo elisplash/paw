@@ -1,7 +1,7 @@
 // commands/memory.rs — Thin wrappers for memory & embedding commands.
 // All business logic lives in engine/memory.rs.
 
-use crate::engine::commands::EngineState;
+use crate::commands::state::EngineState;
 use crate::engine::memory;
 use crate::engine::types::*;
 use log::info;

@@ -1,7 +1,7 @@
 // commands/skills.rs — Thin wrappers for skill vault commands.
 // Credential encryption lives in engine/skills.rs.
 
-use crate::engine::commands::EngineState;
+use crate::commands::state::EngineState;
 use crate::engine::skills;
 use log::info;
 use tauri::State;

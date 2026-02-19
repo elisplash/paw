@@ -5,7 +5,7 @@
 use crate::engine::types::*;
 use crate::engine::providers::AnyProvider;
 use crate::engine::tool_executor;
-use crate::engine::commands::{PendingApprovals, EngineState};
+use crate::commands::state::{EngineState, PendingApprovals, DailyTokenTracker};
 use log::{info, warn, error};
 use std::time::Duration;
 use tauri::{Emitter, Manager};
@@ -28,7 +28,7 @@ pub async fn run_agent_turn(
     tool_timeout_secs: u64,
     agent_id: &str,
     daily_budget_usd: f64,
-    daily_tokens: Option<&crate::engine::commands::DailyTokenTracker>,
+    daily_tokens: Option<&DailyTokenTracker>,
 ) -> Result<String, String> {
     let mut round = 0;
     let mut final_text = String::new();

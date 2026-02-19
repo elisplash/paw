@@ -13,7 +13,7 @@ use crate::engine::agent_loop;
 use crate::engine::skills;
 use crate::engine::memory;
 use crate::engine::injection;
-use crate::engine::commands::{EngineState, PendingApprovals};
+use crate::commands::state::{EngineState, PendingApprovals, normalize_model_name, resolve_provider_for_model};
 use log::{info, warn, error};
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
@@ -119,10 +119,10 @@ pub async fn run_channel_agent(
         let cfg = engine_state.config.lock().map_err(|e| format!("Lock: {}", e))?;
 
         let default_model = cfg.default_model.clone().unwrap_or_else(|| "gpt-4o".into());
-        let model = crate::engine::commands::normalize_model_name(
+        let model = normalize_model_name(
             &cfg.model_routing.resolve(agent_id, "worker", "", &default_model)
         ).to_string();
-        let provider = crate::engine::commands::resolve_provider_for_model(&model, &cfg.providers)
+        let provider = resolve_provider_for_model(&model, &cfg.providers)
             .or_else(|| {
                 cfg.default_provider.as_ref()
                     .and_then(|dp| cfg.providers.iter().find(|p| p.id == *dp).cloned())

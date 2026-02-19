@@ -273,7 +273,7 @@ pub async fn execute_sol_wallet_create(
     keypair_bytes[32..].copy_from_slice(public_key.as_bytes());
     let private_key_b58 = bs58::encode(&keypair_bytes).into_string();
 
-    let state = app_handle.try_state::<crate::engine::commands::EngineState>()
+    let state = app_handle.try_state::<crate::commands::state::EngineState>()
         .ok_or("Engine state not available")?;
     let vault_key = crate::engine::skills::get_vault_key()?;
 
