@@ -1331,6 +1331,7 @@ async fn run_worker_agent_loop(
 /// Uses smart prefix matching (gemini → Google, claude → Anthropic, etc.)
 /// Falls back to default provider, then first provider.
 fn resolve_provider_for_model(cfg: &EngineConfig, model: &str) -> Option<ProviderConfig> {
+    let model = crate::engine::commands::normalize_model_name(model);
     // Match model prefix to provider kind
     let provider = if model.starts_with("claude") || model.starts_with("anthropic") {
         cfg.providers.iter().find(|p| p.kind == ProviderKind::Anthropic).cloned()

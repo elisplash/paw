@@ -24,7 +24,7 @@ const POPULAR_MODELS: Record<string, string[]> = {
   ],
   anthropic: [
     'claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001',
-    'claude-sonnet-4-5-20250929', 'claude-3-5-sonnet-20241022', 'claude-3-5-haiku-20241022',
+    'claude-sonnet-4-5-20250929',
   ],
   google: [
     'gemini-2.5-pro', 'gemini-2.5-flash',
@@ -32,7 +32,7 @@ const POPULAR_MODELS: Record<string, string[]> = {
     'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-8b',
   ],
   openrouter: [
-    'anthropic/claude-sonnet-4-6', 'anthropic/claude-haiku-4-5-20251001', 'anthropic/claude-3-5-haiku-20241022',
+    'anthropic/claude-sonnet-4-6', 'anthropic/claude-haiku-4-5-20251001',
     'openai/gpt-4o', 'openai/gpt-4o-mini',
     'google/gemini-2.5-pro', 'google/gemini-2.5-flash',
     'meta-llama/llama-3.1-405b-instruct', 'meta-llama/llama-3.1-70b-instruct',

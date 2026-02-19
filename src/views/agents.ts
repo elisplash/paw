@@ -115,8 +115,6 @@ async function refreshAvailableModels() {
         { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5 ($1/$5)' },
         { id: 'claude-opus-4-6', name: 'Claude Opus 4.6 ($5/$25)' },
         { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5 (agentic)' },
-        { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet (budget)' },
-        { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku (cheapest)' },
       ],
       openai: [
         { id: 'gpt-4o', name: 'GPT-4o' },

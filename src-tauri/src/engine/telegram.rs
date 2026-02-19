@@ -511,7 +511,9 @@ async fn run_telegram_agent(
         let cfg = engine_state.config.lock().map_err(|e| format!("Lock: {}", e))?;
 
         let default_model = cfg.default_model.clone().unwrap_or_else(|| "gpt-4o".into());
-        let model = cfg.model_routing.resolve(agent_id, "worker", "", &default_model);
+        let model = crate::engine::commands::normalize_model_name(
+            &cfg.model_routing.resolve(agent_id, "worker", "", &default_model)
+        ).to_string();
         let provider = crate::engine::commands::resolve_provider_for_model(&model, &cfg.providers)
             .or_else(|| {
                 cfg.default_provider.as_ref()

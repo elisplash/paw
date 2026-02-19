@@ -79,11 +79,27 @@ impl DailyTokenTracker {
         if usd >= budget_usd { Some(usd) } else { None }
     }
 }
+/// Map retired / renamed model IDs to their current replacements.
+/// This lets old task configs and agent overrides stored in the DB keep working.
+pub fn normalize_model_name(model: &str) -> &str {
+    match model {
+        // Anthropic retired 3.5 model IDs
+        "claude-3-5-haiku-20241022" => "claude-haiku-4-5-20251001",
+        "claude-3-5-sonnet-20241022" => "claude-sonnet-4-6",
+        "claude-3-5-sonnet-20240620" => "claude-sonnet-4-6",
+        // OpenRouter prefixed variants
+        "anthropic/claude-3-5-haiku-20241022" => "anthropic/claude-haiku-4-5-20251001",
+        "anthropic/claude-3-5-sonnet-20241022" => "anthropic/claude-sonnet-4-6",
+        _ => model,
+    }
+}
+
 /// Resolve the correct provider for a given model name.
 /// First checks if the model's default_model matches any provider exactly,
 /// then matches by model prefix (claude→Anthropic, gemini→Google, gpt→OpenAI)
 /// and by base URL or provider ID for OpenAI-compatible providers.
 pub fn resolve_provider_for_model(model: &str, providers: &[ProviderConfig]) -> Option<ProviderConfig> {
+    let model = normalize_model_name(model);
     // 1. Exact match: a provider whose default_model matches exactly
     if let Some(p) = providers.iter().find(|p| p.default_model.as_deref() == Some(model)) {
         return Some(p.clone());
@@ -231,6 +247,8 @@ pub async fn engine_chat_send(
         } else {
             raw_model
         };
+        // Remap retired model IDs to current equivalents
+        let model = normalize_model_name(&model).to_string();
 
         // Find provider by ID or use the one that matches the model prefix
         let provider = if let Some(pid) = &request.provider_id {
@@ -1664,8 +1682,12 @@ pub async fn execute_task(
         // cheap/fast models to cron agents, and keep the best for chat.
         let agent_model = if let Some(ref task_model) = task.model {
             if !task_model.is_empty() {
-                info!("[engine] Task '{}' has explicit model override: {}", task.title, task_model);
-                task_model.clone()
+                let normalized = normalize_model_name(task_model).to_string();
+                if normalized != *task_model {
+                    info!("[engine] Task '{}' model remapped: {} → {}", task.title, task_model, normalized);
+                }
+                info!("[engine] Task '{}' has explicit model override: {}", task.title, normalized);
+                normalized
             } else {
                 model_routing.resolve(&agent_id, "worker", "", &default_model)
             }

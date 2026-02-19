@@ -29,3 +29,4 @@ resources/node/*.tar.gz
 *.db
 *.db-wal
 *.db-shm
+*.pdf
