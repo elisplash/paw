@@ -647,15 +647,12 @@ async fn create_evolution_instance(config: &WhatsAppConfig) -> Result<String, St
     let client = reqwest::Client::new();
     let url = format!("{}/instance/create", config.api_url);
 
+    // v1.x format: webhook is a plain string URL, no "integration" field.
+    // Webhook events are configured via container env vars (WEBHOOK_GLOBAL_*).
     let body = json!({
         "instanceName": config.instance_name,
-        "integration": "WHATSAPP-BAILEYS",
         "qrcode": true,
-        "webhook": {
-            "url": format!("http://host.docker.internal:{}/webhook/whatsapp", config.webhook_port),
-            "byEvents": true,
-            "events": ["MESSAGES_UPSERT", "QRCODE_UPDATED", "CONNECTION_UPDATE"],
-        }
+        "webhook": format!("http://host.docker.internal:{}/webhook/whatsapp", config.webhook_port),
     });
 
     let resp = client.post(&url)
