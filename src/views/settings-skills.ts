@@ -533,7 +533,7 @@ function renderCommunityCard(s: CommunitySkill): string {
     <div class="skill-badges-row">
       <span class="skill-badge">${msIcon('public')} Community</span>
       <span class="skill-badge">${msIcon('description')} Instruction</span>
-      <span class="skill-badge community-agent-badge" data-skill="${escHtml(s.id)}" style="cursor:pointer;user-select:none" title="Click to change agent assignment">
+      <span class="skill-badge">
         ${agentLabel}
       </span>
     </div>
@@ -674,43 +674,6 @@ function bindCommunityEvents(_installed: CommunitySkill[]): void {
     });
   });
 
-  // Agent assignment badges
-  document.querySelectorAll('.community-agent-badge').forEach(el => {
-    el.addEventListener('click', async () => {
-      const badge = el as HTMLElement;
-      const skillId = badge.dataset.skill!;
-      const skill = _installed.find(s => s.id === skillId);
-      if (!skill) return;
-
-      try {
-        const agents = await pawEngine.listAllAgents();
-        const agentIds = agents.map(a => a.agent_id);
-
-        const currentIds = skill.agent_ids || [];
-        const isAll = currentIds.length === 0;
-
-        // Build a simple prompt with agent options
-        const choices = ['All Agents', ...agentIds];
-        const currentLabel = isAll ? 'All Agents' : currentIds.join(', ');
-        const choice = prompt(
-          `Assign "${skill.name}" to which agents?\n\nCurrent: ${currentLabel}\nAvailable: ${choices.join(', ')}\n\nEnter comma-separated agent IDs, or "all" for all agents:`
-        );
-
-        if (choice === null) return; // cancelled
-
-        const newIds = choice.trim().toLowerCase() === 'all' || choice.trim() === ''
-          ? []
-          : choice.split(',').map(s => s.trim()).filter(Boolean);
-
-        await pawEngine.communitySkillSetAgents(skillId, newIds);
-        const label = newIds.length === 0 ? 'all agents' : newIds.join(', ');
-        showVaultToast(`${skill.name} → ${label}`, 'success');
-        await loadSkillsSettings();
-      } catch (err) {
-        showVaultToast(`Failed: ${err}`, 'error');
-      }
-    });
-  });
 }
 
 async function browseRepo(source: string): Promise<void> {

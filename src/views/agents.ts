@@ -2,7 +2,7 @@
 // Each agent has its own personality, skills, and memories
 // Supports both localStorage agents (manually created) and backend agents (created by orchestrator)
 
-import { pawEngine, type BackendAgent } from '../engine';
+import { pawEngine, type BackendAgent, type CommunitySkill } from '../engine';
 import { isEngineMode } from '../engine-bridge';
 import { listen } from '@tauri-apps/api/event';
 
@@ -656,6 +656,16 @@ function openAgentEditor(agentId: string) {
               </label>
             `).join('')}
           </div>
+
+          <div id="agent-community-skills-section" style="margin-top:24px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <span class="ms ms-sm">extension</span> Community Skills
+            </div>
+            <div class="form-hint" style="margin-bottom:12px">Enable or disable installed community skills for this agent. Install new skills from the <strong>Skills</strong> tab.</div>
+            <div id="agent-community-skills-grid" class="agent-skills-grid">
+              <div style="font-size:12px;color:var(--text-muted);padding:8px">Loading...</div>
+            </div>
+          </div>
         </div>
         
         <!-- Advanced Tab -->
@@ -697,6 +707,9 @@ function openAgentEditor(agentId: string) {
   const personality = { ...agent.personality };
   let boundaries = [...agent.boundaries];
   let selectedAvatar = agent.avatar;
+
+  // Load community skills for this agent
+  loadAgentCommunitySkills(modal, agent.id);
 
   // Tab switching
   modal.querySelectorAll('.agent-tab').forEach(tab => {
@@ -826,6 +839,82 @@ function openAgentEditor(agentId: string) {
   });
 
   renderBoundaries();
+}
+
+// ── Community Skills per-agent management ────────────────────────────────
+
+async function loadAgentCommunitySkills(modal: HTMLElement, agentId: string): Promise<void> {
+  const grid = modal.querySelector('#agent-community-skills-grid');
+  if (!grid) return;
+
+  try {
+    const allSkills: CommunitySkill[] = await pawEngine.communitySkillsList();
+
+    if (allSkills.length === 0) {
+      grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px">No community skills installed. Browse and install from the <strong>Skills</strong> tab.</div>`;
+      return;
+    }
+
+    grid.innerHTML = allSkills.map(s => {
+      // Skill is assigned to this agent if agent_ids is empty (all agents) or includes this agent
+      const isAssigned = !s.agent_ids || s.agent_ids.length === 0 || s.agent_ids.includes(agentId);
+      return `
+        <label class="agent-skill-toggle">
+          <input type="checkbox" class="agent-community-toggle" data-community-skill="${escHtml(s.id)}" ${isAssigned ? 'checked' : ''}>
+          <div class="agent-skill-info">
+            <div class="agent-skill-name" style="display:flex;align-items:center;gap:4px">
+              <span class="ms ms-sm" style="font-size:14px;color:var(--accent)">extension</span>
+              ${escHtml(s.name)}
+            </div>
+            <div class="agent-skill-desc">${escHtml(s.description)}</div>
+          </div>
+        </label>`;
+    }).join('');
+
+    // Bind toggle events
+    grid.querySelectorAll('.agent-community-toggle').forEach(el => {
+      el.addEventListener('change', async (e) => {
+        const input = e.target as HTMLInputElement;
+        const skillId = input.dataset.communitySkill!;
+        const skill = allSkills.find(sk => sk.id === skillId);
+        if (!skill) return;
+
+        try {
+          const currentIds = skill.agent_ids || [];
+
+          let newIds: string[];
+          if (input.checked) {
+            // Adding this agent: if currently empty (all agents), keep empty; otherwise add this agent
+            if (currentIds.length === 0) {
+              // Already assigned to all agents — no change needed
+              return;
+            }
+            newIds = [...currentIds, agentId].filter((v, i, a) => a.indexOf(v) === i);
+          } else {
+            // Removing this agent
+            if (currentIds.length === 0) {
+              // Was "all agents" — now need to list all EXCEPT this one
+              const agents = await pawEngine.listAllAgents();
+              newIds = agents.map(a => a.agent_id).filter(id => id !== agentId);
+            } else {
+              newIds = currentIds.filter(id => id !== agentId);
+            }
+          }
+
+          await pawEngine.communitySkillSetAgents(skillId, newIds);
+          // Update local state
+          skill.agent_ids = newIds;
+          const name = skill.name || skillId.split('/').pop() || skillId;
+          showToast(`${name} ${input.checked ? 'enabled' : 'disabled'} for this agent`, 'success');
+        } catch (err) {
+          showToast(`Failed: ${err}`, 'error');
+          input.checked = !input.checked;
+        }
+      });
+    });
+  } catch (err) {
+    grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px">Could not load community skills</div>`;
+  }
 }
 
 function showToast(message: string, type: 'success' | 'error' = 'success') {
