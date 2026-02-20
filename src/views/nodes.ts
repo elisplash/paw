@@ -60,7 +60,7 @@ export async function loadNodes() {
     engineSection.innerHTML = `
       <h3 class="settings-subsection-title">Engine Status</h3>
       <div style="display:flex;gap:12px;align-items:center;padding:8px 0">
-        <span style="font-size:24px">${engineRunning ? '🟢' : '🔴'}</span>
+        <span style="font-size:24px"><span class="ms" style="color:${engineRunning ? 'var(--success)' : 'var(--danger)'}">circle</span></span>
         <div>
           <div style="font-weight:600;font-size:14px">Paw Engine</div>
           <div style="font-size:12px;color:var(--text-muted)">${engineRunning ? 'Running — Tauri IPC connected' : 'Not responding'}</div>
@@ -82,9 +82,9 @@ export async function loadNodes() {
         card.style.cssText = 'display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-light, rgba(255,255,255,0.06))';
 
         const kindIcons: Record<string, string> = {
-          ollama: '🦙', openai: '🤖', anthropic: '🧠', google: '🔮', openrouter: '🌐', custom: '⚙️'
+          ollama: 'pets', openai: 'smart_toy', anthropic: 'psychology', google: 'auto_awesome', openrouter: 'language', custom: 'build'
         };
-        const icon = kindIcons[prov.kind.toLowerCase()] ?? '⚡';
+        const icon = `<span class="ms ms-sm">${kindIcons[prov.kind.toLowerCase()] ?? 'bolt'}</span>`;
         const isDefault = prov.id === config.default_provider;
         const hasKey = prov.kind.toLowerCase() === 'ollama' || (prov.api_key && prov.api_key.length > 0);
         const url = prov.base_url || (prov.kind.toLowerCase() === 'ollama' ? 'http://localhost:11434' : '—');
@@ -138,7 +138,7 @@ export async function loadNodes() {
       modelSection.innerHTML = `
         <h3 class="settings-subsection-title">Active Model</h3>
         <div style="display:flex;gap:8px;align-items:center;padding:6px 0">
-          <span style="font-size:16px">🎯</span>
+          <span style="font-size:16px"><span class="ms ms-sm">flag</span></span>
           <span style="font-weight:600;font-size:13px;font-family:var(--font-mono)">${esc(config.default_model)}</span>
           ${config.default_provider ? `<span style="font-size:11px;color:var(--text-muted)">via ${esc(config.default_provider)}</span>` : ''}
         </div>

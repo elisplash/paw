@@ -65,9 +65,23 @@ const POPULAR_MODELS: Record<string, string[]> = {
 };
 
 const KIND_LABELS: Record<string, string> = {
-  ollama: '🦙 Ollama', openai: '🤖 OpenAI', anthropic: '🧠 Anthropic',
-  google: '🔮 Google', openrouter: '🌐 OpenRouter', custom: '🔧 Custom',
+  ollama: 'Ollama', openai: 'OpenAI', anthropic: 'Anthropic',
+  google: 'Google', openrouter: 'OpenRouter', custom: 'Custom',
+  deepseek: 'DeepSeek', grok: 'xAI (Grok)', mistral: 'Mistral', moonshot: 'Moonshot',
 };
+
+/** Material Symbols icon names for each provider kind */
+export const PROVIDER_ICONS: Record<string, string> = {
+  ollama: 'pets', openai: 'smart_toy', anthropic: 'psychology',
+  google: 'auto_awesome', openrouter: 'language', custom: 'build',
+  deepseek: 'explore', grok: 'bolt', mistral: 'air', moonshot: 'dark_mode',
+};
+
+/** Render provider icon as Material Symbol span */
+export function providerIcon(kind: string, size = 'ms-sm'): string {
+  const name = PROVIDER_ICONS[kind] ?? 'build';
+  return `<span class="ms ${size}">${name}</span>`;
+}
 
 interface ProviderInfo {
   id: string;
@@ -151,7 +165,7 @@ export function populateModelSelect(
     } else if (prevValue && prevValue !== 'default' && prevValue !== '') {
       // The user's model isn't in our list — add it as a custom entry
       const customGroup = document.createElement('optgroup');
-      customGroup.label = '📌 Current';
+      customGroup.label = 'Current';
       const opt = document.createElement('option');
       opt.value = prevValue;
       opt.textContent = prevValue;

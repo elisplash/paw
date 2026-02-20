@@ -467,7 +467,7 @@
             <div class="tasks-board" id="tasks-board">
               <div class="tasks-column" data-status="inbox">
                 <div class="tasks-column-header">
-                  <span class="tasks-column-icon">📥</span>
+                  <span class="tasks-column-icon"><span class="ms ms-sm">inbox</span></span>
                   <span class="tasks-column-title">Inbox</span>
                   <span class="tasks-column-count" id="tasks-count-inbox">0</span>
                   <button class="tasks-column-add" data-status="inbox" title="Add task">+</button>
@@ -477,7 +477,7 @@
 
               <div class="tasks-column" data-status="assigned">
                 <div class="tasks-column-header">
-                  <span class="tasks-column-icon">👤</span>
+                  <span class="tasks-column-icon"><span class="ms ms-sm">person</span></span>
                   <span class="tasks-column-title">Assigned</span>
                   <span class="tasks-column-count" id="tasks-count-assigned">0</span>
                 </div>
@@ -486,7 +486,7 @@
 
               <div class="tasks-column" data-status="in_progress">
                 <div class="tasks-column-header">
-                  <span class="tasks-column-icon">⚡</span>
+                  <span class="tasks-column-icon"><span class="ms ms-sm">bolt</span></span>
                   <span class="tasks-column-title">In Progress</span>
                   <span class="tasks-column-count" id="tasks-count-in_progress">0</span>
                 </div>
@@ -495,7 +495,7 @@
 
               <div class="tasks-column" data-status="review">
                 <div class="tasks-column-header">
-                  <span class="tasks-column-icon">🔍</span>
+                  <span class="tasks-column-icon"><span class="ms ms-sm">search</span></span>
                   <span class="tasks-column-title">Review</span>
                   <span class="tasks-column-count" id="tasks-count-review">0</span>
                 </div>
@@ -504,7 +504,7 @@
 
               <div class="tasks-column" data-status="blocked">
                 <div class="tasks-column-header">
-                  <span class="tasks-column-icon">🚫</span>
+                  <span class="tasks-column-icon"><span class="ms ms-sm">block</span></span>
                   <span class="tasks-column-title">Blocked</span>
                   <span class="tasks-column-count" id="tasks-count-blocked">0</span>
                 </div>
@@ -513,7 +513,7 @@
 
               <div class="tasks-column tasks-column-done" data-status="done">
                 <div class="tasks-column-header">
-                  <span class="tasks-column-icon">✅</span>
+                  <span class="tasks-column-icon"><span class="ms ms-sm">check_circle</span></span>
                   <span class="tasks-column-title">Done</span>
                   <span class="tasks-column-count" id="tasks-count-done">0</span>
                 </div>
@@ -557,10 +557,10 @@
                   <div class="tasks-modal-field">
                     <label>Priority</label>
                     <select id="tasks-modal-input-priority" class="input">
-                      <option value="low">🟢 Low</option>
-                      <option value="medium" selected>🟡 Medium</option>
-                      <option value="high">🟠 High</option>
-                      <option value="urgent">🔴 Urgent</option>
+                      <option value="low">Low</option>
+                      <option value="medium" selected>Medium</option>
+                      <option value="high">High</option>
+                      <option value="urgent">Urgent</option>
                     </select>
                   </div>
                   <div class="tasks-modal-field">
@@ -1524,24 +1524,24 @@
         </div>
 
         <!-- ═══ Canvas View — Visual Workspace ═══ -->
-        <div class="view" id="canvas-view" style="display:flex;flex-direction:column;height:100%">
-          <div class="view-header" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
-            <div style="display:flex;align-items:center;gap:12px">
+        <div class="view" id="canvas-view">
+          <div class="view-header canvas-header">
+            <div class="canvas-header-left">
               <h1 class="view-title" style="margin:0">Canvas</h1>
               <button class="btn btn-primary btn-sm" id="canvas-new-btn">+ New</button>
-              <button class="btn btn-ghost btn-sm" id="canvas-delete-btn" title="Delete active canvas">🗑️</button>
+              <button class="btn btn-ghost btn-sm" id="canvas-delete-btn" title="Delete active canvas"><span class="ms ms-sm">delete</span></button>
             </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <div id="canvas-toolbar" style="display:flex;gap:4px;border-right:1px solid var(--border);padding-right:8px"></div>
+            <div class="canvas-header-right">
+              <div id="canvas-toolbar" class="canvas-toolbar-icons"></div>
               <button class="btn btn-ghost btn-sm" id="canvas-zoom-out" title="Zoom out">−</button>
-              <span id="canvas-zoom-label" style="font-size:12px;min-width:40px;text-align:center;color:var(--text-muted)">100%</span>
+              <span id="canvas-zoom-label" class="canvas-zoom-label">100%</span>
               <button class="btn btn-ghost btn-sm" id="canvas-zoom-in" title="Zoom in">+</button>
-              <button class="btn btn-ghost btn-sm" id="canvas-zoom-reset" title="Reset view">⟳</button>
+              <button class="btn btn-ghost btn-sm" id="canvas-zoom-reset" title="Reset view"><span class="ms ms-sm">restart_alt</span></button>
             </div>
           </div>
-          <div style="display:flex;flex:1;overflow:hidden">
-            <div id="canvas-list" style="width:200px;border-right:1px solid var(--border);overflow-y:auto;padding:8px;flex-shrink:0"></div>
-            <div id="canvas-surface" style="flex:1;position:relative;overflow:hidden;background:var(--bg-primary)"></div>
+          <div class="canvas-body">
+            <div id="canvas-list" class="canvas-sidebar"></div>
+            <div id="canvas-surface" class="canvas-surface"></div>
           </div>
         </div>
 
@@ -1674,8 +1674,8 @@
               <label class="form-label" style="margin-bottom:0; min-width:80px;">Theme</label>
               <div id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">
                 <div class="theme-toggle-track">
-                  <span class="theme-toggle-icon theme-toggle-dark">🌙</span>
-                  <span class="theme-toggle-icon theme-toggle-light">☀️</span>
+                  <span class="theme-toggle-icon theme-toggle-dark"><span class="ms ms-sm">dark_mode</span></span>
+                  <span class="theme-toggle-icon theme-toggle-light"><span class="ms ms-sm">light_mode</span></span>
                   <div class="theme-toggle-thumb"></div>
                 </div>
               </div>
@@ -1687,7 +1687,7 @@
             <h2 class="settings-section-title">About</h2>
             <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
               <strong>Pawz</strong> v0.1.0 — Your AI command center<br>
-              Pawz are safer than Claws 🐾<br>
+              Pawz are safer than Claws<br>
               <a href="https://github.com/elisplash/paw" target="_blank" style="color: var(--accent);">View source on GitHub</a>
             </p>
           </div>
@@ -1856,19 +1856,19 @@
             <!-- Security score card -->
             <div class="audit-score-card" id="audit-score-card">
               <div class="audit-score-item" id="audit-score-csp">
-                <span class="audit-score-icon">✅</span>
+                <span class="audit-score-icon"><span class="ms ms-sm">verified</span></span>
                 <span class="audit-score-label">CSP Active</span>
               </div>
               <div class="audit-score-item" id="audit-score-denied">
-                <span class="audit-score-icon">🛡</span>
+                <span class="audit-score-icon"><span class="ms ms-sm">shield</span></span>
                 <span class="audit-score-label" id="audit-score-denied-label">0 blocked</span>
               </div>
               <div class="audit-score-item" id="audit-score-allowed">
-                <span class="audit-score-icon">✓</span>
+                <span class="audit-score-icon"><span class="ms ms-sm">check</span></span>
                 <span class="audit-score-label" id="audit-score-allowed-label">0 allowed</span>
               </div>
               <div class="audit-score-item" id="audit-score-critical">
-                <span class="audit-score-icon">⚠</span>
+                <span class="audit-score-icon"><span class="ms ms-sm">warning</span></span>
                 <span class="audit-score-label" id="audit-score-critical-label">0 critical</span>
               </div>
             </div>

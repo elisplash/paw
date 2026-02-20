@@ -110,7 +110,11 @@ function renderDashboard(
   // Recent activity streak
   const recentTrades = trades.slice(0, 5);
   const latestStatus = recentTrades.length > 0 ? recentTrades[0].status : 'none';
-  const streakEmoji = latestStatus === 'completed' ? '🟢' : latestStatus === 'pending' ? '🟡' : '⚪';
+  const streakIcon = latestStatus === 'completed'
+    ? '<span class="ms ms-sm" style="color:var(--success)">circle</span>'
+    : latestStatus === 'pending'
+      ? '<span class="ms ms-sm" style="color:var(--warning)">circle</span>'
+      : '<span class="ms ms-sm" style="color:var(--text-muted)">circle</span>';
 
   container.innerHTML = `
     <!-- Summary Cards -->
@@ -143,7 +147,7 @@ function renderDashboard(
       </div>
       <div class="trading-card">
         <div class="trading-card-label">Total Operations</div>
-        <div class="trading-card-value">${streakEmoji} ${totalOps}</div>
+        <div class="trading-card-value">${streakIcon} ${totalOps}</div>
         <div class="trading-card-sub">${latestStatus === 'completed' ? 'All systems go' : latestStatus === 'pending' ? 'Pending...' : 'Idle'}</div>
       </div>
       <div class="trading-card">
@@ -376,9 +380,9 @@ function renderPositionsPanel(positions: Position[]): string {
               </thead>
               <tbody>
                 ${closedPositions.map(p => {
-                  const statusLabel = p.status === 'closed_sl' ? '🛑 Stop-Loss'
-                    : p.status === 'closed_tp' ? '🎯 Take-Profit'
-                    : '✋ Manual';
+                  const statusLabel = p.status === 'closed_sl' ? '<span class="ms ms-sm">dangerous</span> Stop-Loss'
+                    : p.status === 'closed_tp' ? '<span class="ms ms-sm">flag</span> Take-Profit'
+                    : '<span class="ms ms-sm">pan_tool</span> Manual';
                   return `<tr>
                     <td>${escHtml(p.symbol)}</td>
                     <td>$${formatPrice(p.entry_price_usd)}</td>

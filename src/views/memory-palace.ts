@@ -393,7 +393,7 @@ async function renderEmbeddingStatus(stats: { total_memories: number; has_embedd
       banner.style.border = '1px solid var(--warning-border, rgba(234,179,8,0.3))';
       banner.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px">⚠️</span>
+          <span style="font-size:16px"><span class="ms ms-sm">warning</span></span>
           <div>
             <strong>Ollama not running</strong> — semantic memory search is disabled.
             <div style="color:var(--text-muted);margin-top:2px">
@@ -408,7 +408,7 @@ async function renderEmbeddingStatus(stats: { total_memories: number; has_embedd
       banner.style.border = '1px solid var(--info-border, rgba(59,130,246,0.3))';
       banner.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px">📦</span>
+          <span style="font-size:16px"><span class="ms ms-sm">inventory_2</span></span>
           <div style="flex:1">
             <strong>Embedding model needed</strong> — <code style="font-size:11px;background:var(--bg-tertiary,rgba(255,255,255,0.06));padding:1px 5px;border-radius:3px">${escHtml(status.model_name)}</code> not found.
             <div style="color:var(--text-muted);margin-top:2px">
@@ -446,7 +446,7 @@ async function renderEmbeddingStatus(stats: { total_memories: number; has_embedd
       banner.style.border = '1px solid var(--info-border, rgba(59,130,246,0.3))';
       banner.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px">
-          <span style="font-size:16px">🔄</span>
+          <span style="font-size:16px"><span class="ms ms-sm">sync</span></span>
           <div style="flex:1">
             <strong>Embeddings ready</strong> — ${stats.total_memories} memories need vectors for semantic search.
           </div>

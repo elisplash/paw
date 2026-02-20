@@ -49,23 +49,25 @@ export async function loadModels() {
     }
 
     const KIND_ICONS: Record<string, string> = {
-      ollama: '🦙', openai: '🤖', anthropic: '🧠', google: '🔮', openrouter: '🌐', custom: '🔧',
+      ollama: 'pets', openai: 'smart_toy', anthropic: 'psychology', google: 'auto_awesome', openrouter: 'language', custom: 'build',
+      deepseek: 'explore', grok: 'bolt', mistral: 'air', moonshot: 'dark_mode',
     };
 
     for (const p of providers) {
-      const icon = KIND_ICONS[p.kind] ?? '🔧';
+      const iconName = KIND_ICONS[p.kind] ?? 'build';
+      const iconHtml = `<span class="ms ms-sm">${iconName}</span>`;
       const isDefault = p.id === config.default_provider;
       const card = document.createElement('div');
       card.className = 'model-card';
       card.innerHTML = `
         <div class="model-card-header">
-          <span class="model-card-name">${icon} ${escHtml(p.id)}</span>
-          <span class="model-card-provider">${escHtml(p.kind)}${isDefault ? ' · Default' : ''}</span>
+          <span class="model-card-name">${iconHtml} ${escHtml(p.id)}</span>
+          <span class="model-card-provider">${escHtml(p.kind)}${isDefault ? ' \u00b7 Default' : ''}</span>
         </div>
         <div class="model-card-meta">
           ${p.default_model ? `<span>Model: ${escHtml(p.default_model)}</span>` : '<span>No default model</span>'}
           ${p.base_url ? `<span>${escHtml(p.base_url)}</span>` : ''}
-          <span>${p.api_key ? '🔑 Key set' : p.kind === 'ollama' ? '📍 Local' : '⚠️ No key'}</span>
+          <span>${p.api_key ? '<span class="ms ms-sm">key</span> Key set' : p.kind === 'ollama' ? '<span class="ms ms-sm">home</span> Local' : '<span class="ms ms-sm">warning</span> No key'}</span>
         </div>
       `;
 
@@ -84,7 +86,7 @@ export async function loadModels() {
       infoCard.style.borderLeft = '3px solid var(--accent)';
       infoCard.innerHTML = `
         <div class="model-card-header">
-          <span class="model-card-name">⭐ Default Model</span>
+          <span class="model-card-name"><span class="ms ms-sm">star</span> Default Model</span>
         </div>
         <div class="model-card-meta">
           <span>${escHtml(config.default_model)}</span>

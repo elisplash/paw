@@ -87,7 +87,7 @@ export async function interceptSlashCommand(
   if (err) {
     return {
       handled: true,
-      systemMessage: `⚠️ ${err}`,
+      systemMessage: `${err}`,
       preventDefault: true,
     };
   }
@@ -108,7 +108,7 @@ async function executeCommand(
       _overrides.model = cmd.args;
       return {
         handled: true,
-        systemMessage: `🔄 Model switched to **${cmd.args}** for this session.`,
+        systemMessage: `Model switched to **${cmd.args}** for this session.`,
         preventDefault: true,
       };
 
@@ -116,7 +116,7 @@ async function executeCommand(
       _overrides.thinkingLevel = cmd.args.toLowerCase();
       return {
         handled: true,
-        systemMessage: `🧠 Thinking level set to **${cmd.args.toLowerCase()}**.`,
+        systemMessage: `Thinking level set to **${cmd.args.toLowerCase()}**.`,
         preventDefault: true,
       };
 
@@ -125,7 +125,7 @@ async function executeCommand(
       _overrides.temperature = temp;
       return {
         handled: true,
-        systemMessage: `🌡️ Temperature set to **${temp}**.`,
+        systemMessage: `Temperature set to **${temp}**.`,
         preventDefault: true,
       };
     }
@@ -135,7 +135,7 @@ async function executeCommand(
       localStorage.setItem('paw_slash_mode_override', cmd.args);
       return {
         handled: true,
-        systemMessage: `🎭 Mode switched to **${cmd.args}**.`,
+        systemMessage: `Mode switched to **${cmd.args}**.`,
         preventDefault: true,
       };
 
@@ -144,7 +144,7 @@ async function executeCommand(
       localStorage.setItem('paw_slash_agent_override', cmd.args);
       return {
         handled: true,
-        systemMessage: `🤖 Agent switched to **${cmd.args}**.`,
+        systemMessage: `Agent switched to **${cmd.args}**.`,
         preventDefault: true,
       };
 
@@ -156,21 +156,21 @@ async function executeCommand(
           ctx.clearChatUI();
           return {
             handled: true,
-            systemMessage: '🗑️ Session history cleared.',
+            systemMessage: 'Session history cleared.',
             preventDefault: true,
             refreshHistory: true,
           };
         } catch (e) {
           return {
             handled: true,
-            systemMessage: `❌ Failed to clear session: ${e}`,
+            systemMessage: `Failed to clear session: ${e}`,
             preventDefault: true,
           };
         }
       }
       return {
         handled: true,
-        systemMessage: '⚠️ No active session to clear.',
+        systemMessage: 'No active session to clear.',
         preventDefault: true,
       };
 
@@ -184,15 +184,15 @@ async function executeCommand(
         return {
           handled: true,
           systemMessage: cmd.args
-            ? `📝 New session created: **${cmd.args}**`
-            : '📝 New session created.',
+            ? `New session created: **${cmd.args}**`
+            : 'New session created.',
           preventDefault: true,
           refreshSessions: true,
         };
       } catch (e) {
         return {
           handled: true,
-          systemMessage: `❌ Failed to create session: ${e}`,
+          systemMessage: `Failed to create session: ${e}`,
           preventDefault: true,
         };
       }
@@ -203,21 +203,21 @@ async function executeCommand(
           await pawEngine.sessionRename(ctx.sessionKey, cmd.args);
           return {
             handled: true,
-            systemMessage: `✏️ Session renamed to **${cmd.args}**.`,
+            systemMessage: `Session renamed to **${cmd.args}**.`,
             preventDefault: true,
             refreshSessions: true,
           };
         } catch (e) {
           return {
             handled: true,
-            systemMessage: `❌ Failed to rename session: ${e}`,
+            systemMessage: `Failed to rename session: ${e}`,
             preventDefault: true,
           };
         }
       }
       return {
         handled: true,
-        systemMessage: '⚠️ No active session to rename.',
+        systemMessage: 'No active session to rename.',
         preventDefault: true,
       };
 
@@ -227,13 +227,13 @@ async function executeCommand(
         const memId = await pawEngine.memoryStore(cmd.args, 'user', 7);
         return {
           handled: true,
-          systemMessage: `🧠 Stored in memory (id: \`${memId}\`): "${cmd.args.slice(0, 80)}${cmd.args.length > 80 ? '…' : ''}"`,
+          systemMessage: `Stored in memory (id: \`${memId}\`): "${cmd.args.slice(0, 80)}${cmd.args.length > 80 ? '…' : ''}"`,
           preventDefault: true,
         };
       } catch (e) {
         return {
           handled: true,
-          systemMessage: `❌ Failed to store memory: ${e}`,
+          systemMessage: `Failed to store memory: ${e}`,
           preventDefault: true,
         };
       }
@@ -243,13 +243,13 @@ async function executeCommand(
         await pawEngine.memoryDelete(cmd.args);
         return {
           handled: true,
-          systemMessage: `🗑️ Memory \`${cmd.args}\` deleted.`,
+          systemMessage: `Memory \`${cmd.args}\` deleted.`,
           preventDefault: true,
         };
       } catch (e) {
         return {
           handled: true,
-          systemMessage: `❌ Failed to delete memory: ${e}`,
+          systemMessage: `Failed to delete memory: ${e}`,
           preventDefault: true,
         };
       }
@@ -260,7 +260,7 @@ async function executeCommand(
         if (memories.length === 0) {
           return {
             handled: true,
-            systemMessage: `🔍 No memories found for "${cmd.args}".`,
+            systemMessage: `No memories found for "${cmd.args}".`,
             preventDefault: true,
           };
         }
@@ -269,13 +269,13 @@ async function executeCommand(
         );
         return {
           handled: true,
-          systemMessage: `🔍 **Memories matching "${cmd.args}":**\n${memLines.join('\n')}`,
+          systemMessage: `**Memories matching "${cmd.args}":**\n${memLines.join('\n')}`,
           preventDefault: true,
         };
       } catch (e) {
         return {
           handled: true,
-          systemMessage: `❌ Memory search failed: ${e}`,
+          systemMessage: `Memory search failed: ${e}`,
           preventDefault: true,
         };
       }
@@ -320,7 +320,7 @@ async function executeCommand(
     default:
       return {
         handled: true,
-        systemMessage: `⚠️ Command /${cmd.name} is recognized but not yet implemented.`,
+        systemMessage: `Command /${cmd.name} is recognized but not yet implemented.`,
         preventDefault: true,
       };
   }
@@ -332,7 +332,7 @@ async function executeCompact(ctx: CommandContext): Promise<CommandResult> {
   if (!ctx.sessionKey) {
     return {
       handled: true,
-      systemMessage: '⚠️ No active session to compact.',
+      systemMessage: 'No active session to compact.',
       preventDefault: true,
     };
   }
@@ -344,7 +344,7 @@ async function executeCompact(ctx: CommandContext): Promise<CommandResult> {
     return {
       handled: true,
       systemMessage: [
-        `📦 **Session compacted successfully**`,
+        `**Session compacted successfully**`,
         `  Messages: ${result.messages_before} → ${result.messages_after}`,
         `  Tokens: ~${result.tokens_before.toLocaleString()} → ~${result.tokens_after.toLocaleString()} (saved ~${saved.toLocaleString()})`,
         `  Summary: ${result.summary_length} chars`,
@@ -361,7 +361,7 @@ async function executeCompact(ctx: CommandContext): Promise<CommandResult> {
       if (msgCount < 6) {
         return {
           handled: true,
-          systemMessage: '📦 Session is too short to compact (< 6 messages).',
+          systemMessage: 'Session is too short to compact (< 6 messages).',
           preventDefault: true,
         };
       }
@@ -377,14 +377,14 @@ async function executeCompact(ctx: CommandContext): Promise<CommandResult> {
 
       return {
         handled: true,
-        systemMessage: `📦 **Compacting session** (${msgCount} messages, ~${estimatedTokens.toLocaleString()} tokens).\nAsking AI to summarize…`,
+        systemMessage: `**Compacting session** (${msgCount} messages, ~${estimatedTokens.toLocaleString()} tokens).\nAsking AI to summarize…`,
         rewrittenInput: summaryPrompt,
         preventDefault: false,
       };
     } catch (inner) {
       return {
         handled: true,
-        systemMessage: `❌ Compaction failed: ${e}`,
+        systemMessage: `Compaction failed: ${e}`,
         preventDefault: true,
       };
     }
@@ -402,19 +402,19 @@ async function executeStatus(ctx: CommandContext): Promise<CommandResult> {
       .map(([k, v]) => `  ${k}: **${v}**`);
 
     const lines = [
-      '**🔧 Engine Status**',
-      `  Ready: ${status.ready ? '✅' : '❌'}`,
+      '**Engine Status**',
+      `  Ready: ${status.ready ? 'Yes' : 'No'}`,
       `  Providers: ${status.providers ?? 0}`,
       `  Default model: **${config.default_model || 'none'}**`,
       `  Session: \`${ctx.sessionKey || 'none'}\``,
       '',
-      '**🧠 Memory**',
+      '**Memory**',
       `  Total memories: ${memStats.total_memories ?? 0}`,
-      `  Has embeddings: ${memStats.has_embeddings ? '✅' : '❌'}`,
+      `  Has embeddings: ${memStats.has_embeddings ? 'Yes' : 'No'}`,
     ];
 
     if (overrideLines.length > 0) {
-      lines.push('', '**⚡ Session Overrides**', ...overrideLines);
+      lines.push('', '**Session Overrides**', ...overrideLines);
     }
 
     return {
@@ -425,7 +425,7 @@ async function executeStatus(ctx: CommandContext): Promise<CommandResult> {
   } catch (e) {
     return {
       handled: true,
-      systemMessage: `❌ Failed to get status: ${e}`,
+      systemMessage: `Failed to get status: ${e}`,
       preventDefault: true,
     };
   }
@@ -438,7 +438,7 @@ function executeDebugToggle(): CommandResult {
 
   return {
     handled: true,
-    systemMessage: `🐛 Debug mode **${next ? 'enabled' : 'disabled'}**.`,
+    systemMessage: `Debug mode **${next ? 'enabled' : 'disabled'}**.`,
     preventDefault: true,
   };
 }

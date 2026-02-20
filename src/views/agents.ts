@@ -370,7 +370,7 @@ function renderAgents() {
       </div>
       <div class="agent-actions">
         <button class="btn btn-primary btn-sm agent-chat-btn">Chat</button>
-        <button class="btn btn-ghost btn-sm agent-minichat-btn" title="Open mini chat window">💬</button>
+        <button class="btn btn-ghost btn-sm agent-minichat-btn" title="Open mini chat window"><span class="ms ms-sm">chat</span></button>
         <button class="btn btn-ghost btn-sm agent-edit-btn">Edit</button>
       </div>
     </div>
@@ -430,22 +430,22 @@ function openAgentCreator() {
           <div class="agent-template-label">Start from a template</div>
           <div class="agent-template-grid">
             <div class="agent-template-card selected" data-template="general">
-              <div class="agent-template-icon">🤖</div>
+              <div class="agent-template-icon"><span class="ms">smart_toy</span></div>
               <div class="agent-template-name">General</div>
               <div class="agent-template-desc">All-purpose assistant</div>
             </div>
             <div class="agent-template-card" data-template="research">
-              <div class="agent-template-icon">🔬</div>
+              <div class="agent-template-icon"><span class="ms">biotech</span></div>
               <div class="agent-template-name">Research</div>
               <div class="agent-template-desc">Deep analysis</div>
             </div>
             <div class="agent-template-card" data-template="creative">
-              <div class="agent-template-icon">🎨</div>
+              <div class="agent-template-icon"><span class="ms">palette</span></div>
               <div class="agent-template-name">Creative</div>
               <div class="agent-template-desc">Writing & ideas</div>
             </div>
             <div class="agent-template-card" data-template="technical">
-              <div class="agent-template-icon">💻</div>
+              <div class="agent-template-icon"><span class="ms">code</span></div>
               <div class="agent-template-name">Technical</div>
               <div class="agent-template-desc">Code & debugging</div>
             </div>
@@ -913,7 +913,7 @@ function openMiniChat(agentId: string) {
       <div class="mini-chat-messages"></div>
       <div class="mini-chat-input-row">
         <input type="text" class="mini-chat-input" placeholder="Message ${escAttr(agent.name)}…">
-        <button class="mini-chat-send">➤</button>
+        <button class="mini-chat-send"><span class="ms ms-sm">send</span></button>
       </div>
     </div>
   `;
@@ -1007,7 +1007,7 @@ function setupMiniChatListeners(mc: MiniChatWindow) {
   // Listen for errors
   mc.unlistenError = pawEngine.on('error', (event) => {
     if (!mc.runId || event.run_id !== mc.runId) return;
-    mc.streamingContent += `\n⚠️ ${event.message || 'Error'}`;
+    mc.streamingContent += `\nError: ${event.message || 'Error'}`;
     finalizeMiniChatStreaming(mc);
   });
 }
@@ -1081,7 +1081,7 @@ async function sendMiniChatMessage(agentId: string) {
     mc.sessionId = result.session_id;
   } catch (e) {
     console.error('[mini-chat] Send error:', e);
-    asstBubble.textContent = `⚠️ ${e instanceof Error ? e.message : 'Failed to send'}`;
+    asstBubble.textContent = `Error: ${e instanceof Error ? e.message : 'Failed to send'}`;
     asstBubble.classList.remove('mini-chat-streaming');
     mc.isStreaming = false;
     mc.streamingEl = null;

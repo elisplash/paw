@@ -9,13 +9,13 @@ export type { Canvas, CanvasViewport, CanvasNode, CanvasEdge } from '../../engin
 // ── Constants ──────────────────────────────────────────────────────────
 
 export const NODE_KINDS = [
-  { value: 'text', label: 'Text', icon: '📝' },
-  { value: 'markdown', label: 'Markdown', icon: '📄' },
-  { value: 'code', label: 'Code', icon: '💻' },
-  { value: 'image', label: 'Image', icon: '🖼️' },
-  { value: 'link', label: 'Link', icon: '🔗' },
-  { value: 'sticky', label: 'Sticky Note', icon: '📌' },
-  { value: 'agent', label: 'Agent Output', icon: '🤖' },
+  { value: 'text', label: 'Text', icon: 'edit_note' },
+  { value: 'markdown', label: 'Markdown', icon: 'description' },
+  { value: 'code', label: 'Code', icon: 'code' },
+  { value: 'image', label: 'Image', icon: 'image' },
+  { value: 'link', label: 'Link', icon: 'link' },
+  { value: 'sticky', label: 'Sticky Note', icon: 'sticky_note_2' },
+  { value: 'agent', label: 'Agent Output', icon: 'smart_toy' },
 ] as const;
 
 export const NODE_COLORS = [
@@ -63,5 +63,6 @@ export function kindLabel(kind: string): string {
 
 /** Format node kind icon */
 export function kindIcon(kind: string): string {
-  return NODE_KINDS.find(k => k.value === kind)?.icon ?? '📝';
+  const name = NODE_KINDS.find(k => k.value === kind)?.icon ?? 'edit_note';
+  return `<span class="ms ms-sm">${name}</span>`;
 }

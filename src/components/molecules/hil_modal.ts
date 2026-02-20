@@ -131,14 +131,14 @@ export function initHILModal(): void {
     if (risk) {
       if (isDangerous) {
         modalCard?.classList.add('danger-modal');
-        if (modalTitle) modalTitle.textContent = '⚠ Dangerous Command Detected';
+        if (modalTitle) modalTitle.textContent = 'Dangerous Command Detected';
       }
       if (riskBanner && riskLabel && riskReason && riskIcon) {
         riskBanner.style.display = 'flex';
         riskBanner.classList.add(`risk-${risk.level}`);
         riskLabel.textContent = `${risk.level.toUpperCase()}: ${risk.label}`;
         riskReason.textContent = risk.reason;
-        riskIcon.textContent   = isCritical ? '☠' : risk.level === 'high' ? '⚠' : '⚡';
+        riskIcon.textContent   = isCritical ? '☠' : risk.level === 'high' ? '!' : '⚠';
       }
       if (isCritical && secSettings.requireTypeToCritical && typeConfirm && typeInput && allowBtn) {
         typeConfirm.style.display = 'block';
@@ -164,13 +164,13 @@ export function initHILModal(): void {
       const targetStr = netAudit.targets.length > 0 ? netAudit.targets.join(', ') : 'unknown destination';
       if (netAudit.isExfiltration) {
         netBanner.className = 'network-banner network-exfiltration';
-        netBanner.innerHTML = `<strong>⚠ Possible Data Exfiltration</strong><br>Outbound data transfer detected → ${escHtml(targetStr)}`;
+        netBanner.innerHTML = `<strong>Possible Data Exfiltration</strong><br>Outbound data transfer detected → ${escHtml(targetStr)}`;
       } else if (!netAudit.allTargetsLocal) {
         netBanner.className = 'network-banner network-external';
-        netBanner.innerHTML = `<strong>🌐 External Network Request</strong><br>Destination: ${escHtml(targetStr)}`;
+        netBanner.innerHTML = `<strong>External Network Request</strong><br>Destination: ${escHtml(targetStr)}`;
       } else {
         netBanner.className = 'network-banner network-local';
-        netBanner.innerHTML = `<strong>🔒 Localhost Request</strong><br>Destination: ${escHtml(targetStr)}`;
+        netBanner.innerHTML = `<strong>Localhost Request</strong><br>Destination: ${escHtml(targetStr)}`;
       }
     }
 

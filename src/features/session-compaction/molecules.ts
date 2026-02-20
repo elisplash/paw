@@ -59,7 +59,7 @@ export async function checkAutoCompaction(
     const stats = analyzeCompactionNeed(messages, config);
 
     if (stats.needsCompaction) {
-      return `⚠️ This session has ${stats.messageCount} messages (~${stats.estimatedTokens.toLocaleString()} tokens). ` +
+      return `This session has ${stats.messageCount} messages (~${stats.estimatedTokens.toLocaleString()} tokens). ` +
         `Consider running \`/compact\` to free context space.`;
     }
     return null;

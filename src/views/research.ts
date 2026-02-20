@@ -147,7 +147,7 @@ function renderLiveSourceFeed() {
   
   feed.innerHTML = _liveSources.slice(-8).map(source => `
     <div class="research-live-source">
-      <span class="research-live-source-icon">🌐</span>
+      <span class="research-live-source-icon"><span class="ms ms-sm">language</span></span>
       <span class="research-live-source-domain">${escHtml(source.title)}</span>
     </div>
   `).join('');
@@ -288,7 +288,7 @@ function renderFindings() {
         <div class="research-finding-keypoints">
           ${finding.keyPoints.slice(0, 3).map(point => `
             <div class="research-keypoint">
-              <span class="keypoint-icon">💡</span>
+              <span class="keypoint-icon"><span class="ms ms-sm">lightbulb</span></span>
               <span class="keypoint-text">${escHtml(point)}</span>
             </div>
           `).join('')}
@@ -307,13 +307,13 @@ function renderFindings() {
       
       <div class="research-finding-actions">
         <button class="btn btn-ghost btn-xs research-action-dig" data-id="${finding.id}" title="Research this deeper">
-          🔍 Dig Deeper
+          <span class="ms ms-sm">search</span> Dig Deeper
         </button>
         <button class="btn btn-ghost btn-xs research-action-related" data-id="${finding.id}" title="Find related topics">
-          🔗 Related
+          <span class="ms ms-sm">link</span> Related
         </button>
         <button class="btn btn-ghost btn-xs research-action-expand" data-id="${finding.id}" title="View full content">
-          📄 Full
+          <span class="ms ms-sm">description</span> Full
         </button>
         <button class="btn btn-ghost btn-xs btn-error research-action-delete" data-id="${finding.id}" title="Delete">
           ✕

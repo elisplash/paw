@@ -344,8 +344,8 @@ function updateEncryptionStatus() {
   const ready = isEncryptionReady();
   bar.className = `encryption-status-bar ${ready ? 'enc-active' : 'enc-inactive'}`;
   text.textContent = ready
-    ? '🔒 Database encryption active — sensitive fields encrypted with OS keychain key'
-    : '⚠ Encryption unavailable — sensitive fields stored as plaintext';
+    ? 'Database encryption active — sensitive fields encrypted with OS keychain key'
+    : 'Encryption unavailable — sensitive fields stored as plaintext';
 }
 
 export async function loadSecurityAudit() {

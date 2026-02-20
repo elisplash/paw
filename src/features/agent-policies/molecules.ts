@@ -86,12 +86,12 @@ export function getAgentPolicySummary(agentId: string): string {
   const policy = getAgentPolicy(agentId);
   switch (policy.mode) {
     case 'unrestricted':
-      return '🔓 Unrestricted';
+      return 'Unrestricted';
     case 'allowlist':
-      return `🔒 ${policy.allowed.length} tools allowed`;
+      return `${policy.allowed.length} tools allowed`;
     case 'denylist':
-      return `⚠️ ${policy.denied.length} tools blocked`;
+      return `${policy.denied.length} tools blocked`;
     default:
-      return '🔓 Unrestricted';
+      return 'Unrestricted';
   }
 }

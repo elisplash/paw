@@ -88,7 +88,7 @@ function createTaskCard(task: EngineTask): HTMLElement {
   ).join('');
 
   const cronHtml = task.cron_enabled && task.cron_schedule
-    ? `<span class="task-card-cron">🔄 ${escHtml(task.cron_schedule)}</span>`
+    ? `<span class="task-card-cron"><span class="ms ms-sm">sync</span> ${escHtml(task.cron_schedule)}</span>`
     : '';
   const modelHtml = task.model
     ? `<span class="task-card-model" title="Model override">${escHtml(task.model)}</span>`
@@ -106,7 +106,7 @@ function createTaskCard(task: EngineTask): HTMLElement {
   card.innerHTML = `
     <div class="task-card-actions">
       ${runBtnHtml}
-      <button class="task-card-action" data-action="edit" title="Edit">✏️</button>
+      <button class="task-card-action" data-action="edit" title="Edit"><span class="ms ms-sm">edit</span></button>
     </div>
     <div class="task-card-title">${escHtml(task.title)}</div>
     <div class="task-card-meta">

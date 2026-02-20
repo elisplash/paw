@@ -156,7 +156,7 @@ async function renderProvidersList(): Promise<void> {
             <span style="color:var(--text-muted);margin-left:6px">${escHtml(p.default_model ?? '')}${p.base_url ? ' · ' + escHtml(p.base_url) : ''}</span>
             ${isDefault ? '<span style="color:var(--accent);margin-left:6px">★ default</span>' : ''}
           </span>
-          <span style="color:var(--text-muted)">${p.api_key ? '🔑' : p.kind === 'ollama' ? '📍' : '⚠️'}</span>
+          <span style="color:var(--text-muted)">${p.api_key ? '<span class="ms ms-sm">key</span>' : p.kind === 'ollama' ? '<span class="ms ms-sm">home</span>' : '<span class="ms ms-sm">warning</span>'}</span>
           ${!isDefault ? `<button class="btn btn-ghost btn-sm engine-set-default" data-id="${escHtml(p.id)}" title="Set as default" style="padding:2px 6px">★</button>` : ''}
           <button class="btn btn-ghost btn-sm engine-edit-provider" data-id="${escHtml(p.id)}" title="Edit" style="padding:2px 6px">✎</button>
           <button class="btn btn-ghost btn-sm engine-remove-provider" data-id="${escHtml(p.id)}" title="Remove" style="padding:2px 6px;color:var(--text-danger,red)">✕</button>

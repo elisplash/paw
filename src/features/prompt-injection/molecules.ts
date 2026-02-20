@@ -125,9 +125,9 @@ export function severityColor(severity: InjectionSeverity): string {
 
 export function severityLabel(severity: InjectionSeverity): string {
   switch (severity) {
-    case 'critical': return '🛑 CRITICAL';
-    case 'high':     return '⚠️ HIGH';
-    case 'medium':   return '⚡ MEDIUM';
-    case 'low':      return 'ℹ️ LOW';
+    case 'critical': return 'CRITICAL';
+    case 'high':     return 'HIGH';
+    case 'medium':   return 'MEDIUM';
+    case 'low':      return 'LOW';
   }
 }

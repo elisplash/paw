@@ -168,11 +168,11 @@ export function buildHelpText(): string {
   }
 
   const labels: Record<string, string> = {
-    chat:    '💬 Chat',
-    session: '📋 Session',
-    memory:  '🧠 Memory',
-    tools:   '🔧 Tools',
-    config:  '⚙️ Config',
+    chat:    'Chat',
+    session: 'Session',
+    memory:  'Memory',
+    tools:   'Tools',
+    config:  'Config',
   };
 
   const lines: string[] = ['**Available Slash Commands**\n'];

@@ -90,7 +90,7 @@ export async function loadCron() {
         <div class="auto-card-status-badge ${task.status}">${escHtml(task.status)}</div>
         <div class="auto-card-actions">
           <button class="btn btn-ghost btn-sm cron-run" data-id="${escAttr(task.id)}" title="Run now">▶ Run</button>
-          <button class="btn btn-ghost btn-sm cron-edit" data-id="${escAttr(task.id)}" title="Edit">✎ Edit</button>
+          <button class="btn btn-ghost btn-sm cron-edit" data-id="${escAttr(task.id)}" title="Edit"><span class="ms ms-sm">edit</span> Edit</button>
           <button class="btn btn-ghost btn-sm cron-toggle" data-id="${escAttr(task.id)}" data-enabled="${task.cron_enabled}">${task.cron_enabled ? 'Pause' : 'Enable'}</button>
           <button class="btn btn-ghost btn-sm cron-delete" data-id="${escAttr(task.id)}">Delete</button>
         </div>

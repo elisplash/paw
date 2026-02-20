@@ -167,7 +167,7 @@ export async function loadBrowserSettings() {
       </h3>
       <p class="form-hint" style="margin:0 0 12px;font-size:12px;color:var(--text-muted)">
         Screenshots captured by agents via <code>web_screenshot</code>.
-        Click to view full-size, or use the 📸 icon in chat to insert inline.
+        Click to view full-size, or use the camera icon in chat to insert inline.
       </p>
     `;
 
@@ -413,8 +413,8 @@ export async function loadBrowserSettings() {
       try {
         const [allowed, domain] = await pawEngine.networkCheckUrl(url);
         testResult.textContent = allowed
-          ? `✅ ${domain} — allowed`
-          : `❌ ${domain} — blocked`;
+          ? `${domain} — allowed`
+          : `${domain} — blocked`;
         testResult.style.color = allowed ? 'var(--success)' : 'var(--error)';
       } catch (e) {
         testResult.textContent = `Error: ${e}`;

@@ -91,7 +91,7 @@ function renderEmptyState() {
   const surface = $('canvas-surface');
   if (!surface) return;
   surface.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:12px">
-    <span style="font-size:48px">🎨</span>
+    <span class="ms ms-xl">palette</span>
     <p style="font-size:15px;font-weight:600">No canvases yet</p>
     <p style="font-size:13px">Create one to start building your visual workspace.</p>
   </div>`;
@@ -143,15 +143,15 @@ function createNodeElement(node: CanvasNode): HTMLDivElement {
   actions.style.cssText = 'display:flex;gap:2px;flex-shrink:0';
 
   const editBtn = document.createElement('button');
-  editBtn.textContent = '✏️';
+  editBtn.innerHTML = '<span class="ms ms-sm">edit</span>';
   editBtn.title = 'Edit';
-  editBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:12px;padding:2px';
+  editBtn.style.cssText = 'background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center';
   editBtn.addEventListener('click', (e) => { e.stopPropagation(); openNodeEditor(node); });
 
   const connectBtn = document.createElement('button');
-  connectBtn.textContent = '🔗';
+  connectBtn.innerHTML = '<span class="ms ms-sm">link</span>';
   connectBtn.title = 'Connect to another node';
-  connectBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:12px;padding:2px';
+  connectBtn.style.cssText = 'background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center';
   connectBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     if (_connectingFromId === node.id) {
@@ -162,14 +162,14 @@ function createNodeElement(node: CanvasNode): HTMLDivElement {
       handleCreateEdge(_connectingFromId, node.id);
     } else {
       _connectingFromId = node.id;
-      showToast('Click 🔗 on another node to connect', 'info');
+      showToast('Click link on another node to connect', 'info');
     }
   });
 
   const delBtn = document.createElement('button');
-  delBtn.textContent = '🗑️';
+  delBtn.innerHTML = '<span class="ms ms-sm">delete</span>';
   delBtn.title = 'Delete node';
-  delBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:12px;padding:2px';
+  delBtn.style.cssText = 'background:none;border:none;cursor:pointer;padding:2px;display:flex;align-items:center';
   delBtn.addEventListener('click', (e) => { e.stopPropagation(); handleDeleteNode(node.id); });
 
   actions.appendChild(editBtn);

@@ -464,23 +464,24 @@ function escapeHtml(text: string): string {
 
 function specialtyIcon(specialty: string): string {
   const icons: Record<string, string> = {
-    coder: '💻',
-    researcher: '🔍',
-    designer: '🎨',
-    communicator: '📢',
-    security: '🛡️',
-    general: '🤖',
+    coder: 'code',
+    researcher: 'search',
+    designer: 'palette',
+    communicator: 'campaign',
+    security: 'shield',
+    general: 'smart_toy',
   };
-  return icons[specialty] || '🤖';
+  const name = icons[specialty] || 'smart_toy';
+  return `<span class="ms ms-sm">${name}</span>`;
 }
 
 function messageKindLabel(kind: string): string {
   const labels: Record<string, string> = {
-    delegation: '📋 Delegation',
-    progress: '📊 Progress',
-    result: '✅ Result',
-    error: '❌ Error',
-    message: '💬 Message',
+    delegation: 'Delegation',
+    progress: 'Progress',
+    result: 'Result',
+    error: 'Error',
+    message: 'Message',
   };
   return labels[kind] || kind;
 }

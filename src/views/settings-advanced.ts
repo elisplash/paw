@@ -58,7 +58,7 @@ export async function loadAdvancedSettings() {
     const hasOllama = config.providers.some(p => p.kind === 'ollama');
 
     ollamaSection.innerHTML = `
-      <h3 class="settings-subsection-title">🦙 Ollama (Local AI)</h3>
+      <h3 class="settings-subsection-title"><span class="ms ms-sm">pets</span> Ollama (Local AI)</h3>
       <p class="form-hint" style="margin:0 0 12px;font-size:12px;color:var(--text-muted)">
         Run AI models on your own machine — free, private, no API key needed.
         ${!hasOllama ? '<br><strong style="color:var(--warning)">Not configured yet.</strong> Install Ollama from <a href="https://ollama.ai" target="_blank" style="color:var(--accent)">ollama.ai</a> then add it below.' : ''}

@@ -204,7 +204,7 @@ const CHANNEL_SETUPS: ChannelSetupDef[] = [
   {
     id: 'webchat',
     name: 'Web Chat',
-    icon: '🌐',
+    icon: '',
     description: 'Share a link so friends can chat with your agent from their browser. No accounts needed — just a URL and access token.',
     fields: [
       { key: 'port', label: 'Port', type: 'text', placeholder: '3939', defaultValue: '3939' },
@@ -634,7 +634,7 @@ export async function loadChannels() {
           const section = document.createElement('div');
           section.className = 'channel-pairing-section';
           section.style.cssText = 'margin-top:8px;border:1px solid var(--border);border-radius:8px;padding:12px;';
-          section.innerHTML = `<h4 style="font-size:13px;font-weight:600;margin:0 0 8px 0">🔒 Telegram — Pending Requests</h4>`;
+          section.innerHTML = `<h4 style="font-size:13px;font-weight:600;margin:0 0 8px 0">Telegram — Pending Requests</h4>`;
           for (const p of tgStatus.pending_users) {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-light,rgba(255,255,255,0.06))';
@@ -717,7 +717,7 @@ export async function loadChannels() {
           const section = document.createElement('div');
           section.className = 'channel-pairing-section';
           section.style.cssText = 'margin-top:8px;border:1px solid var(--border);border-radius:8px;padding:12px;';
-          section.innerHTML = `<h4 style="font-size:13px;font-weight:600;margin:0 0 8px 0">🔒 ${escHtml(name)} — Pending Requests</h4>`;
+          section.innerHTML = `<h4 style="font-size:13px;font-weight:600;margin:0 0 8px 0">${escHtml(name)} — Pending Requests</h4>`;
           for (const p of status.pending_users) {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border-light,rgba(255,255,255,0.06))';

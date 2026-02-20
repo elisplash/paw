@@ -139,7 +139,7 @@ export async function loadAgentDefaultsSettings() {
     autoSetupRow.style.cssText = 'display:flex;align-items:center;gap:10px;margin:0 0 12px 0;padding:10px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary, rgba(255,255,255,0.03))';
     const autoSetupBtn = document.createElement('button');
     autoSetupBtn.className = 'btn btn-primary btn-sm';
-    autoSetupBtn.textContent = '🚀 Auto-Setup Ollama Embeddings';
+    autoSetupBtn.textContent = 'Auto-Setup Ollama Embeddings';
     autoSetupBtn.style.whiteSpace = 'nowrap';
     const autoSetupStatus = document.createElement('span');
     autoSetupStatus.style.cssText = 'font-size:12px;color:var(--text-muted);line-height:1.4';
@@ -181,7 +181,7 @@ export async function loadAgentDefaultsSettings() {
         autoSetupStatus.style.color = 'var(--text-danger)';
       } finally {
         autoSetupBtn.disabled = false;
-        autoSetupBtn.textContent = '🚀 Auto-Setup Ollama Embeddings';
+        autoSetupBtn.textContent = 'Auto-Setup Ollama Embeddings';
       }
     });
 
@@ -284,12 +284,12 @@ export async function loadAgentDefaultsSettings() {
           autoSetupStatus.textContent = `✓ Ollama is running and ${embStatus.model_name} is available`;
           autoSetupStatus.style.color = 'var(--text-success)';
         } else if (embStatus.ollama_running) {
-          statusSpan.textContent = `⚠ Ollama running but ${embStatus.model_name} not pulled yet`;
+          statusSpan.textContent = `Ollama running but ${embStatus.model_name} not pulled yet`;
           statusSpan.style.color = 'var(--text-warning, orange)';
           autoSetupStatus.textContent = `Ollama is running but ${embStatus.model_name} needs to be pulled — click Auto-Setup`;
           autoSetupStatus.style.color = 'var(--text-warning, orange)';
         } else {
-          statusSpan.textContent = '⚠ Ollama not detected — click Auto-Setup to start it';
+          statusSpan.textContent = 'Ollama not detected — click Auto-Setup to start it';
           statusSpan.style.color = 'var(--text-warning, orange)';
         }
       } catch { /* ignore */ }

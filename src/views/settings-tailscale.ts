@@ -31,7 +31,11 @@ export async function loadTailscaleSettings() {
   statusSection.className = 'settings-subsection';
   statusSection.style.marginBottom = '20px';
 
-  const dot = status.running ? '🟢' : status.installed ? '🟡' : '🔴';
+  const dot = status.running
+    ? '<span class="ms ms-sm" style="color:var(--success)">circle</span>'
+    : status.installed
+      ? '<span class="ms ms-sm" style="color:var(--warning)">circle</span>'
+      : '<span class="ms ms-sm" style="color:var(--error)">circle</span>';
   const stLabel = status.running ? 'Connected' : status.installed ? 'Installed (not running)' : 'Not installed';
 
   statusSection.innerHTML = `
@@ -42,8 +46,8 @@ export async function loadTailscaleSettings() {
       ${status.tailnet ? `<span style="color:var(--text-muted)">Tailnet</span><span>${esc(status.tailnet)}</span>` : ''}
       ${status.ip ? `<span style="color:var(--text-muted)">IP</span><span style="font-family:monospace">${esc(status.ip)}</span>` : ''}
       ${status.version ? `<span style="color:var(--text-muted)">Version</span><span>${esc(status.version)}</span>` : ''}
-      <span style="color:var(--text-muted)">Serve</span><span>${status.serve_active ? `✅ Active${status.serve_url ? ` — <a href="${esc(status.serve_url)}" target="_blank" style="color:var(--accent)">${esc(status.serve_url)}</a>` : ''}` : '⬜ Inactive'}</span>
-      <span style="color:var(--text-muted)">Funnel</span><span>${status.funnel_active ? `✅ Active${status.funnel_url ? ` — <a href="${esc(status.funnel_url)}" target="_blank" style="color:var(--accent)">${esc(status.funnel_url)}</a>` : ''}` : '⬜ Inactive'}</span>
+      <span style="color:var(--text-muted)">Serve</span><span>${status.serve_active ? `Active${status.serve_url ? ` — <a href="${esc(status.serve_url)}" target="_blank" style="color:var(--accent)">${esc(status.serve_url)}</a>` : ''}` : 'Inactive'}</span>
+      <span style="color:var(--text-muted)">Funnel</span><span>${status.funnel_active ? `Active${status.funnel_url ? ` — <a href="${esc(status.funnel_url)}" target="_blank" style="color:var(--accent)">${esc(status.funnel_url)}</a>` : ''}` : 'Inactive'}</span>
     </div>`;
   container.appendChild(statusSection);
 
@@ -109,7 +113,7 @@ export async function loadTailscaleSettings() {
       catch (e: any) { showToast(`Failed: ${e.message ?? e}`, 'error'); }
     }));
   } else {
-    serveBtns.appendChild(makeBtn('Start Funnel ⚠️ Public', 'btn-primary', async () => {
+    serveBtns.appendChild(makeBtn('Start Funnel (Public)', 'btn-primary', async () => {
       if (!confirm('Funnel exposes Pawz to the PUBLIC internet. Continue?')) return;
       try { await pawEngine.tailscaleFunnelStart(config.serve_port); showToast('Funnel started', 'success'); loadTailscaleSettings(); }
       catch (e: any) { showToast(`Failed: ${e.message ?? e}`, 'error'); }

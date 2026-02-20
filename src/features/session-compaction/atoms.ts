@@ -84,7 +84,7 @@ export function formatCompactionResult(result: {
     : 0;
 
   return [
-    `📦 **Session Compacted**`,
+    `**Session Compacted**`,
     `Messages: ${result.messages_before} → ${result.messages_after}`,
     `Tokens: ~${result.tokens_before.toLocaleString()} → ~${result.tokens_after.toLocaleString()} (${pct}% reduction)`,
     `Summary: ${result.summary_length} chars`,

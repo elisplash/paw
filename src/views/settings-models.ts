@@ -86,9 +86,9 @@ const POPULAR_MODELS: Record<string, string[]> = {
 };
 
 const KIND_ICONS: Record<string, string> = {
-  ollama: '🦙', openai: '🤖', anthropic: '🧠', google: '🔮',
-  deepseek: '🐋', grok: '⚡', mistral: '🌬️', moonshot: '🌙',
-  openrouter: '🌐', custom: '🔧',
+  ollama: 'pets', openai: 'smart_toy', anthropic: 'psychology', google: 'auto_awesome',
+  deepseek: 'explore', grok: 'bolt', mistral: 'air', moonshot: 'dark_mode',
+  openrouter: 'language', custom: 'build',
 };
 
 // ── Render ──────────────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ export async function loadModelsSettings() {
       const tbody = document.createElement('tbody');
 
       for (const p of providers) {
-        const icon = KIND_ICONS[p.kind] ?? '🔧';
+        const iconHtml = `<span class="ms ms-sm">${KIND_ICONS[p.kind] ?? 'build'}</span>`;
         const kindLabel = PROVIDER_KINDS.find(k => k.value === p.kind)?.label ?? p.kind;
         const endpoint = p.base_url || DEFAULT_BASE_URLS[p.kind] || '(default)';
         const hasKey = !!p.api_key;
@@ -145,7 +145,7 @@ export async function loadModelsSettings() {
 
         const row = document.createElement('tr');
         row.style.borderBottom = '1px solid var(--border-light, rgba(255,255,255,0.06))';
-        row.innerHTML = `<td style="padding:6px 12px 6px 0;font-weight:600">${icon} ${esc(p.id)}${isDefault ? ' <span style="font-size:10px;color:var(--accent);font-weight:normal">★ default</span>' : ''}</td>
+        row.innerHTML = `<td style="padding:6px 12px 6px 0;font-weight:600">${iconHtml} ${esc(p.id)}${isDefault ? ' <span style="font-size:10px;color:var(--accent);font-weight:normal">\u2605 default</span>' : ''}</td>
           <td style="padding:6px 12px;color:var(--text-muted)">${esc(kindLabel)}</td>
           <td style="padding:6px 12px;font-family:monospace;font-size:11px">${esc(String(endpoint))}</td>
           <td style="padding:6px 12px;font-family:monospace;font-size:11px">${esc(p.default_model ?? '—')}</td>
@@ -440,55 +440,55 @@ export function getAvailableModelsList(providers: EngineProviderConfig[]): strin
 
 const TIER_LABELS: Record<string, Record<string, string>> = {
   anthropic: {
-    'claude-opus-4-6': '⚡ Flagship — $5/$25 per MTok — complex reasoning, coding agents',
-    'claude-sonnet-4-6': '🔥 Best value — $3/$15 per MTok — general purpose workhorse',
-    'claude-haiku-4-5-20251001': '💨 Fast + cheap — $1/$5 per MTok — bulk, cron jobs, summaries',
-    'claude-3-haiku-20240307': '💰 Cheapest — $0.25/$1.25 per MTok — cron jobs, simple tasks',
-    'claude-sonnet-4-5-20250929': '🤖 Agentic — strong for computer use tasks',
+    'claude-opus-4-6': 'Flagship — $5/$25 per MTok — complex reasoning, coding agents',
+    'claude-sonnet-4-6': 'Best value — $3/$15 per MTok — general purpose workhorse',
+    'claude-haiku-4-5-20251001': 'Fast + cheap — $1/$5 per MTok — bulk, cron jobs, summaries',
+    'claude-3-haiku-20240307': 'Cheapest — $0.25/$1.25 per MTok — cron jobs, simple tasks',
+    'claude-sonnet-4-5-20250929': 'Agentic — strong for computer use tasks',
   },
   openai: {
-    'gpt-4o': '🔥 Best value — multimodal',
-    'gpt-4o-mini': '💨 Fast + cheap',
-    'gpt-4.1': '⚡ Latest flagship',
-    'gpt-4.1-mini': '💨 Latest mini',
-    'gpt-4.1-nano': '💨 Cheapest',
-    'o1': '🧠 Deep reasoning',
-    'o1-mini': '🧠 Reasoning — cheaper',
-    'o3': '⚡ Latest reasoning',
-    'o3-mini': '💨 Reasoning — fast',
-    'o4-mini': '💨 Latest reasoning mini',
+    'gpt-4o': 'Best value — multimodal',
+    'gpt-4o-mini': 'Fast + cheap',
+    'gpt-4.1': 'Latest flagship',
+    'gpt-4.1-mini': 'Latest mini',
+    'gpt-4.1-nano': 'Cheapest',
+    'o1': 'Deep reasoning',
+    'o1-mini': 'Reasoning — cheaper',
+    'o3': 'Latest reasoning',
+    'o3-mini': 'Reasoning — fast',
+    'o4-mini': 'Latest reasoning mini',
   },
   google: {
-    'gemini-2.5-pro': '⚡ Flagship — best reasoning',
-    'gemini-2.5-flash': '🔥 Best value — fast + smart',
-    'gemini-2.0-flash': '💨 Previous gen — fast',
-    'gemini-2.0-flash-lite': '💨 Cheapest',
-    'gemini-1.5-pro': '✅ Previous flagship',
-    'gemini-1.5-flash': '💨 Previous fast',
-    'gemini-1.5-flash-8b': '💨 Smallest',
+    'gemini-2.5-pro': 'Flagship — best reasoning',
+    'gemini-2.5-flash': 'Best value — fast + smart',
+    'gemini-2.0-flash': 'Previous gen — fast',
+    'gemini-2.0-flash-lite': 'Cheapest',
+    'gemini-1.5-pro': 'Previous flagship',
+    'gemini-1.5-flash': 'Previous fast',
+    'gemini-1.5-flash-8b': 'Smallest',
   },
   deepseek: {
-    'deepseek-chat': '🔥 V3 — best value — general purpose',
-    'deepseek-reasoner': '🧠 R1 — deep reasoning + math',
+    'deepseek-chat': 'V3 — best value — general purpose',
+    'deepseek-reasoner': 'R1 — deep reasoning + math',
   },
   grok: {
-    'grok-3': '⚡ Flagship — strongest reasoning',
-    'grok-3-mini': '💨 Fast reasoning — think budget',
-    'grok-2': '✅ Previous flagship',
-    'grok-2-mini': '💨 Previous — fast + cheap',
+    'grok-3': 'Flagship — strongest reasoning',
+    'grok-3-mini': 'Fast reasoning — think budget',
+    'grok-2': 'Previous flagship',
+    'grok-2-mini': 'Previous — fast + cheap',
   },
   mistral: {
-    'mistral-large-latest': '⚡ Flagship — best reasoning',
-    'mistral-medium-latest': '🔥 Balanced — cost-effective',
-    'mistral-small-latest': '💨 Fast + cheap',
-    'codestral-latest': '💻 Code-specialized',
-    'open-mistral-nemo': '💨 Lightweight open model',
-    'mistral-embed': '📐 Embedding model',
+    'mistral-large-latest': 'Flagship — best reasoning',
+    'mistral-medium-latest': 'Balanced — cost-effective',
+    'mistral-small-latest': 'Fast + cheap',
+    'codestral-latest': 'Code-specialized',
+    'open-mistral-nemo': 'Lightweight open model',
+    'mistral-embed': 'Embedding model',
   },
   moonshot: {
-    'moonshot-v1-8k': '💨 8K context — fast',
-    'moonshot-v1-32k': '🔥 32K context — balanced',
-    'moonshot-v1-128k': '⚡ 128K context — long documents',
+    'moonshot-v1-8k': '8K context — fast',
+    'moonshot-v1-32k': '32K context — balanced',
+    'moonshot-v1-128k': '128K context — long documents',
   },
 };
 
@@ -510,13 +510,13 @@ function buildAvailableModelsPanel(providers: EngineProviderConfig[]): HTMLDivEl
     const models = POPULAR_MODELS[p.kind] ?? [];
     if (!models.length) continue;
 
-    const icon = KIND_ICONS[p.kind] ?? '🔧';
+    const iconHtml2 = `<span class="ms ms-sm">${KIND_ICONS[p.kind] ?? 'build'}</span>`;
     const provBlock = document.createElement('div');
     provBlock.style.cssText = 'margin:12px 0 16px 0';
 
     const provTitle = document.createElement('div');
     provTitle.style.cssText = 'font-weight:600;font-size:13px;margin-bottom:6px;display:flex;align-items:center;gap:6px';
-    provTitle.innerHTML = `<span>${icon}</span> ${esc(p.id)} <span style="font-size:11px;color:var(--text-muted);font-weight:normal">${esc(p.kind)}</span>`;
+    provTitle.innerHTML = `${iconHtml2} ${esc(p.id)} <span style="font-size:11px;color:var(--text-muted);font-weight:normal">${esc(p.kind)}</span>`;
     provBlock.appendChild(provTitle);
 
     // Active model tag
@@ -699,7 +699,7 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
   card.className = 'settings-card';
   card.style.cssText = 'margin-top:12px;padding:16px;border:1px solid var(--border);border-radius:8px;';
 
-  const icon = KIND_ICONS[provider.kind] ?? '🔧';
+  const iconHtml3 = `<span class="ms ms-sm">${KIND_ICONS[provider.kind] ?? 'build'}</span>`;
   const isDefault = provider.id === config.default_provider;
 
   // Header
@@ -707,7 +707,7 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
   header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
   const titleWrap = document.createElement('div');
   titleWrap.style.cssText = 'display:flex;align-items:center;gap:8px';
-  titleWrap.innerHTML = `<span style="font-size:18px">${icon}</span>
+  titleWrap.innerHTML = `${iconHtml3}
     <strong style="font-size:14px">${esc(provider.id)}</strong>
     <span style="font-size:11px;color:var(--text-muted);background:var(--bg-tertiary,rgba(255,255,255,0.06));padding:2px 8px;border-radius:4px">${esc(provider.kind)}</span>
     ${isDefault ? '<span style="font-size:10px;color:var(--accent);background:rgba(var(--accent-rgb,99,102,241),0.15);padding:2px 8px;border-radius:4px">★ default</span>' : ''}`;

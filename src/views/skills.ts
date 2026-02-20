@@ -218,25 +218,25 @@ function buildRiskScoreHtml(info: NpmPackageInfo): string {
   const rows: string[] = [];
 
   if (info.version) {
-    rows.push(`<span class="npm-risk-item">📦 v${escHtml(info.version)}</span>`);
+    rows.push(`<span class="npm-risk-item">v${escHtml(info.version)}</span>`);
   }
   if (info.weeklyDownloads !== null) {
     const fmt = info.weeklyDownloads >= 1000
       ? `${(info.weeklyDownloads / 1000).toFixed(info.weeklyDownloads >= 10000 ? 0 : 1)}k`
       : String(info.weeklyDownloads);
-    rows.push(`<span class="npm-risk-item">📈 ${fmt}/week</span>`);
+    rows.push(`<span class="npm-risk-item">${fmt}/week</span>`);
   }
   if (info.lastPublishDays !== null) {
     const label = info.lastPublishDays > 365
       ? `${Math.floor(info.lastPublishDays / 365)}y ago`
       : `${info.lastPublishDays}d ago`;
-    rows.push(`<span class="npm-risk-item">📅 ${label}</span>`);
+    rows.push(`<span class="npm-risk-item">${label}</span>`);
   }
   if (info.license) {
-    rows.push(`<span class="npm-risk-item">⚖ ${escHtml(info.license)}</span>`);
+    rows.push(`<span class="npm-risk-item">${escHtml(info.license)}</span>`);
   }
   if (info.maintainerCount > 0) {
-    rows.push(`<span class="npm-risk-item">👤 ${info.maintainerCount} maintainer${info.maintainerCount > 1 ? 's' : ''}</span>`);
+    rows.push(`<span class="npm-risk-item">${info.maintainerCount} maintainer${info.maintainerCount > 1 ? 's' : ''}</span>`);
   }
 
   if (!rows.length) return '';
@@ -282,7 +282,7 @@ async function runPostInstallSandboxCheck(skillName: string): Promise<void> {
     }
 
     if (warnings.length > 0) {
-      showSkillsToast(`⚠ Post-install check for ${skillName}: ${warnings[0]}`, 'error');
+      showSkillsToast(`Post-install check for ${skillName}: ${warnings[0]}`, 'error');
       logSecurityEvent({
         eventType: 'skill_sandbox_check',
         riskLevel: 'medium',
@@ -339,7 +339,7 @@ async function showSkillSafetyConfirm(skillName: string, installId: string): Pro
     const npmInfo = await fetchNpmPackageInfo(installId.replace(/^@/, ''));
     if (npmInfo) {
       if (npmInfo.deprecated) {
-        checks.unshift({ label: `⚠ DEPRECATED: ${npmInfo.deprecated}`, status: 'fail' });
+        checks.unshift({ label: `DEPRECATED: ${npmInfo.deprecated}`, status: 'fail' });
       }
       if (npmInfo.weeklyDownloads !== null && npmInfo.weeklyDownloads < 100) {
         checks.push({ label: `Low download count (${npmInfo.weeklyDownloads}/week)`, status: 'warn' });
@@ -358,7 +358,7 @@ async function showSkillSafetyConfirm(skillName: string, installId: string): Pro
   }
 
   const checksHtml = checks.map(c => {
-    const icon = c.status === 'pass' ? '✓' : c.status === 'warn' ? '⚠' : '✕';
+    const icon = c.status === 'pass' ? '✓' : c.status === 'warn' ? '!' : '✗';
     return `<div class="skill-safety-check"><span class="check-${c.status}">${icon}</span> ${escHtml(c.label)}</div>`;
   }).join('');
 
@@ -385,7 +385,7 @@ async function showSkillSafetyConfirm(skillName: string, installId: string): Pro
     const originalBody = promptBody.innerHTML;
     promptBody.innerHTML = `
       <div class="skill-safety-banner">
-        <div class="safety-icon">🛡</div>
+        <div class="safety-icon"><span class="ms">shield</span></div>
         <div>
           <strong>Skill Safety Review</strong>
           <p style="margin:4px 0 0">This will download and install <strong>${escHtml(skillName)}</strong> on your machine. Skills can execute code and access system resources.</p>

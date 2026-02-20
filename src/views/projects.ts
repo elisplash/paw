@@ -496,7 +496,7 @@ function renderGitBanner(git: GitInfo, projectPath: string): string {
   if (!git.isRepo) {
     return `
       <div class="git-banner git-banner--none" style="margin-top:12px;padding:10px 12px;border-radius:8px;background:var(--surface-2, rgba(255,255,255,0.04));font-size:12px;color:var(--text-muted)">
-        <span style="opacity:0.6">📁 Not a git repository</span>
+        <span style="opacity:0.6">Not a git repository</span>
         <button class="btn btn-sm git-action" data-action="init" data-path="${escapeAttr(projectPath)}" style="margin-left:auto;font-size:11px">
           git init
         </button>
@@ -542,7 +542,7 @@ function renderGitBanner(git: GitInfo, projectPath: string): string {
       <div class="git-actions" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
         ${git.remote ? `<button class="btn btn-sm git-action" data-action="pull" data-path="${escapeAttr(projectPath)}">⬇ Pull</button>` : ''}
         ${git.remote ? `<button class="btn btn-sm git-action" data-action="push" data-path="${escapeAttr(projectPath)}">⬆ Push</button>` : ''}
-        <button class="btn btn-sm git-action" data-action="commit" data-path="${escapeAttr(projectPath)}">💾 Commit</button>
+        <button class="btn btn-sm git-action" data-action="commit" data-path="${escapeAttr(projectPath)}"><span class="ms ms-sm">save</span> Commit</button>
         <button class="btn btn-sm git-action" data-action="status" data-path="${escapeAttr(projectPath)}" style="margin-left:auto;opacity:0.7;font-size:11px">↻ Refresh</button>
       </div>
     </div>`;
@@ -801,10 +801,10 @@ function showProjectsEmpty(): void {
       </div>
       <div style="margin-top:16px;padding:12px 16px;border-radius:8px;background:var(--surface-2, rgba(255,255,255,0.04));font-size:12px;color:var(--text-muted);line-height:1.8;text-align:left;max-width:360px">
         <div style="font-weight:600;margin-bottom:4px;color:var(--text)">What Projects does:</div>
-        <div>📁 <strong>Browse</strong> — file tree with code viewer</div>
-        <div>🔀 <strong>Git</strong> — branch, status, pull, push, commit</div>
-        <div>🤖 <strong>Agent context</strong> — your agent can read, edit, and run commands in project folders</div>
-        <div>🔒 <strong>Scoped</strong> — agent access is confined to the project you select</div>
+        <div><span class="ms ms-sm">folder</span> <strong>Browse</strong> — file tree with code viewer</div>
+        <div><span class="ms ms-sm">commit</span> <strong>Git</strong> — branch, status, pull, push, commit</div>
+        <div><span class="ms ms-sm">smart_toy</span> <strong>Agent context</strong> — your agent can read, edit, and run commands in project folders</div>
+        <div><span class="ms ms-sm">lock</span> <strong>Scoped</strong> — agent access is confined to the project you select</div>
       </div>
     `;
   }
