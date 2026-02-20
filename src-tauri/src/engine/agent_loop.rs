@@ -179,14 +179,30 @@ pub async fn run_agent_turn(
         if !has_tool_calls || tool_call_map.is_empty() {
             final_text = text_accum.clone();
 
-            // Handle completely empty responses: the model returned nothing
-            // (could be safety filter, context overflow, or model confusion).
+            // Handle completely empty responses: the model returned nothing.
+            // Auto-retry ONCE by injecting a nudge so the model tries again.
+            if final_text.is_empty() && round == 1 && round < max_rounds {
+                warn!("[engine] Model returned empty response at round {} — injecting nudge and retrying", round);
+                messages.push(Message {
+                    role: Role::User,
+                    content: MessageContent::Text(
+                        "Your previous response was empty. Please try again — use your tools if needed to complete the task."
+                            .to_string(),
+                    ),
+                    tool_calls: None,
+                    tool_call_id: None,
+                    name: None,
+                });
+                continue; // retry the loop with the nudge
+            }
+
+            // If still empty after the nudge retry (or not round 1), show fallback
             if final_text.is_empty() {
                 warn!("[engine] Model returned empty response (0 chars, 0 tool calls) at round {}", round);
                 final_text = "I wasn't able to generate a response. This can happen when:\n\
                     - The conversation context is very large (try compacting the session)\n\
                     - A content filter was triggered (try rephrasing)\n\
-                    - The model is overwhelmed by too many tools/skills\n\n\
+                    - The model is overwhelmed — try starting a new session\n\n\
                     Please try again or start a new session."
                     .to_string();
             }

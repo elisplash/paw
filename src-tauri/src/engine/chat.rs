@@ -75,6 +75,7 @@ pub fn build_chat_tools(
         );
     }
 
+    info!("[engine] Total tools for this request: {}", t.len());
     t
 }
 

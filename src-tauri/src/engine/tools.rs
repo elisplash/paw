@@ -1516,7 +1516,7 @@ impl ToolDefinition {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "agent_list".into(),
-                description: "List all agents in the system with their roles, models, and skill counts. Use this to see what sub-agents exist and what they're configured to do. You are the boss agent — use this to understand your team.".into(),
+                description: "List all agents with their roles, models, and skill counts.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {},
@@ -1531,7 +1531,7 @@ impl ToolDefinition {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "agent_skills".into(),
-                description: "View the community skills assigned to a specific agent. Shows each skill's name, description, enabled status, and source. Use this to inspect what a sub-agent can do before deciding to add or remove skills.".into(),
+                description: "View the community skills assigned to a specific agent. Shows each skill's name, description, enabled status, and source.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -1551,7 +1551,7 @@ impl ToolDefinition {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "agent_skill_assign".into(),
-                description: "Add or remove a community skill from a specific agent. Use action 'add' to give an agent a skill, or 'remove' to take it away. The skill must already be installed — use skill_search + skill_install first if needed. You can also use this to make a skill global (all agents) or restrict it to specific agents.".into(),
+                description: "Add or remove a community skill from a specific agent. Use 'add' to assign or 'remove' to unassign. The skill must already be installed.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -1582,7 +1582,7 @@ impl ToolDefinition {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "skill_search".into(),
-                description: "Search for community agent skills by keyword. Finds open-source SKILL.md files that teach agents new capabilities. Use this when the user asks you to find, discover, or look for skills on a topic (e.g., \"find me marketing skills\"). Returns a list of available skills with name, source repo, and install path. Present results to the user and wait for them to choose which to install — do NOT auto-install all results.".into(),
+                description: "Search for community agent skills by keyword. Finds open-source SKILL.md files that teach agents new capabilities. Returns a list of available skills with name, source repo, and install path. You can chain this with skill_install to install results.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -1602,7 +1602,7 @@ impl ToolDefinition {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "skill_install".into(),
-                description: "Install a community skill from a GitHub repository. The skill will be scoped to YOUR agent only (not system-wide) and enabled immediately. Use the source and path values from skill_search results. After installing, confirm to the user what was installed and STOP — do not search or install again unless the user explicitly asks.".into(),
+                description: "Install a community skill from a GitHub repository. The skill will be scoped to YOUR agent only and enabled immediately. Use the source and path values from skill_search results. You can call this multiple times to install several skills in one turn.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -1626,7 +1626,7 @@ impl ToolDefinition {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "skill_list".into(),
-                description: "List community skills available to YOUR agent. Shows which skills are enabled or disabled, with their name, description, source repo, and scope. Use this when the user asks what skills are installed or wants to see their current skills. Only shows skills scoped to you, not other agents.".into(),
+                description: "List community skills installed for YOUR agent. Shows name, description, enabled status, source, and scope.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {},
