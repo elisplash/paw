@@ -278,6 +278,8 @@ pub async fn run_agent_turn(
                 "coinbase_trade", "coinbase_transfer",
                 // ── Media ──
                 "image_generate",
+                // ── Agent Management (read/assign skills) ──
+                "agent_list", "agent_skills", "agent_skill_assign",
                 // ── Community Skills (safe: only fetch/install/list) ──
                 "skill_search", "skill_install", "skill_list",
             ];

@@ -790,6 +790,9 @@ impl ToolDefinition {
             Self::create_task(),
             Self::list_tasks(),
             Self::manage_task(),
+            Self::agent_list(),
+            Self::agent_skills(),
+            Self::agent_skill_assign(),
             Self::skill_search(),
             Self::skill_install(),
             Self::skill_list(),
@@ -1501,6 +1504,72 @@ impl ToolDefinition {
                         }
                     },
                     "required": ["currency", "amount", "to_address", "reason"]
+                }),
+            },
+        }
+    }
+
+    // ── Agent Management tools (boss agent) ────────────────────────────
+
+    pub fn agent_list() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "agent_list".into(),
+                description: "List all agents in the system with their roles, models, and skill counts. Use this to see what sub-agents exist and what they're configured to do. You are the boss agent — use this to understand your team.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }),
+            },
+        }
+    }
+
+    pub fn agent_skills() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "agent_skills".into(),
+                description: "View the community skills assigned to a specific agent. Shows each skill's name, description, enabled status, and source. Use this to inspect what a sub-agent can do before deciding to add or remove skills.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "agent_id": {
+                            "type": "string",
+                            "description": "The agent ID to inspect (e.g. 'crypto-cat', 'default')"
+                        }
+                    },
+                    "required": ["agent_id"]
+                }),
+            },
+        }
+    }
+
+    pub fn agent_skill_assign() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "agent_skill_assign".into(),
+                description: "Add or remove a community skill from a specific agent. Use action 'add' to give an agent a skill, or 'remove' to take it away. The skill must already be installed — use skill_search + skill_install first if needed. You can also use this to make a skill global (all agents) or restrict it to specific agents.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "skill_id": {
+                            "type": "string",
+                            "description": "The community skill ID (e.g. 'anthropics/skills/marketing-strategy')"
+                        },
+                        "agent_id": {
+                            "type": "string",
+                            "description": "The agent ID to assign/unassign the skill to/from"
+                        },
+                        "action": {
+                            "type": "string",
+                            "enum": ["add", "remove"],
+                            "description": "'add' to give the agent this skill, 'remove' to take it away"
+                        }
+                    },
+                    "required": ["skill_id", "agent_id", "action"]
                 }),
             },
         }

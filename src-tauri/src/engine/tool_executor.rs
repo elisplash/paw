@@ -102,6 +102,10 @@ pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle, a
         "dex_top_traders" => execute_skill_tool("dex", "dex_top_traders", &args, app_handle).await,
         "dex_trending" => execute_skill_tool("dex", "dex_trending", &args, app_handle).await,
         "dex_transfer" => execute_skill_tool("dex", "dex_transfer", &args, app_handle).await,
+        // ── Agent Management tools (boss agent) ──
+        "agent_list" => execute_agent_list(app_handle).await,
+        "agent_skills" => execute_agent_skills(&args, app_handle).await,
+        "agent_skill_assign" => execute_agent_skill_assign(&args, app_handle).await,
         // ── Community Skills tools ──
         "skill_search" => execute_skill_search(&args, app_handle).await,
         "skill_install" => execute_skill_install(&args, app_handle, agent_id).await,
@@ -1037,6 +1041,193 @@ async fn execute_manage_task(args: &serde_json::Value, app_handle: &tauri::AppHa
 }
 
 // ── Community Skills: Search, Install, List ─────────────────────────────
+
+// ── Agent Management: Boss agent tools ──────────────────────────────────
+
+/// List all agents (frontend-stored + backend-stored) with their skill counts.
+async fn execute_agent_list(app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    // Get backend-created agents
+    let backend_agents = state.store.list_all_agents().unwrap_or_default();
+    let all_skills = state.store.list_community_skills().unwrap_or_default();
+
+    // Build a map of agent_id → skill count
+    let mut skill_counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    // Count "global" skills (empty agent_ids = available to all)
+    let global_count = all_skills.iter().filter(|s| s.agent_ids.is_empty() && s.enabled).count();
+
+    for skill in &all_skills {
+        if skill.enabled {
+            for aid in &skill.agent_ids {
+                *skill_counts.entry(aid.clone()).or_insert(0) += 1;
+            }
+        }
+    }
+
+    let mut output = String::from("# Agents in System\n\n");
+
+    // Always show the default agent first
+    let default_skills = skill_counts.get("default").cloned().unwrap_or(0) + global_count;
+    output.push_str(&format!(
+        "1. **Default Agent** (id: `default`)\n   Role: Boss / Main Agent\n   Community skills: {} ({} agent-specific + {} global)\n\n",
+        default_skills, skill_counts.get("default").cloned().unwrap_or(0), global_count
+    ));
+
+    // Backend agents
+    let mut idx = 2;
+    for (_project_id, agent) in &backend_agents {
+        let agent_skills = skill_counts.get(&agent.agent_id).cloned().unwrap_or(0) + global_count;
+        output.push_str(&format!(
+            "{}. **{}** (id: `{}`)\n   Role: {} | Specialty: {}\n   Model: {}\n   Capabilities: {}\n   Community skills: {} ({} agent-specific + {} global)\n\n",
+            idx,
+            agent.agent_id,
+            agent.agent_id,
+            agent.role,
+            agent.specialty,
+            agent.model.as_deref().unwrap_or("default"),
+            if agent.capabilities.is_empty() { "all".into() } else { agent.capabilities.join(", ") },
+            agent_skills,
+            skill_counts.get(&agent.agent_id).cloned().unwrap_or(0),
+            global_count,
+        ));
+        idx += 1;
+    }
+
+    // Note about frontend agents the backend can't see
+    output.push_str("**Note**: Some agents may be configured in the frontend only. The IDs above are from the backend database. Frontend agent IDs (shown in the Agents tab) can also be used with agent_skills and agent_skill_assign.\n");
+
+    Ok(output)
+}
+
+/// View community skills for a specific agent.
+async fn execute_agent_skills(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let agent_id = args["agent_id"].as_str()
+        .ok_or("Missing 'agent_id' parameter")?;
+
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    let all_skills = state.store.list_community_skills()?;
+
+    // Filter: skills that apply to this agent (scoped to them OR global)
+    let agent_skills: Vec<_> = all_skills.iter().filter(|s| {
+        s.agent_ids.is_empty() || s.agent_ids.contains(&agent_id.to_string())
+    }).collect();
+
+    if agent_skills.is_empty() {
+        return Ok(format!("Agent '{}' has no community skills assigned.\n\nUse skill_search to find skills, then agent_skill_assign to give them to this agent.", agent_id));
+    }
+
+    let mut output = format!("# Community Skills for agent '{}'\n\n", agent_id);
+
+    for (i, skill) in agent_skills.iter().enumerate() {
+        let status = if skill.enabled { "✓ Enabled" } else { "✗ Disabled" };
+        let scope = if skill.agent_ids.is_empty() {
+            "🌐 Global (all agents)".to_string()
+        } else {
+            format!("🔒 Scoped to: {}", skill.agent_ids.join(", "))
+        };
+        output.push_str(&format!(
+            "{}. **{}** [{}]\n   ID: `{}`\n   {}\n   Scope: {}\n   Source: {}\n\n",
+            i + 1,
+            skill.name,
+            status,
+            skill.id,
+            if skill.description.is_empty() { "(no description)" } else { &skill.description },
+            scope,
+            skill.source,
+        ));
+    }
+
+    output.push_str("Use agent_skill_assign to add or remove skills from this agent.");
+
+    Ok(output)
+}
+
+/// Add or remove a community skill from a specific agent.
+async fn execute_agent_skill_assign(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let skill_id = args["skill_id"].as_str()
+        .ok_or("Missing 'skill_id' parameter")?;
+    let agent_id = args["agent_id"].as_str()
+        .ok_or("Missing 'agent_id' parameter")?;
+    let action = args["action"].as_str()
+        .ok_or("Missing 'action' parameter (must be 'add' or 'remove')")?;
+
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    // Find the skill
+    let all_skills = state.store.list_community_skills()?;
+    let skill = all_skills.iter().find(|s| s.id == skill_id)
+        .ok_or_else(|| format!("Skill '{}' not found. Use skill_list to see installed skills, or skill_search + skill_install to add new ones.", skill_id))?;
+
+    let mut agent_ids = skill.agent_ids.clone();
+
+    match action {
+        "add" => {
+            if agent_ids.is_empty() {
+                // Currently global — switching to explicit scoping means we add this agent
+                // But a global skill already applies to all agents, so just inform
+                return Ok(format!(
+                    "Skill '{}' is already global (available to all agents including '{}').\n\nIf you want to restrict it to specific agents only, first remove it from global scope, then add it to individual agents.",
+                    skill.name, agent_id
+                ));
+            }
+            if agent_ids.contains(&agent_id.to_string()) {
+                return Ok(format!("Skill '{}' is already assigned to agent '{}'.", skill.name, agent_id));
+            }
+            agent_ids.push(agent_id.to_string());
+            state.store.set_community_skill_agents(skill_id, &agent_ids)?;
+
+            // Emit event so UI refreshes
+            let _ = app_handle.emit("community-skill-updated", serde_json::json!({
+                "skill_id": skill_id,
+                "agent_ids": agent_ids,
+            }));
+
+            Ok(format!(
+                "✓ Assigned skill '{}' to agent '{}'.\n\nThe skill is now scoped to: {}\nIt will be included in {}'s system prompt on their next conversation.",
+                skill.name, agent_id,
+                agent_ids.join(", "),
+                agent_id,
+            ))
+        }
+        "remove" => {
+            if agent_ids.is_empty() {
+                // Global skill — can't remove from one agent without scoping
+                return Ok(format!(
+                    "Skill '{}' is currently global (all agents). To remove it from '{}' specifically, you'd need to first assign it to only the agents that should keep it.\n\nAlternatively, you can disable the skill entirely.",
+                    skill.name, agent_id
+                ));
+            }
+            if !agent_ids.contains(&agent_id.to_string()) {
+                return Ok(format!("Skill '{}' is not assigned to agent '{}'. It's currently scoped to: {}", skill.name, agent_id, agent_ids.join(", ")));
+            }
+            agent_ids.retain(|id| id != agent_id);
+            state.store.set_community_skill_agents(skill_id, &agent_ids)?;
+
+            // Emit event so UI refreshes
+            let _ = app_handle.emit("community-skill-updated", serde_json::json!({
+                "skill_id": skill_id,
+                "agent_ids": agent_ids,
+            }));
+
+            let scope_msg = if agent_ids.is_empty() {
+                "The skill now has no agents assigned (effectively disabled for all agents).".to_string()
+            } else {
+                format!("The skill is now scoped to: {}", agent_ids.join(", "))
+            };
+
+            Ok(format!(
+                "✓ Removed skill '{}' from agent '{}'.\n\n{}",
+                skill.name, agent_id, scope_msg,
+            ))
+        }
+        _ => Err(format!("Invalid action '{}'. Must be 'add' or 'remove'.", action)),
+    }
+}
 
 async fn execute_skill_search(args: &serde_json::Value, _app_handle: &tauri::AppHandle) -> Result<String, String> {
     let query = args["query"].as_str()
