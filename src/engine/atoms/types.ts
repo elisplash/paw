@@ -218,6 +218,7 @@ export interface DiscoveredSkill {
   source: string;
   path: string;
   installed: boolean;
+  installs: number;
 }
 
 // ── Trading ──────────────────────────────────────────────────────────

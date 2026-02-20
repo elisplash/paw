@@ -1042,7 +1042,7 @@ async fn execute_skill_search(args: &serde_json::Value, _app_handle: &tauri::App
     let query = args["query"].as_str()
         .ok_or("Missing 'query' parameter")?;
 
-    info!("[engine] Agent searching community skills: {}", query);
+    info!("[engine] Agent searching community skills via skills.sh: {}", query);
 
     let discovered = skills::search_community_skills(query).await?;
 
@@ -1050,14 +1050,19 @@ async fn execute_skill_search(args: &serde_json::Value, _app_handle: &tauri::App
         return Ok(format!("No community skills found for \"{}\". Try different keywords or a broader search term.", query));
     }
 
-    let mut output = format!("Found {} community skills for \"{}\":\n\n", discovered.len(), query);
+    let mut output = format!("Found {} community skills for \"{}\" on skills.sh:\n\n", discovered.len(), query);
 
     for (i, skill) in discovered.iter().enumerate() {
+        let installs_str = if skill.installs > 0 {
+            format!(" ({} installs)", format_installs(skill.installs))
+        } else {
+            String::new()
+        };
         output.push_str(&format!(
-            "{}. **{}**\n   Description: {}\n   Source: {}\n   Path: {}\n\n",
+            "{}. **{}**{}\n   Source: {}\n   Path: {}\n\n",
             i + 1,
             skill.name,
-            if skill.description.is_empty() { "No description" } else { &skill.description },
+            installs_str,
             skill.source,
             skill.path,
         ));
@@ -1066,6 +1071,17 @@ async fn execute_skill_search(args: &serde_json::Value, _app_handle: &tauri::App
     output.push_str("To install a skill, use the skill_install tool with the source and path from above.");
 
     Ok(output)
+}
+
+/// Format install count nicely (e.g. 151300 → "151.3K")
+fn format_installs(n: u64) -> String {
+    if n >= 1_000_000 {
+        format!("{:.1}M", n as f64 / 1_000_000.0)
+    } else if n >= 1_000 {
+        format!("{:.1}K", n as f64 / 1_000.0)
+    } else {
+        n.to_string()
+    }
 }
 
 async fn execute_skill_install(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {

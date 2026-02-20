@@ -542,7 +542,17 @@ function renderCommunityCard(s: CommunitySkill): string {
   </div>`;
 }
 
+function formatInstalls(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toString();
+}
+
 function renderDiscoveredCard(skill: DiscoveredSkill): string {
+  const installsBadge = skill.installs > 0
+    ? `<span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px">${msIcon('download')} ${formatInstalls(skill.installs)}</span>`
+    : '';
+
   return `
   <div class="skill-vault-card" style="opacity:${skill.installed ? '0.6' : '1'}">
     <div class="skill-card-header">
@@ -555,7 +565,8 @@ function renderDiscoveredCard(skill: DiscoveredSkill): string {
           </span>
         </div>
       </div>
-      <div class="skill-card-actions">
+      <div class="skill-card-actions" style="display:flex;align-items:center;gap:10px">
+        ${installsBadge}
         ${skill.installed
           ? `<span style="font-size:12px;color:var(--text-muted)">Already installed</span>`
           : `<button class="btn btn-primary btn-sm community-install-btn" data-source="${escHtml(skill.source)}" data-path="${escHtml(skill.path)}" data-name="${escHtml(skill.name)}">
@@ -565,6 +576,12 @@ function renderDiscoveredCard(skill: DiscoveredSkill): string {
       </div>
     </div>
     <p class="skill-card-desc">${escHtml(skill.description || 'No description')}</p>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
+      <a href="https://skills.sh/${escHtml(skill.id)}" target="_blank" style="color:var(--accent);text-decoration:none">
+        ${msIcon('open_in_new')} View on skills.sh
+      </a>
+      <span style="margin-left:8px">${escHtml(skill.source)}</span>
+    </div>
   </div>`;
 }
 
@@ -733,7 +750,7 @@ async function searchSkills(query: string): Promise<void> {
   } catch (err) {
     results.innerHTML = `<div style="padding:16px">
       <p style="color:var(--accent-danger);margin:0 0 6px">${msIcon('error')} ${escHtml(String(err))}</p>
-      <p style="color:var(--text-muted);font-size:12px;margin:0">GitHub code search may require authentication. Try browsing a specific repo instead.</p>
+      <p style="color:var(--text-muted);font-size:12px;margin:0">Try different keywords or browse a specific repo below.</p>
     </div>`;
   }
 }
