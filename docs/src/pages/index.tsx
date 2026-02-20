@@ -3,27 +3,45 @@ import Link from '@docusaurus/Link';
 
 /* ── Data ──────────────────────────────────────────── */
 
-const comparisonRows = [
-  { label: 'Price', pawz: 'Free forever (MIT)', them: '$20/mo per provider' },
-  { label: 'AI providers', pawz: '10 + any OpenAI-compatible', them: '1 (locked in)' },
-  { label: 'Channel bridges', pawz: '10 platforms', them: '0' },
-  { label: 'Tools & skills', pawz: '22 tools + 30+ skills', them: '~5–10' },
-  { label: 'Security layers', pawz: '7 (injection scan → Docker sandbox)', them: '1 (basic safety)' },
-  { label: 'Multi-agent', pawz: 'Boss/Worker orchestrator', them: 'Single agent only' },
-  { label: 'Memory', pawz: 'BM25 + vector + temporal decay + MMR', them: 'Keyword / simple text' },
-  { label: 'DeFi trading', pawz: 'ETH (7 chains) + Solana + Coinbase', them: 'None' },
-  { label: 'Task automation', pawz: 'Kanban board + cron jobs', them: 'None' },
-  { label: 'Voice (TTS)', pawz: '3 providers, 35+ voices', them: '0–1' },
-  { label: 'Smart home', pawz: 'Hue, Sonos, Eight Sleep', them: 'None' },
-  { label: 'Email', pawz: 'IMAP + SMTP via Himalaya', them: 'None' },
-  { label: 'Soul files', pawz: 'Persistent persona + user memory', them: 'No' },
-  { label: 'Session compaction', pawz: 'AI-powered auto-summary', them: 'No' },
-  { label: 'Budget control', pawz: 'Per-model pricing + daily cap', them: 'No' },
-  { label: 'Local/offline', pawz: 'Full offline via Ollama', them: 'Cloud only' },
-  { label: 'Privacy', pawz: 'All data on your machine', them: 'Data on their servers' },
-  { label: 'Binary size', pawz: '~5 MB (Tauri + Rust)', them: '~200 MB (Electron)' },
-  { label: 'Engine', pawz: '22,638 lines of Rust', them: 'Node.js / Python' },
-  { label: 'Open source', pawz: 'MIT License', them: 'Proprietary' },
+const comparisonData = [
+  { cat: 'Platform', icon: 'devices', rows: [
+    { f: 'License', p: 'MIT — free forever', o: 'Apache 2.0', d: '$20/mo per service' },
+    { f: 'Architecture', p: 'Native desktop (5 MB)', o: 'Self-hosted gateway', d: 'Electron (~200 MB)' },
+    { f: 'Engine', p: '22K lines of Rust', o: 'Go', d: 'Node.js / Python' },
+    { f: 'Works offline', p: '✓ Full (Ollama)', o: 'Partial', d: '✗ Cloud only' },
+    { f: 'Data stays on device', p: '✓ All local', o: '✓ Self-hosted', d: '✗ Their servers' },
+  ]},
+  { cat: 'AI & Agents', icon: 'psychology', rows: [
+    { f: 'AI providers', p: '10 + any compatible', o: '30+ via gateway', d: '1 (locked in)' },
+    { f: 'Multi-agent', p: 'Boss/Worker orchestrator', o: 'Agent routing', d: '✗ Single only' },
+    { f: 'Memory', p: 'BM25+vector+decay+MMR', o: 'Basic context', d: 'Simple text' },
+    { f: 'Soul files', p: '✓ Persistent persona', o: '✗', d: '✗' },
+    { f: 'Session compaction', p: '✓ AI-powered', o: '✗', d: '✗' },
+    { f: 'Budget control', p: '✓ Per-model + daily cap', o: '✗', d: '✗' },
+  ]},
+  { cat: 'Channels & Security', icon: 'shield', rows: [
+    { f: 'Chat bridges', p: '10 platforms', o: 'Plugin-based', d: '0' },
+    { f: 'Security layers', p: '7 defense-in-depth', o: '~2', d: '1 basic' },
+    { f: 'Injection scanning', p: 'Dual (TS + Rust)', o: 'Basic', d: 'Basic' },
+    { f: 'Docker sandbox', p: '✓ CAP_DROP ALL', o: '✓', d: '✗' },
+    { f: 'Credential vault', p: '✓ Keychain + AES-GCM', o: 'Env vars', d: '✗' },
+    { f: 'Tool policies', p: '✓ Per-agent rules', o: '✗', d: '✗' },
+  ]},
+  { cat: 'DeFi & Trading', icon: 'trending_up', rows: [
+    { f: 'DEX trading', p: '✓ Uniswap + Jupiter', o: '✗', d: '✗' },
+    { f: 'EVM chains', p: '7 chains', o: '✗', d: '✗' },
+    { f: 'Solana + SPL', p: '✓ Ed25519 signing', o: '✗', d: '✗' },
+    { f: 'Honeypot scanner', p: '✓ Risk 0–30', o: '✗', d: '✗' },
+    { f: 'Whale tracking', p: '✓ Smart money', o: '✗', d: '✗' },
+  ]},
+  { cat: 'Tools & Productivity', icon: 'extension', rows: [
+    { f: 'Tools + skills', p: '22 + 30+', o: '~10+', d: '~5–10' },
+    { f: 'Task board + cron', p: '✓ Kanban + scheduler', o: '✗', d: '✗' },
+    { f: 'Email', p: '✓ IMAP + SMTP', o: '✗', d: '✗' },
+    { f: 'Voice TTS', p: '3 providers, 35+ voices', o: '✗', d: '0–1' },
+    { f: 'Smart home', p: '✓ Hue / Sonos / Sleep', o: '✗', d: '✗' },
+    { f: 'Content studio', p: '✓ Editor + AI', o: '✗', d: '✗' },
+  ]},
 ];
 
 const stats = [
@@ -227,25 +245,38 @@ function ComparisonSection() {
         <div className="section-header">
           <div className="section-badge">Why Pawz?</div>
           <h2>The competition isn't even close.</h2>
-          <p>Every major AI desktop app locked you into one provider, zero channels, and minimal tools. We built the opposite.</p>
+          <p>We don't just beat ChatGPT Desktop — we take on OpenClaw too.</p>
         </div>
         <div className="comparison-table-wrap">
           <table className="comparison-table">
             <thead>
               <tr>
-                <th></th>
-                <th className="col-pawz">Pawz</th>
-                <th className="col-them">Claude / ChatGPT Desktop</th>
+                <th className="comp-feature-col"></th>
+                <th className="col-pawz">
+                  <img src="/paw/img/pawz-logo.png" alt="" className="comp-th-logo" />
+                  Pawz
+                </th>
+                <th className="col-oc">OpenClaw</th>
+                <th className="col-them">ChatGPT / Claude</th>
               </tr>
             </thead>
             <tbody>
-              {comparisonRows.map((r, i) => (
-                <tr key={i}>
-                  <td className="comp-label">{r.label}</td>
-                  <td className="comp-pawz">{r.pawz}</td>
-                  <td className="comp-them">{r.them}</td>
-                </tr>
-              ))}
+              {comparisonData.flatMap((cat, ci) => [
+                <tr key={`cat-${ci}`} className="comp-cat-row">
+                  <td colSpan={4}>
+                    <span className="ms comp-cat-icon">{cat.icon}</span>
+                    {cat.cat}
+                  </td>
+                </tr>,
+                ...cat.rows.map((row, ri) => (
+                  <tr key={`r-${ci}-${ri}`}>
+                    <td className="comp-label">{row.f}</td>
+                    <td className="comp-pawz">{row.p}</td>
+                    <td className="comp-oc">{row.o}</td>
+                    <td className="comp-them">{row.d}</td>
+                  </tr>
+                )),
+              ])}
             </tbody>
           </table>
         </div>
@@ -337,39 +368,63 @@ function ArchSection() {
       <div className="container">
         <div className="section-header">
           <div className="section-badge">Architecture</div>
-          <h2>Native performance. Not an Electron wrapper.</h2>
-          <p>Built on Tauri 2 + Rust — the same engine that powers the DeFi trading, memory search, and channel bridges.</p>
+          <h2>How Pawz works</h2>
+          <p>A native Tauri app with an async Rust engine — not an Electron wrapper with a Node.js backend.</p>
         </div>
-        <div className="arch-grid">
-          <div className="arch-card">
-            <div className="arch-label">Frontend</div>
-            <div className="arch-value">TypeScript</div>
-            <div className="arch-detail">Vanilla DOM, zero framework overhead</div>
+        <div className="flow">
+          <div className="flow-col">
+            <div className="flow-node flow-node-input">
+              <span className="ms">desktop_windows</span>
+              <strong>Desktop App</strong>
+              <span className="flow-sub">Tauri v2 · ~5 MB</span>
+            </div>
+            <div className="flow-node flow-node-input">
+              <span className="ms">forum</span>
+              <strong>10 Channels</strong>
+              <span className="flow-sub">Telegram · Discord · Slack · Matrix · IRC · +5 more</span>
+            </div>
           </div>
-          <div className="arch-card">
-            <div className="arch-label">Backend</div>
-            <div className="arch-value">Rust + Tokio</div>
-            <div className="arch-detail">22,638 lines of async native code</div>
+          <div className="flow-arrow-col">
+            <span className="flow-arr">→</span>
+            <span className="flow-arr">→</span>
           </div>
-          <div className="arch-card">
-            <div className="arch-label">Shell</div>
-            <div className="arch-value">Tauri v2</div>
-            <div className="arch-detail">~5 MB binary, native webview</div>
+          <div className="flow-col">
+            <div className="flow-node flow-node-core">
+              <span className="ms">memory</span>
+              <strong>Pawz Engine</strong>
+              <span className="flow-sub">22,638 lines of async Rust + Tokio</span>
+              <div className="flow-modules">
+                <span>Agent Loop</span><span>Memory</span><span>Security</span>
+                <span>Orchestrator</span><span>Trading</span><span>Skills</span>
+                <span>Channels</span><span>Sessions</span><span>Compaction</span>
+              </div>
+            </div>
           </div>
-          <div className="arch-card">
-            <div className="arch-label">Database</div>
-            <div className="arch-value">2x SQLite</div>
-            <div className="arch-detail">Frontend (8 tables) + Backend (14+ tables)</div>
+          <div className="flow-arrow-col">
+            <span className="flow-arr">→</span>
+            <span className="flow-arr">→</span>
           </div>
-          <div className="arch-card">
-            <div className="arch-label">Crypto</div>
-            <div className="arch-value">OS Keychain + AES-GCM</div>
-            <div className="arch-detail">Keys never in RAM longer than needed</div>
+          <div className="flow-col">
+            <div className="flow-node flow-node-output">
+              <span className="ms">cloud</span>
+              <strong>10 AI Providers</strong>
+              <span className="flow-sub">OpenAI · Claude · Gemini · Ollama · Groq · Mistral · +4</span>
+            </div>
+            <div className="flow-node flow-node-output">
+              <span className="ms">build</span>
+              <strong>22 Tools · 30+ Skills</strong>
+              <span className="flow-sub">Docker · DeFi · Browser · Smart Home · Email</span>
+            </div>
           </div>
-          <div className="arch-card">
-            <div className="arch-label">Containers</div>
-            <div className="arch-value">Docker / Bollard</div>
-            <div className="arch-detail">CAP_DROP ALL, ephemeral, auto-kill</div>
+        </div>
+        <div className="flow-down">
+          <span className="flow-arr">↓</span>
+        </div>
+        <div className="flow-storage">
+          <div className="flow-node flow-node-store">
+            <span className="ms">storage</span>
+            <strong>2×SQLite + OS Keychain</strong>
+            <span className="flow-sub">AES-GCM encrypted credentials · BM25 + vector memory index</span>
           </div>
         </div>
       </div>

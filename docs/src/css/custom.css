@@ -424,8 +424,44 @@ html {
   color: var(--paw-text-muted);
 }
 
+.col-oc {
+  color: var(--paw-text-muted);
+}
+
+.comp-feature-col {
+  width: 180px;
+}
+
+.comp-th-logo {
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+  margin-right: 0.35rem;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 4px rgba(255, 0, 255, 0.4));
+}
+
+.comp-cat-row td {
+  font-weight: 700;
+  font-size: 0.78rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--paw-cyan);
+  background: rgba(0, 204, 255, 0.05);
+  border-bottom: 2px solid rgba(0, 204, 255, 0.15);
+  padding: 0.65rem 1.25rem;
+}
+
+.comp-cat-icon {
+  font-size: 18px;
+  vertical-align: middle;
+  margin-right: 0.5rem;
+  color: var(--paw-cyan);
+  filter: drop-shadow(0 0 4px rgba(0, 204, 255, 0.3));
+}
+
 .comparison-table td {
-  padding: 0.8rem 1.25rem;
+  padding: 0.7rem 1.25rem;
   border-bottom: 1px solid var(--paw-border);
 }
 
@@ -435,17 +471,24 @@ html {
 
 .comp-label {
   font-weight: 600;
+  font-size: 0.85rem;
   color: var(--ifm-font-color-base);
 }
 
 .comp-pawz {
   color: var(--paw-green);
   font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.comp-oc {
+  color: var(--paw-text-muted);
+  font-size: 0.83rem;
 }
 
 .comp-them {
   color: var(--paw-text-muted);
-  font-size: 0.85rem;
+  font-size: 0.83rem;
 }
 
 /* ── Pillars ────────────────────────────────────────── */
@@ -580,7 +623,7 @@ html {
   margin: 0;
 }
 
-/* ── Architecture ───────────────────────────────────── */
+/* ── Architecture / Flow Diagram ─────────────────────── */
 
 .arch-section {
   padding: 6rem 0;
@@ -589,45 +632,117 @@ html {
   border-bottom: 1px solid var(--paw-border);
 }
 
-.arch-grid {
+.flow {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.25rem;
+  grid-template-columns: 1fr auto 1.5fr auto 1fr;
+  gap: 0;
+  align-items: stretch;
 }
 
-.arch-card {
-  padding: 1.5rem;
-  border-radius: 14px;
+.flow-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.flow-arrow-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 0.75rem;
+}
+
+.flow-arr {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--paw-cyan);
+  line-height: 1;
+  filter: drop-shadow(0 0 8px rgba(0, 204, 255, 0.5));
+  text-shadow: 0 0 12px rgba(0, 204, 255, 0.4);
+}
+
+.flow-node {
+  padding: 1.25rem 1rem;
+  border-radius: 12px;
   background: var(--paw-card-bg);
   border: 1px solid var(--paw-border);
   text-align: center;
   transition: all 0.25s ease;
 }
 
-.arch-card:hover {
+.flow-node:hover {
   border-color: var(--ifm-color-primary-darkest);
+  box-shadow: 0 4px 20px var(--paw-glow);
   transform: translateY(-1px);
 }
 
-.arch-label {
-  font-size: 0.72rem;
+.flow-node .ms {
+  display: block;
+  font-size: 28px;
+  color: var(--paw-neon);
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 0 6px rgba(255, 0, 255, 0.4));
+}
+
+.flow-node strong {
+  display: block;
+  font-size: 0.88rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ifm-color-primary);
-  margin-bottom: 0.4rem;
+  margin-bottom: 0.2rem;
 }
 
-.arch-value {
-  font-size: 1.4rem;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-  margin-bottom: 0.25rem;
-}
-
-.arch-detail {
-  font-size: 0.8rem;
+.flow-sub {
+  display: block;
+  font-size: 0.72rem;
   color: var(--paw-text-muted);
+  line-height: 1.4;
+}
+
+.flow-node-core {
+  border: 2px solid var(--paw-neon);
+  box-shadow: 0 0 30px rgba(255, 0, 255, 0.12);
+  padding: 1.75rem 1.25rem;
+}
+
+.flow-node-core strong {
+  font-family: var(--paw-pixel);
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+.flow-modules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.flow-modules span {
+  padding: 0.18rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  background: rgba(255, 0, 255, 0.08);
+  color: var(--paw-cyan);
+  border: 1px solid rgba(0, 204, 255, 0.15);
+}
+
+.flow-down {
+  text-align: center;
+  padding: 0.5rem 0;
+}
+
+.flow-storage {
+  display: flex;
+  justify-content: center;
+}
+
+.flow-node-store {
+  max-width: 420px;
+  width: 100%;
 }
 
 /* ── CTA Section ────────────────────────────────────── */
@@ -730,8 +845,16 @@ html {
   .firsts-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  .arch-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .flow {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  .flow-arrow-col {
+    flex-direction: row;
+    padding: 0.25rem 0;
+  }
+  .flow-arr {
+    transform: rotate(90deg);
   }
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
@@ -762,7 +885,7 @@ html {
   .firsts-grid {
     grid-template-columns: 1fr;
   }
-  .arch-grid {
+  .flow {
     grid-template-columns: 1fr;
   }
   .stats-grid {
