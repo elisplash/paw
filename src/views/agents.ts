@@ -884,25 +884,26 @@ async function loadAgentCommunitySkills(modal: HTMLElement, agentId: string): Pr
 
           let newIds: string[];
           if (input.checked) {
-            // Adding this agent: if currently empty (all agents), keep empty; otherwise add this agent
+            // Adding this agent
             if (currentIds.length === 0) {
-              // Already assigned to all agents — no change needed
+              // Already global (all agents) — no change needed
               return;
             }
             newIds = [...currentIds, agentId].filter((v, i, a) => a.indexOf(v) === i);
           } else {
             // Removing this agent
             if (currentIds.length === 0) {
-              // Was "all agents" — now need to list all EXCEPT this one
-              const agents = await pawEngine.listAllAgents();
-              newIds = agents.map(a => a.agent_id).filter(id => id !== agentId);
+              // Was "all agents" — switch to explicit list of all EXCEPT this one
+              // Use local _agents (localStorage) which has ALL agents, not the backend API
+              const allAgentIds = _agents.map(a => a.id);
+              newIds = allAgentIds.filter(id => id !== agentId);
             } else {
               newIds = currentIds.filter(id => id !== agentId);
             }
           }
 
           await pawEngine.communitySkillSetAgents(skillId, newIds);
-          // Update local state
+          // Update local state so subsequent toggles see the correct agent_ids
           skill.agent_ids = newIds;
           const name = skill.name || skillId.split('/').pop() || skillId;
           showToast(`${name} ${input.checked ? 'enabled' : 'disabled'} for this agent`, 'success');

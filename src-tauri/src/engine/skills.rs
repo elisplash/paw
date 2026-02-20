@@ -1200,6 +1200,22 @@ pub fn get_enabled_skill_instructions(store: &SessionStore, agent_id: &str) -> R
         result.push_str(&community_instructions);
     }
 
+    // Guard: cap total skill instructions to ~8000 tokens (~32K chars).
+    // Beyond this, skills eat too much context window and degrade conversation quality.
+    const MAX_SKILL_CHARS: usize = 32_000;
+    if result.len() > MAX_SKILL_CHARS {
+        log::warn!(
+            "[skills] Skill instructions too large ({} chars, ~{} tokens). Truncating to {} chars. \
+            Consider reducing the number of enabled skills for this agent.",
+            result.len(), result.len() / 4, MAX_SKILL_CHARS
+        );
+        // Truncate at a line boundary to avoid breaking mid-instruction
+        let truncated = &result[..MAX_SKILL_CHARS];
+        let last_newline = truncated.rfind('\n').unwrap_or(MAX_SKILL_CHARS);
+        result = result[..last_newline].to_string();
+        result.push_str("\n\n⚠️ Some skill instructions were truncated because too many skills are enabled. Consider disabling unused skills.");
+    }
+
     Ok(result)
 }
 
