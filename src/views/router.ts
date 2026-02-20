@@ -22,13 +22,14 @@ import * as ResearchModule from './research';
 import * as MailModule from './mail';
 import * as TodayModule from './today';
 import * as ProjectsModule from './projects';
+import * as CanvasModule from './canvas';
 
 export const allViewIds = [
   'dashboard-view', 'setup-view', 'manual-setup-view', 'install-view',
   'chat-view', 'tasks-view', 'code-view', 'content-view', 'mail-view',
   'automations-view', 'channels-view', 'research-view', 'memory-view',
   'skills-view', 'foundry-view', 'settings-view', 'nodes-view', 'agents-view',
-  'today-view', 'orchestrator-view', 'trading-view',
+  'today-view', 'orchestrator-view', 'trading-view', 'canvas-view',
 ];
 
 const viewMap: Record<string, string> = {
@@ -37,7 +38,7 @@ const viewMap: Record<string, string> = {
   channels: 'channels-view', research: 'research-view', memory: 'memory-view',
   skills: 'skills-view', foundry: 'foundry-view', settings: 'settings-view',
   nodes: 'nodes-view', agents: 'agents-view', today: 'today-view',
-  orchestrator: 'orchestrator-view', trading: 'trading-view',
+  orchestrator: 'orchestrator-view', trading: 'trading-view', canvas: 'canvas-view',
 };
 
 /** Read configured state from localStorage without holding a shared pointer. */
@@ -83,6 +84,7 @@ export function switchView(viewName: string) {
       }
       case 'orchestrator': OrchestratorModule.loadProjects(); break;
       case 'trading': TradingModule.loadTrading(); break;
+      case 'canvas': CanvasModule.loadCanvas(); break;
       case 'mail': MailModule.loadMail(); loadSpaceCron('mail'); break;
       case 'settings': SettingsModule.loadSettings(); SettingsModule.startUsageAutoRefresh(); loadActiveSettingsTab(); break;
       default: break;

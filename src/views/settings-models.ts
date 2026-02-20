@@ -18,6 +18,10 @@ const PROVIDER_KINDS: Array<{ value: string; label: string }> = [
   { value: 'openai', label: 'OpenAI' },
   { value: 'anthropic', label: 'Anthropic' },
   { value: 'google', label: 'Google' },
+  { value: 'deepseek', label: 'DeepSeek' },
+  { value: 'grok', label: 'xAI (Grok)' },
+  { value: 'mistral', label: 'Mistral' },
+  { value: 'moonshot', label: 'Moonshot / Kimi' },
   { value: 'openrouter', label: 'OpenRouter' },
   { value: 'custom', label: 'Custom / Compatible' },
 ];
@@ -27,6 +31,10 @@ const DEFAULT_BASE_URLS: Record<string, string> = {
   openai: 'https://api.openai.com/v1',
   anthropic: 'https://api.anthropic.com',
   google: 'https://generativelanguage.googleapis.com/v1beta',
+  deepseek: 'https://api.deepseek.com/v1',
+  grok: 'https://api.x.ai/v1',
+  mistral: 'https://api.mistral.ai/v1',
+  moonshot: 'https://api.moonshot.cn/v1',
   openrouter: 'https://openrouter.ai/api/v1',
   custom: '',
 };
@@ -61,11 +69,26 @@ const POPULAR_MODELS: Record<string, string[]> = {
     'deepseek/deepseek-chat', 'deepseek/deepseek-r1',
     'mistralai/mistral-large', 'qwen/qwen-2.5-72b-instruct',
   ],
+  deepseek: [
+    'deepseek-chat', 'deepseek-reasoner',
+  ],
+  grok: [
+    'grok-3', 'grok-3-mini', 'grok-2', 'grok-2-mini',
+  ],
+  mistral: [
+    'mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest',
+    'codestral-latest', 'open-mistral-nemo', 'mistral-embed',
+  ],
+  moonshot: [
+    'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k',
+  ],
   custom: ['deepseek-chat', 'deepseek-reasoner'],
 };
 
 const KIND_ICONS: Record<string, string> = {
-  ollama: '🦙', openai: '🤖', anthropic: '🧠', google: '🔮', openrouter: '🌐', custom: '🔧',
+  ollama: '🦙', openai: '🤖', anthropic: '🧠', google: '🔮',
+  deepseek: '🐋', grok: '⚡', mistral: '🌬️', moonshot: '🌙',
+  openrouter: '🌐', custom: '🔧',
 };
 
 // ── Render ──────────────────────────────────────────────────────────────────
@@ -443,6 +466,29 @@ const TIER_LABELS: Record<string, Record<string, string>> = {
     'gemini-1.5-pro': '✅ Previous flagship',
     'gemini-1.5-flash': '💨 Previous fast',
     'gemini-1.5-flash-8b': '💨 Smallest',
+  },
+  deepseek: {
+    'deepseek-chat': '🔥 V3 — best value — general purpose',
+    'deepseek-reasoner': '🧠 R1 — deep reasoning + math',
+  },
+  grok: {
+    'grok-3': '⚡ Flagship — strongest reasoning',
+    'grok-3-mini': '💨 Fast reasoning — think budget',
+    'grok-2': '✅ Previous flagship',
+    'grok-2-mini': '💨 Previous — fast + cheap',
+  },
+  mistral: {
+    'mistral-large-latest': '⚡ Flagship — best reasoning',
+    'mistral-medium-latest': '🔥 Balanced — cost-effective',
+    'mistral-small-latest': '💨 Fast + cheap',
+    'codestral-latest': '💻 Code-specialized',
+    'open-mistral-nemo': '💨 Lightweight open model',
+    'mistral-embed': '📐 Embedding model',
+  },
+  moonshot: {
+    'moonshot-v1-8k': '💨 8K context — fast',
+    'moonshot-v1-32k': '🔥 32K context — balanced',
+    'moonshot-v1-128k': '⚡ 128K context — long documents',
   },
 };
 

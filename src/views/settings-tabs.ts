@@ -7,6 +7,7 @@ import * as SessionsSettings from './settings-sessions';
 import * as VoiceSettings from './settings-voice';
 import * as SkillsSettings from './settings-skills';
 import * as BrowserSettings from './settings-browser';
+import * as TailscaleSettings from './settings-tailscale';
 
 const $ = (id: string) => document.getElementById(id);
 
@@ -20,6 +21,7 @@ export function loadActiveSettingsTab() {
     case 'voice':         VoiceSettings.loadVoiceSettings();            break;
     case 'skills':        SkillsSettings.loadSkillsSettings();          break;
     case 'browser':       BrowserSettings.loadBrowserSettings();        break;
+    case 'tailscale':     TailscaleSettings.loadTailscaleSettings();    break;
     default: break;
   }
 }

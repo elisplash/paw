@@ -6,7 +6,7 @@
 
 export interface EngineProviderConfig {
   id: string;
-  kind: 'openai' | 'anthropic' | 'google' | 'ollama' | 'openrouter' | 'custom';
+  kind: 'openai' | 'anthropic' | 'google' | 'ollama' | 'openrouter' | 'custom' | 'deepseek' | 'grok' | 'mistral' | 'moonshot';
   api_key: string;
   base_url?: string;
   default_model?: string;
@@ -562,4 +562,73 @@ export interface NetworkRequest {
   allowed: boolean;
   timestamp: string;
   tool_name: string;
+}
+
+// ── Canvas (Visual Workspace) ─────────────────────────────────────────
+
+export interface Canvas {
+  id: string;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+  viewport: CanvasViewport;
+  node_count: number;
+}
+
+export interface CanvasViewport {
+  x: number;
+  y: number;
+  zoom: number;
+}
+
+export interface CanvasNode {
+  id: string;
+  canvas_id: string;
+  kind: string;
+  title: string;
+  content: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  z_index: number;
+  collapsed: boolean;
+  metadata: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CanvasEdge {
+  id: string;
+  canvas_id: string;
+  from_node: string;
+  to_node: string;
+  label: string;
+  color: string;
+  style: string;
+}
+
+// ── Tailscale (Remote Access) ─────────────────────────────────────────
+
+export interface TailscaleStatus {
+  installed: boolean;
+  running: boolean;
+  hostname: string;
+  tailnet: string;
+  ip: string;
+  version: string;
+  serve_active: boolean;
+  funnel_active: boolean;
+  serve_url: string;
+  funnel_url: string;
+}
+
+export interface TailscaleConfig {
+  enabled: boolean;
+  serve_port: number;
+  funnel_enabled: boolean;
+  auth_key: string;
+  hostname_override: string;
 }

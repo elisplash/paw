@@ -50,6 +50,10 @@
             <div class="nav-item" data-view="content">
               <span>Create</span>
             </div>
+            <div class="nav-item" data-view="canvas">
+              <span>Canvas</span>
+              <span class="nav-badge">New</span>
+            </div>
           </div>
 
           <div class="nav-section">
@@ -1519,6 +1523,28 @@
           <div id="skills-vault-toast" style="display:none; margin-top:12px; padding:8px 14px; border-radius:8px; font-size:13px;"></div>
         </div>
 
+        <!-- ═══ Canvas View — Visual Workspace ═══ -->
+        <div class="view" id="canvas-view" style="display:flex;flex-direction:column;height:100%">
+          <div class="view-header" style="display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+            <div style="display:flex;align-items:center;gap:12px">
+              <h1 class="view-title" style="margin:0">Canvas</h1>
+              <button class="btn btn-primary btn-sm" id="canvas-new-btn">+ New</button>
+              <button class="btn btn-ghost btn-sm" id="canvas-delete-btn" title="Delete active canvas">🗑️</button>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div id="canvas-toolbar" style="display:flex;gap:4px;border-right:1px solid var(--border);padding-right:8px"></div>
+              <button class="btn btn-ghost btn-sm" id="canvas-zoom-out" title="Zoom out">−</button>
+              <span id="canvas-zoom-label" style="font-size:12px;min-width:40px;text-align:center;color:var(--text-muted)">100%</span>
+              <button class="btn btn-ghost btn-sm" id="canvas-zoom-in" title="Zoom in">+</button>
+              <button class="btn btn-ghost btn-sm" id="canvas-zoom-reset" title="Reset view">⟳</button>
+            </div>
+          </div>
+          <div style="display:flex;flex:1;overflow:hidden">
+            <div id="canvas-list" style="width:200px;border-right:1px solid var(--border);overflow-y:auto;padding:8px;flex-shrink:0"></div>
+            <div id="canvas-surface" style="flex:1;position:relative;overflow:hidden;background:var(--bg-primary)"></div>
+          </div>
+        </div>
+
         <!-- ═══ Foundry View — Models & Modes ═══ -->
         <div class="view list-view" id="foundry-view">
           <div class="view-header">
@@ -1627,6 +1653,7 @@
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="sessions">Sessions</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="voice">Voice & TTS</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="browser">Browser & Sandbox</button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="tailscale">Tailscale</button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="security">Security</button>
           </div>
 
@@ -1714,6 +1741,18 @@
               </h2>
               <p class="settings-section-desc">Managed Chrome profiles, agent screenshots, per-agent workspaces, and outbound network policy.</p>
               <div id="settings-browser-sandbox-content"></div>
+            </div>
+          </div>
+
+          <!-- ── Tab: Tailscale ── -->
+          <div class="settings-tab-panel" id="settings-panel-tailscale" style="display:none">
+            <div class="settings-section">
+              <h2 class="settings-section-title">
+                <span class="ms ms-sm">cloud</span>
+                Tailscale Remote Access
+              </h2>
+              <p class="settings-section-desc">Expose Pawz to your Tailscale network (Serve) or the internet (Funnel). Requires Tailscale installed on this machine.</p>
+              <div id="settings-tailscale-content"></div>
             </div>
           </div>
 

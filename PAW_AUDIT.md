@@ -8,10 +8,10 @@
 
 ## Executive Summary
 
-Pawz is a **standalone AI agent desktop app** built on Tauri v2 with a pure Rust engine. No gateway dependency, no Node.js process, no open ports. Everything runs through Tauri IPC. The app includes 10 channel bridges, 6 AI providers, 37+ skills, multi-agent orchestration, a Coinbase CDP wallet, and a full trading dashboard.
+Pawz is a **standalone AI agent desktop app** built on Tauri v2 with a pure Rust engine. No gateway dependency, no Node.js process, no open ports. Everything runs through Tauri IPC. The app includes 10 channel bridges, 10 AI providers, 37+ skills, multi-agent orchestration, a Coinbase CDP wallet, a full trading dashboard, a visual canvas workspace, and Tailscale remote access.
 
 **Total commits**: 100+  
-**All P1, P2, P3, and P4 features complete.** P5+ not started.
+**All P1, P2, P3, P4, and P5 (partial) features complete.** Canvas, Tailscale, and first-class provider UI shipped.
 
 ---
 
@@ -233,15 +233,16 @@ Rust backend: `commands/browser.rs` (~450 LOC) — 15 Tauri commands for profile
 Frontend: `features/browser-sandbox/` atoms/molecules/index + `views/settings-browser.ts` (~350 LOC) — full settings tab.
 Integration: Network policy enforced in `tool_executor.rs` `execute_fetch`. Browser profiles wired into `web.rs` `get_or_launch_browser` via `user_data_dir`. Inline screenshot viewer in `chat_controller.ts`.
 
-### 2.3 P5 — Ecosystem & Platform (NOT STARTED)
+### 2.3 P5 — Ecosystem & Platform (PARTIAL)
 
 | Feature | Effort | Status | Details |
-|---------|--------|--------|---------|
+|---------|--------|--------|--------|
 | **PawHub skill registry** | XL | ❌ | Public discover/install/publish marketplace |
-| **Canvas / visual workspace** | XL | ❌ | Agent-driven visual canvas |
+| **Canvas / visual workspace** | XL | ✅ | Infinite pan/zoom surface, draggable nodes (7 kinds), SVG edges, SQLite-backed via 11 Rust commands, full CRUD UI |
 | **Mobile companion app** | XL | ❌ | iOS/Android with camera, location, SMS |
-| **Remote access** | M | ❌ | Tailscale Serve/Funnel |
+| **Remote access** | M | ✅ | Tailscale Serve/Funnel — status detection, connect/disconnect, serve/funnel start/stop, config persistence via 9 Rust commands |
 | **OpenResponses API** | M | ❌ | `/v1/responses` HTTP endpoint |
+| **First-class provider UI** | S | ✅ | DeepSeek, xAI (Grok), Mistral, Moonshot/Kimi — dedicated entries in PROVIDER_KINDS, DEFAULT_BASE_URLS, POPULAR_MODELS, KIND_ICONS, TIER_LABELS |
 
 ### 2.4 Missing Channels
 
@@ -258,10 +259,10 @@ Integration: Network policy enforced in `tool_executor.rs` `execute_fetch`. Brow
 
 | Provider | Routing | UI Kind | Status |
 |----------|:-------:|:-------:|--------|
-| Kimi / Moonshot | ✅ | ❌ (uses `custom`) | Works via custom provider + model prefix routing |
-| DeepSeek | ✅ | ❌ (uses `custom`) | Same — routing exists, no dedicated UI entry |
-| xAI (Grok) | ✅ | ❌ (uses `custom`) | Same |
-| Mistral | ✅ | ❌ (uses `custom`) | Same |
+| Kimi / Moonshot | ✅ | ✅ | First-class provider entry with popular models + tier labels |
+| DeepSeek | ✅ | ✅ | First-class — deepseek-chat, deepseek-reasoner with tier labels |
+| xAI (Grok) | ✅ | ✅ | First-class — grok-3, grok-3-mini, grok-2 with tier labels |
+| Mistral | ✅ | ✅ | First-class — mistral-large, codestral, etc. with tier labels |
 | AWS Bedrock | ❌ | ❌ | Not implemented |
 | GitHub Copilot | ❌ | ❌ | Not implemented |
 
@@ -315,7 +316,7 @@ git pusah
 | Category | Pawz | OpenClaw | Winner |
 |----------|:----:|:--------:|:------:|
 | Channels | 10 | 16 | OpenClaw |
-| AI Providers | 6 (+4 routed) | 7+ | Tie |
+| AI Providers | 10 | 7+ | **Pawz** |
 | Security | 17 features | 7 features | **Pawz** |
 | Memory | 12 features | 8 features | **Pawz** |
 | Multi-Agent | 11 features | 6 features | **Pawz** |
@@ -404,14 +405,15 @@ All 3 items shipped: ElevenLabs TTS, Talk Mode (continuous + chat mic), Morning 
 ### ~~P4 — Browser & Sandbox~~ ✅ DONE
 All 4 items shipped: Managed browser profiles (persistent Chrome state), Screenshot viewer (gallery + inline chat), Per-agent workspace management UI, Outbound domain allowlist (enforced in fetch tool).
 
-### Immediate (P5)
+### ~~P5 — Canvas, Tailscale, Provider UI~~ ✅ DONE (3/6)
+3 items shipped: Canvas visual workspace (11 Rust commands + pan/zoom/drag UI), Tailscale remote access (9 Rust commands + settings UI), First-class provider UI for DeepSeek/Grok/Mistral/Moonshot.
+
+### Remaining (P5)
 10. **PawHub skill marketplace**
-11. **Canvas / visual workspace**
-12. **Mobile companion app**
-13. **Additional channels** (iMessage, Signal, Google Chat, Teams)
-14. **Remote access** (Tailscale)
-15. **First-class provider UI** for Kimi, DeepSeek, xAI, Mistral
+11. **Mobile companion app**
+12. **Additional channels** (iMessage, Signal, Google Chat, Teams)
+13. **OpenResponses API**
 
 ---
 
-**TL;DR**: All P1 security features DONE. All P2 memory intelligence DONE. **All P3 Voice/TTS DONE.** **All P4 Browser & Sandbox DONE** — Managed browser profiles with persistent Chrome state, screenshot gallery + inline chat viewer, per-agent workspace management, outbound domain allowlist enforced in fetch tool. Gateway fully removed. 10 channel bridges, 6+ providers, 37+ skills, 50 custom avatars, Coinbase trading, multi-agent orchestration — all shipped. Next up: P5 Ecosystem & Platform.
+**TL;DR**: All P1 security features DONE. All P2 memory intelligence DONE. **All P3 Voice/TTS DONE.** **All P4 Browser & Sandbox DONE.** **P5 partial — Canvas, Tailscale, Provider UI DONE.** Canvas: infinite pan/zoom surface with 7 node kinds, SVG edges, SQLite persistence. Tailscale: Serve/Funnel control with status detection, config persistence. Providers: DeepSeek, Grok, Mistral, Moonshot now first-class with popular models + tier labels. 10 channel bridges, 10 providers, 37+ skills, 50 custom avatars, Coinbase trading, multi-agent orchestration — all shipped. Next up: PawHub marketplace, mobile companion, additional channels.
