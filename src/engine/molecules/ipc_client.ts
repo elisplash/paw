@@ -130,6 +130,10 @@ class PawEngineClient {
     return invoke('engine_session_clear', { sessionId });
   }
 
+  async sessionCleanup(maxAgeSecs?: number, excludeId?: string): Promise<number> {
+    return invoke<number>('engine_session_cleanup', { maxAgeSecs: maxAgeSecs ?? 3600, excludeId: excludeId ?? null });
+  }
+
   async sessionCompact(sessionId: string): Promise<{
     session_id: string; messages_before: number; messages_after: number;
     tokens_before: number; tokens_after: number; summary_length: number;

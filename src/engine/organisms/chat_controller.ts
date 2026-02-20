@@ -21,6 +21,35 @@ import type { Message, ToolCall } from '../../types';
 
 const $ = (id: string) => document.getElementById(id);
 
+// ── Auto-label helper ────────────────────────────────────────────────────
+/** Generate a short label from the user's first message (max 50 chars). */
+function generateSessionLabel(message: string): string {
+  // Strip leading slashes, markdown, excessive whitespace
+  let label = message.replace(/^\/\w+\s*/, '').replace(/[#*_~`>]+/g, '').trim();
+  // Collapse whitespace
+  label = label.replace(/\s+/g, ' ');
+  if (label.length > 50) {
+    label = label.slice(0, 47).replace(/\s+\S*$/, '') + '…';
+  }
+  return label || 'New chat';
+}
+
+/** Relative time string (e.g. "2h ago", "3d ago"). */
+function relativeTime(date: Date | number): string {
+  const now = Date.now();
+  const ms = typeof date === 'number' ? date : date.getTime();
+  const diff = now - ms;
+  const secs = Math.floor(diff / 1000);
+  if (secs < 60) return 'just now';
+  const mins = Math.floor(secs / 60);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(ms).toLocaleDateString();
+}
+
 // ── Utility helpers ──────────────────────────────────────────────────────
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -64,8 +93,24 @@ function findLastIndex<T>(arr: T[], pred: (item: T) => boolean): number {
 export async function loadSessions(opts?: { skipHistory?: boolean }): Promise<void> {
   if (!appState.wsConnected) return;
   try {
-    const engineSessions = await pawEngine.sessionsList(50);
-    appState.sessions = engineSessions.map(s => ({
+    const engineSessions = await pawEngine.sessionsList(200);
+
+    // ── Auto-prune empty sessions older than 1 hour (bulk Rust-side) ──
+    pawEngine.sessionCleanup(3600, appState.currentSessionKey ?? undefined)
+      .then(n => { if (n > 0) console.log(`[chat] Pruned ${n} empty session(s)`); })
+      .catch(e => console.warn('[chat] Session cleanup failed:', e));
+
+    // Filter out empty old sessions on the display side too
+    const ONE_HOUR = 60 * 60 * 1000;
+    const now = Date.now();
+    const keptSessions = engineSessions.filter(s => {
+      const age = s.updated_at ? now - new Date(s.updated_at).getTime() : Infinity;
+      const isEmpty = s.message_count === 0;
+      const isCurrentSession = s.id === appState.currentSessionKey;
+      return !(isEmpty && age > ONE_HOUR && !isCurrentSession);
+    });
+
+    appState.sessions = keptSessions.map(s => ({
       key: s.id,
       kind: 'direct' as const,
       label: s.label ?? undefined,
@@ -125,7 +170,10 @@ export function renderSessionSelect(): void {
   for (const s of agentSessions) {
     const opt = document.createElement('option');
     opt.value = s.key;
-    opt.textContent = s.label ?? s.displayName ?? s.key;
+    // Show label + relative time, or clean fallback for unlabeled sessions
+    const label = s.label ?? s.displayName ?? 'Untitled chat';
+    const timeStr = s.updatedAt ? ` (${relativeTime(s.updatedAt)})` : '';
+    opt.textContent = label + timeStr;
     if (s.key === appState.currentSessionKey) opt.selected = true;
     chatSessionSelect.appendChild(opt);
   }
@@ -860,6 +908,20 @@ export async function sendMessage(): Promise<void> {
       }
       const curAgent = AgentsModule.getCurrentAgent();
       if (curAgent) { agentSessionMap.set(curAgent.id, result.sessionKey); persistAgentSessionMap(); }
+
+      // ── Auto-label new sessions from first message ──────────────────
+      const isNewSession = result.sessionKey !== streamKey || streamKey === 'default' || !streamKey;
+      const existingSession = appState.sessions.find(s => s.key === result.sessionKey);
+      if (isNewSession || !existingSession?.label) {
+        const autoLabel = generateSessionLabel(content);
+        pawEngine.sessionRename(result.sessionKey, autoLabel).then(() => {
+          // Update local state so dropdown reflects it immediately
+          const s = appState.sessions.find(s2 => s2.key === result.sessionKey);
+          if (s) { s.label = autoLabel; s.displayName = autoLabel; }
+          renderSessionSelect();
+          console.log('[chat] Auto-labeled session:', autoLabel);
+        }).catch(e => console.warn('[chat] Auto-label failed:', e));
+      }
     }
 
     const sendUsage = result.usage;

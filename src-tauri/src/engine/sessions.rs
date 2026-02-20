@@ -435,6 +435,32 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Bulk-delete sessions with 0 messages that are older than `max_age_secs`.
+    /// Skips the `exclude_id` session (the user's current session).
+    /// Returns the number of sessions deleted.
+    pub fn cleanup_empty_sessions(&self, max_age_secs: i64, exclude_id: Option<&str>) -> Result<usize, String> {
+        let conn = self.conn.lock();
+        let deleted = if let Some(eid) = exclude_id {
+            conn.execute(
+                "DELETE FROM sessions WHERE message_count = 0 \
+                 AND updated_at < datetime('now', ?1) \
+                 AND id != ?2",
+                params![format!("-{} seconds", max_age_secs), eid],
+            )
+        } else {
+            conn.execute(
+                "DELETE FROM sessions WHERE message_count = 0 \
+                 AND updated_at < datetime('now', ?1)",
+                params![format!("-{} seconds", max_age_secs)],
+            )
+        }.map_err(|e| format!("Cleanup error: {}", e))?;
+
+        if deleted > 0 {
+            info!("[engine] Cleaned up {} empty session(s) older than {}s", deleted, max_age_secs);
+        }
+        Ok(deleted)
+    }
+
     /// Prune a session's message history, keeping only the most recent `keep`
     /// messages.  Used by the cron heartbeat to prevent context accumulation
     /// across recurring task runs — the #1 cause of runaway token costs.

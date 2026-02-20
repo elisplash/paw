@@ -66,6 +66,7 @@ pub fn run() {
             commands::chat::engine_session_rename,
             commands::chat::engine_session_delete,
             commands::chat::engine_session_clear,
+            commands::chat::engine_session_cleanup,
             commands::chat::engine_session_compact,
             commands::chat::engine_approve_tool,
             // ── Engine Config & Sandbox ──

@@ -449,6 +449,16 @@ pub fn engine_session_clear(
 }
 
 #[tauri::command]
+pub fn engine_session_cleanup(
+    state: State<'_, EngineState>,
+    max_age_secs: Option<i64>,
+    exclude_id: Option<String>,
+) -> Result<usize, String> {
+    let age = max_age_secs.unwrap_or(3600); // default: 1 hour
+    state.store.cleanup_empty_sessions(age, exclude_id.as_deref())
+}
+
+#[tauri::command]
 pub async fn engine_session_compact(
     state: State<'_, EngineState>,
     session_id: String,

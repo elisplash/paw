@@ -75,7 +75,7 @@ function buildSessionCard(sess: EngineSession): HTMLElement {
   card.style.cssText = 'margin-bottom:10px; padding:12px; border:1px solid var(--border-color); border-radius:8px';
 
   const ts = sess.updated_at ? new Date(sess.updated_at).toLocaleString() : '—';
-  const label = sess.label || sess.id;
+  const label = sess.label || (sess.message_count > 0 ? 'Untitled chat' : 'Empty session');
 
   // Header row
   const header = document.createElement('div');
