@@ -495,7 +495,25 @@ export async function saveChannelSetup() {
       const configPatch = _chDef.buildConfig(values);
 
       const channelType = _channelSetupType;
-      const existingConfig = await getChannelConfig(channelType);
+      let existingConfig = await getChannelConfig(channelType);
+
+      // WhatsApp: if no existing config, create a proper default so all required fields are present
+      if (!existingConfig && channelType === 'whatsapp') {
+        existingConfig = {
+          enabled: false,
+          instance_name: 'paw',
+          api_url: 'http://127.0.0.1:8085',
+          api_key: 'paw-wa-' + Math.random().toString(36).slice(2, 18),
+          api_port: 8085,
+          webhook_port: 8086,
+          dm_policy: 'pairing',
+          allowed_users: [],
+          pending_users: [],
+          respond_in_groups: false,
+          session_connected: false,
+        };
+      }
+
       const finalConfig: Record<string, unknown> = {
         ...existingConfig,
         ...configPatch,

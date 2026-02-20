@@ -29,6 +29,7 @@ use tauri::Emitter;
 // ── WhatsApp Config ────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct WhatsAppConfig {
     pub enabled: bool,
     /// Instance name for Evolution API (default: "paw")
