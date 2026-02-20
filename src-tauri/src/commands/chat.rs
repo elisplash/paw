@@ -147,7 +147,7 @@ pub async fn engine_chat_send(
 
     // ── Skill instructions ─────────────────────────────────────────────────
     let skill_instructions =
-        crate::engine::skills::get_enabled_skill_instructions(&state.store).unwrap_or_default();
+        crate::engine::skills::get_enabled_skill_instructions(&state.store, &agent_id_owned).unwrap_or_default();
     if !skill_instructions.is_empty() {
         info!("[engine] Skill instructions injected ({} chars)", skill_instructions.len());
     }

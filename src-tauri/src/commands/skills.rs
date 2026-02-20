@@ -123,8 +123,8 @@ pub async fn engine_community_skill_install(
     skill_path: String,
     state: State<'_, EngineState>,
 ) -> Result<skills::CommunitySkill, String> {
-    info!("[engine] Installing community skill from {} path {}", source, skill_path);
-    skills::install_community_skill(&state.store, &source, &skill_path).await
+    info!("[engine] Installing community skill from {} path {} (UI — all agents)", source, skill_path);
+    skills::install_community_skill(&state.store, &source, &skill_path, None).await
 }
 
 #[tauri::command]
@@ -144,4 +144,14 @@ pub fn engine_community_skill_set_enabled(
 ) -> Result<(), String> {
     info!("[engine] Community skill {} → enabled={}", skill_id, enabled);
     state.store.set_community_skill_enabled(&skill_id, enabled)
+}
+
+#[tauri::command]
+pub fn engine_community_skill_set_agents(
+    state: State<'_, EngineState>,
+    skill_id: String,
+    agent_ids: Vec<String>,
+) -> Result<(), String> {
+    info!("[engine] Community skill {} → agent_ids={:?}", skill_id, agent_ids);
+    state.store.set_community_skill_agents(&skill_id, &agent_ids)
 }

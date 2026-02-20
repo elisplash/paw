@@ -207,6 +207,7 @@ export interface CommunitySkill {
   instructions: string;
   source: string;
   enabled: boolean;
+  agent_ids: string[];
   installed_at: string;
   updated_at: string;
 }

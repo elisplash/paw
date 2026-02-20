@@ -115,6 +115,7 @@ pub fn run() {
             commands::skills::engine_community_skill_install,
             commands::skills::engine_community_skill_remove,
             commands::skills::engine_community_skill_set_enabled,
+            commands::skills::engine_community_skill_set_agents,
             // ── Trading ──
             commands::trade::engine_trading_history,
             commands::trade::engine_trading_summary,

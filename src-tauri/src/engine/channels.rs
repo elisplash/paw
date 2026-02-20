@@ -159,7 +159,7 @@ pub async fn run_channel_agent(
 
     // Compose system prompt with agent context + memory + skills
     let agent_context = engine_state.store.compose_agent_context(agent_id).unwrap_or(None);
-    let skill_instructions = skills::get_enabled_skill_instructions(&engine_state.store).unwrap_or_default();
+    let skill_instructions = skills::get_enabled_skill_instructions(&engine_state.store, agent_id).unwrap_or_default();
 
     // Load core soul files (IDENTITY.md, SOUL.md, USER.md) — same as UI chat
     let core_context = engine_state.store.compose_core_context(agent_id).unwrap_or(None);

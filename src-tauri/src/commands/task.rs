@@ -202,7 +202,8 @@ pub async fn execute_task(
         )
     };
 
-    let skill_instructions = skills::get_enabled_skill_instructions(&state.store).unwrap_or_default();
+    let first_agent_id = agent_ids.first().map(|s| s.as_str()).unwrap_or("default");
+    let skill_instructions = skills::get_enabled_skill_instructions(&state.store, first_agent_id).unwrap_or_default();
 
     let mut all_tools = ToolDefinition::builtins();
     let enabled_ids: Vec<String> = skills::builtin_skills().iter()

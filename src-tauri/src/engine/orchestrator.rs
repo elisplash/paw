@@ -596,7 +596,7 @@ pub async fn run_project(
 
     // Boss agent system prompt
     let boss_soul = state.store.compose_agent_context(&project.boss_agent).unwrap_or(None);
-    let skill_instructions = skills::get_enabled_skill_instructions(&state.store).unwrap_or_default();
+    let skill_instructions = skills::get_enabled_skill_instructions(&state.store, &project.boss_agent).unwrap_or_default();
 
     let mut sys_parts: Vec<String> = Vec::new();
     if let Some(sp) = &base_system_prompt { sys_parts.push(sp.clone()); }
@@ -1004,7 +1004,7 @@ async fn run_sub_agent(
 
     // Build system prompt for sub-agent
     let agent_soul = state.store.compose_agent_context(agent_id).unwrap_or(None);
-    let skill_instructions = skills::get_enabled_skill_instructions(&state.store).unwrap_or_default();
+    let skill_instructions = skills::get_enabled_skill_instructions(&state.store, agent_id).unwrap_or_default();
 
     let mut sys_parts: Vec<String> = Vec::new();
     if let Some(sp) = &base_system_prompt { sys_parts.push(sp.clone()); }

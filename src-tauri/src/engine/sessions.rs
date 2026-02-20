@@ -607,15 +607,24 @@ impl SessionStore {
                 None
             };
 
-            // Drop from the front (oldest) until we fit
+            // Drop from the front (oldest) until we fit, but ALWAYS keep the
+            // last user message so the provider gets non-empty contents.
             let running_tokens: usize = system_msg.as_ref().map(|m| estimate_tokens(m)).unwrap_or(0);
             let mut keep_from = 0;
             let msg_tokens: Vec<usize> = messages.iter().map(|m| estimate_tokens(m)).collect();
             let total_msg_tokens: usize = msg_tokens.iter().sum();
             let mut drop_tokens = running_tokens + total_msg_tokens;
 
+            // Find the last user message index — we must never drop past it
+            let last_user_idx = messages.iter().rposition(|m| m.role == Role::User)
+                .unwrap_or(messages.len().saturating_sub(1));
+
             for (i, &t) in msg_tokens.iter().enumerate() {
                 if drop_tokens <= MAX_CONTEXT_TOKENS {
+                    break;
+                }
+                // Never drop past the last user message
+                if i >= last_user_idx {
                     break;
                 }
                 drop_tokens -= t;

@@ -104,7 +104,7 @@ pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle, a
         "dex_transfer" => execute_skill_tool("dex", "dex_transfer", &args, app_handle).await,
         // ── Community Skills tools ──
         "skill_search" => execute_skill_search(&args, app_handle).await,
-        "skill_install" => execute_skill_install(&args, app_handle).await,
+        "skill_install" => execute_skill_install(&args, app_handle, agent_id).await,
         "skill_list" => execute_skill_list(app_handle).await,
         _ => Err(format!("Unknown tool: {}", name)),
     };
@@ -1084,25 +1084,27 @@ fn format_installs(n: u64) -> String {
     }
 }
 
-async fn execute_skill_install(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+async fn execute_skill_install(args: &serde_json::Value, app_handle: &tauri::AppHandle, agent_id: &str) -> Result<String, String> {
     let source = args["source"].as_str()
         .ok_or("Missing 'source' parameter (e.g. 'owner/repo')")?;
     let path = args["path"].as_str()
         .ok_or("Missing 'path' parameter (path to SKILL.md in the repo)")?;
 
-    info!("[engine] Agent installing community skill: {} / {}", source, path);
+    info!("[engine] Agent '{}' installing community skill: {} / {}", agent_id, source, path);
 
     let state = app_handle.try_state::<EngineState>()
         .ok_or("Engine state not available")?;
 
-    let skill = skills::install_community_skill(&state.store, source, path).await?;
+    // Scope the skill to the installing agent
+    let skill = skills::install_community_skill(&state.store, source, path, Some(agent_id)).await?;
 
     // Emit event so the UI refreshes if the skills page is open
     let _ = app_handle.emit("community-skill-installed", &skill.name);
 
     Ok(format!(
-        "Successfully installed and enabled \"{}\"!\n\nDescription: {}\nSource: {}\n\nThis skill is now active and its instructions will be included in future conversations.",
+        "Successfully installed and enabled \"{}\" for agent '{}'!\n\nDescription: {}\nSource: {}\n\nThis skill is scoped to your agent and its instructions will be included in your future conversations.",
         skill.name,
+        agent_id,
         skill.description,
         skill.source,
     ))

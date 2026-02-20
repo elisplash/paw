@@ -291,6 +291,10 @@ class PawEngineClient {
     return invoke('engine_community_skill_set_enabled', { skillId, enabled });
   }
 
+  async communitySkillSetAgents(skillId: string, agentIds: string[]): Promise<void> {
+    return invoke('engine_community_skill_set_agents', { skillId, agentIds });
+  }
+
   // ── Trading ──────────────────────────────────────────────────────────
 
   async tradingHistory(limit?: number): Promise<TradeRecord[]> {

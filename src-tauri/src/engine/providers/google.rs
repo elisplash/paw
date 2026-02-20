@@ -218,7 +218,18 @@ impl GoogleProvider {
             self.api_key
         );
 
-        let (system_instruction, contents) = Self::format_messages(messages);
+        let (system_instruction, mut contents) = Self::format_messages(messages);
+
+        // Guard: Gemini requires at least one content entry.
+        // After heavy context truncation (large system prompt + community skills),
+        // contents can be empty, causing 400 "contents is not specified".
+        if contents.is_empty() {
+            contents.push(json!({
+                "role": "user",
+                "parts": [{"text": "Hello"}]
+            }));
+            warn!("[engine] Google: contents was empty after formatting, injected fallback user message");
+        }
 
         let mut body = json!({
             "contents": contents,
