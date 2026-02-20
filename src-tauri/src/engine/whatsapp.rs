@@ -158,6 +158,37 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 
 // ── Docker Container Management ────────────────────────────────────────
 
+/// On macOS, Colima creates its Docker socket at ~/.colima/default/docker.sock
+/// rather than the standard /var/run/docker.sock. This function finds the
+/// Colima socket and sets DOCKER_HOST so bollard and Docker CLI can use it.
+#[cfg(target_os = "macos")]
+fn discover_colima_socket() {
+    // If DOCKER_HOST is already set and the socket file exists, respect it
+    if let Ok(existing) = std::env::var("DOCKER_HOST") {
+        let path = existing.strip_prefix("unix://").unwrap_or(&existing);
+        if std::path::Path::new(path).exists() {
+            return;
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_default();
+    let candidates = [
+        format!("{}/.colima/default/docker.sock", home),
+        format!("{}/.colima/docker.sock", home),
+    ];
+    for sock in &candidates {
+        if std::path::Path::new(sock).exists() {
+            let docker_host = format!("unix://{}", sock);
+            info!("[whatsapp] Found Colima socket, setting DOCKER_HOST={}", docker_host);
+            std::env::set_var("DOCKER_HOST", &docker_host);
+            return;
+        }
+    }
+}
+
+/// No-op on non-macOS — Colima is macOS-only.
+#[cfg(not(target_os = "macos"))]
+fn discover_colima_socket() {}
+
 /// Check if the WhatsApp backend service is reachable.
 /// If Docker isn't installed, install it automatically.
 /// If Docker isn't running, start it automatically.
@@ -166,6 +197,11 @@ async fn ensure_docker_ready(app_handle: &tauri::AppHandle) -> Result<bollard::D
     use bollard::Docker;
 
     let stop = get_stop_signal();
+
+    // On macOS, Colima puts its Docker socket at ~/.colima/default/docker.sock
+    // instead of /var/run/docker.sock. Discover it and set DOCKER_HOST so bollard
+    // (and any docker CLI calls) can find it.
+    discover_colima_socket();
 
     // First attempt: connect directly — fastest path
     if let Ok(docker) = Docker::connect_with_local_defaults() {
@@ -258,6 +294,8 @@ async fn ensure_docker_ready(app_handle: &tauri::AppHandle) -> Result<bollard::D
         }
 
         info!("[whatsapp] Docker installed successfully");
+        // Discover Colima socket after fresh install
+        discover_colima_socket();
     } else {
         // Docker CLI is installed but daemon isn't running — start it
         info!("[whatsapp] Docker installed but not running, starting...");
@@ -316,6 +354,8 @@ async fn ensure_docker_ready(app_handle: &tauri::AppHandle) -> Result<bollard::D
                     warn!("[whatsapp] Failed to start colima: {}", e);
                 }
             }
+            // Re-discover the socket now that Colima is (hopefully) running
+            discover_colima_socket();
         } else if cfg!(target_os = "windows") {
             let _ = std::process::Command::new("cmd")
                 .args(["/C", "net", "start", "com.docker.service"])
@@ -336,6 +376,9 @@ async fn ensure_docker_ready(app_handle: &tauri::AppHandle) -> Result<bollard::D
             return Err("Cancelled".into());
         }
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        // On macOS, re-check for Colima socket each iteration (it may
+        // appear after Colima finishes booting its VM)
+        discover_colima_socket();
         if let Ok(docker) = Docker::connect_with_local_defaults() {
             if docker.ping().await.is_ok() {
                 info!("[whatsapp] Backend service ready after ~{}s", attempt * 2);
