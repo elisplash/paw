@@ -90,11 +90,31 @@ async function loadActiveCanvas() {
 function renderEmptyState() {
   const surface = $('canvas-surface');
   if (!surface) return;
-  surface.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:12px">
-    <span class="ms ms-xl">palette</span>
-    <p style="font-size:15px;font-weight:600">No canvases yet</p>
-    <p style="font-size:13px">Create one to start building your visual workspace.</p>
+  surface.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-muted);gap:16px;padding:40px;text-align:center">
+    <span class="ms" style="font-size:48px;color:var(--accent)">palette</span>
+    <p style="font-size:17px;font-weight:600;color:var(--text-primary);margin:0">Visual Workspace</p>
+    <p style="font-size:13px;max-width:360px;line-height:1.5;margin:0">
+      Canvas is your spatial thinking surface. Pin agent conversations, code snippets,
+      notes, images, and links as draggable cards — then connect them with edges to map
+      out ideas, plans, or workflows.
+    </p>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text-secondary);text-align:left;background:var(--bg-secondary);padding:16px 20px;border-radius:8px;border:1px solid var(--border)">
+      <div style="font-weight:600;color:var(--text-primary);margin-bottom:4px">How to use:</div>
+      <div><span class="ms ms-sm" style="vertical-align:middle;margin-right:4px">add</span> Click <strong>+ New</strong> to create a canvas</div>
+      <div><span class="ms ms-sm" style="vertical-align:middle;margin-right:4px">edit_note</span> Use the toolbar icons to add Text, Code, Sticky Notes, etc.</div>
+      <div><span class="ms ms-sm" style="vertical-align:middle;margin-right:4px">pan_tool</span> Click and drag the background to pan around</div>
+      <div><span class="ms ms-sm" style="vertical-align:middle;margin-right:4px">mouse</span> Scroll to zoom in/out</div>
+      <div><span class="ms ms-sm" style="vertical-align:middle;margin-right:4px">open_with</span> Drag cards to rearrange them</div>
+      <div><span class="ms ms-sm" style="vertical-align:middle;margin-right:4px">link</span> Click the link icon on a card, then another card to connect them</div>
+      <div><span class="ms ms-sm" style="vertical-align:middle;margin-right:4px">edit</span> Click the edit icon on any card to change its content or color</div>
+    </div>
+    <button class="btn btn-primary" id="canvas-empty-create" style="margin-top:8px">
+      <span class="ms ms-sm" style="vertical-align:middle;margin-right:4px">add</span>
+      Create Your First Canvas
+    </button>
   </div>`;
+
+  $('canvas-empty-create')?.addEventListener('click', handleCreateCanvas);
 }
 
 // ── Canvas Surface ────────────────────────────────────────────────────
@@ -358,7 +378,10 @@ async function handleDeleteCanvas(id: string) {
 }
 
 async function handleAddNode(kind: string) {
-  if (!_activeCanvasId) return;
+  if (!_activeCanvasId) {
+    showToast('Create a canvas first using "+ New"', 'info');
+    return;
+  }
   const cx = (-_viewport.x + 400) / _viewport.zoom;
   const cy = (-_viewport.y + 300) / _viewport.zoom;
   const x = snapToGrid(cx);
@@ -498,7 +521,7 @@ export function initCanvasView() {
       const btn = document.createElement('button');
       btn.className = 'btn btn-ghost btn-sm';
       btn.title = `Add ${kind.label}`;
-      btn.innerHTML = `<span style="font-size:14px">${kind.icon}</span>`;
+      btn.innerHTML = `<span class="ms ms-sm">${kind.icon}</span>`;
       btn.style.cssText = 'padding:6px 8px';
       btn.addEventListener('click', () => handleAddNode(kind.value));
       toolbar.appendChild(btn);
