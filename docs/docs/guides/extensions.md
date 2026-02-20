@@ -252,12 +252,14 @@ When you install an extension, its sidebar tab appears automatically. If you're 
 
 ## Per-Agent Scoping
 
-Like Skills and Integrations, Extensions are scoped to specific agents:
+Like Skills and Integrations, Extensions are assigned to agents from the **Agents** tab:
 
-- The extension's instructions and credentials are only injected into assigned agents' prompts
-- All agents can *read* from the extension's storage (for dashboard rendering)
-- Only assigned agents can *write* to the extension's storage
-- The extension's sidebar view is always visible (it shows data, not agent context)
+1. Open the **Agents** tab → select an agent → go to their **Skills** sub-tab
+2. Enable or disable the extension for that agent
+3. Only assigned agents receive the extension's instructions and credentials in their prompt
+4. All agents can *read* from the extension's storage (for dashboard rendering)
+5. Only assigned agents can *write* to the extension's storage
+6. The extension's sidebar view is always visible (it shows data, not agent context)
 
 ---
 
@@ -313,7 +315,7 @@ Extensions cannot:
 
 ## Tier Badges
 
-Every item in Settings → Skills shows its tier badge:
+Every item in the Skills tab shows its tier badge:
 
 | Badge | Color | Meaning |
 |-------|-------|---------|

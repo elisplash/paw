@@ -43,7 +43,7 @@ passwd.cmd = "security find-generic-password -s gmail -w"
 
 ## Skills setup
 
-Enable the **Email** skill in **Settings → Skills** and provide:
+Enable the **Email** skill in the **Skills** tab and provide:
 
 | Credential | Example |
 |-----------|---------|

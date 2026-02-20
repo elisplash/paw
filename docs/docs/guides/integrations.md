@@ -26,12 +26,12 @@ Integrations are the second tier of the Pawz extensibility system. They connect 
 
 1. **Author** creates a `pawz-skill.toml` manifest declaring what the integration does, what credentials it needs, and how the agent should use it
 2. **Install** via PawzHub (in-app browser) or manually into `~/.paw/skills/{id}/`
-3. **Configure** credentials in Settings → Skills — Pawz generates the input form automatically from the manifest
-4. **Enable** for specific agents — each agent can have different integrations enabled
+3. **Configure** credentials in the **Skills** tab — Pawz generates the input form automatically from the manifest
+4. **Assign to agents** — open the **Agents** tab, select an agent, and enable the integration in their Skills sub-tab
 5. **Use** — the agent receives decrypted credentials and instructions in its system prompt, then calls APIs via `fetch` or CLI tools via `exec`
 
 ```
-User enters API key in Settings
+User enters API key in Skills tab
        │
        ▼
 AES-GCM encrypted (256-bit key in OS keychain)
@@ -129,7 +129,7 @@ type = "badge"
 
 #### `[[credentials]]` — Optional, repeatable
 
-Declare API keys, tokens, or secrets the integration requires. Users enter these in the Settings UI. Pawz encrypts them with AES-GCM and injects decrypted values into the agent's system prompt at runtime.
+Declare API keys, tokens, or secrets the integration requires. Users enter these in the Skills tab. Pawz encrypts them with AES-GCM and injects decrypted values into the agent's system prompt at runtime.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -317,12 +317,15 @@ Integrations are scoped to specific agents. When you install a community integra
 
 Each agent only receives the instructions and credentials for its own assigned integrations. This prevents prompt bloat and keeps each agent focused on its domain.
 
-### Assigning agents
+### Assigning integrations to agents
 
-1. Install an integration from PawzHub or manually
-2. Click the **agent assignment badge** on the integration card
-3. Select which agents should receive this integration
-4. Only those agents will have the integration's instructions and credentials in their prompt
+Skill and integration assignment is managed from the **Agents** tab, not from the Skills view:
+
+1. Open the **Agents** tab in the sidebar
+2. Select an agent (e.g. your Marketing Agent)
+3. Go to the agent's **Skills** sub-tab
+4. Enable or disable individual skills and integrations for that agent
+5. Only enabled items are injected into that agent's prompt
 
 ---
 
@@ -330,11 +333,11 @@ Each agent only receives the instructions and credentials for its own assigned i
 
 ### From PawzHub (In-App)
 
-1. Open **Settings → Skills**
+1. Open the **Skills** tab in the sidebar
 2. Search or browse the PawzHub catalog
 3. Click **Install** on any integration (look for the 🟣 purple badge)
 4. Configure credentials in the auto-generated form
-5. Assign to your agents
+5. Assign to agents via **Agents → [agent] → Skills**
 
 ### Manual Install
 
@@ -352,11 +355,11 @@ For example:
 ~/.paw/skills/stripe/pawz-skill.toml
 ```
 
-Pawz hot-reloads the skill directory — the integration appears in Settings → Skills with a purple "Integration" badge.
+Pawz hot-reloads the skill directory — the integration appears in the Skills tab with a purple "Integration" badge.
 
 ### Uninstalling
 
-Click **Uninstall** in Settings → Skills. This removes the skill folder from `~/.paw/skills/`, cleans up stored credentials, and removes enabled state.
+Click **Uninstall** in the Skills tab. This removes the skill folder from `~/.paw/skills/`, cleans up stored credentials, and removes enabled state.
 
 ---
 
@@ -364,7 +367,7 @@ Click **Uninstall** in Settings → Skills. This removes the skill folder from `
 
 ### In-App Wizard
 
-The **Create Skill** wizard in Settings → Skills walks you through building an integration without writing TOML by hand:
+The **Create Skill** wizard in the Skills tab walks you through building an integration without writing TOML by hand:
 
 1. **Basic Info** — name, category, icon, description
 2. **Credentials** — add API key fields with labels and placeholders

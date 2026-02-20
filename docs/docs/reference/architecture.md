@@ -260,7 +260,7 @@ Every agent has access to these built-in tools (defined in `tools.rs`, executed 
 | `skill_install` | `source` (owner/repo), `path` (skills/id/SKILL.md) | Install a community skill from GitHub |
 | `skill_list` | — | List all installed community skills with enabled/disabled status |
 
-These tools allow agents to discover, install, and manage community skills during conversations without requiring the user to visit the settings UI.
+These tools allow agents to discover, install, and manage community skills during conversations without requiring the user to visit the Skills tab.
 
 ## Events (Backend → Frontend)
 

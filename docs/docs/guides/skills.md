@@ -27,7 +27,7 @@ Pawz ships with **40 built-in skills** that are compiled into the binary. These 
 
 ### How built-in skills work
 
-1. **Enable** a skill in Settings → Skills
+1. **Enable** a skill in the **Skills** tab (its own sidebar view)
 2. **Provide credentials** (API keys, tokens) if required
 3. **Install binaries** (CLI tools) if required
 4. Enabled skills inject their tools and instructions into agent prompts automatically
@@ -175,9 +175,9 @@ You are an expert Python developer. When writing Python:
 
 ### Searching for skills
 
-The Community Skills section sits at the top of the Skills settings page with a keyword search bar and popular category tags.
+The Community Skills section sits at the top of the **Skills** view with a keyword search bar and popular category tags.
 
-1. Go to **Settings → Skills** — the Community Skills hero section is at the top
+1. Open the **Skills** tab in the sidebar — the Community Skills hero section is at the top
 2. **Search by keyword**: Type any term (e.g. "marketing", "supabase", "trading") into the search bar and press Enter or click Search
 3. Pawz queries the [skills.sh](https://skills.sh) directory API (`/api/search?q=`) and displays matching skills with **install counts** (e.g. "22.9K", "151.3K")
 4. **Popular tags**: Click any of the quick-tag buttons (Coding, Marketing, DevOps, etc.) to instantly search that category
@@ -210,7 +210,7 @@ Agents have three built-in tools for working with community skills during conver
 | `skill_install` | Install a skill by source and path (e.g. after finding one via search) |
 | `skill_list` | List all currently installed community skills with their enabled/disabled status |
 
-This means you can ask your agent to find and install skills conversationally — no need to visit the settings UI.
+This means you can ask your agent to find and install skills conversationally — no need to visit the Skills tab.
 
 ### Managing community skills
 

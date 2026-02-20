@@ -149,7 +149,7 @@ type = "badge"
 
 #### `[[credentials]]` — Optional (repeatable)
 
-Declare API keys, tokens, or secrets the skill requires. Users enter these in the Settings UI. Pawz encrypts them with AES-GCM and stores the encryption key in the OS keychain. At runtime, decrypted values are injected into the agent's system prompt automatically.
+Declare API keys, tokens, or secrets the skill requires. Users enter these in the Skills tab. Pawz encrypts them with AES-GCM and stores the encryption key in the OS keychain. At runtime, decrypted values are injected into the agent's system prompt automatically.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -349,12 +349,12 @@ type = "datetime"
 
 ### From PawzHub (In-App)
 
-1. Open **Settings → Skills**
-2. Click the **Browse PawzHub** tab
+1. Open the **Skills** tab in the sidebar
+2. Click the **Browse PawzHub** section
 3. Browse or search available skills by name or category
 4. Click **Install** on any skill
 5. Configure credentials if required
-6. Enable the skill for your agent
+6. Assign to agents via **Agents → [agent] → Skills**
 
 ### Manual Install
 
@@ -372,12 +372,12 @@ For example:
 ~/.paw/skills/stripe/pawz-skill.toml
 ```
 
-Restart Pawz (or the skill loader hot-reloads). The skill appears in Settings → Skills with a "Community" badge.
+Restart Pawz (or the skill loader hot-reloads). The skill appears in the Skills tab with a "Community" badge.
 
 ### Uninstalling
 
-- **Community skills**: Click the **Uninstall** button in Settings → Skills. This deletes the skill folder from `~/.paw/skills/` and cleans up stored credentials and enabled state.
-- **Core skills**: Cannot be uninstalled (they're compiled into the binary). Disable them per-agent instead.
+- **Community skills**: Click the **Uninstall** button in the Skills tab. This deletes the skill folder from `~/.paw/skills/` and cleans up stored credentials and enabled state.
+- **Core skills**: Cannot be uninstalled (they're compiled into the binary). Disable them per-agent in **Agents → [agent] → Skills** instead.
 
 ---
 
@@ -385,7 +385,7 @@ Restart Pawz (or the skill loader hot-reloads). The skill appears in Settings �
 
 ### In-App Wizard
 
-The **Create Skill** wizard in Settings → Skills walks you through building a skill without writing TOML by hand:
+The **Create Skill** wizard in the Skills tab walks you through building a skill without writing TOML by hand:
 
 1. **Basic Info** — name, category, icon, description
 2. **Credentials** — add API key fields with labels and placeholders
@@ -467,7 +467,7 @@ Skills are accepted based on quality, not quantity. We learned from OpenClaw's C
 ### How Credentials Flow
 
 ```
-User enters API key in Settings UI
+User enters API key in Skills tab
          │
          ▼
 Encrypted with AES-GCM (256-bit key from OS keychain)

@@ -40,7 +40,7 @@ The trading view shows:
 
 ## Coinbase (CDP Agentic Wallet)
 
-Enable the **Coinbase** skill in **Settings → Skills** and configure:
+Enable the **Coinbase** skill in the **Skills** tab and configure:
 
 | Credential | Required | Description |
 |-----------|----------|-------------|
@@ -55,7 +55,7 @@ Enable the **Coinbase** skill in **Settings → Skills** and configure:
 4. Open the file — it contains two fields you need:
    - `"name"` → paste into **API Key Name** (looks like `organizations/abc123/apiKeys/xyz789`)
    - `"privateKey"` → paste into **API Secret** (base64 string or PEM block)
-5. In Pawz: **Settings → Skills → Coinbase → Configure** and paste both values
+5. In Pawz: open **Skills → Coinbase → Configure** and paste both values
 
 **Tools:** `coinbase_balance`, `coinbase_price`, `coinbase_buy`, `coinbase_sell`, `coinbase_send`, `coinbase_wallet_create`
 
@@ -65,7 +65,7 @@ Coinbase wallets are **self-custody** via MPC (Multi-Party Computation) — priv
 
 ## Ethereum DEX (Uniswap V3)
 
-Enable the **DEX Trading** skill in **Settings → Skills** and configure your RPC endpoint:
+Enable the **DEX Trading** skill in the **Skills** tab and configure your RPC endpoint:
 
 | Credential | Required | Description |
 |-----------|----------|-------------|
@@ -204,7 +204,7 @@ Always run `dex_check_token` on unfamiliar tokens before swapping. A failing sim
 
 ## Solana DEX (Jupiter + PumpPortal)
 
-Enable the **Solana DEX** skill in **Settings → Skills** and configure your RPC endpoint:
+Enable the **Solana DEX** skill in the **Skills** tab and configure your RPC endpoint:
 
 | Credential | Required | Description |
 |-----------|----------|-------------|
