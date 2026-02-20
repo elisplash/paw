@@ -677,11 +677,16 @@ async fn create_evolution_instance(config: &WhatsAppConfig) -> Result<String, St
 
     // v1.x format: webhook is a plain string URL, no "integration" field.
     // Webhook events are configured via container env vars (WEBHOOK_GLOBAL_*).
+    // Provide a unique token per instance to avoid "Token already exists" collisions.
+    let instance_token = format!("paw-{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..12].to_string());
     let body = json!({
         "instanceName": config.instance_name,
+        "token": instance_token,
         "qrcode": true,
         "webhook": format!("http://host.docker.internal:{}/webhook/whatsapp", config.webhook_port),
     });
+
+    info!("[whatsapp] Creating instance '{}' with token '{}'", config.instance_name, instance_token);
 
     let resp = client.post(&url)
         .header("apikey", &config.api_key)
@@ -691,17 +696,31 @@ async fn create_evolution_instance(config: &WhatsAppConfig) -> Result<String, St
 
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
+    info!("[whatsapp] Instance create response [{}]: {}", status, &text[..text.len().min(500)]);
 
     if !status.is_success() {
-        // Instance might already exist — delete it and retry
-        if text.contains("already") || text.contains("exists") {
-            info!("[whatsapp] Instance already exists, deleting and recreating...");
+        // Instance with this name already exists — delete it and retry
+        let lower = text.to_lowercase();
+        let is_instance_exists = lower.contains("instance") && (lower.contains("already") || lower.contains("exists"));
+        let is_token_exists = lower.contains("token") && lower.contains("already");
+
+        if is_instance_exists || is_token_exists {
+            info!("[whatsapp] Instance/token conflict, deleting instance and recreating...");
             delete_evolution_instance(config).await;
+
+            // Generate a fresh token for the retry
+            let retry_token = format!("paw-{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..12].to_string());
+            let retry_body = json!({
+                "instanceName": config.instance_name,
+                "token": retry_token,
+                "qrcode": true,
+                "webhook": format!("http://host.docker.internal:{}/webhook/whatsapp", config.webhook_port),
+            });
 
             // Retry create after delete
             let resp2 = client.post(&url)
                 .header("apikey", &config.api_key)
-                .json(&body)
+                .json(&retry_body)
                 .send().await
                 .map_err(|e| format!("Failed to create instance (retry): {}", e))?;
 
