@@ -693,28 +693,77 @@ async fn create_evolution_instance(config: &WhatsAppConfig) -> Result<String, St
     let text = resp.text().await.unwrap_or_default();
 
     if !status.is_success() {
-        // Instance might already exist — try to connect it
+        // Instance might already exist — delete it and retry
         if text.contains("already") || text.contains("exists") {
-            info!("[whatsapp] Instance already exists, connecting...");
-            return connect_evolution_instance(config).await;
+            info!("[whatsapp] Instance already exists, deleting and recreating...");
+            delete_evolution_instance(config).await;
+
+            // Retry create after delete
+            let resp2 = client.post(&url)
+                .header("apikey", &config.api_key)
+                .json(&body)
+                .send().await
+                .map_err(|e| format!("Failed to create instance (retry): {}", e))?;
+
+            let status2 = resp2.status();
+            let text2 = resp2.text().await.unwrap_or_default();
+            info!("[whatsapp] Instance create (retry) response [{}]: {}", status2, &text2[..text2.len().min(500)]);
+
+            if !status2.is_success() {
+                return Err(format!("Create instance failed after delete ({}): {}", status2, text2));
+            }
+
+            let resp_json: serde_json::Value = serde_json::from_str(&text2).unwrap_or_default();
+            return Ok(extract_qr_from_response(&resp_json));
         }
         return Err(format!("Create instance failed ({}): {}", status, text));
     }
+
+    info!("[whatsapp] Instance create response [{}]: {}", status, &text[..text.len().min(500)]);
 
     // Parse QR code from response
     let resp_json: serde_json::Value = serde_json::from_str(&text)
         .map_err(|e| format!("Parse create response: {}", e))?;
 
-    let qr = resp_json["qrcode"]["base64"]
-        .as_str()
-        .or_else(|| resp_json["qrcode"].as_str())
-        .unwrap_or("")
-        .to_string();
-
-    Ok(qr)
+    Ok(extract_qr_from_response(&resp_json))
 }
 
-/// Connect an existing Evolution API instance.
+/// Extract QR code base64 from various Evolution API response formats.
+fn extract_qr_from_response(resp: &serde_json::Value) -> String {
+    // v1.x create: { "qrcode": { "base64": "data:image/..." } }
+    // v1.x connect: { "base64": "data:image/..." }
+    // Also try nested: { "qrcode": "data:image/..." }
+    resp["qrcode"]["base64"].as_str()
+        .or_else(|| resp["base64"].as_str())
+        .or_else(|| resp["qrcode"].as_str().filter(|s| s.starts_with("data:")))
+        .unwrap_or("")
+        .to_string()
+}
+
+/// Delete an existing Evolution API instance.
+async fn delete_evolution_instance(config: &WhatsAppConfig) {
+    let client = reqwest::Client::new();
+    let url = format!("{}/instance/delete/{}", config.api_url, config.instance_name);
+
+    match client.delete(&url)
+        .header("apikey", &config.api_key)
+        .send().await
+    {
+        Ok(resp) => {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            info!("[whatsapp] Delete instance response [{}]: {}", status, &text[..text.len().min(200)]);
+        }
+        Err(e) => {
+            warn!("[whatsapp] Delete instance failed: {}", e);
+        }
+    }
+    // Brief pause to let the API settle
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+}
+
+/// Connect an existing Evolution API instance (fallback if delete+create fails).
+#[allow(dead_code)]
 async fn connect_evolution_instance(config: &WhatsAppConfig) -> Result<String, String> {
     let client = reqwest::Client::new();
     let url = format!("{}/instance/connect/{}", config.api_url, config.instance_name);
@@ -725,15 +774,10 @@ async fn connect_evolution_instance(config: &WhatsAppConfig) -> Result<String, S
         .map_err(|e| format!("Failed to connect instance: {}", e))?;
 
     let text = resp.text().await.unwrap_or_default();
+    info!("[whatsapp] Connect instance response: {}", &text[..text.len().min(500)]);
     let resp_json: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
 
-    let qr = resp_json["base64"]
-        .as_str()
-        .or_else(|| resp_json["qrcode"]["base64"].as_str())
-        .unwrap_or("")
-        .to_string();
-
-    Ok(qr)
+    Ok(extract_qr_from_response(&resp_json))
 }
 
 // ── Main Bridge Loop ───────────────────────────────────────────────────
