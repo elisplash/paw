@@ -501,6 +501,23 @@ export interface TwitchConfig {
   require_mention: boolean;
 }
 
+export interface WhatsAppConfig {
+  enabled: boolean;
+  instance_name: string;
+  api_url: string;
+  api_key: string;
+  api_port: number;
+  webhook_port: number;
+  dm_policy: string;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  agent_id?: string;
+  respond_in_groups: boolean;
+  container_id?: string;
+  session_connected: boolean;
+  qr_code?: string;
+}
+
 // ── Browser Profiles & Sandbox ────────────────────────────────────────
 
 export interface BrowserProfile {

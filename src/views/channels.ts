@@ -18,6 +18,7 @@ const CHANNEL_CLASSES: Record<string, string> = {
   nextcloud: 'nextcloud',
   nostr: 'nostr',
   twitch: 'twitch',
+  whatsapp: 'whatsapp',
 };
 
 // ── Channel Setup Definitions ──────────────────────────────────────────────
@@ -202,6 +203,25 @@ const CHANNEL_SETUPS: ChannelSetupDef[] = [
     buildConfig: (v) => ({ oauth_token: v.oauthToken as string, bot_username: v.botUsername as string, channels_to_join: (v.channels as string || '').split(',').map(s => s.trim()).filter(Boolean), enabled: true, dm_policy: v.dmPolicy as string || 'open', require_mention: v.requireMention !== false }),
   },
   {
+    id: 'whatsapp',
+    name: 'WhatsApp',
+    icon: 'WA',
+    description: 'Connect to WhatsApp via a local Evolution API Docker container. Your WhatsApp account is linked by scanning a QR code — no business account needed. Requires Docker.',
+    fields: [
+      { key: 'apiPort', label: 'API Port', type: 'text', placeholder: '8085', defaultValue: '8085', hint: 'Port for the Evolution API container (default 8085)' },
+      { key: 'webhookPort', label: 'Webhook Port', type: 'text', placeholder: '8086', defaultValue: '8086', hint: 'Port for the local webhook listener (default 8086)' },
+      { key: 'dmPolicy', label: 'Access Policy', type: 'select', options: [
+        { value: 'pairing', label: 'Pairing (new contacts must be approved)' },
+        { value: 'allowlist', label: 'Allowlist only (pre-approved numbers)' },
+        { value: 'open', label: 'Open (anyone can message)' },
+      ], defaultValue: 'pairing' },
+      { key: 'allowFrom', label: 'Allowed Phone Numbers', type: 'text', placeholder: '1234567890, 0987654321', hint: 'Phone numbers (no + prefix), comma-separated. Leave blank for pairing mode.' },
+      { key: 'respondInGroups', label: 'Respond in group chats', type: 'toggle', defaultValue: false },
+      { key: 'agentId', label: 'Agent ID (optional)', type: 'text', placeholder: '' },
+    ],
+    buildConfig: (v) => ({ enabled: true, api_port: parseInt(v.apiPort as string) || 8085, webhook_port: parseInt(v.webhookPort as string) || 8086, dm_policy: v.dmPolicy as string || 'pairing', respond_in_groups: !!v.respondInGroups }),
+  },
+  {
     id: 'webchat',
     name: 'Web Chat',
     icon: '',
@@ -296,6 +316,13 @@ export async function openChannelSetup(channelType: string) {
       if (cfg.bot_username) existingValues['botUsername'] = cfg.bot_username;
       if (cfg.channels_to_join?.length) existingValues['channels'] = cfg.channels_to_join.join(', ');
       if (cfg.dm_policy) existingValues['dmPolicy'] = cfg.dm_policy;
+      if (cfg.agent_id) existingValues['agentId'] = cfg.agent_id;
+    } else if (channelType === 'whatsapp') {
+      const cfg = await pawEngine.whatsappGetConfig();
+      if (cfg.api_port) existingValues['apiPort'] = String(cfg.api_port);
+      if (cfg.webhook_port) existingValues['webhookPort'] = String(cfg.webhook_port);
+      if (cfg.dm_policy) existingValues['dmPolicy'] = cfg.dm_policy;
+      if (cfg.allowed_users?.length) existingValues['allowFrom'] = cfg.allowed_users.join(', ');
       if (cfg.agent_id) existingValues['agentId'] = cfg.agent_id;
     }
   } catch { /* no existing config */ }
@@ -482,6 +509,7 @@ export async function getChannelConfig(ch: string): Promise<Record<string, unkno
       case 'nextcloud': return await pawEngine.nextcloudGetConfig() as unknown as Record<string, unknown>;
       case 'nostr': return await pawEngine.nostrGetConfig() as unknown as Record<string, unknown>;
       case 'twitch': return await pawEngine.twitchGetConfig() as unknown as Record<string, unknown>;
+      case 'whatsapp': return await pawEngine.whatsappGetConfig() as unknown as Record<string, unknown>;
       default: return null;
     }
   } catch { return null; }
@@ -497,6 +525,7 @@ async function setChannelConfig(ch: string, config: Record<string, unknown>): Pr
     case 'nextcloud': return pawEngine.nextcloudSetConfig(config as any);
     case 'nostr': return pawEngine.nostrSetConfig(config as any);
     case 'twitch': return pawEngine.twitchSetConfig(config as any);
+    case 'whatsapp': return pawEngine.whatsappSetConfig(config as any);
   }
 }
 
@@ -510,6 +539,7 @@ export async function startChannel(ch: string): Promise<void> {
     case 'nextcloud': return pawEngine.nextcloudStart();
     case 'nostr': return pawEngine.nostrStart();
     case 'twitch': return pawEngine.twitchStart();
+    case 'whatsapp': return pawEngine.whatsappStart();
   }
 }
 
@@ -523,6 +553,7 @@ async function stopChannel(ch: string): Promise<void> {
     case 'nextcloud': return pawEngine.nextcloudStop();
     case 'nostr': return pawEngine.nostrStop();
     case 'twitch': return pawEngine.twitchStop();
+    case 'whatsapp': return pawEngine.whatsappStop();
   }
 }
 
@@ -537,6 +568,7 @@ export async function getChannelStatus(ch: string): Promise<ChannelStatus | null
       case 'nextcloud': return await pawEngine.nextcloudStatus();
       case 'nostr': return await pawEngine.nostrStatus();
       case 'twitch': return await pawEngine.twitchStatus();
+      case 'whatsapp': return await pawEngine.whatsappStatus();
       default: return null;
     }
   } catch { return null; }
@@ -552,6 +584,7 @@ async function approveChannelUser(ch: string, userId: string): Promise<void> {
     case 'nextcloud': return pawEngine.nextcloudApproveUser(userId);
     case 'nostr': return pawEngine.nostrApproveUser(userId);
     case 'twitch': return pawEngine.twitchApproveUser(userId);
+    case 'whatsapp': return pawEngine.whatsappApproveUser(userId);
   }
 }
 
@@ -565,6 +598,7 @@ async function denyChannelUser(ch: string, userId: string): Promise<void> {
     case 'nextcloud': return pawEngine.nextcloudDenyUser(userId);
     case 'nostr': return pawEngine.nostrDenyUser(userId);
     case 'twitch': return pawEngine.twitchDenyUser(userId);
+    case 'whatsapp': return pawEngine.whatsappDenyUser(userId);
   }
 }
 
@@ -654,7 +688,7 @@ export async function loadChannels() {
     } catch { /* no telegram */ }
 
     // ── Generic Channels ─────────────────────────────────────────────────
-    const genericChannels = ['discord', 'irc', 'slack', 'matrix', 'mattermost', 'nextcloud', 'nostr', 'twitch'];
+    const genericChannels = ['discord', 'irc', 'slack', 'matrix', 'mattermost', 'nextcloud', 'nostr', 'twitch', 'whatsapp'];
 
     for (const ch of genericChannels) {
       try {
@@ -764,6 +798,7 @@ function isChannelConfigured(ch: string, config: Record<string, unknown>): boole
     case 'nextcloud': return !!config.server_url && !!config.username && !!config.password;
     case 'nostr': return !!config.private_key_hex;
     case 'twitch': return !!config.oauth_token && !!config.bot_username;
+    case 'whatsapp': return !!config.enabled;
     default: return false;
   }
 }
@@ -779,6 +814,7 @@ function emptyChannelConfig(ch: string): Record<string, unknown> {
     case 'nextcloud': return { ...base, server_url: '', username: '', password: '', respond_in_groups: false };
     case 'nostr': return { ...base, private_key_hex: '', relays: [], dm_policy: 'open' };
     case 'twitch': return { ...base, oauth_token: '', bot_username: '', channels_to_join: [], dm_policy: 'open', require_mention: true };
+    case 'whatsapp': return { ...base, instance_name: 'paw', api_url: 'http://127.0.0.1:8085', api_key: '', api_port: 8085, webhook_port: 8086, respond_in_groups: false, session_connected: false };
     default: return base;
   }
 }

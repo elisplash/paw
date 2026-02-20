@@ -147,6 +147,11 @@ channel_commands!(
     crate::engine::webchat,
     crate::engine::webchat::WebChatConfig
 );
+channel_commands!(
+    whatsapp,
+    crate::engine::whatsapp,
+    crate::engine::whatsapp::WhatsAppConfig
+);
 
 // ── Telegram — hand-written (unique API surface) ──────────────────────────────
 //

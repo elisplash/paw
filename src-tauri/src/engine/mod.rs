@@ -33,3 +33,4 @@ pub mod nextcloud;
 pub mod nostr;
 pub mod twitch;
 pub mod webchat;
+pub mod whatsapp;

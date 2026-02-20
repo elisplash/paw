@@ -224,6 +224,15 @@ pub fn run() {
             commands::channels::engine_webchat_approve_user,
             commands::channels::engine_webchat_deny_user,
             commands::channels::engine_webchat_remove_user,
+            // WhatsApp ──
+            commands::channels::engine_whatsapp_start,
+            commands::channels::engine_whatsapp_stop,
+            commands::channels::engine_whatsapp_status,
+            commands::channels::engine_whatsapp_get_config,
+            commands::channels::engine_whatsapp_set_config,
+            commands::channels::engine_whatsapp_approve_user,
+            commands::channels::engine_whatsapp_deny_user,
+            commands::channels::engine_whatsapp_remove_user,
             // ── Orchestrator: Projects ──
             commands::project::engine_projects_list,
             commands::project::engine_project_create,

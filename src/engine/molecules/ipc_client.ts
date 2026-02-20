@@ -41,6 +41,7 @@ import type {
   NextcloudConfig,
   NostrConfig,
   TwitchConfig,
+  WhatsAppConfig,
   BrowserConfig,
   BrowserProfile,
   ScreenshotEntry,
@@ -446,6 +447,17 @@ class PawEngineClient {
   async twitchApproveUser(userId: string): Promise<void> { return invoke('engine_twitch_approve_user', { userId }); }
   async twitchDenyUser(userId: string): Promise<void> { return invoke('engine_twitch_deny_user', { userId }); }
   async twitchRemoveUser(userId: string): Promise<void> { return invoke('engine_twitch_remove_user', { userId }); }
+
+  // ── WhatsApp ─────────────────────────────────────────────────────────
+
+  async whatsappStart(): Promise<void> { return invoke('engine_whatsapp_start'); }
+  async whatsappStop(): Promise<void> { return invoke('engine_whatsapp_stop'); }
+  async whatsappStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_whatsapp_status'); }
+  async whatsappGetConfig(): Promise<WhatsAppConfig> { return invoke<WhatsAppConfig>('engine_whatsapp_get_config'); }
+  async whatsappSetConfig(config: WhatsAppConfig): Promise<void> { return invoke('engine_whatsapp_set_config', { config }); }
+  async whatsappApproveUser(userId: string): Promise<void> { return invoke('engine_whatsapp_approve_user', { userId }); }
+  async whatsappDenyUser(userId: string): Promise<void> { return invoke('engine_whatsapp_deny_user', { userId }); }
+  async whatsappRemoveUser(userId: string): Promise<void> { return invoke('engine_whatsapp_remove_user', { userId }); }
 
   // ── Orchestrator: Projects ───────────────────────────────────────────
 
