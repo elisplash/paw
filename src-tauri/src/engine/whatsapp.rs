@@ -98,7 +98,7 @@ fn get_stop_signal() -> Arc<AtomicBool> {
 }
 
 const CONFIG_KEY: &str = "whatsapp_config";
-const EVOLUTION_IMAGE: &str = "atende/evolution-api:latest";
+const EVOLUTION_IMAGE: &str = "evoapicloud/evolution-api:latest";
 const CONTAINER_NAME: &str = "paw-whatsapp-evolution";
 
 // ── Bridge Core ────────────────────────────────────────────────────────
