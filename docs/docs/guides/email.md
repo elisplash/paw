@@ -92,6 +92,81 @@ The mail view auto-detects your provider and shows the appropriate icon:
 | Fastmail | FM |
 | Other | M |
 
+## Provider presets
+
+The account setup wizard auto-fills IMAP/SMTP settings for popular providers:
+
+| Provider | IMAP Server | IMAP Port | SMTP Server | SMTP Port | Auth notes |
+|----------|------------|-----------|-------------|-----------|------------|
+| **Gmail** | `imap.gmail.com` | 993 | `smtp.gmail.com` | 465 | Requires [App Password](https://support.google.com/accounts/answer/185833) |
+| **Outlook / Hotmail** | `outlook.office365.com` | 993 | `smtp.office365.com` | 587 | Regular password or App Password with 2FA |
+| **Yahoo Mail** | `imap.mail.yahoo.com` | 993 | `smtp.mail.yahoo.com` | 465 | App Password from Yahoo Security settings |
+| **iCloud Mail** | `imap.mail.me.com` | 993 | `smtp.mail.me.com` | 587 | App-Specific Password from appleid.apple.com |
+| **Fastmail** | `imap.fastmail.com` | 993 | `smtp.fastmail.com` | 465 | App Password from Privacy & Security |
+| **Custom** | (manual) | 993 | (manual) | 465 | Enter your own IMAP/SMTP details |
+
+:::info
+All connections use TLS encryption. Passwords are stored in the **OS keychain** (macOS Keychain / libsecret on Linux), never in plain text files.
+:::
+
+## Email filtering and folders
+
+Agents can work with email folders to organize messages:
+
+| Action | Tool | Description |
+|--------|------|-------------|
+| List inbox | `email_read` | Fetch emails from INBOX or any named folder |
+| Move to folder | `move_email` | Move a message to a different folder (e.g. Archive) |
+| Delete email | `delete_email` | Move to trash or permanently delete |
+| Search | `email_read` | Search by subject, sender, or content |
+
+### Folder support
+
+Himalaya supports standard IMAP folders:
+- `INBOX` — default inbox
+- `[Gmail]/All Mail` — Gmail archive
+- `[Gmail]/Drafts` — drafts folder
+- `Sent` / `[Gmail]/Sent Mail` — sent items
+- Custom folders created by the user
+
+## Attachment handling
+
+Email attachments are managed through the Himalaya CLI:
+
+- **Reading** — `email_read` retrieves the full message body including inline content
+- **Downloading** — the agent can save attachments to the local filesystem via Himalaya commands
+- **Sending** — attachments can be included when composing messages through the Himalaya skill
+
+## AI email actions
+
+The mail view includes built-in AI actions for each email. These send a pre-composed prompt to your agent:
+
+| Action | What the agent does |
+|--------|--------------------|
+| **Summarize** | Generates a concise summary of the email content |
+| **Draft Reply** | Composes a professional reply based on the email context |
+| **Extract Tasks** | Identifies action items and tasks mentioned in the email |
+
+### Compose and reply
+
+The built-in compose modal supports:
+- **Reply** — pre-fills the recipient and subject with `Re:` prefix
+- **Forward** — pre-fills the subject with `Fwd:` prefix and includes the original message
+- **New email** — opens the chat with a compose prompt for the agent to draft and send
+
+:::tip
+For AI-composed messages, the agent drafts the email and uses Himalaya to send it. All outgoing email through the `email_send` tool requires **human-in-the-loop (HIL) approval** — you must confirm before any email is actually sent.
+:::
+
+## Credential Vault
+
+Email accounts are protected by the Credential Vault with a full audit trail:
+
+- **Permission toggles** — enable/disable read, send, delete, and manage permissions per account
+- **Activity log** — every agent email action is logged with timestamps
+- **Blocked actions** — attempts to use a disabled permission are logged and denied
+- **Revoke access** — instantly remove an account and delete credentials from the device
+
 ## Channel integration
 
 Email can also be set up as a channel — see [Channel Routing](../channels/overview) for details.

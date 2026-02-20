@@ -29,6 +29,13 @@ const sidebars: SidebarsConfig = {
         'guides/automations',
         'guides/browser',
         'guides/tailscale',
+        'guides/sessions',
+        'guides/foundry',
+        'guides/dashboard',
+        'guides/projects',
+        'guides/content-studio',
+        'guides/container-sandbox',
+        'guides/pricing',
       ],
     },
     {

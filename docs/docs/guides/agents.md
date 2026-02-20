@@ -75,6 +75,133 @@ Additional standard files:
 
 Edit these in the agent detail view. Changes take effect on the next message.
 
+### Soul file auto-seeding
+
+When a new agent is created, Pawz automatically seeds its soul files so the agent knows who it is from the very first conversation. The seeding process only writes files that **don't already exist**, so your edits are never overwritten.
+
+The auto-seeded files are:
+
+| File | Seeded content |
+|------|----------------|
+| **IDENTITY.md** | Agent name, ID, role/bio, specialty (from template), personality axes, boundaries, and any custom system prompt |
+| **SOUL.md** | Starter template prompting the agent to develop its own voice using `soul_write` |
+| **USER.md** | Starter template prompting the agent to record user preferences via `soul_write` |
+
+:::tip
+Soul files are stored in the `agent_files` database table, keyed by `(agent_id, file_name)`. Each agent can have any number of additional files beyond the three defaults — agents can create their own files using the `soul_write` tool during conversation.
+:::
+
+For agents created by the orchestrator (backend agents), soul files are seeded automatically on the next app load. The `IDENTITY.md` file includes the agent's assigned role and specialty from the project.
+
+## Backend agents
+
+In addition to agents you create manually (stored in `localStorage`), Pawz supports **backend agents** created programmatically by the orchestrator when it plans a project.
+
+### Storage schema
+
+Backend agents live in the `project_agents` SQLite table:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `project_id` | TEXT | The project this agent belongs to |
+| `agent_id` | TEXT | Unique agent identifier |
+| `role` | TEXT | Agent's role in the project (e.g. `worker`, `boss`) |
+| `specialty` | TEXT | What this agent is good at (see below) |
+| `status` | TEXT | Current status (`idle`, `busy`, etc.) |
+| `current_task` | TEXT | The task the agent is currently working on |
+| `model` | TEXT | Override model for this agent (optional) |
+| `system_prompt` | TEXT | Custom system prompt (optional) |
+| `capabilities` | TEXT | Comma-separated list of tool capabilities |
+
+### Specialties
+
+When the orchestrator creates agents for a project, it assigns each one a specialty:
+
+| Specialty | Description |
+|-----------|-------------|
+| `coder` | Writing and editing code |
+| `writer` | Prose, documentation, copy |
+| `analyst` | Data analysis and interpretation |
+| `researcher` | Information gathering and synthesis |
+| `designer` | UI/UX and visual design |
+| `tester` | Testing and quality assurance |
+| `reviewer` | Code review and feedback |
+| `planner` | Project planning and coordination |
+| *(custom)* | Any freeform specialty string |
+
+:::info
+Backend agents appear on the Agents grid with an **"AI-Created"** badge. They are merged into the local agent list on load and receive unique sprite avatars automatically. Their names are derived from the `agent_id` with hyphens replaced by spaces and title-cased.
+:::
+
+## Agent policies
+
+Agent policies control **which tools** an agent is allowed to use. This lets you create restricted agents that can only read files, or fully-empowered agents that can execute shell commands.
+
+### Policy modes
+
+| Mode | Behaviour |
+|------|-----------|
+| **Allowlist** | Only explicitly listed tools can be used (strictest) |
+| **Denylist** | All tools are available *except* those explicitly denied |
+| **Unrestricted** | No restrictions — all tools allowed (default) |
+
+### Tool classifications
+
+Pawz classifies built-in tools into two groups:
+
+**Safe tools** (read-only, low risk):
+
+```
+read_file, list_directory, web_search, web_read,
+memory_search, soul_read, soul_list, self_info, fetch
+```
+
+**High-risk tools** (modify system or send data externally):
+
+```
+exec, write_file, delete_file, append_file,
+email_send, webhook_send, rest_api_call, slack_send,
+github_api, image_generate, soul_write, update_profile,
+create_agent, create_task, manage_task
+```
+
+### Policy presets
+
+Four presets are available for quick setup:
+
+| Preset | Mode | Description |
+|--------|------|-------------|
+| **Unrestricted** | `unrestricted` | Full access to all tools (default) |
+| **Standard** | `denylist` | All tools available, but high-risk tools require human-in-the-loop approval |
+| **Read-Only** | `allowlist` | Only safe read/search tools — no modifications |
+| **Sandbox** | `allowlist` | Web search and memory only — no file or exec access (`web_search`, `web_read`, `memory_store`, `memory_search`, `self_info`) |
+
+### Additional policy options
+
+| Setting | Description |
+|---------|-------------|
+| `requireApprovalForUnlisted` | In allowlist mode, tools not in the list still work but require human approval |
+| `alwaysRequireApproval` | List of tools that *always* need approval regardless of mode |
+| `maxToolCallsPerTurn` | Limit the number of tool calls an agent can make in a single turn |
+
+:::caution
+Policies are stored per-agent in `localStorage` under the `paw_agent_tool_policies` key. Clearing browser storage resets all policies to the default (unrestricted).
+:::
+
+## Avatar system
+
+Pawz ships with **50 pixel-art avatar sprites** in a 1980s Japanese style. The sprites are 96×96 PNG files located at `src/assets/avatars/1.png` through `src/assets/avatars/50.png`.
+
+- A random avatar (1–50) is assigned at agent creation
+- The avatar is stored as a numeric string (e.g. `"5"`) in the agent's `avatar` field
+- You can change an agent's avatar at any time in the edit view
+- Legacy emoji avatars are automatically migrated to sprite avatars on load
+- Backend agents get specialty-based avatar assignments: coder → `10`, researcher → `15`, designer → `20`, communicator → `25`, security → `30`, general → `35`, writer → `40`, analyst → `45`
+
+:::tip
+The default Pawz agent always uses avatar `5`. If you want to identify agents by specialty at a glance, backend agents are assigned themed sprite numbers based on their role.
+:::
+
 ## Agent dock
 
 The dock is a floating tray at the bottom-right of the screen:

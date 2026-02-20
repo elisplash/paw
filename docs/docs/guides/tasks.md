@@ -82,6 +82,54 @@ Each task has a live activity feed showing:
 
 Filter the feed by: **All**, **Tasks only**, or **Status changes**.
 
+## Task statuses
+
+Each task has a **board status** (which column it sits in) and an underlying **execution status** that tracks the agent's progress:
+
+| Board column | Execution status | Description |
+|-------------|-----------------|-------------|
+| **Inbox** | `pending` | Not yet picked up by any agent |
+| **Assigned** | `pending` | Agent assigned but hasn't started |
+| **In Progress** | `in_progress` | Agent is actively executing |
+| **Review** | `completed` | Agent finished — awaiting human review |
+| **Blocked** | `failed` / `cancelled` | Something went wrong or was stopped |
+| **Done** | `completed` | Fully finished and approved |
+
+:::info
+When an agent encounters an error, the task moves to **Blocked** with a `failed` execution status. You can reassign it or move it back to **Inbox** to retry.
+:::
+
+### Cancelling a task
+
+To cancel a running task:
+
+1. Open the task
+2. Drag it to **Blocked** or click **Delete**
+3. The agent's session is aborted and the execution status becomes `cancelled`
+
+## Task templates
+
+Create reusable task templates by combining cron scheduling with pre-filled fields:
+
+1. Create a task with a descriptive **title** and **description**
+2. Assign an agent and set the **priority**
+3. Set a **cron schedule** (e.g. `0 9 * * 1-5` for weekday mornings)
+4. Enable **cron** — the task will recreate itself on schedule
+
+### Common template patterns
+
+| Template | Cron | Description |
+|----------|------|-------------|
+| Daily standup | `0 9 * * 1-5` | Summarize yesterday's activity |
+| Hourly monitoring | `0 * * * *` | Check services and report issues |
+| Weekly report | `0 17 * * 5` | Generate end-of-week summary |
+| PR review | `*/30 * * * *` | Check for new pull requests |
+| News digest | `0 8 * * *` | Research and summarize news |
+
+:::tip
+Combine templates with **model overrides** to use cheaper models for routine checks and powerful models for complex analysis tasks.
+:::
+
 ## Automation
 
 See the [Automations guide](./automations) for setting up recurring agent tasks.

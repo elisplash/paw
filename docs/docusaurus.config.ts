@@ -4,8 +4,8 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'Pawz',
-  tagline: 'A native desktop AI agent platform',
-  favicon: 'img/favicon.ico',
+  tagline: 'The most secure, capable, and extensible AI agent platform for the desktop.',
+  favicon: 'img/pawz-favicon.png',
 
   url: 'https://elisplash.github.io',
   baseUrl: '/paw/',
@@ -45,6 +45,12 @@ const config: Config = {
   themeConfig: {
     navbar: {
       title: 'Pawz',
+      logo: {
+        alt: 'Pawz Logo',
+        src: 'img/pawz-logo.png',
+        width: 32,
+        height: 32,
+      },
       items: [
         {
           type: 'docSidebar',

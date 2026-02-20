@@ -1,4 +1,3 @@
-import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 
@@ -8,13 +7,18 @@ const comparisonRows = [
   { label: 'Price', pawz: 'Free forever (MIT)', them: '$20/mo per provider' },
   { label: 'AI providers', pawz: '10 + any OpenAI-compatible', them: '1 (locked in)' },
   { label: 'Channel bridges', pawz: '10 platforms', them: '0' },
-  { label: 'Agent tools', pawz: '72', them: '~5–10' },
+  { label: 'Tools & skills', pawz: '22 tools + 30+ skills', them: '~5–10' },
   { label: 'Security layers', pawz: '7 (injection scan → Docker sandbox)', them: '1 (basic safety)' },
   { label: 'Multi-agent', pawz: 'Boss/Worker orchestrator', them: 'Single agent only' },
   { label: 'Memory', pawz: 'BM25 + vector + temporal decay + MMR', them: 'Keyword / simple text' },
-  { label: 'DeFi trading', pawz: 'Uniswap V3 + Jupiter + Coinbase', them: 'None' },
+  { label: 'DeFi trading', pawz: 'ETH (7 chains) + Solana + Coinbase', them: 'None' },
   { label: 'Task automation', pawz: 'Kanban board + cron jobs', them: 'None' },
-  { label: 'Voice (TTS)', pawz: '3 providers (Google, OpenAI, ElevenLabs)', them: '0–1' },
+  { label: 'Voice (TTS)', pawz: '3 providers, 35+ voices', them: '0–1' },
+  { label: 'Smart home', pawz: 'Hue, Sonos, Eight Sleep', them: 'None' },
+  { label: 'Email', pawz: 'IMAP + SMTP via Himalaya', them: 'None' },
+  { label: 'Soul files', pawz: 'Persistent persona + user memory', them: 'No' },
+  { label: 'Session compaction', pawz: 'AI-powered auto-summary', them: 'No' },
+  { label: 'Budget control', pawz: 'Per-model pricing + daily cap', them: 'No' },
   { label: 'Local/offline', pawz: 'Full offline via Ollama', them: 'Cloud only' },
   { label: 'Privacy', pawz: 'All data on your machine', them: 'Data on their servers' },
   { label: 'Binary size', pawz: '~5 MB (Tauri + Rust)', them: '~200 MB (Electron)' },
@@ -23,109 +27,132 @@ const comparisonRows = [
 ];
 
 const stats = [
-  { number: '72', label: 'Agent Tools', sub: 'built-in' },
+  { number: '22', label: 'Built-in Tools', sub: 'file, web, shell, memory, soul' },
+  { number: '30+', label: 'Skills', sub: '9 categories' },
   { number: '10', label: 'AI Providers', sub: 'with fallback' },
   { number: '10', label: 'Chat Platforms', sub: 'bridged' },
   { number: '7', label: 'Security Layers', sub: 'defense-in-depth' },
-  { number: '22K', label: 'Lines of Rust', sub: 'native engine' },
+  { number: '8', label: 'EVM + Solana Chains', sub: 'DeFi trading' },
+  { number: '16', label: 'Views', sub: 'full desktop app' },
   { number: '$0', label: 'Cost', sub: 'forever' },
 ];
 
+const avatarSprites = [1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+
 const pillars = [
   {
-    icon: '🛡️',
+    icon: 'shield',
     title: '7 Security Layers',
     headline: 'Claws scratch. Pawz protect.',
     points: [
-      'Dual prompt injection scanner (TypeScript + Rust) — blocks attacks before the LLM sees them',
-      'Per-agent tool policies — allowlist, denylist, or sandbox mode per agent',
+      'Dual prompt injection scanner (TypeScript + Rust) — 16+ patterns, blocks attacks before the LLM sees them',
+      'Per-agent tool policies — allowlist, denylist, or unrestricted mode per agent',
       'Human-in-the-Loop approval — dangerous tools require your explicit OK',
       'Docker container sandboxing — CAP_DROP ALL, no network, memory limits, auto-kill',
       'Browser network policy — domain allowlist/blocklist blocks data exfiltration',
       'Command risk classifier — detects rm -rf /, fork bombs, curl|sh pipes',
-      'Credential vault — OS keychain + encrypted SQLite, keys never in prompts',
+      'Credential vault — OS keychain + AES-GCM encrypted SQLite, keys never in prompts',
     ],
     link: '/docs/reference/security',
   },
   {
-    icon: '🤖',
+    icon: 'hub',
     title: 'Multi-Agent Orchestrator',
     headline: 'One boss. Unlimited workers. Real-time war room.',
     points: [
       'Boss agent with 5 orchestrator tools: delegate, check status, send message, complete, spawn agent',
-      'Dynamic agent spawning — boss creates specialists at runtime (coder, researcher, designer)',
-      'Per-agent model routing — boss uses Claude Opus, workers use Gemini Flash',
+      'Dynamic agent spawning — boss creates specialists at runtime (coder, researcher, designer, writer, analyst)',
+      'Per-agent model routing — boss uses Claude Opus, workers use Gemini Flash (auto_tier)',
       'Async parallel execution — workers run concurrently via Tokio',
-      'Live message bus — watch delegation, progress, and results in real-time',
+      'Live message bus — watch delegation, progress, and results in real-time UI',
       'Worker reporting — structured status updates (working, done, error, blocked)',
     ],
     link: '/docs/guides/orchestrator',
   },
   {
-    icon: '💬',
+    icon: 'forum',
     title: '10 Channel Bridges',
     headline: 'Your AI lives everywhere you chat.',
     points: [
       'Telegram, Discord, Slack, Matrix, IRC, Mattermost, Nextcloud, Nostr, Twitch, Webchat',
       'Same brain, same memory, same tools — across every platform',
-      'Per-user isolated sessions — no cross-contamination',
+      'Per-user isolated sessions with pairing/allowlist/open access policies',
       'Prompt injection scanning on every incoming message',
       'First-match routing rules — route users or channels to specific agents',
-      'Provider fallback — if one API fails, tries the next automatically',
+      'Provider fallback — billing/auth/rate-limit errors auto-retry next provider',
     ],
     link: '/docs/channels/overview',
   },
   {
-    icon: '🧠',
+    icon: 'psychology',
     title: 'Research-Grade Memory',
     headline: 'Hybrid search that would make a PhD jealous.',
     points: [
       'BM25 full-text via SQLite FTS5 + vector cosine via Ollama embeddings',
       'Weighted merge (0.4 BM25 + 0.6 vector) for best-of-both-worlds retrieval',
       'Temporal decay with 30-day half-life — recent memories rank higher',
-      'MMR re-ranking (λ=0.7) — diversity without sacrificing relevance',
+      'MMR re-ranking (lambda=0.7) — diversity without sacrificing relevance',
       'Auto-recall before every message + auto-capture of facts from conversations',
-      'Auto-managed Ollama — starts it, pulls the model, runs embeddings, all transparent',
+      'Memory Palace UI — search, store, graph visualization, JSON export',
     ],
     link: '/docs/guides/memory',
   },
   {
-    icon: '📈',
+    icon: 'trending_up',
     title: 'DeFi Trading Suite',
-    headline: 'Self-custody DEX trading. On your desktop.',
+    headline: 'Self-custody DEX on ETH + Solana. On your desktop.',
     points: [
-      'Uniswap V3 (Ethereum) — 13 tools including honeypot detection and whale tracking',
-      'Jupiter + PumpPortal (Solana) — 7 tools with smart routing',
-      'Coinbase CDP — 5 tools for centralized exchange',
-      'Self-custody — private keys encrypted in OS keychain, decrypted only in Rust for signing',
-      'Smart money analysis — top trader profiles, accumulator/profit-taker classification',
-      'Trading policies — max trade size, daily loss cap, allowed pairs, enforced server-side',
+      'Uniswap V3 — 13 tools on 7 EVM chains (Ethereum, Polygon, Arbitrum, Optimism, Base, Goerli, Sepolia)',
+      'Jupiter + PumpPortal — 7 tools on Solana with Ed25519 signing & SPL token support',
+      'Coinbase CDP — 5 tools for centralized exchange with encrypted wallet keys',
+      'Honeypot detection — simulated buy+sell, round-trip tax, ownership audit, risk score 0-30',
+      'Whale tracking + smart money analysis — top trader profiles, accumulator/profit-taker classification',
+      'Trading policies — max trade size, daily loss cap, allowed pairs, enforced server-side in Rust',
     ],
     link: '/docs/guides/trading',
   },
   {
-    icon: '⚡',
-    title: '72 Tools & Skills',
-    headline: 'The PawzHub. Unlimited.',
+    icon: 'extension',
+    title: 'The PawzHub — 30+ Skills',
+    headline: 'Unlimited capabilities. Encrypted credentials.',
     points: [
-      '22 built-in tools + 50 skill tools across 33 skill definitions',
-      'Smart home (Hue, Sonos, Eight Sleep), productivity (Notion, Obsidian, Things)',
-      'Communication (WhatsApp, iMessage, email, Slack), media (Spotify, ElevenLabs, Whisper)',
-      'Development (tmux, git, ripgrep), system (1Password, Peekaboo, security audit)',
-      'Encrypted credential vault — API keys stored in OS keychain, injected server-side',
-      'Custom instructions per skill — override any default, stored separately',
+      'Vault skills: Email, Slack, Telegram, Discord, GitHub, REST API, Webhooks, Coinbase, Uniswap, Jupiter, Image Gen',
+      'Smart Home: Philips Hue, Sonos, Eight Sleep',
+      'Productivity: Apple Notes, Reminders, Things 3, Obsidian, Bear, Notion, Trello, Google Workspace',
+      'Media: Whisper STT, ElevenLabs TTS, Spotify, Video Frames, Camera, GIF Search',
+      'Communication: WhatsApp, iMessage — Development: tmux, session logs',
+      'All credentials encrypted in OS keychain vault, injected server-side, never in prompts',
     ],
     link: '/docs/guides/skills',
   },
 ];
 
+const moreFeatures = [
+  { icon: 'task_alt', title: 'Kanban Tasks', desc: '6-column drag-and-drop board with multi-agent assignment, lead/collaborator roles, and cron scheduling', link: '/docs/guides/tasks' },
+  { icon: 'schedule', title: 'Cron Automations', desc: 'Scheduled task execution with dedup guard, heartbeat monitoring, and morning brief template', link: '/docs/guides/automations' },
+  { icon: 'science', title: 'Deep Research', desc: 'Quick and deep modes with live source feed, credibility ratings, and findings grid', link: '/docs/guides/research' },
+  { icon: 'record_voice_over', title: '35+ TTS Voices', desc: 'Google Cloud, OpenAI, and ElevenLabs with speed, language, stability, and similarity controls', link: '/docs/guides/voice' },
+  { icon: 'mail', title: 'Email System', desc: 'Himalaya IMAP/SMTP with per-account permissions, credential audit trail, and OS keychain storage', link: '/docs/guides/email' },
+  { icon: 'web', title: 'Browser Engine', desc: 'Headless Chrome with 9 action types, persistent profiles, screenshot gallery, and network policy', link: '/docs/guides/browser' },
+  { icon: 'edit_document', title: 'Content Studio', desc: 'Document editor with markdown/HTML/plaintext, word count, and one-click AI improvement', link: '/docs/guides/content-studio' },
+  { icon: 'folder_open', title: 'Projects Browser', desc: 'Local file tree with git integration, branch status, and 17 sensitive path protections', link: '/docs/guides/projects' },
+  { icon: 'tune', title: 'Foundry', desc: 'Models dashboard and chat mode presets with temperature, thinking level, and system prompt', link: '/docs/guides/foundry' },
+  { icon: 'dashboard', title: 'Dashboard', desc: 'Weather, tasks, quick actions, and time-based greeting with agent avatar display', link: '/docs/guides/dashboard' },
+  { icon: 'compress', title: 'Session Compaction', desc: 'AI-powered context compression — auto-summarizes older messages when tokens exceed 60K', link: '/docs/guides/sessions' },
+  { icon: 'inventory_2', title: 'Container Sandbox', desc: 'Docker isolation with CAP_DROP ALL, memory/CPU limits, network disabled, command risk scoring', link: '/docs/guides/container-sandbox' },
+  { icon: 'account_balance_wallet', title: 'Budget Control', desc: 'Per-model pricing, daily budget cap, warnings at 50/75/90%, auto_tier for cost-efficient routing', link: '/docs/guides/pricing' },
+  { icon: 'vpn_lock', title: 'Tailscale Integration', desc: 'Expose Pawz within your tailnet or publicly via Funnel — status monitoring, auth key support', link: '/docs/guides/tailscale' },
+  { icon: 'terminal', title: '15 Slash Commands', desc: '/model, /think, /agent, /remember, /recall, /web, /img, /exec, /compact, and more', link: '/docs/guides/slash-commands' },
+  { icon: 'face', title: '50 Agent Avatars', desc: 'Sprite-based avatars with 7-color palette, soul files (IDENTITY.md, SOUL.md, USER.md)', link: '/docs/guides/agents' },
+];
+
 const worldFirsts = [
-  { title: 'Dual-language injection scanning', desc: 'TypeScript frontend + Rust backend — the only desktop AI with pre-routing injection defense on external channels' },
-  { title: 'Self-custody DeFi + AI agents', desc: 'Honeypot detection, whale tracking, and smart money analysis — keys never leave your machine' },
-  { title: '10-channel bridge architecture', desc: 'No consumer AI app connects to Telegram, Discord, Slack, Matrix, IRC, Mattermost, Nextcloud, Nostr, Twitch, and Webchat' },
-  { title: 'BM25 + vector + decay + MMR memory', desc: 'Research-grade hybrid retrieval in a desktop app — with auto-managed local Ollama embeddings' },
-  { title: 'Multi-agent orchestrator with live bus', desc: 'Boss/worker delegation with async parallel execution, dynamic agent spawning, and real-time message tracking' },
-  { title: '7-layer security stack', desc: 'From prompt injection scanning to Docker sandboxing to command risk classification — in a free, open-source app' },
+  { title: 'Dual-language injection scanning', desc: 'TypeScript frontend + Rust backend — 16+ patterns, 4 severity levels — the only desktop AI with pre-routing injection defense on external channels' },
+  { title: 'Self-custody DeFi on ETH + Solana', desc: 'Honeypot detection, whale tracking, smart money analysis on 7 EVM chains + Solana — private keys encrypted in OS keychain, decrypted only in Rust for signing' },
+  { title: '10-channel bridge with agent routing', desc: 'Telegram, Discord, Slack, Matrix, IRC, Mattermost, Nextcloud, Nostr, Twitch, Webchat — all with same memory, tools, and per-user isolated sessions' },
+  { title: 'BM25 + vector + decay + MMR memory', desc: '6-stage hybrid retrieval pipeline with auto-managed local Ollama embeddings, keyword fallback, and Memory Palace visualization' },
+  { title: 'Multi-agent orchestrator with live bus', desc: 'Boss/worker delegation with 8 agent specialties, async parallel Tokio execution, dynamic agent spawning, and real-time message tracking' },
+  { title: '7-layer security in a free app', desc: 'Prompt injection scanner, agent policies, HIL approval, Docker sandbox, browser network policy, command risk classifier, encrypted credential vault — all MIT licensed' },
 ];
 
 /* ── Components ────────────────────────────────────── */
@@ -137,6 +164,9 @@ function HeroSection() {
       <div className="hero-glow-2" />
       <div className="container">
         <div className="hero-content">
+          <div className="hero-logo-row">
+            <img src="/paw/img/pawz-logo.png" alt="Pawz" className="hero-logo" />
+          </div>
           <div className="hero-badge">Open Source &middot; MIT License &middot; Free Forever</div>
           <h1 className="hero-title">
             Pawz are safer<br />than claws.
@@ -145,8 +175,9 @@ function HeroSection() {
             The most secure, capable, and extensible AI agent platform ever built for the desktop.
           </p>
           <p className="hero-description">
-            72 tools. 10 providers. 10 chat platforms. 7 security layers. 22,000 lines of Rust.
-            Multi-agent orchestration. DeFi trading. Research-grade memory.
+            22 built-in tools. 30+ skills. 10 providers. 10 channels. 7 security layers.
+            22,000 lines of Rust. Multi-agent orchestration. DeFi trading on ETH &amp; Solana.
+            Research-grade memory. 16 views. Kanban. Cron. Content Studio.
             All running natively on your machine for $0.
           </p>
           <div className="hero-buttons">
@@ -159,6 +190,11 @@ function HeroSection() {
           </div>
           <div className="hero-sub">
             One-click DMG install coming soon &middot; macOS, Linux, Windows
+          </div>
+          <div className="hero-avatars">
+            {avatarSprites.map((id) => (
+              <img key={id} src={`/paw/img/avatars/${id}.png`} alt={`Agent ${id}`} className="hero-avatar" />
+            ))}
           </div>
         </div>
       </div>
@@ -225,12 +261,12 @@ function PillarsSection() {
         <div className="section-header">
           <div className="section-badge">Deep Dive</div>
           <h2>Built different. Proven in code.</h2>
-          <p>Not marketing promises — real features backed by 22,638 lines of Rust.</p>
+          <p>Not marketing promises — real features backed by 22,638 lines of Rust and 49,000 lines total.</p>
         </div>
         <div className="pillars-grid">
           {pillars.map((p, i) => (
             <div key={i} className="pillar-card">
-              <div className="pillar-icon">{p.icon}</div>
+              <div className="pillar-icon"><span className="ms">{p.icon}</span></div>
               <h3>{p.title}</h3>
               <p className="pillar-headline">{p.headline}</p>
               <ul>
@@ -240,6 +276,31 @@ function PillarsSection() {
               </ul>
               <Link to={p.link} className="pillar-link">Read the docs &rarr;</Link>
             </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MoreFeaturesSection() {
+  return (
+    <section className="more-section">
+      <div className="container">
+        <div className="section-header">
+          <div className="section-badge">Everything Else</div>
+          <h2>And we're just getting started.</h2>
+          <p>16 views, 30+ skills, 15 slash commands, 50 avatars — every feature backed by real code.</p>
+        </div>
+        <div className="more-grid">
+          {moreFeatures.map((f, i) => (
+            <Link key={i} to={f.link} className="more-card">
+              <span className="ms more-icon">{f.icon}</span>
+              <div>
+                <h4>{f.title}</h4>
+                <p>{f.desc}</p>
+              </div>
+            </Link>
           ))}
         </div>
       </div>
@@ -297,12 +358,12 @@ function ArchSection() {
           </div>
           <div className="arch-card">
             <div className="arch-label">Database</div>
-            <div className="arch-value">SQLite</div>
-            <div className="arch-detail">FTS5, vector search, all local</div>
+            <div className="arch-value">2x SQLite</div>
+            <div className="arch-detail">Frontend (8 tables) + Backend (14+ tables)</div>
           </div>
           <div className="arch-card">
             <div className="arch-label">Crypto</div>
-            <div className="arch-value">OS Keychain</div>
+            <div className="arch-value">OS Keychain + AES-GCM</div>
             <div className="arch-detail">Keys never in RAM longer than needed</div>
           </div>
           <div className="arch-card">
@@ -321,6 +382,7 @@ function CTASection() {
     <section className="cta-section">
       <div className="container">
         <div className="cta-content">
+          <img src="/paw/img/pawz-logo.png" alt="Pawz" className="cta-logo" />
           <h2>Ready to switch?</h2>
           <p>
             Install Pawz, add a provider (or just start Ollama), and create your first agent.
@@ -347,11 +409,12 @@ function CTASection() {
 
 export default function Home() {
   return (
-    <Layout description="Pawz — the most secure, capable, and extensible AI agent platform for the desktop. Free, open source, MIT licensed.">
+    <Layout description="Pawz — the most secure, capable, and extensible AI agent platform for the desktop. 22 tools, 30+ skills, 10 providers, 10 channels, 7 security layers. Free, open source, MIT licensed.">
       <HeroSection />
       <StatsSection />
       <ComparisonSection />
       <PillarsSection />
+      <MoreFeaturesSection />
       <WorldFirstsSection />
       <ArchSection />
       <CTASection />

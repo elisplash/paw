@@ -59,10 +59,66 @@ Requires an `ELEVENLABS_API_KEY`.
 | **Language** | — | Language code (13 supported) |
 | **Auto-speak** | Off | Automatically speak every response |
 
+## Speech-to-text (STT)
+
+Pawz uses OpenAI Whisper for speech-to-text transcription:
+
+| Backend | Setup | Latency | Cost |
+|---------|-------|---------|------|
+| **Whisper API** | OpenAI API key (from Models settings) | ~1–2s | $0.006/min |
+| **Whisper Local** | Install `whisper` binary | ~3–5s | Free |
+
+STT is used in Talk Mode and any voice input feature. Audio is captured as WebM/Opus (or OGG fallback), base64-encoded, and sent to the Whisper endpoint for transcription.
+
+### Audio capture settings
+
+The microphone input uses these Web Audio constraints:
+
+| Setting | Value |
+|---------|-------|
+| Echo cancellation | Enabled |
+| Noise suppression | Enabled |
+| Sample rate | 16 kHz |
+| Format | `audio/webm;codecs=opus` (preferred) |
+
+## Voice activity detection (VAD)
+
+Talk Mode includes built-in voice activity detection to avoid sending silence to the transcription API:
+
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Recording window | 8 seconds | Records in 8-second chunks |
+| Minimum audio size | 8 KB | Chunks under 8 KB are treated as silence and skipped |
+| Inter-cycle delay | 500 ms | Brief pause between recording cycles after errors |
+| Empty transcript | Skipped | If Whisper returns blank text, the cycle restarts |
+
+:::info
+VAD works by checking the size of each recording chunk. Very short or silent recordings produce small files that are automatically discarded before being sent to Whisper.
+:::
+
 ## Talk mode
 
 Click the microphone icon in the chat header to enter talk mode. Your speech is transcribed and sent to the agent, and the response is spoken back.
 
 Requires either:
-- **Whisper Local** skill (install `whisper` binary)
 - **Whisper API** skill (OpenAI API key)
+- **Whisper Local** skill (install `whisper` binary)
+
+### How talk mode works
+
+1. **Listen** — microphone captures audio in 8-second windows
+2. **Transcribe** — audio is sent to Whisper STT → text
+3. **Process** — transcribed text is sent to your agent as a chat message
+4. **Speak** — agent's response is synthesized via your configured TTS provider
+5. **Repeat** — next recording cycle starts after playback finishes
+
+### Voice command mode vs dictation mode
+
+| Mode | Behavior | Use case |
+|------|----------|----------|
+| **Voice command** (default) | Each utterance is sent as a standalone chat message | Giving instructions, asking questions |
+| **Dictation** | Utterances are accumulated into a text buffer | Composing long-form content, emails |
+
+In **voice command mode**, every 8-second recording window is independently transcribed and sent to the agent. The agent responds and the reply is spoken aloud before the next cycle begins.
+
+To use **dictation mode**, start your utterance with "dictate" or "type" — the agent will accumulate your speech into a document rather than responding conversationally.

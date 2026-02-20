@@ -26,14 +26,36 @@ The Orchestrator enables multi-agent projects where a boss agent delegates tasks
 
 ## Agent specialties
 
+Each agent on a project team has a **specialty** that determines how they're prompted and which model they use. The orchestrator supports two sets of specialties depending on context:
+
+### Project sub-agents (`create_sub_agent`)
+
+When the boss agent dynamically creates sub-agents during a project run:
+
 | Specialty | Best for |
 |-----------|----------|
-| `coder` | Writing and reviewing code |
-| `researcher` | Finding information, analysis |
-| `designer` | Creative work, content |
+| `coder` | Writing, reviewing, and debugging code |
+| `researcher` | Finding information, web research |
+| `designer` | Creative work, UI/UX, visual content |
 | `communicator` | Writing emails, messages, docs |
 | `security` | Security reviews, audits |
-| `general` | Anything |
+| `general` | Anything not covered above |
+
+### Standalone agents (`create_agent`)
+
+When creating agents via the `create_agent` tool or the Agents view:
+
+| Specialty | Best for |
+|-----------|----------|
+| `coder` | Writing, reviewing, and debugging code |
+| `researcher` | Finding information, web research, investigation |
+| `writer` | Long-form content, reports, documentation, copywriting |
+| `analyst` | Data analysis, evaluation, comparisons, assessments |
+| `general` | Anything not covered above |
+
+:::tip Custom system prompts
+Every agent — regardless of specialty — can have a **custom system prompt** set at creation time via the `system_prompt` parameter. This gives you full control over the agent's behavior and personality beyond the specialty label. The boss agent can use `create_sub_agent` with a detailed `system_prompt` to create highly tailored workers on the fly.
+:::
 
 Specialty models can be configured in **Settings → Engine** under Model Routing. For example, setting `coder` to `gemini-2.5-pro` routes all coding tasks to that model.
 
@@ -99,10 +121,65 @@ Configure which models handle what in **Settings → Engine**:
 
 | Setting | Purpose |
 |---------|---------|
-| `boss_model` | Model for the boss agent |
-| `worker_model` | Default model for workers |
-| `specialty_models` | Per-specialty overrides (e.g., coder → gemini-2.5-pro) |
+| `boss_model` | Model for the boss agent (typically expensive/powerful) |
+| `worker_model` | Default model for workers (typically cheap/fast) |
+| `specialty_models` | Per-specialty overrides (e.g., `coder` → `gemini-2.5-pro`) |
 | `agent_models` | Per-agent overrides (highest priority) |
-| `auto_tier` | Automatically select cheap models for simple tasks |
+| `cheap_model` | Budget model for simple tasks when `auto_tier` is enabled |
+| `auto_tier` | Automatically select `cheap_model` for simple tasks |
 
 **Resolution priority:** agent_models > specialty_models > role-based > fallback
+
+### Cheap model & auto-tier
+
+The **cheap model** setting lets you reduce costs by routing simple tasks to a smaller, faster LLM while keeping the full model for complex work.
+
+When `auto_tier` is enabled, every incoming message is classified by a complexity heuristic before model selection:
+
+| Complexity | Routed to | Examples |
+|------------|-----------|----------|
+| **Simple** | `cheap_model` | "What time is it?", "Convert 5kg to lbs", basic Q&A |
+| **Complex** | default model | Code generation, multi-step reasoning, analysis, research |
+
+The classifier looks for signals like code keywords (`implement`, `refactor`, `debug`), reasoning phrases (`analyze`, `compare`, `step by step`), multi-step patterns (`and then`, `first,`, numbered lists), and message length (>1500 chars → complex).
+
+```json title="Example model routing config"
+{
+  "boss_model": "gemini-2.5-pro",
+  "worker_model": "gemini-2.0-flash",
+  "cheap_model": "claude-3-haiku",
+  "auto_tier": true,
+  "specialty_models": {
+    "coder": "gemini-2.5-pro",
+    "researcher": "gemini-2.0-flash"
+  }
+}
+```
+
+:::info
+The `auto_tier` / `cheap_model` mechanism applies to regular chat sessions. Within orchestrator projects, model selection uses the `boss_model` → `worker_model` → `specialty_models` → `agent_models` routing chain instead.
+:::
+
+### Execution limits
+
+Orchestrator projects are bounded by the engine's global execution limits:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `max_tool_rounds` | 20 | Maximum number of LLM ↔ tool call rounds per agent loop (boss or worker). When exceeded, the agent stops and returns its last output. |
+| `tool_timeout_secs` | 300 | Timeout in seconds for individual tool call approvals (HIL). If the user doesn't approve within this window, the tool call is denied. |
+| `max_concurrent_runs` | 4 | Maximum simultaneous agent runs across the whole engine (chat + cron + orchestrator). Chat always gets priority. |
+
+The boss agent loop exits when:
+- `project_complete` is called
+- `max_tool_rounds` is exceeded
+- An unrecoverable error occurs
+
+Worker agent loops exit when:
+- `report_progress` is called with status `done`
+- `max_tool_rounds` is exceeded
+- An error occurs
+
+:::caution
+There is no project-level timeout. A project with many delegated tasks can run for a long time if workers are slow or blocked. Monitor the message bus and use **check_agent_status** to catch stuck agents. You can also manually pause or delete a project from the UI.
+:::
