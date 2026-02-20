@@ -35,6 +35,8 @@ const sidebars: SidebarsConfig = {
         'guides/projects',
         'guides/content-studio',
         'guides/container-sandbox',
+        'guides/modular-workspace',
+        'guides/pawzhub',
         'guides/pricing',
       ],
     },
