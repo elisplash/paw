@@ -47,10 +47,6 @@ import type {
   WorkspaceInfo,
   WorkspaceFile,
   NetworkPolicy,
-  Canvas,
-  CanvasViewport,
-  CanvasNode,
-  CanvasEdge,
   TailscaleStatus,
   TailscaleConfig,
 } from '../atoms/types';
@@ -558,117 +554,6 @@ class PawEngineClient {
 
   async networkCheckUrl(url: string): Promise<[boolean, string]> {
     return invoke<[boolean, string]>('engine_network_check_url', { url });
-  }
-
-  // ── Canvas (Visual Workspace) ──────────────────────────────────────
-
-  async canvasList(): Promise<Canvas[]> {
-    return invoke<Canvas[]>('engine_canvas_list');
-  }
-
-  async canvasCreate(name: string, description?: string): Promise<Canvas> {
-    return invoke<Canvas>('engine_canvas_create', { name, description: description ?? '' });
-  }
-
-  async canvasUpdate(id: string, name?: string, description?: string, viewport?: CanvasViewport): Promise<void> {
-    return invoke('engine_canvas_update', {
-      id,
-      name: name ?? null,
-      description: description ?? null,
-      viewport: viewport ?? null,
-    });
-  }
-
-  async canvasDelete(id: string): Promise<void> {
-    return invoke('engine_canvas_delete', { id });
-  }
-
-  async canvasNodes(canvasId: string): Promise<CanvasNode[]> {
-    return invoke<CanvasNode[]>('engine_canvas_nodes', { canvasId });
-  }
-
-  async canvasNodeCreate(
-    canvasId: string,
-    kind: string,
-    x: number,
-    y: number,
-    title?: string,
-    content?: string,
-    width?: number,
-    height?: number,
-    color?: string,
-    metadata?: string,
-  ): Promise<CanvasNode> {
-    return invoke<CanvasNode>('engine_canvas_node_create', {
-      canvasId,
-      kind,
-      x,
-      y,
-      title: title ?? '',
-      content: content ?? '',
-      width: width ?? null,
-      height: height ?? null,
-      color: color ?? null,
-      metadata: metadata ?? null,
-    });
-  }
-
-  async canvasNodeUpdate(
-    id: string,
-    x?: number,
-    y?: number,
-    width?: number,
-    height?: number,
-    title?: string,
-    content?: string,
-    color?: string,
-    zIndex?: number,
-    collapsed?: boolean,
-    metadata?: string,
-  ): Promise<void> {
-    return invoke('engine_canvas_node_update', {
-      id,
-      x: x ?? null,
-      y: y ?? null,
-      width: width ?? null,
-      height: height ?? null,
-      title: title ?? null,
-      content: content ?? null,
-      color: color ?? null,
-      zIndex: zIndex ?? null,
-      collapsed: collapsed ?? null,
-      metadata: metadata ?? null,
-    });
-  }
-
-  async canvasNodeDelete(id: string): Promise<void> {
-    return invoke('engine_canvas_node_delete', { id });
-  }
-
-  async canvasEdges(canvasId: string): Promise<CanvasEdge[]> {
-    return invoke<CanvasEdge[]>('engine_canvas_edges', { canvasId });
-  }
-
-  async canvasEdgeCreate(
-    canvasId: string,
-    fromNode: string,
-    toNode: string,
-    label?: string,
-    color?: string,
-    style?: string,
-  ): Promise<CanvasEdge> {
-    return invoke<CanvasEdge>('engine_canvas_edge_create', {
-      canvasId,
-      fromNode,
-      toNode,
-      label: label ?? '',
-      color: color ?? null,
-      style: style ?? null,
-    });
-  }
-
-  async canvasEdgeDelete(id: string): Promise<void> {
-    return invoke('engine_canvas_edge_delete', { id });
   }
 
   // ── Tailscale (Remote Access) ──────────────────────────────────────

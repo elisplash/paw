@@ -45,7 +45,6 @@ import * as AgentsModule from './views/agents';
 import * as TasksModule from './views/tasks';
 import * as OrchestratorModule from './views/orchestrator';
 import * as TradingModule from './views/trading';
-import * as CanvasModule from './views/canvas';
 
 // ── Tauri bridge ─────────────────────────────────────────────────────────
 interface TauriWindow {
@@ -230,7 +229,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     ProjectsModule.bindEvents();
     TasksModule.bindTaskEvents();
     OrchestratorModule.initOrchestrator();
-    CanvasModule.initCanvasView();
     initChannels();
     initContent();
     initChatListeners();

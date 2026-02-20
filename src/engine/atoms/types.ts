@@ -564,52 +564,6 @@ export interface NetworkRequest {
   tool_name: string;
 }
 
-// ── Canvas (Visual Workspace) ─────────────────────────────────────────
-
-export interface Canvas {
-  id: string;
-  name: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
-  viewport: CanvasViewport;
-  node_count: number;
-}
-
-export interface CanvasViewport {
-  x: number;
-  y: number;
-  zoom: number;
-}
-
-export interface CanvasNode {
-  id: string;
-  canvas_id: string;
-  kind: string;
-  title: string;
-  content: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  color: string;
-  z_index: number;
-  collapsed: boolean;
-  metadata: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CanvasEdge {
-  id: string;
-  canvas_id: string;
-  from_node: string;
-  to_node: string;
-  label: string;
-  color: string;
-  style: string;
-}
-
 // ── Tailscale (Remote Access) ─────────────────────────────────────────
 
 export interface TailscaleStatus {

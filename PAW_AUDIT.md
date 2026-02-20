@@ -8,10 +8,10 @@
 
 ## Executive Summary
 
-Pawz is a **standalone AI agent desktop app** built on Tauri v2 with a pure Rust engine. No gateway dependency, no Node.js process, no open ports. Everything runs through Tauri IPC. The app includes 10 channel bridges, 10 AI providers, 37+ skills, multi-agent orchestration, a Coinbase CDP wallet, a full trading dashboard, a visual canvas workspace, and Tailscale remote access.
+Pawz is a **standalone AI agent desktop app** built on Tauri v2 with a pure Rust engine. No gateway dependency, no Node.js process, no open ports. Everything runs through Tauri IPC. The app includes 10 channel bridges, 10 AI providers, 37+ skills, multi-agent orchestration, a Coinbase CDP wallet, a full trading dashboard, and Tailscale remote access.
 
 **Total commits**: 100+  
-**All P1, P2, P3, P4, and P5 (partial) features complete.** Canvas, Tailscale, and first-class provider UI shipped.
+**All P1, P2, P3, P4, and P5 (partial) features complete.** Tailscale and first-class provider UI shipped.
 
 ---
 
@@ -238,7 +238,6 @@ Integration: Network policy enforced in `tool_executor.rs` `execute_fetch`. Brow
 | Feature | Effort | Status | Details |
 |---------|--------|--------|--------|
 | **PawHub skill registry** | XL | ❌ | Public discover/install/publish marketplace |
-| **Canvas / visual workspace** | XL | ✅ | Infinite pan/zoom surface, draggable nodes (7 kinds), SVG edges, SQLite-backed via 11 Rust commands, full CRUD UI |
 | **Mobile companion app** | XL | ❌ | iOS/Android with camera, location, SMS |
 | **Remote access** | M | ✅ | Tailscale Serve/Funnel — status detection, connect/disconnect, serve/funnel start/stop, config persistence via 9 Rust commands |
 | **OpenResponses API** | M | ❌ | `/v1/responses` HTTP endpoint |
@@ -307,7 +306,6 @@ git pusah
 | **Skill marketplace** | ClawHub registry for discovery/install/publish |
 | **Mobile nodes** | iOS/Android companion apps with camera, screen, location |
 | **Remote access** | Tailscale Serve/Funnel |
-| **Canvas** | Agent-driven visual workspace |
 | **Channel count** | +6 channels: WhatsApp, iMessage, Google Chat, Signal, Teams, Zalo |
 | **Per-agent workspaces** | Isolated filesystem per agent |
 
@@ -405,8 +403,8 @@ All 3 items shipped: ElevenLabs TTS, Talk Mode (continuous + chat mic), Morning 
 ### ~~P4 — Browser & Sandbox~~ ✅ DONE
 All 4 items shipped: Managed browser profiles (persistent Chrome state), Screenshot viewer (gallery + inline chat), Per-agent workspace management UI, Outbound domain allowlist (enforced in fetch tool).
 
-### ~~P5 — Canvas, Tailscale, Provider UI~~ ✅ DONE (3/6)
-3 items shipped: Canvas visual workspace (11 Rust commands + pan/zoom/drag UI), Tailscale remote access (9 Rust commands + settings UI), First-class provider UI for DeepSeek/Grok/Mistral/Moonshot.
+### ~~P5 — Tailscale, Provider UI~~ ✅ DONE (2/5)
+2 items shipped: Tailscale remote access (9 Rust commands + settings UI), First-class provider UI for DeepSeek/Grok/Mistral/Moonshot.
 
 ### Remaining (P5)
 10. **PawHub skill marketplace**
@@ -416,4 +414,4 @@ All 4 items shipped: Managed browser profiles (persistent Chrome state), Screens
 
 ---
 
-**TL;DR**: All P1 security features DONE. All P2 memory intelligence DONE. **All P3 Voice/TTS DONE.** **All P4 Browser & Sandbox DONE.** **P5 partial — Canvas, Tailscale, Provider UI DONE.** Canvas: infinite pan/zoom surface with 7 node kinds, SVG edges, SQLite persistence. Tailscale: Serve/Funnel control with status detection, config persistence. Providers: DeepSeek, Grok, Mistral, Moonshot now first-class with popular models + tier labels. 10 channel bridges, 10 providers, 37+ skills, 50 custom avatars, Coinbase trading, multi-agent orchestration — all shipped. Next up: PawHub marketplace, mobile companion, additional channels.
+**TL;DR**: All P1 security features DONE. All P2 memory intelligence DONE. **All P3 Voice/TTS DONE.** **All P4 Browser & Sandbox DONE.** **P5 partial — Tailscale, Provider UI DONE.** Tailscale: Serve/Funnel control with status detection, config persistence. Providers: DeepSeek, Grok, Mistral, Moonshot now first-class with popular models + tier labels. 10 channel bridges, 10 providers, 37+ skills, 50 custom avatars, Coinbase trading, multi-agent orchestration — all shipped. Next up: PawHub marketplace, mobile companion, additional channels.

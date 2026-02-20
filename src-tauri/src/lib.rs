@@ -249,18 +249,7 @@ pub fn run() {
             commands::browser::engine_network_get_policy,
             commands::browser::engine_network_set_policy,
             commands::browser::engine_network_check_url,
-            // ── Canvas (Visual Workspace) ──
-            commands::canvas::engine_canvas_list,
-            commands::canvas::engine_canvas_create,
-            commands::canvas::engine_canvas_update,
-            commands::canvas::engine_canvas_delete,
-            commands::canvas::engine_canvas_nodes,
-            commands::canvas::engine_canvas_node_create,
-            commands::canvas::engine_canvas_node_update,
-            commands::canvas::engine_canvas_node_delete,
-            commands::canvas::engine_canvas_edges,
-            commands::canvas::engine_canvas_edge_create,
-            commands::canvas::engine_canvas_edge_delete,
+
             // ── Tailscale (Remote Access) ──
             commands::tailscale::engine_tailscale_status,
             commands::tailscale::engine_tailscale_get_config,

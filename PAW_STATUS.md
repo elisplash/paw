@@ -21,7 +21,6 @@ OpenClaw is a local-first personal AI assistant framework with:
 - **Voice Wake + Talk Mode**: always-on speech with ElevenLabs (macOS/iOS/Android)
 - **TTS**: ElevenLabs, OpenAI, Edge text-to-speech on all channels
 - **Browser control**: CDP-managed Chrome/Chromium automation
-- **Canvas + A2UI**: agent-driven visual workspace
 - **Nodes**: iOS/Android nodes with camera, screen, location, voice capabilities
 - **Device pairing**: secure pairing flow for mobile nodes
 - **Exec approvals**: human-in-the-loop tool approval system
@@ -267,7 +266,7 @@ OpenClaw is a local-first personal AI assistant framework with:
 | Connection testing | ✅ | `test_embedding_connection` sends real embedding request via curl |
 | Recall (semantic search) | ✅ | `memory_search` → `openclaw ltm search` CLI |
 | Remember (store memory) | 🔶 | Uses `chat.send` to ask agent to call `memory_store` — **indirect and unreliable** |
-| Knowledge graph viz | 🔶 | Canvas bubble chart grouped by category — but data is just memory search results, not a real graph |
+| Knowledge graph viz | 🔶 | Bubble chart grouped by category — but data is just memory search results, not a real graph |
 | Memory stats | ✅ | `memory_stats` → `openclaw ltm stats` CLI |
 | Memory export | ✅ | Export all memories as timestamped JSON file (Blob download, up to 500 memories) |
 | Sidebar search | ✅ | Client-side filter of loaded memory cards |

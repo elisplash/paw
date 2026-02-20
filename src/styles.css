@@ -472,7 +472,6 @@ body {
 .nav-item[data-view="tasks"]::after { content: 'task'; }
 .nav-item[data-view="orchestrator"]::after { content: 'account_tree'; }
 .nav-item[data-view="trading"]::after { content: 'trending_up'; }
-.nav-item[data-view="canvas"]::after { content: 'palette'; }
 
 .sidebar-footer {
   padding: 10px;
@@ -1460,16 +1459,6 @@ body {
   margin-bottom: 24px;
 }
 
-/* ─── Canvas View ─── */
-#canvas-view.active { display: flex; flex-direction: column; height: 100%; }
-.canvas-header { flex-shrink: 0; }
-.canvas-header-left { display: flex; align-items: center; gap: 12px; }
-.canvas-header-right { display: flex; align-items: center; gap: 8px; }
-.canvas-toolbar-icons { display: flex; gap: 4px; border-right: 1px solid var(--border); padding-right: 8px; }
-.canvas-zoom-label { font-size: 12px; min-width: 40px; text-align: center; color: var(--text-muted); }
-.canvas-body { display: flex; flex: 1; overflow: hidden; }
-.canvas-sidebar { width: 200px; border-right: 1px solid var(--border); overflow-y: auto; padding: 8px; flex-shrink: 0; }
-.canvas-surface { flex: 1; position: relative; overflow: hidden; background: var(--bg-primary); }
 
 .view-title {
   font-family: var(--font-pixel);
