@@ -5,16 +5,34 @@ title: Skills
 
 # Skills
 
-The Skill Vault is where you enable integrations, CLI tools, and API connections for your agents.
+Skills are the foundation of the Pawz extensibility system — the first of three tiers that make Pawz infinitely customizable.
 
-## How skills work
+```
+┌────────────────────────────────────────────────────┐
+│              Pawz Extensibility                    │
+│                                                    │
+│  🔵 Skill        Prompt-only  (SKILL.md)      ◀── │
+│  🟣 Integration  Credentials + Tools  (TOML)      │
+│  🟡 Extension    Custom Views + Storage  (TOML)   │
+└────────────────────────────────────────────────────┘
+```
+
+**Skills** (this page) are prompt-only — they inject expert knowledge into your agent's system prompt with zero configuration. For credential-based API/CLI connections, see [Integrations](/docs/guides/integrations). For custom sidebar views and persistent data, see [Extensions](/docs/guides/extensions).
+
+---
+
+## Built-In Skills
+
+Pawz ships with **40 built-in skills** that are compiled into the binary. These include credential-based vault skills, CLI tools, and instruction-based API skills.
+
+### How built-in skills work
 
 1. **Enable** a skill in Settings → Skills
 2. **Provide credentials** (API keys, tokens) if required
 3. **Install binaries** (CLI tools) if required
 4. Enabled skills inject their tools and instructions into agent prompts automatically
 
-## Skill architecture
+### Skill architecture
 
 Skills are Rust functions registered in `skills.rs` that the agent can invoke as tools. The architecture works as follows:
 
@@ -25,9 +43,9 @@ Skills are Rust functions registered in `skills.rs` that the agent can invoke as
 - **Instruction skills** inject CLI/API knowledge into the agent's system prompt. The agent then uses its built-in `exec` (shell) and `fetch` (HTTP) tools to interact with CLIs and APIs.
 - **Credential encryption**: Credentials are stored encrypted in SQLite. The encryption key lives in the OS keychain, separate from the database.
 
-## Skill categories
+## Built-in skill categories
 
-Paw ships with **40 built-in skills** across **9 categories**:
+Pawz ships with **40 built-in skills** across **9 categories**:
 
 | # | Category | Description | Skill count |
 |---|----------|-------------|-------------|
@@ -130,9 +148,13 @@ Paw ships with **40 built-in skills** across **9 categories**:
 | **Peekaboo** | `peekaboo` |
 | **Security Audit** | — |
 
-## Community Skills (skills.sh ecosystem)
+## Community Skills (Tier 1 — skills.sh ecosystem)
 
-Pawz supports the open-source [skills.sh](https://skills.sh) community skills ecosystem. Community skills are instruction-based — they teach your agent new capabilities by injecting expert knowledge into the system prompt.
+Community Skills are the first tier of the Pawz extensibility system — prompt-only knowledge packs that teach your agent new capabilities with zero configuration. They use the open-source [skills.sh](https://skills.sh) ecosystem.
+
+:::tip Graduating to higher tiers
+Need credentials, API keys, or dashboard widgets? Create a [Tier 2 Integration](/docs/guides/integrations). Need a custom sidebar view with persistent data? Create a [Tier 3 Extension](/docs/guides/extensions). Community Skills are the starting point — you can upgrade to higher tiers anytime.
+:::
 
 ### How community skills work
 

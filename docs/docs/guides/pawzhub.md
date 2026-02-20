@@ -1,12 +1,35 @@
 ---
 sidebar_position: 20
-title: "PawzHub — Skill Marketplace"
-description: Community skill marketplace for Pawz — create, publish, install, and manage skills.
+title: "PawzHub — Marketplace"
+description: Community marketplace for Pawz — browse, install, and publish Skills, Integrations, and Extensions.
 ---
 
-# PawzHub — Skill Marketplace
+# PawzHub — Marketplace
 
-PawzHub is the community-driven skill marketplace for Pawz. It transforms Pawz from a fixed-feature app into an infinitely extensible platform where anyone can create, publish, and install skills.
+PawzHub is the community-driven marketplace for Pawz. It hosts all three tiers of the extensibility system — [Skills](/docs/guides/skills), [Integrations](/docs/guides/integrations), and [Extensions](/docs/guides/extensions) — making Pawz an infinitely extensible platform where anyone can create, publish, and install capabilities.
+
+## Three Tiers, One Marketplace
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                      PawzHub                            │
+│                                                         │
+│  🔵 Skills         Prompt-only (SKILL.md)              │
+│     Zero config · Installs in 1 click · skills.sh      │
+│                                                         │
+│  🟣 Integrations   Credentials + Tools (pawz-skill.toml)│
+│     API keys · CLI binaries · Dashboard widgets        │
+│                                                         │
+│  🟡 Extensions     Custom Views + Storage (pawz-skill.toml)│
+│     Sidebar tabs · Persistent data · Full-power        │
+└─────────────────────────────────────────────────────────┘
+```
+
+| Tier | Badge | Format | Install Source |
+|------|-------|--------|---------------|
+| Skill | 🔵 Blue | SKILL.md | [skills.sh](https://skills.sh) + GitHub repos |
+| Integration | 🟣 Purple | pawz-skill.toml | PawzHub registry (GitHub) |
+| Extension | 🟡 Gold | pawz-skill.toml + [view]/[storage] | PawzHub registry (GitHub) |
 
 ## How It Works
 
@@ -536,11 +559,14 @@ The agent then uses the built-in `fetch` tool (supports GET/POST/PUT/PATCH/DELET
 
 | | ClawHub (OpenClaw) | PawzHub (Pawz) |
 |--|---|---|
-| **Format** | Freeform SKILL.md | Structured `pawz-skill.toml` |
-| **Credentials** | Manual env vars | Typed fields → vault-encrypted |
-| **Output** | Chat text only | Dashboard widgets + chat |
+| **Tiers** | Single (prompt-only) | Three: Skills, Integrations, Extensions |
+| **Format** | Freeform SKILL.md | SKILL.md (Tier 1) + structured `pawz-skill.toml` (Tier 2–3) |
+| **Credentials** | Manual env vars | Typed fields → vault-encrypted (AES-GCM) |
+| **Output** | Chat text only | Dashboard widgets (5 types) + chat + custom views |
 | **Quality control** | 48% junk/malicious | CI-validated, in-app tested |
 | **Security** | VirusTotal after publish | Validated at submit, runtime policy enforced |
 | **Creation** | Write markdown by hand | In-app wizard + AI generation |
-| **Modularity** | Drop in folder | Per-workspace profiles |
+| **Modularity** | Drop in folder | Per-agent scoping + per-workspace profiles |
 | **Versioning** | None | Semver + update detection |
+| **Storage** | None | Persistent key-value store (Extensions) |
+| **Custom UI** | None | Custom sidebar views (Extensions) |

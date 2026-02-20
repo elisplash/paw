@@ -31,6 +31,66 @@ Pawz is a Tauri v2 desktop application with a Rust backend and TypeScript fronte
 └─────────────────────────────────────────────────┘
 ```
 
+## Extensibility — Three-Tier System
+
+Pawz has a three-tier extensibility architecture. Each tier adds more power over the previous.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Tier 3 — EXTENSIONS                       🟡 Gold badge       │
+│  Custom sidebar views · Dashboard widgets · Persistent data    │
+│  pawz-skill.toml + [view] + [storage]                          │
+├─────────────────────────────────────────────────────────────────┤
+│  Tier 2 — INTEGRATIONS                     🟣 Purple badge     │
+│  Credential vault · API access · CLI binaries · Widgets        │
+│  pawz-skill.toml + [[credentials]] + [instructions]            │
+├─────────────────────────────────────────────────────────────────┤
+│  Tier 1 — SKILLS                           🔵 Blue badge       │
+│  Prompt injection only · Zero config · SKILL.md format         │
+│  skills.sh ecosystem · Agent-installable                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+| Tier | Format | Capabilities |
+|------|--------|-------------|
+| **Skill** | `SKILL.md` | Prompt injection, zero config |
+| **Integration** | `pawz-skill.toml` | + Credentials, binary detection, widgets |
+| **Extension** | `pawz-skill.toml` + `[view]`/`[storage]` | + Custom sidebar views, persistent data |
+
+### Skill loading pipeline
+
+```
+Startup
+  │
+  ├─ Load built-in skills (40 Rust SkillDefinitions)
+  │
+  ├─ Load community SKILL.md (per-agent, from DB)
+  │
+  ├─ Load TOML integrations (~/.paw/skills/*/pawz-skill.toml)
+  │   ├─ Parse credentials → generate UI forms
+  │   ├─ Check binaries → readiness status
+  │   └─ Register widgets → dashboard renderer
+  │
+  └─ Load extensions (TOML + [view] + [storage])
+      ├─ Register sidebar views
+      ├─ Initialize storage namespaces
+      └─ Bind view data to storage
+```
+
+### Agent prompt assembly
+
+```
+System prompt
+  ├─ Core personality (SOUL.md / agent instructions)
+  ├─ Enabled built-in skill instructions
+  ├─ Community Skill instructions (Tier 1, per-agent)
+  ├─ Integration instructions + credentials (Tier 2, per-agent)
+  ├─ Extension instructions + credentials (Tier 3, per-agent)
+  └─ Context truncation (preserves last user message)
+```
+
+For full details: [Skills](/docs/guides/skills) · [Integrations](/docs/guides/integrations) · [Extensions](/docs/guides/extensions) · [PawzHub](/docs/guides/pawzhub)
+
 ## Frontend (`src/`)
 
 Vanilla TypeScript with DOM manipulation — no framework. Each view is a module that renders into the main content area.

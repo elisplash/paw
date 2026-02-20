@@ -20,6 +20,8 @@ const sidebars: SidebarsConfig = {
         'guides/memory',
         'guides/tasks',
         'guides/skills',
+        'guides/integrations',
+        'guides/extensions',
         'guides/voice',
         'guides/research',
         'guides/orchestrator',
