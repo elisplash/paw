@@ -39,6 +39,7 @@ interface ChannelSetupDef {
   name: string;
   icon: string;
   description: string;
+  descriptionHtml?: string;
   fields: ChannelField[];
   buildConfig: (values: Record<string, string | boolean>) => Record<string, unknown>;
 }
@@ -206,18 +207,33 @@ const CHANNEL_SETUPS: ChannelSetupDef[] = [
     id: 'whatsapp',
     name: 'WhatsApp',
     icon: 'WA',
-    description: 'Connect to WhatsApp via a local Evolution API Docker container. Your WhatsApp account is linked by scanning a QR code — no business account needed. Requires Docker.',
+    description: 'Connect your WhatsApp to Pawz. Your agent will respond to messages automatically.',
+    descriptionHtml: `
+      <div class="wa-setup-guide">
+        <div class="wa-prereq">
+          <span class="ms" style="font-size:18px;vertical-align:middle;margin-right:6px">info</span>
+          <strong>Requires <a href="https://www.docker.com/products/docker-desktop/" target="_blank" rel="noopener">Docker Desktop</a></strong> — install it and make sure it's running before you start.
+        </div>
+        <div class="wa-steps">
+          <div class="wa-step"><span class="wa-step-num">1</span> Save this form (defaults are fine)</div>
+          <div class="wa-step"><span class="wa-step-num">2</span> Click <strong>Start</strong> on the WhatsApp card</div>
+          <div class="wa-step"><span class="wa-step-num">3</span> A QR code will appear — scan it with your phone</div>
+          <div class="wa-step-sub">WhatsApp > Settings > Linked Devices > Link a Device</div>
+          <div class="wa-step"><span class="wa-step-num">4</span> Done! Your agent is now live on WhatsApp</div>
+        </div>
+      </div>
+    `,
     fields: [
-      { key: 'apiPort', label: 'API Port', type: 'text', placeholder: '8085', defaultValue: '8085', hint: 'Port for the Evolution API container (default 8085)' },
-      { key: 'webhookPort', label: 'Webhook Port', type: 'text', placeholder: '8086', defaultValue: '8086', hint: 'Port for the local webhook listener (default 8086)' },
-      { key: 'dmPolicy', label: 'Access Policy', type: 'select', options: [
-        { value: 'pairing', label: 'Pairing (new contacts must be approved)' },
-        { value: 'allowlist', label: 'Allowlist only (pre-approved numbers)' },
-        { value: 'open', label: 'Open (anyone can message)' },
+      { key: 'dmPolicy', label: 'Who can message your agent?', type: 'select', options: [
+        { value: 'pairing', label: 'New contacts need my approval first' },
+        { value: 'open', label: 'Anyone can message' },
+        { value: 'allowlist', label: 'Only specific phone numbers' },
       ], defaultValue: 'pairing' },
-      { key: 'allowFrom', label: 'Allowed Phone Numbers', type: 'text', placeholder: '1234567890, 0987654321', hint: 'Phone numbers (no + prefix), comma-separated. Leave blank for pairing mode.' },
-      { key: 'respondInGroups', label: 'Respond in group chats', type: 'toggle', defaultValue: false },
-      { key: 'agentId', label: 'Agent ID (optional)', type: 'text', placeholder: '' },
+      { key: 'respondInGroups', label: 'Reply in group chats too', type: 'toggle', defaultValue: false },
+      { key: 'allowFrom', label: 'Allowed phone numbers', type: 'text', placeholder: '15551234567, 447700900000', hint: 'Only needed if you chose "Only specific phone numbers" above. Include country code.' },
+      { key: 'agentId', label: 'Agent', type: 'text', placeholder: 'Leave blank to use your default agent', hint: 'Optional — paste an agent ID to use a specific agent' },
+      { key: 'apiPort', label: 'API Port', type: 'text', placeholder: '8085', defaultValue: '8085', hint: 'Advanced. Change only if port 8085 is already in use.' },
+      { key: 'webhookPort', label: 'Webhook Port', type: 'text', placeholder: '8086', defaultValue: '8086', hint: 'Advanced. Change only if port 8086 is already in use.' },
     ],
     buildConfig: (v) => ({ enabled: true, api_port: parseInt(v.apiPort as string) || 8085, webhook_port: parseInt(v.webhookPort as string) || 8086, dm_policy: v.dmPolicy as string || 'pairing', respond_in_groups: !!v.respondInGroups }),
   },
@@ -327,35 +343,56 @@ export async function openChannelSetup(channelType: string) {
     }
   } catch { /* no existing config */ }
 
-  let html = `<p class="channel-setup-desc">${escHtml(def.description)}</p>`;
-  for (const field of def.fields) {
-    html += `<div class="form-group">`;
-    html += `<label class="form-label" for="ch-field-${field.key}">${escHtml(field.label)}${field.required ? ' <span class="required">*</span>' : ''}</label>`;
+  let html = def.descriptionHtml
+    ? `<div class="channel-setup-desc">${def.descriptionHtml}</div>`
+    : `<p class="channel-setup-desc">${escHtml(def.description)}</p>`;
+
+  // Group fields: regular first, then "Advanced." hint fields in a collapsible
+  const regularFields = def.fields.filter(f => !f.hint?.startsWith('Advanced.'));
+  const advancedFields = def.fields.filter(f => f.hint?.startsWith('Advanced.'));
+
+  const renderField = (field: ChannelField) => {
+    let fhtml = `<div class="form-group">`;
+    fhtml += `<label class="form-label" for="ch-field-${field.key}">${escHtml(field.label)}${field.required ? ' <span class="required">*</span>' : ''}</label>`;
 
     const existVal = existingValues[field.key];
 
     if (field.type === 'select' && field.options) {
-      html += `<select class="form-input" id="ch-field-${field.key}" data-ch-field="${field.key}">`;
+      fhtml += `<select class="form-input" id="ch-field-${field.key}" data-ch-field="${field.key}">`;
       for (const opt of field.options) {
         const selVal = existVal ?? (field.defaultValue ?? '');
         const sel = opt.value === selVal ? ' selected' : '';
-        html += `<option value="${escAttr(opt.value)}"${sel}>${escHtml(opt.label)}</option>`;
+        fhtml += `<option value="${escAttr(opt.value)}"${sel}>${escHtml(opt.label)}</option>`;
       }
-      html += `</select>`;
+      fhtml += `</select>`;
     } else if (field.type === 'toggle') {
       const checked = field.defaultValue ? ' checked' : '';
-      html += `<label class="toggle-label"><input type="checkbox" id="ch-field-${field.key}" data-ch-field="${field.key}"${checked}> Enabled</label>`;
+      fhtml += `<label class="toggle-label"><input type="checkbox" id="ch-field-${field.key}" data-ch-field="${field.key}"${checked}> Enabled</label>`;
     } else {
       const inputType = field.type === 'password' ? 'password' : 'text';
       const populateVal = existVal ?? (typeof field.defaultValue === 'string' ? field.defaultValue : '');
       const val = populateVal ? ` value="${escAttr(populateVal)}"` : '';
-      html += `<input class="form-input" id="ch-field-${field.key}" data-ch-field="${field.key}" type="${inputType}" placeholder="${escAttr(field.placeholder ?? '')}"${val}>`;
+      fhtml += `<input class="form-input" id="ch-field-${field.key}" data-ch-field="${field.key}" type="${inputType}" placeholder="${escAttr(field.placeholder ?? '')}"${val}>`;
     }
 
     if (field.hint) {
-      html += `<div class="form-hint">${escHtml(field.hint)}</div>`;
+      const hintText = field.hint.startsWith('Advanced.') ? field.hint.slice(10) : field.hint;
+      fhtml += `<div class="form-hint">${escHtml(hintText)}</div>`;
     }
-    html += `</div>`;
+    fhtml += `</div>`;
+    return fhtml;
+  };
+
+  for (const field of regularFields) {
+    html += renderField(field);
+  }
+
+  if (advancedFields.length > 0) {
+    html += `<details class="advanced-toggle"><summary>Advanced settings</summary>`;
+    for (const field of advancedFields) {
+      html += renderField(field);
+    }
+    html += `</details>`;
   }
 
   body.innerHTML = html;
