@@ -23,16 +23,38 @@ function showVaultToast(message: string, type: 'success' | 'error' | 'info') {
 }
 
 const CATEGORY_META: Record<string, { label: string; icon: string; order: number }> = {
-  Vault:         { label: 'Vault (Credentials)', icon: '🔐', order: 0 },
-  Communication: { label: 'Communication',       icon: '💬', order: 1 },
-  Productivity:  { label: 'Productivity',         icon: '📋', order: 2 },
-  Api:           { label: 'API Integrations',     icon: '🔌', order: 3 },
-  Development:   { label: 'Development',          icon: '🛠️', order: 4 },
-  Media:         { label: 'Media',                icon: '🎬', order: 5 },
-  SmartHome:     { label: 'Smart Home & IoT',     icon: '🏠', order: 6 },
-  Cli:           { label: 'CLI Tools',            icon: '⌨️', order: 7 },
-  System:        { label: 'System',               icon: '🖥️', order: 8 },
+  Vault:         { label: 'Vault (Credentials)', icon: 'enhanced_encryption', order: 0 },
+  Communication: { label: 'Communication',       icon: 'forum',               order: 1 },
+  Productivity:  { label: 'Productivity',         icon: 'task_alt',            order: 2 },
+  Api:           { label: 'API Integrations',     icon: 'api',                 order: 3 },
+  Development:   { label: 'Development',          icon: 'code',                order: 4 },
+  Media:         { label: 'Media',                icon: 'movie',               order: 5 },
+  SmartHome:     { label: 'Smart Home & IoT',     icon: 'home',                order: 6 },
+  Cli:           { label: 'CLI Tools',            icon: 'terminal',            order: 7 },
+  System:        { label: 'System',               icon: 'settings',            order: 8 },
 };
+
+/** Map skill icon names (emoji fallback from backend) to Material Symbols */
+const SKILL_ICON_MAP: Record<string, string> = {
+  '📧': 'mail', '✉️': 'mail', '💬': 'chat', '🔔': 'notifications',
+  '📋': 'assignment', '📝': 'edit_note', '📅': 'calendar_today',
+  '🔌': 'power', '🌐': 'language', '🔗': 'link',
+  '🛠️': 'build', '💻': 'code', '🔧': 'build',
+  '🎬': 'movie', '🎵': 'music_note', '📸': 'photo_camera', '🎙️': 'mic',
+  '🏠': 'home', '💡': 'lightbulb',
+  '⌨️': 'terminal', '🖥️': 'computer', '📦': 'inventory_2',
+  '🔐': 'lock', '🔑': 'key', '🐙': 'code', '📊': 'analytics',
+  '🤖': 'smart_toy', '⚡': 'bolt', '🔍': 'search',
+};
+
+function msIcon(name: string, size: string = 'ms-sm'): string {
+  return `<span class="ms ${size}">${name}</span>`;
+}
+
+function skillIcon(raw: string): string {
+  const mapped = SKILL_ICON_MAP[raw];
+  return mapped ? msIcon(mapped) : msIcon('extension');
+}
 
 let _currentFilter: string = 'all';
 
@@ -67,16 +89,12 @@ function renderSkillsPage(skills: EngineSkillStatus[]): string {
   const readyCount = skills.filter(s => s.is_ready).length;
 
   // Summary bar
-  const summary = `<div style="
-    display:flex; gap:16px; align-items:center; margin-bottom:16px; padding:12px 16px;
-    background:var(--bg-secondary); border-radius:10px; border:1px solid var(--border-color);
-    flex-wrap:wrap;
-  ">
-    <span style="font-size:14px; font-weight:600; color:var(--text-primary);">
-      ${skills.length} Skills
-    </span>
-    <span style="font-size:12px; color:var(--text-muted);">
-      🟢 ${readyCount} ready &nbsp;·&nbsp; ⚡ ${enabledCount} enabled
+  const summary = `<div class="skills-summary-bar">
+    <span class="skills-summary-count">${skills.length} Skills</span>
+    <span class="skills-summary-status">
+      ${msIcon('check_circle')} ${readyCount} ready
+      <span class="skills-summary-sep">·</span>
+      ${msIcon('bolt')} ${enabledCount} enabled
     </span>
   </div>`;
 
@@ -84,15 +102,13 @@ function renderSkillsPage(skills: EngineSkillStatus[]): string {
   const categories = [...new Set(skills.map(s => s.category))];
   categories.sort((a, b) => (CATEGORY_META[a]?.order ?? 99) - (CATEGORY_META[b]?.order ?? 99));
 
-  const tabs = `<div class="skills-filter-tabs" style="
-    display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap;
-  ">
-    <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'all' ? 'btn-primary' : 'btn-ghost'}" data-filter="all" style="font-size:12px;">All</button>
-    <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'enabled' ? 'btn-primary' : 'btn-ghost'}" data-filter="enabled" style="font-size:12px;">⚡ Enabled</button>
+  const tabs = `<div class="skills-filter-tabs">
+    <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'all' ? 'btn-primary' : 'btn-ghost'}" data-filter="all">All</button>
+    <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'enabled' ? 'btn-primary' : 'btn-ghost'}" data-filter="enabled">${msIcon('bolt')} Enabled</button>
     ${categories.map(c => {
-      const meta = CATEGORY_META[c] || { label: c, icon: '📦', order: 99 };
+      const meta = CATEGORY_META[c] || { label: c, icon: 'extension', order: 99 };
       const count = skills.filter(s => s.category === c).length;
-      return `<button class="btn btn-sm skills-filter-btn ${_currentFilter === c ? 'btn-primary' : 'btn-ghost'}" data-filter="${escHtml(c)}" style="font-size:12px;">${meta.icon} ${meta.label} (${count})</button>`;
+      return `<button class="btn btn-sm skills-filter-btn ${_currentFilter === c ? 'btn-primary' : 'btn-ghost'}" data-filter="${escHtml(c)}">${msIcon(meta.icon)} ${escHtml(meta.label)} (${count})</button>`;
     }).join('')}
   </div>`;
 
@@ -113,12 +129,12 @@ function renderSkillsPage(skills: EngineSkillStatus[]): string {
   );
 
   const sections = sortedCats.map(cat => {
-    const meta = CATEGORY_META[cat] || { label: cat, icon: '📦', order: 99 };
+    const meta = CATEGORY_META[cat] || { label: cat, icon: 'extension', order: 99 };
     const cards = grouped[cat].map(s => renderSkillCard(s)).join('');
     return `
-      <div class="skill-category-group" style="margin-bottom:20px;">
-        <h3 style="font-size:14px; color:var(--text-secondary); margin:0 0 10px 4px; font-weight:600;">
-          ${meta.icon} ${meta.label}
+      <div class="skill-category-group">
+        <h3 class="skill-category-title">
+          ${msIcon(meta.icon)} ${escHtml(meta.label)}
         </h3>
         ${cards}
       </div>`;
@@ -131,18 +147,19 @@ function renderSkillCard(s: EngineSkillStatus): string {
   // Status determination
   let statusIcon: string;
   let statusText: string;
+  let statusClass: string;
   if (s.is_ready) {
-    statusIcon = '🟢'; statusText = 'Ready';
+    statusIcon = 'check_circle'; statusText = 'Ready'; statusClass = 'status-ready';
   } else if (s.enabled && s.missing_binaries.length > 0) {
-    statusIcon = '🔴'; statusText = 'Missing binaries';
+    statusIcon = 'error'; statusText = 'Missing binaries'; statusClass = 'status-error';
   } else if (s.enabled && s.missing_credentials.length > 0) {
-    statusIcon = '🟡'; statusText = 'Missing credentials';
+    statusIcon = 'warning'; statusText = 'Missing credentials'; statusClass = 'status-warn';
   } else if (s.enabled && s.missing_env_vars.length > 0) {
-    statusIcon = '🟡'; statusText = 'Missing env vars';
+    statusIcon = 'warning'; statusText = 'Missing env vars'; statusClass = 'status-warn';
   } else if (s.enabled) {
-    statusIcon = '🟡'; statusText = 'Setup incomplete';
+    statusIcon = 'warning'; statusText = 'Setup incomplete'; statusClass = 'status-warn';
   } else {
-    statusIcon = '⚫'; statusText = 'Disabled';
+    statusIcon = 'radio_button_unchecked'; statusText = 'Disabled'; statusClass = 'status-off';
   }
 
   const hasCreds = s.required_credentials.length > 0;
@@ -150,39 +167,32 @@ function renderSkillCard(s: EngineSkillStatus): string {
 
   // Badges
   const badges: string[] = [];
-  if (s.has_instructions) badges.push('<span style="background:var(--bg-tertiary); color:var(--text-muted); font-size:10px; padding:1px 6px; border-radius:8px;">📖 Instruction</span>');
-  if (hasTools) badges.push('<span style="background:var(--bg-tertiary); color:var(--text-muted); font-size:10px; padding:1px 6px; border-radius:8px;">🔧 Tools</span>');
-  if (hasCreds) badges.push('<span style="background:var(--bg-tertiary); color:var(--text-muted); font-size:10px; padding:1px 6px; border-radius:8px;">🔑 Vault</span>');
+  if (s.has_instructions) badges.push(`<span class="skill-badge">${msIcon('description')} Instruction</span>`);
+  if (hasTools) badges.push(`<span class="skill-badge">${msIcon('build')} Tools</span>`);
+  if (hasCreds) badges.push(`<span class="skill-badge">${msIcon('key')} Vault</span>`);
 
   return `
-  <div class="skill-vault-card" data-skill-id="${escHtml(s.id)}" style="
-    border:1px solid var(--border-color);
-    border-radius:10px;
-    padding:14px 16px;
-    margin-bottom:8px;
-    background:var(--bg-secondary);
-    ${s.enabled ? 'border-left:3px solid var(--accent-color);' : ''}
-  ">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:20px;">${escHtml(s.icon)}</span>
+  <div class="skill-vault-card${s.enabled ? ' skill-enabled' : ''}" data-skill-id="${escHtml(s.id)}">
+    <div class="skill-card-header">
+      <div class="skill-card-identity">
+        <span class="skill-card-icon">${skillIcon(s.icon)}</span>
         <div>
-          <strong style="font-size:14px;">${escHtml(s.name)}</strong>
-          <span style="margin-left:8px; font-size:11px; color:var(--text-muted);">${statusIcon} ${statusText}</span>
+          <strong class="skill-card-name">${escHtml(s.name)}</strong>
+          <span class="skill-status ${statusClass}">${msIcon(statusIcon)} ${statusText}</span>
         </div>
       </div>
-      <div style="display:flex; gap:6px; align-items:center;">
-        <label style="display:flex; align-items:center; gap:4px; cursor:pointer; font-size:12px;">
+      <div class="skill-card-actions">
+        <label class="skill-toggle-label">
           <input type="checkbox" class="skill-enabled-toggle" data-skill="${escHtml(s.id)}" ${s.enabled ? 'checked' : ''} />
           Enable
         </label>
-        ${hasCreds ? `<button class="btn btn-ghost btn-sm skill-revoke-btn" data-skill="${escHtml(s.id)}" title="Revoke all credentials" style="color:var(--text-danger); font-size:11px;">Revoke</button>` : ''}
+        ${hasCreds ? `<button class="btn btn-ghost btn-sm skill-revoke-btn" data-skill="${escHtml(s.id)}" title="Revoke all credentials">Revoke</button>` : ''}
       </div>
     </div>
-    <p style="color:var(--text-secondary); font-size:12px; margin:0 0 8px 0;">${escHtml(s.description)}</p>
-    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">${badges.join('')}</div>
-    ${hasTools ? `<div style="font-size:11px; color:var(--text-muted); margin-bottom:4px;">
-      Tools: ${s.tool_names.map(t => `<code style="background:var(--bg-tertiary); padding:1px 5px; border-radius:4px; font-size:10px;">${escHtml(t)}</code>`).join(' ')}
+    <p class="skill-card-desc">${escHtml(s.description)}</p>
+    <div class="skill-badges-row">${badges.join('')}</div>
+    ${hasTools ? `<div class="skill-tools-row">
+      Tools: ${s.tool_names.map(t => `<code class="skill-tool-tag">${escHtml(t)}</code>`).join(' ')}
     </div>` : ''}
     ${renderBinaryStatus(s)}
     ${renderEnvVarStatus(s)}
@@ -194,14 +204,12 @@ function renderSkillCard(s: EngineSkillStatus): string {
 function renderBinaryStatus(s: EngineSkillStatus): string {
   if (s.missing_binaries.length === 0) return '';
 
-  return `<div style="
-    background:var(--bg-tertiary); border-radius:6px; padding:8px 10px; margin-bottom:6px; font-size:12px;
-  ">
-    <div style="color:var(--text-danger); margin-bottom:4px;">
-      ⚠️ Missing binaries: ${s.missing_binaries.map(b => `<code style="font-weight:600;">${escHtml(b)}</code>`).join(', ')}
+  return `<div class="skill-status-block skill-status-danger">
+    <div class="skill-status-msg">
+      ${msIcon('error')} Missing binaries: ${s.missing_binaries.map(b => `<code class="skill-code-tag">${escHtml(b)}</code>`).join(', ')}
     </div>
-    ${s.install_hint ? `<div style="color:var(--text-muted);">
-      Install: <code style="background:var(--bg-secondary); padding:2px 6px; border-radius:4px; cursor:pointer; user-select:all;">${escHtml(s.install_hint)}</code>
+    ${s.install_hint ? `<div class="skill-status-hint">
+      Install: <code class="skill-code-tag skill-code-copy">${escHtml(s.install_hint)}</code>
     </div>` : ''}
   </div>`;
 }
@@ -209,11 +217,9 @@ function renderBinaryStatus(s: EngineSkillStatus): string {
 function renderEnvVarStatus(s: EngineSkillStatus): string {
   if (s.missing_env_vars.length === 0) return '';
 
-  return `<div style="
-    background:var(--bg-tertiary); border-radius:6px; padding:8px 10px; margin-bottom:6px; font-size:12px;
-  ">
-    <div style="color:var(--text-warning, #fbbf24);">
-      ⚠️ Missing environment variables: ${s.missing_env_vars.map(v => `<code style="font-weight:600;">${escHtml(v)}</code>`).join(', ')}
+  return `<div class="skill-status-block skill-status-warn">
+    <div class="skill-status-msg">
+      ${msIcon('warning')} Missing environment variables: ${s.missing_env_vars.map(v => `<code class="skill-code-tag">${escHtml(v)}</code>`).join(', ')}
     </div>
   </div>`;
 }
@@ -223,34 +229,33 @@ function renderCredentialFields(skill: EngineSkillStatus): string {
 
   const rows = skill.required_credentials.map(cred => {
     const isSet = skill.configured_credentials.includes(cred.key);
-    const reqBadge = cred.required ? '<span style="color:var(--text-danger);font-size:11px;">*</span>' : '';
+    const reqBadge = cred.required ? '<span class="skill-required">*</span>' : '';
 
     return `
-    <div class="skill-cred-row" style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-      <div style="min-width:140px;">
-        <label style="font-size:11px; color:var(--text-secondary);">${escHtml(cred.label)} ${reqBadge}</label>
-        <div style="font-size:10px; color:var(--text-muted);">${escHtml(cred.description)}</div>
+    <div class="skill-cred-row">
+      <div class="skill-cred-label">
+        <label class="skill-cred-name">${escHtml(cred.label)} ${reqBadge}</label>
+        <span class="skill-cred-desc">${escHtml(cred.description)}</span>
       </div>
-      <div style="flex:1; display:flex; gap:4px; align-items:center;">
+      <div class="skill-cred-field">
         <input
           type="password"
           class="form-input skill-cred-input"
           data-skill="${escHtml(skill.id)}"
           data-key="${escHtml(cred.key)}"
           placeholder="${isSet ? '••••••••' : escHtml(cred.placeholder)}"
-          style="font-size:11px; flex:1;"
         />
-        <button class="btn btn-ghost btn-sm skill-cred-save" data-skill="${escHtml(skill.id)}" data-key="${escHtml(cred.key)}" style="font-size:10px; padding:3px 7px;">
+        <button class="btn btn-ghost btn-sm skill-cred-save" data-skill="${escHtml(skill.id)}" data-key="${escHtml(cred.key)}">
           ${isSet ? 'Update' : 'Set'}
         </button>
-        ${isSet ? `<button class="btn btn-ghost btn-sm skill-cred-delete" data-skill="${escHtml(skill.id)}" data-key="${escHtml(cred.key)}" style="font-size:10px; padding:3px 7px; color:var(--text-danger);">✕</button>` : ''}
+        ${isSet ? `<button class="btn btn-ghost btn-sm skill-cred-delete" data-skill="${escHtml(skill.id)}" data-key="${escHtml(cred.key)}">${msIcon('close')}</button>` : ''}
       </div>
-      ${isSet ? '<span style="color:var(--text-success); font-size:11px;">✓</span>' : '<span style="color:var(--text-muted); font-size:11px;">—</span>'}
+      <span class="skill-cred-status">${isSet ? msIcon('check_circle') : msIcon('remove')}</span>
     </div>`;
   }).join('');
 
-  return `<div style="border-top:1px solid var(--border-color); padding-top:8px; margin-top:6px;">
-    <div style="font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:6px;">🔑 Credentials</div>
+  return `<div class="skill-cred-section">
+    <div class="skill-section-title">${msIcon('key')} Credentials</div>
     ${rows}
   </div>`;
 }
@@ -261,27 +266,26 @@ function renderAdvancedSection(s: EngineSkillStatus): string {
 
   if (!s.default_instructions && !hasCustom) return '';
 
-  return `<div style="border-top:1px solid var(--border-color); padding-top:8px; margin-top:6px;">
+  return `<div class="skill-advanced-section">
     <details class="skill-advanced-toggle" data-skill="${escHtml(s.id)}">
-      <summary style="font-size:11px; font-weight:600; color:var(--text-secondary); cursor:pointer; user-select:none; margin-bottom:6px;">
-        ⚙️ Advanced — Agent Instructions
-        ${hasCustom ? '<span style="color:var(--accent-color); font-size:10px; margin-left:6px;">customized</span>' : ''}
+      <summary class="skill-advanced-summary">
+        ${msIcon('tune')} Advanced — Agent Instructions
+        ${hasCustom ? '<span class="skill-customized-badge">customized</span>' : ''}
       </summary>
-      <p style="font-size:10px; color:var(--text-muted); margin:0 0 6px 0;">
+      <p class="skill-advanced-hint">
         These instructions are injected into the agent's system prompt when this skill is enabled. Edit to customize how the agent uses this skill.
       </p>
       <textarea
         class="form-input skill-instructions-editor"
         data-skill="${escHtml(s.id)}"
-        style="width:100%; min-height:120px; font-size:11px; font-family:monospace; resize:vertical; line-height:1.5; background:var(--bg-tertiary); border:1px solid var(--border-color); border-radius:6px; padding:8px;"
         spellcheck="false"
       >${escHtml(currentText)}</textarea>
-      <div style="display:flex; gap:6px; margin-top:6px;">
-        <button class="btn btn-sm btn-primary skill-instructions-save" data-skill="${escHtml(s.id)}" style="font-size:11px; padding:4px 12px;">
-          Save Instructions
+      <div class="skill-advanced-actions">
+        <button class="btn btn-sm btn-primary skill-instructions-save" data-skill="${escHtml(s.id)}">
+          ${msIcon('save')} Save Instructions
         </button>
-        ${hasCustom ? `<button class="btn btn-sm btn-ghost skill-instructions-reset" data-skill="${escHtml(s.id)}" style="font-size:11px; padding:4px 12px; color:var(--text-muted);">
-          Reset to Default
+        ${hasCustom ? `<button class="btn btn-sm btn-ghost skill-instructions-reset" data-skill="${escHtml(s.id)}">
+          ${msIcon('restart_alt')} Reset to Default
         </button>` : ''}
       </div>
     </details>
