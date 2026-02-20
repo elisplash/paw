@@ -121,8 +121,12 @@ pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
 
     let app = app_handle.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = run_whatsapp_bridge(app, config).await {
+        if let Err(e) = run_whatsapp_bridge(app.clone(), config).await {
             error!("[whatsapp] Bridge crashed: {}", e);
+            let _ = app.emit("whatsapp-status", json!({
+                "kind": "error",
+                "message": format!("{}", e),
+            }));
         }
         BRIDGE_RUNNING.store(false, Ordering::Relaxed);
         info!("[whatsapp] Bridge stopped");
@@ -161,11 +165,18 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 async fn ensure_docker_ready(app_handle: &tauri::AppHandle) -> Result<bollard::Docker, String> {
     use bollard::Docker;
 
+    let stop = get_stop_signal();
+
     // First attempt: connect directly — fastest path
     if let Ok(docker) = Docker::connect_with_local_defaults() {
         if docker.ping().await.is_ok() {
             return Ok(docker);
         }
+    }
+
+    // Check if we've been told to stop before doing anything slow
+    if stop.load(Ordering::Relaxed) {
+        return Err("Cancelled".into());
     }
 
     info!("[whatsapp] Docker not responding, checking installation...");
@@ -274,9 +285,14 @@ async fn ensure_docker_ready(app_handle: &tauri::AppHandle) -> Result<bollard::D
         }
     }
 
-    // Poll for Docker to become ready (up to 90 seconds — install may take time)
+    // Poll for Docker to become ready (up to 30 seconds)
     info!("[whatsapp] Waiting for backend service to start...");
-    for attempt in 1..=45 {
+    for attempt in 1..=15 {
+        // Check stop signal each iteration so Stop/Remove can interrupt
+        if stop.load(Ordering::Relaxed) {
+            info!("[whatsapp] Stop signal received during Docker wait");
+            return Err("Cancelled".into());
+        }
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
         if let Ok(docker) = Docker::connect_with_local_defaults() {
             if docker.ping().await.is_ok() {

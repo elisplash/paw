@@ -835,6 +835,12 @@ export async function loadChannels() {
                     unlisten();
                     loadChannels();
                     break;
+                  case 'error':
+                    banner.innerHTML = `<span class="wa-status-icon">❌</span> ${escHtml(message ?? 'Something went wrong')}`;
+                    banner.className = 'wa-status-banner wa-status-error';
+                    unlisten();
+                    setTimeout(() => loadChannels(), 2000);
+                    break;
                 }
               });
             }
@@ -866,8 +872,17 @@ export async function loadChannels() {
           catch (e) { showToast(`Stop failed: ${e}`, 'error'); }
         });
         $(`${cardId}-edit`)?.addEventListener('click', () => openChannelSetup(ch));
-        $(`${cardId}-remove`)?.addEventListener('click', async () => {
-          if (!confirm(`Remove ${name} configuration?`)) return;
+        $(`${cardId}-remove`)?.addEventListener('click', async function removeHandler() {
+          const btn = this as HTMLButtonElement;
+          // Two-click safety: first click asks, second click confirms
+          if (btn.dataset.confirm !== 'yes') {
+            btn.dataset.confirm = 'yes';
+            btn.textContent = 'Confirm?';
+            btn.classList.add('btn-danger');
+            btn.classList.remove('btn-ghost');
+            setTimeout(() => { btn.dataset.confirm = ''; btn.textContent = 'Remove'; btn.classList.remove('btn-danger'); btn.classList.add('btn-ghost'); }, 3000);
+            return;
+          }
           try {
             await stopChannel(ch);
             const emptyConfig = emptyChannelConfig(ch);
