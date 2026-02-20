@@ -98,7 +98,9 @@ fn get_stop_signal() -> Arc<AtomicBool> {
 }
 
 const CONFIG_KEY: &str = "whatsapp_config";
-const EVOLUTION_IMAGE: &str = "evoapicloud/evolution-api:latest";
+// v1.8.6 works standalone with SQLite — no Redis or PostgreSQL needed.
+// v2.x requires PostgreSQL + Redis (multi-container) which is too heavy for local use.
+const EVOLUTION_IMAGE: &str = "atendai/evolution-api:v1.8.6";
 const CONTAINER_NAME: &str = "paw-whatsapp-evolution";
 
 // ── Bridge Core ────────────────────────────────────────────────────────
@@ -108,9 +110,14 @@ pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
         return Err("WhatsApp bridge is already running".into());
     }
 
-    let config: WhatsAppConfig = channels::load_channel_config(&app_handle, CONFIG_KEY)?;
+    let mut config: WhatsAppConfig = channels::load_channel_config(&app_handle, CONFIG_KEY)?;
     if !config.enabled {
         return Err("WhatsApp bridge is disabled. Enable it in Channels settings.".into());
+    }
+    // Ensure API key is never empty (old configs may have been saved without one)
+    if config.api_key.is_empty() {
+        config.api_key = format!("paw-wa-{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..16].to_string());
+        let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &config);
     }
 
     let stop = get_stop_signal();
@@ -429,9 +436,16 @@ async fn ensure_evolution_container(app_handle: &tauri::AppHandle, config: &What
     if let Some(existing) = containers.first() {
         let container_id = existing.id.clone().unwrap_or_default();
         let state = existing.state.as_deref().unwrap_or("");
+        let image = existing.image.as_deref().unwrap_or("");
 
-        // If container is crash-looping, remove it and recreate fresh
-        if state == "restarting" || state == "dead" {
+        // If the container is using a different image version, remove and recreate
+        if image != EVOLUTION_IMAGE {
+            info!("[whatsapp] Container uses wrong image ({} vs {}), recreating...", image, EVOLUTION_IMAGE);
+            let _ = docker.stop_container(&container_id, None).await;
+            let remove_opts = bollard::container::RemoveContainerOptions { force: true, ..Default::default() };
+            let _ = docker.remove_container(&container_id, Some(remove_opts)).await;
+            // Fall through to create below
+        } else if state == "restarting" || state == "dead" {
             info!("[whatsapp] Container is {} — removing and recreating", state);
             // Force stop + remove
             let _ = docker.stop_container(&container_id, None).await;
@@ -610,7 +624,22 @@ async fn ensure_evolution_container(app_handle: &tauri::AppHandle, config: &What
         }
     }
 
-    Err("Evolution API container started but API didn't become ready within 60 seconds".into())
+    // Fetch container logs to diagnose why it's not starting
+    let log_opts = bollard::container::LogsOptions::<String> {
+        stdout: true,
+        stderr: true,
+        tail: "20".to_string(),
+        ..Default::default()
+    };
+    let mut log_stream = docker.logs(&container_id, Some(log_opts));
+    let mut log_lines = Vec::new();
+    while let Some(Ok(line)) = futures::StreamExt::next(&mut log_stream).await {
+        log_lines.push(line.to_string());
+    }
+    if !log_lines.is_empty() {
+        error!("[whatsapp] Container logs (last 20 lines):\n{}", log_lines.join(""));
+    }
+    Err("WhatsApp service didn't start. It may need more time — try again in a moment.".into())
 }
 
 /// Create a WhatsApp instance in Evolution API and get the QR code.
