@@ -790,6 +790,9 @@ impl ToolDefinition {
             Self::create_task(),
             Self::list_tasks(),
             Self::manage_task(),
+            Self::skill_search(),
+            Self::skill_install(),
+            Self::skill_list(),
         ]
     }
 
@@ -1498,6 +1501,67 @@ impl ToolDefinition {
                         }
                     },
                     "required": ["currency", "amount", "to_address", "reason"]
+                }),
+            },
+        }
+    }
+
+    // ── Community Skills tools ──────────────────────────────────────────
+
+    pub fn skill_search() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "skill_search".into(),
+                description: "Search for community agent skills by keyword. Finds open-source SKILL.md files on GitHub that teach agents new capabilities. Use this when the user asks you to find, discover, or look for skills on a topic (e.g., \"find me marketing skills\", \"search for supabase skills\"). Returns a list of available skills with name, description, source repo, and install path.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search keywords (e.g. 'marketing', 'trading', 'supabase', 'nextjs')"
+                        }
+                    },
+                    "required": ["query"]
+                }),
+            },
+        }
+    }
+
+    pub fn skill_install() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "skill_install".into(),
+                description: "Install a community skill from a GitHub repository. The skill will be enabled immediately and its instructions injected into your system prompt. Use the source and path values from skill_search results. After installing, confirm to the user what was installed.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "source": {
+                            "type": "string",
+                            "description": "GitHub repo in owner/repo format (e.g. 'vercel-labs/agent-skills')"
+                        },
+                        "path": {
+                            "type": "string",
+                            "description": "Path to the SKILL.md file within the repo (from skill_search results)"
+                        }
+                    },
+                    "required": ["source", "path"]
+                }),
+            },
+        }
+    }
+
+    pub fn skill_list() -> Self {
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "skill_list".into(),
+                description: "List all installed community skills. Shows which skills are enabled or disabled, with their name, description, and source repo. Use this when the user asks what skills are installed or wants to see their current skills.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                    "required": []
                 }),
             },
         }

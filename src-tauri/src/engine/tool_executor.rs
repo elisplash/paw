@@ -102,6 +102,10 @@ pub async fn execute_tool(tool_call: &ToolCall, app_handle: &tauri::AppHandle, a
         "dex_top_traders" => execute_skill_tool("dex", "dex_top_traders", &args, app_handle).await,
         "dex_trending" => execute_skill_tool("dex", "dex_trending", &args, app_handle).await,
         "dex_transfer" => execute_skill_tool("dex", "dex_transfer", &args, app_handle).await,
+        // ── Community Skills tools ──
+        "skill_search" => execute_skill_search(&args, app_handle).await,
+        "skill_install" => execute_skill_install(&args, app_handle).await,
+        "skill_list" => execute_skill_list(app_handle).await,
         _ => Err(format!("Unknown tool: {}", name)),
     };
 
@@ -1030,6 +1034,89 @@ async fn execute_manage_task(args: &serde_json::Value, app_handle: &tauri::AppHa
         }
         _ => Err(format!("Unknown action: {}. Use: update, delete, run_now, pause, enable", action)),
     }
+}
+
+// ── Community Skills: Search, Install, List ─────────────────────────────
+
+async fn execute_skill_search(args: &serde_json::Value, _app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let query = args["query"].as_str()
+        .ok_or("Missing 'query' parameter")?;
+
+    info!("[engine] Agent searching community skills: {}", query);
+
+    let discovered = skills::search_community_skills(query).await?;
+
+    if discovered.is_empty() {
+        return Ok(format!("No community skills found for \"{}\". Try different keywords or a broader search term.", query));
+    }
+
+    let mut output = format!("Found {} community skills for \"{}\":\n\n", discovered.len(), query);
+
+    for (i, skill) in discovered.iter().enumerate() {
+        output.push_str(&format!(
+            "{}. **{}**\n   Description: {}\n   Source: {}\n   Path: {}\n\n",
+            i + 1,
+            skill.name,
+            if skill.description.is_empty() { "No description" } else { &skill.description },
+            skill.source,
+            skill.path,
+        ));
+    }
+
+    output.push_str("To install a skill, use the skill_install tool with the source and path from above.");
+
+    Ok(output)
+}
+
+async fn execute_skill_install(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let source = args["source"].as_str()
+        .ok_or("Missing 'source' parameter (e.g. 'owner/repo')")?;
+    let path = args["path"].as_str()
+        .ok_or("Missing 'path' parameter (path to SKILL.md in the repo)")?;
+
+    info!("[engine] Agent installing community skill: {} / {}", source, path);
+
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    let skill = skills::install_community_skill(&state.store, source, path).await?;
+
+    // Emit event so the UI refreshes if the skills page is open
+    let _ = app_handle.emit("community-skill-installed", &skill.name);
+
+    Ok(format!(
+        "Successfully installed and enabled \"{}\"!\n\nDescription: {}\nSource: {}\n\nThis skill is now active and its instructions will be included in future conversations.",
+        skill.name,
+        skill.description,
+        skill.source,
+    ))
+}
+
+async fn execute_skill_list(app_handle: &tauri::AppHandle) -> Result<String, String> {
+    let state = app_handle.try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    let skills = state.store.list_community_skills()?;
+
+    if skills.is_empty() {
+        return Ok("No community skills installed yet. Use skill_search to find and skill_install to add new skills.".to_string());
+    }
+
+    let mut output = format!("{} community skills installed:\n\n", skills.len());
+
+    for (i, skill) in skills.iter().enumerate() {
+        let status = if skill.enabled { "✓ Enabled" } else { "✗ Disabled" };
+        output.push_str(&format!(
+            "{}. **{}** [{}]\n   {}\n   Source: {}\n\n",
+            i + 1,
+            skill.name,
+            status,
+            skill.description,
+            skill.source,
+        ));
+    }
+
+    Ok(output)
 }
 
 // ── Skill Tools: Credential-injected execution ─────────────────────────
