@@ -151,13 +151,44 @@ You are an expert Python developer. When writing Python:
 ...
 ```
 
-### Browsing and installing
+### Searching for skills
 
-1. Go to **Settings → Skills** and scroll to the **Community Skills** section
-2. Enter a GitHub repo in `owner/repo` format (e.g. `vercel-labs/agent-skills`) or click a quick-browse button
-3. Pawz scans the repo for SKILL.md files and shows available skills
+The Community Skills section sits at the top of the Skills settings page with a keyword search bar and popular category tags.
+
+1. Go to **Settings → Skills** — the Community Skills hero section is at the top
+2. **Search by keyword**: Type any term (e.g. "marketing", "supabase", "trading") into the search bar and press Enter or click Search
+3. Pawz queries the [skills.sh](https://skills.sh) directory API (`/api/search?q=`) and displays matching skills with **install counts** (e.g. "22.9K", "151.3K")
+4. **Popular tags**: Click any of the quick-tag buttons (Coding, Marketing, DevOps, etc.) to instantly search that category
+5. Each skill card shows the skill name, install count, source repo, and a **View on skills.sh** link
+
+No authentication is required — the skills.sh API is public.
+
+### Browsing a specific repo
+
+You can also browse a specific GitHub repository directly:
+
+1. Scroll below the search section to the **Browse Repository** area
+2. Enter a GitHub repo in `owner/repo` format (e.g. `vercel-labs/agent-skills`)
+3. Pawz scans the repo tree for SKILL.md files and shows all available skills
 4. Click **Install** on individual skills or **Install All** to grab everything
-5. Installed skills are automatically enabled and will be included in all agent prompts
+
+### Installing skills
+
+1. Click **Install** on any skill card — Pawz fetches the SKILL.md from the source GitHub repo
+2. The skill's instructions are parsed from the Markdown body and stored locally
+3. Installed skills are automatically enabled and included in all agent prompts across every channel
+
+### Agent tools for skills
+
+Agents have three built-in tools for working with community skills during conversations:
+
+| Tool | Description |
+|------|-------------|
+| `skill_search` | Search the skills.sh directory by keyword (e.g. "find me a marketing skill") |
+| `skill_install` | Install a skill by source and path (e.g. after finding one via search) |
+| `skill_list` | List all currently installed community skills with their enabled/disabled status |
+
+This means you can ask your agent to find and install skills conversationally — no need to visit the settings UI.
 
 ### Managing community skills
 
@@ -167,12 +198,7 @@ You are an expert Python developer. When writing Python:
 
 ### Compatible repositories
 
-Any public GitHub repository containing SKILL.md files in the skills.sh format works. Popular repos:
-
-| Repository | Description |
-|-----------|-------------|
-| `vercel-labs/agent-skills` | Vercel's curated agent skills collection |
-| `anthropics/skills` | Anthropic's official skills |
+Any public GitHub repository containing SKILL.md files in the [skills.sh](https://skills.sh) format works. Browse the full directory at [skills.sh](https://skills.sh) to discover thousands of community-created skills with install counts and categories.
 
 You can also create your own skills repository — just add SKILL.md files anywhere in the repo tree.
 
