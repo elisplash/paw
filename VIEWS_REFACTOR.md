@@ -4,9 +4,40 @@
 > **Pattern**: `atoms/` (pure functions, constants, types) → `molecules/` (DOM + IPC compositions) → `index.ts` (barrel exports + event wiring)  
 > **Rule**: No single file exceeds ~300 lines. No duplicated utilities.
 
+## ✅ Refactor Complete
+
+All phases executed and committed. Final verification passed:
+- `npx tsc --noEmit` — zero errors
+- `grep` for local `escHtml`/`escapeHtml`/`escAttr`/`$` duplicates — zero matches
+- All view imports resolve correctly (TypeScript auto-resolves directory imports)
+
+| Phase | Target | Status | Commit |
+|-------|--------|--------|--------|
+| 0 | Deduplicate shared utilities | ✅ | `be54dac` |
+| 0D+1 | Connection + line budget fixes | ✅ | `f3cf02b` |
+| 1 | agents.ts (1,586 → 5 files) | ✅ | `f4562d0` |
+| 2 | channels.ts (1,166 → 4 files) | ✅ | `5ea5fc2` |
+| 3 | mail.ts (985 → 4 files + IPC) | ✅ | `a7b62a3` |
+| 4 | projects.ts (941 → 4 files) | ✅ | `0f9de39` |
+| 5 | memory-palace.ts (839 → 4 files + IPC) | ✅ | `05441c7` |
+| 6 | settings-skills.ts (792 → 4 files) | ✅ | `f05021a` |
+| 7 | research.ts (677 → 3 files) | ✅ | `df883f5` |
+| 8 | settings.ts (626 → 3 files) | ✅ | `c29966a` |
+| 9 | tasks.ts (560 → 3 files) | ✅ | `567e775` |
+| 10 | 4 remaining (browser/today/orch/voice) | ✅ | `ad01682` |
+| 11 | Final import cleanup & verification | ✅ | — |
+
+### Known Remaining Items
+
+- `settings-models.ts` (860 lines) — intentionally left flat; best-structured of the large files, uses shared `settings-config` module. Can be decomposed in a future pass if needed.
+- Several `molecules.ts` files exceed ~300 lines (largest: `settings-browser/molecules.ts` at 545). These contain cohesive DOM rendering logic that would fragment if split further.
+- `automations.ts` (418) and `trading.ts` (434) are flat borderline files — acceptable as-is.
+
 ---
 
-## Current State
+## Original State (Pre-Refactor)
+
+### File Sizes (sorted by severity)
 
 ### File Sizes (sorted by severity)
 
@@ -461,19 +492,19 @@ These files are already within the ~300 line budget and don't need decomposition
 
 ## Priority Order
 
-| Priority | Phase | Impact | Est. Files Changed |
-|----------|-------|--------|-------------------|
-| **P0** | Phase 0 (dedup) | Blocks everything, eliminates ~400 lines of duplication | 25 files |
-| **P1** | Phase 1 (agents) | Largest file, most complex | 2→5 files |
-| **P1** | Phase 2 (channels) | Second largest, config-heavy | 2→4 files |
-| **P2** | Phase 3 (mail) | IPC migration needed | 2→4 files |
-| **P2** | Phase 4 (projects) | Security-critical code | 2→4 files |
-| **P2** | Phase 5 (memory-palace) | Canvas graph is complex | 2→4 files |
-| **P3** | Phase 6 (settings-skills) | Community skills browser | 2→4 files |
-| **P3** | Phase 7 (research) | Streaming complexity | 2→3 files |
-| **P3** | Phase 8 (settings) | Security audit | 2→3 files |
-| **P3** | Phase 9 (tasks) | Drag-and-drop | 2→3 files |
-| **P4** | Phase 10 (4 remaining) | Lower priority | 4→12 files |
-| **P4** | Phase 11 (main.ts) | Final import cleanup | 1 file |
+| Priority | Phase | Impact | Est. Files Changed | Status |
+|----------|-------|--------|-------------------|--------|
+| **P0** | Phase 0 (dedup) | Blocks everything, eliminates ~400 lines of duplication | 25 files | ✅ |
+| **P1** | Phase 1 (agents) | Largest file, most complex | 2→5 files | ✅ |
+| **P1** | Phase 2 (channels) | Second largest, config-heavy | 2→4 files | ✅ |
+| **P2** | Phase 3 (mail) | IPC migration needed | 2→4 files | ✅ |
+| **P2** | Phase 4 (projects) | Security-critical code | 2→4 files | ✅ |
+| **P2** | Phase 5 (memory-palace) | Canvas graph is complex | 2→4 files | ✅ |
+| **P3** | Phase 6 (settings-skills) | Community skills browser | 2→4 files | ✅ |
+| **P3** | Phase 7 (research) | Streaming complexity | 2→3 files | ✅ |
+| **P3** | Phase 8 (settings) | Security audit | 2→3 files | ✅ |
+| **P3** | Phase 9 (tasks) | Drag-and-drop | 2→3 files | ✅ |
+| **P4** | Phase 10 (4 remaining) | Lower priority | 4→12 files | ✅ |
+| **P4** | Phase 11 (main.ts) | Final import cleanup | 1 file | ✅ |
 
-**Total**: 14 monolithic files → ~48 focused files (atoms + molecules + index per view), with all shared utilities imported from `components/helpers.ts` and `components/toast.ts`.
+**Result**: 13 monolithic files → ~46 focused files (atoms + molecules + index per view), with all shared utilities imported from `components/helpers.ts` and `components/toast.ts`. `settings-models.ts` intentionally remains flat.
