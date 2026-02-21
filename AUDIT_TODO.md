@@ -173,35 +173,35 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - `docs/docs/channels/nostr.md` L31 — remove "NIP-04 encrypted DMs"
 - `docs/docs/channels/matrix.md` L35 — remove "End-to-end encryption support"
 
-### 35. Fix incorrect counts
-- Channel count: 10 → 11 (in `getting-started.md`, `architecture.md`, `SECURITY.md`)
-- Skill count: 37 → 40 (in `getting-started.md`)
-- Settings tabs: 12 → 11 (in `architecture.md`)
-- Trading tools: 8 → 7 (in `trading.md`)
+### 35. ~~Fix incorrect counts~~ ✅
+- ~~Channel count: 10 → 11 (in `getting-started.md`, `architecture.md`, `SECURITY.md`)~~
+- ~~Skill count: 37 → 40 (in `getting-started.md`)~~
+- ~~Settings tabs: 12 → 11 (in `architecture.md`)~~
+- ~~Trading tools: 8 → 7 (in `trading.md`)~~
 
-### 36. Fix architecture.md view paths
-- All view paths listed as `views/today.ts` etc — should be `views/today/` (directories with atoms/molecules/index)
-- `web.rs` listed as channel bridge — it's the web scraping module
-- `whatsapp.rs` missing from channel bridge list
+### 36. ~~Fix architecture.md view paths~~ ✅
+- ~~All view paths listed as `views/today.ts` etc — should be `views/today/` (directories with atoms/molecules/index)~~
+- ~~`web.rs` listed as channel bridge — it's the web scraping module~~
+- ~~`whatsapp.rs` missing from channel bridge list~~
 
-### 37. Fix projects.md sensitive paths list
-- Current list (`.azure`, `.gcloud`, `.npmrc`, etc.) doesn't match actual code
-- Real patterns: `.gnome-keyring`, `.password-store`, `/dev`, `.openclaw`, Windows paths, etc.
+### 37. ~~Fix projects.md sensitive paths list~~ ✅
+- ~~Current list (`.azure`, `.gcloud`, `.npmrc`, etc.) doesn't match actual code~~
+- ~~Real patterns: `.gnome-keyring`, `.password-store`, `/dev`, `.openclaw`, Windows paths, etc.~~
 
-### 38. Fix injection category count
-- Docs say 9 categories — Rust scanner has 8 (no `obfuscation`)
-- Document the frontend/backend scanner distinction
+### 38. ~~Fix injection category count~~ ✅
+- ~~Docs say 9 categories — Rust scanner has 8 (no `obfuscation`)~~
+- ~~Document the frontend/backend scanner distinction~~
 
-### 39. Update pricing table
-- Missing: `claude-haiku-4`, `o4-mini`, `o3-mini`, `deepseek-reasoner`, all `gpt-4.1` variants
+### 39. ~~Update pricing table~~ ✅
+- ~~Missing: `claude-haiku-4`, `o4-mini`, `o3-mini`, `deepseek-reasoner`, all `gpt-4.1` variants~~
 
-### 40. Fix button text inconsistency
-- `first-agent.md` says "Create Agent", `agents.md` says "New Agent" — standardize
+### 40. ~~Fix button text inconsistency~~ ✅
+- ~~`first-agent.md` says "Create Agent", `agents.md` says "New Agent" — standardize~~
 
-### 41. Add missing docs
-- WhatsApp channel guide (engine module exists, no docs page)
-- `gpt-4.1` model family documentation
-- `claude-haiku-4` model documentation
+### 41. ~~Add missing docs~~ ✅
+- ~~WhatsApp channel guide (engine module exists, no docs page)~~ — already exists (93 lines)
+- ~~`gpt-4.1` model family documentation~~ — added to pricing table
+- ~~`claude-haiku-4` model documentation~~ — added to pricing table
 
 ---
 

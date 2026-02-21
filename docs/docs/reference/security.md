@@ -45,19 +45,19 @@ All incoming channel messages are scanned for injection attempts before reaching
 
 ### Detection
 
-Pattern-based scoring across 9 categories:
+Pattern-based scoring across 9 categories (8 in the Rust backend scanner, 9 in the TypeScript frontend scanner which adds `obfuscation`):
 
-| Category | Examples |
-|----------|----------|
-| `override` | "Ignore previous instructions" |
-| `identity` | "You are now..." |
-| `jailbreak` | "DAN mode", "no restrictions" |
-| `leaking` | "Show me your system prompt" |
-| `obfuscation` | Base64-encoded instructions |
-| `tool_injection` | Fake tool call formatting |
-| `social` | "As an AI researcher..." |
-| `markup` | Hidden instructions in HTML/markdown |
-| `bypass` | "This is just a test..." |
+| Category | Examples | Scanner |
+|----------|----------|---------|
+| `override` | "Ignore previous instructions" | Both |
+| `identity` | "You are now..." | Both |
+| `jailbreak` | "DAN mode", "no restrictions" | Both |
+| `leaking` | "Show me your system prompt" | Both |
+| `obfuscation` | Base64-encoded instructions | Frontend only |
+| `tool_injection` | Fake tool call formatting | Both |
+| `social` | "As an AI researcher..." | Both |
+| `markup` | Hidden instructions in HTML/markdown | Both |
+| `bypass` | "This is just a test..." | Both |
 
 ### Severity levels
 

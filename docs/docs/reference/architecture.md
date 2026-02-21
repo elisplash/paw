@@ -99,17 +99,17 @@ Vanilla TypeScript with DOM manipulation — no framework. Each view is a module
 
 | View | File | Purpose |
 |------|------|---------|
-| Today | `views/today.ts` | Dashboard with quick actions |
-| Agents | `views/agents.ts` | Create, edit, manage agents |
-| Tasks | `views/tasks.ts` | Kanban task board |
-| Skills | `views/skills.ts` | Skill vault management |
-| Research | `views/research.ts` | Research workflow |
-| Orchestrator | `views/orchestrator.ts` | Multi-agent projects |
-| Memory Palace | `views/memory-palace.ts` | Memory browser/search |
-| Mail | `views/mail.ts` | Email integration |
-| Trading | `views/trading.ts` | Trading dashboard |
-| Automations | `views/automations.ts` | Cron task management |
-| Settings | `views/settings*.ts` | 12 settings tabs |
+| Today | `views/today/` | Dashboard with quick actions |
+| Agents | `views/agents/` | Create, edit, manage agents |
+| Tasks | `views/tasks/` | Kanban task board |
+| Skills | `views/skills/` | Skill vault management |
+| Research | `views/research/` | Research workflow |
+| Orchestrator | `views/orchestrator/` | Multi-agent projects |
+| Memory Palace | `views/memory-palace/` | Memory browser/search |
+| Mail | `views/mail/` | Email integration |
+| Trading | `views/trading/` | Trading dashboard |
+| Automations | `views/automations/` | Cron task management |
+| Settings | `views/settings-*/` | 11 settings tabs |
 
 ### Feature modules (`src/features/`)
 
@@ -155,7 +155,7 @@ Rust async engine built on Tokio.
 
 Each channel has its own bridge module:
 
-`telegram.rs` · `discord.rs` · `slack.rs` · `matrix.rs` · `irc.rs` · `mattermost.rs` · `nextcloud.rs` · `nostr.rs` · `twitch.rs` · `webchat.rs` · `web.rs`
+`telegram.rs` · `discord.rs` · `slack.rs` · `matrix.rs` · `irc.rs` · `mattermost.rs` · `nextcloud.rs` · `nostr.rs` · `twitch.rs` · `webchat.rs` · `whatsapp/`
 
 ### Provider implementations
 

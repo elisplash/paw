@@ -65,7 +65,7 @@ The Projects view enforces strict security boundaries to prevent browsing sensit
 
 ### Blocked paths
 
-The following **17 sensitive path patterns** are blocked from browsing:
+The following **18 sensitive path patterns** are blocked from browsing:
 
 | Pattern | Reason |
 |---------|--------|
@@ -74,18 +74,19 @@ The following **17 sensitive path patterns** are blocked from browsing:
 | `.aws` | AWS credentials and config |
 | `.kube` | Kubernetes configuration |
 | `.docker` | Docker credentials |
-| `.azure` | Azure credentials |
-| `.gcloud` | Google Cloud credentials |
-| `.config/gh` | GitHub CLI tokens |
-| `.npmrc` | npm auth tokens |
-| `.pypirc` | PyPI credentials |
-| `.env` | Environment variable files |
-| `.netrc` | Network authentication |
+| `.gnome-keyring` | GNOME keyring directory |
+| `.password-store` | Password store directory |
+| `.netrc` | Network authentication credentials |
 | `/etc` | System configuration |
 | `/root` | Root user home |
+| `/var/log` | System logs |
 | `/proc` | Process information pseudo-filesystem |
 | `/sys` | Kernel/device pseudo-filesystem |
-| `/var/log` | System logs |
+| `/dev` | Device filesystem |
+| `C:\Windows` | Windows system directory |
+| `C:\Users\*\AppData` | AppData directory |
+| `.openclaw` | OpenClaw config (contains tokens) |
+| `.config/himalaya` | Himalaya email config |
 
 ### Security event logging
 

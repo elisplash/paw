@@ -10,7 +10,7 @@ Agents are the core of Pawz — autonomous AI personas that chat, use tools, rem
 ## Creating an agent
 
 1. Go to **Agents** in the sidebar
-2. Click **New Agent**
+2. Click **Create Agent**
 3. Fill in the basics:
    - **Name** — displayed in chat and dock
    - **Avatar** — choose from 50 sprite avatars

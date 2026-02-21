@@ -15,14 +15,19 @@ Pawz uses built-in pricing data to estimate costs in real time. Prices are per *
 | Model | Input ($/1M tokens) | Output ($/1M tokens) | Provider |
 |-------|---------------------|----------------------|----------|
 | Claude 3 Haiku | $0.25 | $1.25 | Anthropic |
+| Claude Haiku 4 | $1.00 | $5.00 | Anthropic |
 | Claude Sonnet 4.x | $3.00 | $15.00 | Anthropic |
 | Claude Opus 4.x | $15.00 | $75.00 | Anthropic |
 | Gemini Flash | $0.15 | $0.60 | Google |
 | Gemini Pro | $1.25 | $10.00 | Google |
-| GPT-4o-mini | $0.15 | $0.60 | OpenAI |
+| GPT-4.1 | $2.50 | $10.00 | OpenAI |
+| GPT-4.1-mini / nano | $0.15 | $0.60 | OpenAI |
 | GPT-4o | $2.50 | $10.00 | OpenAI |
+| GPT-4o-mini | $0.15 | $0.60 | OpenAI |
 | o3 / o1 | $10.00 | $40.00 | OpenAI |
-| DeepSeek | $0.27 | $1.10 | DeepSeek |
+| o3-mini / o4-mini | $1.10 | $4.40 | OpenAI |
+| DeepSeek Chat | $0.27 | $1.10 | DeepSeek |
+| DeepSeek Reasoner | $0.55 | $2.19 | DeepSeek |
 
 :::info
 Prices are based on each provider's published rates. Local models (Ollama) have zero cost. For providers not listed (custom, OpenRouter, etc.), costs are estimated based on the closest matching model name.
@@ -36,10 +41,14 @@ To put these numbers in perspective, here's the approximate cost for a **10,000-
 |-------|---------------|
 | Gemini Flash | $0.004 |
 | GPT-4o-mini | $0.004 |
-| DeepSeek | $0.007 |
+| GPT-4.1-mini | $0.004 |
+| DeepSeek Chat | $0.007 |
 | Claude 3 Haiku | $0.008 |
+| o3-mini / o4-mini | $0.028 |
+| Claude Haiku 4 | $0.030 |
 | Gemini Pro | $0.056 |
 | GPT-4o | $0.063 |
+| GPT-4.1 | $0.063 |
 | Claude Sonnet 4.x | $0.090 |
 | o3 / o1 | $0.250 |
 | Claude Opus 4.x | $0.450 |

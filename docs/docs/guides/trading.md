@@ -287,7 +287,7 @@ All Solana transactions are signed locally using **Ed25519** (the Solana native 
 2. **Auto-creates** the ATA if it does not yet exist (the sender pays the ~0.002 SOL rent).
 3. Transfers the specified amount in a single atomic transaction.
 
-**Tools (8):**
+**Tools (7):**
 
 | Tool | Description |
 |------|-------------|
@@ -298,7 +298,6 @@ All Solana transactions are signed locally using **Ed25519** (the Solana native 
 | `sol_transfer` | Transfer SOL or SPL tokens to another wallet |
 | `sol_portfolio` | View full portfolio with USD valuations |
 | `sol_token_info` | Token details (supply, holders, metadata) |
-| `sol_trending` | Trending tokens on Solana |
 
 ## Positions
 

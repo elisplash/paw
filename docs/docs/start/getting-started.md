@@ -25,9 +25,9 @@ Everything runs locally on your machine through Tauri IPC — no open ports, no 
 ## What you can do
 
 - **Chat with AI agents** — each with their own personality, model, and tools
-- **Connect to 10 chat platforms** — Telegram, Discord, Slack, Matrix, IRC, and more
+- **Connect to 11 chat platforms** — Telegram, Discord, Slack, Matrix, IRC, WhatsApp, and more
 - **Use 10+ AI providers** — Ollama (local), OpenAI, Anthropic, Google, DeepSeek, and more
-- **Build with 37+ skills** — email, GitHub, trading, TTS, image generation, smart home
+- **Build with 40+ skills** — email, GitHub, trading, TTS, image generation, smart home
 - **Orchestrate multi-agent projects** — boss/worker pattern with task delegation
 - **Manage tasks** — Kanban board with agent assignment and cron scheduling
 - **Research** — dedicated workflow with findings and synthesis reports
