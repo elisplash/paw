@@ -144,7 +144,6 @@ export const appState = {
     const s = appState.activeStreams.get(key);
     if (s) s.resolve = v;
   },
-  streamingTimeout:  null as ReturnType<typeof setTimeout> | null,
   get streamingAgentId(): string | null {
     const s = appState.activeStreams.get(appState.currentSessionKey ?? '');
     return s?.agentId ?? null;

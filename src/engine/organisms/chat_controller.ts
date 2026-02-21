@@ -864,7 +864,7 @@ export async function sendMessage(): Promise<void> {
 
   const responsePromise = new Promise<string>((resolve) => {
     ss.resolve = resolve;
-    appState.streamingTimeout = setTimeout(() => {
+    ss.timeout = setTimeout(() => {
       console.warn('[chat] Streaming timeout — auto-finalizing');
       resolve(ss.content || '(Response timed out)');
     }, 600_000);
@@ -953,7 +953,7 @@ export async function sendMessage(): Promise<void> {
     // Clean up stream state if still present
     const finalKey = appState.currentSessionKey ?? streamKey;
     appState.activeStreams.delete(finalKey);
-    if (appState.streamingTimeout) { clearTimeout(appState.streamingTimeout); appState.streamingTimeout = null; }
+    if (ss?.timeout) { clearTimeout(ss.timeout); ss.timeout = null; }
     const chatSendBtn = document.getElementById('chat-send') as HTMLButtonElement | null;
     if (chatSendBtn) chatSendBtn.disabled = false;
   }

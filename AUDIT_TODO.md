@@ -63,10 +63,10 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - **Bug:** `listen('task-updated', ...)` unlisten function never stored or called. Duplicates stack on hot reload.
 - **Fix:** Added module-level `unlistenTaskUpdated` variable. Before registering a new listener, any previous one is unlistened. The `listen()` promise resolves the unlisten function and stores it for next cleanup.
 
-### 13. Global streaming timeout (not per-session)
+### ~~13. Global streaming timeout (not per-session)~~ ✅ FIXED
 - **File:** `src/state/index.ts` L138
 - **Bug:** `streamingTimeout` is a single value so concurrent streams overwrite each other's timeouts.
-- **Fix:** Move timeout into the `StreamState` map entry per session key.
+- **Fix:** Removed global `appState.streamingTimeout`. Timeout now lives in the per-session `StreamState.timeout` field (which already existed but was unused). Set and cleared via `ss.timeout` in chat_controller.ts, so concurrent streams each have independent timeouts.
 
 ### 14. Non-null assertion on stream state
 - **File:** `src/engine/organisms/chat_controller.ts` L858-861
