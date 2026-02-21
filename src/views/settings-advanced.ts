@@ -3,8 +3,8 @@
 
 import { pawEngine, type EngineProviderConfig } from '../engine';
 import { showToast } from '../components/toast';
+import { isConnected } from '../state/connection';
 import {
-  isConnected,
   esc, formRow, selectInput, textInput, numberInput, saveReloadButtons
 } from './settings-config';
 

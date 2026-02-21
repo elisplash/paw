@@ -4,8 +4,8 @@
 
 import { pawEngine, type EngineSession } from '../engine';
 import { showToast } from '../components/toast';
+import { isConnected } from '../state/connection';
 import {
-  isConnected,
   esc
 } from './settings-config';
 

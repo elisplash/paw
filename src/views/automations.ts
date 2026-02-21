@@ -5,13 +5,9 @@
 import { pawEngine } from '../engine';
 import type { EngineTask, EngineTaskActivity } from '../engine';
 import { $, escHtml, escAttr } from '../components/helpers';
+import { isConnected } from '../state/connection';
 
-let wsConnected = false;
 let _agents: { id: string; name: string; avatar: string }[] = [];
-
-export function setWsConnected(connected: boolean) {
-  wsConnected = connected;
-}
 
 export function setAgents(agents: { id: string; name: string; avatar: string }[]) {
   _agents = agents;
@@ -31,7 +27,7 @@ export async function loadCron() {
   const pausedCount = $('cron-paused-count');
   const board = document.querySelector('.auto-board') as HTMLElement | null;
   const statusEl = $('cron-service-status');
-  if (!wsConnected) return;
+  if (!isConnected()) return;
 
   if (loading) loading.style.display = '';
   if (empty) empty.style.display = 'none';

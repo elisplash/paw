@@ -6,7 +6,7 @@ import * as workspace from '../workspace';
 import type { ResearchProject, ResearchFinding, ResearchSource, ResearchReport } from '../workspace';
 import { $, escHtml, formatMarkdown } from '../components/helpers';
 import { showToast } from '../components/toast';
-import { isConnected, setConnected } from '../state/connection';
+import { isConnected } from '../state/connection';
 
 // ── Module state ───────────────────────────────────────────────────────────
 let _activeProject: ResearchProject | null = null;
@@ -18,10 +18,6 @@ let _streamContent = '';
 let _streamResolve: ((text: string) => void) | null = null;
 let _liveSources: ResearchSource[] = [];
 let _liveSteps: string[] = [];
-
-export function setWsConnected(connected: boolean) {
-  setConnected(connected);
-}
 
 // For agent event routing
 export function isStreaming(): boolean {

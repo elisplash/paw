@@ -35,17 +35,14 @@ import * as VoiceSettings from './views/settings-voice';
 import * as SkillsSettings from './views/settings-skills';
 import { setConnected as setSettingsConnected } from './views/settings-config';
 import { setConnected } from './state/connection';
-import * as AutomationsModule from './views/automations';
 import * as MemoryPalaceModule from './views/memory-palace';
 import * as MailModule from './views/mail';
-import * as SkillsModule from './views/skills';
 import * as FoundryModule from './views/foundry';
 import * as NodesModule from './views/nodes';
 import * as ProjectsModule from './views/projects';
 import * as AgentsModule from './views/agents';
 import * as TasksModule from './views/tasks';
 import * as OrchestratorModule from './views/orchestrator';
-import * as TradingModule from './views/trading';
 
 // ── Tauri bridge ─────────────────────────────────────────────────────────
 interface TauriWindow {
@@ -106,17 +103,8 @@ async function connectEngine(): Promise<boolean> {
     console.log('[main] Engine mode — using Tauri IPC');
     await startEngineBridge();
     appState.wsConnected = true;
-    setSettingsConnected(true);
     setConnected(true);
-    SettingsModule.setWsConnected(true);
-    MemoryPalaceModule.setWsConnected(true);
-    MailModule.setWsConnected(true);
-    SkillsModule.setWsConnected(true);
-    FoundryModule.setWsConnected(true);
-    ResearchModule.setWsConnected(true);
-    NodesModule.setWsConnected(true);
-    AutomationsModule.setWsConnected(true);
-    TradingModule.setWsConnected(true);
+    setSettingsConnected(true);
 
     const statusDot = $('status-dot');
     const statusText = $('status-text');

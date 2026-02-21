@@ -4,8 +4,8 @@
 
 import { pawEngine } from '../engine';
 import { showToast } from '../components/toast';
+import { isConnected } from '../state/connection';
 import {
-  isConnected,
   esc, formRow, selectInput, textInput, numberInput, toggleSwitch, saveReloadButtons
 } from './settings-config';
 

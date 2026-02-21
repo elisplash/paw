@@ -9,13 +9,13 @@ import {
   AVATAR_COLORS,
   SPRITE_AVATARS,
   DEFAULT_AVATAR,
-  spriteAvatar,
   isAvatar,
 } from './atoms';
 import { renderAgents } from './molecules';
 import { openAgentCreator, openAgentEditor } from './editor';
 import { openMiniChat as _openMiniChat, _miniChats } from './mini-chat';
-import { escAttr } from '../../components/helpers';
+import { seedSoulFiles, refreshAvailableModels } from './helpers';
+import { renderAgentDock } from './dock';
 
 // ── Module state ────────────────────────────────────────────────────────────
 
@@ -30,139 +30,6 @@ let onSwitchView: ((view: string) => void) | null = null;
 let onSetCurrentAgent: ((agentId: string | null) => void) | null = null;
 let _onProfileUpdated: ((agentId: string, agent: Agent) => void) | null = null;
 
-// ── Dock state ──────────────────────────────────────────────────────────────
-
-let _dockEl: HTMLElement | null = null;
-let _dockCollapsed = localStorage.getItem('paw-dock-collapsed') === 'true';
-
-function setDockCollapsed(collapsed: boolean) {
-  _dockCollapsed = collapsed;
-  localStorage.setItem('paw-dock-collapsed', String(collapsed));
-  if (_dockEl) _dockEl.classList.toggle('agent-dock-collapsed', collapsed);
-  // Update toggle icon
-  const icon = _dockEl?.querySelector('.agent-dock-toggle .ms') as HTMLElement | null;
-  if (icon) icon.textContent = collapsed ? 'left_panel_open' : 'right_panel_close';
-}
-
-// ── Internal helpers ────────────────────────────────────────────────────────
-
-/**
- * Seed initial soul files for a new agent so it knows who it is from the first conversation.
- * Only writes files that don't already exist to avoid overwriting user edits.
- */
-async function seedSoulFiles(agent: Agent): Promise<void> {
-  try {
-    const existing = await pawEngine.agentFileList(agent.id);
-    const existingNames = new Set(existing.map(f => f.file_name));
-
-    if (!existingNames.has('IDENTITY.md')) {
-      const personality = agent.personality;
-      const personalityDesc = [
-        personality.tone !== 'balanced' ? `Tone: ${personality.tone}` : '',
-        personality.initiative !== 'balanced' ? `Initiative: ${personality.initiative}` : '',
-        personality.detail !== 'balanced' ? `Detail level: ${personality.detail}` : '',
-      ].filter(Boolean).join(', ');
-
-      const identity = [
-        `# ${agent.name}`,
-        '',
-        `## Identity`,
-        `- **Name**: ${agent.name}`,
-        `- **Agent ID**: ${agent.id}`,
-        `- **Role**: ${agent.bio || 'AI assistant'}`,
-        agent.template !== 'general' && agent.template !== 'custom' ? `- **Specialty**: ${agent.template}` : '',
-        personalityDesc ? `- **Personality**: ${personalityDesc}` : '',
-        '',
-        agent.boundaries.length > 0 ? `## Boundaries\n${agent.boundaries.map(b => `- ${b}`).join('\n')}` : '',
-        '',
-        agent.systemPrompt ? `## Custom Instructions\n${agent.systemPrompt}` : '',
-      ].filter(Boolean).join('\n');
-
-      await pawEngine.agentFileSet('IDENTITY.md', identity.trim(), agent.id);
-    }
-
-    if (!existingNames.has('SOUL.md')) {
-      const soul = [
-        `# Soul`,
-        '',
-        `Write your personality, values, and communication style here.`,
-        `Use \`soul_write\` to update this file as you develop your voice.`,
-      ].join('\n');
-      await pawEngine.agentFileSet('SOUL.md', soul, agent.id);
-    }
-
-    if (!existingNames.has('USER.md')) {
-      const user = [
-        `# About the User`,
-        '',
-        `Record what you learn about the user here — their name, preferences, projects, etc.`,
-        `Use \`soul_write\` to update this file when you learn new things.`,
-      ].join('\n');
-      await pawEngine.agentFileSet('USER.md', user, agent.id);
-    }
-
-    console.log(`[agents] Seeded soul files for ${agent.name} (${agent.id})`);
-  } catch (e) {
-    console.warn(`[agents] Failed to seed soul files for ${agent.id}:`, e);
-  }
-}
-
-/** Fetch configured models from the engine and populate the model picker. */
-async function refreshAvailableModels() {
-  try {
-    const config = await pawEngine.getConfig();
-    const models: { id: string; name: string }[] = [
-      { id: 'default', name: 'Default (Use account setting)' },
-    ];
-    // Add each provider's default model, plus well-known models per provider kind
-    const WELL_KNOWN: Record<string, { id: string; name: string }[]> = {
-      google: [
-        { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
-        { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
-        { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },
-      ],
-      anthropic: [
-        { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6 ($3/$15)' },
-        { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5 ($1/$5)' },
-        { id: 'claude-3-haiku-20240307', name: 'Claude Haiku 3 ($0.25/$1.25) cheapest' },
-        { id: 'claude-opus-4-6', name: 'Claude Opus 4.6 ($5/$25)' },
-        { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5 (agentic)' },
-      ],
-      openai: [
-        { id: 'gpt-4o', name: 'GPT-4o' },
-        { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
-        { id: 'o1', name: 'o1' },
-        { id: 'o3-mini', name: 'o3-mini' },
-      ],
-      openrouter: [],
-      ollama: [],
-      custom: [],
-    };
-    const seen = new Set<string>(['default']);
-    for (const p of config.providers ?? []) {
-      // Provider's own default model
-      if (p.default_model && !seen.has(p.default_model)) {
-        seen.add(p.default_model);
-        models.push({ id: p.default_model, name: `${p.default_model} (${p.kind})` });
-      }
-      // Well-known models for this provider kind
-      for (const wk of WELL_KNOWN[p.kind] ?? []) {
-        if (!seen.has(wk.id)) {
-          seen.add(wk.id);
-          models.push(wk);
-        }
-      }
-    }
-    // Also add the global default model if set
-    if (config.default_model && !seen.has(config.default_model)) {
-      models.push({ id: config.default_model, name: `${config.default_model} (default)` });
-    }
-    _availableModels = models;
-  } catch (e) {
-    console.warn('[agents] Could not load models from engine config:', e);
-  }
-}
-
 function startChatWithAgent(agentId: string) {
   _selectedAgent = agentId;
   onSetCurrentAgent?.(agentId);
@@ -172,7 +39,17 @@ function startChatWithAgent(agentId: string) {
 function saveAgents() {
   // Persist all agents to localStorage (backend agents too so edits to name/avatar/personality survive reload)
   localStorage.setItem('paw-agents', JSON.stringify(_agents));
-  renderAgentDock();
+  _renderDock();
+}
+
+/** Thin wrapper that passes module state into the extracted dock renderer. */
+function _renderDock() {
+  renderAgentDock({
+    getAgents: () => _agents,
+    getMiniChatState: (id) => _miniChats.get(id),
+    isMiniChatOpen: (id) => _miniChats.has(id),
+    openMiniChat: (id) => openMiniChat(id),
+  });
 }
 
 // Build the EditorCallbacks object to pass into editor functions
@@ -221,7 +98,7 @@ export function configure(opts: {
 export async function loadAgents() {
   console.log('[agents] loadAgents called');
   // Refresh available models from engine config (non-blocking)
-  await refreshAvailableModels();
+  _availableModels = await refreshAvailableModels();
   // Load from localStorage (manually created agents)
   try {
     const stored = localStorage.getItem('paw-agents');
@@ -314,7 +191,7 @@ export async function loadAgents() {
   }
 
   _renderAgents();
-  renderAgentDock();
+  _renderDock();
 
   // Seed soul files for all agents that don't have them yet (one-time migration)
   if (isEngineMode()) {
@@ -322,65 +199,6 @@ export async function loadAgents() {
       seedSoulFiles(agent);
     }
   }
-}
-
-/**
- * Render or refresh the floating agent dock tray.
- * Called after agents load and whenever agents list changes.
- * Needs both _agents and _miniChats, so lives here in index.ts.
- */
-export function renderAgentDock() {
-  // Create dock container if needed
-  if (!_dockEl) {
-    _dockEl = document.createElement('div');
-    _dockEl.id = 'agent-dock';
-    _dockEl.className = 'agent-dock';
-    if (_dockCollapsed) _dockEl.classList.add('agent-dock-collapsed');
-    document.body.appendChild(_dockEl);
-  }
-
-  const agents = _agents.filter(a => a.id !== 'default'); // Don't show default Dave in dock
-  if (agents.length === 0) {
-    _dockEl.style.display = 'none';
-    return;
-  }
-  _dockEl.style.display = '';
-
-  const toggleIcon = _dockCollapsed ? 'left_panel_open' : 'right_panel_close';
-  const agentItems = agents.map(a => {
-    const isOpen = _miniChats.has(a.id);
-    const mc = _miniChats.get(a.id);
-    const unread = mc?.unreadCount ?? 0;
-    return `
-      <div class="agent-dock-item${isOpen ? ' agent-dock-active' : ''}" data-agent-id="${a.id}">
-        <div class="agent-dock-avatar">${spriteAvatar(a.avatar, 40)}</div>
-        <span class="agent-dock-tooltip">${escAttr(a.name)}</span>
-        ${unread > 0 ? `<span class="agent-dock-badge">${unread > 9 ? '9+' : unread}</span>` : ''}
-      </div>
-    `;
-  }).join('');
-
-  _dockEl.innerHTML = `
-    <button class="agent-dock-toggle" title="${_dockCollapsed ? 'Show agents' : 'Hide agents'}">
-      <span class="ms ms-sm">${toggleIcon}</span>
-    </button>
-    <div class="agent-dock-items">
-      ${agentItems}
-    </div>
-  `;
-
-  // Toggle button
-  _dockEl.querySelector('.agent-dock-toggle')?.addEventListener('click', () => {
-    setDockCollapsed(!_dockCollapsed);
-  });
-
-  // Bind click events on agent items
-  _dockEl.querySelectorAll('.agent-dock-item').forEach(item => {
-    item.addEventListener('click', () => {
-      const agentId = (item as HTMLElement).dataset.agentId;
-      if (agentId) openMiniChat(agentId);
-    });
-  });
 }
 
 export function getAgents(): Agent[] {
@@ -436,7 +254,7 @@ function initProfileUpdateListener() {
     // Persist and re-render
     saveAgents();
     _renderAgents();
-    renderAgentDock();
+    _renderDock();
 
     // Notify main.ts to update chat header if this is the current agent
     if (_onProfileUpdated) _onProfileUpdated(agentId, agent);

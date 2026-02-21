@@ -6,11 +6,7 @@ import { loadSecuritySettings, saveSecuritySettings, getSessionOverrideRemaining
 import { getSecurityAuditLog, isEncryptionReady } from '../db';
 import { $, escHtml } from '../components/helpers';
 import { showToast } from '../components/toast';
-import { isConnected, setConnected } from '../state/connection';
-
-export function setWsConnected(connected: boolean) {
-  setConnected(connected);
-}
+import { isConnected } from '../state/connection';
 
 // ── Engine Status ──────────────────────────────────────────────────────────
 export async function loadSettingsStatus() {

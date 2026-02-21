@@ -5,7 +5,7 @@ import type { SkillEntry } from '../types';
 import { logCredentialActivity, getCredentialActivityLog } from '../db';
 import { $, escHtml, escAttr, formatMarkdown } from '../components/helpers';
 import { showToast } from '../components/toast';
-import { isConnected, setConnected } from '../state/connection';
+import { isConnected } from '../state/connection';
 
 // ── Tauri bridge ───────────────────────────────────────────────────────────
 interface TauriWindow {
@@ -33,10 +33,6 @@ export function getMailAccounts(): { name: string; email: string }[] {
 let onSwitchView: ((view: string) => void) | null = null;
 let onSetCurrentSession: ((key: string | null) => void) | null = null;
 let getChatInput: (() => HTMLTextAreaElement | null) | null = null;
-
-export function setWsConnected(connected: boolean) {
-  setConnected(connected);
-}
 
 export function configure(opts: {
   switchView: (view: string) => void;

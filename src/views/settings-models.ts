@@ -4,8 +4,9 @@
 
 import { pawEngine, type EngineProviderConfig, type EngineConfig, type ModelRouting } from '../engine';
 import { showToast } from '../components/toast';
+import { isConnected } from '../state/connection';
 import {
-  isConnected, getEngineConfig, setEngineConfig,
+  getEngineConfig, setEngineConfig,
   esc, formRow, selectInput, textInput, saveReloadButtons
 } from './settings-config';
 

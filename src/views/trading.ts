@@ -3,19 +3,10 @@
 
 import { pawEngine, type TradeRecord, type TradingSummary, type TradingPolicy, type Position } from '../engine';
 import { $, escHtml } from '../components/helpers';
+import { isConnected } from '../state/connection';
 
 // ── Module state ───────────────────────────────────────────────────────────
-let wsConnected = false;
-
-export function setWsConnected(connected: boolean) {
-  wsConnected = connected;
-  // Wire refresh button
-  const refreshBtn = $('trading-refresh');
-  if (refreshBtn && !refreshBtn.dataset.bound) {
-    refreshBtn.dataset.bound = '1';
-    refreshBtn.addEventListener('click', () => loadTrading());
-  }
-}
+let _refreshBound = false;
 
 function formatUsd(value: number | string | null): string {
   if (value === null || value === undefined) return '$0.00';
@@ -70,7 +61,14 @@ function tradePairLabel(t: TradeRecord): string {
 
 // ── Main Loader ────────────────────────────────────────────────────────────
 export async function loadTrading() {
-  if (!wsConnected) return;
+  if (!isConnected()) return;
+
+  // Wire refresh button once
+  const refreshBtn = $('trading-refresh');
+  if (refreshBtn && !_refreshBound) {
+    _refreshBound = true;
+    refreshBtn.addEventListener('click', () => loadTrading());
+  }
 
   const container = $('trading-content');
   if (!container) return;

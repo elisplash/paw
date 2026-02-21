@@ -11,8 +11,6 @@ import { $, escHtml } from '../components/helpers';
 let _cachedModels: { id: string; name?: string; provider?: string; contextWindow?: number; reasoning?: boolean }[] = [];
 let _editingModeId: string | null = null;
 
-export function setWsConnected(_connected: boolean) { /* engine is always connected */ }
-
 export function getCachedModels() {
   return _cachedModels;
 }

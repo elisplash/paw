@@ -4,7 +4,7 @@
 import { pawEngine } from '../engine';
 import { $, escHtml } from '../components/helpers';
 import { showToast } from '../components/toast';
-import { isConnected, setConnected } from '../state/connection';
+import { isConnected } from '../state/connection';
 
 // ── Tauri bridge ───────────────────────────────────────────────────────────
 interface TauriWindow {
@@ -19,10 +19,6 @@ const invoke = tauriWindow.__TAURI__?.core?.invoke;
 let _palaceInitialized = false;
 let _palaceAvailable = false;
 let _palaceSkipped = false;
-
-export function setWsConnected(connected: boolean) {
-  setConnected(connected);
-}
 
 export function setCurrentSessionKey(_key: string | null) {
   // Reserved for session-aware memory queries

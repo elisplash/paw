@@ -126,14 +126,10 @@ export function invalidateConfigCache(): void {
 }
 
 // ── Connected state ────────────────────────────────────────────────────────
-// Engine is always "connected" — no WebSocket needed.
+// Engine is always "connected" — calling setConnected invalidates config cache.
 
 export function setConnected(_connected: boolean) {
   invalidateConfigCache();
-}
-
-export function isConnected(): boolean {
-  return true; // Engine is always available via Tauri IPC
 }
 
 // ── UI Helpers ─────────────────────────────────────────────────────────────

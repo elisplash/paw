@@ -8,7 +8,6 @@ import { showToast } from '../components/toast';
 import { $ } from '../components/helpers';
 
 // ── Compat stubs (called from main.ts — kept to avoid breaking imports) ───
-export function setWsConnected(_connected: boolean) { /* engine is always local */ }
 export function loadPairingRequests() { /* no pairing in engine mode */ }
 export function handleNodePairRequested(_payload: unknown) { /* noop */ }
 export function handleNodePairResolved(_payload: unknown) { /* noop */ }
