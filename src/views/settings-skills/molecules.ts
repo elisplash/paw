@@ -44,6 +44,10 @@ export function renderSkillsPage(skills: EngineSkillStatus[]): string {
   const tabs = `<div class="skills-filter-tabs">
     <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'all' ? 'btn-primary' : 'btn-ghost'}" data-filter="all">All</button>
     <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'enabled' ? 'btn-primary' : 'btn-ghost'}" data-filter="enabled">${msIcon('bolt')} Enabled</button>
+    <span style="display:inline-block;width:1px;height:20px;background:var(--border-subtle);margin:0 6px;vertical-align:middle"></span>
+    <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'tier:skill' ? 'btn-primary' : 'btn-ghost'}" data-filter="tier:skill">${msIcon('description')} Skills (${skills.filter(s => s.tier === 'skill').length})</button>
+    <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'tier:integration' ? 'btn-primary' : 'btn-ghost'}" data-filter="tier:integration">${msIcon('key')} Integrations (${skills.filter(s => s.tier === 'integration').length})</button>
+    <span style="display:inline-block;width:1px;height:20px;background:var(--border-subtle);margin:0 6px;vertical-align:middle"></span>
     ${categories.map(c => {
       const meta = CATEGORY_META[c] || { label: c, icon: 'extension', order: 99 };
       const count = skills.filter(s => s.category === c).length;
@@ -54,6 +58,7 @@ export function renderSkillsPage(skills: EngineSkillStatus[]): string {
   // Render filtered skills
   const filtered = _currentFilter === 'all' ? skills :
     _currentFilter === 'enabled' ? skills.filter(s => s.enabled) :
+    _currentFilter.startsWith('tier:') ? skills.filter(s => s.tier === _currentFilter.slice(5)) :
     skills.filter(s => s.category === _currentFilter);
 
   // Group by category
@@ -82,6 +87,19 @@ export function renderSkillsPage(skills: EngineSkillStatus[]): string {
   return summary + tabs + sections;
 }
 
+// ── Tier badge ─────────────────────────────────────────────────────────────
+
+const TIER_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
+  skill:       { label: 'Skill',       icon: 'description', color: 'var(--text-muted)' },
+  integration: { label: 'Integration', icon: 'key',         color: 'var(--accent)' },
+  extension:   { label: 'Extension',   icon: 'widgets',     color: '#c084fc' },
+};
+
+function tierBadge(tier: string): string {
+  const cfg = TIER_CONFIG[tier] || TIER_CONFIG.skill;
+  return `<span class="skill-badge" style="border-color:${cfg.color};color:${cfg.color}">${msIcon(cfg.icon)} ${cfg.label}</span>`;
+}
+
 // ── Skill card ─────────────────────────────────────────────────────────────
 
 function renderSkillCard(s: EngineSkillStatus): string {
@@ -105,10 +123,9 @@ function renderSkillCard(s: EngineSkillStatus): string {
   const hasCreds = s.required_credentials.length > 0;
   const hasTools = s.tool_names.length > 0;
 
-  const badges: string[] = [];
-  if (s.has_instructions) badges.push(`<span class="skill-badge">${msIcon('description')} Instruction</span>`);
+  const badges: string[] = [tierBadge(s.tier)];
   if (hasTools) badges.push(`<span class="skill-badge">${msIcon('build')} Tools</span>`);
-  if (hasCreds) badges.push(`<span class="skill-badge">${msIcon('key')} Vault</span>`);
+  if (hasCreds) badges.push(`<span class="skill-badge">${msIcon('vpn_key')} Vault</span>`);
 
   return `
   <div class="skill-vault-card${s.enabled ? ' skill-enabled' : ''}" data-skill-id="${escHtml(s.id)}">

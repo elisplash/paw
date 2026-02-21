@@ -50,6 +50,7 @@ pub fn get_all_skill_status(store: &SessionStore) -> Result<Vec<SkillStatus>, St
             description: def.description.clone(),
             icon: def.icon.clone(),
             category: def.category.clone(),
+            tier: def.tier.clone(),
             enabled,
             required_credentials: def.required_credentials.clone(),
             configured_credentials: configured_keys,

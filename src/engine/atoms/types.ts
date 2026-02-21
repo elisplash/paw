@@ -175,12 +175,15 @@ export interface EngineSkillCredentialField {
   placeholder: string;
 }
 
+export type SkillTier = 'skill' | 'integration' | 'extension';
+
 export interface EngineSkillStatus {
   id: string;
   name: string;
   description: string;
   icon: string;
   category: string;
+  tier: SkillTier;
   enabled: boolean;
   required_credentials: EngineSkillCredentialField[];
   configured_credentials: string[];

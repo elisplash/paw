@@ -1,6 +1,20 @@
 // Pawz Agent Engine — Skill Types
 use serde::{Deserialize, Serialize};
 
+/// The extensibility tier of a skill.
+/// Distinguishes prompt-only skills from credential-bearing integrations
+/// and future storage-backed extensions.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum SkillTier {
+    /// Tier 1 — instruction-only, no credentials, no dedicated tools.
+    Skill,
+    /// Tier 2 — credential vault, optional tool gating, optional binaries.
+    Integration,
+    /// Tier 3 — integration + custom sidebar view + persistent storage (future).
+    Extension,
+}
+
 /// Skill categories for organization in the UI.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -33,6 +47,8 @@ pub struct SkillDefinition {
     pub description: String,
     pub icon: String,
     pub category: SkillCategory,
+    /// The extensibility tier (Skill, Integration, or Extension).
+    pub tier: SkillTier,
     /// Credentials this skill requires (name → description). Empty for instruction-only skills.
     pub required_credentials: Vec<CredentialField>,
     /// The dedicated tool names this skill provides (vault skills only).
@@ -77,6 +93,8 @@ pub struct SkillStatus {
     pub description: String,
     pub icon: String,
     pub category: SkillCategory,
+    /// The extensibility tier (Skill, Integration, or Extension).
+    pub tier: SkillTier,
     pub enabled: bool,
     pub required_credentials: Vec<CredentialField>,
     pub configured_credentials: Vec<String>,

@@ -20,7 +20,7 @@ pub mod community;
 
 // ── Re-exports (keep crate::engine::skills::* API stable) ────────────────────
 
-pub use types::{SkillCategory, SkillDefinition, CredentialField, SkillRecord, SkillStatus};
+pub use types::{SkillCategory, SkillDefinition, SkillTier, CredentialField, SkillRecord, SkillStatus};
 pub use builtins::builtin_skills;
 pub use crypto::{decrypt_credential, encrypt_credential, get_vault_key};
 pub use status::{get_all_skill_status, get_skill_credentials};
@@ -32,19 +32,4 @@ pub use community::{
     parse_skill_md,
 };
 
-// ── SkillTier — extensibility tier classification (Phase 2 addition) ─────────
-
-use serde::{Deserialize, Serialize};
-
-/// The extensibility tier of a skill.
-/// Introduced during the skills.rs refactor to distinguish prompt-only skills
-/// from credential-bearing integrations and future storage-backed extensions.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum SkillTier {
-    /// Tier 1 — instruction-only SKILL.md, no credentials, no tools.
-    Skill,
-    /// Tier 2 — credential vault, optional tool gating, optional binaries.
-    Integration,
-    /// Tier 3 — integration + custom sidebar view + persistent storage (future).
-    Extension,
-}
+// SkillTier is now defined in types.rs and re-exported above.
