@@ -1,11 +1,11 @@
 // Pawz Agent Engine — Skill Status
 // Aggregates builtin skill definitions with stored DB state.
 
-use log::warn;
+use log::{info, warn};
 use crate::engine::sessions::SessionStore;
 use super::builtins::builtin_skills;
 use super::types::SkillStatus;
-use super::crypto::{decrypt_credential, get_vault_key};
+use super::crypto::{decrypt_credential, encrypt_credential, get_vault_key, is_legacy_encrypted};
 
 /// Get the combined status of all skills (definition + stored state).
 pub fn get_all_skill_status(store: &SessionStore) -> Result<Vec<SkillStatus>, String> {
@@ -80,7 +80,18 @@ pub fn get_skill_credentials(store: &SessionStore, skill_id: &str) -> Result<std
     for key in keys {
         if let Some(encrypted) = store.get_skill_credential(skill_id, &key)? {
             match decrypt_credential(&encrypted, &vault_key) {
-                Ok(value) => { creds.insert(key, value); }
+                Ok(value) => {
+                    // Auto-migrate legacy XOR → AES-256-GCM on read
+                    if is_legacy_encrypted(&encrypted) {
+                        let re_encrypted = encrypt_credential(&value, &vault_key);
+                        if let Err(e) = store.set_skill_credential(skill_id, &key, &re_encrypted) {
+                            warn!("[vault] Failed to migrate {}:{} to AES-GCM: {}", skill_id, key, e);
+                        } else {
+                            info!("[vault] Migrated {}:{} from XOR to AES-256-GCM", skill_id, key);
+                        }
+                    }
+                    creds.insert(key, value);
+                }
                 Err(e) => {
                     warn!("[vault] Failed to decrypt {}:{}: {}", skill_id, key, e);
                 }

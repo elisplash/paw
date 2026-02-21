@@ -76,6 +76,9 @@ tiny-keccak = { version = "2", features = ["keccak"] }
 aes = "0.8"
 cbc = "0.1"
 
+# ── Skill Vault Encryption (AES-256-GCM) ────────────────────────
+aes-gcm = "0.10"
+
 # ── Solana DEX Trading ───────────────────────────────────────
 bs58 = "0.5"
 

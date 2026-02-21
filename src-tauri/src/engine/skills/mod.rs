@@ -22,7 +22,7 @@ pub mod community;
 
 pub use types::{SkillCategory, SkillDefinition, SkillTier, CredentialField, SkillRecord, SkillStatus};
 pub use builtins::builtin_skills;
-pub use crypto::{decrypt_credential, encrypt_credential, get_vault_key};
+pub use crypto::{decrypt_credential, encrypt_credential, get_vault_key, is_legacy_encrypted};
 pub use status::{get_all_skill_status, get_skill_credentials};
 pub use prompt::get_enabled_skill_instructions;
 pub use community::{
