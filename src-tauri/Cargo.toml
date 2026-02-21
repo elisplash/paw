@@ -57,7 +57,7 @@ scraper = "0.22"
 url = "2"
 
 # ── Channel Bridges (WebSocket + IRC) ───────────────────────────
-tokio-tungstenite = { version = "0.21", features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
 tokio-rustls = "0.26"
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12"] }
 webpki-roots = "1.0"
