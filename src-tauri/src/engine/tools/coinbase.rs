@@ -232,7 +232,8 @@ fn sign_ed25519_raw(secret_b64: &str, message: &[u8]) -> EngineResult<String> {
 
     let key_bytes = base64::engine::general_purpose::STANDARD
         .decode(secret_b64.trim())
-        .or_else(|_| base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(secret_b64.trim()))?;
+        .or_else(|_| base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(secret_b64.trim()))
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     info!("[skill:coinbase] Ed25519 raw key decoded to {} bytes", key_bytes.len());
 
@@ -245,7 +246,8 @@ fn sign_ed25519_raw(secret_b64: &str, message: &[u8]) -> EngineResult<String> {
         64 => {
             let mut keypair = [0u8; 64];
             keypair.copy_from_slice(&key_bytes);
-            ed25519_dalek::SigningKey::from_keypair_bytes(&keypair)?
+            ed25519_dalek::SigningKey::from_keypair_bytes(&keypair)
+                .map_err(|e| EngineError::Other(e.to_string()))?
         }
         n => {
             return Err(format!(
@@ -265,7 +267,8 @@ fn sign_ed25519_pem(pem: &str, message: &[u8]) -> EngineResult<String> {
     use ed25519_dalek::Signer;
     use base64::Engine as _;
 
-    let signing_key = ed25519_dalek::SigningKey::from_pkcs8_pem(pem)?;
+    let signing_key = ed25519_dalek::SigningKey::from_pkcs8_pem(pem)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
     let signature = signing_key.sign(message);
     Ok(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(signature.to_bytes()))
 }
@@ -280,8 +283,9 @@ fn sign_es256(pem: &str, message: &[u8]) -> EngineResult<String> {
         SigningKey::from_pkcs8_pem(pem)
     }.or_else(|_| {
         use p256::elliptic_curve::SecretKey;
-        let secret_key = SecretKey::<p256::NistP256>::from_sec1_pem(pem)?;
-        Ok::<SigningKey, String>(SigningKey::from(secret_key))
+        let secret_key = SecretKey::<p256::NistP256>::from_sec1_pem(pem)
+            .map_err(|e| EngineError::Other(e.to_string()))?;
+        Ok::<SigningKey, EngineError>(SigningKey::from(secret_key))
     })?;
 
     let signature: p256::ecdsa::Signature = signing_key.sign(message);

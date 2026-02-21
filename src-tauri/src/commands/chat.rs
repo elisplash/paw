@@ -375,7 +375,7 @@ pub async fn engine_chat_send(
                     EngineEvent::Error {
                         session_id: session_id_clone,
                         run_id: run_id_clone,
-                        message: e,
+                        message: e.to_string(),
                     },
                 );
             }
