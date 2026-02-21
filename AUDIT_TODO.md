@@ -224,10 +224,10 @@ Found during the encryption audit of all 11 channel bridges.
 - **Bug:** User-supplied server URL is used as-is. If the user enters `http://`, the WebSocket uses `ws://` and the auth token is transmitted in plaintext.
 - **Fix applied:** Added `normalize_server_url()` helper that enforces HTTPS at two points: (1) `start_bridge()` coerces the URL before any network calls, and (2) `save_config()` normalizes at save time so the UI reflects the corrected value. The function coerces `http://` → `https://` with a log warning, adds `https://` to bare hostnames, and rejects non-http(s) schemes. Bearer token and WebSocket auth payload now always travel over TLS.
 
-### 45. Nextcloud bridge doesn't validate URL scheme (MEDIUM)
-- **File:** `src-tauri/src/engine/nextcloud.rs` L13
+### 45. ~~Nextcloud bridge doesn't validate URL scheme~~ (MEDIUM) ✅ FIXED
+- **File:** `src-tauri/src/engine/nextcloud.rs`
 - **Bug:** Basic Auth credentials (username + app password) are sent via HTTP header. If the user enters an `http://` server URL, credentials travel in plaintext.
-- **Fix:** Validate server URL starts with `https://`. Reject or warn on `http://`.
+- **Fix applied:** Added `normalize_server_url()` helper (same pattern as Mattermost #44) that enforces HTTPS at two points: (1) `start_bridge()` coerces the URL before any network calls, and (2) `save_config()` normalizes at save time so the UI reflects the corrected value. Coerces `http://` → `https://` with a warning, adds `https://` to bare hostnames, rejects non-http(s) schemes. Basic Auth credentials now always travel over TLS.
 
 ### 46. Nostr private key stored in plaintext config DB (MEDIUM)
 - **File:** `src-tauri/src/engine/nostr.rs` L35
