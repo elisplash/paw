@@ -240,7 +240,8 @@ pub async fn run_channel_agent(
         full_system_prompt.as_deref(),
     )?;
 
-    // Build tools (with HIL disabled — auto-approve for channel bridges)
+    // Build tools — read-only tools are auto-approved by agent_loop;
+    // side-effect tools (exec, write_file, etc.) will be denied for remote channels.
     let tools = {
         let mut t = ToolDefinition::builtins();
         let enabled_ids: Vec<String> = skills::builtin_skills().iter()
@@ -256,7 +257,11 @@ pub async fn run_channel_agent(
     let provider = AnyProvider::from_config(&provider_config);
     let run_id = uuid::Uuid::new_v4().to_string();
 
-    // Auto-approve all tool calls (no HIL — user is on a remote chat platform)
+    // Channel bridge tool policy: deny side-effect tools that the agent loop
+    // flags for HIL approval. Read-only tools are already auto-approved by the
+    // agent_loop's own `auto_approved_tools` list and never reach this map.
+    // Any tool that *does* land here is dangerous (exec, write_file, delete_file,
+    // etc.) and must NOT be auto-approved for remote channel users.
     let approvals: PendingApprovals = std::sync::Arc::new(parking_lot::Mutex::new(std::collections::HashMap::new()));
     let approvals_clone = approvals.clone();
     let channel_prefix_owned = channel_prefix.to_string();
@@ -267,8 +272,8 @@ pub async fn run_channel_agent(
             let keys: Vec<String> = map.keys().cloned().collect();
             for key in keys {
                 if let Some(sender) = map.remove(&key) {
-                    info!("[{}] Auto-approving tool call: {}", channel_prefix_owned, key);
-                    let _ = sender.send(true);
+                    warn!("[{}] Denying side-effect tool call from remote channel: {}", channel_prefix_owned, key);
+                    let _ = sender.send(false);
                 }
             }
         }

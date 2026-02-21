@@ -7,10 +7,10 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 
 ## Tier 1 — Security-Critical
 
-### 1. Channel bridge auto-approves ALL tool calls (CRITICAL)
+### ~~1. Channel bridge auto-approves ALL tool calls (CRITICAL)~~ ✅ FIXED
 - **File:** `src-tauri/src/engine/channels.rs` L259-275
-- **Bug:** Remote channel users (Discord, Telegram, IRC, etc.) have every tool call auto-approved — including `exec`, `write_file`, `delete_file`. Any approved channel user can trigger arbitrary command execution without HIL review.
-- **Fix:** Add a restricted `safe_tools` set for channel bridges (read-only tools only). Side-effect tools should queue for approval in the Pawz UI, or be denied outright for remote users.
+- **Bug:** Remote channel users (Discord, Telegram, IRC, etc.) had every tool call auto-approved — including `exec`, `write_file`, `delete_file`. Any approved channel user could trigger arbitrary command execution without HIL review.
+- **Fix applied:** Changed the channel bridge auto-approver to **deny** all side-effect tool calls from remote channels. Read-only tools (fetch, read_file, web_search, etc.) remain auto-approved via the agent_loop's own `auto_approved_tools` list. Dangerous tools that would normally require HIL approval are now denied outright for remote channel users since no one is present at the Pawz UI to review them.
 
 ### 2. XSS via attachment filename (CRITICAL)
 - **File:** `src/engine/organisms/chat_controller.ts` L618
