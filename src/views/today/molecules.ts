@@ -193,6 +193,7 @@ export function renderToday() {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const greeting = getGreeting();
+  const userName = localStorage.getItem('paw-user-name') || '';
 
   const pendingTasks = tasks.filter(t => !t.done);
   const completedToday = tasks.filter(t => t.done && isToday(t.createdAt));
@@ -203,7 +204,7 @@ export function renderToday() {
 
   container.innerHTML = `
     <div class="today-header">
-      <div class="today-greeting">${greeting}, Eli</div>
+      <div class="today-greeting">${greeting}${userName ? `, ${escHtml(userName)}` : ''}</div>
       <div class="today-date">${dateStr}</div>
     </div>
     

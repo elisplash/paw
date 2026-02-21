@@ -78,10 +78,10 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - **Bug:** 30s auto-stop timeout never cancelled on manual stop. Stale callbacks accumulate.
 - **Fix:** Added `_chatTalkTimeout` module variable. The 30s auto-stop `setTimeout` ID is now stored and cleared in both `stopChatTalk()` and `cleanupChatTalk()`, preventing stale callbacks from firing after manual stop.
 
-### 16. Hardcoded username "Eli" in greeting
+### ~~16. Hardcoded username "Eli" in greeting~~ ✅ FIXED
 - **File:** `src/views/today/molecules.ts` L206
 - **Bug:** Every user sees "Hello, Eli" on the dashboard.
-- **Fix:** Replace with user-configurable name or remove the name.
+- **Fix:** Replaced hardcoded name with `localStorage.getItem('paw-user-name')`. When set, greeting shows "Good morning, Name"; when unset, shows just "Good morning". Name is HTML-escaped via `escHtml()`.
 
 ### 17. `rm` in default command allowlist
 - **File:** `src/security.ts` L309-315
