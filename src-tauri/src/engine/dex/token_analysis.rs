@@ -98,7 +98,7 @@ pub async fn execute_dex_token_info(
         let code_str = code.as_str().unwrap_or("0x");
         let code_len = (code_str.len() - 2) / 2;
         if code_len == 0 {
-            output.push_str("  Contract: NO CODE \u2014 this is an EOA (wallet), not a token!\n");
+            output.push_str("  Contract: NO CODE — this is an EOA (wallet), not a token!\n");
         } else {
             output.push_str(&format!("  Contract: {} bytes of bytecode [OK]\n", code_len));
         }

@@ -261,12 +261,12 @@ pub async fn execute_sol_swap(
     let jupiter_err_msg = match jupiter_result {
         Ok(result) => return Ok(result),
         Err(ref e) if is_jupiter_route_error(&e.to_string()) => {
-            info!("[sol_dex] Jupiter route failed: {} \u2014 falling back to PumpPortal", e);
+            info!("[sol_dex] Jupiter route failed: {} — falling back to PumpPortal", e);
             e.to_string()
         }
         Err(ref e) => {
-            // Non-routing error from Jupiter \u2014 still try PumpPortal as last resort
-            info!("[sol_dex] Jupiter error: {} \u2014 attempting PumpPortal fallback", e);
+            // Non-routing error from Jupiter — still try PumpPortal as last resort
+            info!("[sol_dex] Jupiter error: {} — attempting PumpPortal fallback", e);
             e.to_string()
         }
     };
