@@ -63,7 +63,7 @@ pub async fn run_agent_turn(
                         run_id: run_id.to_string(),
                         message: msg.clone(),
                     });
-                    return Err(msg);
+                    return Err(msg.into());
                 }
             }
         }

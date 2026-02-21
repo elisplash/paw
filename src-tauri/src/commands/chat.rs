@@ -433,7 +433,7 @@ pub fn engine_chat_history(
     session_id: String,
     limit: Option<i64>,
 ) -> Result<Vec<StoredMessage>, String> {
-    state.store.get_messages(&session_id, limit.unwrap_or(200))
+    state.store.get_messages(&session_id, limit.unwrap_or(200)).map_err(|e| e.to_string())
 }
 
 /// Abort an in-flight agent run for the given session.
@@ -464,6 +464,7 @@ pub fn engine_sessions_list(
     state
         .store
         .list_sessions_filtered(limit.unwrap_or(50), agent_id.as_deref())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -472,7 +473,7 @@ pub fn engine_session_rename(
     session_id: String,
     label: String,
 ) -> Result<(), String> {
-    state.store.rename_session(&session_id, &label)
+    state.store.rename_session(&session_id, &label).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -480,7 +481,7 @@ pub fn engine_session_delete(
     state: State<'_, EngineState>,
     session_id: String,
 ) -> Result<(), String> {
-    state.store.delete_session(&session_id)
+    state.store.delete_session(&session_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -489,7 +490,7 @@ pub fn engine_session_clear(
     session_id: String,
 ) -> Result<(), String> {
     info!("[engine] Clearing messages for session {}", session_id);
-    state.store.clear_messages(&session_id)
+    state.store.clear_messages(&session_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -499,7 +500,7 @@ pub fn engine_session_cleanup(
     exclude_id: Option<String>,
 ) -> Result<usize, String> {
     let age = max_age_secs.unwrap_or(3600); // default: 1 hour
-    state.store.cleanup_empty_sessions(age, exclude_id.as_deref())
+    state.store.cleanup_empty_sessions(age, exclude_id.as_deref()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -526,7 +527,7 @@ pub async fn engine_session_compact(
 
     let provider = crate::engine::providers::AnyProvider::from_config(&provider_config);
     let compact_config = crate::engine::compaction::CompactionConfig::default();
-    let store_arc = std::sync::Arc::new(crate::engine::sessions::SessionStore::open()?);
+    let store_arc = std::sync::Arc::new(crate::engine::sessions::SessionStore::open().map_err(|e| e.to_string())?);
 
     crate::engine::compaction::compact_session(
         &store_arc,
@@ -536,6 +537,7 @@ pub async fn engine_session_compact(
         &compact_config,
     )
     .await
+    .map_err(|e| e.to_string())
 }
 
 // ── Tool approval ─────────────────────────────────────────────────────────────

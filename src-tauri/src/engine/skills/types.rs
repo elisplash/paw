@@ -1,6 +1,5 @@
 // Pawz Agent Engine — Skill Types
 use serde::{Deserialize, Serialize};
-use crate::atoms::error::EngineResult;
 
 /// The extensibility tier of a skill.
 /// Distinguishes prompt-only skills from credential-bearing integrations

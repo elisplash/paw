@@ -307,13 +307,14 @@ async fn run_poll_loop(app_handle: tauri::AppHandle, config: NextcloudConfig) ->
                         &mut current_config.pending_users,
                     ) {
                         Err(denial_msg) => {
+                            let denial_str = denial_msg.to_string();
                             let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
                             let _ = app_handle.emit("nextcloud-status", json!({
                                 "kind": "pairing_request",
                                 "user_id": actor_id,
                                 "username": actor_name,
                             }));
-                            let _ = nc_send_message(&client, base, &config.username, &config.password, &token, &denial_msg).await;
+                            let _ = nc_send_message(&client, base, &config.username, &config.password, &token, &denial_str).await;
                             continue;
                         }
                         Ok(()) => {}

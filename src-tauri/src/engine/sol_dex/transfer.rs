@@ -7,7 +7,7 @@ use super::constants::TOKEN_PROGRAM_ID;
 use super::helpers::{resolve_token, amount_to_lamports, lamports_to_amount, parse_solana_keypair};
 use super::rpc::{rpc_call, get_sol_balance, get_token_accounts, check_tx_confirmation};
 use super::transaction::{sign_solana_transaction, build_solana_transaction, derive_ata};
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 /// Transfer SOL or SPL tokens to an external address.
 pub async fn execute_sol_transfer(
@@ -24,7 +24,8 @@ pub async fn execute_sol_transfer(
     let _reason = args["reason"].as_str().unwrap_or("transfer");
 
     // Validate recipient address
-    let to_bytes_vec = bs58::decode(to_address).into_vec()?;
+    let to_bytes_vec = bs58::decode(to_address).into_vec()
+        .map_err(|e| EngineError::Other(e.to_string()))?;
     if to_bytes_vec.len() != 32 {
         return Err(format!("Invalid Solana address length: expected 32 bytes, got {}", to_bytes_vec.len()).into());
     }
@@ -34,7 +35,8 @@ pub async fn execute_sol_transfer(
     // Decode sender keypair
     let secret_bytes = parse_solana_keypair(private_key_b58)?;
 
-    let sender_pubkey_vec = bs58::decode(wallet).into_vec()?;
+    let sender_pubkey_vec = bs58::decode(wallet).into_vec()
+        .map_err(|e| EngineError::Other(e.to_string()))?;
     let mut sender_pubkey = [0u8; 32];
     sender_pubkey.copy_from_slice(&sender_pubkey_vec);
 
@@ -48,7 +50,8 @@ pub async fn execute_sol_transfer(
     let blockhash_str = blockhash_result.pointer("/value/blockhash")
         .and_then(|v| v.as_str())
         .ok_or("Failed to get recent blockhash")?;
-    let blockhash_bytes = bs58::decode(blockhash_str).into_vec()?;
+    let blockhash_bytes = bs58::decode(blockhash_str).into_vec()
+        .map_err(|e| EngineError::Other(e.to_string()))?;
     let mut recent_blockhash = [0u8; 32];
     recent_blockhash.copy_from_slice(&blockhash_bytes);
 
@@ -99,7 +102,8 @@ pub async fn execute_sol_transfer(
         let decimals = if token_decimals == 0 { 9 } else { token_decimals };
         let raw_amount = amount_to_lamports(amount_str, decimals)?;
 
-        let mint_bytes_vec = bs58::decode(&mint_addr).into_vec()?;
+        let mint_bytes_vec = bs58::decode(&mint_addr).into_vec()
+            .map_err(|e| EngineError::Other(e.to_string()))?;
         let mut mint_pubkey = [0u8; 32];
         mint_pubkey.copy_from_slice(&mint_bytes_vec);
 
@@ -116,7 +120,8 @@ pub async fn execute_sol_transfer(
             _ => {}
         }
         let sender_ata_addr = sender_token.unwrap().3.clone();
-        let sender_ata_bytes = bs58::decode(&sender_ata_addr).into_vec()?;
+        let sender_ata_bytes = bs58::decode(&sender_ata_addr).into_vec()
+            .map_err(|e| EngineError::Other(e.to_string()))?;
         let mut sender_ata = [0u8; 32];
         sender_ata.copy_from_slice(&sender_ata_bytes);
 
@@ -127,7 +132,8 @@ pub async fn execute_sol_transfer(
         }
 
         // Derive recipient ATA
-        let token_program_bytes = bs58::decode(TOKEN_PROGRAM_ID).into_vec()?;
+        let token_program_bytes = bs58::decode(TOKEN_PROGRAM_ID).into_vec()
+            .map_err(|e| EngineError::Other(e.to_string()))?;
         let mut token_program = [0u8; 32];
         token_program.copy_from_slice(&token_program_bytes);
 
@@ -141,7 +147,8 @@ pub async fn execute_sol_transfer(
 
         // ATA Program ID
         let ata_program_bytes = bs58::decode("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
-            .into_vec()?;
+            .into_vec()
+            .map_err(|e| EngineError::Other(e.to_string()))?;
         let mut ata_program = [0u8; 32];
         ata_program.copy_from_slice(&ata_program_bytes);
 

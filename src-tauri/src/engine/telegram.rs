@@ -496,8 +496,7 @@ pub fn load_telegram_config(app_handle: &tauri::AppHandle) -> EngineResult<Teleg
 
     match engine_state.store.get_config("telegram_config") {
         Ok(Some(json)) => {
-            serde_json::from_str::<TelegramConfig>(&json)
-                
+            Ok(serde_json::from_str::<TelegramConfig>(&json)?)
         }
         _ => Ok(TelegramConfig::default()),
     }

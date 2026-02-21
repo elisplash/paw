@@ -84,7 +84,7 @@ pub fn engine_agent_file_list(
     agent_id: Option<String>,
 ) -> Result<Vec<AgentFile>, String> {
     let aid = agent_id.unwrap_or_else(|| "default".into());
-    state.store.list_agent_files(&aid)
+    state.store.list_agent_files(&aid).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -94,7 +94,7 @@ pub fn engine_agent_file_get(
     file_name: String,
 ) -> Result<Option<AgentFile>, String> {
     let aid = agent_id.unwrap_or_else(|| "default".into());
-    state.store.get_agent_file(&aid, &file_name)
+    state.store.get_agent_file(&aid, &file_name).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -111,7 +111,7 @@ pub fn engine_agent_file_set(
         file_name,
         content.len()
     );
-    state.store.set_agent_file(&aid, &file_name, &content)
+    state.store.set_agent_file(&aid, &file_name, &content).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -121,5 +121,5 @@ pub fn engine_agent_file_delete(
     file_name: String,
 ) -> Result<(), String> {
     let aid = agent_id.unwrap_or_else(|| "default".into());
-    state.store.delete_agent_file(&aid, &file_name)
+    state.store.delete_agent_file(&aid, &file_name).map_err(|e| e.to_string())
 }

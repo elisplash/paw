@@ -5,7 +5,6 @@
 // Worker: report_progress
 
 use crate::engine::types::*;
-use crate::atoms::error::EngineResult;
 
 /// Orchestrator-specific tools that only the boss agent gets.
 pub fn boss_tools() -> Vec<ToolDefinition> {

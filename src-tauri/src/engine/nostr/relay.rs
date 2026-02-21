@@ -13,7 +13,7 @@ use std::sync::atomic::Ordering;
 use tauri::Emitter;
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures::{SinkExt, StreamExt};
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 // ── Single Relay WebSocket Loop ────────────────────────────────────────
 
@@ -45,7 +45,8 @@ pub(crate) async fn run_relay_loop(
         "kinds": [1, 4],
         "since": chrono::Utc::now().timestamp() - 10, // Only new events
     }]);
-    ws_tx.send(WsMessage::Text(req.to_string())).await?;
+    ws_tx.send(WsMessage::Text(req.to_string())).await
+        .map_err(|e| EngineError::Channel { channel: "nostr".into(), message: e.to_string() })?;
 
     let mut current_config = config.clone();
     let mut last_config_reload = std::time::Instant::now();

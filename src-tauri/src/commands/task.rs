@@ -15,7 +15,7 @@ use tauri::{State, Emitter, Manager};
 pub fn engine_tasks_list(
     state: State<'_, EngineState>,
 ) -> Result<Vec<Task>, String> {
-    state.store.list_tasks()
+    state.store.list_tasks().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -36,7 +36,7 @@ pub fn engine_task_update(
     task: Task,
 ) -> Result<(), String> {
     info!("[engine] Updating task: {} status={}", task.id, task.status);
-    state.store.update_task(&task)
+    state.store.update_task(&task).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -45,7 +45,7 @@ pub fn engine_task_delete(
     task_id: String,
 ) -> Result<(), String> {
     info!("[engine] Deleting task: {}", task_id);
-    state.store.delete_task(&task_id)
+    state.store.delete_task(&task_id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -79,8 +79,8 @@ pub fn engine_task_activity(
 ) -> Result<Vec<TaskActivity>, String> {
     let limit = limit.unwrap_or(50);
     match task_id {
-        Some(id) => state.store.list_task_activity(&id, limit),
-        None => state.store.list_all_activity(limit),
+        Some(id) => state.store.list_task_activity(&id, limit).map_err(|e| e.to_string()),
+        None => state.store.list_all_activity(limit).map_err(|e| e.to_string()),
     }
 }
 

@@ -32,7 +32,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use futures::stream::StreamExt;
 use futures::SinkExt;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 // ── Web Chat Config ────────────────────────────────────────────────────
 
@@ -175,7 +175,8 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     config: Arc<WebChatConfig>,
     username: String,
 ) -> EngineResult<()> {
-    let ws_stream = tokio_tungstenite::accept_async(stream).await?;
+    let ws_stream = tokio_tungstenite::accept_async(stream).await
+        .map_err(|e| EngineError::Channel { channel: "webchat".into(), message: e.to_string() })?;
 
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 
@@ -191,6 +192,7 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     );
 
     if let Err(denial_msg) = access_result {
+        let denial_str = denial_msg.to_string();
         // Save updated pending_users
         let _ = save_config(&app_handle, &current_config);
         let _ = app_handle.emit("webchat-status", json!({
@@ -199,7 +201,7 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             "peer": peer.to_string(),
         }));
 
-        let msg = json!({ "type": "system", "text": denial_msg });
+        let msg = json!({ "type": "system", "text": denial_str });
         let _ = ws_sender.send(WsMessage::Text(msg.to_string().into())).await;
         return Ok(());
     }

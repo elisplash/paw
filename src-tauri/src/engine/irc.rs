@@ -19,7 +19,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, AsyncRead, AsyncWrite, BufReader};
 use tokio::net::TcpStream;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 // ── IRC Config ─────────────────────────────────────────────────────────
 
@@ -155,7 +155,8 @@ async fn run_irc_loop(app_handle: tauri::AppHandle, config: IrcConfig) -> Engine
 
         let connector = tokio_rustls::TlsConnector::from(Arc::new(tls_config));
 
-        let server_name = rustls::pki_types::ServerName::try_from(config.server.clone())?;
+        let server_name = rustls::pki_types::ServerName::try_from(config.server.clone())
+            .map_err(|e| EngineError::Channel { channel: "irc".into(), message: format!("Invalid server name: {}", e) })?;
 
         let tls_stream = connector.connect(server_name, tcp).await
             .map_err(|e| format!("TLS handshake with {} failed: {}", addr, e))?;

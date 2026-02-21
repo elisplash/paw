@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
 use tauri::Emitter;
 
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 use matrix_sdk::{
     Client, Room,
     config::SyncSettings,
@@ -183,7 +183,8 @@ async fn run_sdk_bridge(app_handle: tauri::AppHandle, mut config: MatrixConfig) 
         .homeserver_url(hs)
         .sqlite_store(store_path(), None)
         .build()
-        .await?;
+        .await
+        .map_err(|e| EngineError::Channel { channel: "matrix".into(), message: e.to_string() })?;
 
     // ── Restore session from access token ─────────────────────────────
     // We need user_id and device_id to restore. If not cached, resolve
@@ -214,7 +215,8 @@ async fn run_sdk_bridge(app_handle: tauri::AppHandle, mut config: MatrixConfig) 
         },
     };
 
-    sdk_client.restore_session(session).await?;
+    sdk_client.restore_session(session).await
+        .map_err(|e| EngineError::Channel { channel: "matrix".into(), message: e.to_string() })?;
 
     let bot_user_id_str = user_id.to_string();
     let _ = BOT_USER_ID.set(bot_user_id_str.clone());
@@ -262,7 +264,8 @@ async fn run_sdk_bridge(app_handle: tauri::AppHandle, mut config: MatrixConfig) 
     // ── Initial sync (catch up, don't process old messages) ───────────
     let sync_settings = SyncSettings::default()
         .timeout(std::time::Duration::from_secs(30));
-    let initial_response = sdk_client.sync_once(sync_settings.clone()).await?;
+    let initial_response = sdk_client.sync_once(sync_settings.clone()).await
+        .map_err(|e| EngineError::Channel { channel: "matrix".into(), message: e.to_string() })?;
     info!("[matrix] Initial sync complete");
 
     // ── Long-polling sync loop ────────────────────────────────────────
@@ -352,12 +355,13 @@ async fn handle_room_message(
             &mut current_config.pending_users,
         ) {
             Err(denial_msg) => {
+                let denial_str = denial_msg.to_string();
                 let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
                 let _ = app_handle.emit("matrix-status", json!({
                     "kind": "pairing_request",
                     "user_id": &sender,
                 }));
-                send_room_message(&room, &denial_msg).await;
+                send_room_message(&room, &denial_str).await;
                 return;
             }
             Ok(()) => {}

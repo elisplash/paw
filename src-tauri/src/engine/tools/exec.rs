@@ -109,11 +109,12 @@ async fn execute_exec(args: &serde_json::Value, app_handle: &tauri::AppHandle, a
             .spawn()
     }.map_err(|e| crate::atoms::error::EngineError::Other(format!("Failed to spawn process: {}", e)))?;
 
+    child.kill_on_drop(true);
+
     let output = match tokio::time::timeout(Duration::from_secs(timeout_secs), child.wait_with_output()).await {
         Ok(result) => result,
         Err(_) => {
-            // Timeout — kill the process
-            let _ = child.kill().await;
+            // Timeout — child is killed on drop via kill_on_drop(true)
             return Err(format!("exec: command timed out after {}s", timeout_secs).into());
         }
     };

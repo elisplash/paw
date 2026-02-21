@@ -96,13 +96,13 @@ pub async fn execute(
 ) -> Option<Result<String, String>> {
     let creds = match super::get_skill_creds("solana_dex", app_handle) {
         Ok(c) => c,
-        Err(e) => return Some(Err(e)),
+        Err(e) => return Some(Err(e.to_string())),
     };
     let state = app_handle.state::<EngineState>();
     Some(match name {
-        "sol_wallet_create" => crate::engine::sol_dex::execute_sol_wallet_create(args, &creds, app_handle).await,
-        "sol_balance"       => crate::engine::sol_dex::execute_sol_balance(args, &creds).await,
-        "sol_quote"         => crate::engine::sol_dex::execute_sol_quote(args, &creds).await,
+        "sol_wallet_create" => crate::engine::sol_dex::execute_sol_wallet_create(args, &creds, app_handle).await.map_err(|e| e.to_string()),
+        "sol_balance"       => crate::engine::sol_dex::execute_sol_balance(args, &creds).await.map_err(|e| e.to_string()),
+        "sol_quote"         => crate::engine::sol_dex::execute_sol_quote(args, &creds).await.map_err(|e| e.to_string()),
         "sol_swap" => {
             let result = crate::engine::sol_dex::execute_sol_swap(args, &creds).await;
             if result.is_ok() {
@@ -162,10 +162,10 @@ pub async fn execute(
                     });
                 }
             }
-            result
+            result.map_err(|e| e.to_string())
         }
-        "sol_portfolio"  => crate::engine::sol_dex::execute_sol_portfolio(args, &creds).await,
-        "sol_token_info" => crate::engine::sol_dex::execute_sol_token_info(args, &creds).await,
+        "sol_portfolio"  => crate::engine::sol_dex::execute_sol_portfolio(args, &creds).await.map_err(|e| e.to_string()),
+        "sol_token_info" => crate::engine::sol_dex::execute_sol_token_info(args, &creds).await.map_err(|e| e.to_string()),
         "sol_transfer" => {
             let result = crate::engine::sol_dex::execute_sol_transfer(args, &creds).await;
             if result.is_ok() {
@@ -179,7 +179,7 @@ pub async fn execute(
                     None, None, result.as_ref().ok().map(|s| s.as_str()),
                 );
             }
-            result
+            result.map_err(|e| e.to_string())
         }
         _ => return None,
     })

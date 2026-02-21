@@ -151,7 +151,7 @@ fn handle_delegate_task(
         if let Err(e) = run_sub_agent(&app, &pid, &aid, &task, &ctx).await {
             error!("[orchestrator] Sub-agent {} failed: {}", aid, e);
             if let Some(store) = get_store(&app) {
-                store.update_project_agent_status(&pid, &aid, "error", Some(&e)).ok();
+                store.update_project_agent_status(&pid, &aid, "error", Some(&e.to_string())).ok();
                 let msg = ProjectMessage {
                     id: uuid::Uuid::new_v4().to_string(),
                     project_id: pid.clone(),

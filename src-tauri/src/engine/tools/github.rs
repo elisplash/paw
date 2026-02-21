@@ -33,7 +33,7 @@ pub async fn execute(
     if name != "github_api" { return None; }
     let creds = match super::get_skill_creds("github", app_handle) {
         Ok(c) => c,
-        Err(e) => return Some(Err(e)),
+        Err(e) => return Some(Err(e.to_string())),
     };
     Some(execute_github_api(args, &creds).await.map_err(|e| e.to_string()))
 }

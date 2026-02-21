@@ -244,7 +244,7 @@ pub async fn run_channel_agent(
 
         // If the primary provider failed with a billing/auth/rate error, try fallback providers
         match &primary_result {
-            Err(e) if is_provider_billing_error(e) => {
+            Err(e) if is_provider_billing_error(&e.to_string()) => {
                 warn!("[{}] Primary provider failed ({}), trying fallback providers", channel_prefix, e);
                 let fallback_providers: Vec<ProviderConfig> = {
                     let cfg = engine_state.config.lock();

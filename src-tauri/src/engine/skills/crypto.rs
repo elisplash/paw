@@ -6,7 +6,7 @@
 
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use aes_gcm::aead::Aead;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 use log::{error, info, warn};
 
 const VAULT_KEYRING_SERVICE: &str = "paw-skill-vault";
@@ -28,7 +28,7 @@ pub fn get_vault_key() -> EngineResult<Vec<u8>> {
             base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &key_b64)
                 .map_err(|e| {
                     error!("[vault] Failed to decode stored vault key: {}", e);
-                    format!("Failed to decode vault key: {}", e)
+                    EngineError::Other(format!("Failed to decode vault key: {}", e))
                 })
         }
         Err(keyring::Error::NoEntry) => {
@@ -47,7 +47,7 @@ pub fn get_vault_key() -> EngineResult<Vec<u8>> {
         }
         Err(e) => {
             error!("[vault] OS keychain error — credential storage blocked: {}", e);
-            Err(e.into())
+            Err(EngineError::Keyring(e.to_string()))
         }
     }
 }
@@ -90,7 +90,8 @@ pub fn decrypt_credential(encrypted: &str, key: &[u8]) -> EngineResult<String> {
 
 /// AES-256-GCM decryption. Input is base64(nonce || ciphertext+tag).
 fn decrypt_aes_gcm(encoded: &str, key: &[u8]) -> EngineResult<String> {
-    let packed = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded)?;
+    let packed = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     if packed.len() < 12 + 16 {
         // Minimum: 12-byte nonce + 16-byte tag (empty plaintext)
@@ -107,13 +108,16 @@ fn decrypt_aes_gcm(encoded: &str, key: &[u8]) -> EngineResult<String> {
         .map_err(|_| "Decryption failed — wrong key or corrupted data")?;
 
     String::from_utf8(plaintext)
+        .map_err(|e| EngineError::Other(e.to_string()))
 }
 
 /// Legacy XOR decryption for backward compatibility.
 fn decrypt_xor_legacy(encrypted_b64: &str, key: &[u8]) -> EngineResult<String> {
-    let encrypted = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encrypted_b64)?;
+    let encrypted = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encrypted_b64)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
     let decrypted: Vec<u8> = encrypted.iter().enumerate().map(|(i, b)| b ^ key[i % key.len()]).collect();
     String::from_utf8(decrypted)
+        .map_err(|e| EngineError::Other(e.to_string()))
 }
 
 /// Check if a stored value is using legacy XOR encryption (needs migration).

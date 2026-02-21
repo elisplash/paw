@@ -53,11 +53,11 @@ pub async fn execute(
     }
     let creds = match super::get_skill_creds("email", app_handle) {
         Ok(c) => c,
-        Err(e) => return Some(Err(e)),
+        Err(e) => return Some(Err(e.to_string())),
     };
     Some(match name {
-        "email_send" => execute_email_send(args, &creds).await,
-        "email_read" => execute_email_read(args, &creds).await,
+        "email_send" => execute_email_send(args, &creds).await.map_err(|e| e.to_string()),
+        "email_read" => execute_email_read(args, &creds).await.map_err(|e| e.to_string()),
         _ => unreachable!(),
     })
 }

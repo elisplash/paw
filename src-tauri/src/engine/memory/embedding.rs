@@ -42,7 +42,8 @@ impl EmbeddingClient {
         let ollama_err = ollama_result.unwrap_err();
 
         // If model not found, try auto-pulling it (once per session)
-        if (ollama_err.contains("not found") || ollama_err.contains("404") || ollama_err.contains("does not exist"))
+        let ollama_err_str = ollama_err.to_string();
+        if (ollama_err_str.contains("not found") || ollama_err_str.contains("404") || ollama_err_str.contains("does not exist"))
             && !MODEL_PULL_ATTEMPTED.swap(true, Ordering::SeqCst)
         {
             info!("[memory] Model '{}' not found, attempting auto-pull...", self.model);

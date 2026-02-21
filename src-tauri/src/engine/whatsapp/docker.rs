@@ -2,7 +2,7 @@
 // EVOLUTION_IMAGE, CONTAINER_NAME, discover_colima_socket,
 // ensure_docker_ready, ensure_evolution_container
 
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 use log::{info, warn, error};
 use serde_json::json;
 use std::sync::atomic::Ordering;
@@ -317,7 +317,8 @@ pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, co
         ..Default::default()
     };
 
-    let containers = docker.list_containers(Some(opts)).await?;
+    let containers = docker.list_containers(Some(opts)).await
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     if let Some(existing) = containers.first() {
         let container_id = existing.id.clone().unwrap_or_default();
@@ -385,7 +386,8 @@ pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, co
         } else {
             // Container exists but stopped — start it and wait for API
             info!("[whatsapp] Starting existing Evolution API container");
-            docker.start_container(&container_id, None::<StartContainerOptions<String>>).await?;
+            docker.start_container(&container_id, None::<StartContainerOptions<String>>).await
+                .map_err(|e| EngineError::Other(e.to_string()))?;
 
             info!("[whatsapp] Waiting for Evolution API to be ready...");
             let client = reqwest::Client::new();
@@ -413,7 +415,7 @@ pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, co
             let mut stream = docker.create_image(Some(pull_opts), None, None);
             while let Some(result) = stream.next().await {
                 if let Err(e) = result {
-                    return Err(e.into());
+                    return Err(EngineError::Other(e.to_string()));
                 }
             }
             info!("[whatsapp] Image pulled successfully");
@@ -476,13 +478,15 @@ pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, co
         platform: None,
     };
 
-    let container = docker.create_container(Some(create_opts), container_config).await?;
+    let container = docker.create_container(Some(create_opts), container_config).await
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     let container_id = container.id.clone();
     info!("[whatsapp] Created Evolution API container: {}", &container_id[..12]);
 
     // Start it
-    docker.start_container(&container_id, None::<StartContainerOptions<String>>).await?;
+    docker.start_container(&container_id, None::<StartContainerOptions<String>>).await
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     info!("[whatsapp] Evolution API container started on port {}", config.api_port);
 

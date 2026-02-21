@@ -3,7 +3,7 @@
 use super::abi::strip_leading_zeros;
 use super::primitives::keccak256;
 use super::rlp::{rlp_encode_bytes, rlp_encode_list, u64_to_minimal_be, u256_to_minimal_be};
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 /// Sign an EIP-1559 transaction and return the raw serialized bytes.
 pub(crate) fn sign_eip1559_transaction(
@@ -39,7 +39,8 @@ pub(crate) fn sign_eip1559_transaction(
 
     // Sign with secp256k1
     let (signature, recovery_id) = private_key
-        .sign_prehash_recoverable(&tx_hash)?;
+        .sign_prehash_recoverable(&tx_hash)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     let sig_bytes = signature.to_bytes();
     let r = &sig_bytes[..32];

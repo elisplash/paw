@@ -214,7 +214,8 @@ Your boss agent has delegated this task to you.
         }
         Err(err) => {
             if let Some(ref store) = store {
-                store.update_project_agent_status(project_id, agent_id, "error", Some(err)).ok();
+                let err_str = err.to_string();
+                store.update_project_agent_status(project_id, agent_id, "error", Some(&err_str)).ok();
             }
         }
     }

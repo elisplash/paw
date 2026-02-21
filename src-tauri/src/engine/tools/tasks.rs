@@ -72,9 +72,9 @@ pub async fn execute(
     _agent_id: &str,
 ) -> Option<Result<String, String>> {
     Some(match name {
-        "create_task"  => execute_create_task(args, app_handle).await,
-        "list_tasks"   => execute_list_tasks(args, app_handle).await,
-        "manage_task"  => execute_manage_task(args, app_handle).await,
+        "create_task"  => execute_create_task(args, app_handle).await.map_err(|e| e.to_string()),
+        "list_tasks"   => execute_list_tasks(args, app_handle).await.map_err(|e| e.to_string()),
+        "manage_task"  => execute_manage_task(args, app_handle).await.map_err(|e| e.to_string()),
         _ => return None,
     })
 }

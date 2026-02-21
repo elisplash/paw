@@ -35,7 +35,7 @@ macro_rules! channel_commands {
             pub async fn [<engine_ $name _start>](
                 app_handle: tauri::AppHandle,
             ) -> Result<(), String> {
-                $module::start_bridge(app_handle)
+                $module::start_bridge(app_handle).map_err(|e| e.to_string())
             }
 
             /// Stop the `$name` bridge.
@@ -58,7 +58,7 @@ macro_rules! channel_commands {
             pub fn [<engine_ $name _get_config>](
                 app_handle: tauri::AppHandle,
             ) -> Result<$config_type, String> {
-                $module::load_config(&app_handle)
+                $module::load_config(&app_handle).map_err(|e| e.to_string())
             }
 
             /// Persist new `$name` bridge configuration.
@@ -67,7 +67,7 @@ macro_rules! channel_commands {
                 app_handle: tauri::AppHandle,
                 config: $config_type,
             ) -> Result<(), String> {
-                $module::save_config(&app_handle, &config)
+                $module::save_config(&app_handle, &config).map_err(|e| e.to_string())
             }
 
             /// Allow a user to interact with this agent via `$name`.
@@ -76,7 +76,7 @@ macro_rules! channel_commands {
                 app_handle: tauri::AppHandle,
                 user_id: String,
             ) -> Result<(), String> {
-                $module::approve_user(&app_handle, &user_id)
+                $module::approve_user(&app_handle, &user_id).map_err(|e| e.to_string())
             }
 
             /// Block a user from interacting via `$name`.
@@ -85,7 +85,7 @@ macro_rules! channel_commands {
                 app_handle: tauri::AppHandle,
                 user_id: String,
             ) -> Result<(), String> {
-                $module::deny_user(&app_handle, &user_id)
+                $module::deny_user(&app_handle, &user_id).map_err(|e| e.to_string())
             }
 
             /// Remove a user's stored record from the `$name` allowlist.
@@ -94,7 +94,7 @@ macro_rules! channel_commands {
                 app_handle: tauri::AppHandle,
                 user_id: String,
             ) -> Result<(), String> {
-                $module::remove_user(&app_handle, &user_id)
+                $module::remove_user(&app_handle, &user_id).map_err(|e| e.to_string())
             }
         }
     };
@@ -166,7 +166,7 @@ channel_commands!(
 pub async fn engine_telegram_start(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
-    crate::engine::telegram::start_bridge(app_handle)
+    crate::engine::telegram::start_bridge(app_handle).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -186,7 +186,7 @@ pub fn engine_telegram_status(
 pub fn engine_telegram_get_config(
     app_handle: tauri::AppHandle,
 ) -> Result<crate::engine::telegram::TelegramConfig, String> {
-    crate::engine::telegram::load_telegram_config(&app_handle)
+    crate::engine::telegram::load_telegram_config(&app_handle).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -194,7 +194,7 @@ pub fn engine_telegram_set_config(
     app_handle: tauri::AppHandle,
     config: crate::engine::telegram::TelegramConfig,
 ) -> Result<(), String> {
-    crate::engine::telegram::save_telegram_config(&app_handle, &config)
+    crate::engine::telegram::save_telegram_config(&app_handle, &config).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -202,7 +202,7 @@ pub async fn engine_telegram_approve_user(
     app_handle: tauri::AppHandle,
     user_id: i64,
 ) -> Result<(), String> {
-    crate::engine::telegram::approve_user(&app_handle, user_id).await
+    crate::engine::telegram::approve_user(&app_handle, user_id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -210,7 +210,7 @@ pub async fn engine_telegram_deny_user(
     app_handle: tauri::AppHandle,
     user_id: i64,
 ) -> Result<(), String> {
-    crate::engine::telegram::deny_user(&app_handle, user_id).await
+    crate::engine::telegram::deny_user(&app_handle, user_id).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -218,7 +218,7 @@ pub fn engine_telegram_remove_user(
     app_handle: tauri::AppHandle,
     user_id: i64,
 ) -> Result<(), String> {
-    crate::engine::telegram::remove_user(&app_handle, user_id)
+    crate::engine::telegram::remove_user(&app_handle, user_id).map_err(|e| e.to_string())
 }
 
 // ── NOTE on tauri::generate_handler! ─────────────────────────────────────────

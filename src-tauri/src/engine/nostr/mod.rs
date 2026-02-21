@@ -33,7 +33,7 @@ use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 // ── Nostr Config ───────────────────────────────────────────────────────
 
@@ -88,31 +88,35 @@ const KEYRING_USER: &str = "private-key";
 
 /// Store the Nostr private key in the OS keychain.
 fn keychain_set_private_key(hex_key: &str) -> EngineResult<()> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)?;
-    entry.set_password(hex_key)?;
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)
+        .map_err(|e| EngineError::Keyring(e.to_string()))?;
+    entry.set_password(hex_key)
+        .map_err(|e| EngineError::Keyring(e.to_string()))?;
     info!("[nostr] Private key stored in OS keychain");
     Ok(())
 }
 
 /// Retrieve the Nostr private key from the OS keychain.
 fn keychain_get_private_key() -> EngineResult<Option<String>> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)?;
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)
+        .map_err(|e| EngineError::Keyring(e.to_string()))?;
     match entry.get_password() {
         Ok(key) if !key.is_empty() => Ok(Some(key)),
         Ok(_) => Ok(None),
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(e.into()),
+        Err(e) => Err(EngineError::Keyring(e.to_string())),
     }
 }
 
 /// Delete the Nostr private key from the OS keychain.
 #[allow(dead_code)]
 fn keychain_delete_private_key() -> EngineResult<()> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)?;
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)
+        .map_err(|e| EngineError::Keyring(e.to_string()))?;
     match entry.delete_credential() {
         Ok(()) => { info!("[nostr] Private key removed from OS keychain"); Ok(()) }
         Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(e.into()),
+        Err(e) => Err(EngineError::Keyring(e.to_string())),
     }
 }
 

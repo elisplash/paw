@@ -52,11 +52,11 @@ pub async fn execute(
     }
     let creds = match super::get_skill_creds("slack", app_handle) {
         Ok(c) => c,
-        Err(e) => return Some(Err(e)),
+        Err(e) => return Some(Err(e.to_string())),
     };
     Some(match name {
-        "slack_send" => execute_slack_send(args, &creds).await,
-        "slack_read" => execute_slack_read(args, &creds).await,
+        "slack_send" => execute_slack_send(args, &creds).await.map_err(|e| e.to_string()),
+        "slack_read" => execute_slack_read(args, &creds).await.map_err(|e| e.to_string()),
         _ => unreachable!(),
     })
 }

@@ -9,7 +9,7 @@ use super::helpers::{resolve_token, amount_to_lamports, lamports_to_amount, pars
 use super::rpc::{rpc_call, resolve_decimals_on_chain, check_tx_confirmation};
 use super::pumpportal::{is_jupiter_route_error, pumpportal_get_tx, pumpportal_swap};
 use super::transaction::sign_solana_transaction;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 // ── Quote ─────────────────────────────────────────────────────────────
 
@@ -52,12 +52,12 @@ pub async fn execute_sol_quote(
 
     let jupiter_err_msg = match &jupiter_result {
         Ok(_) => String::new(),
-        Err(e) => e.clone(),
+        Err(e) => e.to_string(),
     };
 
     match jupiter_result {
         Ok(result) => return Ok(result),
-        Err(ref e) if is_jupiter_route_error(e) => {
+        Err(ref e) if is_jupiter_route_error(&e.to_string()) => {
             info!("[sol_dex] Jupiter quote route failed: {} — checking PumpPortal", e);
         }
         Err(ref e) => {
@@ -260,14 +260,14 @@ pub async fn execute_sol_swap(
     let jupiter_err_msg;
     match jupiter_result {
         Ok(result) => return Ok(result),
-        Err(ref e) if is_jupiter_route_error(e) => {
+        Err(ref e) if is_jupiter_route_error(&e.to_string()) => {
             info!("[sol_dex] Jupiter route failed: {} — falling back to PumpPortal", e);
-            jupiter_err_msg = e.clone();
+            jupiter_err_msg = e.to_string();
         }
         Err(ref e) => {
             // Non-routing error from Jupiter — still try PumpPortal as last resort
             info!("[sol_dex] Jupiter error: {} — attempting PumpPortal fallback", e);
-            jupiter_err_msg = e.clone();
+            jupiter_err_msg = e.to_string();
         }
     }
 
@@ -372,7 +372,8 @@ pub(crate) async fn execute_sol_swap_jupiter(
     // Step 3: Decode, sign, and send the transaction
     info!("[sol_dex] Signing and sending transaction...");
 
-    let tx_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, swap_tx_b64)?;
+    let tx_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, swap_tx_b64)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     // Sign the transaction
     let signed_tx = sign_solana_transaction(&tx_bytes, secret_bytes)?;

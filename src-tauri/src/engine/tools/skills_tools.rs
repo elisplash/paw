@@ -63,9 +63,9 @@ pub async fn execute(
     agent_id: &str,
 ) -> Option<Result<String, String>> {
     Some(match name {
-        "skill_search"  => execute_skill_search(args, app_handle).await,
-        "skill_install" => execute_skill_install(args, app_handle, agent_id).await,
-        "skill_list"    => execute_skill_list(app_handle, agent_id).await,
+        "skill_search"  => execute_skill_search(args, app_handle).await.map_err(|e| e.to_string()),
+        "skill_install" => execute_skill_install(args, app_handle, agent_id).await.map_err(|e| e.to_string()),
+        "skill_list"    => execute_skill_list(app_handle, agent_id).await.map_err(|e| e.to_string()),
         _ => return None,
     })
 }

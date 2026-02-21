@@ -20,7 +20,7 @@ pub async fn engine_memory_store(
     let cat = category.unwrap_or_else(|| "general".into());
     let imp = importance.unwrap_or(5);
     let emb_client = state.embedding_client();
-    memory::store_memory(&state.store, &content, &cat, imp, emb_client.as_ref(), agent_id.as_deref()).await
+    memory::store_memory(&state.store, &content, &cat, imp, emb_client.as_ref(), agent_id.as_deref()).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -33,14 +33,14 @@ pub async fn engine_memory_search(
     let lim = limit.unwrap_or(10);
     let threshold = state.memory_config.lock().recall_threshold;
     let emb_client = state.embedding_client();
-    memory::search_memories(&state.store, &query, lim, threshold, emb_client.as_ref(), agent_id.as_deref()).await
+    memory::search_memories(&state.store, &query, lim, threshold, emb_client.as_ref(), agent_id.as_deref()).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn engine_memory_stats(
     state: State<'_, EngineState>,
 ) -> Result<MemoryStats, String> {
-    state.store.memory_stats()
+    state.store.memory_stats().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -48,7 +48,7 @@ pub fn engine_memory_delete(
     state: State<'_, EngineState>,
     id: String,
 ) -> Result<(), String> {
-    state.store.delete_memory(&id)
+    state.store.delete_memory(&id).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -56,7 +56,7 @@ pub fn engine_memory_list(
     state: State<'_, EngineState>,
     limit: Option<usize>,
 ) -> Result<Vec<Memory>, String> {
-    state.store.list_memories(limit.unwrap_or(100))
+    state.store.list_memories(limit.unwrap_or(100)).map_err(|e| e.to_string())
 }
 
 // ── Memory config ──────────────────────────────────────────────────────

@@ -4,7 +4,7 @@
 // (ECDH + AES-256-CBC), pubkey derivation, and hex utilities.
 
 use serde_json::json;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 // ── Nostr Event Signing (secp256k1 Schnorr / BIP-340) ─────────────────
 //
@@ -35,9 +35,11 @@ pub(crate) fn sign_event(
     let id_hex = hex_encode(&id_bytes);
 
     // BIP-340 Schnorr signature over the event id
-    let signing_key = SigningKey::from_bytes(secret_key)?;
+    let signing_key = SigningKey::from_bytes(secret_key)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
     let aux_rand: [u8; 32] = rand::random();
-    let sig = signing_key.sign_raw(&id_bytes, &aux_rand)?;
+    let sig = signing_key.sign_raw(&id_bytes, &aux_rand)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
     let sig_hex = hex_encode(&sig.to_bytes());
 
     Ok(json!({
@@ -79,7 +81,8 @@ pub(crate) fn build_reply_event(
 
 /// Compute ECDH shared secret (x-coordinate) between our secret key and a pubkey.
 fn compute_shared_secret(secret_key: &[u8], pubkey_hex: &str) -> EngineResult<[u8; 32]> {
-    let sk = k256::SecretKey::from_slice(secret_key)?;
+    let sk = k256::SecretKey::from_slice(secret_key)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     // BIP-340 x-only pubkey → SEC1 compressed (prepend 0x02)
     let pk_bytes = hex_decode(pubkey_hex)?;
@@ -89,7 +92,8 @@ fn compute_shared_secret(secret_key: &[u8], pubkey_hex: &str) -> EngineResult<[u
     let mut sec1 = Vec::with_capacity(33);
     sec1.push(0x02);
     sec1.extend_from_slice(&pk_bytes);
-    let pk = k256::PublicKey::from_sec1_bytes(&sec1)?;
+    let pk = k256::PublicKey::from_sec1_bytes(&sec1)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     use k256::elliptic_curve::ecdh::diffie_hellman;
     let shared = diffie_hellman(sk.to_nonzero_scalar(), pk.as_affine());
@@ -111,8 +115,10 @@ pub(crate) fn nip04_encrypt(secret_key: &[u8], receiver_pk_hex: &str, plaintext:
     let mut buf = vec![0u8; pt.len() + 16];
     buf[..pt.len()].copy_from_slice(pt);
 
-    let ciphertext = cbc::Encryptor::<aes::Aes256>::new_from_slices(&shared, &iv)?
-        .encrypt_padded_mut::<Pkcs7>(&mut buf, pt.len())?;
+    let ciphertext = cbc::Encryptor::<aes::Aes256>::new_from_slices(&shared, &iv)
+        .map_err(|e| EngineError::Other(e.to_string()))?
+        .encrypt_padded_mut::<Pkcs7>(&mut buf, pt.len())
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     let b64 = base64::engine::general_purpose::STANDARD;
     Ok(format!("{}?iv={}", b64.encode(ciphertext), b64.encode(iv)))
@@ -129,8 +135,10 @@ pub(crate) fn nip04_decrypt(secret_key: &[u8], sender_pk_hex: &str, content: &st
     }
 
     let b64 = base64::engine::general_purpose::STANDARD;
-    let ciphertext = b64.decode(parts[0].trim())?;
-    let iv = b64.decode(parts[1].trim())?;
+    let ciphertext = b64.decode(parts[0].trim())
+        .map_err(|e| EngineError::Other(e.to_string()))?;
+    let iv = b64.decode(parts[1].trim())
+        .map_err(|e| EngineError::Other(e.to_string()))?;
     if iv.len() != 16 {
         return Err(format!("Invalid IV length: {} (expected 16)", iv.len()).into());
     }
@@ -138,10 +146,13 @@ pub(crate) fn nip04_decrypt(secret_key: &[u8], sender_pk_hex: &str, content: &st
     let shared = compute_shared_secret(secret_key, sender_pk_hex)?;
 
     let mut buf = ciphertext;
-    let plaintext = cbc::Decryptor::<aes::Aes256>::new_from_slices(&shared, &iv)?
-        .decrypt_padded_mut::<Pkcs7>(&mut buf)?;
+    let plaintext = cbc::Decryptor::<aes::Aes256>::new_from_slices(&shared, &iv)
+        .map_err(|e| EngineError::Other(e.to_string()))?
+        .decrypt_padded_mut::<Pkcs7>(&mut buf)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     String::from_utf8(plaintext.to_vec())
+        .map_err(|e| EngineError::Other(e.to_string()))
 }
 
 // ── secp256k1 Pubkey Derivation (BIP-340 x-only) ──────────────────────
@@ -153,7 +164,8 @@ pub(crate) fn nip04_decrypt(secret_key: &[u8], sender_pk_hex: &str, content: &st
 pub(crate) fn derive_pubkey(secret_key: &[u8]) -> EngineResult<Vec<u8>> {
     use k256::elliptic_curve::sec1::ToEncodedPoint;
 
-    let sk = k256::SecretKey::from_slice(secret_key)?;
+    let sk = k256::SecretKey::from_slice(secret_key)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
     let pk = sk.public_key();
     let point = pk.to_encoded_point(true); // compressed
     // BIP-340 x-only: skip the 0x02/0x03 prefix byte, take the 32-byte x-coordinate
@@ -172,7 +184,8 @@ pub(crate) fn hex_decode(hex: &str) -> EngineResult<Vec<u8>> {
     }
     (0..hex.len())
         .step_by(2)
-        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16))
+        .map(|i| u8::from_str_radix(&hex[i..i + 2], 16)
+            .map_err(|e| EngineError::Other(e.to_string())))
         .collect()
 }
 

@@ -241,7 +241,6 @@ impl ModelRouting {
 
 // serde default helpers for EngineConfig live in crate::atoms::types
 use crate::atoms::types::{default_user_timezone, default_daily_budget_usd, default_max_concurrent_runs};
-use crate::atoms::error::EngineResult;
 
 impl Default for EngineConfig {
     fn default() -> Self {

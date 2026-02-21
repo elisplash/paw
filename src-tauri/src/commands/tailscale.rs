@@ -143,7 +143,7 @@ pub fn engine_tailscale_set_config(
     config: TailscaleConfig,
 ) -> Result<(), String> {
     let json = serde_json::to_string(&config).map_err(|e| format!("Serialize error: {}", e))?;
-    state.store.set_config("tailscale_config", &json)
+    state.store.set_config("tailscale_config", &json).map_err(|e| e.to_string())
 }
 
 /// Start Tailscale Serve on the configured port.

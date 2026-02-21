@@ -25,7 +25,7 @@ pub fn engine_sandbox_set_config(
     state: State<'_, EngineState>,
     config: crate::engine::sandbox::SandboxConfig,
 ) -> Result<(), String> {
-    crate::engine::sandbox::save_sandbox_config(&state.store, &config)
+    crate::engine::sandbox::save_sandbox_config(&state.store, &config).map_err(|e| e.to_string())
 }
 
 // ── Engine configuration ───────────────────────────────────────────────

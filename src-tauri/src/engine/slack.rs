@@ -20,7 +20,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures::{SinkExt, StreamExt};
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 // ── Slack Config ───────────────────────────────────────────────────────
 
@@ -159,7 +159,8 @@ async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> E
     let ws_url = get_socket_mode_url(&http_client, &config.app_token).await?;
 
     let (ws_stream, _) = connect_async(&ws_url)
-        .await?;
+        .await
+        .map_err(|e| EngineError::Channel { channel: "slack".into(), message: e.to_string() })?;
 
     let (mut write, mut read) = ws_stream.split();
 
@@ -256,12 +257,13 @@ async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> E
                         &mut current_config.pending_users,
                     ) {
                         Err(denial_msg) => {
+                            let denial_str = denial_msg.to_string();
                             let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
                             let _ = app_handle.emit("slack-status", json!({
                                 "kind": "pairing_request",
                                 "user_id": &user_id,
                             }));
-                            let _ = slack_send_message(&http_client, &config.bot_token, &channel_id, &denial_msg).await;
+                            let _ = slack_send_message(&http_client, &config.bot_token, &channel_id, &denial_str).await;
                             continue;
                         }
                         Ok(()) => {}

@@ -172,13 +172,13 @@ pub async fn execute(
 ) -> Option<Result<String, String>> {
     let creds = match super::get_skill_creds("dex", app_handle) {
         Ok(c) => c,
-        Err(e) => return Some(Err(e)),
+        Err(e) => return Some(Err(e.to_string())),
     };
     let state = app_handle.state::<EngineState>();
     Some(match name {
-        "dex_wallet_create"  => crate::engine::dex::execute_dex_wallet_create(args, &creds, app_handle).await,
-        "dex_balance"        => crate::engine::dex::execute_dex_balance(args, &creds).await,
-        "dex_quote"          => crate::engine::dex::execute_dex_quote(args, &creds).await,
+        "dex_wallet_create"  => crate::engine::dex::execute_dex_wallet_create(args, &creds, app_handle).await.map_err(|e| e.to_string()),
+        "dex_balance"        => crate::engine::dex::execute_dex_balance(args, &creds).await.map_err(|e| e.to_string()),
+        "dex_quote"          => crate::engine::dex::execute_dex_quote(args, &creds).await.map_err(|e| e.to_string()),
         "dex_swap" => {
             let result = crate::engine::dex::execute_dex_swap(args, &creds).await;
             if result.is_ok() {
@@ -194,16 +194,16 @@ pub async fn execute(
                     None, None, result.as_ref().ok().map(|s| s.as_str()),
                 );
             }
-            result
+            result.map_err(|e| e.to_string())
         }
-        "dex_portfolio"      => crate::engine::dex::execute_dex_portfolio(args, &creds).await,
-        "dex_token_info"     => crate::engine::dex::execute_dex_token_info(args, &creds).await,
-        "dex_check_token"    => crate::engine::dex::execute_dex_check_token(args, &creds).await,
-        "dex_search_token"   => crate::engine::dex::execute_dex_search_token(args, &creds).await,
-        "dex_watch_wallet"   => crate::engine::dex::execute_dex_watch_wallet(args, &creds).await,
-        "dex_whale_transfers"=> crate::engine::dex::execute_dex_whale_transfers(args, &creds).await,
-        "dex_top_traders"    => crate::engine::dex::execute_dex_top_traders(args, &creds).await,
-        "dex_trending"       => crate::engine::dex::execute_dex_trending(args, &creds).await,
+        "dex_portfolio"      => crate::engine::dex::execute_dex_portfolio(args, &creds).await.map_err(|e| e.to_string()),
+        "dex_token_info"     => crate::engine::dex::execute_dex_token_info(args, &creds).await.map_err(|e| e.to_string()),
+        "dex_check_token"    => crate::engine::dex::execute_dex_check_token(args, &creds).await.map_err(|e| e.to_string()),
+        "dex_search_token"   => crate::engine::dex::execute_dex_search_token(args, &creds).await.map_err(|e| e.to_string()),
+        "dex_watch_wallet"   => crate::engine::dex::execute_dex_watch_wallet(args, &creds).await.map_err(|e| e.to_string()),
+        "dex_whale_transfers"=> crate::engine::dex::execute_dex_whale_transfers(args, &creds).await.map_err(|e| e.to_string()),
+        "dex_top_traders"    => crate::engine::dex::execute_dex_top_traders(args, &creds).await.map_err(|e| e.to_string()),
+        "dex_trending"       => crate::engine::dex::execute_dex_trending(args, &creds).await.map_err(|e| e.to_string()),
         "dex_transfer" => {
             let result = crate::engine::dex::execute_dex_transfer(args, &creds).await;
             if result.is_ok() {
@@ -217,7 +217,7 @@ pub async fn execute(
                     None, None, result.as_ref().ok().map(|s| s.as_str()),
                 );
             }
-            result
+            result.map_err(|e| e.to_string())
         }
         _ => return None,
     })

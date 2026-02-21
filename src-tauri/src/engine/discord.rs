@@ -20,7 +20,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures::{SinkExt, StreamExt};
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 // ── Discord API Types ──────────────────────────────────────────────────
 
@@ -188,15 +188,17 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
 
     // Connect to Gateway
     let (ws_stream, _) = connect_async(DISCORD_GATEWAY_URL)
-        .await?;
+        .await
+        .map_err(|e| EngineError::Channel { channel: "discord".into(), message: e.to_string() })?;
 
     let (mut write, mut read) = ws_stream.split();
 
     // Read Hello (op 10) to get heartbeat interval
     let hello = read.next().await
-        .ok_or("Gateway closed before Hello")??;
+        .ok_or("Gateway closed before Hello")?
+        .map_err(|e| EngineError::Channel { channel: "discord".into(), message: e.to_string() })?;
     let hello_payload: GatewayPayload = serde_json::from_str(
-        &hello.to_text()?
+        hello.to_text().map_err(|e| EngineError::Channel { channel: "discord".into(), message: e.to_string() })?
     )?;
 
     if hello_payload.op != 10 {
@@ -226,7 +228,8 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
         }
     });
     write.send(WsMessage::Text(identify.to_string()))
-        .await?;
+        .await
+        .map_err(|e| EngineError::Channel { channel: "discord".into(), message: e.to_string() })?;
 
     // State
     let mut _sequence: Option<u64> = None;
@@ -360,13 +363,14 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
                                         &mut current_config.pending_users,
                                     ) {
                                         Err(denial_msg) => {
+                                            let denial_str = denial_msg.to_string();
                                             let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
                                             let _ = app_handle.emit("discord-status", json!({
                                                 "kind": "pairing_request",
                                                 "user_id": &user_id,
                                                 "username": &username,
                                             }));
-                                            let _ = send_message(&http_client, &token, &channel_id, &denial_msg).await;
+                                            let _ = send_message(&http_client, &token, &channel_id, &denial_str).await;
                                             continue;
                                         }
                                         Ok(()) => {}

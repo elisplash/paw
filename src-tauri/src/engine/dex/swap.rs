@@ -21,7 +21,7 @@ use super::tx::sign_eip1559_transaction;
 use std::collections::HashMap;
 use std::time::Duration;
 use log::info;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 /// Get a swap quote from Uniswap V3 Quoter.
 pub async fn execute_dex_quote(
@@ -217,7 +217,8 @@ pub async fn execute_dex_swap(
             let approve_data = encode_approve(&router_bytes, &max_approval);
 
             let pk_bytes = hex_decode(private_key_hex)?;
-            let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)?;
+            let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)
+                .map_err(|e| EngineError::Other(e.to_string()))?;
 
             let chain_id = eth_chain_id(rpc_url).await?;
             let nonce = eth_get_transaction_count(rpc_url, wallet_address).await?;
@@ -277,7 +278,8 @@ pub async fn execute_dex_swap(
     };
 
     let pk_bytes = hex_decode(private_key_hex)?;
-    let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)?;
+    let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     let chain_id = eth_chain_id(rpc_url).await?;
     let nonce = eth_get_transaction_count(rpc_url, wallet_address).await?;

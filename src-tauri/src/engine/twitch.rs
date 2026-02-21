@@ -20,7 +20,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures::{SinkExt, StreamExt};
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 // ── Twitch Config ──────────────────────────────────────────────────────
 
@@ -141,7 +141,8 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
 
     // Twitch IRC over WebSocket endpoint
     let url = "wss://irc-ws.chat.twitch.tv:443";
-    let (ws_stream, _) = connect_async(url).await?;
+    let (ws_stream, _) = connect_async(url).await
+        .map_err(|e| EngineError::Channel { channel: "twitch".into(), message: e.to_string() })?;
     let (mut ws_tx, mut ws_rx) = ws_stream.split();
 
     // Authenticate
@@ -152,11 +153,14 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
     };
     let nick = config.bot_username.to_lowercase();
 
-    ws_tx.send(WsMessage::Text(format!("PASS {}", token))).await?;
-    ws_tx.send(WsMessage::Text(format!("NICK {}", nick))).await?;
+    ws_tx.send(WsMessage::Text(format!("PASS {}", token))).await
+        .map_err(|e| EngineError::Channel { channel: "twitch".into(), message: e.to_string() })?;
+    ws_tx.send(WsMessage::Text(format!("NICK {}", nick))).await
+        .map_err(|e| EngineError::Channel { channel: "twitch".into(), message: e.to_string() })?;
 
     // Request tags capability for user display names etc
-    ws_tx.send(WsMessage::Text("CAP REQ :twitch.tv/tags twitch.tv/commands".into())).await?;
+    ws_tx.send(WsMessage::Text("CAP REQ :twitch.tv/tags twitch.tv/commands".into())).await
+        .map_err(|e| EngineError::Channel { channel: "twitch".into(), message: e.to_string() })?;
 
     // Wait for successful auth (001/376)
     let mut authed = false;
@@ -195,7 +199,8 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
     // Join channels
     for ch in &config.channels_to_join {
         let channel = if ch.starts_with('#') { ch.clone() } else { format!("#{}", ch) };
-        ws_tx.send(WsMessage::Text(format!("JOIN {}", channel))).await?;
+        ws_tx.send(WsMessage::Text(format!("JOIN {}", channel))).await
+            .map_err(|e| EngineError::Channel { channel: "twitch".into(), message: e.to_string() })?;
         info!("[twitch] Joined {}", channel);
     }
 

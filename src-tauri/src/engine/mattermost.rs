@@ -21,7 +21,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures::{SinkExt, StreamExt};
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 // ── Mattermost Config ──────────────────────────────────────────────────
 
@@ -206,7 +206,8 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
         format!("{}/api/v4/websocket", base.replacen("http", "ws", 1))
     };
 
-    let (ws_stream, _) = connect_async(&ws_url).await?;
+    let (ws_stream, _) = connect_async(&ws_url).await
+        .map_err(|e| EngineError::Channel { channel: "mattermost".into(), message: e.to_string() })?;
     let (mut ws_tx, mut ws_rx) = ws_stream.split();
 
     // Authenticate on WebSocket
@@ -215,7 +216,8 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
         "action": "authentication_challenge",
         "data": { "token": config.token }
     });
-    ws_tx.send(WsMessage::Text(auth_msg.to_string())).await?;
+    ws_tx.send(WsMessage::Text(auth_msg.to_string())).await
+        .map_err(|e| EngineError::Channel { channel: "mattermost".into(), message: e.to_string() })?;
 
     let _ = app_handle.emit("mattermost-status", json!({
         "kind": "connected",
@@ -312,13 +314,14 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
                     &mut current_config.pending_users,
                 ) {
                     Err(denial_msg) => {
+                        let denial_str = denial_msg.to_string();
                         let _ = channels::save_channel_config(app_handle, CONFIG_KEY, &current_config);
                         let _ = app_handle.emit("mattermost-status", json!({
                             "kind": "pairing_request",
                             "user_id": sender_id,
                             "username": &sender_username,
                         }));
-                        let _ = mm_send_message(&client, base, &config.token, &channel_id, &denial_msg).await;
+                        let _ = mm_send_message(&client, base, &config.token, &channel_id, &denial_str).await;
                         continue;
                     }
                     Ok(()) => {}

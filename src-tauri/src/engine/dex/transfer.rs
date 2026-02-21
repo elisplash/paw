@@ -11,7 +11,7 @@ use super::tokens::resolve_token;
 use super::tx::sign_eip1559_transaction;
 use std::collections::HashMap;
 use std::time::Duration;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 
 /// Transfer ETH or ERC-20 tokens to an external address.
 /// For ETH: simple value transfer (21000 gas, no calldata).
@@ -36,7 +36,8 @@ pub async fn execute_dex_transfer(
     let is_eth = currency_upper == "ETH";
 
     let pk_bytes = hex_decode(private_key_hex)?;
-    let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)?;
+    let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     let chain_id = eth_chain_id(rpc_url).await?;
     let nonce = eth_get_transaction_count(rpc_url, wallet_address).await?;

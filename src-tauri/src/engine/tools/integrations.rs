@@ -82,12 +82,12 @@ pub async fn execute(
     };
     let creds = match super::get_skill_creds(skill_id, app_handle) {
         Ok(c) => c,
-        Err(e) => return Some(Err(e)),
+        Err(e) => return Some(Err(e.to_string())),
     };
     Some(match name {
-        "rest_api_call"  => execute_rest_api_call(args, &creds).await,
-        "webhook_send"   => execute_webhook_send(args, &creds).await,
-        "image_generate" => execute_image_generate(args, &creds).await,
+        "rest_api_call"  => execute_rest_api_call(args, &creds).await.map_err(|e| e.to_string()),
+        "webhook_send"   => execute_webhook_send(args, &creds).await.map_err(|e| e.to_string()),
+        "image_generate" => execute_image_generate(args, &creds).await.map_err(|e| e.to_string()),
         _ => unreachable!(),
     })
 }
@@ -280,7 +280,8 @@ async fn execute_image_generate(
     let output_path = output_dir.join(format!("{}.{}", output_name, ext));
 
     use base64::Engine as _;
-    let bytes = base64::engine::general_purpose::STANDARD.decode(&base64_data)?;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(&base64_data)
+        .map_err(|e| crate::atoms::error::EngineError::Other(e.to_string()))?;
 
     std::fs::write(&output_path, &bytes)?;
 

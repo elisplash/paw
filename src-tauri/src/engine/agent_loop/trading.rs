@@ -7,7 +7,6 @@ use crate::engine::types::*;
 use crate::engine::state::EngineState;
 use log::info;
 use tauri::Manager;
-use crate::atoms::error::EngineResult;
 
 /// Policy-based auto-approval for trading write tools (all chains: Coinbase, Solana, EVM DEX).
 /// Checks configurable limits (max trade size, daily loss, allowed pairs, transfer caps).

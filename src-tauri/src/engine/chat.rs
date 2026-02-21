@@ -300,7 +300,6 @@ pub fn process_attachments(
         } else {
             // Text-based files → decode base64 and inline as a fenced code block
             use base64::Engine as _;
-use crate::atoms::error::EngineResult;
             match base64::engine::general_purpose::STANDARD.decode(&att.content) {
                 Ok(bytes) => {
                     let text_content = String::from_utf8_lossy(&bytes);

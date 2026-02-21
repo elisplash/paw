@@ -11,7 +11,7 @@ mod access;
 mod agent;
 
 use crate::engine::state::EngineState;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
@@ -33,7 +33,7 @@ pub fn load_channel_config<T: for<'de> Deserialize<'de> + Default>(
     match engine_state.store.get_config(config_key) {
         Ok(Some(json)) => {
             serde_json::from_str::<T>(&json)
-                .map_err(|e| format!("Parse {} config: {}", config_key, e))
+                .map_err(|e| EngineError::Config(format!("Parse {} config: {}", config_key, e)))
         }
         _ => Ok(T::default()),
     }

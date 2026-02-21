@@ -9,7 +9,6 @@ use tauri::Emitter;
 use super::bridge::MESSAGE_COUNT;
 use super::config::{WhatsAppConfig, CONFIG_KEY};
 use super::evolution_api::send_whatsapp_message;
-use crate::atoms::error::EngineResult;
 
 /// Process an inbound WhatsApp message from the Evolution API webhook.
 pub(crate) async fn handle_inbound_message(app_handle: tauri::AppHandle, payload: serde_json::Value) {
@@ -66,6 +65,7 @@ pub(crate) async fn handle_inbound_message(app_handle: tauri::AppHandle, payload
             &mut config.pending_users,
         ) {
             Err(denial_msg) => {
+                let denial_str = denial_msg.to_string();
                 let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &config);
                 let _ = app_handle.emit("whatsapp-status", json!({
                     "kind": "pairing_request",
@@ -73,7 +73,7 @@ pub(crate) async fn handle_inbound_message(app_handle: tauri::AppHandle, payload
                     "user_name": &push_name,
                 }));
                 // Send denial message back
-                let _ = send_whatsapp_message(&app_handle, remote_jid, &denial_msg).await;
+                let _ = send_whatsapp_message(&app_handle, remote_jid, &denial_str).await;
                 continue;
             }
             Ok(()) => {}

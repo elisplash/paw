@@ -103,12 +103,12 @@ pub async fn execute(
     _agent_id: &str,
 ) -> Option<Result<String, String>> {
     Some(match name {
-        "self_info"          => execute_self_info(app_handle).await,
-        "update_profile"     => execute_update_profile(args, app_handle).await,
-        "create_agent"       => execute_create_agent(args, app_handle).await,
-        "agent_list"         => execute_agent_list(app_handle).await,
-        "agent_skills"       => execute_agent_skills(args, app_handle).await,
-        "agent_skill_assign" => execute_agent_skill_assign(args, app_handle).await,
+        "self_info"          => execute_self_info(app_handle).await.map_err(|e| e.to_string()),
+        "update_profile"     => execute_update_profile(args, app_handle).await.map_err(|e| e.to_string()),
+        "create_agent"       => execute_create_agent(args, app_handle).await.map_err(|e| e.to_string()),
+        "agent_list"         => execute_agent_list(app_handle).await.map_err(|e| e.to_string()),
+        "agent_skills"       => execute_agent_skills(args, app_handle).await.map_err(|e| e.to_string()),
+        "agent_skill_assign" => execute_agent_skill_assign(args, app_handle).await.map_err(|e| e.to_string()),
         _ => return None,
     })
 }

@@ -6,7 +6,7 @@ use bollard::Docker;
 use bollard::container::{Config, CreateContainerOptions, StartContainerOptions, LogsOptions, RemoveContainerOptions, WaitContainerOptions};
 use bollard::models::HostConfig;
 use futures::StreamExt;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -117,7 +117,8 @@ async fn ensure_image(docker: &Docker, image: &str) -> EngineResult<()> {
 /// Execute a shell command inside an ephemeral Docker container.
 /// The container is created, started, waited on, and removed automatically.
 pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResult<SandboxResult> {
-    let docker = Docker::connect_with_local_defaults()?;
+    let docker = Docker::connect_with_local_defaults()
+        .map_err(|e| EngineError::Other(e.to_string()))?;
 
     // Ensure the image is available
     ensure_image(&docker, &config.image).await?;
@@ -160,7 +161,8 @@ pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResu
     };
 
     // Create container
-    let container = docker.create_container(Some(create_opts), container_config).await?;
+    let container = docker.create_container(Some(create_opts), container_config).await
+        .map_err(|e| EngineError::Other(e.to_string()))?;
     let container_id = container.id.clone();
 
     info!("[sandbox] Created container {} for command: {}", &container_id[..12], &command[..command.len().min(100)]);

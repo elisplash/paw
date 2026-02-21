@@ -3,7 +3,7 @@
 
 use crate::atoms::types::*;
 use crate::engine::state::EngineState;
-use crate::atoms::error::EngineResult;
+use crate::atoms::error::{EngineResult, EngineError};
 use log::{info, warn};
 use std::time::Duration;
 use tauri::Manager;
@@ -98,13 +98,13 @@ pub async fn execute(
 ) -> Option<Result<String, String>> {
     let creds = match super::get_skill_creds("coinbase", app_handle) {
         Ok(c) => c,
-        Err(e) => return Some(Err(e)),
+        Err(e) => return Some(Err(e.to_string())),
     };
     let state = app_handle.state::<EngineState>();
     Some(match name {
-        "coinbase_prices"        => execute_coinbase_prices(args, &creds).await,
-        "coinbase_balance"       => execute_coinbase_balance(args, &creds).await,
-        "coinbase_wallet_create" => execute_coinbase_wallet_create(args, &creds).await,
+        "coinbase_prices"        => execute_coinbase_prices(args, &creds).await.map_err(|e| e.to_string()),
+        "coinbase_balance"       => execute_coinbase_balance(args, &creds).await.map_err(|e| e.to_string()),
+        "coinbase_wallet_create" => execute_coinbase_wallet_create(args, &creds).await.map_err(|e| e.to_string()),
         "coinbase_trade" => {
             let result = execute_coinbase_trade(args, &creds).await;
             if result.is_ok() {
@@ -117,7 +117,7 @@ pub async fn execute(
                     None, None, result.as_ref().ok().map(|s| s.as_str()),
                 );
             }
-            result
+            result.map_err(|e| e.to_string())
         }
         "coinbase_transfer" => {
             let result = execute_coinbase_transfer(args, &creds).await;
@@ -131,7 +131,7 @@ pub async fn execute(
                     None, None, result.as_ref().ok().map(|s| s.as_str()),
                 );
             }
-            result
+            result.map_err(|e| e.to_string())
         }
         _ => return None,
     })
@@ -330,7 +330,7 @@ async fn cdp_request(
 
     info!("[skill:coinbase] {} {} -> {}", method, path, status);
 
-    serde_json::from_str(&text).map_err(|e| format!("Parse Coinbase response: {} — raw: {}", e, &text[..text.len().min(300)]))
+    serde_json::from_str(&text).map_err(|e| EngineError::Other(format!("Parse Coinbase response: {} — raw: {}", e, &text[..text.len().min(300)])))
 }
 
 // ── coinbase_prices ──
