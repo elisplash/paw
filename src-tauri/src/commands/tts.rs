@@ -429,7 +429,7 @@ fn chunk_text(text: &str, max_bytes: usize) -> Vec<String> {
     }
     let mut chunks = Vec::new();
     let mut current = String::new();
-    for sentence in text.split_inclusive(|c: char| matches!(c, '.' | '!' | '?' | '\n')) {
+    for sentence in text.split_inclusive(['.', '!', '?', '\n']) {
         if current.len() + sentence.len() > max_bytes && !current.is_empty() {
             chunks.push(current.clone());
             current.clear();

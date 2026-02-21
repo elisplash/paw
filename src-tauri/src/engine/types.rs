@@ -106,24 +106,24 @@ impl MessageContent {
 // ── Chat Send Request (from frontend) ──────────────────────────────────
 
 
-/// Attachment sent with a chat message (images, files).
+// Attachment sent with a chat message (images, files).
 
 // ── Chat Send Response (to frontend) ───────────────────────────────────
 
 
 // ── Provider API response shapes ───────────────────────────────────────
 
-/// Unified streaming chunk from any provider
+// Unified streaming chunk from any provider
 
 
-/// Token usage reported by the API (for metering).
+// Token usage reported by the API (for metering).
 
 // ── Model Pricing ──────────────────────────────────────────────────────
 
-/// Per-million-token pricing for known models.
-/// (input_per_mtok, output_per_mtok)
+// Per-million-token pricing for known models.
+// (input_per_mtok, output_per_mtok)
 
-/// Look up pricing for a model. Falls back to cheap defaults.
+// Look up pricing for a model. Falls back to cheap defaults.
 
 // ── Model Pricing ─────────────────────────────────────────────────────
 // model_price(), estimate_cost_usd(), classify_task_complexity() — moved to engine/pricing.rs
@@ -138,11 +138,11 @@ pub use crate::engine::pricing::{model_price, estimate_cost_usd, classify_task_c
 
 // ── Memory (Long-term Semantic) ────────────────────────────────────────
 
-/// A single memory entry stored with its embedding vector.
+// A single memory entry stored with its embedding vector.
 
-/// An open trading position with stop-loss / take-profit targets.
+// An open trading position with stop-loss / take-profit targets.
 
-/// Trading policy for auto-approve guidelines.
+// Trading policy for auto-approve guidelines.
 // serde default helpers for TradingPolicy live in crate::atoms::types
 
 

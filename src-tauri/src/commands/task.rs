@@ -421,7 +421,7 @@ pub async fn execute_task(
                         let aid = uuid::Uuid::new_v4().to_string();
                         conn.execute(
                             "INSERT INTO task_activity (id, task_id, kind, agent, content) VALUES (?1, ?2, 'agent_completed', ?3, ?4)",
-                            rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} completed. Summary: {}", agent_id, truncate_utf8(&text, 200))],
+                            rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} completed. Summary: {}", agent_id, truncate_utf8(text, 200))],
                         ).ok();
                     }
                     Err(err) => {
