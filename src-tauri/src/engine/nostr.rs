@@ -20,7 +20,7 @@
 //   - All communication through relay TLS WebSockets
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
-use log::{info, warn, error};
+use log::{debug, info, warn, error};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -297,7 +297,7 @@ async fn run_relay_loop(
                 let content = event["content"].as_str().unwrap_or("").to_string();
                 if content.is_empty() { continue; }
 
-                info!("[nostr] Event from {}...{}: {}",
+                debug!("[nostr] Event from {}...{}: {}",
                     &sender_pk[..8], &sender_pk[sender_pk.len()-4..],
                     if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
 

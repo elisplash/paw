@@ -11,7 +11,7 @@
 //   - TLS encryption to server (enabled by default, port 6697)
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
-use log::{info, error, warn};
+use log::{debug, info, error, warn};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -268,7 +268,7 @@ async fn run_irc_loop(app_handle: tauri::AppHandle, config: IrcConfig) -> Result
 
             if content.is_empty() { continue; }
 
-            info!("[irc] {} from {}: {}", if is_dm { "DM" } else { "Channel msg" },
+            debug!("[irc] {} from {}: {}", if is_dm { "DM" } else { "Channel msg" },
                 sender_nick, if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
 
             // Access control (DMs only)

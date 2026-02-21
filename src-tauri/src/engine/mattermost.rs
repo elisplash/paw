@@ -13,7 +13,7 @@
 //   - All communication goes through the Mattermost server's TLS API
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
-use log::{info, warn, error};
+use log::{debug, info, warn, error};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -298,7 +298,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
                 .trim_start_matches('@')
                 .to_string();
 
-            info!("[mattermost] Message from {} in {}: {}",
+            debug!("[mattermost] Message from {} in {}: {}",
                 sender_username, channel_id,
                 if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
 

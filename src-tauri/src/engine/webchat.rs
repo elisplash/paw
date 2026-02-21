@@ -18,7 +18,7 @@
 //   - Optional TLS for HTTPS/WSS (recommended when binding to 0.0.0.0)
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
-use log::{info, warn, error};
+use log::{debug, info, warn, error};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -543,7 +543,7 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 if user_text.is_empty() { continue; }
 
                 MESSAGE_COUNT.fetch_add(1, Ordering::Relaxed);
-                info!("[webchat] {} says: {}", username, &user_text[..user_text.len().min(80)]);
+                debug!("[webchat] {} says: {}", username, &user_text[..user_text.len().min(80)]);
 
                 // Send typing indicator
                 let typing = json!({ "type": "typing" });

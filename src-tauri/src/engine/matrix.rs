@@ -12,7 +12,7 @@
 //   - All communication through the homeserver's TLS API
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
-use log::{info, warn, error};
+use log::{debug, info, warn, error};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -268,7 +268,7 @@ async fn run_sync_loop(app_handle: tauri::AppHandle, config: MatrixConfig) -> Re
                     let content = body.replace(&bot_user_id, "").trim().to_string();
                     if content.is_empty() { continue; }
 
-                    info!("[matrix] Message from {} in {}: {}", sender, room_id,
+                    debug!("[matrix] Message from {} in {}: {}", sender, room_id,
                         if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
 
                     // Access control (DMs)

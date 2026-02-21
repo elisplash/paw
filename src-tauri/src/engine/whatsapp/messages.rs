@@ -2,7 +2,7 @@
 // handle_inbound_message
 
 use crate::engine::channels;
-use log::{info, error};
+use log::{debug, error};
 use serde_json::json;
 use std::sync::atomic::Ordering;
 use tauri::Emitter;
@@ -41,7 +41,7 @@ pub(crate) async fn handle_inbound_message(app_handle: tauri::AppHandle, payload
         let sender_id = participant.split('@').next().unwrap_or(participant).to_string();
         let push_name = msg["pushName"].as_str().unwrap_or(&sender_id).to_string();
 
-        info!("[whatsapp] Message from {} ({}): {}", push_name, sender_id,
+        debug!("[whatsapp] Message from {} ({}): {}", push_name, sender_id,
             if text.len() > 50 { format!("{}...", &text[..50]) } else { text.to_string() });
 
         // Load config for access control

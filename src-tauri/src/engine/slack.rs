@@ -12,7 +12,7 @@
 //   - All communication through Slack's TLS API
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
-use log::{info, warn, error};
+use log::{debug, info, warn, error};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -232,7 +232,7 @@ async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> R
 
                 if content.is_empty() { continue; }
 
-                info!("[slack] Message from {} in {}: {}", user_id, channel_id,
+                debug!("[slack] Message from {} in {}: {}", user_id, channel_id,
                     if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
 
                 // Access control (DMs)

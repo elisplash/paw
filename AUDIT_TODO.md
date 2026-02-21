@@ -234,10 +234,11 @@ Found during the encryption audit of all 11 channel bridges.
 - **Bug:** `private_key_hex` was stored as cleartext JSON in the engine config DB, unlike Solana/EVM private keys which use the OS keychain vault.
 - **Fix applied:** Moved private key to the OS keychain (macOS Keychain / Windows Credential Manager / Linux Secret Service) via the `keyring` crate (already a dependency). Added `keychain_set_private_key()`, `keychain_get_private_key()`, and `keychain_delete_private_key()` helpers using service `paw-nostr`. `save_config()` now stores the key in the keychain and saves an empty `private_key_hex` to the DB. `load_config()` hydrates the key from the keychain. Auto-migration: if the DB still contains a plaintext key (legacy), `load_config()` moves it to the keychain and clears it from the DB on first access. The private key never touches the config DB again.
 
-### 47. All channels log message content at info level (LOW)
+### 47. ~~All channels log message content at info level~~ (LOW) ✅
 - **File:** All 11 channel bridge `.rs` files
 - **Bug:** Every bridge logs the first 50-80 chars of incoming message content at `info!` level. With the new file log transport (item #30), this means partial conversation content is written to `~/Documents/Paw/logs/`. Could leak sensitive data.
 - **Fix:** Move message content logging from `info!` to `debug!` level, or redact content entirely and log only metadata (sender ID, channel, message length).
+- **Fix applied:** Changed all 11 message-content `info!` calls to `debug!` across discord.rs, telegram.rs, irc.rs, slack.rs, matrix.rs, mattermost.rs, nostr.rs, webchat.rs, twitch.rs, nextcloud.rs, and whatsapp/messages.rs. Added `debug` to `use log::` imports. Message content no longer appears in the file log transport at normal log levels — only visible when `RUST_LOG=debug` is set. Connection/auth/status logs remain at `info!`.
 
 ### 48. Implement Nostr NIP-04/NIP-44 encrypted DMs
 - **File:** `src-tauri/src/engine/nostr.rs`

@@ -12,7 +12,7 @@
 //   - All communication goes through Discord's TLS gateway + REST API
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
-use log::{info, warn, error};
+use log::{debug, info, warn, error};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -334,7 +334,7 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
                                 let display_name = discord_msg.author.global_name.clone().unwrap_or(username.clone());
                                 let channel_id = discord_msg.channel_id.clone();
 
-                                info!("[discord] Message from {} ({}): {}",
+                                debug!("[discord] Message from {} ({}): {}",
                                     username, user_id,
                                     if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
 

@@ -12,7 +12,7 @@
 //   - All communication goes through Twitch's TLS IRC gateway
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
-use log::{info, warn, error};
+use log::{debug, info, warn, error};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -293,7 +293,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> Re
                 .to_string();
             if content.is_empty() { continue; }
 
-            info!("[twitch] {} in {}: {}",
+            debug!("[twitch] {} in {}: {}",
                 display_name, channel,
                 if content.len() > 50 { format!("{}...", crate::engine::types::truncate_utf8(&content, 50)) } else { content.clone() });
 

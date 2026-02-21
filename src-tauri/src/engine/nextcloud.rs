@@ -14,7 +14,7 @@
 //   - Basic auth over TLS
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
-use log::{info, warn, error};
+use log::{debug, info, warn, error};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
@@ -294,7 +294,7 @@ async fn run_poll_loop(app_handle: tauri::AppHandle, config: NextcloudConfig) ->
                 if actor_id == bot_user { continue; }
                 if text.is_empty() { continue; }
 
-                info!("[nextcloud] Message from {} in {}: {}",
+                debug!("[nextcloud] Message from {} in {}: {}",
                     actor_name, token,
                     if text.len() > 50 { format!("{}...", &text[..50]) } else { text.clone() });
 
