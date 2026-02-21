@@ -113,7 +113,7 @@
         <!-- Global encryption warning banner (shown when OS keychain unavailable) -->
         <div class="encryption-warning-banner" id="encryption-warning-banner" style="display:none">
           <span class="ms ms-sm">warning</span>
-          <span>Database encryption unavailable — sensitive data (API keys, credentials) will be stored as plaintext. Check OS keychain access.</span>
+          <span>OS keychain unavailable — credential storage is blocked and sensitive fields cannot be encrypted. Check your keychain provider (GNOME Keyring, KWallet, or macOS Keychain).</span>
           <button class="btn btn-ghost btn-sm" id="encryption-warning-dismiss" title="Dismiss">×</button>
         </div>
 
@@ -1810,6 +1810,13 @@
             <div class="encryption-status-bar" id="encryption-status-bar">
               <span class="encryption-status-dot" id="encryption-status-dot"></span>
               <span id="encryption-status-text">Checking encryption...</span>
+            </div>
+
+            <!-- Keychain health indicator (Phase 3B) -->
+            <div class="keychain-health-bar" id="keychain-health-bar" style="display:none">
+              <span class="keychain-health-dot" id="keychain-health-dot"></span>
+              <span id="keychain-health-text">Checking keychain...</span>
+              <span id="keychain-health-detail" class="keychain-health-detail"></span>
             </div>
 
             <div class="audit-controls">

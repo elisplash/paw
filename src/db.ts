@@ -36,7 +36,10 @@ export async function initDbEncryption(): Promise<boolean> {
     if (!invoke) return false;
 
     const hexKey = await invoke<string>('get_db_encryption_key');
-    if (!hexKey || hexKey.length < 32) return false;
+    if (!hexKey || hexKey.length < 32) {
+      console.error('[db] OS keychain returned invalid encryption key — credential storage will be blocked');
+      return false;
+    }
 
     // Convert hex string to raw bytes
     const hexPairs = hexKey.match(/.{1,2}/g);
@@ -48,22 +51,20 @@ export async function initDbEncryption(): Promise<boolean> {
     console.debug('[db] Encryption key loaded from OS keychain');
     return true;
   } catch (e) {
-    console.warn('[db] Failed to init encryption key:', e);
+    console.error('[db] OS keychain unavailable — encryption disabled, credential storage blocked:', e);
     return false;
   }
 }
 
 /**
  * Encrypt a plaintext string. Returns "enc:<base64(iv+ciphertext)>".
- * Falls back to plaintext if encryption isn't initialised.
- *
- * WARNING: When encryption is unavailable, sensitive data is stored in the
- * clear. The UI shows a persistent warning banner in this state.
+ * Throws if encryption isn't initialised — callers must handle the error
+ * and must NOT store sensitive data as plaintext.
  */
 export async function encryptField(plaintext: string): Promise<string> {
   if (!_cryptoKey) {
-    console.warn('[db] Encryption unavailable — storing field as plaintext. Sensitive data is NOT protected.');
-    return plaintext;
+    console.error('[db] encryptField blocked — OS keychain unavailable. Refusing to store plaintext.');
+    throw new Error('Encryption unavailable — OS keychain is not accessible. Cannot store sensitive data.');
   }
   try {
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -75,8 +76,8 @@ export async function encryptField(plaintext: string): Promise<string> {
     combined.set(new Uint8Array(cipher), iv.length);
     return ENC_PREFIX + btoa(String.fromCharCode(...combined));
   } catch (e) {
-    console.warn('[db] Encryption failed, storing plaintext:', e);
-    return plaintext;
+    console.error('[db] AES-GCM encryption failed:', e);
+    throw new Error(`Encryption failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 

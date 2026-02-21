@@ -6,7 +6,7 @@
 
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use aes_gcm::aead::Aead;
-use log::{info, warn};
+use log::{error, info, warn};
 
 const VAULT_KEYRING_SERVICE: &str = "paw-skill-vault";
 const VAULT_KEYRING_USER: &str = "encryption-key";
@@ -17,12 +17,18 @@ const AES_PREFIX: &str = "aes:";
 /// Get or create the vault encryption key from the OS keychain.
 pub fn get_vault_key() -> Result<Vec<u8>, String> {
     let entry = keyring::Entry::new(VAULT_KEYRING_SERVICE, VAULT_KEYRING_USER)
-        .map_err(|e| format!("Keyring init failed: {}", e))?;
+        .map_err(|e| {
+            error!("[vault] Keyring init failed — OS keychain unavailable: {}", e);
+            format!("Keyring init failed: {}", e)
+        })?;
 
     match entry.get_password() {
         Ok(key_b64) => {
             base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &key_b64)
-                .map_err(|e| format!("Failed to decode vault key: {}", e))
+                .map_err(|e| {
+                    error!("[vault] Failed to decode stored vault key: {}", e);
+                    format!("Failed to decode vault key: {}", e)
+                })
         }
         Err(keyring::Error::NoEntry) => {
             // Generate a new random key
@@ -31,11 +37,17 @@ pub fn get_vault_key() -> Result<Vec<u8>, String> {
             rand::thread_rng().fill(&mut key[..]);
             let key_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &key);
             entry.set_password(&key_b64)
-                .map_err(|e| format!("Failed to store vault key in keychain: {}", e))?;
+                .map_err(|e| {
+                    error!("[vault] Failed to store vault key in keychain: {}", e);
+                    format!("Failed to store vault key in keychain: {}", e)
+                })?;
             info!("[vault] Created new vault encryption key in OS keychain");
             Ok(key)
         }
-        Err(e) => Err(format!("Keyring error: {}", e)),
+        Err(e) => {
+            error!("[vault] OS keychain error — credential storage blocked: {}", e);
+            Err(format!("Keyring error: {}", e))
+        }
     }
 }
 

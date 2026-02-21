@@ -191,7 +191,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             dbBanner.style.display = 'none';
             showToast('Database connected successfully', 'success');
             // Continue the init chain that was skipped
-            await initDbEncryption().catch(() => {});
+            await initDbEncryption().catch(e => {
+              console.error('[main] OS keychain unavailable after DB retry:', e);
+            });
             await initSecuritySettings().catch(() => {});
           } catch (retryErr) {
             const msg = $('db-error-message');
@@ -206,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const encReady = dbReady
       ? await initDbEncryption().catch(e => {
-          console.warn('[main] DB encryption init failed:', e);
+          console.error('[main] OS keychain unavailable — DB field encryption disabled:', e);
           return false;
         })
       : false;

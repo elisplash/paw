@@ -8040,6 +8040,35 @@ details[open] > .skill-advanced-summary::before {
 .encryption-status-bar.enc-active .encryption-status-dot { background: var(--status-success); }
 .encryption-status-bar.enc-inactive .encryption-status-dot { background: var(--status-warning); }
 
+/* ── Keychain health indicator (Phase 3B) ── */
+.keychain-health-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--bg-hover);
+  flex-wrap: wrap;
+}
+.keychain-health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.keychain-health-bar.kc-healthy .keychain-health-dot { background: var(--status-success); }
+.keychain-health-bar.kc-degraded .keychain-health-dot { background: var(--status-warning); }
+.keychain-health-bar.kc-unavailable .keychain-health-dot { background: var(--status-error, #e74c3c); }
+.keychain-health-detail {
+  width: 100%;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
 .audit-controls {
   display: flex;
   flex-wrap: wrap;

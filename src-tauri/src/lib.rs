@@ -59,6 +59,7 @@ pub fn run() {
             commands::utility::fetch_weather,
             commands::utility::get_db_encryption_key,
             commands::utility::has_db_encryption_key,
+            commands::utility::check_keychain_health,
             // ── Chat & Sessions ──
             commands::chat::engine_chat_send,
             commands::chat::engine_chat_history,

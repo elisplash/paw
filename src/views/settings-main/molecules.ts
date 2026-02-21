@@ -313,7 +313,50 @@ export function updateEncryptionStatus() {
   bar.className = `encryption-status-bar ${ready ? 'enc-active' : 'enc-inactive'}`;
   text.textContent = ready
     ? 'Database encryption active — sensitive fields encrypted with OS keychain key'
-    : 'Encryption unavailable — sensitive fields stored as plaintext';
+    : 'Encryption unavailable — credential storage is blocked until keychain is restored';
+}
+
+interface KeychainHealth {
+  status: 'healthy' | 'degraded' | 'unavailable';
+  db_key_ok: boolean;
+  vault_key_ok: boolean;
+  message: string;
+  error: string | null;
+}
+
+/** Fetch keychain health from the Rust backend and update the UI indicator. */
+export async function updateKeychainHealth(): Promise<void> {
+  const bar = $('keychain-health-bar');
+  const dot = $('keychain-health-dot');
+  const text = $('keychain-health-text');
+  const detail = $('keychain-health-detail');
+  if (!bar || !dot || !text) return;
+
+  try {
+    const invoke = (await import('@tauri-apps/api/core')).invoke;
+    const health = await invoke<KeychainHealth>('check_keychain_health');
+
+    bar.style.display = 'flex';
+
+    const statusClass = health.status === 'healthy' ? 'kc-healthy'
+      : health.status === 'degraded' ? 'kc-degraded'
+      : 'kc-unavailable';
+    bar.className = `keychain-health-bar ${statusClass}`;
+    text.textContent = health.message;
+    if (detail) {
+      detail.textContent = health.error ?? '';
+      detail.style.display = health.error ? 'block' : 'none';
+    }
+  } catch (e) {
+    bar.style.display = 'flex';
+    bar.className = 'keychain-health-bar kc-unavailable';
+    text.textContent = 'Unable to check keychain health';
+    if (detail) {
+      detail.textContent = String(e);
+      detail.style.display = 'block';
+    }
+    console.error('[settings] Keychain health check failed:', e);
+  }
 }
 
 export async function loadSecurityAudit() {
@@ -325,6 +368,7 @@ export async function loadSecurityAudit() {
 
   section.style.display = '';
   updateEncryptionStatus();
+  updateKeychainHealth();
 
   const filterType = ($('audit-filter-type') as HTMLSelectElement | null)?.value || undefined;
   const filterRisk = ($('audit-filter-risk') as HTMLSelectElement | null)?.value || '';

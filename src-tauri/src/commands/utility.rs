@@ -1,7 +1,8 @@
 // commands/utility.rs — Keyring and weather utility commands.
 
 use crate::atoms::constants::{DB_KEY_SERVICE, DB_KEY_USER};
-use log::info;
+use log::{error, info};
+use serde::Serialize;
 
 /// Check whether the OS keychain has a stored password for the given account.
 #[tauri::command]
@@ -38,7 +39,10 @@ pub fn keyring_delete_password(account_name: String, email: String) -> Result<bo
 #[tauri::command]
 pub fn get_db_encryption_key() -> Result<String, String> {
     let entry = keyring::Entry::new(DB_KEY_SERVICE, DB_KEY_USER)
-        .map_err(|e| format!("Keyring init failed: {}", e))?;
+        .map_err(|e| {
+            error!("[keychain] Failed to initialise keyring entry: {}", e);
+            format!("Keyring init failed: {}", e)
+        })?;
     match entry.get_password() {
         Ok(key) => {
             info!("Retrieved DB encryption key from OS keychain");
@@ -50,11 +54,17 @@ pub fn get_db_encryption_key() -> Result<String, String> {
                 .map(|_| format!("{:02x}", rand::thread_rng().gen::<u8>()))
                 .collect();
             entry.set_password(&key)
-                .map_err(|e| format!("Failed to store DB key: {}", e))?;
+                .map_err(|e| {
+                    error!("[keychain] Failed to store DB encryption key: {}", e);
+                    format!("Failed to store DB key: {}", e)
+                })?;
             info!("Generated and stored new DB encryption key in OS keychain");
             Ok(key)
         }
-        Err(e) => Err(format!("Keyring error: {}", e)),
+        Err(e) => {
+            error!("[keychain] Failed to retrieve DB encryption key: {}", e);
+            Err(format!("Keyring error: {}", e))
+        }
     }
 }
 
@@ -65,6 +75,83 @@ pub fn has_db_encryption_key() -> bool {
         .ok()
         .and_then(|e| e.get_password().ok())
         .is_some()
+}
+
+/// Detailed keychain health status for the Settings → Security panel.
+#[derive(Serialize, Clone)]
+pub struct KeychainHealth {
+    /// Overall status: "healthy", "degraded", or "unavailable"
+    pub status: String,
+    /// Whether the DB encryption keychain entry is accessible
+    pub db_key_ok: bool,
+    /// Whether the skill vault keychain entry is accessible
+    pub vault_key_ok: bool,
+    /// Human-readable summary
+    pub message: String,
+    /// Error detail (if any)
+    pub error: Option<String>,
+}
+
+/// Check health of all keychain entries used by Paw.
+/// Tests both the DB encryption key and the skill vault key.
+#[tauri::command]
+pub fn check_keychain_health() -> KeychainHealth {
+    // Test DB encryption key access
+    let db_key_result = keyring::Entry::new(DB_KEY_SERVICE, DB_KEY_USER)
+        .and_then(|e| e.get_password().map(|_| ()));
+    let db_key_ok = match &db_key_result {
+        Ok(()) => true,
+        Err(keyring::Error::NoEntry) => true, // No entry yet is fine — will be created on first use
+        Err(_) => false,
+    };
+
+    // Test skill vault key access
+    let vault_result = keyring::Entry::new("paw-skill-vault", "encryption-key")
+        .and_then(|e| e.get_password().map(|_| ()));
+    let vault_key_ok = match &vault_result {
+        Ok(()) => true,
+        Err(keyring::Error::NoEntry) => true,
+        Err(_) => false,
+    };
+
+    let (status, message, error) = match (db_key_ok, vault_key_ok) {
+        (true, true) => (
+            "healthy".to_string(),
+            "OS keychain is accessible — all encryption keys protected".to_string(),
+            None,
+        ),
+        (true, false) => {
+            let err_msg = format!("Skill vault keychain error: {:?}", vault_result.unwrap_err());
+            error!("[keychain] {}", err_msg);
+            (
+                "degraded".to_string(),
+                "DB encryption works but skill vault keychain is inaccessible — credential storage blocked".to_string(),
+                Some(err_msg),
+            )
+        }
+        (false, true) => {
+            let err_msg = format!("DB key keychain error: {:?}", db_key_result.unwrap_err());
+            error!("[keychain] {}", err_msg);
+            (
+                "degraded".to_string(),
+                "Skill vault works but DB encryption keychain is inaccessible — field encryption disabled".to_string(),
+                Some(err_msg),
+            )
+        }
+        (false, false) => {
+            let db_err = format!("{:?}", db_key_result.unwrap_err());
+            let vault_err = format!("{:?}", vault_result.unwrap_err());
+            let err_msg = format!("DB key: {}; Vault: {}", db_err, vault_err);
+            error!("[keychain] OS keychain completely unavailable: {}", err_msg);
+            (
+                "unavailable".to_string(),
+                "OS keychain is completely unavailable — no encryption possible. Install and unlock a keychain provider (GNOME Keyring, KWallet, or macOS Keychain).".to_string(),
+                Some(err_msg),
+            )
+        }
+    };
+
+    KeychainHealth { status, db_key_ok, vault_key_ok, message, error }
 }
 
 /// Fetch weather data via wttr.in (bypasses the browser CSP for the frontend).
