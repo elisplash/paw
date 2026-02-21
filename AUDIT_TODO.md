@@ -17,10 +17,10 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - **Bug:** `att.name` was injected directly into `innerHTML` without HTML-escaping. A malicious filename like `<img onerror=alert(1)>` could execute JavaScript.
 - **Fix applied:** Replaced string interpolation into `innerHTML` with DOM API — icon set via `innerHTML` (safe, static SVG), filename set via `textContent` on a separate `<span>` element. Matches the pattern already used for image attachment labels at L611.
 
-### 3. XSS via LLM-controlled markdown (CRITICAL)
+### ~~3. XSS via LLM-controlled markdown (CRITICAL)~~ ✅ FIXED
 - **File:** `src/engine/organisms/chat_controller.ts` L536, L432
-- **Bug:** `formatMarkdown(msg.content)` output assigned to `innerHTML`. If the markdown formatter doesn't sanitize HTML tags, the LLM can inject arbitrary HTML/JS.
-- **Fix:** Audit `formatMarkdown()` — ensure it strips or escapes raw HTML. Consider DOMPurify as a post-processing step.
+- **Bug:** Audit found that `formatMarkdown()` already escapes raw HTML tags via `escHtml()` (DOM-based `textContent` → `innerHTML` round-trip). However, the markdown link regex `[text](url)` placed the URL directly into `href="$2"` without attribute-escaping. Since `escHtml()` does not escape `"`, an LLM could craft `[click](https://evil.com" onmouseover="alert(1))` to break out of the href attribute.
+- **Fix applied:** Changed the link regex replacement from string form to function form, applying `escAttr()` to the URL before interpolation into the `href` attribute. `escAttr()` escapes `"` and `'` to their HTML entities.
 
 ### 4. Compact button calls sessionClear instead of sessionCompact (CRITICAL)
 - **File:** `src/engine/organisms/chat_controller.ts` L1107-1115
