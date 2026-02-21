@@ -136,10 +136,11 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - **Fix:** Fetch from config, backend, or a remote source.
 - Added `model_pricing` SQLite table (migration v2) with columns: `model_key`, `context_size`, `cost_input`, `cost_output`. Added CRUD functions (`listModelPricing`, `upsertModelPricing`, `deleteModelPricing`) in `db.ts`. Refactored `MODEL_CONTEXT_SIZES` and `MODEL_COST_PER_TOKEN` from immutable `const` to mutable `let` maps initialized from built-in defaults. New `applyModelPricingOverrides()` merges DB rows on top of defaults. Called at app init in `main.ts` after DB is ready. Users/admins can now update model pricing via DB without code changes; built-in defaults remain as fallback.
 
-### 29. `INSERT OR REPLACE` resets created_at
+### 29. ~~`INSERT OR REPLACE` resets created_at~~ ✅ FIXED
 - **File:** `src/db.ts` L293-311
 - `INSERT OR REPLACE` deletes and re-creates the row, losing `created_at`.
 - **Fix:** Use `INSERT ... ON CONFLICT ... DO UPDATE`.
+- Converted all 4 `INSERT OR REPLACE` statements (`saveMode`, `saveProject`, `saveDoc`, `saveProjectFile`) to proper `INSERT ... ON CONFLICT(id) DO UPDATE SET ...` upserts. Each now explicitly updates only the mutable columns, preserving the original `created_at` timestamp set by the `DEFAULT (datetime('now'))` on first insert.
 
 ### 30. No file/network log transport
 - **File:** `src/logger.ts`

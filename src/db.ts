@@ -367,8 +367,19 @@ export async function getMode(id: string): Promise<AgentMode | null> {
 export async function saveMode(mode: Partial<AgentMode> & { id: string; name: string }): Promise<void> {
   if (!db) return;
   await db.execute(
-    `INSERT OR REPLACE INTO agent_modes (id, name, model, system_prompt, skills, thinking_level, temperature, icon, color, is_default, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
+    `INSERT INTO agent_modes (id, name, model, system_prompt, skills, thinking_level, temperature, icon, color, is_default, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET
+       name            = excluded.name,
+       model           = excluded.model,
+       system_prompt   = excluded.system_prompt,
+       skills          = excluded.skills,
+       thinking_level  = excluded.thinking_level,
+       temperature     = excluded.temperature,
+       icon            = excluded.icon,
+       color           = excluded.color,
+       is_default      = excluded.is_default,
+       updated_at      = datetime('now')`,
     [mode.id, mode.name, mode.model ?? null, mode.system_prompt ?? '', mode.skills ?? '[]',
      mode.thinking_level ?? 'normal', mode.temperature ?? 1.0, mode.icon ?? '',
      mode.color ?? '#0073EA', mode.is_default ?? 0]
@@ -401,8 +412,15 @@ export async function listProjects(space: string): Promise<Project[]> {
 export async function saveProject(proj: Partial<Project> & { id: string; name: string; space: string }): Promise<void> {
   if (!db) return;
   await db.execute(
-    `INSERT OR REPLACE INTO projects (id, name, space, description, session_key, metadata, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+    `INSERT INTO projects (id, name, space, description, session_key, metadata, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET
+       name        = excluded.name,
+       space       = excluded.space,
+       description = excluded.description,
+       session_key = excluded.session_key,
+       metadata    = excluded.metadata,
+       updated_at  = datetime('now')`,
     [proj.id, proj.name, proj.space, proj.description ?? '', proj.session_key ?? null, proj.metadata ?? '{}']
   );
 }
@@ -440,8 +458,15 @@ export async function saveDoc(doc: Partial<ContentDoc> & { id: string; title: st
   if (!db) return;
   const wordCount = (doc.content ?? '').split(/\s+/).filter(Boolean).length;
   await db.execute(
-    `INSERT OR REPLACE INTO content_documents (id, project_id, title, content, content_type, word_count, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`,
+    `INSERT INTO content_documents (id, project_id, title, content, content_type, word_count, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET
+       project_id   = excluded.project_id,
+       title        = excluded.title,
+       content      = excluded.content,
+       content_type = excluded.content_type,
+       word_count   = excluded.word_count,
+       updated_at   = datetime('now')`,
     [doc.id, doc.project_id ?? null, doc.title, doc.content ?? '', doc.content_type ?? 'markdown', wordCount]
   );
 }
@@ -504,8 +529,14 @@ export async function listProjectFiles(projectId: string): Promise<ProjectFile[]
 export async function saveProjectFile(file: { id: string; project_id: string; path: string; content: string; language?: string }): Promise<void> {
   if (!db) return;
   await db.execute(
-    `INSERT OR REPLACE INTO project_files (id, project_id, path, content, language, updated_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+    `INSERT INTO project_files (id, project_id, path, content, language, updated_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(id) DO UPDATE SET
+       project_id = excluded.project_id,
+       path       = excluded.path,
+       content    = excluded.content,
+       language   = excluded.language,
+       updated_at = datetime('now')`,
     [file.id, file.project_id, file.path, file.content, file.language ?? null]
   );
 }
