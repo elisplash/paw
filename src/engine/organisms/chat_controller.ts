@@ -615,7 +615,10 @@ export function renderMessages(): void {
           const docChip = document.createElement('div');
           docChip.className = 'message-attachment-doc';
           const iconName = att.mimeType?.startsWith('text/') || att.mimeType === 'application/pdf' ? 'file-text' : 'file';
-          docChip.innerHTML = `${icon(iconName)}<span>${att.name || 'file'}</span>`;
+          docChip.innerHTML = icon(iconName);
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = att.name || 'file';
+          docChip.appendChild(nameSpan);
           strip.appendChild(docChip);
         }
       }

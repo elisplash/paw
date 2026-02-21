@@ -12,10 +12,10 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - **Bug:** Remote channel users (Discord, Telegram, IRC, etc.) had every tool call auto-approved — including `exec`, `write_file`, `delete_file`. Any approved channel user could trigger arbitrary command execution without HIL review.
 - **Fix applied:** Changed the channel bridge auto-approver to **deny** all side-effect tool calls from remote channels. Read-only tools (fetch, read_file, web_search, etc.) remain auto-approved via the agent_loop's own `auto_approved_tools` list. Dangerous tools that would normally require HIL approval are now denied outright for remote channel users since no one is present at the Pawz UI to review them.
 
-### 2. XSS via attachment filename (CRITICAL)
+### ~~2. XSS via attachment filename (CRITICAL)~~ ✅ FIXED
 - **File:** `src/engine/organisms/chat_controller.ts` L618
-- **Bug:** `att.name` is injected directly into `innerHTML` without HTML-escaping. A malicious filename like `<img onerror=alert(1)>` executes JavaScript.
-- **Fix:** Escape `att.name` through a text-safe helper before inserting into innerHTML, or use `textContent`.
+- **Bug:** `att.name` was injected directly into `innerHTML` without HTML-escaping. A malicious filename like `<img onerror=alert(1)>` could execute JavaScript.
+- **Fix applied:** Replaced string interpolation into `innerHTML` with DOM API — icon set via `innerHTML` (safe, static SVG), filename set via `textContent` on a separate `<span>` element. Matches the pattern already used for image attachment labels at L611.
 
 ### 3. XSS via LLM-controlled markdown (CRITICAL)
 - **File:** `src/engine/organisms/chat_controller.ts` L536, L432
