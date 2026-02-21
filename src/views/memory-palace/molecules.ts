@@ -3,11 +3,7 @@
 import { pawEngine } from '../../engine';
 import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
-import {
-  type RecallCardData,
-  type MemoryFormInputs,
-  validateMemoryForm,
-} from './atoms';
+import { type RecallCardData, type MemoryFormInputs, validateMemoryForm } from './atoms';
 
 // ── Provider fields toggle ─────────────────────────────────────────────────
 
@@ -25,15 +21,16 @@ export function updateProviderFields(): void {
   if (openaiEndpoint) openaiEndpoint.style.display = isAzure ? 'none' : '';
   if (apiVersionField) apiVersionField.style.display = isAzure ? '' : 'none';
   if (apiKeyInput) apiKeyInput.placeholder = isAzure ? 'Azure API key' : 'sk-...';
-  if (modelLabelEl) modelLabelEl.innerHTML = isAzure
-    ? 'Deployment Name <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>'
-    : 'Model <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>';
-  if (modelInput) modelInput.placeholder = isAzure
-    ? 'text-embedding-3-small' : 'text-embedding-3-small';
+  if (modelLabelEl)
+    modelLabelEl.innerHTML = isAzure
+      ? 'Deployment Name <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>'
+      : 'Model <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>';
+  if (modelInput)
+    modelInput.placeholder = isAzure ? 'text-embedding-3-small' : 'text-embedding-3-small';
 }
 
 function getSelectedProvider(): string {
-  return (($('palace-provider') as HTMLSelectElement)?.value) || 'openai';
+  return ($('palace-provider') as HTMLSelectElement)?.value || 'openai';
 }
 
 export function getBaseUrlForProvider(): string {
@@ -47,7 +44,13 @@ export function getBaseUrlForProvider(): string {
 // ── Form reader ────────────────────────────────────────────────────────────
 
 /** Read form DOM values and validate via pure function. Returns data or null (with DOM feedback). */
-export function readMemoryForm(): { apiKey: string; baseUrl: string; modelName: string; apiVersion: string; provider: string } | null {
+export function readMemoryForm(): {
+  apiKey: string;
+  baseUrl: string;
+  modelName: string;
+  apiVersion: string;
+  provider: string;
+} | null {
   const apiKeyInput = $('palace-api-key') as HTMLInputElement | null;
   const provider = getSelectedProvider();
   const inputs: MemoryFormInputs = {
@@ -72,21 +75,42 @@ export function readMemoryForm(): { apiKey: string; baseUrl: string; modelName: 
     const targetId = provider === 'azure' ? 'palace-base-url' : 'palace-base-url-openai';
     const bi = $(targetId) as HTMLInputElement | null;
     if (bi) bi.value = err.swapUrl;
-    if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.style.borderColor = 'var(--error)'; apiKeyInput.focus(); apiKeyInput.placeholder = 'Enter your API key here (not a URL)'; }
+    if (apiKeyInput) {
+      apiKeyInput.value = '';
+      apiKeyInput.style.borderColor = 'var(--error)';
+      apiKeyInput.focus();
+      apiKeyInput.placeholder = 'Enter your API key here (not a URL)';
+    }
   } else if (err.kind === 'url_in_key_dup') {
-    if (apiKeyInput) { apiKeyInput.value = ''; apiKeyInput.style.borderColor = 'var(--error)'; apiKeyInput.focus(); apiKeyInput.placeholder = 'This looks like a URL — enter your API key instead'; }
+    if (apiKeyInput) {
+      apiKeyInput.value = '';
+      apiKeyInput.style.borderColor = 'var(--error)';
+      apiKeyInput.focus();
+      apiKeyInput.placeholder = 'This looks like a URL — enter your API key instead';
+    }
   } else if (err.kind === 'azure_no_url') {
     const bi = $('palace-base-url') as HTMLInputElement | null;
-    if (bi) { bi.style.borderColor = 'var(--error)'; bi.focus(); bi.placeholder = 'Azure endpoint is required'; }
+    if (bi) {
+      bi.style.borderColor = 'var(--error)';
+      bi.focus();
+      bi.placeholder = 'Azure endpoint is required';
+    }
   } else if (err.kind === 'no_key') {
-    if (apiKeyInput) { apiKeyInput.style.borderColor = 'var(--error)'; apiKeyInput.focus(); apiKeyInput.placeholder = 'API key is required'; }
+    if (apiKeyInput) {
+      apiKeyInput.style.borderColor = 'var(--error)';
+      apiKeyInput.focus();
+      apiKeyInput.placeholder = 'API key is required';
+    }
   }
   return null;
 }
 
 // ── Embedding Status Banner ────────────────────────────────────────────────
 
-export async function renderEmbeddingStatus(stats: { total_memories: number; has_embeddings: boolean }): Promise<void> {
+export async function renderEmbeddingStatus(stats: {
+  total_memories: number;
+  has_embeddings: boolean;
+}): Promise<void> {
   // Remove old banner if any
   const old = $('palace-embedding-banner');
   if (old) old.remove();
@@ -98,7 +122,8 @@ export async function renderEmbeddingStatus(stats: { total_memories: number; has
 
     const banner = document.createElement('div');
     banner.id = 'palace-embedding-banner';
-    banner.style.cssText = 'margin:8px 0;padding:10px 14px;border-radius:8px;font-size:12px;line-height:1.5';
+    banner.style.cssText =
+      'margin:8px 0;padding:10px 14px;border-radius:8px;font-size:12px;line-height:1.5';
 
     if (!status.ollama_running) {
       banner.style.background = 'var(--warning-bg, rgba(234,179,8,0.1))';
@@ -134,8 +159,14 @@ export async function renderEmbeddingStatus(stats: { total_memories: number; has
       $('palace-pull-model-btn')?.addEventListener('click', async () => {
         const btn = $('palace-pull-model-btn') as HTMLButtonElement | null;
         const prog = $('palace-pull-progress');
-        if (btn) { btn.disabled = true; btn.textContent = 'Pulling...'; }
-        if (prog) { prog.style.display = ''; prog.textContent = 'Downloading model... this may take a minute.'; }
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Pulling...';
+        }
+        if (prog) {
+          prog.style.display = '';
+          prog.textContent = 'Downloading model... this may take a minute.';
+        }
         try {
           const result = await pawEngine.embeddingPullModel();
           if (prog) prog.textContent = `✓ ${result}`;
@@ -144,7 +175,10 @@ export async function renderEmbeddingStatus(stats: { total_memories: number; has
           loadPalaceStats();
         } catch (e) {
           if (prog) prog.textContent = `✗ Failed: ${e}`;
-          if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Retry';
+          }
           showToast(`Pull failed: ${e}`, 'error');
         }
       });
@@ -166,17 +200,27 @@ export async function renderEmbeddingStatus(stats: { total_memories: number; has
       $('palace-backfill-btn')?.addEventListener('click', async () => {
         const btn = $('palace-backfill-btn') as HTMLButtonElement | null;
         const prog = $('palace-backfill-progress');
-        if (btn) { btn.disabled = true; btn.textContent = 'Embedding...'; }
-        if (prog) { prog.style.display = ''; prog.textContent = 'Generating embeddings for existing memories...'; }
+        if (btn) {
+          btn.disabled = true;
+          btn.textContent = 'Embedding...';
+        }
+        if (prog) {
+          prog.style.display = '';
+          prog.textContent = 'Generating embeddings for existing memories...';
+        }
         try {
           const result = await pawEngine.memoryBackfill();
-          if (prog) prog.textContent = `✓ ${result.success} embedded${result.failed > 0 ? `, ${result.failed} failed` : ''}`;
+          if (prog)
+            prog.textContent = `✓ ${result.success} embedded${result.failed > 0 ? `, ${result.failed} failed` : ''}`;
           if (btn) btn.textContent = '✓ Done';
           showToast(`Embedded ${result.success} memories`, 'success');
           loadPalaceStats();
         } catch (e) {
           if (prog) prog.textContent = `✗ Failed: ${e}`;
-          if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Retry';
+          }
           showToast(`Backfill failed: ${e}`, 'error');
         }
       });
@@ -213,9 +257,10 @@ export async function loadPalaceStats(): Promise<void> {
     if (typesEl) {
       const catCount = stats.categories.length;
       typesEl.textContent = catCount > 0 ? String(catCount) : '0';
-      typesEl.title = stats.categories.length > 0
-        ? stats.categories.map(([c, n]) => `${c}: ${n}`).join(', ')
-        : '';
+      typesEl.title =
+        stats.categories.length > 0
+          ? stats.categories.map(([c, n]) => `${c}: ${n}`).join(', ')
+          : '';
     }
     if (edgesEl) edgesEl.textContent = stats.has_embeddings ? '✓' : '✗';
 
@@ -270,8 +315,10 @@ export async function palaceRecallById(memoryId: string): Promise<void> {
   if (!resultsEl) return;
 
   // Switch to recall tab
-  document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
+  document.querySelectorAll('.palace-tab').forEach((t) => t.classList.remove('active'));
+  document
+    .querySelectorAll('.palace-panel')
+    .forEach((p) => ((p as HTMLElement).style.display = 'none'));
   document.querySelector('.palace-tab[data-palace-tab="recall"]')?.classList.add('active');
   const recallPanel = $('palace-recall-panel');
   if (recallPanel) recallPanel.style.display = 'flex';
@@ -283,9 +330,18 @@ export async function palaceRecallById(memoryId: string): Promise<void> {
     const memories = await pawEngine.memorySearch(memoryId, 1);
     resultsEl.innerHTML = '';
     if (memories.length) {
-      resultsEl.appendChild(renderRecallCard({ id: memories[0].id, text: memories[0].content, category: memories[0].category, importance: memories[0].importance, score: memories[0].score }));
+      resultsEl.appendChild(
+        renderRecallCard({
+          id: memories[0].id,
+          text: memories[0].content,
+          category: memories[0].category,
+          importance: memories[0].importance,
+          score: memories[0].score,
+        }),
+      );
     } else {
-      resultsEl.innerHTML = '<div style="padding:1rem;color:var(--text-secondary)">Memory not found</div>';
+      resultsEl.innerHTML =
+        '<div style="padding:1rem;color:var(--text-secondary)">Memory not found</div>';
     }
   } catch (e) {
     resultsEl.innerHTML = `<div style="padding:1rem;color:var(--danger)">Error: ${escHtml(String(e))}</div>`;
@@ -298,8 +354,14 @@ export function renderRecallCard(mem: RecallCardData): HTMLElement {
   const card = document.createElement('div');
   card.className = 'palace-result-card';
 
-  const score = mem.score != null ? `<span class="palace-result-score">${(mem.score * 100).toFixed(0)}%</span>` : '';
-  const importance = mem.importance != null ? `<span class="palace-result-tag">importance: ${mem.importance}</span>` : '';
+  const score =
+    mem.score != null
+      ? `<span class="palace-result-score">${(mem.score * 100).toFixed(0)}%</span>`
+      : '';
+  const importance =
+    mem.importance != null
+      ? `<span class="palace-result-tag">importance: ${mem.importance}</span>`
+      : '';
 
   card.innerHTML = `
     <div class="palace-result-header">
@@ -320,15 +382,17 @@ let _tabsBound = false;
 export function initPalaceTabs(): void {
   if (_tabsBound) return;
   _tabsBound = true;
-  document.querySelectorAll('.palace-tab').forEach(tab => {
+  document.querySelectorAll('.palace-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
       const target = (tab as HTMLElement).dataset.palaceTab;
       if (!target) return;
 
-      document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.palace-tab').forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
 
-      document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
+      document
+        .querySelectorAll('.palace-panel')
+        .forEach((p) => ((p as HTMLElement).style.display = 'none'));
       const panel = $(`palace-${target}-panel`);
       if (panel) panel.style.display = 'flex';
     });
@@ -374,7 +438,15 @@ async function palaceRecallSearch(): Promise<void> {
       return;
     }
     for (const mem of memories) {
-      resultsEl.appendChild(renderRecallCard({ id: mem.id, text: mem.content, category: mem.category, importance: mem.importance, score: mem.score }));
+      resultsEl.appendChild(
+        renderRecallCard({
+          id: mem.id,
+          text: mem.content,
+          category: mem.category,
+          importance: mem.importance,
+          score: mem.score,
+        }),
+      );
     }
   } catch (e) {
     resultsEl.innerHTML = `<div style="padding:1rem;color:var(--danger)">Recall failed: ${escHtml(String(e))}</div>`;
@@ -392,8 +464,10 @@ export function initPalaceRemember(onSaved?: () => Promise<void>): void {
 
   btn.addEventListener('click', async () => {
     const category = ($('palace-remember-type') as HTMLSelectElement | null)?.value ?? 'other';
-    const content = ($('palace-remember-content') as HTMLTextAreaElement | null)?.value.trim() ?? '';
-    const importanceStr = ($('palace-remember-importance') as HTMLSelectElement | null)?.value ?? '5';
+    const content =
+      ($('palace-remember-content') as HTMLTextAreaElement | null)?.value.trim() ?? '';
+    const importanceStr =
+      ($('palace-remember-importance') as HTMLSelectElement | null)?.value ?? '5';
     const importance = parseInt(importanceStr, 10) || 5;
 
     if (!content) {
@@ -407,7 +481,8 @@ export function initPalaceRemember(onSaved?: () => Promise<void>): void {
     try {
       await pawEngine.memoryStore(content, category, importance);
 
-      if ($('palace-remember-content') as HTMLTextAreaElement) ($('palace-remember-content') as HTMLTextAreaElement).value = '';
+      if ($('palace-remember-content') as HTMLTextAreaElement)
+        ($('palace-remember-content') as HTMLTextAreaElement).value = '';
 
       showToast('Memory saved!', 'success');
       if (onSaved) await onSaved();
@@ -428,7 +503,13 @@ export async function exportMemories(): Promise<void> {
 
   try {
     const engineMems = await pawEngine.memoryList(500);
-    const memories = engineMems.map(m => ({ id: m.id, content: m.content, category: m.category, importance: m.importance, created_at: m.created_at }));
+    const memories = engineMems.map((m) => ({
+      id: m.id,
+      content: m.content,
+      category: m.category,
+      importance: m.importance,
+      created_at: m.created_at,
+    }));
 
     if (!memories.length) {
       showToast('No memories to export', 'info');

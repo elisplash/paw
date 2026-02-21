@@ -44,7 +44,7 @@ describe('validateSandboxConfig', () => {
   it('warns on network enabled', () => {
     const config: SandboxConfig = { ...DEFAULT_SANDBOX_CONFIG, networkEnabled: true };
     const r = validateSandboxConfig(config);
-    expect(r.warnings.some(w => w.includes('Network'))).toBe(true);
+    expect(r.warnings.some((w) => w.includes('Network'))).toBe(true);
   });
 
   it('validates bind mount format', () => {
@@ -54,9 +54,12 @@ describe('validateSandboxConfig', () => {
   });
 
   it('validates bind mount mode', () => {
-    const config: SandboxConfig = { ...DEFAULT_SANDBOX_CONFIG, bindMounts: ['/host:/container:xx'] };
+    const config: SandboxConfig = {
+      ...DEFAULT_SANDBOX_CONFIG,
+      bindMounts: ['/host:/container:xx'],
+    };
     const r = validateSandboxConfig(config);
-    expect(r.errors.some(e => e.includes('mode'))).toBe(true);
+    expect(r.errors.some((e) => e.includes('mode'))).toBe(true);
   });
 });
 

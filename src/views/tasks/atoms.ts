@@ -4,4 +4,11 @@ import type { TaskStatus } from '../../engine';
 
 // ── Column definitions ─────────────────────────────────────────────────────
 
-export const COLUMNS: TaskStatus[] = ['inbox', 'assigned', 'in_progress', 'review', 'blocked', 'done'];
+export const COLUMNS: TaskStatus[] = [
+  'inbox',
+  'assigned',
+  'in_progress',
+  'review',
+  'blocked',
+  'done',
+];

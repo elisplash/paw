@@ -46,11 +46,19 @@ let _overrideBannerInterval: ReturnType<typeof setInterval> | null = null;
 function initMoleculesState() {
   setMoleculesState({
     getToolRules: () => _toolRules,
-    setToolRules: (rules: ToolRule[]) => { _toolRules = rules; },
-    pushToolRule: (rule: ToolRule) => { _toolRules.push(rule); },
-    spliceToolRule: (idx: number) => { _toolRules.splice(idx, 1); },
+    setToolRules: (rules: ToolRule[]) => {
+      _toolRules = rules;
+    },
+    pushToolRule: (rule: ToolRule) => {
+      _toolRules.push(rule);
+    },
+    spliceToolRule: (idx: number) => {
+      _toolRules.splice(idx, 1);
+    },
     getOverrideBannerInterval: () => _overrideBannerInterval,
-    setOverrideBannerInterval: (v: ReturnType<typeof setInterval> | null) => { _overrideBannerInterval = v; },
+    setOverrideBannerInterval: (v: ReturnType<typeof setInterval> | null) => {
+      _overrideBannerInterval = v;
+    },
   });
 }
 

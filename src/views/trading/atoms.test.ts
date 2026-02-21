@@ -170,7 +170,9 @@ describe('tradeSideLabel', () => {
 
 describe('tradePairLabel', () => {
   it('returns product_id for dex_swap with product_id', () => {
-    expect(tradePairLabel({ ...baseTrade, trade_type: 'dex_swap', product_id: 'SOL/USDC' })).toBe('SOL/USDC');
+    expect(tradePairLabel({ ...baseTrade, trade_type: 'dex_swap', product_id: 'SOL/USDC' })).toBe(
+      'SOL/USDC',
+    );
   });
 
   it('builds label from currency for dex_swap without product_id', () => {

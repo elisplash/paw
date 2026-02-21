@@ -13,8 +13,4 @@ export {
 } from './atoms';
 
 // Molecules (side-effects)
-export {
-  type CompactionOutcome,
-  compactSession,
-  checkAutoCompaction,
-} from './molecules';
+export { type CompactionOutcome, compactSession, checkAutoCompaction } from './molecules';

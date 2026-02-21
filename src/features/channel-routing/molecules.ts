@@ -57,7 +57,7 @@ export async function addRoutingRule(rule: RoutingRule): Promise<RoutingConfig> 
  */
 export async function removeRoutingRule(ruleId: string): Promise<RoutingConfig> {
   const config = await loadRoutingConfig();
-  config.rules = config.rules.filter(r => r.id !== ruleId);
+  config.rules = config.rules.filter((r) => r.id !== ruleId);
   await saveRoutingConfig(config);
   return config;
 }
@@ -65,9 +65,12 @@ export async function removeRoutingRule(ruleId: string): Promise<RoutingConfig> 
 /**
  * Update a routing rule.
  */
-export async function updateRoutingRule(ruleId: string, updates: Partial<RoutingRule>): Promise<RoutingConfig> {
+export async function updateRoutingRule(
+  ruleId: string,
+  updates: Partial<RoutingRule>,
+): Promise<RoutingConfig> {
   const config = await loadRoutingConfig();
-  const idx = config.rules.findIndex(r => r.id === ruleId);
+  const idx = config.rules.findIndex((r) => r.id === ruleId);
   if (idx >= 0) {
     config.rules[idx] = { ...config.rules[idx], ...updates };
   }
@@ -80,7 +83,7 @@ export async function updateRoutingRule(ruleId: string, updates: Partial<Routing
  */
 export async function reorderRule(ruleId: string, newIndex: number): Promise<RoutingConfig> {
   const config = await loadRoutingConfig();
-  const idx = config.rules.findIndex(r => r.id === ruleId);
+  const idx = config.rules.findIndex((r) => r.id === ruleId);
   if (idx >= 0) {
     const [rule] = config.rules.splice(idx, 1);
     config.rules.splice(newIndex, 0, rule);

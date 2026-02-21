@@ -1,11 +1,23 @@
 // Trading Dashboard — DOM rendering + IPC
 
-import { pawEngine, type TradeRecord, type TradingSummary, type TradingPolicy, type Position } from '../../engine';
+import {
+  pawEngine,
+  type TradeRecord,
+  type TradingSummary,
+  type TradingPolicy,
+  type Position,
+} from '../../engine';
 import { $, escHtml, confirmModal } from '../../components/helpers';
 import { isConnected } from '../../state/connection';
 import {
-  formatUsd, formatAmount, formatTime, formatPrice,
-  pnlClass, tradeTypeLabel, tradeSideLabel, tradePairLabel,
+  formatUsd,
+  formatAmount,
+  formatTime,
+  formatPrice,
+  pnlClass,
+  tradeTypeLabel,
+  tradeSideLabel,
+  tradePairLabel,
 } from './atoms';
 
 // ── Module state ───────────────────────────────────────────────────────────
@@ -51,11 +63,12 @@ function renderDashboard(
 
   const recentTrades = trades.slice(0, 5);
   const latestStatus = recentTrades.length > 0 ? recentTrades[0].status : 'none';
-  const streakIcon = latestStatus === 'completed'
-    ? '<span class="ms ms-sm" style="color:var(--success)">circle</span>'
-    : latestStatus === 'pending'
-      ? '<span class="ms ms-sm" style="color:var(--warning)">circle</span>'
-      : '<span class="ms ms-sm" style="color:var(--text-muted)">circle</span>';
+  const streakIcon =
+    latestStatus === 'completed'
+      ? '<span class="ms ms-sm" style="color:var(--success)">circle</span>'
+      : latestStatus === 'pending'
+        ? '<span class="ms ms-sm" style="color:var(--warning)">circle</span>'
+        : '<span class="ms ms-sm" style="color:var(--text-muted)">circle</span>';
 
   container.innerHTML = `
     <!-- Summary Cards -->
@@ -101,13 +114,17 @@ function renderDashboard(
       </div>
     </div>
 
-    ${hasDex && summary.dex_pairs && summary.dex_pairs.length > 0 ? `
+    ${
+      hasDex && summary.dex_pairs && summary.dex_pairs.length > 0
+        ? `
     <!-- Active DEX Pairs -->
     <div class="trading-dex-pairs">
       <span class="trading-dex-pairs-label">Active pairs:</span>
       ${summary.dex_pairs.map((p: string) => `<span class="trading-dex-pair-tag">${escHtml(p)}</span>`).join('')}
     </div>
-    ` : ''}
+    `
+        : ''
+    }
 
     <!-- Open Positions (Stop-Loss / Take-Profit) -->
     ${renderPositionsPanel(positions)}
@@ -158,9 +175,10 @@ function renderDashboard(
         <h3>Trade History</h3>
         <span class="trading-history-count">${trades.length} record${trades.length !== 1 ? 's' : ''}</span>
       </div>
-      ${trades.length === 0
-        ? '<div class="trading-empty">No trades recorded yet. Your agents\' trades and swaps will appear here.</div>'
-        : `<div class="trading-table-wrap">
+      ${
+        trades.length === 0
+          ? '<div class="trading-empty">No trades recorded yet. Your agents\' trades and swaps will appear here.</div>'
+          : `<div class="trading-table-wrap">
             <table class="trading-table">
               <thead>
                 <tr>
@@ -174,12 +192,17 @@ function renderDashboard(
                 </tr>
               </thead>
               <tbody>
-                ${trades.map(t => {
-                  const sideClass = t.side === 'buy' ? 'trading-positive'
-                    : t.side === 'sell' ? 'trading-negative'
-                    : t.trade_type === 'dex_swap' ? 'trading-swap'
-                    : '';
-                  return `
+                ${trades
+                  .map((t) => {
+                    const sideClass =
+                      t.side === 'buy'
+                        ? 'trading-positive'
+                        : t.side === 'sell'
+                          ? 'trading-negative'
+                          : t.trade_type === 'dex_swap'
+                            ? 'trading-swap'
+                            : '';
+                    return `
                   <tr class="trading-row ${t.trade_type}">
                     <td class="trading-time">${formatTime(t.created_at)}</td>
                     <td><span class="trading-badge ${t.trade_type}">${tradeTypeLabel(t)}</span></td>
@@ -189,7 +212,8 @@ function renderDashboard(
                     <td><span class="trading-status ${t.status}">${escHtml(t.status)}</span></td>
                     <td class="trading-reason" title="${escHtml(t.reason || '')}">${escHtml(t.reason || '-')}</td>
                   </tr>`;
-                }).join('')}
+                  })
+                  .join('')}
               </tbody>
             </table>
           </div>`
@@ -223,7 +247,10 @@ function bindPolicyEvents() {
       const maxTransfer = parseFloat(($('trading-max-transfer') as HTMLInputElement)?.value || '0');
       const autoApproveChecked = ($('trading-auto-approve') as HTMLInputElement)?.checked || false;
 
-      const pairs = pairsRaw.split(',').map(s => s.trim()).filter(Boolean);
+      const pairs = pairsRaw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
 
       const policy: TradingPolicy = {
         auto_approve: autoApproveChecked,
@@ -246,8 +273,8 @@ function bindPolicyEvents() {
 
 // ── Positions Panel ────────────────────────────────────────────────────────
 function renderPositionsPanel(positions: Position[]): string {
-  const openPositions = positions.filter(p => p.status === 'open');
-  const closedPositions = positions.filter(p => p.status !== 'open').slice(0, 10);
+  const openPositions = positions.filter((p) => p.status === 'open');
+  const closedPositions = positions.filter((p) => p.status !== 'open').slice(0, 10);
 
   if (positions.length === 0) {
     return `
@@ -266,9 +293,10 @@ function renderPositionsPanel(positions: Position[]): string {
       <h3>Open Positions (${openPositions.length})</h3>
       <span class="trading-history-count">Auto-managed stop-loss &amp; take-profit</span>
     </div>
-    ${openPositions.length === 0
-      ? '<div class="trading-empty">No open positions. Closed positions shown below.</div>'
-      : `<div class="trading-table-wrap">
+    ${
+      openPositions.length === 0
+        ? '<div class="trading-empty">No open positions. Closed positions shown below.</div>'
+        : `<div class="trading-table-wrap">
           <table class="trading-table">
             <thead>
               <tr>
@@ -285,11 +313,18 @@ function renderPositionsPanel(positions: Position[]): string {
               </tr>
             </thead>
             <tbody>
-              ${openPositions.map(p => {
-                const pnlPct = p.entry_price_usd > 0 ? ((p.last_price_usd / p.entry_price_usd) - 1) * 100 : 0;
-                const pnlCls = pnlPct > 0 ? 'trading-positive' : pnlPct < 0 ? 'trading-negative' : 'trading-neutral';
-                const pnlSign = pnlPct >= 0 ? '+' : '';
-                return `
+              ${openPositions
+                .map((p) => {
+                  const pnlPct =
+                    p.entry_price_usd > 0 ? (p.last_price_usd / p.entry_price_usd - 1) * 100 : 0;
+                  const pnlCls =
+                    pnlPct > 0
+                      ? 'trading-positive'
+                      : pnlPct < 0
+                        ? 'trading-negative'
+                        : 'trading-neutral';
+                  const pnlSign = pnlPct >= 0 ? '+' : '';
+                  return `
                 <tr class="trading-row position-row" data-id="${escHtml(p.id)}">
                   <td class="trading-pair"><strong>${escHtml(p.symbol)}</strong><br><span class="trading-usd">${escHtml(p.mint.slice(0, 8))}…</span></td>
                   <td>$${formatPrice(p.entry_price_usd)}</td>
@@ -304,12 +339,15 @@ function renderPositionsPanel(positions: Position[]): string {
                     <button class="btn-sm btn-danger pos-close-btn" data-id="${escHtml(p.id)}" data-symbol="${escHtml(p.symbol)}">Close</button>
                   </td>
                 </tr>`;
-              }).join('')}
+                })
+                .join('')}
             </tbody>
           </table>
         </div>`
     }
-    ${closedPositions.length > 0 ? `
+    ${
+      closedPositions.length > 0
+        ? `
       <div style="margin-top: 12px; opacity: 0.7;">
         <details>
           <summary style="cursor: pointer; font-size: 0.85em;">Closed positions (${closedPositions.length})</summary>
@@ -319,35 +357,47 @@ function renderPositionsPanel(positions: Position[]): string {
                 <tr><th>Token</th><th>Entry</th><th>Status</th><th>Opened</th><th>Closed</th></tr>
               </thead>
               <tbody>
-                ${closedPositions.map(p => {
-                  const statusLabel = p.status === 'closed_sl' ? '<span class="ms ms-sm">dangerous</span> Stop-Loss'
-                    : p.status === 'closed_tp' ? '<span class="ms ms-sm">flag</span> Take-Profit'
-                    : '<span class="ms ms-sm">pan_tool</span> Manual';
-                  return `<tr>
+                ${closedPositions
+                  .map((p) => {
+                    const statusLabel =
+                      p.status === 'closed_sl'
+                        ? '<span class="ms ms-sm">dangerous</span> Stop-Loss'
+                        : p.status === 'closed_tp'
+                          ? '<span class="ms ms-sm">flag</span> Take-Profit'
+                          : '<span class="ms ms-sm">pan_tool</span> Manual';
+                    return `<tr>
                     <td>${escHtml(p.symbol)}</td>
                     <td>$${formatPrice(p.entry_price_usd)}</td>
                     <td>${statusLabel}</td>
                     <td class="trading-time">${formatTime(p.created_at)}</td>
                     <td class="trading-time">${p.closed_at ? formatTime(p.closed_at) : '—'}</td>
                   </tr>`;
-                }).join('')}
+                  })
+                  .join('')}
               </tbody>
             </table>
           </div>
         </details>
       </div>
-    ` : ''}
+    `
+        : ''
+    }
   </div>`;
 }
 
 function bindPositionEvents() {
-  document.querySelectorAll('.pos-close-btn').forEach(btn => {
+  document.querySelectorAll('.pos-close-btn').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       const el = e.target as HTMLElement;
       const id = el.dataset.id;
       const symbol = el.dataset.symbol;
       if (!id) return;
-      if (!await confirmModal(`Close position for ${symbol}? This does NOT auto-sell — it just stops monitoring.`)) return;
+      if (
+        !(await confirmModal(
+          `Close position for ${symbol}? This does NOT auto-sell — it just stops monitoring.`,
+        ))
+      )
+        return;
       try {
         await pawEngine.positionClose(id);
         showTradingToast(`Position for ${symbol} closed`, 'success');
@@ -369,8 +419,11 @@ function showTradingToast(message: string, type: 'success' | 'error' | 'info') {
   toast.style.display = 'flex';
 
   if (_tradingToastTimer) clearTimeout(_tradingToastTimer);
-  _tradingToastTimer = window.setTimeout(() => {
-    toast.style.display = 'none';
-    _tradingToastTimer = null;
-  }, type === 'error' ? 8000 : 4000);
+  _tradingToastTimer = window.setTimeout(
+    () => {
+      toast.style.display = 'none';
+      _tradingToastTimer = null;
+    },
+    type === 'error' ? 8000 : 4000,
+  );
 }

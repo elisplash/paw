@@ -31,10 +31,7 @@ export function extractDomain(url: string): string {
  * Match streaming text against progress patterns, returning a new step label
  * if one matches (and hasn't already been seen).
  */
-export function parseProgressStep(
-  text: string,
-  existingSteps: string[],
-): string | null {
+export function parseProgressStep(text: string, existingSteps: string[]): string | null {
   for (const { regex, step } of PROGRESS_PATTERNS) {
     if (regex.test(text) && !existingSteps.includes(step)) {
       return step;

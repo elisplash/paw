@@ -65,14 +65,16 @@ export interface NetworkRequest {
 
 export const DEFAULT_BROWSER_CONFIG: BrowserConfig = {
   default_profile: 'default',
-  profiles: [{
-    id: 'default',
-    name: 'Default',
-    user_data_dir: '',
-    created_at: '',
-    last_used: '',
-    size_bytes: 0,
-  }],
+  profiles: [
+    {
+      id: 'default',
+      name: 'Default',
+      user_data_dir: '',
+      created_at: '',
+      last_used: '',
+      size_bytes: 0,
+    },
+  ],
   headless: true,
   auto_close_tabs: true,
   idle_timeout_secs: 300,
@@ -114,7 +116,9 @@ export function isValidDomain(domain: string): boolean {
   if (!domain || domain.length > 253) return false;
   // Allow *.example.com wildcard
   const d = domain.startsWith('*.') ? domain.slice(2) : domain;
-  return /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/.test(d);
+  return /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/.test(
+    d,
+  );
 }
 
 /** Extract domain from a URL */

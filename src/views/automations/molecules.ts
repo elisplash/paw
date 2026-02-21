@@ -18,7 +18,9 @@ let _state: MoleculesState;
 
 export function initMoleculesState() {
   return {
-    setMoleculesState: (st: MoleculesState) => { _state = st; },
+    setMoleculesState: (st: MoleculesState) => {
+      _state = st;
+    },
   };
 }
 
@@ -44,7 +46,7 @@ export async function loadCron() {
 
   try {
     const tasks = await pawEngine.tasksList();
-    const cronTasks = tasks.filter(t => t.cron_schedule && t.cron_schedule.length > 0);
+    const cronTasks = tasks.filter((t) => t.cron_schedule && t.cron_schedule.length > 0);
 
     if (loading) loading.style.display = 'none';
 
@@ -60,13 +62,14 @@ export async function loadCron() {
       return;
     }
 
-    let active = 0, paused = 0;
+    let active = 0,
+      paused = 0;
     for (const task of cronTasks) {
       const nextRun = task.next_run_at ? new Date(task.next_run_at).toLocaleString() : '';
       const lastRun = task.last_run_at ? new Date(task.last_run_at).toLocaleString() : '';
       const agentNames = task.assigned_agents.length
-        ? task.assigned_agents.map(a => a.agent_id).join(', ')
-        : task.assigned_agent ?? 'default';
+        ? task.assigned_agents.map((a) => a.agent_id).join(', ')
+        : (task.assigned_agent ?? 'default');
 
       const card = document.createElement('div');
       card.className = `auto-card${task.status === 'in_progress' ? ' auto-card-running' : ''}`;
@@ -102,16 +105,21 @@ export async function loadCron() {
 
     try {
       const activities = await pawEngine.taskActivity(undefined, 30);
-      const cronActivities = activities.filter(a =>
-        a.kind === 'cron_triggered' || a.kind === 'cron_error' ||
-        a.kind === 'agent_completed' || a.kind === 'agent_error'
+      const cronActivities = activities.filter(
+        (a) =>
+          a.kind === 'cron_triggered' ||
+          a.kind === 'cron_error' ||
+          a.kind === 'agent_completed' ||
+          a.kind === 'agent_error',
       );
       if (cronActivities.length && historyCards) {
         for (const activity of cronActivities.slice(0, 15)) {
           renderActivityCard(activity, historyCards);
         }
       }
-    } catch { /* history not available */ }
+    } catch {
+      /* history not available */
+    }
   } catch (e) {
     console.warn('Automations load failed:', e);
     if (loading) loading.style.display = 'none';
@@ -147,31 +155,35 @@ function renderActivityCard(activity: EngineTaskActivity, container: HTMLElement
 
 function wireCardActions(container: HTMLElement | null) {
   if (!container) return;
-  container.querySelectorAll('.cron-run').forEach(btn => {
+  container.querySelectorAll('.cron-run').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = (btn as HTMLElement).dataset.id!;
       try {
         await pawEngine.taskRun(id);
         (btn as HTMLElement).textContent = '⏳ Running…';
         loadCron();
-      } catch (e) { showToast(`Run failed: ${e}`, 'error'); }
+      } catch (e) {
+        showToast(`Run failed: ${e}`, 'error');
+      }
     });
   });
-  container.querySelectorAll('.cron-edit').forEach(btn => {
+  container.querySelectorAll('.cron-edit').forEach((btn) => {
     btn.addEventListener('click', () => {
-      const card = (btn as HTMLElement).closest('.auto-card') as (HTMLElement & { _task?: EngineTask }) | null;
+      const card = (btn as HTMLElement).closest('.auto-card') as
+        | (HTMLElement & { _task?: EngineTask })
+        | null;
       if (card?._task) {
         openEditModal(card._task);
       }
     });
   });
-  container.querySelectorAll('.cron-toggle').forEach(btn => {
+  container.querySelectorAll('.cron-toggle').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = (btn as HTMLElement).dataset.id!;
       const enabled = (btn as HTMLElement).dataset.enabled === 'true';
       try {
         const tasks = await pawEngine.tasksList();
-        const task = tasks.find(t => t.id === id);
+        const task = tasks.find((t) => t.id === id);
         if (task) {
           task.cron_enabled = !enabled;
           if (task.cron_enabled && !task.next_run_at) {
@@ -180,17 +192,21 @@ function wireCardActions(container: HTMLElement | null) {
           await pawEngine.taskUpdate(task);
           loadCron();
         }
-      } catch (e) { showToast(`Toggle failed: ${e}`, 'error'); }
+      } catch (e) {
+        showToast(`Toggle failed: ${e}`, 'error');
+      }
     });
   });
-  container.querySelectorAll('.cron-delete').forEach(btn => {
+  container.querySelectorAll('.cron-delete').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = (btn as HTMLElement).dataset.id!;
-      if (!await confirmModal('Delete this automation?')) return;
+      if (!(await confirmModal('Delete this automation?'))) return;
       try {
         await pawEngine.taskDelete(id);
         loadCron();
-      } catch (e) { showToast(`Delete failed: ${e}`, 'error'); }
+      } catch (e) {
+        showToast(`Delete failed: ${e}`, 'error');
+      }
     });
   });
 }
@@ -262,7 +278,7 @@ function openEditModal(task: EngineTask) {
   if (agentSelect) {
     const assignedAgent = task.assigned_agents.length
       ? task.assigned_agents[0].agent_id
-      : task.assigned_agent ?? 'default';
+      : (task.assigned_agent ?? 'default');
     agentSelect.value = assignedAgent;
   }
 }
@@ -278,8 +294,12 @@ export async function saveCronJob() {
   const label = ($('cron-form-label') as HTMLInputElement).value.trim();
   const schedule = ($('cron-form-schedule') as HTMLInputElement).value.trim();
   const prompt_ = ($('cron-form-prompt') as HTMLTextAreaElement).value.trim();
-  const agentId = ($('cron-form-agent') as HTMLInputElement | HTMLSelectElement)?.value.trim() || 'default';
-  if (!label || !schedule || !prompt_) { showToast('Name, schedule, and prompt are required', 'error'); return; }
+  const agentId =
+    ($('cron-form-agent') as HTMLInputElement | HTMLSelectElement)?.value.trim() || 'default';
+  if (!label || !schedule || !prompt_) {
+    showToast('Name, schedule, and prompt are required', 'error');
+    return;
+  }
 
   if (!isValidSchedule(schedule)) {
     showToast('Invalid schedule format. Use: every 5m, every 1h, daily 09:00', 'error');
@@ -289,7 +309,7 @@ export async function saveCronJob() {
   try {
     if (editingTaskId) {
       const tasks = await pawEngine.tasksList();
-      const existing = tasks.find(t => t.id === editingTaskId);
+      const existing = tasks.find((t) => t.id === editingTaskId);
       if (existing) {
         existing.title = label;
         existing.description = prompt_;
@@ -322,7 +342,10 @@ export async function saveCronJob() {
     hideCronModal();
     loadCron();
   } catch (e) {
-    showToast(`Failed to ${editingTaskId ? 'update' : 'create'}: ${e instanceof Error ? e.message : e}`, 'error');
+    showToast(
+      `Failed to ${editingTaskId ? 'update' : 'create'}: ${e instanceof Error ? e.message : e}`,
+      'error',
+    );
   }
 }
 

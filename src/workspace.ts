@@ -50,14 +50,14 @@ let workspacePath: string | null = null;
 
 export async function getWorkspacePath(): Promise<string> {
   if (workspacePath) return workspacePath;
-  
+
   // Check localStorage for custom path
   const customPath = localStorage.getItem('paw-workspace-path');
   if (customPath) {
     workspacePath = customPath;
     return workspacePath;
   }
-  
+
   // Default to ~/Documents/Paw
   const home = await homeDir();
   workspacePath = await join(home, 'Documents', 'Paw');
@@ -71,7 +71,7 @@ export function setWorkspacePath(path: string) {
 
 export async function ensureWorkspace(): Promise<void> {
   const base = await getWorkspacePath();
-  
+
   // Create directory structure
   const dirs = [
     base,
@@ -80,7 +80,7 @@ export async function ensureWorkspace(): Promise<void> {
     await join(base, 'Build'),
     await join(base, 'exports'),
   ];
-  
+
   for (const dir of dirs) {
     try {
       const dirExists = await exists(dir);
@@ -103,11 +103,11 @@ export async function getResearchProjectPath(projectId: string): Promise<string>
 export async function listResearchProjects(): Promise<ResearchProject[]> {
   const base = await getWorkspacePath();
   const researchDir = await join(base, 'Research');
-  
+
   try {
     const entries = await readDir(researchDir);
     const projects: ResearchProject[] = [];
-    
+
     for (const entry of entries) {
       if (entry.isDirectory && entry.name) {
         try {
@@ -119,19 +119,20 @@ export async function listResearchProjects(): Promise<ResearchProject[]> {
         }
       }
     }
-    
-    return projects.sort((a, b) => 
-      new Date(b.updated).getTime() - new Date(a.updated).getTime()
-    );
+
+    return projects.sort((a, b) => new Date(b.updated).getTime() - new Date(a.updated).getTime());
   } catch {
     return [];
   }
 }
 
-export async function createResearchProject(name: string, description?: string): Promise<ResearchProject> {
+export async function createResearchProject(
+  name: string,
+  description?: string,
+): Promise<ResearchProject> {
   const id = generateId();
   const now = new Date().toISOString();
-  
+
   const project: ResearchProject = {
     id,
     name,
@@ -140,23 +141,20 @@ export async function createResearchProject(name: string, description?: string):
     updated: now,
     queries: [],
   };
-  
+
   const projectDir = await getResearchProjectPath(id);
   await mkdir(projectDir, { recursive: true });
   await mkdir(await join(projectDir, 'findings'), { recursive: true });
   await mkdir(await join(projectDir, 'reports'), { recursive: true });
-  
-  await writeTextFile(
-    await join(projectDir, 'project.json'),
-    JSON.stringify(project, null, 2)
-  );
-  
+
+  await writeTextFile(await join(projectDir, 'project.json'), JSON.stringify(project, null, 2));
+
   // Also create a README for the folder
   await writeTextFile(
     await join(projectDir, 'README.md'),
-    `# ${name}\n\n${description || ''}\n\nCreated: ${new Date().toLocaleDateString()}\n`
+    `# ${name}\n\n${description || ''}\n\nCreated: ${new Date().toLocaleDateString()}\n`,
   );
-  
+
   return project;
 }
 
@@ -186,11 +184,11 @@ export async function deleteResearchProject(projectId: string): Promise<void> {
 export async function listFindings(projectId: string): Promise<ResearchFinding[]> {
   const projectDir = await getResearchProjectPath(projectId);
   const findingsDir = await join(projectDir, 'findings');
-  
+
   try {
     const entries = await readDir(findingsDir);
     const findings: ResearchFinding[] = [];
-    
+
     for (const entry of entries) {
       if (entry.name?.endsWith('.json')) {
         try {
@@ -202,10 +200,8 @@ export async function listFindings(projectId: string): Promise<ResearchFinding[]
         }
       }
     }
-    
-    return findings.sort((a, b) => 
-      new Date(b.created).getTime() - new Date(a.created).getTime()
-    );
+
+    return findings.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
   } catch {
     return [];
   }
@@ -214,20 +210,17 @@ export async function listFindings(projectId: string): Promise<ResearchFinding[]
 export async function saveFinding(projectId: string, finding: ResearchFinding): Promise<void> {
   const projectDir = await getResearchProjectPath(projectId);
   const findingsDir = await join(projectDir, 'findings');
-  
+
   // Save as JSON (machine-readable)
   await writeTextFile(
     await join(findingsDir, `${finding.id}.json`),
-    JSON.stringify(finding, null, 2)
+    JSON.stringify(finding, null, 2),
   );
-  
+
   // Also save as Markdown (human-readable)
   const markdown = findingToMarkdown(finding);
-  await writeTextFile(
-    await join(findingsDir, `${finding.id}.md`),
-    markdown
-  );
-  
+  await writeTextFile(await join(findingsDir, `${finding.id}.md`), markdown);
+
   // Update project timestamp
   const project = await getResearchProject(projectId);
   if (project) {
@@ -238,7 +231,10 @@ export async function saveFinding(projectId: string, finding: ResearchFinding): 
   }
 }
 
-export async function getFinding(projectId: string, findingId: string): Promise<ResearchFinding | null> {
+export async function getFinding(
+  projectId: string,
+  findingId: string,
+): Promise<ResearchFinding | null> {
   try {
     const projectDir = await getResearchProjectPath(projectId);
     const filePath = await join(projectDir, 'findings', `${findingId}.json`);
@@ -252,7 +248,7 @@ export async function getFinding(projectId: string, findingId: string): Promise<
 export async function deleteFinding(projectId: string, findingId: string): Promise<void> {
   const projectDir = await getResearchProjectPath(projectId);
   const findingsDir = await join(projectDir, 'findings');
-  
+
   try {
     await remove(await join(findingsDir, `${findingId}.json`));
     await remove(await join(findingsDir, `${findingId}.md`));
@@ -266,11 +262,11 @@ export async function deleteFinding(projectId: string, findingId: string): Promi
 export async function listReports(projectId: string): Promise<ResearchReport[]> {
   const projectDir = await getResearchProjectPath(projectId);
   const reportsDir = await join(projectDir, 'reports');
-  
+
   try {
     const entries = await readDir(reportsDir);
     const reports: ResearchReport[] = [];
-    
+
     for (const entry of entries) {
       if (entry.name?.endsWith('.json')) {
         try {
@@ -282,10 +278,8 @@ export async function listReports(projectId: string): Promise<ResearchReport[]> 
         }
       }
     }
-    
-    return reports.sort((a, b) => 
-      new Date(b.created).getTime() - new Date(a.created).getTime()
-    );
+
+    return reports.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
   } catch {
     return [];
   }
@@ -294,18 +288,12 @@ export async function listReports(projectId: string): Promise<ResearchReport[]> 
 export async function saveReport(projectId: string, report: ResearchReport): Promise<void> {
   const projectDir = await getResearchProjectPath(projectId);
   const reportsDir = await join(projectDir, 'reports');
-  
+
   // Save as JSON
-  await writeTextFile(
-    await join(reportsDir, `${report.id}.json`),
-    JSON.stringify(report, null, 2)
-  );
-  
+  await writeTextFile(await join(reportsDir, `${report.id}.json`), JSON.stringify(report, null, 2));
+
   // Save as Markdown
-  await writeTextFile(
-    await join(reportsDir, `${report.id}.md`),
-    report.content
-  );
+  await writeTextFile(await join(reportsDir, `${report.id}.md`), report.content);
 }
 
 // ── Sources File ───────────────────────────────────────────────────────────
@@ -313,7 +301,7 @@ export async function saveReport(projectId: string, report: ResearchReport): Pro
 export async function getAllSources(projectId: string): Promise<ResearchSource[]> {
   const findings = await listFindings(projectId);
   const sourcesMap = new Map<string, ResearchSource>();
-  
+
   for (const finding of findings) {
     for (const source of finding.sources) {
       const existing = sourcesMap.get(source.url);
@@ -326,9 +314,8 @@ export async function getAllSources(projectId: string): Promise<ResearchSource[]
       }
     }
   }
-  
-  return Array.from(sourcesMap.values())
-    .sort((a, b) => b.credibility - a.credibility);
+
+  return Array.from(sourcesMap.values()).sort((a, b) => b.credibility - a.credibility);
 }
 
 // ── Markdown Conversion ────────────────────────────────────────────────────
@@ -340,23 +327,28 @@ function findingToMarkdown(finding: ResearchFinding): string {
     `query: "${finding.query.replace(/"/g, '\\"')}"`,
     `created: ${finding.created}`,
     `updated: ${finding.updated}`,
-    `tags: [${finding.tags.map(t => `"${t}"`).join(', ')}]`,
+    `tags: [${finding.tags.map((t) => `"${t}"`).join(', ')}]`,
     'sources:',
-    ...finding.sources.map(s => 
-      `  - url: "${s.url}"\n    title: "${s.title.replace(/"/g, '\\"')}"\n    credibility: ${s.credibility}`
+    ...finding.sources.map(
+      (s) =>
+        `  - url: "${s.url}"\n    title: "${s.title.replace(/"/g, '\\"')}"\n    credibility: ${s.credibility}`,
     ),
     '---',
     '',
   ].join('\n');
-  
-  const keyPointsSection = finding.keyPoints.length > 0
-    ? `## Key Points\n\n${finding.keyPoints.map(p => `- ${p}`).join('\n')}\n\n`
-    : '';
-  
-  const sourcesSection = `## Sources\n\n${finding.sources.map(s => 
-    `- [${s.title}](${s.url}) ${'●'.repeat(s.credibility)}${'○'.repeat(5 - s.credibility)}`
-  ).join('\n')}\n`;
-  
+
+  const keyPointsSection =
+    finding.keyPoints.length > 0
+      ? `## Key Points\n\n${finding.keyPoints.map((p) => `- ${p}`).join('\n')}\n\n`
+      : '';
+
+  const sourcesSection = `## Sources\n\n${finding.sources
+    .map(
+      (s) =>
+        `- [${s.title}](${s.url}) ${'●'.repeat(s.credibility)}${'○'.repeat(5 - s.credibility)}`,
+    )
+    .join('\n')}\n`;
+
   return `${frontmatter}# ${finding.query}\n\n${finding.summary ? `> ${finding.summary}\n\n` : ''}${keyPointsSection}## Details\n\n${finding.content}\n\n${sourcesSection}`;
 }
 
@@ -375,12 +367,12 @@ export function generateFindingId(): string {
 export function parseAgentResponse(
   query: string,
   rawContent: string,
-  extractedSources: ResearchSource[]
+  extractedSources: ResearchSource[],
 ): Omit<ResearchFinding, 'id' | 'created' | 'updated'> {
   // Extract key points (lines starting with - or * or numbered)
   const keyPoints: string[] = [];
   const lines = rawContent.split('\n');
-  
+
   for (const line of lines) {
     const trimmed = line.trim();
     if (/^[-•]\s+\*\*/.test(trimmed) || /^\d+\.\s+\*\*/.test(trimmed)) {
@@ -394,19 +386,24 @@ export function parseAgentResponse(
       }
     }
   }
-  
+
   // Extract summary (first paragraph that's not a header)
   let summary = '';
   for (const line of lines) {
     const trimmed = line.trim();
-    if (trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('-') && !trimmed.startsWith('•')) {
+    if (
+      trimmed &&
+      !trimmed.startsWith('#') &&
+      !trimmed.startsWith('-') &&
+      !trimmed.startsWith('•')
+    ) {
       if (trimmed.length > 50 && trimmed.length < 500) {
         summary = trimmed;
         break;
       }
     }
   }
-  
+
   // Extract tags from content (look for common patterns)
   const tags: string[] = [];
   const tagPatterns = [
@@ -415,10 +412,10 @@ export function parseAgentResponse(
   for (const pattern of tagPatterns) {
     const matches = rawContent.match(pattern);
     if (matches) {
-      tags.push(...matches.map(m => m.toLowerCase()));
+      tags.push(...matches.map((m) => m.toLowerCase()));
     }
   }
-  
+
   return {
     query,
     content: rawContent,
@@ -433,13 +430,13 @@ export function parseAgentResponse(
 
 export async function openInFinder(projectId?: string): Promise<void> {
   const { open } = await import('@tauri-apps/plugin-shell');
-  
+
   let path: string;
   if (projectId) {
     path = await getResearchProjectPath(projectId);
   } else {
     path = await getWorkspacePath();
   }
-  
+
   await open(path);
 }

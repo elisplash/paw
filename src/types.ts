@@ -215,8 +215,8 @@ export interface AgentEvent {
   stream: 'assistant' | 'lifecycle' | 'tool' | 'error' | string;
   data: {
     // assistant stream
-    text?: string;    // accumulated text so far
-    delta?: string;   // incremental text
+    text?: string; // accumulated text so far
+    delta?: string; // incremental text
     // lifecycle stream
     phase?: 'start' | 'end' | string;
     // tool stream
@@ -334,8 +334,6 @@ export interface ModelsListResult {
   models: ModelChoice[];
 }
 
-
-
 export interface ConfigApplyResult {
   ok: boolean;
   restarted?: boolean;
@@ -345,8 +343,8 @@ export interface ConfigApplyResult {
 }
 
 export interface ConfigPatchParams {
-  raw: string;         // JSON5 string with just the keys to change
-  baseHash?: string;   // SHA-256 hash from config.get — required when config exists
+  raw: string; // JSON5 string with just the keys to change
+  baseHash?: string; // SHA-256 hash from config.get — required when config exists
   sessionKey?: string;
   note?: string;
   restartDelayMs?: number;
@@ -404,7 +402,10 @@ export interface AgentsFilesGetResult {
 export interface UsageStatusResult {
   ok: boolean;
   total?: { requests: number; tokens: number; inputTokens?: number; outputTokens?: number };
-  byModel?: Record<string, { requests: number; tokens: number; inputTokens?: number; outputTokens?: number }>;
+  byModel?: Record<
+    string,
+    { requests: number; tokens: number; inputTokens?: number; outputTokens?: number }
+  >;
   period?: string;
   [key: string]: unknown;
 }
@@ -431,8 +432,6 @@ export interface InstallProgress {
   percent: number;
   message: string;
 }
-
-
 
 // ── Legacy compat alias (used by main.ts UI messages) ──────────────────────
 

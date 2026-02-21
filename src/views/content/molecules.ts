@@ -51,7 +51,10 @@ export async function openContentDoc(docId: string) {
 
   if (empty) empty.style.display = 'none';
   if (toolbar) toolbar.style.display = 'flex';
-  if (body) { body.style.display = ''; body.value = doc.content; }
+  if (body) {
+    body.style.display = '';
+    body.value = doc.content;
+  }
   if (titleInput) titleInput.value = doc.title;
   if (typeSelect) typeSelect.value = doc.content_type;
   if (wordCount) {

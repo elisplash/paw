@@ -52,11 +52,11 @@ export function clearErrorHistory(): void {
 export function installErrorBoundary(): void {
   // Uncaught errors
   window.addEventListener('error', (event) => {
-    const report = toErrorReport(
-      event.error ?? event.message,
-      'unhandled',
-      { filename: event.filename, lineno: event.lineno, colno: event.colno },
-    );
+    const report = toErrorReport(event.error ?? event.message, 'unhandled', {
+      filename: event.filename,
+      lineno: event.lineno,
+      colno: event.colno,
+    });
     logAndStore(report);
     event.preventDefault();
   });

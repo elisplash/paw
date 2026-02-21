@@ -51,7 +51,7 @@ describe('Voice catalogs', () => {
   });
 
   it('LANGUAGES has common languages', () => {
-    const codes = LANGUAGES.map(l => l.code);
+    const codes = LANGUAGES.map((l) => l.code);
     expect(codes).toContain('en-US');
     expect(codes).toContain('es-ES');
     expect(codes).toContain('ja-JP');

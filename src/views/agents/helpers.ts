@@ -11,7 +11,7 @@ import { type Agent } from './atoms';
 export async function seedSoulFiles(agent: Agent): Promise<void> {
   try {
     const existing = await pawEngine.agentFileList(agent.id);
-    const existingNames = new Set(existing.map(f => f.file_name));
+    const existingNames = new Set(existing.map((f) => f.file_name));
 
     if (!existingNames.has('IDENTITY.md')) {
       const personality = agent.personality;
@@ -19,7 +19,9 @@ export async function seedSoulFiles(agent: Agent): Promise<void> {
         personality.tone !== 'balanced' ? `Tone: ${personality.tone}` : '',
         personality.initiative !== 'balanced' ? `Initiative: ${personality.initiative}` : '',
         personality.detail !== 'balanced' ? `Detail level: ${personality.detail}` : '',
-      ].filter(Boolean).join(', ');
+      ]
+        .filter(Boolean)
+        .join(', ');
 
       const identity = [
         `# ${agent.name}`,
@@ -28,13 +30,19 @@ export async function seedSoulFiles(agent: Agent): Promise<void> {
         `- **Name**: ${agent.name}`,
         `- **Agent ID**: ${agent.id}`,
         `- **Role**: ${agent.bio || 'AI assistant'}`,
-        agent.template !== 'general' && agent.template !== 'custom' ? `- **Specialty**: ${agent.template}` : '',
+        agent.template !== 'general' && agent.template !== 'custom'
+          ? `- **Specialty**: ${agent.template}`
+          : '',
         personalityDesc ? `- **Personality**: ${personalityDesc}` : '',
         '',
-        agent.boundaries.length > 0 ? `## Boundaries\n${agent.boundaries.map(b => `- ${b}`).join('\n')}` : '',
+        agent.boundaries.length > 0
+          ? `## Boundaries\n${agent.boundaries.map((b) => `- ${b}`).join('\n')}`
+          : '',
         '',
         agent.systemPrompt ? `## Custom Instructions\n${agent.systemPrompt}` : '',
-      ].filter(Boolean).join('\n');
+      ]
+        .filter(Boolean)
+        .join('\n');
 
       await pawEngine.agentFileSet('IDENTITY.md', identity.trim(), agent.id);
     }

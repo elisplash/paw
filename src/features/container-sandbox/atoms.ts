@@ -178,29 +178,42 @@ export function assessCommandRisk(command: string): 'low' | 'medium' | 'high' | 
 
   // Critical: system-altering commands
   const criticalPatterns = [
-    /\brm\s+-rf\s+\/(?!\w)/,     // rm -rf / (root)
-    /\bmkfs\b/,                    // format filesystem
-    /\bdd\s+.*of=\/dev/,          // write to device
-    /\b:(){.*};:/,                 // fork bomb
+    /\brm\s+-rf\s+\/(?!\w)/, // rm -rf / (root)
+    /\bmkfs\b/, // format filesystem
+    /\bdd\s+.*of=\/dev/, // write to device
+    /\b:(){.*};:/, // fork bomb
   ];
-  if (criticalPatterns.some(p => p.test(lower))) return 'critical';
+  if (criticalPatterns.some((p) => p.test(lower))) return 'critical';
 
   // High: privilege escalation, sensitive paths
   const highPatterns = [
-    /\bsudo\b/, /\bsu\s/, /\bchmod\s.*777/,
-    /\/etc\/passwd/, /\/etc\/shadow/,
-    /\bcurl\b.*\|\s*sh/, /\bwget\b.*\|\s*sh/,   // pipe to shell
-    /\beval\b/, /\bexec\b/,
+    /\bsudo\b/,
+    /\bsu\s/,
+    /\bchmod\s.*777/,
+    /\/etc\/passwd/,
+    /\/etc\/shadow/,
+    /\bcurl\b.*\|\s*sh/,
+    /\bwget\b.*\|\s*sh/, // pipe to shell
+    /\beval\b/,
+    /\bexec\b/,
   ];
-  if (highPatterns.some(p => p.test(lower))) return 'high';
+  if (highPatterns.some((p) => p.test(lower))) return 'high';
 
   // Medium: network, file changes
   const mediumPatterns = [
-    /\bcurl\b/, /\bwget\b/, /\bnc\b/, /\bnetcat\b/,
-    /\brm\b/, /\bmv\b.*\//, /\bchmod\b/, /\bchown\b/,
-    /\bpip\s+install\b/, /\bnpm\s+install\b/, /\bapt\b/,
+    /\bcurl\b/,
+    /\bwget\b/,
+    /\bnc\b/,
+    /\bnetcat\b/,
+    /\brm\b/,
+    /\bmv\b.*\//,
+    /\bchmod\b/,
+    /\bchown\b/,
+    /\bpip\s+install\b/,
+    /\bnpm\s+install\b/,
+    /\bapt\b/,
   ];
-  if (mediumPatterns.some(p => p.test(lower))) return 'medium';
+  if (mediumPatterns.some((p) => p.test(lower))) return 'medium';
 
   return 'low';
 }

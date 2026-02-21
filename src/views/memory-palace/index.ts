@@ -20,7 +20,12 @@ import { initPalaceGraph } from './graph';
 
 export type { MemoryFormData, RecallCardData } from './atoms';
 export { validateMemoryForm, CATEGORY_COLORS } from './atoms';
-export { renderRecallCard, palaceRecallById, loadPalaceStats, loadPalaceSidebar } from './molecules';
+export {
+  renderRecallCard,
+  palaceRecallById,
+  loadPalaceStats,
+  loadPalaceSidebar,
+} from './molecules';
 export { renderPalaceGraph } from './graph';
 
 // ── Module state ───────────────────────────────────────────────────────────
@@ -78,8 +83,10 @@ export async function loadMemoryPalace(): Promise<void> {
     if (banner) banner.style.display = 'flex';
   } else if (!_palaceAvailable && _palaceSkipped) {
     if (banner) banner.style.display = 'none';
-    document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
+    document.querySelectorAll('.palace-tab').forEach((t) => t.classList.remove('active'));
+    document
+      .querySelectorAll('.palace-panel')
+      .forEach((p) => ((p as HTMLElement).style.display = 'none'));
     document.querySelector('.palace-tab[data-palace-tab="files"]')?.classList.add('active');
     const fp = $('palace-files-panel');
     if (fp) fp.style.display = 'flex';
@@ -131,10 +138,15 @@ function initPalaceInstall(): void {
       }
       const apiVersionInput = $('palace-api-version') as HTMLInputElement | null;
       if (existingVersion && apiVersionInput) apiVersionInput.value = existingVersion;
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     // Update button text to indicate reconfiguration
     const btn = $('palace-install-btn') as HTMLButtonElement | null;
-    if (btn) { btn.textContent = 'Save & Restart'; btn.disabled = false; }
+    if (btn) {
+      btn.textContent = 'Save & Restart';
+      btn.disabled = false;
+    }
     const progressDiv = $('palace-install-progress');
     if (progressDiv) progressDiv.style.display = 'none';
   });
@@ -164,7 +176,8 @@ function initPalaceInstall(): void {
       });
       if (progressText) progressText.textContent = 'Connection test passed ✓';
     } catch (testErr: unknown) {
-      const errMsg = typeof testErr === 'string' ? testErr : (testErr as Error)?.message || String(testErr);
+      const errMsg =
+        typeof testErr === 'string' ? testErr : (testErr as Error)?.message || String(testErr);
       if (progressText) progressText.textContent = `Connection test failed: ${errMsg}`;
     } finally {
       testBtn.disabled = false;
@@ -198,9 +211,11 @@ function initPalaceInstall(): void {
           apiVersion: apiVersion || null,
           provider,
         });
-        if (progressText) progressText.textContent = 'Connection test passed ✓ Saving configuration…';
+        if (progressText)
+          progressText.textContent = 'Connection test passed ✓ Saving configuration…';
       } catch (testErr: unknown) {
-        const errMsg = typeof testErr === 'string' ? testErr : (testErr as Error)?.message || String(testErr);
+        const errMsg =
+          typeof testErr === 'string' ? testErr : (testErr as Error)?.message || String(testErr);
         if (progressText) progressText.textContent = `Connection test failed: ${errMsg}`;
         btn.textContent = 'Retry';
         btn.disabled = false;
@@ -227,7 +242,9 @@ function initPalaceInstall(): void {
       try {
         const configured = await pawEngine.checkMemoryConfigured();
         _palaceAvailable = configured;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       if (_palaceAvailable) {
         const banner = $('palace-install-banner');
@@ -236,7 +253,8 @@ function initPalaceInstall(): void {
         await loadMemoryPalace();
       } else {
         if (progressText) {
-          progressText.textContent = 'Configuration saved. Memory plugin may need additional setup.';
+          progressText.textContent =
+            'Configuration saved. Memory plugin may need additional setup.';
         }
         btn.textContent = 'Retry';
         btn.disabled = false;
@@ -266,8 +284,10 @@ function initPalaceInstall(): void {
     const banner = $('palace-install-banner');
     if (banner) banner.style.display = 'none';
 
-    document.querySelectorAll('.palace-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.palace-panel').forEach(p => (p as HTMLElement).style.display = 'none');
+    document.querySelectorAll('.palace-tab').forEach((t) => t.classList.remove('active'));
+    document
+      .querySelectorAll('.palace-panel')
+      .forEach((p) => ((p as HTMLElement).style.display = 'none'));
     document.querySelector('.palace-tab[data-palace-tab="files"]')?.classList.add('active');
     const fp = $('palace-files-panel');
     if (fp) fp.style.display = 'flex';
@@ -297,7 +317,7 @@ export function initPalaceEvents(): void {
   // Sidebar search filter
   $('palace-search')?.addEventListener('input', () => {
     const query = (($('palace-search') as HTMLInputElement)?.value ?? '').toLowerCase();
-    document.querySelectorAll('.palace-memory-card').forEach(card => {
+    document.querySelectorAll('.palace-memory-card').forEach((card) => {
       const text = card.textContent?.toLowerCase() ?? '';
       (card as HTMLElement).style.display = text.includes(query) ? '' : 'none';
     });

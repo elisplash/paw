@@ -23,21 +23,36 @@ export async function renderPalaceGraph(): Promise<void> {
   const emptyEl = $('palace-graph-empty');
   if (!canvas) return;
 
-  if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Loading memory map…'; }
+  if (emptyEl) {
+    emptyEl.style.display = 'flex';
+    emptyEl.textContent = 'Loading memory map…';
+  }
 
   let memories: RecallCardData[] = [];
 
   try {
     const engineMems = await pawEngine.memoryList(50);
-    memories = engineMems.map(m => ({ id: m.id, text: m.content, category: m.category, importance: m.importance, score: m.score }));
+    memories = engineMems.map((m) => ({
+      id: m.id,
+      text: m.content,
+      category: m.category,
+      importance: m.importance,
+      score: m.score,
+    }));
   } catch (e) {
     console.warn('Graph load failed:', e);
-    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'Failed to load memory map.'; }
+    if (emptyEl) {
+      emptyEl.style.display = 'flex';
+      emptyEl.textContent = 'Failed to load memory map.';
+    }
     return;
   }
 
   if (!memories.length) {
-    if (emptyEl) { emptyEl.style.display = 'flex'; emptyEl.textContent = 'No memories to visualize.'; }
+    if (emptyEl) {
+      emptyEl.style.display = 'flex';
+      emptyEl.textContent = 'No memories to visualize.';
+    }
     return;
   }
 
@@ -61,7 +76,8 @@ export async function renderPalaceGraph(): Promise<void> {
 
   // Layout: distribute category centers in a circle
   const categories = Array.from(groups.entries());
-  const cx = canvas.width / 2, cy = canvas.height / 2;
+  const cx = canvas.width / 2,
+    cy = canvas.height / 2;
   const radius = Math.min(cx, cy) * 0.55;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);

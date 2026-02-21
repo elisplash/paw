@@ -99,8 +99,8 @@ describe('getAutocompleteSuggestions', () => {
 
   it('filters by prefix', () => {
     const suggestions = getAutocompleteSuggestions('/mo');
-    expect(suggestions.some(s => s.command === '/model')).toBe(true);
-    expect(suggestions.some(s => s.command === '/mode')).toBe(true);
+    expect(suggestions.some((s) => s.command === '/model')).toBe(true);
+    expect(suggestions.some((s) => s.command === '/mode')).toBe(true);
   });
 
   it('returns empty for non-slash input', () => {

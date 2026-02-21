@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  getWeatherIcon,
-  getGreeting,
-  getPawzMessage,
-  isToday,
-} from './atoms';
+import { getWeatherIcon, getGreeting, getPawzMessage, isToday } from './atoms';
 
 // ── getWeatherIcon ─────────────────────────────────────────────────────
 

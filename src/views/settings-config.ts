@@ -17,14 +17,17 @@ let _configLoading: Promise<Record<string, unknown>> | null = null;
 export async function getConfig(): Promise<Record<string, unknown>> {
   if (_configCache) return _configCache;
   if (_configLoading) return _configLoading;
-  _configLoading = pawEngine.getConfig().then(cfg => {
-    _configCache = cfg as unknown as Record<string, unknown>;
-    _configLoading = null;
-    return _configCache;
-  }).catch(e => {
-    _configLoading = null;
-    throw e;
-  });
+  _configLoading = pawEngine
+    .getConfig()
+    .then((cfg) => {
+      _configCache = cfg as unknown as Record<string, unknown>;
+      _configLoading = null;
+      return _configCache;
+    })
+    .catch((e) => {
+      _configLoading = null;
+      throw e;
+    });
   return _configLoading;
 }
 
@@ -41,13 +44,13 @@ export async function setEngineConfig(config: EngineConfig, silent = false): Pro
     _configLoading = null;
     if (!silent) {
       const modelName = config.default_model;
-      const toastMsg = modelName
-        ? `Settings saved — active model: ${modelName}`
-        : 'Settings saved';
+      const toastMsg = modelName ? `Settings saved — active model: ${modelName}` : 'Settings saved';
       showToast(toastMsg, 'success');
     }
     // Refresh the chat header model label
-    const refreshFn = (window as unknown as Record<string, unknown>).__refreshModelLabel as (() => void) | undefined;
+    const refreshFn = (window as unknown as Record<string, unknown>).__refreshModelLabel as
+      | (() => void)
+      | undefined;
     if (refreshFn) refreshFn();
     return true;
   } catch (e) {
@@ -79,7 +82,10 @@ export function buildPatch(path: string, value: unknown): Record<string, unknown
 /** Patch config — reads current engine config, merges the patch, and saves.
  *  Returns true on success, false on error.
  */
-export async function patchConfig(patch: Record<string, unknown>, silent = false): Promise<boolean> {
+export async function patchConfig(
+  patch: Record<string, unknown>,
+  silent = false,
+): Promise<boolean> {
   try {
     const current = await pawEngine.getConfig();
     const merged = deepMerge(current as unknown as Record<string, unknown>, patch);
@@ -96,13 +102,24 @@ export async function patchConfig(patch: Record<string, unknown>, silent = false
 }
 
 /** Deep merge source into target. null values delete keys. */
-function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+function deepMerge(
+  target: Record<string, unknown>,
+  source: Record<string, unknown>,
+): Record<string, unknown> {
   const result = { ...target };
   for (const [key, value] of Object.entries(source)) {
     if (value === null || value === undefined) {
       delete result[key];
-    } else if (typeof value === 'object' && !Array.isArray(value) && typeof result[key] === 'object' && !Array.isArray(result[key])) {
-      result[key] = deepMerge(result[key] as Record<string, unknown>, value as Record<string, unknown>);
+    } else if (
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      typeof result[key] === 'object' &&
+      !Array.isArray(result[key])
+    ) {
+      result[key] = deepMerge(
+        result[key] as Record<string, unknown>,
+        value as Record<string, unknown>,
+      );
     } else {
       result[key] = value;
     }
@@ -137,8 +154,12 @@ export function setConnected(_connected: boolean) {
 
 /** Escape HTML */
 export function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /** Create a labeled form row. Returns the container element. */
@@ -160,7 +181,10 @@ export function formRow(label: string, description?: string): HTMLDivElement {
 }
 
 /** Create a select dropdown with options. Returns the <select>. */
-export function selectInput(options: Array<{ value: string; label: string }>, currentValue?: string): HTMLSelectElement {
+export function selectInput(
+  options: Array<{ value: string; label: string }>,
+  currentValue?: string,
+): HTMLSelectElement {
   const sel = document.createElement('select');
   sel.className = 'form-input';
   for (const opt of options) {
@@ -184,7 +208,10 @@ export function textInput(value?: string, placeholder?: string, type = 'text'): 
 }
 
 /** Create a number input. */
-export function numberInput(value?: number, opts?: { min?: number; max?: number; step?: number; placeholder?: string }): HTMLInputElement {
+export function numberInput(
+  value?: number,
+  opts?: { min?: number; max?: number; step?: number; placeholder?: string },
+): HTMLInputElement {
   const inp = document.createElement('input');
   inp.type = 'number';
   inp.className = 'form-input';
@@ -197,7 +224,10 @@ export function numberInput(value?: number, opts?: { min?: number; max?: number;
 }
 
 /** Create a toggle switch. Returns { container, checkbox }. */
-export function toggleSwitch(checked: boolean, label?: string): { container: HTMLLabelElement; checkbox: HTMLInputElement } {
+export function toggleSwitch(
+  checked: boolean,
+  label?: string,
+): { container: HTMLLabelElement; checkbox: HTMLInputElement } {
   const container = document.createElement('label');
   container.className = 'security-toggle-row';
   container.style.cursor = 'pointer';

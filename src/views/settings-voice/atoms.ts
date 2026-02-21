@@ -74,16 +74,22 @@ export const LANGUAGES = [
 
 export function voicesForProvider(provider: string) {
   switch (provider) {
-    case 'openai': return OPENAI_VOICES;
-    case 'elevenlabs': return ELEVENLABS_VOICES;
-    default: return GOOGLE_VOICES;
+    case 'openai':
+      return OPENAI_VOICES;
+    case 'elevenlabs':
+      return ELEVENLABS_VOICES;
+    default:
+      return GOOGLE_VOICES;
   }
 }
 
 export function providerHint(provider: string): string {
   switch (provider) {
-    case 'openai': return 'Uses your OpenAI API key from Models settings. $15/1M characters.';
-    case 'elevenlabs': return 'Uses your ElevenLabs API key (entered below). Premium neural voices.';
-    default: return 'Uses your Google API key from Models settings. Chirp 3 HD voices are highest quality.';
+    case 'openai':
+      return 'Uses your OpenAI API key from Models settings. $15/1M characters.';
+    case 'elevenlabs':
+      return 'Uses your ElevenLabs API key (entered below). Premium neural voices.';
+    default:
+      return 'Uses your Google API key from Models settings. Chirp 3 HD voices are highest quality.';
   }
 }

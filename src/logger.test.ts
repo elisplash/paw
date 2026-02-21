@@ -95,12 +95,23 @@ describe('getLogCounts', () => {
 
 describe('formatLogEntry', () => {
   it('formats entry without data', () => {
-    const entry: LogEntry = { level: 'info', message: 'hello', module: 'test', timestamp: '2026-01-01T00:00:00.000Z' };
+    const entry: LogEntry = {
+      level: 'info',
+      message: 'hello',
+      module: 'test',
+      timestamp: '2026-01-01T00:00:00.000Z',
+    };
     expect(formatLogEntry(entry)).toBe('[2026-01-01T00:00:00.000Z] [INFO ] [test] hello');
   });
 
   it('formats entry with data as JSON', () => {
-    const entry: LogEntry = { level: 'error', message: 'fail', module: 'db', timestamp: '2026-01-01T00:00:00.000Z', data: { code: 42 } };
+    const entry: LogEntry = {
+      level: 'error',
+      message: 'fail',
+      module: 'db',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      data: { code: 42 },
+    };
     expect(formatLogEntry(entry)).toBe('[2026-01-01T00:00:00.000Z] [ERROR] [db] fail {"code":42}');
   });
 });
@@ -124,7 +135,9 @@ describe('setLogTransport / getLogTransport', () => {
 
   it('calls transport on each log emit', () => {
     const received: Array<{ entry: LogEntry; formatted: string }> = [];
-    setLogTransport((entry, formatted) => { received.push({ entry, formatted }); });
+    setLogTransport((entry, formatted) => {
+      received.push({ entry, formatted });
+    });
     const log = createLogger('mod');
     log.info('test message', { key: 'val' });
     expect(received).toHaveLength(1);
@@ -135,7 +148,9 @@ describe('setLogTransport / getLogTransport', () => {
 
   it('does not call transport for suppressed levels', () => {
     const received: LogEntry[] = [];
-    setLogTransport((entry) => { received.push(entry); });
+    setLogTransport((entry) => {
+      received.push(entry);
+    });
     setLogLevel('error');
     const log = createLogger('test');
     log.debug('skip');
@@ -147,7 +162,9 @@ describe('setLogTransport / getLogTransport', () => {
   });
 
   it('swallows transport errors silently', () => {
-    setLogTransport(() => { throw new Error('boom'); });
+    setLogTransport(() => {
+      throw new Error('boom');
+    });
     const log = createLogger('test');
     expect(() => log.info('should not throw')).not.toThrow();
     // Entry should still be in the buffer despite transport failure
@@ -162,7 +179,9 @@ describe('flushBufferToTransport', () => {
     log.warn('also before');
 
     const received: string[] = [];
-    setLogTransport((_entry, formatted) => { received.push(formatted); });
+    setLogTransport((_entry, formatted) => {
+      received.push(formatted);
+    });
     flushBufferToTransport();
 
     expect(received).toHaveLength(2);

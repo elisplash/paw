@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  validateMemoryForm,
-  CATEGORY_COLORS,
-} from './atoms';
+import { validateMemoryForm, CATEGORY_COLORS } from './atoms';
 import type { MemoryFormInputs } from './atoms';
 
 // ── validateMemoryForm ─────────────────────────────────────────────────
@@ -27,7 +24,11 @@ describe('validateMemoryForm', () => {
   });
 
   it('errors when URL pasted into API key field and no baseUrl', () => {
-    const r = validateMemoryForm({ ...validInputs, apiKey: 'https://api.example.com', openaiBaseUrl: '' });
+    const r = validateMemoryForm({
+      ...validInputs,
+      apiKey: 'https://api.example.com',
+      openaiBaseUrl: '',
+    });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.kind).toBe('url_in_key');
   });

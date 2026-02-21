@@ -16,16 +16,17 @@ export function setCommunityReload(fn: () => Promise<void>): void {
 // ── Community section renderer ─────────────────────────────────────────────
 
 export function renderCommunitySection(installed: CommunitySkill[]): string {
-  const installedCards = installed.length > 0
-    ? installed.map(s => renderCommunityCard(s)).join('')
-    : '';
+  const installedCards =
+    installed.length > 0 ? installed.map((s) => renderCommunityCard(s)).join('') : '';
 
-  const tagButtons = POPULAR_TAGS.map(t =>
-    `<button class="btn btn-ghost btn-sm community-search-tag" data-query="${escHtml(t)}" style="border-radius:20px;padding:4px 14px;font-size:12px;border:1px solid var(--border-subtle)">${escHtml(t)}</button>`
+  const tagButtons = POPULAR_TAGS.map(
+    (t) =>
+      `<button class="btn btn-ghost btn-sm community-search-tag" data-query="${escHtml(t)}" style="border-radius:20px;padding:4px 14px;font-size:12px;border:1px solid var(--border-subtle)">${escHtml(t)}</button>`,
   ).join('');
 
-  const repoButtons = POPULAR_REPOS.map(r =>
-    `<button class="btn btn-ghost btn-sm community-quick-browse" data-source="${escHtml(r.source)}" style="border-radius:20px;padding:4px 14px;font-size:12px;border:1px solid var(--accent);color:var(--accent)">${escHtml(r.label)}</button>`
+  const repoButtons = POPULAR_REPOS.map(
+    (r) =>
+      `<button class="btn btn-ghost btn-sm community-quick-browse" data-source="${escHtml(r.source)}" style="border-radius:20px;padding:4px 14px;font-size:12px;border:1px solid var(--accent);color:var(--accent)">${escHtml(r.label)}</button>`,
   ).join('');
 
   return `
@@ -72,26 +73,30 @@ export function renderCommunitySection(installed: CommunitySkill[]): string {
     <div id="community-browse-results" style="display:none;margin-top:16px"></div>
   </div>
 
-  ${installed.length > 0 ? `
+  ${
+    installed.length > 0
+      ? `
   <div class="skill-category-group" style="margin-bottom:24px">
     <h3 class="skill-category-title" style="display:flex;align-items:center;gap:8px">
       ${msIcon('download')} Installed Community Skills
       <span style="font-size:12px;font-weight:400;color:var(--text-muted)">(${installed.length})</span>
     </h3>
     ${installedCards}
-  </div>` : ''}`;
+  </div>`
+      : ''
+  }`;
 }
 
 // ── Community card renderers ───────────────────────────────────────────────
 
 function renderCommunityCard(s: CommunitySkill): string {
-  const preview = s.instructions.length > 200
-    ? `${s.instructions.substring(0, 200)  }...`
-    : s.instructions;
+  const preview =
+    s.instructions.length > 200 ? `${s.instructions.substring(0, 200)}...` : s.instructions;
 
-  const agentLabel = (!s.agent_ids || s.agent_ids.length === 0)
-    ? `${msIcon('groups')} All Agents`
-    : `${msIcon('person')} ${s.agent_ids.join(', ')}`;
+  const agentLabel =
+    !s.agent_ids || s.agent_ids.length === 0
+      ? `${msIcon('groups')} All Agents`
+      : `${msIcon('person')} ${s.agent_ids.join(', ')}`;
 
   return `
   <div class="skill-vault-card${s.enabled ? ' skill-enabled' : ''}" data-community-id="${escHtml(s.id)}">
@@ -134,9 +139,10 @@ function renderCommunityCard(s: CommunitySkill): string {
 }
 
 function renderDiscoveredCard(skill: DiscoveredSkill): string {
-  const installsBadge = skill.installs > 0
-    ? `<span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px">${msIcon('download')} ${formatInstalls(skill.installs)}</span>`
-    : '';
+  const installsBadge =
+    skill.installs > 0
+      ? `<span style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:3px">${msIcon('download')} ${formatInstalls(skill.installs)}</span>`
+      : '';
 
   return `
   <div class="skill-vault-card" style="opacity:${skill.installed ? '0.6' : '1'}">
@@ -152,9 +158,10 @@ function renderDiscoveredCard(skill: DiscoveredSkill): string {
       </div>
       <div class="skill-card-actions" style="display:flex;align-items:center;gap:10px">
         ${installsBadge}
-        ${skill.installed
-          ? `<span style="font-size:12px;color:var(--text-muted)">Already installed</span>`
-          : `<button class="btn btn-primary btn-sm community-install-btn" data-source="${escHtml(skill.source)}" data-path="${escHtml(skill.path)}" data-name="${escHtml(skill.name)}">
+        ${
+          skill.installed
+            ? `<span style="font-size:12px;color:var(--text-muted)">Already installed</span>`
+            : `<button class="btn btn-primary btn-sm community-install-btn" data-source="${escHtml(skill.source)}" data-path="${escHtml(skill.path)}" data-name="${escHtml(skill.name)}">
               ${msIcon('download')} Install
             </button>`
         }
@@ -191,17 +198,19 @@ async function browseRepo(source: string): Promise<void> {
       return;
     }
 
-    const notInstalled = skills.filter(s => !s.installed).length;
+    const notInstalled = skills.filter((s) => !s.installed).length;
     const header = `<div style="display:flex;justify-content:space-between;align-items:center;padding:0 0 8px">
       <span style="font-weight:600;font-size:13px">${skills.length} skills found in ${escHtml(source)}</span>
-      ${notInstalled > 0
-        ? `<button class="btn btn-primary btn-sm" id="community-install-all" data-source="${escHtml(source)}">
+      ${
+        notInstalled > 0
+          ? `<button class="btn btn-primary btn-sm" id="community-install-all" data-source="${escHtml(source)}">
             ${msIcon('download')} Install All (${notInstalled})
           </button>`
-        : ''}
+          : ''
+      }
     </div>`;
 
-    results.innerHTML = header + skills.map(s => renderDiscoveredCard(s)).join('');
+    results.innerHTML = header + skills.map((s) => renderDiscoveredCard(s)).join('');
     wireInstallButtons(results, skills);
   } catch (err) {
     results.innerHTML = `<p style="color:var(--accent-danger);padding:12px">${msIcon('error')} ${escHtml(String(err))}</p>`;
@@ -242,7 +251,7 @@ async function searchSkills(query: string): Promise<void> {
       <span style="font-size:12px;color:var(--text-muted)">from ${byRepo.size} ${byRepo.size === 1 ? 'repo' : 'repos'}</span>
     </div>`;
 
-    results.innerHTML = header + skills.map(s => renderDiscoveredCard(s)).join('');
+    results.innerHTML = header + skills.map((s) => renderDiscoveredCard(s)).join('');
     wireInstallButtons(results, skills);
   } catch (err) {
     results.innerHTML = `<div style="padding:16px">
@@ -255,9 +264,9 @@ async function searchSkills(query: string): Promise<void> {
 // ── Install button wiring ──────────────────────────────────────────────────
 
 function wireInstallButtons(container: HTMLElement, skills: DiscoveredSkill[]): void {
-  const reload = () => _reloadFn ? _reloadFn() : Promise.resolve();
+  const reload = () => (_reloadFn ? _reloadFn() : Promise.resolve());
 
-  container.querySelectorAll('.community-install-btn').forEach(el => {
+  container.querySelectorAll('.community-install-btn').forEach((el) => {
     el.addEventListener('click', async () => {
       const btn = el as HTMLButtonElement;
       const src = btn.dataset.source!;
@@ -282,10 +291,13 @@ function wireInstallButtons(container: HTMLElement, skills: DiscoveredSkill[]): 
   // Install All button
   container.querySelector('#community-install-all')?.addEventListener('click', async () => {
     const allBtn = $('community-install-all') as HTMLButtonElement;
-    if (allBtn) { allBtn.disabled = true; allBtn.textContent = 'Installing...'; }
+    if (allBtn) {
+      allBtn.disabled = true;
+      allBtn.textContent = 'Installing...';
+    }
 
     let installed = 0;
-    for (const s of skills.filter(sk => !sk.installed)) {
+    for (const s of skills.filter((sk) => !sk.installed)) {
       try {
         await pawEngine.communitySkillInstall(s.source, s.path);
         installed++;
@@ -314,7 +326,7 @@ export function bindCommunityEvents(): void {
   });
 
   // Tag buttons
-  document.querySelectorAll('.community-search-tag').forEach(el => {
+  document.querySelectorAll('.community-search-tag').forEach((el) => {
     el.addEventListener('click', () => {
       const query = (el as HTMLElement).dataset.query!;
       if (searchInput) searchInput.value = query;
@@ -336,7 +348,7 @@ export function bindCommunityEvents(): void {
   });
 
   // Quick browse buttons
-  document.querySelectorAll('.community-quick-browse').forEach(el => {
+  document.querySelectorAll('.community-quick-browse').forEach((el) => {
     el.addEventListener('click', () => {
       const source = (el as HTMLElement).dataset.source!;
       const input = $('community-skill-source') as HTMLInputElement | null;
@@ -346,13 +358,16 @@ export function bindCommunityEvents(): void {
   });
 
   // Enable/disable toggles for installed community skills
-  document.querySelectorAll('.community-enabled-toggle').forEach(el => {
+  document.querySelectorAll('.community-enabled-toggle').forEach((el) => {
     el.addEventListener('change', async (e) => {
       const input = e.target as HTMLInputElement;
       const skillId = input.dataset.skill!;
       try {
         await pawEngine.communitySkillSetEnabled(skillId, input.checked);
-        showToast(`${skillId.split('/').pop()} ${input.checked ? 'enabled' : 'disabled'}`, 'success');
+        showToast(
+          `${skillId.split('/').pop()} ${input.checked ? 'enabled' : 'disabled'}`,
+          'success',
+        );
         if (_reloadFn) await _reloadFn();
       } catch (err) {
         showToast(`Failed: ${err}`, 'error');
@@ -362,13 +377,13 @@ export function bindCommunityEvents(): void {
   });
 
   // Remove buttons
-  document.querySelectorAll('.community-remove-btn').forEach(el => {
+  document.querySelectorAll('.community-remove-btn').forEach((el) => {
     el.addEventListener('click', async () => {
       const btn = el as HTMLButtonElement;
       const skillId = btn.dataset.skill!;
       const name = skillId.split('/').pop() || skillId;
 
-      if (!await confirmModal(`Remove "${name}"? You can reinstall it later.`)) return;
+      if (!(await confirmModal(`Remove "${name}"? You can reinstall it later.`))) return;
 
       try {
         await pawEngine.communitySkillRemove(skillId);

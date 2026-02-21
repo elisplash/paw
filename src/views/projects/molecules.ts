@@ -14,12 +14,7 @@ import {
   getDepth,
   BINARY_EXTENSIONS,
 } from './atoms';
-import {
-  getGitInfo,
-  getCachedGitInfo,
-  renderGitBanner,
-  bindGitActions,
-} from './git';
+import { getGitInfo, getCachedGitInfo, renderGitBanner, bindGitActions } from './git';
 
 // ── Tauri FS state (set by index.ts) ──────────────────────────────────────
 
@@ -106,7 +101,20 @@ async function loadDirectoryContents(dirPath: string): Promise<FileEntry[]> {
     for (const entry of entries) {
       if (!entry.name) continue;
       if (entry.name.startsWith('.') && entry.name !== '.env') continue;
-      if (['node_modules', '__pycache__', '.git', 'target', 'dist', 'build', '.next', 'venv', '.venv'].includes(entry.name)) continue;
+      if (
+        [
+          'node_modules',
+          '__pycache__',
+          '.git',
+          'target',
+          'dist',
+          'build',
+          '.next',
+          'venv',
+          '.venv',
+        ].includes(entry.name)
+      )
+        continue;
 
       const fullPath = await _join(dirPath, entry.name);
 
@@ -171,16 +179,21 @@ export function renderProjectsSidebar(): void {
     return;
   }
 
-  sidebar.innerHTML = _projects.map(p => {
-    const cached = getCachedGitInfo(p.path);
-    const branchHint = cached?.isRepo && cached.branch
-      ? `<span style="font-size:10px;color:var(--accent);font-family:var(--font-mono);opacity:0.8">${escHtml(cached.branch)}</span>`
-      : '';
-    const dirtyDot = cached?.isRepo && cached.dirty
-      ? '<span style="color:var(--warning);font-size:8px;margin-left:2px">●</span>'
-      : '';
-    const isActive = _selectedFile && _projects.some(proj => proj.path === p.path && _selectedFile!.path.startsWith(proj.path));
-    return `
+  sidebar.innerHTML = _projects
+    .map((p) => {
+      const cached = getCachedGitInfo(p.path);
+      const branchHint =
+        cached?.isRepo && cached.branch
+          ? `<span style="font-size:10px;color:var(--accent);font-family:var(--font-mono);opacity:0.8">${escHtml(cached.branch)}</span>`
+          : '';
+      const dirtyDot =
+        cached?.isRepo && cached.dirty
+          ? '<span style="color:var(--warning);font-size:8px;margin-left:2px">●</span>'
+          : '';
+      const isActive =
+        _selectedFile &&
+        _projects.some((proj) => proj.path === p.path && _selectedFile!.path.startsWith(proj.path));
+      return `
     <div class="projects-folder-item${isActive ? ' active' : ''}" 
          data-path="${escAttr(p.path)}" title="${escAttr(p.path)}">
       <div class="projects-folder-row">
@@ -191,25 +204,31 @@ export function renderProjectsSidebar(): void {
           <span class="ms" style="font-size:14px">close</span>
         </button>
       </div>
-      <div class="projects-folder-path">${escHtml(shortenPath(p.path))}${branchHint ? ` · ${  branchHint}` : ''}</div>
+      <div class="projects-folder-path">${escHtml(shortenPath(p.path))}${branchHint ? ` · ${branchHint}` : ''}</div>
     </div>`;
-  }).join('');
+    })
+    .join('');
 
   // Bind clicks
-  sidebar.querySelectorAll('.projects-folder-item').forEach(el => {
+  sidebar.querySelectorAll('.projects-folder-item').forEach((el) => {
     el.addEventListener('click', async (e) => {
       if ((e.target as HTMLElement).closest('.projects-remove-btn')) return;
       const path = el.getAttribute('data-path');
-      const project = _projects.find(p => p.path === path);
+      const project = _projects.find((p) => p.path === path);
       if (project) await selectProject(project);
     });
   });
 
-  sidebar.querySelectorAll('.projects-remove-btn').forEach(btn => {
+  sidebar.querySelectorAll('.projects-remove-btn').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const path = btn.getAttribute('data-remove');
-      if (path && await confirmModal(`Remove "${_projects.find(p => p.path === path)?.name}" from projects?`)) {
+      if (
+        path &&
+        (await confirmModal(
+          `Remove "${_projects.find((p) => p.path === path)?.name}" from projects?`,
+        ))
+      ) {
         _onRemoveProject?.(path);
       }
     });
@@ -231,7 +250,7 @@ export async function selectProject(project: ProjectFolder): Promise<void> {
   if (viewer) viewer.style.display = '';
 
   // Highlight in sidebar
-  document.querySelectorAll('.projects-folder-item').forEach(el => {
+  document.querySelectorAll('.projects-folder-item').forEach((el) => {
     el.classList.toggle('active', el.getAttribute('data-path') === project.path);
   });
 
@@ -252,8 +271,8 @@ export async function selectProject(project: ProjectFolder): Promise<void> {
 
   // Show welcome + git info in viewer
   if (viewer) {
-    const dirCount = entries.filter(e => e.isDirectory).length;
-    const fileCount = entries.filter(e => !e.isDirectory).length;
+    const dirCount = entries.filter((e) => e.isDirectory).length;
+    const fileCount = entries.filter((e) => !e.isDirectory).length;
 
     viewer.innerHTML = `
       <div class="projects-viewer-welcome">
@@ -267,7 +286,7 @@ export async function selectProject(project: ProjectFolder): Promise<void> {
       ${renderGitBanner(gitInfo, project.path)}
     `;
     bindGitActions(viewer, project.path, async (path) => {
-      const proj = _projects.find(p => p.path === path);
+      const proj = _projects.find((p) => p.path === path);
       if (proj) await selectProject(proj);
     });
   }
@@ -278,14 +297,17 @@ export async function selectProject(project: ProjectFolder): Promise<void> {
 // ── File tree rendering ───────────────────────────────────────────────────
 
 function renderTreeEntries(entries: FileEntry[], depth: number, rootPath: string): string {
-  return entries.map(entry => {
-    const indent = depth * 16;
-    const isExpanded = _expandedPaths.has(entry.path);
+  return entries
+    .map((entry) => {
+      const indent = depth * 16;
+      const isExpanded = _expandedPaths.has(entry.path);
 
-    if (entry.isDirectory) {
-      const childrenHtml = isExpanded && entry.children
-        ? renderTreeEntries(entry.children, depth + 1, rootPath) : '';
-      return `
+      if (entry.isDirectory) {
+        const childrenHtml =
+          isExpanded && entry.children
+            ? renderTreeEntries(entry.children, depth + 1, rootPath)
+            : '';
+        return `
         <div class="tree-item tree-dir${isExpanded ? ' expanded' : ''}" data-path="${escAttr(entry.path)}" style="padding-left:${indent + 8}px">
           <span class="ms tree-chevron" style="font-size:14px">chevron_right</span>
           <span class="ms ms-sm tree-icon">${isExpanded ? 'folder_open' : 'folder'}</span>
@@ -294,21 +316,22 @@ function renderTreeEntries(entries: FileEntry[], depth: number, rootPath: string
         <div class="tree-children${isExpanded ? ' expanded' : ''}" data-parent="${escAttr(entry.path)}">
           ${childrenHtml}
         </div>`;
-    } else {
-      const ext = entry.name.split('.').pop()?.toLowerCase() || '';
-      const iconName = getFileIcon(ext);
-      return `
+      } else {
+        const ext = entry.name.split('.').pop()?.toLowerCase() || '';
+        const iconName = getFileIcon(ext);
+        return `
         <div class="tree-item tree-file${_selectedFile?.path === entry.path ? ' active' : ''}" data-path="${escAttr(entry.path)}" style="padding-left:${indent + 22}px">
           <span class="ms ms-sm tree-icon">${iconName}</span>
           <span class="tree-name">${escHtml(entry.name)}</span>
           <span class="tree-ext">${ext ? `.${ext}` : ''}</span>
         </div>`;
-    }
-  }).join('');
+      }
+    })
+    .join('');
 }
 
 function bindTreeEvents(container: HTMLElement, rootPath: string): void {
-  container.querySelectorAll('.tree-dir').forEach(el => {
+  container.querySelectorAll('.tree-dir').forEach((el) => {
     el.addEventListener('click', async () => {
       const dirPath = el.getAttribute('data-path');
       if (!dirPath) return;
@@ -317,7 +340,9 @@ function bindTreeEvents(container: HTMLElement, rootPath: string): void {
       if (isExpanded) {
         _expandedPaths.delete(dirPath);
         el.classList.remove('expanded');
-        const children = container.querySelector(`.tree-children[data-parent="${CSS.escape(dirPath)}"]`);
+        const children = container.querySelector(
+          `.tree-children[data-parent="${CSS.escape(dirPath)}"]`,
+        );
         if (children) {
           children.classList.remove('expanded');
           children.innerHTML = '';
@@ -326,7 +351,9 @@ function bindTreeEvents(container: HTMLElement, rootPath: string): void {
         _expandedPaths.add(dirPath);
         el.classList.add('expanded');
         const entries = await loadDirectoryContents(dirPath);
-        const children = container.querySelector(`.tree-children[data-parent="${CSS.escape(dirPath)}"]`);
+        const children = container.querySelector(
+          `.tree-children[data-parent="${CSS.escape(dirPath)}"]`,
+        );
         if (children) {
           children.classList.add('expanded');
           children.innerHTML = renderTreeEntries(entries, getDepth(dirPath, rootPath), rootPath);
@@ -335,19 +362,23 @@ function bindTreeEvents(container: HTMLElement, rootPath: string): void {
         // Update folder icon
         const iconSvg = el.querySelector('.tree-icon');
         if (iconSvg) {
-          iconSvg.innerHTML = '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="2" y1="10" x2="22" y2="10"/>';
+          iconSvg.innerHTML =
+            '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="2" y1="10" x2="22" y2="10"/>';
         }
       }
     });
   });
 
-  container.querySelectorAll('.tree-file').forEach(el => {
+  container.querySelectorAll('.tree-file').forEach((el) => {
     el.addEventListener('click', async () => {
       const filePath = el.getAttribute('data-path');
       if (!filePath) return;
 
       // Highlight selection
-      container.closest('#projects-file-tree')?.querySelectorAll('.tree-file.active').forEach(f => f.classList.remove('active'));
+      container
+        .closest('#projects-file-tree')
+        ?.querySelectorAll('.tree-file.active')
+        .forEach((f) => f.classList.remove('active'));
       el.classList.add('active');
 
       const fileName = filePath.split('/').pop() || filePath;
@@ -404,9 +435,10 @@ async function openFile(filePath: string): Promise<void> {
   const lines = content.split('\n');
   const lineNumbers = lines.map((_, i) => `<span class="line-num">${i + 1}</span>`).join('\n');
   const maxSize = 500_000;
-  const displayContent = content.length > maxSize
-    ? `${content.slice(0, maxSize)  }\n\n... (truncated — ${(content.length / 1024).toFixed(0)}KB total)`
-    : content;
+  const displayContent =
+    content.length > maxSize
+      ? `${content.slice(0, maxSize)}\n\n... (truncated — ${(content.length / 1024).toFixed(0)}KB total)`
+      : content;
 
   viewer.innerHTML = `
     <div class="projects-viewer-header">

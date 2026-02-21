@@ -43,12 +43,18 @@ export function renderLiveSourceFeed() {
   const feed = $('research-source-feed');
   if (!feed) return;
 
-  feed.innerHTML = _state.getLiveSources().slice(-8).map(source => `
+  feed.innerHTML = _state
+    .getLiveSources()
+    .slice(-8)
+    .map(
+      (source) => `
     <div class="research-live-source">
       <span class="research-live-source-icon"><span class="ms ms-sm">language</span></span>
       <span class="research-live-source-domain">${escHtml(source.title)}</span>
     </div>
-  `).join('');
+  `,
+    )
+    .join('');
 }
 
 export function renderProgressSteps() {
@@ -56,12 +62,16 @@ export function renderProgressSteps() {
   if (!container) return;
 
   const steps = _state.getLiveSteps();
-  container.innerHTML = steps.map((step, i) => `
+  container.innerHTML = steps
+    .map(
+      (step, i) => `
     <div class="research-progress-step ${i === steps.length - 1 ? 'active' : 'done'}">
       <span class="research-step-icon">${i === steps.length - 1 ? '◉' : '✓'}</span>
       <span class="research-step-text">${escHtml(step)}</span>
     </div>
-  `).join('');
+  `,
+    )
+    .join('');
 }
 
 // ── Project list ───────────────────────────────────────────────────────────
@@ -101,19 +111,25 @@ export async function renderProjectList() {
 
   // Recent queries section
   const recentQueries = projects
-    .flatMap(p => p.queries.slice(-3).map(q => ({ query: q, projectId: p.id, projectName: p.name })))
+    .flatMap((p) =>
+      p.queries.slice(-3).map((q) => ({ query: q, projectId: p.id, projectName: p.name })),
+    )
     .slice(0, 5);
 
   const recentList = $('research-recent-queries');
   if (recentList && recentQueries.length) {
-    recentList.innerHTML = recentQueries.map(r => `
+    recentList.innerHTML = recentQueries
+      .map(
+        (r) => `
       <div class="research-recent-query" data-project="${r.projectId}" data-query="${escHtml(r.query)}">
         <span class="research-recent-icon">↩</span>
         <span class="research-recent-text">${escHtml(r.query.slice(0, 40))}${r.query.length > 40 ? '...' : ''}</span>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
-    recentList.querySelectorAll('.research-recent-query').forEach(el => {
+    recentList.querySelectorAll('.research-recent-query').forEach((el) => {
       el.addEventListener('click', async () => {
         const projectId = el.getAttribute('data-project');
         const query = el.getAttribute('data-query');
@@ -139,7 +155,9 @@ export async function openProject(id: string) {
   // Expose the project to index.ts — we need a special setter
   // The project is written directly into module state through the accessor
   // pattern: index.ts passes getActiveProject/setActiveProject
-  ((_state as unknown) as { setActiveProject: (p: workspace.ResearchProject | null) => void }).setActiveProject(project);
+  (
+    _state as unknown as { setActiveProject: (p: workspace.ResearchProject | null) => void }
+  ).setActiveProject(project);
 
   const empty = $('research-empty');
   const main = $('research-workspace');
@@ -189,7 +207,9 @@ export function renderFindings() {
     return;
   }
 
-  container.innerHTML = findings.map(finding => `
+  container.innerHTML = findings
+    .map(
+      (finding) => `
     <div class="research-finding-card" data-id="${finding.id}">
       <div class="research-finding-header">
         <div class="research-finding-query">${escHtml(finding.query)}</div>
@@ -198,24 +218,38 @@ export function renderFindings() {
 
       ${finding.summary ? `<div class="research-finding-summary">${escHtml(finding.summary)}</div>` : ''}
 
-      ${finding.keyPoints.length ? `
+      ${
+        finding.keyPoints.length
+          ? `
         <div class="research-finding-keypoints">
-          ${finding.keyPoints.slice(0, 3).map(point => `
+          ${finding.keyPoints
+            .slice(0, 3)
+            .map(
+              (point) => `
             <div class="research-keypoint">
               <span class="keypoint-icon"><span class="ms ms-sm">lightbulb</span></span>
               <span class="keypoint-text">${escHtml(point)}</span>
             </div>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </div>
-      ` : ''}
+      `
+          : ''
+      }
 
       <div class="research-finding-sources">
-        ${finding.sources.slice(0, 3).map(s => `
+        ${finding.sources
+          .slice(0, 3)
+          .map(
+            (s) => `
           <a href="${s.url}" target="_blank" class="research-source-chip" title="${escHtml(s.title)}">
             ${escHtml(extractDomain(s.url))}
             <span class="source-credibility">${'●'.repeat(s.credibility)}${'○'.repeat(5 - s.credibility)}</span>
           </a>
-        `).join('')}
+        `,
+          )
+          .join('')}
         ${finding.sources.length > 3 ? `<span class="research-source-more">+${finding.sources.length - 3} more</span>` : ''}
       </div>
 
@@ -234,14 +268,16 @@ export function renderFindings() {
         </button>
       </div>
     </div>
-  `).join('');
+  `,
+    )
+    .join('');
 
   // Wire up action buttons
-  container.querySelectorAll('.research-action-dig').forEach(btn => {
+  container.querySelectorAll('.research-action-dig').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      const finding = findings.find(f => f.id === id);
+      const finding = findings.find((f) => f.id === id);
       if (finding) {
         const input = $('research-topic-input') as HTMLInputElement;
         if (input) {
@@ -252,11 +288,11 @@ export function renderFindings() {
     });
   });
 
-  container.querySelectorAll('.research-action-related').forEach(btn => {
+  container.querySelectorAll('.research-action-related').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      const finding = findings.find(f => f.id === id);
+      const finding = findings.find((f) => f.id === id);
       if (finding) {
         const input = $('research-topic-input') as HTMLInputElement;
         if (input) {
@@ -267,21 +303,21 @@ export function renderFindings() {
     });
   });
 
-  container.querySelectorAll('.research-action-expand').forEach(btn => {
+  container.querySelectorAll('.research-action-expand').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      const finding = findings.find(f => f.id === id);
+      const finding = findings.find((f) => f.id === id);
       if (finding) showFindingDetail(finding);
     });
   });
 
-  container.querySelectorAll('.research-action-delete').forEach(btn => {
+  container.querySelectorAll('.research-action-delete').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-id');
       const activeProject = _state.getActiveProject();
-      if (id && activeProject && await confirmModal('Delete this finding?')) {
+      if (id && activeProject && (await confirmModal('Delete this finding?'))) {
         await workspace.deleteFinding(activeProject.id, id);
         _state.setFindings(await workspace.listFindings(activeProject.id));
         renderFindings();
@@ -298,9 +334,10 @@ export function renderSourcesPanel() {
   const activeProject = _state.getActiveProject();
   if (!panel || !activeProject) return;
 
-  workspace.getAllSources(activeProject.id).then(sources => {
+  workspace.getAllSources(activeProject.id).then((sources) => {
     if (!sources.length) {
-      panel.innerHTML = '<div class="research-sources-empty">Sources will appear here as you research</div>';
+      panel.innerHTML =
+        '<div class="research-sources-empty">Sources will appear here as you research</div>';
       return;
     }
 
@@ -309,12 +346,17 @@ export function renderSourcesPanel() {
         <span>${sources.length} sources</span>
       </div>
       <div class="research-sources-list">
-        ${sources.slice(0, 10).map(s => `
+        ${sources
+          .slice(0, 10)
+          .map(
+            (s) => `
           <a href="${s.url}" target="_blank" class="research-source-item">
             <span class="research-source-domain">${escHtml(extractDomain(s.url))}</span>
             <span class="research-source-cred">${'●'.repeat(s.credibility)}${'○'.repeat(5 - s.credibility)}</span>
           </a>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
     `;
   });
@@ -333,14 +375,18 @@ export function showFindingDetail(finding: ResearchFinding) {
       <span class="research-detail-date">${new Date(finding.created).toLocaleString()}</span>
     </div>
 
-    ${finding.keyPoints.length ? `
+    ${
+      finding.keyPoints.length
+        ? `
       <div class="research-detail-section">
         <h3>Key Points</h3>
         <ul>
-          ${finding.keyPoints.map(p => `<li>${escHtml(p)}</li>`).join('')}
+          ${finding.keyPoints.map((p) => `<li>${escHtml(p)}</li>`).join('')}
         </ul>
       </div>
-    ` : ''}
+    `
+        : ''
+    }
 
     <div class="research-detail-section">
       <h3>Full Content</h3>
@@ -350,13 +396,17 @@ export function showFindingDetail(finding: ResearchFinding) {
     <div class="research-detail-section">
       <h3>Sources (${finding.sources.length})</h3>
       <div class="research-detail-sources">
-        ${finding.sources.map(s => `
+        ${finding.sources
+          .map(
+            (s) => `
           <a href="${s.url}" target="_blank" class="research-detail-source">
             <span class="source-title">${escHtml(s.title)}</span>
             <span class="source-url">${escHtml(s.url)}</span>
             <span class="source-cred">${'●'.repeat(s.credibility)}${'○'.repeat(5 - s.credibility)}</span>
           </a>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
     </div>
   `;
@@ -409,7 +459,10 @@ export async function runResearch() {
 
   const done = new Promise<string>((resolve) => {
     _state.setStreamResolve(resolve);
-    setTimeout(() => resolve(_state.getStreamContent() || '(Research timed out)'), modeTimeout(mode));
+    setTimeout(
+      () => resolve(_state.getStreamContent() || '(Research timed out)'),
+      modeTimeout(mode),
+    );
   });
 
   try {
@@ -434,7 +487,6 @@ export async function runResearch() {
     // Clear input
     if (input) input.value = '';
     showToast('Research complete! Finding saved.', 'success');
-
   } catch (e) {
     console.error('[research] Error:', e);
     showToast(`Research failed: ${e instanceof Error ? e.message : e}`, 'error');
@@ -484,11 +536,15 @@ export async function generateReport() {
   if (!reportModal || !reportContent) return;
 
   reportModal.style.display = 'flex';
-  reportContent.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div><p>Generating report...</p>';
+  reportContent.innerHTML =
+    '<div class="loading-dots"><span></span><span></span><span></span></div><p>Generating report...</p>';
 
-  const findingsText = findings.map((f, i) =>
-    `## Finding ${i + 1}: ${f.query}\n\n${f.summary || ''}\n\n${f.content}\n\nSources: ${f.sources.map(s => s.url).join(', ')}`
-  ).join('\n\n---\n\n');
+  const findingsText = findings
+    .map(
+      (f, i) =>
+        `## Finding ${i + 1}: ${f.query}\n\n${f.summary || ''}\n\n${f.content}\n\nSources: ${f.sources.map((s) => s.url).join(', ')}`,
+    )
+    .join('\n\n---\n\n');
 
   const sessionKey = `paw-research-${activeProject.id}`;
 
@@ -497,12 +553,16 @@ export async function generateReport() {
 
   const done = new Promise<string>((resolve) => {
     _state.setStreamResolve(resolve);
-    setTimeout(() => resolve(_state.getStreamContent() || '(Report generation timed out)'), 180_000);
+    setTimeout(
+      () => resolve(_state.getStreamContent() || '(Report generation timed out)'),
+      180_000,
+    );
   });
 
   try {
-    await pawEngine.chatSend(sessionKey,
-      `Based on all the research findings below, write a comprehensive, well-structured report. Include:\n\n1. Executive Summary (2-3 paragraphs)\n2. Key Findings (organized by theme)\n3. Detailed Analysis\n4. Conclusions and Recommendations\n5. Sources Bibliography\n\nUse markdown formatting.\n\n${findingsText}`
+    await pawEngine.chatSend(
+      sessionKey,
+      `Based on all the research findings below, write a comprehensive, well-structured report. Include:\n\n1. Executive Summary (2-3 paragraphs)\n2. Key Findings (organized by theme)\n3. Detailed Analysis\n4. Conclusions and Recommendations\n5. Sources Bibliography\n\nUse markdown formatting.\n\n${findingsText}`,
     );
 
     const reportText = await done;
@@ -513,14 +573,13 @@ export async function generateReport() {
       title: `Research Report — ${new Date().toLocaleDateString()}`,
       created: new Date().toISOString(),
       content: reportText,
-      findingIds: findings.map(f => f.id),
+      findingIds: findings.map((f) => f.id),
     };
 
     await workspace.saveReport(activeProject.id, report);
 
     reportContent.innerHTML = formatMarkdown(reportText);
     showToast('Report generated and saved!', 'success');
-
   } catch (e) {
     reportContent.innerHTML = `<p class="error">Failed to generate report: ${e instanceof Error ? e.message : e}</p>`;
   } finally {
@@ -545,11 +604,18 @@ export async function createNewProject() {
 export async function deleteCurrentProject() {
   const activeProject = _state.getActiveProject();
   if (!activeProject) return;
-  if (!await confirmModal(`Delete "${activeProject.name}" and all its findings? This cannot be undone.`)) return;
+  if (
+    !(await confirmModal(
+      `Delete "${activeProject.name}" and all its findings? This cannot be undone.`,
+    ))
+  )
+    return;
 
   try {
     await workspace.deleteResearchProject(activeProject.id);
-    ((_state as unknown) as { setActiveProject: (p: workspace.ResearchProject | null) => void }).setActiveProject(null);
+    (
+      _state as unknown as { setActiveProject: (p: workspace.ResearchProject | null) => void }
+    ).setActiveProject(null);
     _state.setFindings([]);
 
     const empty = $('research-empty');

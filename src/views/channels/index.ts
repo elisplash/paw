@@ -6,7 +6,13 @@ import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { appState } from '../../state/index';
 import { CHANNEL_SETUPS, CHANNEL_CLASSES } from './atoms';
-import { loadChannels, getChannelConfig, getChannelStatus, startChannel, setOpenChannelSetup } from './molecules';
+import {
+  loadChannels,
+  getChannelConfig,
+  getChannelStatus,
+  startChannel,
+  setOpenChannelSetup,
+} from './molecules';
 import { openChannelSetup, closeChannelSetup, saveChannelSetup } from './setup';
 
 // Wire the circular dependency: molecules needs openChannelSetup from setup
@@ -40,7 +46,10 @@ export async function loadMemory() {
   const loading = $('memory-loading');
   if (loading) loading.style.display = 'none';
   if (list) list.innerHTML = '';
-  if (empty) { empty.style.display = 'flex'; empty.textContent = 'Agent files managed via Memory Palace'; }
+  if (empty) {
+    empty.style.display = 'flex';
+    empty.textContent = 'Agent files managed via Memory Palace';
+  }
 }
 
 export async function openMemoryFile(filePath: string) {
@@ -90,7 +99,7 @@ export function initChannels() {
     html += '</div>';
     body.innerHTML = html;
 
-    body.querySelectorAll('[data-ch-pick]').forEach(btn => {
+    body.querySelectorAll('[data-ch-pick]').forEach((btn) => {
       btn.addEventListener('click', () => {
         if (footer) footer.style.display = '';
         openChannelSetup((btn as HTMLElement).dataset.chPick!);
@@ -100,7 +109,7 @@ export function initChannels() {
     modal.style.display = '';
   });
 
-  document.querySelectorAll('#channels-picker-empty .channel-pick-btn').forEach(btn => {
+  document.querySelectorAll('#channels-picker-empty .channel-pick-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const chType = (btn as HTMLElement).dataset.chType;
       if (chType) openChannelSetup(chType);
@@ -164,9 +173,20 @@ export async function autoStartConfiguredChannels(): Promise<void> {
         console.debug('[channels] Auto-started Telegram bridge');
       }
     }
-  } catch (e) { console.warn('[channels] Telegram auto-start skipped:', e); }
+  } catch (e) {
+    console.warn('[channels] Telegram auto-start skipped:', e);
+  }
 
-  const channels = ['discord', 'irc', 'slack', 'matrix', 'mattermost', 'nextcloud', 'nostr', 'twitch'] as const;
+  const channels = [
+    'discord',
+    'irc',
+    'slack',
+    'matrix',
+    'mattermost',
+    'nextcloud',
+    'nostr',
+    'twitch',
+  ] as const;
   for (const ch of channels) {
     try {
       const cfg = await getChannelConfig(ch);
@@ -177,7 +197,9 @@ export async function autoStartConfiguredChannels(): Promise<void> {
           console.debug(`[channels] Auto-started ${ch} bridge`);
         }
       }
-    } catch (e) { console.warn(`[channels] ${ch} auto-start skipped:`, e); }
+    } catch (e) {
+      console.warn(`[channels] ${ch} auto-start skipped:`, e);
+    }
   }
 }
 

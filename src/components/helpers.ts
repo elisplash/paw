@@ -4,16 +4,16 @@ export const $ = (id: string) => document.getElementById(id);
 
 // ── Material Symbols icon helper ───────────────────────────────────────────
 const _iconMap: Record<string, string> = {
-  'paperclip': 'attach_file',
+  paperclip: 'attach_file',
   'arrow-up': 'send',
-  'square': 'stop',
+  square: 'stop',
   'rotate-ccw': 'replay',
-  'x': 'close',
-  'image': 'image',
+  x: 'close',
+  image: 'image',
   'file-text': 'description',
-  'file': 'insert_drive_file',
-  'wrench': 'build',
-  'download': 'download',
+  file: 'insert_drive_file',
+  wrench: 'build',
+  download: 'download',
   'external-link': 'open_in_new',
 };
 
@@ -24,8 +24,12 @@ export function icon(name: string, cls = ''): string {
 }
 
 export function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ── Model Picker Helpers ──────────────────────────────────────────────
@@ -33,48 +37,97 @@ export function escHtml(s: string): string {
 /** Well-known models grouped by provider kind */
 const POPULAR_MODELS: Record<string, string[]> = {
   ollama: [
-    'llama3.2:3b', 'llama3.2:1b', 'llama3.1:8b', 'llama3.1:70b', 'llama3.3:70b',
-    'mistral:7b', 'mixtral:8x7b', 'codellama:13b', 'codellama:34b',
-    'deepseek-coder:6.7b', 'deepseek-coder-v2:16b',
-    'phi3:mini', 'phi3:medium', 'qwen2.5:7b', 'qwen2.5:32b', 'qwen2.5:72b',
-    'gemma2:9b', 'gemma2:27b', 'command-r:35b',
+    'llama3.2:3b',
+    'llama3.2:1b',
+    'llama3.1:8b',
+    'llama3.1:70b',
+    'llama3.3:70b',
+    'mistral:7b',
+    'mixtral:8x7b',
+    'codellama:13b',
+    'codellama:34b',
+    'deepseek-coder:6.7b',
+    'deepseek-coder-v2:16b',
+    'phi3:mini',
+    'phi3:medium',
+    'qwen2.5:7b',
+    'qwen2.5:32b',
+    'qwen2.5:72b',
+    'gemma2:9b',
+    'gemma2:27b',
+    'command-r:35b',
   ],
   openai: [
-    'gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
-    'o1', 'o1-mini', 'o3', 'o3-mini', 'o4-mini',
+    'gpt-4o',
+    'gpt-4o-mini',
+    'gpt-4.1',
+    'gpt-4.1-mini',
+    'gpt-4.1-nano',
+    'o1',
+    'o1-mini',
+    'o3',
+    'o3-mini',
+    'o4-mini',
   ],
   anthropic: [
-    'claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001',
-    'claude-sonnet-4-5-20250929', 'claude-3-haiku-20240307',
+    'claude-opus-4-6',
+    'claude-sonnet-4-6',
+    'claude-haiku-4-5-20251001',
+    'claude-sonnet-4-5-20250929',
+    'claude-3-haiku-20240307',
   ],
   google: [
-    'gemini-2.5-pro', 'gemini-2.5-flash',
-    'gemini-2.0-flash', 'gemini-2.0-flash-lite',
-    'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-8b',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-pro',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
   ],
   openrouter: [
-    'anthropic/claude-sonnet-4-6', 'anthropic/claude-haiku-4-5-20251001',
+    'anthropic/claude-sonnet-4-6',
+    'anthropic/claude-haiku-4-5-20251001',
     'anthropic/claude-3-haiku-20240307',
-    'openai/gpt-4o', 'openai/gpt-4o-mini',
-    'google/gemini-2.5-pro', 'google/gemini-2.5-flash',
-    'meta-llama/llama-3.1-405b-instruct', 'meta-llama/llama-3.1-70b-instruct',
-    'deepseek/deepseek-chat', 'deepseek/deepseek-r1',
-    'mistralai/mistral-large', 'qwen/qwen-2.5-72b-instruct',
+    'openai/gpt-4o',
+    'openai/gpt-4o-mini',
+    'google/gemini-2.5-pro',
+    'google/gemini-2.5-flash',
+    'meta-llama/llama-3.1-405b-instruct',
+    'meta-llama/llama-3.1-70b-instruct',
+    'deepseek/deepseek-chat',
+    'deepseek/deepseek-r1',
+    'mistralai/mistral-large',
+    'qwen/qwen-2.5-72b-instruct',
   ],
   custom: ['deepseek-chat', 'deepseek-reasoner'],
 };
 
 const KIND_LABELS: Record<string, string> = {
-  ollama: 'Ollama', openai: 'OpenAI', anthropic: 'Anthropic',
-  google: 'Google', openrouter: 'OpenRouter', custom: 'Custom',
-  deepseek: 'DeepSeek', grok: 'xAI (Grok)', mistral: 'Mistral', moonshot: 'Moonshot',
+  ollama: 'Ollama',
+  openai: 'OpenAI',
+  anthropic: 'Anthropic',
+  google: 'Google',
+  openrouter: 'OpenRouter',
+  custom: 'Custom',
+  deepseek: 'DeepSeek',
+  grok: 'xAI (Grok)',
+  mistral: 'Mistral',
+  moonshot: 'Moonshot',
 };
 
 /** Material Symbols icon names for each provider kind */
 export const PROVIDER_ICONS: Record<string, string> = {
-  ollama: 'pets', openai: 'smart_toy', anthropic: 'psychology',
-  google: 'auto_awesome', openrouter: 'language', custom: 'build',
-  deepseek: 'explore', grok: 'bolt', mistral: 'air', moonshot: 'dark_mode',
+  ollama: 'pets',
+  openai: 'smart_toy',
+  anthropic: 'psychology',
+  google: 'auto_awesome',
+  openrouter: 'language',
+  custom: 'build',
+  deepseek: 'explore',
+  grok: 'bolt',
+  mistral: 'air',
+  moonshot: 'dark_mode',
 };
 
 /** Render provider icon as Material Symbol span */
@@ -120,7 +173,7 @@ export function populateModelSelect(
     defaultOpt.value = defaultLabel === 'Default Model' ? 'default' : '';
     defaultOpt.textContent = showDefaultModel
       ? `${defaultLabel} — ${showDefaultModel}`
-      : defaultLabel ?? '(use default)';
+      : (defaultLabel ?? '(use default)');
     select.appendChild(defaultOpt);
   }
 
@@ -137,7 +190,7 @@ export function populateModelSelect(
     }
 
     // Popular models for this provider kind
-    for (const m of (POPULAR_MODELS[kind] ?? [])) {
+    for (const m of POPULAR_MODELS[kind] ?? []) {
       if (!seen.has(m)) {
         seen.add(m);
         models.push(m);
@@ -159,7 +212,7 @@ export function populateModelSelect(
 
   // If the previously selected value still exists, restore it
   if (prevValue) {
-    const exists = Array.from(select.options).some(o => o.value === prevValue);
+    const exists = Array.from(select.options).some((o) => o.value === prevValue);
     if (exists) {
       select.value = prevValue;
     } else if (prevValue && prevValue !== 'default' && prevValue !== '') {
@@ -209,14 +262,17 @@ export function formatMarkdown(text: string): string {
 // Tauri 2 WKWebView (macOS) does not support window.confirm() — it may not render.
 // This custom modal replaces all confirm() usage in the app.
 export function confirmModal(message: string, title = 'Confirm'): Promise<boolean> {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const overlay = $('confirm-modal');
     const titleEl = $('confirm-modal-title');
     const messageEl = $('confirm-modal-message');
     const okBtn = $('confirm-modal-ok');
     const cancelBtn = $('confirm-modal-cancel');
     const closeBtn = $('confirm-modal-close');
-    if (!overlay) { resolve(false); return; }
+    if (!overlay) {
+      resolve(false);
+      return;
+    }
 
     if (titleEl) titleEl.textContent = title;
     if (messageEl) messageEl.textContent = message;
@@ -231,11 +287,22 @@ export function confirmModal(message: string, title = 'Confirm'): Promise<boolea
       overlay?.removeEventListener('click', onBackdrop);
       document.removeEventListener('keydown', onKey);
     }
-    function onOk() { cleanup(); resolve(true); }
-    function onCancel() { cleanup(); resolve(false); }
+    function onOk() {
+      cleanup();
+      resolve(true);
+    }
+    function onCancel() {
+      cleanup();
+      resolve(false);
+    }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
-      else if (e.key === 'Enter') { e.preventDefault(); onOk(); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        onOk();
+      }
     }
     function onBackdrop(e: MouseEvent) {
       if (e.target === overlay) onCancel();
@@ -252,14 +319,17 @@ export function confirmModal(message: string, title = 'Confirm'): Promise<boolea
 // Tauri 2 WKWebView (macOS) does not support window.prompt() — it returns null.
 // This custom modal replaces all prompt() usage in the app.
 export function promptModal(title: string, placeholder?: string): Promise<string | null> {
-  return new Promise(resolve => {
+  return new Promise((resolve) => {
     const overlay = $('prompt-modal');
     const titleEl = $('prompt-modal-title');
     const input = $('prompt-modal-input') as HTMLInputElement | null;
     const okBtn = $('prompt-modal-ok');
     const cancelBtn = $('prompt-modal-cancel');
     const closeBtn = $('prompt-modal-close');
-    if (!overlay || !input) { resolve(null); return; }
+    if (!overlay || !input) {
+      resolve(null);
+      return;
+    }
 
     if (titleEl) titleEl.textContent = title;
     input.placeholder = placeholder ?? '';
@@ -280,10 +350,18 @@ export function promptModal(title: string, placeholder?: string): Promise<string
       cleanup();
       resolve(val || null);
     }
-    function onCancel() { cleanup(); resolve(null); }
+    function onCancel() {
+      cleanup();
+      resolve(null);
+    }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Enter') { e.preventDefault(); onOk(); }
-      else if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        onOk();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      }
     }
     function onBackdrop(e: MouseEvent) {
       if (e.target === overlay) onCancel();

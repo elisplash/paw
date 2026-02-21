@@ -32,11 +32,17 @@ let messagePollInterval: ReturnType<typeof setInterval> | null = null;
 const { setMoleculesState } = initMoleculesState();
 setMoleculesState({
   getProjects: () => projects,
-  setProjects: (p: EngineProject[]) => { projects = p; },
+  setProjects: (p: EngineProject[]) => {
+    projects = p;
+  },
   getCurrentProject: () => currentProject,
-  setCurrentProject: (p: EngineProject | null) => { currentProject = p; },
+  setCurrentProject: (p: EngineProject | null) => {
+    currentProject = p;
+  },
   getMessagePollInterval: () => messagePollInterval,
-  setMessagePollInterval: (i: ReturnType<typeof setInterval> | null) => { messagePollInterval = i; },
+  setMessagePollInterval: (i: ReturnType<typeof setInterval> | null) => {
+    messagePollInterval = i;
+  },
   getLoadProjects: () => loadProjects,
 });
 
@@ -52,19 +58,32 @@ export function initOrchestrator() {
   document.getElementById('orch-edit-btn')?.addEventListener('click', () => editProject());
   document.getElementById('orch-delete-btn')?.addEventListener('click', () => deleteProject());
   document.getElementById('orch-add-agent-btn')?.addEventListener('click', () => openAgentModal());
-  document.getElementById('orch-agent-modal-close')?.addEventListener('click', () => closeAgentModal());
-  document.getElementById('orch-agent-modal-cancel')?.addEventListener('click', () => closeAgentModal());
+  document
+    .getElementById('orch-agent-modal-close')
+    ?.addEventListener('click', () => closeAgentModal());
+  document
+    .getElementById('orch-agent-modal-cancel')
+    ?.addEventListener('click', () => closeAgentModal());
   document.getElementById('orch-agent-modal-save')?.addEventListener('click', () => addAgent());
 
   listen<Record<string, unknown>>('project-event', (event) => {
     const data = event.payload;
-    if (data.kind === 'project_started' || data.kind === 'project_finished' || data.kind === 'project_complete') {
+    if (
+      data.kind === 'project_started' ||
+      data.kind === 'project_finished' ||
+      data.kind === 'project_complete'
+    ) {
       loadProjects();
       if (currentProject && currentProject.id === data.project_id) {
         loadProjectDetail(currentProject.id);
       }
     }
-    if (data.kind === 'delegation' || data.kind === 'progress' || data.kind === 'message' || data.kind === 'agent_finished') {
+    if (
+      data.kind === 'delegation' ||
+      data.kind === 'progress' ||
+      data.kind === 'message' ||
+      data.kind === 'agent_finished'
+    ) {
       if (currentProject && currentProject.id === data.project_id) {
         refreshMessages();
         refreshAgents();

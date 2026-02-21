@@ -32,57 +32,104 @@ export const DEFAULT_BASE_URLS: Record<string, string> = {
 
 export const POPULAR_MODELS: Record<string, string[]> = {
   ollama: [
-    'llama3.2:3b', 'llama3.2:1b', 'llama3.1:8b', 'llama3.1:70b', 'llama3.3:70b',
-    'mistral:7b', 'mixtral:8x7b', 'codellama:13b', 'codellama:34b',
-    'deepseek-coder:6.7b', 'deepseek-coder-v2:16b',
-    'phi3:mini', 'phi3:medium', 'qwen2.5:7b', 'qwen2.5:32b', 'qwen2.5:72b',
-    'gemma2:9b', 'gemma2:27b', 'command-r:35b',
+    'llama3.2:3b',
+    'llama3.2:1b',
+    'llama3.1:8b',
+    'llama3.1:70b',
+    'llama3.3:70b',
+    'mistral:7b',
+    'mixtral:8x7b',
+    'codellama:13b',
+    'codellama:34b',
+    'deepseek-coder:6.7b',
+    'deepseek-coder-v2:16b',
+    'phi3:mini',
+    'phi3:medium',
+    'qwen2.5:7b',
+    'qwen2.5:32b',
+    'qwen2.5:72b',
+    'gemma2:9b',
+    'gemma2:27b',
+    'command-r:35b',
   ],
   openai: [
-    'gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
-    'o1', 'o1-mini', 'o3', 'o3-mini', 'o4-mini',
+    'gpt-4o',
+    'gpt-4o-mini',
+    'gpt-4.1',
+    'gpt-4.1-mini',
+    'gpt-4.1-nano',
+    'o1',
+    'o1-mini',
+    'o3',
+    'o3-mini',
+    'o4-mini',
   ],
   anthropic: [
-    'claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001',
-    'claude-sonnet-4-5-20250929', 'claude-3-haiku-20240307',
+    'claude-opus-4-6',
+    'claude-sonnet-4-6',
+    'claude-haiku-4-5-20251001',
+    'claude-sonnet-4-5-20250929',
+    'claude-3-haiku-20240307',
   ],
   google: [
-    'gemini-2.5-pro', 'gemini-2.5-flash',
-    'gemini-2.0-flash', 'gemini-2.0-flash-lite',
-    'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-8b',
+    'gemini-2.5-pro',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-pro',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
   ],
   openrouter: [
-    'anthropic/claude-sonnet-4-6', 'anthropic/claude-haiku-4-5-20251001',
+    'anthropic/claude-sonnet-4-6',
+    'anthropic/claude-haiku-4-5-20251001',
     'anthropic/claude-3-haiku-20240307',
-    'openai/gpt-4o', 'openai/gpt-4o-mini',
-    'google/gemini-2.5-pro', 'google/gemini-2.5-flash',
-    'meta-llama/llama-3.1-405b-instruct', 'meta-llama/llama-3.1-70b-instruct',
-    'deepseek/deepseek-chat', 'deepseek/deepseek-r1',
-    'mistralai/mistral-large', 'qwen/qwen-2.5-72b-instruct',
+    'openai/gpt-4o',
+    'openai/gpt-4o-mini',
+    'google/gemini-2.5-pro',
+    'google/gemini-2.5-flash',
+    'meta-llama/llama-3.1-405b-instruct',
+    'meta-llama/llama-3.1-70b-instruct',
+    'deepseek/deepseek-chat',
+    'deepseek/deepseek-r1',
+    'mistralai/mistral-large',
+    'qwen/qwen-2.5-72b-instruct',
   ],
-  deepseek: [
-    'deepseek-chat', 'deepseek-reasoner',
-  ],
-  grok: [
-    'grok-3', 'grok-3-mini', 'grok-2', 'grok-2-mini',
-  ],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  grok: ['grok-3', 'grok-3-mini', 'grok-2', 'grok-2-mini'],
   mistral: [
-    'mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest',
-    'codestral-latest', 'open-mistral-nemo', 'mistral-embed',
+    'mistral-large-latest',
+    'mistral-medium-latest',
+    'mistral-small-latest',
+    'codestral-latest',
+    'open-mistral-nemo',
+    'mistral-embed',
   ],
-  moonshot: [
-    'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k',
-  ],
+  moonshot: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'],
   custom: ['deepseek-chat', 'deepseek-reasoner'],
 };
 
 export const KIND_ICONS: Record<string, string> = {
-  ollama: 'pets', openai: 'smart_toy', anthropic: 'psychology', google: 'auto_awesome',
-  deepseek: 'explore', grok: 'bolt', mistral: 'air', moonshot: 'dark_mode',
-  openrouter: 'language', custom: 'build',
+  ollama: 'pets',
+  openai: 'smart_toy',
+  anthropic: 'psychology',
+  google: 'auto_awesome',
+  deepseek: 'explore',
+  grok: 'bolt',
+  mistral: 'air',
+  moonshot: 'dark_mode',
+  openrouter: 'language',
+  custom: 'build',
 };
 
-export const SPECIALTIES = ['coder', 'researcher', 'designer', 'communicator', 'security', 'general'];
+export const SPECIALTIES = [
+  'coder',
+  'researcher',
+  'designer',
+  'communicator',
+  'security',
+  'general',
+];
 
 export const TIER_LABELS: Record<string, Record<string, string>> = {
   anthropic: {
@@ -98,9 +145,9 @@ export const TIER_LABELS: Record<string, Record<string, string>> = {
     'gpt-4.1': 'Latest flagship',
     'gpt-4.1-mini': 'Latest mini',
     'gpt-4.1-nano': 'Cheapest',
-    'o1': 'Deep reasoning',
+    o1: 'Deep reasoning',
     'o1-mini': 'Reasoning — cheaper',
-    'o3': 'Latest reasoning',
+    o3: 'Latest reasoning',
     'o3-mini': 'Reasoning — fast',
     'o4-mini': 'Latest reasoning mini',
   },
@@ -143,13 +190,16 @@ export function buildAllKnownModels(providers: EngineProviderConfig[]): string[]
   const seen = new Set<string>();
   const models: string[] = [];
   const addModel = (m: string) => {
-    if (m && !seen.has(m)) { seen.add(m); models.push(m); }
+    if (m && !seen.has(m)) {
+      seen.add(m);
+      models.push(m);
+    }
   };
   for (const p of providers) {
     if (p.default_model) addModel(p.default_model);
   }
   for (const p of providers) {
-    for (const m of (POPULAR_MODELS[p.kind] ?? [])) addModel(m);
+    for (const m of POPULAR_MODELS[p.kind] ?? []) addModel(m);
   }
   return models;
 }

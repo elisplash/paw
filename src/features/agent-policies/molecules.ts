@@ -62,10 +62,7 @@ export function removeAgentPolicy(agentId: string): void {
  * Evaluate whether a tool call should be allowed for a given agent.
  * This is the main enforcement function called during agent execution.
  */
-export function enforceToolPolicy(
-  agentId: string,
-  toolName: string,
-): PolicyDecision {
+export function enforceToolPolicy(agentId: string, toolName: string): PolicyDecision {
   const policy = getAgentPolicy(agentId);
   return checkToolPolicy(toolName, policy);
 }

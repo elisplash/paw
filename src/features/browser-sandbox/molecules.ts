@@ -72,7 +72,10 @@ export async function listWorkspaces(): Promise<WorkspaceInfo[]> {
 }
 
 /** List files in an agent's workspace */
-export async function listWorkspaceFiles(agentId: string, subdir?: string): Promise<WorkspaceFile[]> {
+export async function listWorkspaceFiles(
+  agentId: string,
+  subdir?: string,
+): Promise<WorkspaceFile[]> {
   const engine = await getEngine();
   return engine.workspaceFiles(agentId, subdir);
 }

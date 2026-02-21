@@ -49,67 +49,146 @@ export interface PolicyDecision {
 /** All known built-in tools. */
 export const ALL_TOOLS = [
   // Core
-  'exec', 'fetch', 'read_file', 'write_file',
-  'list_directory', 'append_file', 'delete_file',
+  'exec',
+  'fetch',
+  'read_file',
+  'write_file',
+  'list_directory',
+  'append_file',
+  'delete_file',
   // Web
-  'web_search', 'web_read', 'web_screenshot', 'web_browse',
+  'web_search',
+  'web_read',
+  'web_screenshot',
+  'web_browse',
   // Soul / persona
-  'soul_read', 'soul_write', 'soul_list',
+  'soul_read',
+  'soul_write',
+  'soul_list',
   // Memory
-  'memory_store', 'memory_search',
+  'memory_store',
+  'memory_search',
   // Self-awareness
   'self_info',
   // Agent management
-  'update_profile', 'create_agent',
-  'agent_list', 'agent_skills', 'agent_skill_assign',
+  'update_profile',
+  'create_agent',
+  'agent_list',
+  'agent_skills',
+  'agent_skill_assign',
   // Task / Automation management
-  'create_task', 'list_tasks', 'manage_task',
+  'create_task',
+  'list_tasks',
+  'manage_task',
   // Community skills management
-  'skill_search', 'skill_install', 'skill_list',
+  'skill_search',
+  'skill_install',
+  'skill_list',
   // Communication skills
-  'email_send', 'email_read',
-  'slack_send', 'slack_read',
-  'telegram_send', 'telegram_read',
+  'email_send',
+  'email_read',
+  'slack_send',
+  'slack_read',
+  'telegram_send',
+  'telegram_read',
   'github_api',
   'rest_api_call',
   'webhook_send',
   'image_generate',
   // Trading: Coinbase
-  'coinbase_prices', 'coinbase_balance', 'coinbase_wallet_create',
-  'coinbase_trade', 'coinbase_transfer',
+  'coinbase_prices',
+  'coinbase_balance',
+  'coinbase_wallet_create',
+  'coinbase_trade',
+  'coinbase_transfer',
   // Trading: Solana (Jupiter)
-  'sol_wallet_create', 'sol_balance', 'sol_quote', 'sol_swap',
-  'sol_portfolio', 'sol_token_info', 'sol_transfer',
+  'sol_wallet_create',
+  'sol_balance',
+  'sol_quote',
+  'sol_swap',
+  'sol_portfolio',
+  'sol_token_info',
+  'sol_transfer',
   // Trading: EVM DEX (Uniswap)
-  'dex_wallet_create', 'dex_balance', 'dex_quote', 'dex_swap',
-  'dex_portfolio', 'dex_token_info', 'dex_check_token',
-  'dex_search_token', 'dex_watch_wallet', 'dex_whale_transfers',
-  'dex_top_traders', 'dex_trending', 'dex_transfer',
+  'dex_wallet_create',
+  'dex_balance',
+  'dex_quote',
+  'dex_swap',
+  'dex_portfolio',
+  'dex_token_info',
+  'dex_check_token',
+  'dex_search_token',
+  'dex_watch_wallet',
+  'dex_whale_transfers',
+  'dex_top_traders',
+  'dex_trending',
+  'dex_transfer',
 ] as const;
 
 /** Read-only tools that are generally safe. */
 export const SAFE_TOOLS: readonly string[] = [
-  'read_file', 'list_directory', 'web_search', 'web_read',
-  'memory_search', 'soul_read', 'soul_list', 'self_info',
-  'fetch', 'agent_list', 'agent_skills', 'skill_list',
-  'coinbase_prices', 'sol_balance', 'sol_portfolio', 'sol_token_info',
-  'dex_balance', 'dex_portfolio', 'dex_token_info', 'dex_check_token',
-  'dex_search_token', 'dex_trending',
-  'telegram_read', 'slack_read', 'email_read',
+  'read_file',
+  'list_directory',
+  'web_search',
+  'web_read',
+  'memory_search',
+  'soul_read',
+  'soul_list',
+  'self_info',
+  'fetch',
+  'agent_list',
+  'agent_skills',
+  'skill_list',
+  'coinbase_prices',
+  'sol_balance',
+  'sol_portfolio',
+  'sol_token_info',
+  'dex_balance',
+  'dex_portfolio',
+  'dex_token_info',
+  'dex_check_token',
+  'dex_search_token',
+  'dex_trending',
+  'telegram_read',
+  'slack_read',
+  'email_read',
 ];
 
 /** High-risk tools that modify the system or send data externally. */
 export const HIGH_RISK_TOOLS: readonly string[] = [
-  'exec', 'write_file', 'delete_file', 'append_file',
-  'email_send', 'webhook_send', 'rest_api_call',
-  'slack_send', 'telegram_send', 'github_api', 'image_generate',
-  'soul_write', 'update_profile', 'create_agent',
-  'create_task', 'manage_task',
-  'skill_search', 'skill_install', 'agent_skill_assign',
-  'coinbase_wallet_create', 'coinbase_trade', 'coinbase_transfer',
-  'sol_wallet_create', 'sol_quote', 'sol_swap', 'sol_transfer',
-  'dex_wallet_create', 'dex_quote', 'dex_swap', 'dex_transfer',
-  'dex_watch_wallet', 'dex_whale_transfers', 'dex_top_traders',
+  'exec',
+  'write_file',
+  'delete_file',
+  'append_file',
+  'email_send',
+  'webhook_send',
+  'rest_api_call',
+  'slack_send',
+  'telegram_send',
+  'github_api',
+  'image_generate',
+  'soul_write',
+  'update_profile',
+  'create_agent',
+  'create_task',
+  'manage_task',
+  'skill_search',
+  'skill_install',
+  'agent_skill_assign',
+  'coinbase_wallet_create',
+  'coinbase_trade',
+  'coinbase_transfer',
+  'sol_wallet_create',
+  'sol_quote',
+  'sol_swap',
+  'sol_transfer',
+  'dex_wallet_create',
+  'dex_quote',
+  'dex_swap',
+  'dex_transfer',
+  'dex_watch_wallet',
+  'dex_whale_transfers',
+  'dex_top_traders',
 ];
 
 /** Default policy: unrestricted (backward-compatible). */
@@ -141,7 +220,10 @@ export const STANDARD_POLICY: ToolPolicy = {
 
 // ── Policy presets for quick selection ──────────────────────────────────
 
-export const POLICY_PRESETS: Record<string, { label: string; description: string; policy: ToolPolicy }> = {
+export const POLICY_PRESETS: Record<
+  string,
+  { label: string; description: string; policy: ToolPolicy }
+> = {
   unrestricted: {
     label: 'Unrestricted',
     description: 'Full access to all tools (default)',
@@ -191,21 +273,45 @@ export function checkToolPolicy(toolName: string, policy: ToolPolicy): PolicyDec
 
     case 'allowlist':
       if (policy.allowed.includes(toolName)) {
-        return { allowed: true, requiresApproval: false, reason: `Tool "${toolName}" is in the allowlist.` };
+        return {
+          allowed: true,
+          requiresApproval: false,
+          reason: `Tool "${toolName}" is in the allowlist.`,
+        };
       }
       if (policy.requireApprovalForUnlisted) {
-        return { allowed: true, requiresApproval: true, reason: `Tool "${toolName}" not in allowlist — requires approval.` };
+        return {
+          allowed: true,
+          requiresApproval: true,
+          reason: `Tool "${toolName}" not in allowlist — requires approval.`,
+        };
       }
-      return { allowed: false, requiresApproval: false, reason: `Tool "${toolName}" is not in the allowlist.` };
+      return {
+        allowed: false,
+        requiresApproval: false,
+        reason: `Tool "${toolName}" is not in the allowlist.`,
+      };
 
     case 'denylist':
       if (policy.denied.includes(toolName)) {
-        return { allowed: false, requiresApproval: false, reason: `Tool "${toolName}" is in the denylist.` };
+        return {
+          allowed: false,
+          requiresApproval: false,
+          reason: `Tool "${toolName}" is in the denylist.`,
+        };
       }
-      return { allowed: true, requiresApproval: false, reason: `Tool "${toolName}" is not denied.` };
+      return {
+        allowed: true,
+        requiresApproval: false,
+        reason: `Tool "${toolName}" is not denied.`,
+      };
 
     default:
-      return { allowed: true, requiresApproval: false, reason: 'Unknown policy mode — defaulting to allow.' };
+      return {
+        allowed: true,
+        requiresApproval: false,
+        reason: 'Unknown policy mode — defaulting to allow.',
+      };
   }
 }
 
@@ -214,7 +320,7 @@ export function checkToolPolicy(toolName: string, policy: ToolPolicy): PolicyDec
  * Returns the names of tools that should be offered to the AI.
  */
 export function filterToolsByPolicy(toolNames: string[], policy: ToolPolicy): string[] {
-  return toolNames.filter(name => {
+  return toolNames.filter((name) => {
     const decision = checkToolPolicy(name, policy);
     return decision.allowed;
   });

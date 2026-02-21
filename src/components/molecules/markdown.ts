@@ -31,11 +31,14 @@ export function formatMarkdown(text: string): string {
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/^### (.+)$/gm, '<h4>$1</h4>')
         .replace(/^## (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^# (.+)$/gm,  '<h2>$1</h2>')
+        .replace(/^# (.+)$/gm, '<h2>$1</h2>')
         .replace(/^[-•] (.+)$/gm, '<div class="md-bullet">• $1</div>')
         .replace(/^\d+\. (.+)$/gm, '<div class="md-bullet">$&</div>')
-        .replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, (_m, label, url) =>
-          `<a href="${escAttr(url)}" target="_blank" rel="noopener">${label}</a>`)
+        .replace(
+          /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g,
+          (_m, label, url) =>
+            `<a href="${escAttr(url)}" target="_blank" rel="noopener">${label}</a>`,
+        )
         .replace(/\n/g, '<br>');
     })
     .join('');

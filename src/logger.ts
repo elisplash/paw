@@ -118,7 +118,11 @@ export function createLogger(module: string) {
 
     // Forward to persistent transport (file, network, etc.) if registered
     if (_transport) {
-      try { _transport(entry, formatLogEntry(entry)); } catch { /* transport must not throw */ }
+      try {
+        _transport(entry, formatLogEntry(entry));
+      } catch {
+        /* transport must not throw */
+      }
     }
   }
 

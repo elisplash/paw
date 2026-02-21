@@ -36,12 +36,18 @@ function initMoleculesState() {
     getTasks: () => _tasks,
     getActivity: () => _activity,
     getEditingTask: () => _editingTask,
-    setEditingTask: (t: EngineTask | null) => { _editingTask = t; },
+    setEditingTask: (t: EngineTask | null) => {
+      _editingTask = t;
+    },
     getFeedFilter: () => _feedFilter,
-    setFeedFilter: (f: 'all' | 'tasks' | 'status') => { _feedFilter = f; },
+    setFeedFilter: (f: 'all' | 'tasks' | 'status') => {
+      _feedFilter = f;
+    },
     getAgents: () => _agents,
     getModalSelectedAgents: () => _modalSelectedAgents,
-    setModalSelectedAgents: (agents: TaskAgent[]) => { _modalSelectedAgents = agents; },
+    setModalSelectedAgents: (agents: TaskAgent[]) => {
+      _modalSelectedAgents = agents;
+    },
     reload: () => loadTasks(),
   });
 }
@@ -116,7 +122,7 @@ export function bindTaskEvents() {
   $('tasks-add-btn')?.addEventListener('click', () => openTaskModal());
 
   // Column add buttons
-  document.querySelectorAll<HTMLElement>('.tasks-column-add').forEach(btn => {
+  document.querySelectorAll<HTMLElement>('.tasks-column-add').forEach((btn) => {
     btn.addEventListener('click', () => openTaskModal());
   });
 
@@ -148,9 +154,9 @@ export function bindTaskEvents() {
   });
 
   // Feed tabs
-  document.querySelectorAll<HTMLElement>('.tasks-feed-tab').forEach(tab => {
+  document.querySelectorAll<HTMLElement>('.tasks-feed-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.tasks-feed-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tasks-feed-tab').forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
       _feedFilter = (tab.dataset.feed as typeof _feedFilter) || 'all';
       renderFeed();

@@ -1,6 +1,12 @@
 // Settings View — Molecules (DOM rendering + IPC)
 
-import { loadSecuritySettings, saveSecuritySettings, getSessionOverrideRemaining, resetSecuritySettings, type SecuritySettings } from '../../security';
+import {
+  loadSecuritySettings,
+  saveSecuritySettings,
+  getSessionOverrideRemaining,
+  resetSecuritySettings,
+  type SecuritySettings,
+} from '../../security';
 import { getSecurityAuditLog, isEncryptionReady } from '../../db';
 import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
@@ -31,7 +37,9 @@ export async function loadSettingsStatus() {
   const section = $('settings-status-section');
   const content = $('settings-status-content');
   if (section) section.style.display = '';
-  if (content) content.innerHTML = '<div class="status-card"><div class="status-card-label">Runtime</div><div class="status-card-value">Paw Engine (Tauri)</div></div>';
+  if (content)
+    content.innerHTML =
+      '<div class="status-card"><div class="status-card-label">Runtime</div><div class="status-card-value">Paw Engine (Tauri)</div></div>';
 }
 
 // ── Logs Viewer ────────────────────────────────────────────────────────────
@@ -41,7 +49,8 @@ export async function loadSettingsLogs() {
   const section = $('settings-logs-section');
   const output = $('settings-logs-output');
   if (section) section.style.display = '';
-  if (output) output.textContent = '(Engine logs viewer coming soon — check the Tauri console for now)';
+  if (output)
+    output.textContent = '(Engine logs viewer coming soon — check the Tauri console for now)';
 }
 
 // ── Usage Dashboard ────────────────────────────────────────────────────────
@@ -51,7 +60,8 @@ export async function loadSettingsUsage() {
   const section = $('settings-usage-section');
   const content = $('settings-usage-content');
   if (section) section.style.display = '';
-  if (content) content.innerHTML = `<div class="usage-empty-state">
+  if (content)
+    content.innerHTML = `<div class="usage-empty-state">
     <p style="color:var(--text-secondary);margin:0 0 8px">Usage tracking coming soon to the Paw engine.</p>
     <p style="color:var(--text-muted);margin:0;font-size:12px">Token tracking is active in chat — send a message to see per-session estimates in the chat header.</p>
   </div>`;
@@ -60,7 +70,8 @@ export async function loadSettingsUsage() {
 // ── Budget Alert ───────────────────────────────────────────────────────────
 
 // @ts-ignore: reserved for budget alert feature
-function _checkBudgetAlert(currentCost: number) { void currentCost;
+function _checkBudgetAlert(currentCost: number) {
+  void currentCost;
   const limit = getBudgetLimit();
   if (limit == null) return;
   const alertEl = $('budget-alert');
@@ -69,11 +80,13 @@ function _checkBudgetAlert(currentCost: number) { void currentCost;
   if (currentCost >= limit) {
     alertEl.style.display = '';
     const text = $('budget-alert-text');
-    if (text) text.textContent = `Budget limit reached: $${currentCost.toFixed(4)} / $${limit.toFixed(2)} — consider switching to a cheaper model or pausing automations`;
+    if (text)
+      text.textContent = `Budget limit reached: $${currentCost.toFixed(4)} / $${limit.toFixed(2)} — consider switching to a cheaper model or pausing automations`;
   } else if (currentCost >= limit * 0.8) {
     alertEl.style.display = '';
     const text = $('budget-alert-text');
-    if (text) text.textContent = `Approaching budget: $${currentCost.toFixed(4)} / $${limit.toFixed(2)} (${((currentCost / limit) * 100).toFixed(0)}%)`;
+    if (text)
+      text.textContent = `Approaching budget: $${currentCost.toFixed(4)} / $${limit.toFixed(2)} (${((currentCost / limit) * 100).toFixed(0)}%)`;
   } else {
     alertEl.style.display = 'none';
   }
@@ -179,11 +192,14 @@ export function renderToolRules() {
   const toolRules = _state.getToolRules();
 
   if (toolRules.length === 0) {
-    list.innerHTML = '<div class="approvals-empty">No tool-specific rules yet. Click "Add rule" to create one.</div>';
+    list.innerHTML =
+      '<div class="approvals-empty">No tool-specific rules yet. Click "Add rule" to create one.</div>';
     return;
   }
 
-  list.innerHTML = toolRules.map((rule, i) => `
+  list.innerHTML = toolRules
+    .map(
+      (rule, i) => `
     <div class="approvals-tool-row" data-idx="${i}">
       <div class="approvals-tool-name">${escHtml(rule.name)}</div>
       <div class="approvals-toggle-group">
@@ -204,10 +220,12 @@ export function renderToolRules() {
         <span class="ms" style="font-size:14px">delete</span>
       </button>
     </div>
-  `).join('');
+  `,
+    )
+    .join('');
 
   // Wire toggle buttons
-  list.querySelectorAll('.approvals-toggle-btn').forEach(btn => {
+  list.querySelectorAll('.approvals-toggle-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.getAttribute('data-idx') ?? '-1', 10);
       const state = btn.getAttribute('data-state') as 'allow' | 'ask' | 'deny';
@@ -220,7 +238,7 @@ export function renderToolRules() {
   });
 
   // Wire remove buttons
-  list.querySelectorAll('.approvals-remove-btn').forEach(btn => {
+  list.querySelectorAll('.approvals-remove-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.getAttribute('data-idx') ?? '-1', 10);
       const rules = _state.getToolRules();
@@ -257,7 +275,7 @@ export function addToolRule() {
       cleanup();
       if (!name) return;
       const rules = _state.getToolRules();
-      if (rules.some(r => r.name === name)) {
+      if (rules.some((r) => r.name === name)) {
         showToast(`"${name}" already has a rule`, 'info');
         return;
       }
@@ -265,7 +283,10 @@ export function addToolRule() {
       renderToolRules();
     };
     const onCancel = () => cleanup();
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Enter') onOk(); if (e.key === 'Escape') onCancel(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') onOk();
+      if (e.key === 'Escape') onCancel();
+    };
     promptOk.addEventListener('click', onOk);
     promptClose.addEventListener('click', onCancel);
     if (promptCancel) promptCancel.addEventListener('click', onCancel);
@@ -275,7 +296,7 @@ export function addToolRule() {
     if (!name?.trim()) return;
     const trimmed = name.trim();
     const rules = _state.getToolRules();
-    if (rules.some(r => r.name === trimmed)) {
+    if (rules.some((r) => r.name === trimmed)) {
       showToast(`"${trimmed}" already has a rule`, 'info');
       return;
     }
@@ -291,12 +312,14 @@ export async function loadSettingsApprovals() {
 }
 
 export async function saveSettingsApprovals() {
-  const policyRadio = document.querySelector('input[name="approvals-policy"]:checked') as HTMLInputElement | null;
+  const policyRadio = document.querySelector(
+    'input[name="approvals-policy"]:checked',
+  ) as HTMLInputElement | null;
   const policy = policyRadio?.value ?? 'ask';
 
   const toolRules = _state.getToolRules();
-  const allow = toolRules.filter(r => r.state === 'allow').map(r => r.name);
-  const deny = toolRules.filter(r => r.state === 'deny').map(r => r.name);
+  const allow = toolRules.filter((r) => r.state === 'allow').map((r) => r.name);
+  const deny = toolRules.filter((r) => r.state === 'deny').map((r) => r.name);
 
   localStorage.setItem('paw-tool-approvals', JSON.stringify({ allow, deny, askPolicy: policy }));
   showToast('Approval rules saved locally', 'success');
@@ -338,9 +361,12 @@ export async function updateKeychainHealth(): Promise<void> {
 
     bar.style.display = 'flex';
 
-    const statusClass = health.status === 'healthy' ? 'kc-healthy'
-      : health.status === 'degraded' ? 'kc-degraded'
-      : 'kc-unavailable';
+    const statusClass =
+      health.status === 'healthy'
+        ? 'kc-healthy'
+        : health.status === 'degraded'
+          ? 'kc-degraded'
+          : 'kc-unavailable';
     bar.className = `keychain-health-bar ${statusClass}`;
     text.textContent = health.message;
     if (detail) {
@@ -377,13 +403,11 @@ export async function loadSecurityAudit() {
   try {
     const entries = await getSecurityAuditLog(limit, filterType);
 
-    const filtered = filterRisk
-      ? entries.filter(e => e.risk_level === filterRisk)
-      : entries;
+    const filtered = filterRisk ? entries.filter((e) => e.risk_level === filterRisk) : entries;
 
-    const denied = entries.filter(e => !e.was_allowed).length;
-    const allowed = entries.filter(e => e.was_allowed).length;
-    const critical = entries.filter(e => e.risk_level === 'critical').length;
+    const denied = entries.filter((e) => !e.was_allowed).length;
+    const allowed = entries.filter((e) => e.was_allowed).length;
+    const critical = entries.filter((e) => e.risk_level === 'critical').length;
     const deniedLabel = $('audit-score-denied-label');
     const allowedLabel = $('audit-score-allowed-label');
     const criticalLabel = $('audit-score-critical-label');
@@ -401,16 +425,17 @@ export async function loadSecurityAudit() {
     if (emptyEl) emptyEl.style.display = 'none';
     if (tableWrapper) tableWrapper.style.display = '';
 
-    tbody.innerHTML = filtered.map(e => {
-      const time = e.timestamp ? new Date(`${e.timestamp  }Z`).toLocaleString() : '—';
-      const riskBadge = e.risk_level
-        ? `<span class="audit-risk-badge risk-${escHtml(e.risk_level)}">${escHtml(e.risk_level)}</span>`
-        : '<span class="audit-risk-badge">—</span>';
-      const resultBadge = e.was_allowed
-        ? '<span class="audit-result-badge allowed">✓ Allowed</span>'
-        : '<span class="audit-result-badge denied">✕ Denied</span>';
-      const eventLabel = e.event_type.replace(/_/g, ' ');
-      return `<tr class="${e.was_allowed ? '' : 'audit-row-denied'}">
+    tbody.innerHTML = filtered
+      .map((e) => {
+        const time = e.timestamp ? new Date(`${e.timestamp}Z`).toLocaleString() : '—';
+        const riskBadge = e.risk_level
+          ? `<span class="audit-risk-badge risk-${escHtml(e.risk_level)}">${escHtml(e.risk_level)}</span>`
+          : '<span class="audit-risk-badge">—</span>';
+        const resultBadge = e.was_allowed
+          ? '<span class="audit-result-badge allowed">✓ Allowed</span>'
+          : '<span class="audit-result-badge denied">✕ Denied</span>';
+        const eventLabel = e.event_type.replace(/_/g, ' ');
+        return `<tr class="${e.was_allowed ? '' : 'audit-row-denied'}">
         <td class="audit-cell-time">${escHtml(time)}</td>
         <td class="audit-cell-event">${escHtml(eventLabel)}</td>
         <td>${riskBadge}</td>
@@ -418,10 +443,14 @@ export async function loadSecurityAudit() {
         <td class="audit-cell-detail" title="${escHtml(e.detail ?? '')}">${escHtml((e.detail ?? '').slice(0, 80))}${(e.detail?.length ?? 0) > 80 ? '…' : ''}</td>
         <td>${resultBadge}</td>
       </tr>`;
-    }).join('');
+      })
+      .join('');
   } catch (e) {
     console.warn('[settings] Audit log load failed:', e);
-    if (emptyEl) { emptyEl.style.display = ''; emptyEl.textContent = `Failed to load audit log: ${e}`; }
+    if (emptyEl) {
+      emptyEl.style.display = '';
+      emptyEl.textContent = `Failed to load audit log: ${e}`;
+    }
     if (tableWrapper) tableWrapper.style.display = 'none';
   }
 }
@@ -429,27 +458,44 @@ export async function loadSecurityAudit() {
 export function exportAuditJSON() {
   const filterType = ($('audit-filter-type') as HTMLSelectElement | null)?.value || undefined;
   const limit = parseInt(($('audit-filter-limit') as HTMLSelectElement | null)?.value || '100', 10);
-  getSecurityAuditLog(limit, filterType).then(entries => {
-    const json = JSON.stringify(entries, null, 2);
-    downloadFile('paw-security-audit.json', json, 'application/json');
-  }).catch(e => showToast(`Export failed: ${e}`, 'error'));
+  getSecurityAuditLog(limit, filterType)
+    .then((entries) => {
+      const json = JSON.stringify(entries, null, 2);
+      downloadFile('paw-security-audit.json', json, 'application/json');
+    })
+    .catch((e) => showToast(`Export failed: ${e}`, 'error'));
 }
 
 export function exportAuditCSV() {
   const filterType = ($('audit-filter-type') as HTMLSelectElement | null)?.value || undefined;
   const limit = parseInt(($('audit-filter-limit') as HTMLSelectElement | null)?.value || '100', 10);
-  getSecurityAuditLog(limit, filterType).then(entries => {
-    const headers = ['id', 'timestamp', 'event_type', 'risk_level', 'tool_name', 'command', 'detail', 'session_key', 'was_allowed', 'matched_pattern'];
-    const rows = entries.map(e =>
-      headers.map(h => {
-        const val = (e as unknown as Record<string, unknown>)[h];
-        const str = val == null ? '' : String(val);
-        return `"${str.replace(/"/g, '""')}"`;
-      }).join(',')
-    );
-    const csv = [headers.join(','), ...rows].join('\n');
-    downloadFile('paw-security-audit.csv', csv, 'text/csv');
-  }).catch(e => showToast(`Export failed: ${e}`, 'error'));
+  getSecurityAuditLog(limit, filterType)
+    .then((entries) => {
+      const headers = [
+        'id',
+        'timestamp',
+        'event_type',
+        'risk_level',
+        'tool_name',
+        'command',
+        'detail',
+        'session_key',
+        'was_allowed',
+        'matched_pattern',
+      ];
+      const rows = entries.map((e) =>
+        headers
+          .map((h) => {
+            const val = (e as unknown as Record<string, unknown>)[h];
+            const str = val == null ? '' : String(val);
+            return `"${str.replace(/"/g, '""')}"`;
+          })
+          .join(','),
+      );
+      const csv = [headers.join(','), ...rows].join('\n');
+      downloadFile('paw-security-audit.csv', csv, 'text/csv');
+    })
+    .catch((e) => showToast(`Export failed: ${e}`, 'error'));
 }
 
 // ── Security Policies (local settings) ─────────────────────────────────────
@@ -486,19 +532,31 @@ export function loadSecurityPolicies() {
 
 export function saveSecurityPolicies() {
   const autoDenyPriv = ($('sec-auto-deny-priv') as HTMLInputElement | null)?.checked ?? false;
-  const autoDenyCritical = ($('sec-auto-deny-critical') as HTMLInputElement | null)?.checked ?? false;
+  const autoDenyCritical =
+    ($('sec-auto-deny-critical') as HTMLInputElement | null)?.checked ?? false;
   const requireType = ($('sec-require-type') as HTMLInputElement | null)?.checked ?? true;
-  const readOnlyProjects = ($('sec-read-only-projects') as HTMLInputElement | null)?.checked ?? false;
+  const readOnlyProjects =
+    ($('sec-read-only-projects') as HTMLInputElement | null)?.checked ?? false;
   const allowlistRaw = ($('sec-allowlist') as HTMLTextAreaElement | null)?.value ?? '';
   const denylistRaw = ($('sec-denylist') as HTMLTextAreaElement | null)?.value ?? '';
-  const tokenRotationIntervalDays = parseInt(($('sec-token-rotation-interval') as HTMLSelectElement | null)?.value ?? '0', 10);
+  const tokenRotationIntervalDays = parseInt(
+    ($('sec-token-rotation-interval') as HTMLSelectElement | null)?.value ?? '0',
+    10,
+  );
 
-  const commandAllowlist = allowlistRaw.split('\n').map(l => l.trim()).filter(Boolean);
-  const commandDenylist = denylistRaw.split('\n').map(l => l.trim()).filter(Boolean);
+  const commandAllowlist = allowlistRaw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const commandDenylist = denylistRaw
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   for (const p of [...commandAllowlist, ...commandDenylist]) {
-    try { new RegExp(p); }
-    catch {
+    try {
+      new RegExp(p);
+    } catch {
       showToast(`Invalid regex pattern: ${p}`, 'error');
       return;
     }
@@ -521,13 +579,15 @@ export function saveSecurityPolicies() {
 }
 
 export function resetSecurityPolicies() {
-  resetSecuritySettings().then(() => {
-    loadSecurityPolicies();
-    showToast('Security policies reset to defaults', 'info');
-  }).catch(e => {
-    console.warn('[settings] Failed to reset security settings:', e);
-    showToast('Failed to reset security policies', 'error');
-  });
+  resetSecuritySettings()
+    .then(() => {
+      loadSecurityPolicies();
+      showToast('Security policies reset to defaults', 'info');
+    })
+    .catch((e) => {
+      console.warn('[settings] Failed to reset security settings:', e);
+      showToast('Failed to reset security policies', 'error');
+    });
 }
 
 // ── Session override banner management ─────────────────────────────────────
@@ -541,7 +601,8 @@ export function updateSessionOverrideBanner(): void {
   if (remaining > 0) {
     const mins = Math.ceil(remaining / 60000);
     banner.style.display = 'flex';
-    if (label) label.textContent = `Session override active — auto-approving all tools for ${mins} minute${mins !== 1 ? 's' : ''}`;
+    if (label)
+      label.textContent = `Session override active — auto-approving all tools for ${mins} minute${mins !== 1 ? 's' : ''}`;
 
     if (!_state.getOverrideBannerInterval()) {
       const interval = setInterval(() => {
@@ -549,17 +610,24 @@ export function updateSessionOverrideBanner(): void {
         if (r <= 0) {
           if (banner) banner.style.display = 'none';
           const cur = _state.getOverrideBannerInterval();
-          if (cur) { clearInterval(cur); _state.setOverrideBannerInterval(null); }
+          if (cur) {
+            clearInterval(cur);
+            _state.setOverrideBannerInterval(null);
+          }
           return;
         }
         const m = Math.ceil(r / 60000);
-        if (label) label.textContent = `Session override active — auto-approving all tools for ${m} minute${m !== 1 ? 's' : ''}`;
+        if (label)
+          label.textContent = `Session override active — auto-approving all tools for ${m} minute${m !== 1 ? 's' : ''}`;
       }, 30000);
       _state.setOverrideBannerInterval(interval);
     }
   } else {
     banner.style.display = 'none';
     const cur = _state.getOverrideBannerInterval();
-    if (cur) { clearInterval(cur); _state.setOverrideBannerInterval(null); }
+    if (cur) {
+      clearInterval(cur);
+      _state.setOverrideBannerInterval(null);
+    }
   }
 }

@@ -68,7 +68,7 @@ describe('TOOL_GROUPS', () => {
 describe('AGENT_TEMPLATES', () => {
   it('has all template types', () => {
     expect(Object.keys(AGENT_TEMPLATES)).toEqual(
-      expect.arrayContaining(['general', 'research', 'creative', 'technical', 'custom'])
+      expect.arrayContaining(['general', 'research', 'creative', 'technical', 'custom']),
     );
   });
 

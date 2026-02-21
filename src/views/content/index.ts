@@ -5,9 +5,7 @@ import { pawEngine } from '../../engine';
 import { $, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { appState } from '../../state/index';
-import {
-  loadContentDocs, createNewDoc, getActiveDocId, setActiveDocId
-} from './molecules';
+import { loadContentDocs, createNewDoc, getActiveDocId, setActiveDocId } from './molecules';
 
 export { loadContentDocs };
 
@@ -37,7 +35,10 @@ export function initContent() {
 
   $('content-ai-improve')?.addEventListener('click', async () => {
     const docId = getActiveDocId();
-    if (!docId || !appState.wsConnected) { showToast('Not connected', 'error'); return; }
+    if (!docId || !appState.wsConnected) {
+      showToast('Not connected', 'error');
+      return;
+    }
     const bodyEl = $('content-body') as HTMLTextAreaElement;
     const body = bodyEl?.value.trim();
     if (!body) return;
@@ -47,7 +48,10 @@ export function initContent() {
     showToast('AI improving your text…', 'info');
 
     try {
-      const result = await pawEngine.chatSend('paw-improve', `Improve this text. Return only the improved version, no explanations:\n\n${body}`);
+      const result = await pawEngine.chatSend(
+        'paw-improve',
+        `Improve this text. Return only the improved version, no explanations:\n\n${body}`,
+      );
       const text = (result as unknown as Record<string, unknown>).text as string | undefined;
       if (text && bodyEl) {
         bodyEl.value = text;
@@ -65,7 +69,7 @@ export function initContent() {
   $('content-delete-doc')?.addEventListener('click', async () => {
     const docId = getActiveDocId();
     if (!docId) return;
-    if (!await confirmModal('Delete this document?')) return;
+    if (!(await confirmModal('Delete this document?'))) return;
     await deleteDoc(docId);
     setActiveDocId(null);
     loadContentDocs();

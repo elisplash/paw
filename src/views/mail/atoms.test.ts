@@ -94,7 +94,7 @@ describe('EMAIL_PROVIDERS', () => {
 
   it('contains all expected providers', () => {
     expect(Object.keys(EMAIL_PROVIDERS)).toEqual(
-      expect.arrayContaining(['gmail', 'outlook', 'yahoo', 'icloud', 'fastmail', 'custom'])
+      expect.arrayContaining(['gmail', 'outlook', 'yahoo', 'icloud', 'fastmail', 'custom']),
     );
   });
 });

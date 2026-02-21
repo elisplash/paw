@@ -5,18 +5,30 @@
 
 import { pawEngine } from '../../engine';
 import { engineChatSend } from '../molecules/bridge';
-import { appState, agentSessionMap, persistAgentSessionMap,
-         MODEL_CONTEXT_SIZES, MODEL_COST_PER_TOKEN, COMPACTION_WARN_THRESHOLD,
-         createStreamState, sweepStaleStreams, type StreamState,
-         type MessageWithAttachments } from '../../state/index';
+import {
+  appState,
+  agentSessionMap,
+  persistAgentSessionMap,
+  MODEL_CONTEXT_SIZES,
+  MODEL_COST_PER_TOKEN,
+  COMPACTION_WARN_THRESHOLD,
+  createStreamState,
+  sweepStaleStreams,
+  type StreamState,
+  type MessageWithAttachments,
+} from '../../state/index';
 import { formatMarkdown } from '../../components/molecules/markdown';
 import { escHtml, icon, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import * as AgentsModule from '../../views/agents';
 import * as SettingsModule from '../../views/settings-main';
-import { interceptSlashCommand, getSessionOverrides as getSlashOverrides,
-         getAutocompleteSuggestions, isSlashCommand,
-         type CommandContext } from '../../features/slash-commands';
+import {
+  interceptSlashCommand,
+  getSessionOverrides as getSlashOverrides,
+  getAutocompleteSuggestions,
+  isSlashCommand,
+  type CommandContext,
+} from '../../features/slash-commands';
 import type { Message, ToolCall, Agent } from '../../types';
 
 const $ = (id: string) => document.getElementById(id);
@@ -25,11 +37,14 @@ const $ = (id: string) => document.getElementById(id);
 /** Generate a short label from the user's first message (max 50 chars). */
 function generateSessionLabel(message: string): string {
   // Strip leading slashes, markdown, excessive whitespace
-  let label = message.replace(/^\/\w+\s*/, '').replace(/[#*_~`>]+/g, '').trim();
+  let label = message
+    .replace(/^\/\w+\s*/, '')
+    .replace(/[#*_~`>]+/g, '')
+    .trim();
   // Collapse whitespace
   label = label.replace(/\s+/g, ' ');
   if (label.length > 50) {
-    label = `${label.slice(0, 47).replace(/\s+\S*$/, '')  }…`;
+    label = `${label.slice(0, 47).replace(/\s+\S*$/, '')}…`;
   }
   return label || 'New chat';
 }
@@ -73,8 +88,8 @@ export function extractContent(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return (content as Record<string, unknown>[])
-      .filter(b => b.type === 'text' && typeof b.text === 'string')
-      .map(b => b.text as string)
+      .filter((b) => b.type === 'text' && typeof b.text === 'string')
+      .map((b) => b.text as string)
       .join('\n');
   }
   if (content && typeof content === 'object') {
@@ -85,7 +100,9 @@ export function extractContent(content: unknown): string {
 }
 
 function findLastIndex<T>(arr: T[], pred: (item: T) => boolean): number {
-  for (let i = arr.length - 1; i >= 0; i--) { if (pred(arr[i])) return i; }
+  for (let i = arr.length - 1; i >= 0; i--) {
+    if (pred(arr[i])) return i;
+  }
   return -1;
 }
 
@@ -96,21 +113,24 @@ export async function loadSessions(opts?: { skipHistory?: boolean }): Promise<vo
     const engineSessions = await pawEngine.sessionsList(200);
 
     // ── Auto-prune empty sessions older than 1 hour (bulk Rust-side) ──
-    pawEngine.sessionCleanup(3600, appState.currentSessionKey ?? undefined)
-      .then(n => { if (n > 0) console.debug(`[chat] Pruned ${n} empty session(s)`); })
-      .catch(e => console.warn('[chat] Session cleanup failed:', e));
+    pawEngine
+      .sessionCleanup(3600, appState.currentSessionKey ?? undefined)
+      .then((n) => {
+        if (n > 0) console.debug(`[chat] Pruned ${n} empty session(s)`);
+      })
+      .catch((e) => console.warn('[chat] Session cleanup failed:', e));
 
     // Filter out empty old sessions on the display side too
     const ONE_HOUR = 60 * 60 * 1000;
     const now = Date.now();
-    const keptSessions = engineSessions.filter(s => {
+    const keptSessions = engineSessions.filter((s) => {
       const age = s.updated_at ? now - new Date(s.updated_at).getTime() : Infinity;
       const isEmpty = s.message_count === 0;
       const isCurrentSession = s.id === appState.currentSessionKey;
       return !(isEmpty && age > ONE_HOUR && !isCurrentSession);
     });
 
-    appState.sessions = keptSessions.map(s => ({
+    appState.sessions = keptSessions.map((s) => ({
       key: s.id,
       kind: 'direct' as const,
       label: s.label ?? undefined,
@@ -122,14 +142,18 @@ export async function loadSessions(opts?: { skipHistory?: boolean }): Promise<vo
     const currentAgent = AgentsModule.getCurrentAgent();
     if (!appState.currentSessionKey && currentAgent) {
       const savedKey = agentSessionMap.get(currentAgent.id);
-      const isValidSaved = savedKey && appState.sessions.some(s =>
-        s.key === savedKey && (s.agentId === currentAgent.id || (currentAgent.id === 'default' && !s.agentId))
-      );
+      const isValidSaved =
+        savedKey &&
+        appState.sessions.some(
+          (s) =>
+            s.key === savedKey &&
+            (s.agentId === currentAgent.id || (currentAgent.id === 'default' && !s.agentId)),
+        );
       if (isValidSaved) {
         appState.currentSessionKey = savedKey;
       } else {
-        const agentSession = appState.sessions.find(s =>
-          s.agentId === currentAgent.id || (currentAgent.id === 'default' && !s.agentId)
+        const agentSession = appState.sessions.find(
+          (s) => s.agentId === currentAgent.id || (currentAgent.id === 'default' && !s.agentId),
         );
         if (agentSession) {
           appState.currentSessionKey = agentSession.key;
@@ -145,7 +169,9 @@ export async function loadSessions(opts?: { skipHistory?: boolean }): Promise<vo
     if (!opts?.skipHistory && appState.currentSessionKey && !appState.isLoading) {
       await loadChatHistory(appState.currentSessionKey);
     }
-  } catch (e) { console.warn('[chat] Sessions load failed:', e); }
+  } catch (e) {
+    console.warn('[chat] Sessions load failed:', e);
+  }
 }
 
 export function renderSessionSelect(): void {
@@ -155,8 +181,8 @@ export function renderSessionSelect(): void {
 
   const currentAgent = AgentsModule.getCurrentAgent();
   const agentSessions = currentAgent
-    ? appState.sessions.filter(s =>
-        s.agentId === currentAgent.id || (currentAgent.id === 'default' && !s.agentId)
+    ? appState.sessions.filter(
+        (s) => s.agentId === currentAgent.id || (currentAgent.id === 'default' && !s.agentId),
       )
     : appState.sessions;
 
@@ -221,9 +247,13 @@ export async function switchToAgent(agentId: string): Promise<void> {
   resetTokenMeter();
 
   const savedSessionKey = agentSessionMap.get(agentId);
-  const savedSessionValid = savedSessionKey && appState.sessions.some(s =>
-    s.key === savedSessionKey && (s.agentId === agentId || (agentId === 'default' && !s.agentId))
-  );
+  const savedSessionValid =
+    savedSessionKey &&
+    appState.sessions.some(
+      (s) =>
+        s.key === savedSessionKey &&
+        (s.agentId === agentId || (agentId === 'default' && !s.agentId)),
+    );
   if (savedSessionValid) {
     appState.currentSessionKey = savedSessionKey;
     renderSessionSelect();
@@ -231,8 +261,8 @@ export async function switchToAgent(agentId: string): Promise<void> {
     const chatSessionSelect = $('chat-session-select') as HTMLSelectElement | null;
     if (chatSessionSelect) chatSessionSelect.value = savedSessionKey;
   } else {
-    const agentSession = appState.sessions.find(s =>
-      s.agentId === agentId || (agentId === 'default' && !s.agentId)
+    const agentSession = appState.sessions.find(
+      (s) => s.agentId === agentId || (agentId === 'default' && !s.agentId),
     );
     if (agentSession) {
       appState.currentSessionKey = agentSession.key;
@@ -251,7 +281,9 @@ export async function switchToAgent(agentId: string): Promise<void> {
       if (chatSessionSelect) chatSessionSelect.value = '';
     }
   }
-  console.debug(`[chat] Switched to agent "${agent?.name}" (${agentId}), session=${appState.currentSessionKey ?? 'new'}`);
+  console.debug(
+    `[chat] Switched to agent "${agent?.name}" (${agentId}), session=${appState.currentSessionKey ?? 'new'}`,
+  );
 }
 
 export async function loadChatHistory(sessionKey: string): Promise<void> {
@@ -259,8 +291,8 @@ export async function loadChatHistory(sessionKey: string): Promise<void> {
   try {
     const stored = await pawEngine.chatHistory(sessionKey, 200);
     appState.messages = stored
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .map(m => ({
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .map((m) => ({
         id: m.id,
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
@@ -276,11 +308,11 @@ export async function loadChatHistory(sessionKey: string): Promise<void> {
 
 // ── Token metering ─────────────────────────────────────────────────────────
 export function resetTokenMeter(): void {
-  appState.sessionTokensUsed   = 0;
-  appState.sessionInputTokens  = 0;
+  appState.sessionTokensUsed = 0;
+  appState.sessionInputTokens = 0;
   appState.sessionOutputTokens = 0;
-  appState.sessionCost         = 0;
-  appState.lastRecordedTotal   = 0;
+  appState.sessionCost = 0;
+  appState.lastRecordedTotal = 0;
   appState.compactionDismissed = false;
   updateTokenMeter();
   ($('session-budget-alert') as HTMLElement | null)?.style !== undefined &&
@@ -289,7 +321,7 @@ export function resetTokenMeter(): void {
 
 export function updateTokenMeter(): void {
   const meter = $('token-meter');
-  const fill  = $('token-meter-fill');
+  const fill = $('token-meter-fill');
   const label = $('token-meter-label');
   if (!meter || !fill || !label) return;
   meter.style.display = '';
@@ -297,7 +329,10 @@ export function updateTokenMeter(): void {
   if (appState.sessionTokensUsed <= 0) {
     fill.style.width = '0%';
     fill.className = 'token-meter-fill';
-    const lim = appState.modelContextLimit >= 1000 ? `${(appState.modelContextLimit / 1000).toFixed(0)}k` : `${appState.modelContextLimit}`;
+    const lim =
+      appState.modelContextLimit >= 1000
+        ? `${(appState.modelContextLimit / 1000).toFixed(0)}k`
+        : `${appState.modelContextLimit}`;
     label.textContent = `0 / ${lim} tokens`;
     meter.title = 'Token tracking active — send a message to see usage';
     return;
@@ -305,10 +340,21 @@ export function updateTokenMeter(): void {
 
   const pct = Math.min((appState.sessionTokensUsed / appState.modelContextLimit) * 100, 100);
   fill.style.width = `${pct}%`;
-  fill.className = pct >= 80 ? 'token-meter-fill danger' : pct >= 60 ? 'token-meter-fill warning' : 'token-meter-fill';
+  fill.className =
+    pct >= 80
+      ? 'token-meter-fill danger'
+      : pct >= 60
+        ? 'token-meter-fill warning'
+        : 'token-meter-fill';
 
-  const used = appState.sessionTokensUsed >= 1000 ? `${(appState.sessionTokensUsed / 1000).toFixed(1)}k` : `${appState.sessionTokensUsed}`;
-  const lim  = appState.modelContextLimit  >= 1000 ? `${(appState.modelContextLimit  / 1000).toFixed(0)}k` : `${appState.modelContextLimit}`;
+  const used =
+    appState.sessionTokensUsed >= 1000
+      ? `${(appState.sessionTokensUsed / 1000).toFixed(1)}k`
+      : `${appState.sessionTokensUsed}`;
+  const lim =
+    appState.modelContextLimit >= 1000
+      ? `${(appState.modelContextLimit / 1000).toFixed(0)}k`
+      : `${appState.modelContextLimit}`;
   const cost = appState.sessionCost > 0 ? ` · $${appState.sessionCost.toFixed(4)}` : '';
   label.textContent = `${used} / ${lim} tokens${cost}`;
   meter.title = `Session tokens: ${appState.sessionTokensUsed.toLocaleString()} / ${appState.modelContextLimit.toLocaleString()} (In: ${appState.sessionInputTokens.toLocaleString()} / Out: ${appState.sessionOutputTokens.toLocaleString()}) — Est. cost: $${appState.sessionCost.toFixed(4)}`;
@@ -323,9 +369,10 @@ function updateCompactionWarning(pct: number): void {
     warning.style.display = '';
     const text = $('compaction-warning-text');
     if (text) {
-      text.textContent = pct >= 95
-        ? `Context window ${pct.toFixed(0)}% full — messages will be compacted imminently`
-        : `Context window ${pct.toFixed(0)}% full — older messages may be compacted soon`;
+      text.textContent =
+        pct >= 95
+          ? `Context window ${pct.toFixed(0)}% full — messages will be compacted imminently`
+          : `Context window ${pct.toFixed(0)}% full — older messages may be compacted soon`;
     }
   } else {
     warning.style.display = 'none';
@@ -337,7 +384,9 @@ export function updateContextLimitFromModel(modelName: string): void {
   for (const [prefix, limit] of Object.entries(MODEL_CONTEXT_SIZES)) {
     if (lower.includes(prefix)) {
       if (appState.modelContextLimit !== limit) {
-        console.debug(`[token] Context limit: ${appState.modelContextLimit.toLocaleString()} → ${limit.toLocaleString()} (${modelName})`);
+        console.debug(
+          `[token] Context limit: ${appState.modelContextLimit.toLocaleString()} → ${limit.toLocaleString()} (${modelName})`,
+        );
         appState.modelContextLimit = limit;
         updateTokenMeter();
       }
@@ -350,17 +399,30 @@ export function updateContextLimitFromModel(modelName: string): void {
 export function recordTokenUsage(usage: Record<string, unknown> | undefined): void {
   if (!usage) return;
   const uAny = usage as Record<string, unknown>;
-  const nested = (uAny.response as Record<string, unknown> | undefined);
+  const nested = uAny.response as Record<string, unknown> | undefined;
   const inner = (uAny.usage ?? nested?.usage ?? usage) as Record<string, unknown>;
-  const totalTokens   = (inner.totalTokens   ?? inner.total_tokens   ?? inner.totalTokenCount   ?? 0) as number;
-  const inputTokens   = (inner.promptTokens  ?? inner.prompt_tokens  ?? inner.inputTokens   ?? inner.input_tokens   ?? inner.prompt_token_count   ?? 0) as number;
-  const outputTokens  = (inner.completionTokens ?? inner.completion_tokens ?? inner.outputTokens ?? inner.output_tokens ?? inner.completion_token_count ?? 0) as number;
+  const totalTokens = (inner.totalTokens ??
+    inner.total_tokens ??
+    inner.totalTokenCount ??
+    0) as number;
+  const inputTokens = (inner.promptTokens ??
+    inner.prompt_tokens ??
+    inner.inputTokens ??
+    inner.input_tokens ??
+    inner.prompt_token_count ??
+    0) as number;
+  const outputTokens = (inner.completionTokens ??
+    inner.completion_tokens ??
+    inner.outputTokens ??
+    inner.output_tokens ??
+    inner.completion_token_count ??
+    0) as number;
 
   if (totalTokens > 0 || inputTokens > 0 || outputTokens > 0) {
-    appState.sessionInputTokens  = inputTokens;
+    appState.sessionInputTokens = inputTokens;
     appState.sessionOutputTokens += outputTokens;
-    appState.sessionTokensUsed   = inputTokens + appState.sessionOutputTokens;
-    appState.lastRecordedTotal   = appState.sessionTokensUsed;
+    appState.sessionTokensUsed = inputTokens + appState.sessionOutputTokens;
+    appState.lastRecordedTotal = appState.sessionTokensUsed;
   }
 
   const rate = MODEL_COST_PER_TOKEN[appState.activeModelKey] ?? MODEL_COST_PER_TOKEN['default'];
@@ -373,9 +435,10 @@ export function recordTokenUsage(usage: Record<string, unknown> | undefined): vo
       budgetAlert.style.display = '';
       const alertText = $('session-budget-alert-text');
       if (alertText) {
-        alertText.textContent = appState.sessionCost >= budgetLimit
-          ? `Session budget exceeded: $${appState.sessionCost.toFixed(4)} / $${budgetLimit.toFixed(2)}`
-          : `Nearing session budget: $${appState.sessionCost.toFixed(4)} / $${budgetLimit.toFixed(2)}`;
+        alertText.textContent =
+          appState.sessionCost >= budgetLimit
+            ? `Session budget exceeded: $${appState.sessionCost.toFixed(4)} / $${budgetLimit.toFixed(2)}`
+            : `Nearing session budget: $${appState.sessionCost.toFixed(4)} / $${budgetLimit.toFixed(2)}`;
       }
     }
   }
@@ -384,7 +447,7 @@ export function recordTokenUsage(usage: Record<string, unknown> | undefined): vo
 
 // ── Streaming pipeline ────────────────────────────────────────────────────
 export function showStreamingMessage(): void {
-  const chatEmpty    = $('chat-empty');
+  const chatEmpty = $('chat-empty');
   const chatMessages = $('chat-messages');
   if (chatEmpty) chatEmpty.style.display = 'none';
 
@@ -450,7 +513,9 @@ export function finalizeStreaming(finalContent: string, toolCalls?: ToolCall[]):
 
   const currentAgent = AgentsModule.getCurrentAgent();
   if (streamingAgent && currentAgent && streamingAgent !== currentAgent.id) {
-    console.debug(`[chat] Streaming agent (${streamingAgent}) differs from current (${currentAgent.id}) — skipping UI render`);
+    console.debug(
+      `[chat] Streaming agent (${streamingAgent}) differs from current (${currentAgent.id}) — skipping UI render`,
+    );
     return;
   }
 
@@ -459,35 +524,51 @@ export function finalizeStreaming(finalContent: string, toolCalls?: ToolCall[]):
     autoSpeakIfEnabled(finalContent);
 
     // Fallback token estimation
-    if (appState.sessionTokensUsed === 0 || appState.lastRecordedTotal === appState.sessionTokensUsed) {
-      const userMsg = appState.messages.filter(m => m.role === 'user').pop();
+    if (
+      appState.sessionTokensUsed === 0 ||
+      appState.lastRecordedTotal === appState.sessionTokensUsed
+    ) {
+      const userMsg = appState.messages.filter((m) => m.role === 'user').pop();
       const userChars = userMsg?.content?.length ?? 0;
       const assistantChars = finalContent.length;
-      const estInput  = Math.ceil(userChars / 4);
+      const estInput = Math.ceil(userChars / 4);
       const estOutput = Math.ceil(assistantChars / 4);
-      appState.sessionInputTokens  += estInput;
+      appState.sessionInputTokens += estInput;
       appState.sessionOutputTokens += estOutput;
-      appState.sessionTokensUsed   += estInput + estOutput;
+      appState.sessionTokensUsed += estInput + estOutput;
       const rate = MODEL_COST_PER_TOKEN[appState.activeModelKey] ?? MODEL_COST_PER_TOKEN['default'];
       appState.sessionCost += estInput * rate.input + estOutput * rate.output;
       console.debug(`[token] Fallback estimate: ~${estInput + estOutput} tokens`);
       updateTokenMeter();
     }
   } else {
-    console.warn(`[chat] finalizeStreaming: empty content (runId=${savedRunId?.slice(0, 12) ?? 'null'}). Fetching history fallback...`);
+    console.warn(
+      `[chat] finalizeStreaming: empty content (runId=${savedRunId?.slice(0, 12) ?? 'null'}). Fetching history fallback...`,
+    );
     const sk = appState.currentSessionKey;
     if (sk) {
-      pawEngine.chatHistory(sk, 10).then(stored => {
-        for (let i = stored.length - 1; i >= 0; i--) {
-          if (stored[i].role === 'assistant' && stored[i].content) {
-            addMessage({ role: 'assistant', content: stored[i].content, timestamp: new Date() });
-            return;
+      pawEngine
+        .chatHistory(sk, 10)
+        .then((stored) => {
+          for (let i = stored.length - 1; i >= 0; i--) {
+            if (stored[i].role === 'assistant' && stored[i].content) {
+              addMessage({ role: 'assistant', content: stored[i].content, timestamp: new Date() });
+              return;
+            }
           }
-        }
-        addMessage({ role: 'assistant', content: '*(No response received)*', timestamp: new Date() });
-      }).catch(() => {
-        addMessage({ role: 'assistant', content: '*(No response received)*', timestamp: new Date() });
-      });
+          addMessage({
+            role: 'assistant',
+            content: '*(No response received)*',
+            timestamp: new Date(),
+          });
+        })
+        .catch(() => {
+          addMessage({
+            role: 'assistant',
+            content: '*(No response received)*',
+            timestamp: new Date(),
+          });
+        });
     } else {
       addMessage({ role: 'assistant', content: '*(No response received)*', timestamp: new Date() });
     }
@@ -502,11 +583,14 @@ export function addMessage(message: MessageWithAttachments): void {
 
 function retryMessage(content: string): void {
   if (appState.isLoading || !content) return;
-  const lastUserIdx = findLastIndex(appState.messages, m => m.role === 'user');
+  const lastUserIdx = findLastIndex(appState.messages, (m) => m.role === 'user');
   if (lastUserIdx >= 0) appState.messages.splice(lastUserIdx);
   renderMessages();
   const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement | null;
-  if (chatInput) { chatInput.value = content; chatInput.style.height = 'auto'; }
+  if (chatInput) {
+    chatInput.value = content;
+    chatInput.style.height = 'auto';
+  }
   sendMessage();
 }
 
@@ -519,8 +603,10 @@ function renderScreenshotCard(msgContent: string): HTMLElement | null {
 
   const ssCard = document.createElement('div');
   ssCard.className = 'message-screenshot-card';
-  ssCard.style.cssText = 'margin:8px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border-color);cursor:pointer;max-width:400px';
-  ssCard.innerHTML = '<div style="padding:8px;text-align:center;color:var(--text-muted);font-size:12px">Loading screenshot…</div>';
+  ssCard.style.cssText =
+    'margin:8px 0;border-radius:8px;overflow:hidden;border:1px solid var(--border-color);cursor:pointer;max-width:400px';
+  ssCard.innerHTML =
+    '<div style="padding:8px;text-align:center;color:var(--text-muted);font-size:12px">Loading screenshot…</div>';
   (async () => {
     try {
       const { pawEngine: eng } = await import('../molecules/ipc_client');
@@ -536,7 +622,8 @@ function renderScreenshotCard(msgContent: string): HTMLElement | null {
           const win = window.open('', '_blank');
           if (win) {
             win.document.title = ssFilename;
-            win.document.body.style.cssText = 'margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh';
+            win.document.body.style.cssText =
+              'margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh';
             const fullImg = win.document.createElement('img');
             fullImg.src = img.src;
             fullImg.style.maxWidth = '100%';
@@ -544,7 +631,10 @@ function renderScreenshotCard(msgContent: string): HTMLElement | null {
           }
         });
       }
-    } catch { ssCard.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:12px">Screenshot unavailable</div>'; }
+    } catch {
+      ssCard.innerHTML =
+        '<div style="padding:8px;color:var(--text-muted);font-size:12px">Screenshot unavailable</div>';
+    }
   })();
   return ssCard;
 }
@@ -578,7 +668,10 @@ function renderAttachmentStrip(attachments: NonNullable<Message['attachments']>)
     } else {
       const docChip = document.createElement('div');
       docChip.className = 'message-attachment-doc';
-      const iconName = att.mimeType?.startsWith('text/') || att.mimeType === 'application/pdf' ? 'file-text' : 'file';
+      const iconName =
+        att.mimeType?.startsWith('text/') || att.mimeType === 'application/pdf'
+          ? 'file-text'
+          : 'file';
       docChip.innerHTML = icon(iconName);
       const nameSpan = document.createElement('span');
       nameSpan.textContent = att.name || 'file';
@@ -590,7 +683,12 @@ function renderAttachmentStrip(attachments: NonNullable<Message['attachments']>)
 }
 
 /** Render a single message element */
-function renderSingleMessage(msg: Message, index: number, lastUserIdx: number, lastAssistantIdx: number): HTMLElement {
+function renderSingleMessage(
+  msg: Message,
+  index: number,
+  lastUserIdx: number,
+  lastAssistantIdx: number,
+): HTMLElement {
   const div = document.createElement('div');
   div.className = `message ${msg.role}`;
 
@@ -631,13 +729,17 @@ function renderSingleMessage(msg: Message, index: number, lastUserIdx: number, l
 
   // Retry button
   const isLastUser = index === lastUserIdx;
-  const isErrored  = index === lastAssistantIdx && msg.content.startsWith('Error:');
+  const isErrored = index === lastAssistantIdx && msg.content.startsWith('Error:');
   if ((isLastUser || isErrored) && !appState.isLoading) {
     const retryBtn = document.createElement('button');
     retryBtn.className = 'message-retry-btn';
     retryBtn.title = 'Retry';
     retryBtn.innerHTML = `${icon('rotate-ccw')} Retry`;
-    const retryContent = isLastUser ? msg.content : (lastUserIdx >= 0 ? appState.messages[lastUserIdx].content : '');
+    const retryContent = isLastUser
+      ? msg.content
+      : lastUserIdx >= 0
+        ? appState.messages[lastUserIdx].content
+        : '';
     retryBtn.addEventListener('click', () => retryMessage(retryContent));
     div.appendChild(retryBtn);
   }
@@ -658,9 +760,9 @@ function renderSingleMessage(msg: Message, index: number, lastUserIdx: number, l
 
 export function renderMessages(): void {
   const chatMessages = $('chat-messages');
-  const chatEmpty    = $('chat-empty');
+  const chatEmpty = $('chat-empty');
   if (!chatMessages) return;
-  chatMessages.querySelectorAll('.message').forEach(m => m.remove());
+  chatMessages.querySelectorAll('.message').forEach((m) => m.remove());
 
   if (appState.messages.length === 0) {
     if (chatEmpty) chatEmpty.style.display = 'flex';
@@ -669,8 +771,8 @@ export function renderMessages(): void {
   if (chatEmpty) chatEmpty.style.display = 'none';
 
   const frag = document.createDocumentFragment();
-  const lastUserIdx      = findLastIndex(appState.messages, m => m.role === 'user');
-  const lastAssistantIdx = findLastIndex(appState.messages, m => m.role === 'assistant');
+  const lastUserIdx = findLastIndex(appState.messages, (m) => m.role === 'user');
+  const lastAssistantIdx = findLastIndex(appState.messages, (m) => m.role === 'assistant');
 
   for (let i = 0; i < appState.messages.length; i++) {
     frag.appendChild(renderSingleMessage(appState.messages[i], i, lastUserIdx, lastAssistantIdx));
@@ -713,12 +815,17 @@ export function renderAttachmentPreview(): void {
     meta.className = 'attachment-chip-meta';
     const nameEl = document.createElement('span');
     nameEl.className = 'attachment-chip-name';
-    nameEl.textContent = file.name.length > 24 ? `${file.name.slice(0, 21)  }...` : file.name;
+    nameEl.textContent = file.name.length > 24 ? `${file.name.slice(0, 21)}...` : file.name;
     nameEl.title = file.name;
     meta.appendChild(nameEl);
     const sizeEl = document.createElement('span');
     sizeEl.className = 'attachment-chip-size';
-    sizeEl.textContent = file.size < 1024 ? `${file.size} B` : file.size < 1048576 ? `${(file.size / 1024).toFixed(1)} KB` : `${(file.size / 1048576).toFixed(1)} MB`;
+    sizeEl.textContent =
+      file.size < 1024
+        ? `${file.size} B`
+        : file.size < 1048576
+          ? `${(file.size / 1024).toFixed(1)} KB`
+          : `${(file.size / 1048576).toFixed(1)} MB`;
     meta.appendChild(sizeEl);
     chip.appendChild(meta);
     const removeBtn = document.createElement('button');
@@ -726,7 +833,10 @@ export function renderAttachmentPreview(): void {
     removeBtn.innerHTML = icon('x');
     removeBtn.title = 'Remove';
     const idx = i;
-    removeBtn.addEventListener('click', () => { appState.pendingAttachments.splice(idx, 1); renderAttachmentPreview(); });
+    removeBtn.addEventListener('click', () => {
+      appState.pendingAttachments.splice(idx, 1);
+      renderAttachmentPreview();
+    });
     chip.appendChild(removeBtn);
     chatAttachmentPreview.appendChild(chip);
   }
@@ -759,10 +869,10 @@ export async function speakMessage(text: string, btn: HTMLButtonElement): Promis
   btn.classList.add('tts-loading');
   try {
     const base64Audio = await pawEngine.ttsSpeak(text);
-    const audioBytes  = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0));
+    const audioBytes = Uint8Array.from(atob(base64Audio), (c) => c.charCodeAt(0));
     const blob = new Blob([audioBytes], { type: 'audio/mp3' });
-    const url  = URL.createObjectURL(blob);
-    appState.ttsAudio     = new Audio(url);
+    const url = URL.createObjectURL(blob);
+    appState.ttsAudio = new Audio(url);
     appState.ttsActiveBtn = btn;
     btn.innerHTML = `<span class="ms">stop_circle</span>`;
     btn.classList.remove('tts-loading');
@@ -795,12 +905,15 @@ async function autoSpeakIfEnabled(text: string): Promise<void> {
     const cfg = await pawEngine.ttsGetConfig();
     if (!cfg.auto_speak) return;
     const base64Audio = await pawEngine.ttsSpeak(text);
-    const audioBytes  = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0));
+    const audioBytes = Uint8Array.from(atob(base64Audio), (c) => c.charCodeAt(0));
     const blob = new Blob([audioBytes], { type: 'audio/mp3' });
-    const url  = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     if (appState.ttsAudio) appState.ttsAudio.pause();
     appState.ttsAudio = new Audio(url);
-    appState.ttsAudio.addEventListener('ended', () => { URL.revokeObjectURL(url); appState.ttsAudio = null; });
+    appState.ttsAudio.addEventListener('ended', () => {
+      URL.revokeObjectURL(url);
+      appState.ttsAudio = null;
+    });
     appState.ttsAudio.play();
   } catch (e) {
     console.warn('[tts] Auto-speak failed:', e);
@@ -812,7 +925,8 @@ async function autoSpeakIfEnabled(text: string): Promise<void> {
 function buildSlashCommandContext(chatModelSelect: HTMLSelectElement | null): CommandContext {
   return {
     sessionKey: appState.currentSessionKey,
-    addSystemMessage: (text: string) => addMessage({ role: 'assistant', content: text, timestamp: new Date() }),
+    addSystemMessage: (text: string) =>
+      addMessage({ role: 'assistant', content: text, timestamp: new Date() }),
     clearChatUI: () => {
       const el = document.getElementById('chat-messages');
       if (el) el.innerHTML = '';
@@ -835,21 +949,41 @@ function buildSlashCommandContext(chatModelSelect: HTMLSelectElement | null): Co
 }
 
 /** Encode pending file attachments to base64 for sending */
-async function encodeFileAttachments(): Promise<Array<{ type: string; mimeType: string; content: string; name?: string }>> {
+async function encodeFileAttachments(): Promise<
+  Array<{ type: string; mimeType: string; content: string; name?: string }>
+> {
   const attachments: Array<{ type: string; mimeType: string; content: string; name?: string }> = [];
   for (const file of appState.pendingAttachments) {
     try {
       const base64 = await fileToBase64(file);
-      const mime = file.type || (file.name?.match(/\.(txt|md|csv|json|xml|html|css|js|ts|py|rs|sh|yaml|yml|toml|log)$/i) ? 'text/plain' : 'application/octet-stream');
-      attachments.push({ type: mime.startsWith('image/') ? 'image' : 'file', mimeType: mime, content: base64, name: file.name });
-    } catch (e) { console.error('[chat] Attachment encode failed:', file.name, e); }
+      const mime =
+        file.type ||
+        (file.name?.match(/\.(txt|md|csv|json|xml|html|css|js|ts|py|rs|sh|yaml|yml|toml|log)$/i)
+          ? 'text/plain'
+          : 'application/octet-stream');
+      attachments.push({
+        type: mime.startsWith('image/') ? 'image' : 'file',
+        mimeType: mime,
+        content: base64,
+        name: file.name,
+      });
+    } catch (e) {
+      console.error('[chat] Attachment encode failed:', file.name, e);
+    }
   }
   return attachments;
 }
 
 /** Handle the send result — update session, auto-label, process ack text */
 function handleSendResult(
-  result: { sessionKey?: string; session_id?: string; runId?: string; text?: string; response?: unknown; usage?: unknown },
+  result: {
+    sessionKey?: string;
+    session_id?: string;
+    runId?: string;
+    text?: string;
+    response?: unknown;
+    usage?: unknown;
+  },
   ss: StreamState,
   streamKey: string,
 ): void {
@@ -861,28 +995,39 @@ function handleSendResult(
       appState.activeStreams.set(result.sessionKey, ss);
     }
     const curAgent = AgentsModule.getCurrentAgent();
-    if (curAgent) { agentSessionMap.set(curAgent.id, result.sessionKey); persistAgentSessionMap(); }
+    if (curAgent) {
+      agentSessionMap.set(curAgent.id, result.sessionKey);
+      persistAgentSessionMap();
+    }
 
     const isNewSession = result.sessionKey !== streamKey || streamKey === 'default' || !streamKey;
-    const existingSession = appState.sessions.find(s => s.key === result.sessionKey);
+    const existingSession = appState.sessions.find((s) => s.key === result.sessionKey);
     if (isNewSession || !existingSession?.label) {
       const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement | null;
-      const msgContent = chatInput?.value || appState.messages[appState.messages.length - 1]?.content || '';
+      const msgContent =
+        chatInput?.value || appState.messages[appState.messages.length - 1]?.content || '';
       const autoLabel = generateSessionLabel(msgContent);
-      pawEngine.sessionRename(result.sessionKey, autoLabel).then(() => {
-        const s = appState.sessions.find(s2 => s2.key === result.sessionKey);
-        if (s) { s.label = autoLabel; s.displayName = autoLabel; }
-        renderSessionSelect();
-        console.debug('[chat] Auto-labeled session:', autoLabel);
-      }).catch(e => console.warn('[chat] Auto-label failed:', e));
+      pawEngine
+        .sessionRename(result.sessionKey, autoLabel)
+        .then(() => {
+          const s = appState.sessions.find((s2) => s2.key === result.sessionKey);
+          if (s) {
+            s.label = autoLabel;
+            s.displayName = autoLabel;
+          }
+          renderSessionSelect();
+          console.debug('[chat] Auto-labeled session:', autoLabel);
+        })
+        .catch((e) => console.warn('[chat] Auto-label failed:', e));
     }
   }
 
   if (result.usage) recordTokenUsage(result.usage as Record<string, unknown>);
 
-  const ackText = result.text
-    ?? (typeof result.response === 'string' ? result.response : null)
-    ?? extractContent(result.response);
+  const ackText =
+    result.text ??
+    (typeof result.response === 'string' ? result.response : null) ??
+    extractContent(result.response);
   if (ackText && ss.resolve) {
     appendStreamingDelta(ackText);
     ss.resolve(ackText);
@@ -891,8 +1036,8 @@ function handleSendResult(
 }
 
 export async function sendMessage(): Promise<void> {
-  const chatInput  = document.getElementById('chat-input')  as HTMLTextAreaElement | null;
-  const chatSend   = document.getElementById('chat-send')   as HTMLButtonElement | null;
+  const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  const chatSend = document.getElementById('chat-send') as HTMLButtonElement | null;
   const chatModelSelect = document.getElementById('chat-model-select') as HTMLSelectElement | null;
   let content = chatInput?.value.trim();
   if (!content || appState.isLoading) return;
@@ -902,7 +1047,10 @@ export async function sendMessage(): Promise<void> {
     const cmdCtx = buildSlashCommandContext(chatModelSelect);
     const result = await interceptSlashCommand(content, cmdCtx);
     if (result.handled) {
-      if (chatInput) { chatInput.value = ''; chatInput.style.height = 'auto'; }
+      if (chatInput) {
+        chatInput.value = '';
+        chatInput.style.height = 'auto';
+      }
       if (result.systemMessage) cmdCtx.addSystemMessage(result.systemMessage);
       if (result.refreshSessions) loadSessions({ skipHistory: true }).catch(() => {});
       if (result.preventDefault && !result.rewrittenInput) return;
@@ -916,10 +1064,17 @@ export async function sendMessage(): Promise<void> {
   // User message
   const userMsg: Message = { role: 'user', content, timestamp: new Date() };
   if (attachments.length) {
-    userMsg.attachments = attachments.map(a => ({ name: a.name ?? 'attachment', mimeType: a.mimeType, data: a.content }));
+    userMsg.attachments = attachments.map((a) => ({
+      name: a.name ?? 'attachment',
+      mimeType: a.mimeType,
+      data: a.content,
+    }));
   }
   addMessage(userMsg);
-  if (chatInput) { chatInput.value = ''; chatInput.style.height = 'auto'; }
+  if (chatInput) {
+    chatInput.value = '';
+    chatInput.style.height = 'auto';
+  }
   clearPendingAttachments();
   appState.isLoading = true;
   if (chatSend) chatSend.disabled = true;
@@ -948,7 +1103,8 @@ export async function sendMessage(): Promise<void> {
     const chatOpts: Record<string, unknown> = {};
     const currentAgent = AgentsModule.getCurrentAgent();
     if (currentAgent) {
-      if (currentAgent.model && currentAgent.model !== 'default') chatOpts.model = currentAgent.model;
+      if (currentAgent.model && currentAgent.model !== 'default')
+        chatOpts.model = currentAgent.model;
       chatOpts.agentProfile = currentAgent;
     }
     if (attachments.length) chatOpts.attachments = attachments;
@@ -959,11 +1115,17 @@ export async function sendMessage(): Promise<void> {
     if (slashOverrides.thinkingLevel) chatOpts.thinkingLevel = slashOverrides.thinkingLevel;
     if (slashOverrides.temperature !== undefined) chatOpts.temperature = slashOverrides.temperature;
 
-    const result = await engineChatSend(sessionKey, content, chatOpts as {
-      model?: string; thinkingLevel?: string; temperature?: number;
-      attachments?: Array<{ type?: string; mimeType: string; content: string }>;
-      agentProfile?: Partial<Agent>;
-    });
+    const result = await engineChatSend(
+      sessionKey,
+      content,
+      chatOpts as {
+        model?: string;
+        thinkingLevel?: string;
+        temperature?: number;
+        attachments?: Array<{ type?: string; mimeType: string; content: string }>;
+        agentProfile?: Partial<Agent>;
+      },
+    );
     console.debug('[chat] send ack:', JSON.stringify(result).slice(0, 300));
     handleSendResult(result, ss, streamKey);
 
@@ -980,7 +1142,10 @@ export async function sendMessage(): Promise<void> {
     appState.isLoading = false;
     const finalKey = appState.currentSessionKey ?? streamKey;
     appState.activeStreams.delete(finalKey);
-    if (ss?.timeout) { clearTimeout(ss.timeout); ss.timeout = null; }
+    if (ss?.timeout) {
+      clearTimeout(ss.timeout);
+      ss.timeout = null;
+    }
     const chatSendBtn = document.getElementById('chat-send') as HTMLButtonElement | null;
     if (chatSendBtn) chatSendBtn.disabled = false;
   }
@@ -989,25 +1154,34 @@ export async function sendMessage(): Promise<void> {
 // ── Wire up all chat DOM event listeners ─────────────────────────────────
 // Called once from main.ts DOMContentLoaded.
 export function initChatListeners(): void {
-  const chatSend        = document.getElementById('chat-send') as HTMLButtonElement | null;
-  const chatInput       = document.getElementById('chat-input') as HTMLTextAreaElement | null;
-  const chatAttachBtn   = document.getElementById('chat-attach-btn');
-  const chatFileInput   = document.getElementById('chat-file-input') as HTMLInputElement | null;
-  const chatSessionSelect = document.getElementById('chat-session-select') as HTMLSelectElement | null;
-  const chatAgentSelect   = document.getElementById('chat-agent-select')   as HTMLSelectElement | null;
+  const chatSend = document.getElementById('chat-send') as HTMLButtonElement | null;
+  const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  const chatAttachBtn = document.getElementById('chat-attach-btn');
+  const chatFileInput = document.getElementById('chat-file-input') as HTMLInputElement | null;
+  const chatSessionSelect = document.getElementById(
+    'chat-session-select',
+  ) as HTMLSelectElement | null;
+  const chatAgentSelect = document.getElementById('chat-agent-select') as HTMLSelectElement | null;
 
   chatSend?.addEventListener('click', sendMessage);
 
   chatInput?.addEventListener('keydown', (e) => {
     const popup = document.getElementById('slash-autocomplete');
     if (popup && popup.style.display !== 'none') {
-      if (e.key === 'Escape') { popup.style.display = 'none'; e.preventDefault(); return; }
+      if (e.key === 'Escape') {
+        popup.style.display = 'none';
+        e.preventDefault();
+        return;
+      }
       if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
         const selected = popup.querySelector('.slash-ac-item.selected') as HTMLElement | null;
         if (selected) {
           e.preventDefault();
           const cmd = selected.dataset.command ?? '';
-          if (chatInput) { chatInput.value = `${cmd  } `; chatInput.focus(); }
+          if (chatInput) {
+            chatInput.value = `${cmd} `;
+            chatInput.focus();
+          }
           popup.style.display = 'none';
           return;
         }
@@ -1015,20 +1189,26 @@ export function initChatListeners(): void {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
         const items = Array.from(popup.querySelectorAll('.slash-ac-item')) as HTMLElement[];
-        const cur = items.findIndex(el => el.classList.contains('selected'));
-        items.forEach(el => el.classList.remove('selected'));
-        const next = e.key === 'ArrowDown' ? (cur + 1) % items.length : (cur - 1 + items.length) % items.length;
+        const cur = items.findIndex((el) => el.classList.contains('selected'));
+        items.forEach((el) => el.classList.remove('selected'));
+        const next =
+          e.key === 'ArrowDown'
+            ? (cur + 1) % items.length
+            : (cur - 1 + items.length) % items.length;
         items[next]?.classList.add('selected');
         return;
       }
     }
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   });
 
   chatInput?.addEventListener('input', () => {
     if (!chatInput) return;
     chatInput.style.height = 'auto';
-    chatInput.style.height = `${Math.min(chatInput.scrollHeight, 120)  }px`;
+    chatInput.style.height = `${Math.min(chatInput.scrollHeight, 120)}px`;
     const val = chatInput.value;
     let popup = document.getElementById('slash-autocomplete') as HTMLElement | null;
     if (val.startsWith('/') && !val.includes(' ')) {
@@ -1040,17 +1220,23 @@ export function initChatListeners(): void {
           popup.className = 'slash-autocomplete-popup';
           chatInput.parentElement?.insertBefore(popup, chatInput);
         }
-        popup.innerHTML = suggestions.map((s, i) =>
-          `<div class="slash-ac-item${i === 0 ? ' selected' : ''}" data-command="${s.command}">
+        popup.innerHTML = suggestions
+          .map(
+            (s, i) =>
+              `<div class="slash-ac-item${i === 0 ? ' selected' : ''}" data-command="${s.command}">
             <span class="slash-ac-cmd">${s.command}</span>
             <span class="slash-ac-desc">${s.description}</span>
-          </div>`
-        ).join('');
+          </div>`,
+          )
+          .join('');
         popup.style.display = 'block';
-        popup.querySelectorAll('.slash-ac-item').forEach(item => {
+        popup.querySelectorAll('.slash-ac-item').forEach((item) => {
           item.addEventListener('click', () => {
             const cmd = (item as HTMLElement).dataset.command ?? '';
-            if (chatInput) { chatInput.value = `${cmd  } `; chatInput.focus(); }
+            if (chatInput) {
+              chatInput.value = `${cmd} `;
+              chatInput.focus();
+            }
             if (popup) popup.style.display = 'none';
           });
         });
@@ -1075,7 +1261,10 @@ export function initChatListeners(): void {
     if (!key) return;
     appState.currentSessionKey = key;
     const curAgent = AgentsModule.getCurrentAgent();
-    if (curAgent) { agentSessionMap.set(curAgent.id, key); persistAgentSessionMap(); }
+    if (curAgent) {
+      agentSessionMap.set(curAgent.id, key);
+      persistAgentSessionMap();
+    }
     resetTokenMeter();
     loadChatHistory(key);
   });
@@ -1090,14 +1279,20 @@ export function initChatListeners(): void {
     appState.currentSessionKey = null;
     resetTokenMeter();
     renderMessages();
-    const chatSessionSelect2 = document.getElementById('chat-session-select') as HTMLSelectElement | null;
+    const chatSessionSelect2 = document.getElementById(
+      'chat-session-select',
+    ) as HTMLSelectElement | null;
     if (chatSessionSelect2) chatSessionSelect2.value = '';
   });
 
   $('chat-abort-btn')?.addEventListener('click', async () => {
     const key = appState.currentSessionKey ?? 'default';
-    try { await pawEngine.chatAbort(key); showToast('Agent stopped', 'info'); }
-    catch (e) { console.warn('[chat] Abort failed:', e); }
+    try {
+      await pawEngine.chatAbort(key);
+      showToast('Agent stopped', 'info');
+    } catch (e) {
+      console.warn('[chat] Abort failed:', e);
+    }
   });
 
   $('session-rename-btn')?.addEventListener('click', async () => {
@@ -1105,13 +1300,18 @@ export function initChatListeners(): void {
     const { promptModal } = await import('../../components/helpers');
     const name = await promptModal('Rename session', 'New name…');
     if (!name) return;
-    try { await pawEngine.sessionRename(appState.currentSessionKey, name); showToast('Session renamed', 'success'); await loadSessions(); }
-    catch (e) { showToast(`Rename failed: ${e instanceof Error ? e.message : e}`, 'error'); }
+    try {
+      await pawEngine.sessionRename(appState.currentSessionKey, name);
+      showToast('Session renamed', 'success');
+      await loadSessions();
+    } catch (e) {
+      showToast(`Rename failed: ${e instanceof Error ? e.message : e}`, 'error');
+    }
   });
 
   $('session-delete-btn')?.addEventListener('click', async () => {
     if (!appState.currentSessionKey || !appState.wsConnected) return;
-    if (!await confirmModal('Delete this session? This cannot be undone.')) return;
+    if (!(await confirmModal('Delete this session? This cannot be undone.'))) return;
     try {
       await pawEngine.sessionDelete(appState.currentSessionKey);
       appState.currentSessionKey = null;
@@ -1119,38 +1319,47 @@ export function initChatListeners(): void {
       renderMessages();
       showToast('Session deleted', 'success');
       await loadSessions();
-    } catch (e) { showToast(`Delete failed: ${e instanceof Error ? e.message : e}`, 'error'); }
+    } catch (e) {
+      showToast(`Delete failed: ${e instanceof Error ? e.message : e}`, 'error');
+    }
   });
 
   $('session-clear-btn')?.addEventListener('click', async () => {
     if (!appState.currentSessionKey || !appState.wsConnected) return;
-    if (!await confirmModal('Clear all messages in this session?')) return;
+    if (!(await confirmModal('Clear all messages in this session?'))) return;
     try {
       await pawEngine.sessionClear(appState.currentSessionKey);
       appState.messages = [];
       resetTokenMeter();
       renderMessages();
       showToast('Session history cleared', 'success');
-    } catch (e) { showToast(`Clear failed: ${e instanceof Error ? e.message : e}`, 'error'); }
+    } catch (e) {
+      showToast(`Clear failed: ${e instanceof Error ? e.message : e}`, 'error');
+    }
   });
 
   $('session-compact-btn')?.addEventListener('click', async () => {
     if (!appState.wsConnected || !appState.currentSessionKey) return;
     try {
       const result = await pawEngine.sessionCompact(appState.currentSessionKey);
-      showToast(`Compacted: ${result.messages_before} → ${result.messages_after} messages`, 'success');
+      showToast(
+        `Compacted: ${result.messages_before} → ${result.messages_after} messages`,
+        'success',
+      );
       resetTokenMeter();
       const ba = document.getElementById('session-budget-alert');
       if (ba) ba.style.display = 'none';
       // Reload compacted history into the UI
       const history = await pawEngine.chatHistory(appState.currentSessionKey, 100);
-      appState.messages = history.map(m => ({
+      appState.messages = history.map((m) => ({
         role: m.role as 'user' | 'assistant' | 'system',
         content: m.content,
         timestamp: new Date(m.created_at),
       }));
       renderMessages();
-    } catch (e) { showToast(`Compact failed: ${e instanceof Error ? e.message : e}`, 'error'); }
+    } catch (e) {
+      showToast(`Compact failed: ${e instanceof Error ? e.message : e}`, 'error');
+    }
   });
 
   $('compaction-warning-dismiss')?.addEventListener('click', () => {
@@ -1185,7 +1394,7 @@ async function startChatTalk() {
 
   try {
     _chatAudioStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 }
+      audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
     });
 
     _chatTalkActive = true;
@@ -1233,7 +1442,7 @@ async function startChatTalk() {
           if (chatInput) {
             chatInput.value = transcript;
             chatInput.style.height = 'auto';
-            chatInput.style.height = `${Math.min(chatInput.scrollHeight, 120)  }px`;
+            chatInput.style.height = `${Math.min(chatInput.scrollHeight, 120)}px`;
             chatInput.focus();
           }
         } else {
@@ -1241,7 +1450,7 @@ async function startChatTalk() {
         }
       } catch (e) {
         console.error('[talk] Transcription error:', e);
-        showToast(`Transcription failed: ${  e instanceof Error ? e.message : e}`, 'error');
+        showToast(`Transcription failed: ${e instanceof Error ? e.message : e}`, 'error');
       } finally {
         btn.innerHTML = `<span class="ms">mic</span>`;
         btn.title = 'Talk Mode — hold to speak';
@@ -1265,18 +1474,24 @@ async function startChatTalk() {
 }
 
 function stopChatTalk() {
-  if (_chatTalkTimeout) { clearTimeout(_chatTalkTimeout); _chatTalkTimeout = null; }
+  if (_chatTalkTimeout) {
+    clearTimeout(_chatTalkTimeout);
+    _chatTalkTimeout = null;
+  }
   if (_chatMediaRecorder && _chatMediaRecorder.state === 'recording') {
     _chatMediaRecorder.stop();
   }
 }
 
 function cleanupChatTalk() {
-  if (_chatTalkTimeout) { clearTimeout(_chatTalkTimeout); _chatTalkTimeout = null; }
+  if (_chatTalkTimeout) {
+    clearTimeout(_chatTalkTimeout);
+    _chatTalkTimeout = null;
+  }
   _chatTalkActive = false;
   _chatMediaRecorder = null;
   if (_chatAudioStream) {
-    _chatAudioStream.getTracks().forEach(t => t.stop());
+    _chatAudioStream.getTracks().forEach((t) => t.stop());
     _chatAudioStream = null;
   }
   const btn = $('chat-talk-btn');

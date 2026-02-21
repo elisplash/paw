@@ -32,14 +32,17 @@ export async function loadEnvSettings() {
 
     // ── Provider API Keys ────────────────────────────────────────────────
     const provSection = document.createElement('div');
-    provSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:16px">Provider API Keys</h3>';
-    provSection.innerHTML += '<p class="form-hint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted)">API keys are stored in the engine config and encrypted at rest. Manage providers in Settings → Advanced.</p>';
+    provSection.innerHTML =
+      '<h3 class="settings-subsection-title" style="margin-top:16px">Provider API Keys</h3>';
+    provSection.innerHTML +=
+      '<p class="form-hint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted)">API keys are stored in the engine config and encrypted at rest. Manage providers in Settings → Advanced.</p>';
 
     const config = await pawEngine.getConfig();
     if (config.providers.length === 0) {
       const empty = document.createElement('p');
       empty.style.cssText = 'color:var(--text-muted);font-size:13px;padding:8px 0';
-      empty.textContent = 'No providers configured yet. Go to Settings → Advanced to add providers.';
+      empty.textContent =
+        'No providers configured yet. Go to Settings → Advanced to add providers.';
       provSection.appendChild(empty);
     } else {
       for (const prov of config.providers) {
@@ -51,7 +54,11 @@ export async function loadEnvSettings() {
         label.textContent = prov.kind.charAt(0).toUpperCase() + prov.kind.slice(1);
         row.appendChild(label);
 
-        const keyInp = textInput(prov.api_key, prov.kind === 'ollama' ? '(not required)' : 'sk-...', 'password');
+        const keyInp = textInput(
+          prov.api_key,
+          prov.kind === 'ollama' ? '(not required)' : 'sk-...',
+          'password',
+        );
         keyInp.style.cssText = 'flex:1;font-family:var(--font-mono);font-size:12px';
         row.appendChild(keyInp);
 
@@ -76,22 +83,26 @@ export async function loadEnvSettings() {
 
     // ── Skill Credentials ────────────────────────────────────────────────
     const skillSection = document.createElement('div');
-    skillSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Skill Credentials</h3>';
-    skillSection.innerHTML += '<p class="form-hint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted)">Credentials for enabled skills (email, Slack, GitHub, etc.) are managed in Skills settings. Stored encrypted in the local vault.</p>';
+    skillSection.innerHTML =
+      '<h3 class="settings-subsection-title" style="margin-top:20px">Skill Credentials</h3>';
+    skillSection.innerHTML +=
+      '<p class="form-hint" style="margin:0 0 8px;font-size:12px;color:var(--text-muted)">Credentials for enabled skills (email, Slack, GitHub, etc.) are managed in Skills settings. Stored encrypted in the local vault.</p>';
 
     try {
       const skills = await pawEngine.skillsList();
-      const configured = skills.filter(s => s.configured_credentials.length > 0);
+      const configured = skills.filter((s) => s.configured_credentials.length > 0);
 
       if (configured.length === 0) {
         const hint = document.createElement('p');
         hint.style.cssText = 'color:var(--text-muted);font-size:13px;padding:4px 0';
-        hint.textContent = 'No skill credentials configured yet. Enable skills and add credentials in the Skills view.';
+        hint.textContent =
+          'No skill credentials configured yet. Enable skills and add credentials in the Skills view.';
         skillSection.appendChild(hint);
       } else {
         for (const skill of configured) {
           const row = document.createElement('div');
-          row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:4px;padding:6px 0;border-bottom:1px solid var(--border-light, rgba(255,255,255,0.06))';
+          row.style.cssText =
+            'display:flex;gap:8px;align-items:center;margin-bottom:4px;padding:6px 0;border-bottom:1px solid var(--border-light, rgba(255,255,255,0.06))';
           row.innerHTML = `
             <span style="font-size:16px">${esc(skill.icon)}</span>
             <span style="font-weight:600;font-size:13px;min-width:80px">${esc(skill.name)}</span>
@@ -129,7 +140,6 @@ export async function loadEnvSettings() {
       </div>
     `;
     container.appendChild(guideSection);
-
   } catch (e) {
     container.innerHTML = `<p style="color:var(--danger)">Failed to load: ${esc(String(e))}</p>`;
   }

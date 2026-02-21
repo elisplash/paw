@@ -59,13 +59,21 @@ export async function startEngineBridge(): Promise<void> {
   pawEngine.on('*', (event: EngineEvent) => {
     if (event.kind === 'tool_request') {
       for (const h of _toolApprovalHandlers) {
-        try { h(event); } catch (e) { console.error('[bridge] approval handler error:', e); }
+        try {
+          h(event);
+        } catch (e) {
+          console.error('[bridge] approval handler error:', e);
+        }
       }
     }
     const agentEvt = translateEngineEvent(event);
     if (agentEvt) {
       for (const h of _agentHandlers) {
-        try { h(agentEvt); } catch (e) { console.error('[bridge] handler error:', e); }
+        try {
+          h(agentEvt);
+        } catch (e) {
+          console.error('[bridge] handler error:', e);
+        }
       }
     }
   });
@@ -80,12 +88,34 @@ export async function engineChatSend(
   opts: {
     model?: string;
     temperature?: number;
-    agentProfile?: { id?: string; name?: string; bio?: string; systemPrompt?: string; model?: string; personality?: { tone?: string; initiative?: string; detail?: string }; boundaries?: string[] };
-    attachments?: Array<{ type?: string; mimeType: string; content: string; name?: string; fileName?: string }>;
+    agentProfile?: {
+      id?: string;
+      name?: string;
+      bio?: string;
+      systemPrompt?: string;
+      model?: string;
+      personality?: { tone?: string; initiative?: string; detail?: string };
+      boundaries?: string[];
+    };
+    attachments?: Array<{
+      type?: string;
+      mimeType: string;
+      content: string;
+      name?: string;
+      fileName?: string;
+    }>;
   } = {},
-): Promise<{ runId: string; sessionKey: string; status: string; usage?: Record<string, unknown>; text?: string; response?: unknown }> {
+): Promise<{
+  runId: string;
+  sessionKey: string;
+  status: string;
+  usage?: Record<string, unknown>;
+  text?: string;
+  response?: unknown;
+}> {
   const rawModel = opts.model ?? opts.agentProfile?.model;
-  const resolvedModel = (rawModel && rawModel !== 'default' && rawModel !== 'Default') ? rawModel : undefined;
+  const resolvedModel =
+    rawModel && rawModel !== 'default' && rawModel !== 'Default' ? rawModel : undefined;
 
   let agentSystemPrompt: string | undefined;
   if (opts.agentProfile) {
@@ -104,7 +134,9 @@ export async function engineChatSend(
       }
     }
     if (profile.boundaries && profile.boundaries.length > 0) {
-      parts.push(`You must strictly follow these rules:\n${profile.boundaries.map(b => `- ${b}`).join('\n')}`);
+      parts.push(
+        `You must strictly follow these rules:\n${profile.boundaries.map((b) => `- ${b}`).join('\n')}`,
+      );
     }
     if (profile.systemPrompt) parts.push(profile.systemPrompt);
     if (parts.length > 0) agentSystemPrompt = parts.join(' ');
@@ -115,7 +147,7 @@ export async function engineChatSend(
   const toolFilter = allowedTools.length < ALL_TOOLS.length ? allowedTools : undefined;
 
   const request: EngineChatRequest = {
-    session_id: (sessionKey === 'default' || !sessionKey) ? undefined : sessionKey,
+    session_id: sessionKey === 'default' || !sessionKey ? undefined : sessionKey,
     message: content,
     model: resolvedModel,
     system_prompt: agentSystemPrompt,
@@ -123,7 +155,7 @@ export async function engineChatSend(
     tools_enabled: true,
     tool_filter: toolFilter,
     agent_id: agentId !== 'default' ? agentId : undefined,
-    attachments: opts.attachments?.map(a => ({
+    attachments: opts.attachments?.map((a) => ({
       mimeType: a.mimeType,
       content: a.content,
       name: a.name || a.fileName,
@@ -140,20 +172,36 @@ export async function engineChatSend(
 function translateEngineEvent(event: EngineEvent): Record<string, unknown> | null {
   switch (event.kind) {
     case 'delta':
-      return { stream: 'assistant', data: { delta: event.text }, runId: event.run_id, sessionKey: event.session_id };
+      return {
+        stream: 'assistant',
+        data: { delta: event.text },
+        runId: event.run_id,
+        sessionKey: event.session_id,
+      };
 
     case 'tool_request':
       return {
         stream: 'tool',
-        data: { phase: 'start', name: event.tool_call?.function?.name ?? 'tool', tool: event.tool_call?.function?.name },
-        runId: event.run_id, sessionKey: event.session_id,
+        data: {
+          phase: 'start',
+          name: event.tool_call?.function?.name ?? 'tool',
+          tool: event.tool_call?.function?.name,
+        },
+        runId: event.run_id,
+        sessionKey: event.session_id,
       };
 
     case 'tool_result':
       return {
         stream: 'tool',
-        data: { phase: 'end', tool_call_id: event.tool_call_id, output: event.output, success: event.success },
-        runId: event.run_id, sessionKey: event.session_id,
+        data: {
+          phase: 'end',
+          tool_call_id: event.tool_call_id,
+          output: event.output,
+          success: event.success,
+        },
+        runId: event.run_id,
+        sessionKey: event.session_id,
       };
 
     case 'complete':
@@ -162,18 +210,26 @@ function translateEngineEvent(event: EngineEvent): Record<string, unknown> | nul
         stream: 'lifecycle',
         data: {
           phase: 'end',
-          usage: event.usage ? {
-            input_tokens: event.usage.input_tokens,
-            output_tokens: event.usage.output_tokens,
-            total_tokens: event.usage.total_tokens,
-          } : undefined,
+          usage: event.usage
+            ? {
+                input_tokens: event.usage.input_tokens,
+                output_tokens: event.usage.output_tokens,
+                total_tokens: event.usage.total_tokens,
+              }
+            : undefined,
           model: event.model,
         },
-        runId: event.run_id, sessionKey: event.session_id,
+        runId: event.run_id,
+        sessionKey: event.session_id,
       };
 
     case 'error':
-      return { stream: 'error', data: { message: event.message }, runId: event.run_id, sessionKey: event.session_id };
+      return {
+        stream: 'error',
+        data: { message: event.message },
+        runId: event.run_id,
+        sessionKey: event.session_id,
+      };
 
     default:
       return null;

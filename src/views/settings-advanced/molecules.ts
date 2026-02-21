@@ -4,7 +4,12 @@ import { pawEngine, type EngineProviderConfig } from '../../engine';
 import { showToast } from '../../components/toast';
 import { isConnected } from '../../state/connection';
 import {
-  esc, formRow, selectInput, textInput, numberInput, saveReloadButtons
+  esc,
+  formRow,
+  selectInput,
+  textInput,
+  numberInput,
+  saveReloadButtons,
 } from '../settings-config';
 import { $ } from '../../components/helpers';
 import { PROVIDER_KINDS, DEFAULT_BASE_URLS, POPULAR_MODELS } from './atoms';
@@ -25,7 +30,7 @@ export async function loadAdvancedSettings() {
     const ollamaSection = document.createElement('div');
     ollamaSection.className = 'settings-subsection';
 
-    const hasOllama = config.providers.some(p => p.kind === 'ollama');
+    const hasOllama = config.providers.some((p) => p.kind === 'ollama');
 
     ollamaSection.innerHTML = `
       <h3 class="settings-subsection-title"><span class="ms ms-sm">pets</span> Ollama (Local AI)</h3>
@@ -35,10 +40,16 @@ export async function loadAdvancedSettings() {
       </p>
     `;
 
-    const ollamaProvider = config.providers.find(p => p.kind === 'ollama');
+    const ollamaProvider = config.providers.find((p) => p.kind === 'ollama');
 
-    const ollamaUrlRow = formRow('Ollama URL', 'Where Ollama is running (default: http://localhost:11434)');
-    const ollamaUrlInp = textInput(ollamaProvider?.base_url ?? 'http://localhost:11434', 'http://localhost:11434');
+    const ollamaUrlRow = formRow(
+      'Ollama URL',
+      'Where Ollama is running (default: http://localhost:11434)',
+    );
+    const ollamaUrlInp = textInput(
+      ollamaProvider?.base_url ?? 'http://localhost:11434',
+      'http://localhost:11434',
+    );
     ollamaUrlInp.style.maxWidth = '320px';
     ollamaUrlRow.appendChild(ollamaUrlInp);
     ollamaSection.appendChild(ollamaUrlRow);
@@ -57,7 +68,9 @@ export async function loadAdvancedSettings() {
       chip.className = 'btn btn-sm';
       chip.textContent = m;
       chip.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:12px';
-      chip.addEventListener('click', () => { ollamaModelInp.value = m; });
+      chip.addEventListener('click', () => {
+        ollamaModelInp.value = m;
+      });
       modelsHint.appendChild(chip);
     }
     ollamaSection.appendChild(modelsHint);
@@ -79,7 +92,7 @@ export async function loadAdvancedSettings() {
         if (resp.ok) {
           const data = await resp.json();
           const models = (data.models ?? []) as Array<{ name: string }>;
-          testStatus.textContent = `Connected! ${models.length} model${models.length !== 1 ? 's' : ''} available: ${models.map(m => m.name).join(', ')}`;
+          testStatus.textContent = `Connected! ${models.length} model${models.length !== 1 ? 's' : ''} available: ${models.map((m) => m.name).join(', ')}`;
           testStatus.style.color = 'var(--success)';
         } else {
           testStatus.textContent = `Ollama responded with ${resp.status}`;
@@ -134,19 +147,22 @@ export async function loadAdvancedSettings() {
 
     // ── All Providers ────────────────────────────────────────────────────
     const provSection = document.createElement('div');
-    provSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">AI Providers</h3>';
+    provSection.innerHTML =
+      '<h3 class="settings-subsection-title" style="margin-top:20px">AI Providers</h3>';
 
     if (config.providers.length === 0) {
       const empty = document.createElement('p');
       empty.style.cssText = 'color:var(--text-muted);font-size:13px';
-      empty.textContent = 'No providers configured. Add Ollama above, or add a cloud provider below.';
+      empty.textContent =
+        'No providers configured. Add Ollama above, or add a cloud provider below.';
       provSection.appendChild(empty);
     }
 
     for (const prov of config.providers) {
       const card = document.createElement('div');
-      card.style.cssText = 'padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px';
-      const kindLabel = PROVIDER_KINDS.find(k => k.value === prov.kind)?.label ?? prov.kind;
+      card.style.cssText =
+        'padding:10px 12px;border:1px solid var(--border-color);border-radius:8px;margin-bottom:8px';
+      const kindLabel = PROVIDER_KINDS.find((k) => k.value === prov.kind)?.label ?? prov.kind;
       card.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
@@ -187,7 +203,12 @@ export async function loadAdvancedSettings() {
         if (!removePending) {
           removePending = true;
           removeBtn.textContent = 'Confirm Remove?';
-          setTimeout(() => { if (removePending) { removePending = false; removeBtn.textContent = 'Remove'; } }, 4000);
+          setTimeout(() => {
+            if (removePending) {
+              removePending = false;
+              removeBtn.textContent = 'Remove';
+            }
+          }, 4000);
           return;
         }
         removePending = false;
@@ -195,7 +216,9 @@ export async function loadAdvancedSettings() {
           await pawEngine.removeProvider(prov.id);
           showToast(`${kindLabel} removed`, 'success');
           loadAdvancedSettings();
-        } catch (e) { showToast(`Remove failed: ${e}`, 'error'); }
+        } catch (e) {
+          showToast(`Remove failed: ${e}`, 'error');
+        }
       });
       actRow.appendChild(removeBtn);
 
@@ -212,10 +235,14 @@ export async function loadAdvancedSettings() {
     addSection.appendChild(addSummary);
 
     const addBody = document.createElement('div');
-    addBody.style.cssText = 'margin-top:8px;display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--border-color);border-radius:8px';
+    addBody.style.cssText =
+      'margin-top:8px;display:flex;flex-direction:column;gap:6px;padding:12px;border:1px solid var(--border-color);border-radius:8px';
 
     const kindRow = formRow('Provider Type');
-    const kindSel = selectInput(PROVIDER_KINDS.filter(k => k.value !== 'ollama'), 'anthropic');
+    const kindSel = selectInput(
+      PROVIDER_KINDS.filter((k) => k.value !== 'ollama'),
+      'anthropic',
+    );
     kindSel.style.maxWidth = '220px';
     kindRow.appendChild(kindSel);
     addBody.appendChild(kindRow);
@@ -263,9 +290,14 @@ export async function loadAdvancedSettings() {
           default_model: newModelInp.value.trim() || undefined,
         };
         await pawEngine.upsertProvider(provider);
-        showToast(`${PROVIDER_KINDS.find(k => k.value === kind)?.label ?? kind} added`, 'success');
+        showToast(
+          `${PROVIDER_KINDS.find((k) => k.value === kind)?.label ?? kind} added`,
+          'success',
+        );
         loadAdvancedSettings();
-      } catch (e) { showToast(`Failed: ${e}`, 'error'); }
+      } catch (e) {
+        showToast(`Failed: ${e}`, 'error');
+      }
     });
     addBody.appendChild(addBtn);
     addSection.appendChild(addBody);
@@ -275,7 +307,8 @@ export async function loadAdvancedSettings() {
 
     // ── Engine Defaults ──────────────────────────────────────────────────
     const engSection = document.createElement('div');
-    engSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Engine Settings</h3>';
+    engSection.innerHTML =
+      '<h3 class="settings-subsection-title" style="margin-top:20px">Engine Settings</h3>';
 
     const modelRow = formRow('Default Model', 'The model used when no override is set');
     const modelInp = textInput(config.default_model ?? '', 'gpt-4o');
@@ -284,32 +317,59 @@ export async function loadAdvancedSettings() {
     engSection.appendChild(modelRow);
 
     const providerRow = formRow('Default Provider', 'Which provider to use by default');
-    const providerOpts = [{ value: '', label: '(auto-detect from model)' }, ...config.providers.map(p => ({ value: p.id, label: `${PROVIDER_KINDS.find(k => k.value === p.kind)?.label ?? p.kind} (${p.id})` }))];
+    const providerOpts = [
+      { value: '', label: '(auto-detect from model)' },
+      ...config.providers.map((p) => ({
+        value: p.id,
+        label: `${PROVIDER_KINDS.find((k) => k.value === p.kind)?.label ?? p.kind} (${p.id})`,
+      })),
+    ];
     const providerSel = selectInput(providerOpts, config.default_provider ?? '');
     providerSel.style.maxWidth = '280px';
     providerRow.appendChild(providerSel);
     engSection.appendChild(providerRow);
 
-    const roundsRow = formRow('Max Tool Rounds', 'How many tool call rounds before stopping (default: 20)');
+    const roundsRow = formRow(
+      'Max Tool Rounds',
+      'How many tool call rounds before stopping (default: 20)',
+    );
     const roundsInp = numberInput(config.max_tool_rounds, { min: 1, max: 100, placeholder: '20' });
     roundsInp.style.maxWidth = '120px';
     roundsRow.appendChild(roundsInp);
     engSection.appendChild(roundsRow);
 
     const timeoutRow = formRow('Tool Timeout (seconds)', 'Max seconds for a single tool execution');
-    const timeoutInp = numberInput(config.tool_timeout_secs, { min: 5, step: 5, placeholder: '120' });
+    const timeoutInp = numberInput(config.tool_timeout_secs, {
+      min: 5,
+      step: 5,
+      placeholder: '120',
+    });
     timeoutInp.style.maxWidth = '140px';
     timeoutRow.appendChild(timeoutInp);
     engSection.appendChild(timeoutRow);
 
-    const concurrencyRow = formRow('Max Concurrent Runs', 'How many agent runs (chat + cron + tasks) can execute in parallel. Chat always gets priority. Increase if you have multiple providers or a high rate limit.');
-    const concurrencyInp = numberInput(config.max_concurrent_runs ?? 4, { min: 1, max: 20, placeholder: '4' });
+    const concurrencyRow = formRow(
+      'Max Concurrent Runs',
+      'How many agent runs (chat + cron + tasks) can execute in parallel. Chat always gets priority. Increase if you have multiple providers or a high rate limit.',
+    );
+    const concurrencyInp = numberInput(config.max_concurrent_runs ?? 4, {
+      min: 1,
+      max: 20,
+      placeholder: '4',
+    });
     concurrencyInp.style.maxWidth = '120px';
     concurrencyRow.appendChild(concurrencyInp);
     engSection.appendChild(concurrencyRow);
 
-    const budgetRow = formRow('Daily Budget (USD)', 'Estimated daily spend limit. Agent stops when exceeded. Set to 0 to disable.');
-    const budgetInp = numberInput(config.daily_budget_usd ?? 10, { min: 0, step: 1, placeholder: '10' });
+    const budgetRow = formRow(
+      'Daily Budget (USD)',
+      'Estimated daily spend limit. Agent stops when exceeded. Set to 0 to disable.',
+    );
+    const budgetInp = numberInput(config.daily_budget_usd ?? 10, {
+      min: 0,
+      step: 1,
+      placeholder: '10',
+    });
     budgetInp.style.maxWidth = '120px';
     budgetRow.appendChild(budgetInp);
     engSection.appendChild(budgetRow);
@@ -318,11 +378,13 @@ export async function loadAdvancedSettings() {
 
     // ── System Prompt ────────────────────────────────────────────────────
     const promptSection = document.createElement('div');
-    promptSection.innerHTML = '<h3 class="settings-subsection-title" style="margin-top:20px">Default System Prompt</h3>';
+    promptSection.innerHTML =
+      '<h3 class="settings-subsection-title" style="margin-top:20px">Default System Prompt</h3>';
 
     const promptArea = document.createElement('textarea');
     promptArea.className = 'form-input';
-    promptArea.style.cssText = 'width:100%;min-height:120px;font-family:var(--font-mono);font-size:12px;resize:vertical';
+    promptArea.style.cssText =
+      'width:100%;min-height:120px;font-family:var(--font-mono);font-size:12px;resize:vertical';
     promptArea.value = config.default_system_prompt ?? '';
     promptArea.placeholder = 'You are a helpful AI assistant...';
     promptSection.appendChild(promptArea);
@@ -330,26 +392,27 @@ export async function loadAdvancedSettings() {
     container.appendChild(promptSection);
 
     // ── Save All ─────────────────────────────────────────────────────────
-    container.appendChild(saveReloadButtons(
-      async () => {
-        try {
-          const cfg = await pawEngine.getConfig();
-          cfg.default_model = modelInp.value.trim() || undefined;
-          cfg.default_provider = providerSel.value || undefined;
-          cfg.max_tool_rounds = parseInt(roundsInp.value) || 20;
-          cfg.tool_timeout_secs = parseInt(timeoutInp.value) || 120;
-          cfg.max_concurrent_runs = parseInt(concurrencyInp.value) || 4;
-          cfg.daily_budget_usd = parseFloat(budgetInp.value) || 0;
-          cfg.default_system_prompt = promptArea.value.trim() || undefined;
-          await pawEngine.setConfig(cfg);
-          showToast('Engine settings saved', 'success');
-        } catch (e) {
-          showToast(`Save failed: ${e instanceof Error ? e.message : e}`, 'error');
-        }
-      },
-      () => loadAdvancedSettings()
-    ));
-
+    container.appendChild(
+      saveReloadButtons(
+        async () => {
+          try {
+            const cfg = await pawEngine.getConfig();
+            cfg.default_model = modelInp.value.trim() || undefined;
+            cfg.default_provider = providerSel.value || undefined;
+            cfg.max_tool_rounds = parseInt(roundsInp.value) || 20;
+            cfg.tool_timeout_secs = parseInt(timeoutInp.value) || 120;
+            cfg.max_concurrent_runs = parseInt(concurrencyInp.value) || 4;
+            cfg.daily_budget_usd = parseFloat(budgetInp.value) || 0;
+            cfg.default_system_prompt = promptArea.value.trim() || undefined;
+            await pawEngine.setConfig(cfg);
+            showToast('Engine settings saved', 'success');
+          } catch (e) {
+            showToast(`Save failed: ${e instanceof Error ? e.message : e}`, 'error');
+          }
+        },
+        () => loadAdvancedSettings(),
+      ),
+    );
   } catch (e) {
     container.innerHTML = `<p style="color:var(--danger)">Failed to load engine config: ${esc(String(e))}</p>`;
   }

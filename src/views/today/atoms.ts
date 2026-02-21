@@ -16,8 +16,15 @@ export function getWeatherIcon(code: string): string {
   if (c === 116) return ms('partly_cloudy_day');
   if ([119, 122].includes(c)) return ms('cloud');
   if ([143, 248, 260].includes(c)) return ms('mist');
-  if ([176, 263, 266, 293, 296, 299, 302, 305, 308, 311, 314, 353, 356, 359].includes(c)) return ms('rainy');
-  if ([179, 182, 185, 281, 284, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377].includes(c)) return ms('weather_snowy');
+  if ([176, 263, 266, 293, 296, 299, 302, 305, 308, 311, 314, 353, 356, 359].includes(c))
+    return ms('rainy');
+  if (
+    [
+      179, 182, 185, 281, 284, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374,
+      377,
+    ].includes(c)
+  )
+    return ms('weather_snowy');
   if ([200, 386, 389, 392, 395].includes(c)) return ms('thunderstorm');
   return ms('partly_cloudy_day');
 }

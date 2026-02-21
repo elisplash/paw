@@ -54,7 +54,7 @@ export function openMiniChat(agentId: string, getAgentsFn: () => Agent[]) {
     return;
   }
 
-  const agent = getAgentsFn().find(a => a.id === agentId);
+  const agent = getAgentsFn().find((a) => a.id === agentId);
   if (!agent) return;
 
   const el = document.createElement('div');
@@ -105,9 +105,13 @@ export function openMiniChat(agentId: string, getAgentsFn: () => Agent[]) {
   setupMiniChatListeners(mc);
 
   // Header drag/minimize
-  el.querySelector('.mini-chat-minimize')?.addEventListener('click', () => toggleMinimizeMiniChat(agentId));
+  el.querySelector('.mini-chat-minimize')?.addEventListener('click', () =>
+    toggleMinimizeMiniChat(agentId),
+  );
   el.querySelector('.mini-chat-close')?.addEventListener('click', () => closeMiniChat(agentId));
-  el.querySelector('.mini-chat-header')?.addEventListener('dblclick', () => toggleMinimizeMiniChat(agentId));
+  el.querySelector('.mini-chat-header')?.addEventListener('dblclick', () =>
+    toggleMinimizeMiniChat(agentId),
+  );
 
   // Send on Enter or button
   inputEl.addEventListener('keydown', (e) => {
@@ -116,7 +120,9 @@ export function openMiniChat(agentId: string, getAgentsFn: () => Agent[]) {
       sendMiniChatMessage(agentId);
     }
   });
-  el.querySelector('.mini-chat-send')?.addEventListener('click', () => sendMiniChatMessage(agentId));
+  el.querySelector('.mini-chat-send')?.addEventListener('click', () =>
+    sendMiniChatMessage(agentId),
+  );
 
   // Animate in
   requestAnimationFrame(() => el.classList.add('mini-chat-visible'));
@@ -225,7 +231,8 @@ async function sendMiniChatMessage(agentId: string) {
     if (mc.agent.systemPrompt) parts.push(mc.agent.systemPrompt);
     const systemPrompt = parts.length > 0 ? parts.join(' ') : undefined;
 
-    const resolvedModel = (mc.agent.model && mc.agent.model !== 'default') ? mc.agent.model : undefined;
+    const resolvedModel =
+      mc.agent.model && mc.agent.model !== 'default' ? mc.agent.model : undefined;
 
     const request = {
       session_id: mc.sessionId || undefined,

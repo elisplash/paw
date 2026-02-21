@@ -101,7 +101,10 @@ export async function addProjectFolder(path: string, name?: string): Promise<voi
   // B4: Block sensitive directories
   const blocked = isSensitivePath(path);
   if (blocked) {
-    showToast(`Blocked: "${path}" is a sensitive system directory (${blocked}). Cannot add as a project.`, 'error');
+    showToast(
+      `Blocked: "${path}" is a sensitive system directory (${blocked}). Cannot add as a project.`,
+      'error',
+    );
     logSecurityEvent({
       eventType: 'security_policy',
       riskLevel: 'high',
@@ -115,7 +118,7 @@ export async function addProjectFolder(path: string, name?: string): Promise<voi
   }
 
   // Check if already added
-  if (_projects.some(p => p.path === path)) {
+  if (_projects.some((p) => p.path === path)) {
     showToast('Project already added', 'warning');
     return;
   }
@@ -134,7 +137,7 @@ export async function addProjectFolder(path: string, name?: string): Promise<voi
 }
 
 export async function removeProject(path: string): Promise<void> {
-  _projects = _projects.filter(p => p.path !== path);
+  _projects = _projects.filter((p) => p.path !== path);
   _fileTreeCache.delete(path);
   savePersistProjects(_projects);
   syncModuleState();
@@ -198,8 +201,10 @@ export function bindEvents(): void {
   refreshBtn?.addEventListener('click', async () => {
     _fileTreeCache.clear();
     clearGitInfoCache();
-    const activePath = document.querySelector('.projects-folder-item.active')?.getAttribute('data-path');
-    const project = _projects.find(p => p.path === activePath);
+    const activePath = document
+      .querySelector('.projects-folder-item.active')
+      ?.getAttribute('data-path');
+    const project = _projects.find((p) => p.path === activePath);
     if (project) {
       await selectProject(project);
     }

@@ -10,7 +10,10 @@ import { CATEGORY_META, msIcon, skillIcon } from './atoms';
 let _currentFilter = 'all';
 let _reloadFn: (() => Promise<void>) | null = null;
 
-export function setMoleculesState(opts: { currentFilter: string; reloadFn: () => Promise<void> }): void {
+export function setMoleculesState(opts: {
+  currentFilter: string;
+  reloadFn: () => Promise<void>;
+}): void {
   _currentFilter = opts.currentFilter;
   _reloadFn = opts.reloadFn;
 }
@@ -24,8 +27,8 @@ export function getCurrentFilter(): string {
 export function renderSkillsPage(skills: EngineSkillStatus[]): string {
   if (skills.length === 0) return '<p style="color:var(--text-muted)">No skills available.</p>';
 
-  const enabledCount = skills.filter(s => s.enabled).length;
-  const readyCount = skills.filter(s => s.is_ready).length;
+  const enabledCount = skills.filter((s) => s.enabled).length;
+  const readyCount = skills.filter((s) => s.is_ready).length;
 
   // Summary bar
   const summary = `<div class="skills-summary-bar">
@@ -38,28 +41,34 @@ export function renderSkillsPage(skills: EngineSkillStatus[]): string {
   </div>`;
 
   // Category filter tabs
-  const categories = [...new Set(skills.map(s => s.category))];
+  const categories = [...new Set(skills.map((s) => s.category))];
   categories.sort((a, b) => (CATEGORY_META[a]?.order ?? 99) - (CATEGORY_META[b]?.order ?? 99));
 
   const tabs = `<div class="skills-filter-tabs">
     <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'all' ? 'btn-primary' : 'btn-ghost'}" data-filter="all">All</button>
     <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'enabled' ? 'btn-primary' : 'btn-ghost'}" data-filter="enabled">${msIcon('bolt')} Enabled</button>
     <span style="display:inline-block;width:1px;height:20px;background:var(--border-subtle);margin:0 6px;vertical-align:middle"></span>
-    <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'tier:skill' ? 'btn-primary' : 'btn-ghost'}" data-filter="tier:skill">${msIcon('description')} Skills (${skills.filter(s => s.tier === 'skill').length})</button>
-    <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'tier:integration' ? 'btn-primary' : 'btn-ghost'}" data-filter="tier:integration">${msIcon('key')} Integrations (${skills.filter(s => s.tier === 'integration').length})</button>
+    <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'tier:skill' ? 'btn-primary' : 'btn-ghost'}" data-filter="tier:skill">${msIcon('description')} Skills (${skills.filter((s) => s.tier === 'skill').length})</button>
+    <button class="btn btn-sm skills-filter-btn ${_currentFilter === 'tier:integration' ? 'btn-primary' : 'btn-ghost'}" data-filter="tier:integration">${msIcon('key')} Integrations (${skills.filter((s) => s.tier === 'integration').length})</button>
     <span style="display:inline-block;width:1px;height:20px;background:var(--border-subtle);margin:0 6px;vertical-align:middle"></span>
-    ${categories.map(c => {
-      const meta = CATEGORY_META[c] || { label: c, icon: 'extension', order: 99 };
-      const count = skills.filter(s => s.category === c).length;
-      return `<button class="btn btn-sm skills-filter-btn ${_currentFilter === c ? 'btn-primary' : 'btn-ghost'}" data-filter="${escHtml(c)}">${msIcon(meta.icon)} ${escHtml(meta.label)} (${count})</button>`;
-    }).join('')}
+    ${categories
+      .map((c) => {
+        const meta = CATEGORY_META[c] || { label: c, icon: 'extension', order: 99 };
+        const count = skills.filter((s) => s.category === c).length;
+        return `<button class="btn btn-sm skills-filter-btn ${_currentFilter === c ? 'btn-primary' : 'btn-ghost'}" data-filter="${escHtml(c)}">${msIcon(meta.icon)} ${escHtml(meta.label)} (${count})</button>`;
+      })
+      .join('')}
   </div>`;
 
   // Render filtered skills
-  const filtered = _currentFilter === 'all' ? skills :
-    _currentFilter === 'enabled' ? skills.filter(s => s.enabled) :
-    _currentFilter.startsWith('tier:') ? skills.filter(s => s.tier === _currentFilter.slice(5)) :
-    skills.filter(s => s.category === _currentFilter);
+  const filtered =
+    _currentFilter === 'all'
+      ? skills
+      : _currentFilter === 'enabled'
+        ? skills.filter((s) => s.enabled)
+        : _currentFilter.startsWith('tier:')
+          ? skills.filter((s) => s.tier === _currentFilter.slice(5))
+          : skills.filter((s) => s.category === _currentFilter);
 
   // Group by category
   const grouped: Record<string, EngineSkillStatus[]> = {};
@@ -68,21 +77,23 @@ export function renderSkillsPage(skills: EngineSkillStatus[]): string {
     grouped[s.category].push(s);
   }
 
-  const sortedCats = Object.keys(grouped).sort((a, b) =>
-    (CATEGORY_META[a]?.order ?? 99) - (CATEGORY_META[b]?.order ?? 99)
+  const sortedCats = Object.keys(grouped).sort(
+    (a, b) => (CATEGORY_META[a]?.order ?? 99) - (CATEGORY_META[b]?.order ?? 99),
   );
 
-  const sections = sortedCats.map(cat => {
-    const meta = CATEGORY_META[cat] || { label: cat, icon: 'extension', order: 99 };
-    const cards = grouped[cat].map(s => renderSkillCard(s)).join('');
-    return `
+  const sections = sortedCats
+    .map((cat) => {
+      const meta = CATEGORY_META[cat] || { label: cat, icon: 'extension', order: 99 };
+      const cards = grouped[cat].map((s) => renderSkillCard(s)).join('');
+      return `
       <div class="skill-category-group">
         <h3 class="skill-category-title">
           ${msIcon(meta.icon)} ${escHtml(meta.label)}
         </h3>
         ${cards}
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   return summary + tabs + sections;
 }
@@ -90,9 +101,9 @@ export function renderSkillsPage(skills: EngineSkillStatus[]): string {
 // ── Tier badge ─────────────────────────────────────────────────────────────
 
 const TIER_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
-  skill:       { label: 'Skill',       icon: 'description', color: 'var(--text-muted)' },
-  integration: { label: 'Integration', icon: 'key',         color: 'var(--accent)' },
-  extension:   { label: 'Extension',   icon: 'widgets',     color: '#c084fc' },
+  skill: { label: 'Skill', icon: 'description', color: 'var(--text-muted)' },
+  integration: { label: 'Integration', icon: 'key', color: 'var(--accent)' },
+  extension: { label: 'Extension', icon: 'widgets', color: '#c084fc' },
 };
 
 function tierBadge(tier: string): string {
@@ -107,17 +118,29 @@ function renderSkillCard(s: EngineSkillStatus): string {
   let statusText: string;
   let statusClass: string;
   if (s.is_ready) {
-    statusIcon = 'check_circle'; statusText = 'Ready'; statusClass = 'status-ready';
+    statusIcon = 'check_circle';
+    statusText = 'Ready';
+    statusClass = 'status-ready';
   } else if (s.enabled && s.missing_binaries.length > 0) {
-    statusIcon = 'error'; statusText = 'Missing binaries'; statusClass = 'status-error';
+    statusIcon = 'error';
+    statusText = 'Missing binaries';
+    statusClass = 'status-error';
   } else if (s.enabled && s.missing_credentials.length > 0) {
-    statusIcon = 'warning'; statusText = 'Missing credentials'; statusClass = 'status-warn';
+    statusIcon = 'warning';
+    statusText = 'Missing credentials';
+    statusClass = 'status-warn';
   } else if (s.enabled && s.missing_env_vars.length > 0) {
-    statusIcon = 'warning'; statusText = 'Missing env vars'; statusClass = 'status-warn';
+    statusIcon = 'warning';
+    statusText = 'Missing env vars';
+    statusClass = 'status-warn';
   } else if (s.enabled) {
-    statusIcon = 'warning'; statusText = 'Setup incomplete'; statusClass = 'status-warn';
+    statusIcon = 'warning';
+    statusText = 'Setup incomplete';
+    statusClass = 'status-warn';
   } else {
-    statusIcon = 'radio_button_unchecked'; statusText = 'Disabled'; statusClass = 'status-off';
+    statusIcon = 'radio_button_unchecked';
+    statusText = 'Disabled';
+    statusClass = 'status-off';
   }
 
   const hasCreds = s.required_credentials.length > 0;
@@ -147,9 +170,13 @@ function renderSkillCard(s: EngineSkillStatus): string {
     </div>
     <p class="skill-card-desc">${escHtml(s.description)}</p>
     <div class="skill-badges-row">${badges.join('')}</div>
-    ${hasTools ? `<div class="skill-tools-row">
-      Tools: ${s.tool_names.map(t => `<code class="skill-tool-tag">${escHtml(t)}</code>`).join(' ')}
-    </div>` : ''}
+    ${
+      hasTools
+        ? `<div class="skill-tools-row">
+      Tools: ${s.tool_names.map((t) => `<code class="skill-tool-tag">${escHtml(t)}</code>`).join(' ')}
+    </div>`
+        : ''
+    }
     ${renderBinaryStatus(s)}
     ${renderEnvVarStatus(s)}
     ${renderCredentialFields(s)}
@@ -164,11 +191,15 @@ function renderBinaryStatus(s: EngineSkillStatus): string {
 
   return `<div class="skill-status-block skill-status-danger">
     <div class="skill-status-msg">
-      ${msIcon('error')} Missing binaries: ${s.missing_binaries.map(b => `<code class="skill-code-tag">${escHtml(b)}</code>`).join(', ')}
+      ${msIcon('error')} Missing binaries: ${s.missing_binaries.map((b) => `<code class="skill-code-tag">${escHtml(b)}</code>`).join(', ')}
     </div>
-    ${s.install_hint ? `<div class="skill-status-hint">
+    ${
+      s.install_hint
+        ? `<div class="skill-status-hint">
       Install: <code class="skill-code-tag skill-code-copy">${escHtml(s.install_hint)}</code>
-    </div>` : ''}
+    </div>`
+        : ''
+    }
   </div>`;
 }
 
@@ -177,7 +208,7 @@ function renderEnvVarStatus(s: EngineSkillStatus): string {
 
   return `<div class="skill-status-block skill-status-warn">
     <div class="skill-status-msg">
-      ${msIcon('warning')} Missing environment variables: ${s.missing_env_vars.map(v => `<code class="skill-code-tag">${escHtml(v)}</code>`).join(', ')}
+      ${msIcon('warning')} Missing environment variables: ${s.missing_env_vars.map((v) => `<code class="skill-code-tag">${escHtml(v)}</code>`).join(', ')}
     </div>
   </div>`;
 }
@@ -187,11 +218,12 @@ function renderEnvVarStatus(s: EngineSkillStatus): string {
 function renderCredentialFields(skill: EngineSkillStatus): string {
   if (skill.required_credentials.length === 0) return '';
 
-  const rows = skill.required_credentials.map(cred => {
-    const isSet = skill.configured_credentials.includes(cred.key);
-    const reqBadge = cred.required ? '<span class="skill-required">*</span>' : '';
+  const rows = skill.required_credentials
+    .map((cred) => {
+      const isSet = skill.configured_credentials.includes(cred.key);
+      const reqBadge = cred.required ? '<span class="skill-required">*</span>' : '';
 
-    return `
+      return `
     <div class="skill-cred-row">
       <div class="skill-cred-label">
         <label class="skill-cred-name">${escHtml(cred.label)} ${reqBadge}</label>
@@ -212,7 +244,8 @@ function renderCredentialFields(skill: EngineSkillStatus): string {
       </div>
       <span class="skill-cred-status">${isSet ? msIcon('check_circle') : msIcon('remove')}</span>
     </div>`;
-  }).join('');
+    })
+    .join('');
 
   return `<div class="skill-cred-section">
     <div class="skill-section-title">${msIcon('key')} Credentials</div>
@@ -246,9 +279,13 @@ function renderAdvancedSection(s: EngineSkillStatus): string {
         <button class="btn btn-sm btn-primary skill-instructions-save" data-skill="${escHtml(s.id)}">
           ${msIcon('save')} Save Instructions
         </button>
-        ${hasCustom ? `<button class="btn btn-sm btn-ghost skill-instructions-reset" data-skill="${escHtml(s.id)}">
+        ${
+          hasCustom
+            ? `<button class="btn btn-sm btn-ghost skill-instructions-reset" data-skill="${escHtml(s.id)}">
           ${msIcon('restart_alt')} Reset to Default
-        </button>` : ''}
+        </button>`
+            : ''
+        }
       </div>
     </details>
   </div>`;
@@ -256,8 +293,11 @@ function renderAdvancedSection(s: EngineSkillStatus): string {
 
 // ── Filter event binding ───────────────────────────────────────────────────
 
-export function bindFilterEvents(_skills: EngineSkillStatus[], setFilter: (f: string) => void): void {
-  document.querySelectorAll('.skills-filter-btn').forEach(el => {
+export function bindFilterEvents(
+  _skills: EngineSkillStatus[],
+  setFilter: (f: string) => void,
+): void {
+  document.querySelectorAll('.skills-filter-btn').forEach((el) => {
     el.addEventListener('click', () => {
       const btn = el as HTMLButtonElement;
       const filter = btn.dataset.filter || 'all';
@@ -272,10 +312,10 @@ export function bindFilterEvents(_skills: EngineSkillStatus[], setFilter: (f: st
 // ── Skill event binding ────────────────────────────────────────────────────
 
 export function bindSkillEvents(): void {
-  const reload = () => _reloadFn ? _reloadFn() : Promise.resolve();
+  const reload = () => (_reloadFn ? _reloadFn() : Promise.resolve());
 
   // Enable/disable toggles
-  document.querySelectorAll('.skill-enabled-toggle').forEach(el => {
+  document.querySelectorAll('.skill-enabled-toggle').forEach((el) => {
     el.addEventListener('change', async (e) => {
       const input = e.target as HTMLInputElement;
       const skillId = input.dataset.skill!;
@@ -291,14 +331,19 @@ export function bindSkillEvents(): void {
   });
 
   // Save credential buttons
-  document.querySelectorAll('.skill-cred-save').forEach(el => {
+  document.querySelectorAll('.skill-cred-save').forEach((el) => {
     el.addEventListener('click', async () => {
       const btn = el as HTMLButtonElement;
       const skillId = btn.dataset.skill!;
       const key = btn.dataset.key!;
-      const input = document.querySelector(`.skill-cred-input[data-skill="${skillId}"][data-key="${key}"]`) as HTMLInputElement;
+      const input = document.querySelector(
+        `.skill-cred-input[data-skill="${skillId}"][data-key="${key}"]`,
+      ) as HTMLInputElement;
       const value = input?.value?.trim();
-      if (!value) { showToast('Enter a value first', 'info'); return; }
+      if (!value) {
+        showToast('Enter a value first', 'info');
+        return;
+      }
 
       try {
         await pawEngine.skillSetCredential(skillId, key, value);
@@ -312,7 +357,7 @@ export function bindSkillEvents(): void {
   });
 
   // Delete credential buttons
-  document.querySelectorAll('.skill-cred-delete').forEach(el => {
+  document.querySelectorAll('.skill-cred-delete').forEach((el) => {
     el.addEventListener('click', async () => {
       const btn = el as HTMLButtonElement;
       const skillId = btn.dataset.skill!;
@@ -329,12 +374,13 @@ export function bindSkillEvents(): void {
   });
 
   // Revoke all buttons
-  document.querySelectorAll('.skill-revoke-btn').forEach(el => {
+  document.querySelectorAll('.skill-revoke-btn').forEach((el) => {
     el.addEventListener('click', async () => {
       const btn = el as HTMLButtonElement;
       const skillId = btn.dataset.skill!;
 
-      if (!await confirmModal(`Revoke ALL credentials for ${skillId}? This can't be undone.`)) return;
+      if (!(await confirmModal(`Revoke ALL credentials for ${skillId}? This can't be undone.`)))
+        return;
 
       try {
         await pawEngine.skillRevokeAll(skillId);
@@ -347,11 +393,13 @@ export function bindSkillEvents(): void {
   });
 
   // Save custom instructions
-  document.querySelectorAll('.skill-instructions-save').forEach(el => {
+  document.querySelectorAll('.skill-instructions-save').forEach((el) => {
     el.addEventListener('click', async () => {
       const btn = el as HTMLButtonElement;
       const skillId = btn.dataset.skill!;
-      const textarea = document.querySelector(`.skill-instructions-editor[data-skill="${skillId}"]`) as HTMLTextAreaElement;
+      const textarea = document.querySelector(
+        `.skill-instructions-editor[data-skill="${skillId}"]`,
+      ) as HTMLTextAreaElement;
       const value = textarea?.value ?? '';
 
       try {
@@ -365,12 +413,13 @@ export function bindSkillEvents(): void {
   });
 
   // Reset instructions to default
-  document.querySelectorAll('.skill-instructions-reset').forEach(el => {
+  document.querySelectorAll('.skill-instructions-reset').forEach((el) => {
     el.addEventListener('click', async () => {
       const btn = el as HTMLButtonElement;
       const skillId = btn.dataset.skill!;
 
-      if (!await confirmModal('Reset to default instructions? Your customizations will be lost.')) return;
+      if (!(await confirmModal('Reset to default instructions? Your customizations will be lost.')))
+        return;
 
       try {
         await pawEngine.skillSetInstructions(skillId, '');

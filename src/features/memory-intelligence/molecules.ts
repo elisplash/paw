@@ -24,7 +24,9 @@ export function loadSearchConfig(): SearchConfig {
   try {
     const raw = localStorage.getItem(CONFIG_STORAGE_KEY);
     if (raw) return { ...DEFAULT_SEARCH_CONFIG, ...JSON.parse(raw) };
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { ...DEFAULT_SEARCH_CONFIG };
 }
 
@@ -75,11 +77,7 @@ export async function deleteMemory(memoryId: string): Promise<void> {
 // ── Composite Operations ───────────────────────────────────────────────
 
 /** Search memories for a specific agent, with client-side decay + MMR refinement. */
-export async function searchForAgent(
-  query: string,
-  agentId: string,
-  limit = 5
-): Promise<Memory[]> {
+export async function searchForAgent(query: string, agentId: string, limit = 5): Promise<Memory[]> {
   const config = loadSearchConfig();
   const results = await searchMemories({ query, limit: limit * 2, agentId });
 
@@ -92,7 +90,7 @@ export async function searchForAgent(
 export async function buildMemoryContext(
   query: string,
   agentId?: string,
-  limit = 5
+  limit = 5,
 ): Promise<string | null> {
   const results = agentId
     ? await searchForAgent(query, agentId, limit)
@@ -106,7 +104,7 @@ export async function buildMemoryContext(
 
 /** Get categorized memory overview for an agent. */
 export async function getAgentMemoryOverview(
-  agentId: string
+  agentId: string,
 ): Promise<{ stats: MemoryStats; grouped: Record<string, Memory[]> }> {
   const [stats, memories] = await Promise.all([
     getMemoryStats(),

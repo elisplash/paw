@@ -98,10 +98,7 @@ export async function interceptSlashCommand(
 /**
  * Execute a validated slash command.
  */
-async function executeCommand(
-  cmd: ParsedCommand,
-  ctx: CommandContext,
-): Promise<CommandResult> {
+async function executeCommand(cmd: ParsedCommand, ctx: CommandContext): Promise<CommandResult> {
   switch (cmd.name) {
     // ── Chat ───────────────────────────────────────────────────────
     case 'model':
@@ -183,9 +180,7 @@ async function executeCommand(
         _overrides = {}; // reset overrides for new session
         return {
           handled: true,
-          systemMessage: cmd.args
-            ? `New session created: **${cmd.args}**`
-            : 'New session created.',
+          systemMessage: cmd.args ? `New session created: **${cmd.args}**` : 'New session created.',
           preventDefault: true,
           refreshSessions: true,
         };
@@ -264,8 +259,9 @@ async function executeCommand(
             preventDefault: true,
           };
         }
-        const memLines = memories.map((m, i) =>
-          `${i + 1}. \`${m.id}\` [${m.category}] — ${m.content.slice(0, 100)}${m.content.length > 100 ? '…' : ''}`
+        const memLines = memories.map(
+          (m, i) =>
+            `${i + 1}. \`${m.id}\` [${m.category}] — ${m.content.slice(0, 100)}${m.content.length > 100 ? '…' : ''}`,
         );
         return {
           handled: true,

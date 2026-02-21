@@ -1,6 +1,13 @@
 // Tasks Hub — Molecules (DOM rendering + IPC)
 
-import { pawEngine, type EngineTask, type EngineTaskActivity, type TaskStatus, type TaskPriority, type TaskAgent } from '../../engine';
+import {
+  pawEngine,
+  type EngineTask,
+  type EngineTaskActivity,
+  type TaskStatus,
+  type TaskPriority,
+  type TaskAgent,
+} from '../../engine';
 import { showToast } from '../../components/toast';
 import { populateModelSelect, $, escHtml, formatTimeAgo } from '../../components/helpers';
 import { spriteAvatar } from '../agents';
@@ -36,7 +43,7 @@ export function renderBoard() {
     const countEl = $(`tasks-count-${status}`);
     if (!container) continue;
 
-    const columnTasks = tasks.filter(t => t.status === status);
+    const columnTasks = tasks.filter((t) => t.status === status);
     if (countEl) countEl.textContent = String(columnTasks.length);
 
     container.innerHTML = '';
@@ -57,14 +64,20 @@ export function createTaskCard(task: EngineTask): HTMLElement {
   // Show all assigned agents (multi-agent)
   const agents = task.assigned_agents?.length
     ? task.assigned_agents
-    : task.assigned_agent ? [{ agent_id: task.assigned_agent, role: 'lead' }] : [];
-  const agentHtml = agents.map(a =>
-    `<span class="task-card-agent${a.role === 'lead' ? ' lead' : ''}" title="${escHtml(a.role)}">${escHtml(a.agent_id)}</span>`
-  ).join('');
+    : task.assigned_agent
+      ? [{ agent_id: task.assigned_agent, role: 'lead' }]
+      : [];
+  const agentHtml = agents
+    .map(
+      (a) =>
+        `<span class="task-card-agent${a.role === 'lead' ? ' lead' : ''}" title="${escHtml(a.role)}">${escHtml(a.agent_id)}</span>`,
+    )
+    .join('');
 
-  const cronHtml = task.cron_enabled && task.cron_schedule
-    ? `<span class="task-card-cron"><span class="ms ms-sm">sync</span> ${escHtml(task.cron_schedule)}</span>`
-    : '';
+  const cronHtml =
+    task.cron_enabled && task.cron_schedule
+      ? `<span class="task-card-cron"><span class="ms ms-sm">sync</span> ${escHtml(task.cron_schedule)}</span>`
+      : '';
   const modelHtml = task.model
     ? `<span class="task-card-model" title="Model override">${escHtml(task.model)}</span>`
     : '';
@@ -76,7 +89,8 @@ export function createTaskCard(task: EngineTask): HTMLElement {
   const runBtnHtml = canRun
     ? `<button class="task-card-action run-btn" data-action="run" title="Run now">▶</button>`
     : '';
-  const agentCountHtml = agents.length > 1 ? `<span class="task-card-agent-count">${agents.length} agents</span>` : '';
+  const agentCountHtml =
+    agents.length > 1 ? `<span class="task-card-agent-count">${agents.length} agents</span>` : '';
 
   card.innerHTML = `
     <div class="task-card-actions">
@@ -102,7 +116,9 @@ export function createTaskCard(task: EngineTask): HTMLElement {
   });
   card.addEventListener('dragend', () => {
     card.classList.remove('dragging');
-    document.querySelectorAll('.tasks-column-cards.drag-over').forEach(el => el.classList.remove('drag-over'));
+    document
+      .querySelectorAll('.tasks-column-cards.drag-over')
+      .forEach((el) => el.classList.remove('drag-over'));
   });
 
   // Click → edit
@@ -132,9 +148,19 @@ export function renderFeed() {
   const feedFilter = _state.getFeedFilter();
   let filtered = _state.getActivity();
   if (feedFilter === 'tasks') {
-    filtered = filtered.filter(a => ['created', 'assigned', 'agent_started', 'agent_completed'].includes(a.kind));
+    filtered = filtered.filter((a) =>
+      ['created', 'assigned', 'agent_started', 'agent_completed'].includes(a.kind),
+    );
   } else if (feedFilter === 'status') {
-    filtered = filtered.filter(a => ['status_change', 'agent_started', 'agent_completed', 'agent_error', 'cron_triggered'].includes(a.kind));
+    filtered = filtered.filter((a) =>
+      [
+        'status_change',
+        'agent_started',
+        'agent_completed',
+        'agent_error',
+        'cron_triggered',
+      ].includes(a.kind),
+    );
   }
 
   if (!filtered.length) {
@@ -171,8 +197,9 @@ export function renderStats() {
   const active = $('tasks-stat-active');
   const cron = $('tasks-stat-cron');
   if (total) total.textContent = `${tasks.length} tasks`;
-  if (active) active.textContent = `${tasks.filter(t => t.status === 'in_progress').length} active`;
-  if (cron) cron.textContent = `${tasks.filter(t => t.cron_enabled).length} scheduled`;
+  if (active)
+    active.textContent = `${tasks.filter((t) => t.status === 'in_progress').length} active`;
+  if (cron) cron.textContent = `${tasks.filter((t) => t.cron_enabled).length} scheduled`;
 }
 
 // ── Task Modal ─────────────────────────────────────────────────────────
@@ -206,12 +233,15 @@ export function openTaskModal(task?: EngineTask) {
 
   // Dynamically populate model dropdown from configured providers
   if (inputModel) {
-    pawEngine.getConfig().then(config => {
-      populateModelSelect(inputModel, config.providers ?? [], {
-        defaultLabel: '(use default)',
-        currentValue: task?.model || '',
-      });
-    }).catch(() => {});
+    pawEngine
+      .getConfig()
+      .then((config) => {
+        populateModelSelect(inputModel, config.providers ?? [], {
+          defaultLabel: '(use default)',
+          currentValue: task?.model || '',
+        });
+      })
+      .catch(() => {});
   }
 
   if (deleteBtn) deleteBtn.style.display = isNew ? 'none' : '';
@@ -224,7 +254,7 @@ export function openTaskModal(task?: EngineTask) {
       ? [...task.assigned_agents]
       : task?.assigned_agent
         ? [{ agent_id: task.assigned_agent, role: 'lead' }]
-        : []
+        : [],
   );
   renderAgentPicker();
 
@@ -257,10 +287,10 @@ export function renderAgentPicker() {
   container.innerHTML = '';
   const modalSelectedAgents = _state.getModalSelectedAgents();
   for (const ta of modalSelectedAgents) {
-    const agent = _state.getAgents().find(a => a.id === ta.agent_id);
+    const agent = _state.getAgents().find((a) => a.id === ta.agent_id);
     const tag = document.createElement('span');
     tag.className = `agent-tag${ta.role === 'lead' ? ' lead' : ''}`;
-    tag.innerHTML = `${agent ? `${spriteAvatar(agent.avatar, 18)  } ` : ''}${escHtml(ta.agent_id)}${ta.role === 'lead' ? ' ★' : ''}<button class="agent-tag-remove" title="Remove">×</button>`;
+    tag.innerHTML = `${agent ? `${spriteAvatar(agent.avatar, 18)} ` : ''}${escHtml(ta.agent_id)}${ta.role === 'lead' ? ' ★' : ''}<button class="agent-tag-remove" title="Remove">×</button>`;
 
     // Click tag → toggle lead/collaborator
     tag.addEventListener('click', (e) => {
@@ -273,7 +303,7 @@ export function renderAgentPicker() {
     tag.querySelector('.agent-tag-remove')?.addEventListener('click', (e) => {
       e.stopPropagation();
       _state.setModalSelectedAgents(
-        _state.getModalSelectedAgents().filter(a => a.agent_id !== ta.agent_id)
+        _state.getModalSelectedAgents().filter((a) => a.agent_id !== ta.agent_id),
       );
       renderAgentPicker();
     });
@@ -287,7 +317,7 @@ export function renderAgentPicker() {
 
 export function addAgentToTask(agentId: string) {
   const modalSelectedAgents = _state.getModalSelectedAgents();
-  if (!agentId || modalSelectedAgents.some(a => a.agent_id === agentId)) return;
+  if (!agentId || modalSelectedAgents.some((a) => a.agent_id === agentId)) return;
   const role = modalSelectedAgents.length === 0 ? 'lead' : 'collaborator';
   _state.setModalSelectedAgents([...modalSelectedAgents, { agent_id: agentId, role }]);
   renderAgentPicker();
@@ -332,15 +362,17 @@ export async function saveTask() {
   const inputModel = $('tasks-modal-input-model') as HTMLSelectElement;
 
   const title = inputTitle?.value.trim();
-  if (!title) { showToast('Task title is required', 'warning'); return; }
+  if (!title) {
+    showToast('Task title is required', 'warning');
+    return;
+  }
 
   const cronSchedule = inputCron?.value.trim() || undefined;
   const cronEnabled = inputCronEnabled?.checked || false;
   const taskModel = inputModel?.value || undefined;
 
   // Primary agent = first lead or first agent in the multi-select
-  const primaryAgent = modalSelectedAgents.find(a => a.role === 'lead')
-    || modalSelectedAgents[0];
+  const primaryAgent = modalSelectedAgents.find((a) => a.role === 'lead') || modalSelectedAgents[0];
   const agentId = primaryAgent?.agent_id;
 
   // Determine status
@@ -414,7 +446,7 @@ export async function runTask(taskId: string) {
 // ── Drag & Drop ────────────────────────────────────────────────────────
 
 export function setupDragAndDrop() {
-  document.querySelectorAll<HTMLElement>('.tasks-column-cards').forEach(column => {
+  document.querySelectorAll<HTMLElement>('.tasks-column-cards').forEach((column) => {
     column.addEventListener('dragover', (e) => {
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
@@ -435,7 +467,7 @@ export function setupDragAndDrop() {
       if (!taskId || !newStatus) return;
 
       const tasks = _state.getTasks();
-      const task = tasks.find(t => t.id === taskId);
+      const task = tasks.find((t) => t.id === taskId);
       if (!task || task.status === newStatus) return;
 
       try {
@@ -452,6 +484,6 @@ export function setupDragAndDrop() {
 
 function getAgentAvatar(agentId?: string | null): string {
   if (!agentId) return '<span class="ms">build</span>';
-  const agent = _state.getAgents().find(a => a.id === agentId || a.name === agentId);
+  const agent = _state.getAgents().find((a) => a.id === agentId || a.name === agentId);
   return agent ? spriteAvatar(agent.avatar, 20) : '<span class="ms">smart_toy</span>';
 }

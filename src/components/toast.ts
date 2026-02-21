@@ -2,7 +2,11 @@
 
 const $ = (id: string) => document.getElementById(id);
 
-export function showToast(message: string, type: 'info' | 'success' | 'error' | 'warning' = 'info', durationMs = 3500) {
+export function showToast(
+  message: string,
+  type: 'info' | 'success' | 'error' | 'warning' = 'info',
+  durationMs = 3500,
+) {
   const toast = $('global-toast');
   if (!toast) return;
   toast.textContent = message;

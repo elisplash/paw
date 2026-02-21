@@ -93,10 +93,16 @@ export function applyDecay(memories: Memory[], halfLifeDays = 30): Memory[] {
 /** Jaccard similarity between two text strings (word-level). */
 export function jaccardSimilarity(a: string, b: string): number {
   const wordsA = new Set(
-    a.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
+    a
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
   );
   const wordsB = new Set(
-    b.toLowerCase().split(/\s+/).filter((w) => w.length > 2)
+    b
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
   );
   if (wordsA.size === 0 && wordsB.size === 0) return 1;
   let intersection = 0;
@@ -107,16 +113,10 @@ export function jaccardSimilarity(a: string, b: string): number {
 
 /** MMR re-rank on the frontend (e.g. for display dedup).
  *  lambda: 1.0 = pure relevance, 0.0 = pure diversity. */
-export function mmrRerank(
-  candidates: Memory[],
-  k: number,
-  lambda = 0.7
-): Memory[] {
+export function mmrRerank(candidates: Memory[], k: number, lambda = 0.7): Memory[] {
   if (candidates.length === 0 || k === 0) return [];
 
-  const sorted = [...candidates].sort(
-    (a, b) => (b.score ?? 0) - (a.score ?? 0)
-  );
+  const sorted = [...candidates].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
   const selected: Memory[] = [sorted[0]];
   const remaining = sorted.slice(1);
 
@@ -127,7 +127,7 @@ export function mmrRerank(
     for (let i = 0; i < remaining.length; i++) {
       const relevance = remaining[i].score ?? 0;
       const maxSim = Math.max(
-        ...selected.map((s) => jaccardSimilarity(remaining[i].content, s.content))
+        ...selected.map((s) => jaccardSimilarity(remaining[i].content, s.content)),
       );
       const mmr = lambda * relevance - (1 - lambda) * maxSim;
       if (mmr > bestMmr) {

@@ -1,8 +1,18 @@
 // Orchestrator View — DOM rendering + IPC
 
-import { pawEngine, type EngineProject, type EngineProjectAgent, type EngineProjectMessage } from '../../engine';
+import {
+  pawEngine,
+  type EngineProject,
+  type EngineProjectAgent,
+  type EngineProjectMessage,
+} from '../../engine';
 import { showToast } from '../../components/toast';
-import { populateModelSelect, escHtml, formatTimeAgo, confirmModal } from '../../components/helpers';
+import {
+  populateModelSelect,
+  escHtml,
+  formatTimeAgo,
+  confirmModal,
+} from '../../components/helpers';
 import { specialtyIcon, messageKindLabel, formatTime } from './atoms';
 
 // ── State bridge ──────────────────────────────────────────────────────
@@ -23,31 +33,69 @@ const _loadProjectsFn: () => Promise<void> = async () => {};
 
 export function initMoleculesState() {
   return {
-    setMoleculesState(s: MoleculesState) { _state = s; },
+    setMoleculesState(s: MoleculesState) {
+      _state = s;
+    },
   };
 }
 
 // ── DOM refs ──────────────────────────────────────────────────────────
 
 const els = {
-  get list() { return document.getElementById('orch-project-list')!; },
-  get detail() { return document.getElementById('orch-project-detail')!; },
-  get statTotal() { return document.getElementById('orch-stat-total')!; },
-  get statRunning() { return document.getElementById('orch-stat-running')!; },
-  get detailName() { return document.getElementById('orch-detail-name')!; },
-  get detailStatus() { return document.getElementById('orch-detail-status')!; },
-  get detailGoal() { return document.getElementById('orch-detail-goal')!; },
-  get agentRoster() { return document.getElementById('orch-agent-roster')!; },
-  get messageBus() { return document.getElementById('orch-message-bus')!; },
-  get modal() { return document.getElementById('orch-modal')!; },
-  get modalTitle() { return document.getElementById('orch-modal-title')!; },
-  get formTitle() { return document.getElementById('orch-form-title') as HTMLInputElement; },
-  get formGoal() { return document.getElementById('orch-form-goal') as HTMLTextAreaElement; },
-  get formBoss() { return document.getElementById('orch-form-boss') as HTMLInputElement; },
-  get agentModal() { return document.getElementById('orch-agent-modal')!; },
-  get agentFormId() { return document.getElementById('orch-agent-form-id') as HTMLInputElement; },
-  get agentFormSpecialty() { return document.getElementById('orch-agent-form-specialty') as HTMLSelectElement; },
-  get agentFormModel() { return document.getElementById('orch-agent-form-model') as HTMLSelectElement | null; },
+  get list() {
+    return document.getElementById('orch-project-list')!;
+  },
+  get detail() {
+    return document.getElementById('orch-project-detail')!;
+  },
+  get statTotal() {
+    return document.getElementById('orch-stat-total')!;
+  },
+  get statRunning() {
+    return document.getElementById('orch-stat-running')!;
+  },
+  get detailName() {
+    return document.getElementById('orch-detail-name')!;
+  },
+  get detailStatus() {
+    return document.getElementById('orch-detail-status')!;
+  },
+  get detailGoal() {
+    return document.getElementById('orch-detail-goal')!;
+  },
+  get agentRoster() {
+    return document.getElementById('orch-agent-roster')!;
+  },
+  get messageBus() {
+    return document.getElementById('orch-message-bus')!;
+  },
+  get modal() {
+    return document.getElementById('orch-modal')!;
+  },
+  get modalTitle() {
+    return document.getElementById('orch-modal-title')!;
+  },
+  get formTitle() {
+    return document.getElementById('orch-form-title') as HTMLInputElement;
+  },
+  get formGoal() {
+    return document.getElementById('orch-form-goal') as HTMLTextAreaElement;
+  },
+  get formBoss() {
+    return document.getElementById('orch-form-boss') as HTMLInputElement;
+  },
+  get agentModal() {
+    return document.getElementById('orch-agent-modal')!;
+  },
+  get agentFormId() {
+    return document.getElementById('orch-agent-form-id') as HTMLInputElement;
+  },
+  get agentFormSpecialty() {
+    return document.getElementById('orch-agent-form-specialty') as HTMLSelectElement;
+  },
+  get agentFormModel() {
+    return document.getElementById('orch-agent-form-model') as HTMLSelectElement | null;
+  },
 };
 
 // ── Render list ───────────────────────────────────────────────────────
@@ -65,7 +113,9 @@ export function renderList() {
     return;
   }
 
-  container.innerHTML = projects.map(p => `
+  container.innerHTML = projects
+    .map(
+      (p) => `
     <div class="orch-project-card" data-id="${p.id}">
       <div class="orch-card-header">
         <span class="orch-card-title">${escHtml(p.title)}</span>
@@ -77,9 +127,11 @@ export function renderList() {
         <span class="orch-card-time">${formatTimeAgo(p.updated_at)}</span>
       </div>
     </div>
-  `).join('');
+  `,
+    )
+    .join('');
 
-  container.querySelectorAll('.orch-project-card').forEach(card => {
+  container.querySelectorAll('.orch-project-card').forEach((card) => {
     card.addEventListener('click', () => {
       const id = (card as HTMLElement).dataset.id!;
       loadProjectDetail(id);
@@ -90,7 +142,7 @@ export function renderList() {
 export function updateStats() {
   const projects = _state.getProjects();
   els.statTotal.textContent = `${projects.length} project${projects.length !== 1 ? 's' : ''}`;
-  const running = projects.filter(p => p.status === 'running').length;
+  const running = projects.filter((p) => p.status === 'running').length;
   els.statRunning.textContent = `${running} running`;
 }
 
@@ -100,7 +152,7 @@ export async function loadProjectDetail(projectId: string) {
   try {
     const projects = await pawEngine.projectsList();
     _state.setProjects(projects);
-    const project = projects.find(p => p.id === projectId);
+    const project = projects.find((p) => p.id === projectId);
     if (!project) {
       showToast('Project not found', 'error');
       return;
@@ -129,9 +181,11 @@ export async function loadProjectDetail(projectId: string) {
 
     const oldInterval = _state.getMessagePollInterval();
     if (oldInterval) clearInterval(oldInterval);
-    _state.setMessagePollInterval(setInterval(() => {
-      if (_state.getCurrentProject()) refreshMessages();
-    }, 3000));
+    _state.setMessagePollInterval(
+      setInterval(() => {
+        if (_state.getCurrentProject()) refreshMessages();
+      }, 3000),
+    );
   } catch (e) {
     console.error('[orchestrator] Failed to load project detail:', e);
   }
@@ -157,7 +211,9 @@ export function renderAgentRoster(agents: EngineProjectAgent[]) {
     return;
   }
 
-  els.agentRoster.innerHTML = agents.map(a => `
+  els.agentRoster.innerHTML = agents
+    .map(
+      (a) => `
     <div class="orch-agent-card orch-agent-${a.status}">
       <div class="orch-agent-header">
         <span class="orch-agent-icon">${specialtyIcon(a.specialty)}</span>
@@ -172,15 +228,17 @@ export function renderAgentRoster(agents: EngineProjectAgent[]) {
         ${a.current_task ? `<span class="orch-agent-task" title="${escHtml(a.current_task)}">${escHtml(a.current_task.substring(0, 60))}</span>` : ''}
       </div>
     </div>
-  `).join('');
+  `,
+    )
+    .join('');
 
-  els.agentRoster.querySelectorAll('.orch-remove-agent').forEach(btn => {
+  els.agentRoster.querySelectorAll('.orch-remove-agent').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const agentId = (btn as HTMLElement).dataset.agent!;
       const currentProject = _state.getCurrentProject();
       if (!currentProject) return;
-      const newAgents = currentProject.agents.filter(a => a.agent_id !== agentId);
+      const newAgents = currentProject.agents.filter((a) => a.agent_id !== agentId);
       await pawEngine.projectSetAgents(currentProject.id, newAgents);
       currentProject.agents = newAgents;
       renderAgentRoster(newAgents);
@@ -195,7 +253,7 @@ async function refreshAgents() {
   try {
     const projects = await pawEngine.projectsList();
     _state.setProjects(projects);
-    const p = projects.find(p => p.id === currentProject.id);
+    const p = projects.find((p) => p.id === currentProject.id);
     if (p) {
       _state.setCurrentProject(p);
       renderAgentRoster(p.agents);
@@ -220,14 +278,16 @@ async function refreshMessages() {
 
 function renderMessageBus(messages: EngineProjectMessage[]) {
   if (messages.length === 0) {
-    els.messageBus.innerHTML = '<div class="empty-state-sm">No messages yet. Run the project to see agent communication.</div>';
+    els.messageBus.innerHTML =
+      '<div class="empty-state-sm">No messages yet. Run the project to see agent communication.</div>';
     return;
   }
 
-  els.messageBus.innerHTML = messages.map(m => {
-    const kindClass = `orch-msg-${m.kind}`;
-    const arrow = m.to_agent ? ` → ${escHtml(m.to_agent)}` : ' (broadcast)';
-    return `
+  els.messageBus.innerHTML = messages
+    .map((m) => {
+      const kindClass = `orch-msg-${m.kind}`;
+      const arrow = m.to_agent ? ` → ${escHtml(m.to_agent)}` : ' (broadcast)';
+      return `
       <div class="orch-message ${kindClass}">
         <div class="orch-msg-header">
           <span class="orch-msg-kind">${messageKindLabel(m.kind)}</span>
@@ -237,7 +297,8 @@ function renderMessageBus(messages: EngineProjectMessage[]) {
         <div class="orch-msg-content">${escHtml(m.content)}</div>
       </div>
     `;
-  }).join('');
+    })
+    .join('');
 
   els.messageBus.scrollTop = els.messageBus.scrollHeight;
 }
@@ -248,8 +309,8 @@ let editingProjectId: string | null = null;
 
 export function openCreateModal() {
   editingProjectId = null;
-  (document.getElementById('orch-modal-title')!).textContent = 'New Project';
-  (document.getElementById('orch-modal-save')!).textContent = 'Create Project';
+  document.getElementById('orch-modal-title')!.textContent = 'New Project';
+  document.getElementById('orch-modal-save')!.textContent = 'Create Project';
   els.formTitle.value = '';
   els.formGoal.value = '';
   els.formBoss.value = 'default';
@@ -260,8 +321,8 @@ export function editProject() {
   const currentProject = _state.getCurrentProject();
   if (!currentProject) return;
   editingProjectId = currentProject.id;
-  (document.getElementById('orch-modal-title')!).textContent = 'Edit Project';
-  (document.getElementById('orch-modal-save')!).textContent = 'Save Changes';
+  document.getElementById('orch-modal-title')!.textContent = 'Edit Project';
+  document.getElementById('orch-modal-save')!.textContent = 'Save Changes';
   els.formTitle.value = currentProject.title;
   els.formGoal.value = currentProject.goal;
   els.formBoss.value = currentProject.boss_agent;
@@ -292,7 +353,7 @@ export async function saveProject() {
     const currentProject = _state.getCurrentProject();
 
     if (editingProjectId) {
-      const existing = projects.find(p => p.id === editingProjectId);
+      const existing = projects.find((p) => p.id === editingProjectId);
       if (existing) {
         const updated: EngineProject = {
           ...existing,
@@ -314,7 +375,13 @@ export async function saveProject() {
         status: 'planning',
         boss_agent: boss,
         agents: [
-          { agent_id: boss, role: 'boss', specialty: 'general', status: 'idle', current_task: undefined },
+          {
+            agent_id: boss,
+            role: 'boss',
+            specialty: 'general',
+            status: 'idle',
+            current_task: undefined,
+          },
         ],
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
@@ -336,7 +403,8 @@ export async function saveProject() {
 export async function deleteProject() {
   const currentProject = _state.getCurrentProject();
   if (!currentProject) return;
-  if (!await confirmModal(`Delete project "${currentProject.title}"? This cannot be undone.`)) return;
+  if (!(await confirmModal(`Delete project "${currentProject.title}"? This cannot be undone.`)))
+    return;
 
   try {
     await pawEngine.projectDelete(currentProject.id);
@@ -379,12 +447,15 @@ export function openAgentModal() {
   els.agentFormId.value = '';
   els.agentFormSpecialty.value = 'general';
   if (els.agentFormModel) {
-    pawEngine.getConfig().then(config => {
-      populateModelSelect(els.agentFormModel!, config.providers ?? [], {
-        defaultLabel: '(use routing default)',
-        currentValue: '',
-      });
-    }).catch(() => {});
+    pawEngine
+      .getConfig()
+      .then((config) => {
+        populateModelSelect(els.agentFormModel!, config.providers ?? [], {
+          defaultLabel: '(use routing default)',
+          currentValue: '',
+        });
+      })
+      .catch(() => {});
   }
   els.agentModal.style.display = 'flex';
 }
@@ -404,7 +475,7 @@ export async function addAgent() {
     return;
   }
 
-  if (currentProject.agents.some(a => a.agent_id === agentId)) {
+  if (currentProject.agents.some((a) => a.agent_id === agentId)) {
     showToast('This agent is already on the team', 'error');
     return;
   }

@@ -119,11 +119,7 @@ export function getSandboxSummary(): string {
 
 // ── Re-exports for convenience ─────────────────────────────────────────
 
-export type {
-  SandboxConfig,
-  SandboxStatus,
-  SandboxValidation,
-} from './atoms';
+export type { SandboxConfig, SandboxStatus, SandboxValidation } from './atoms';
 
 export {
   DEFAULT_SANDBOX_CONFIG,

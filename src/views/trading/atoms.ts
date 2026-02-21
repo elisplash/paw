@@ -23,8 +23,15 @@ export function formatAmount(value: string | number): string {
 export function formatTime(isoStr: string): string {
   try {
     const d = new Date(isoStr + (isoStr.includes('Z') ? '' : 'Z'));
-    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  } catch { return isoStr; }
+    return d.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return isoStr;
+  }
 }
 
 export function formatPrice(price: number): string {

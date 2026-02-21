@@ -22,8 +22,24 @@ describe('resolveRoute', () => {
     const config: RoutingConfig = {
       defaultAgentId: 'default',
       rules: [
-        { id: 'r1', channel: 'telegram', userFilter: [], channelIdFilter: [], agentId: 'tg-agent', label: 'TG', enabled: true },
-        { id: 'r2', channel: 'discord', userFilter: [], channelIdFilter: [], agentId: 'dc-agent', label: 'DC', enabled: true },
+        {
+          id: 'r1',
+          channel: 'telegram',
+          userFilter: [],
+          channelIdFilter: [],
+          agentId: 'tg-agent',
+          label: 'TG',
+          enabled: true,
+        },
+        {
+          id: 'r2',
+          channel: 'discord',
+          userFilter: [],
+          channelIdFilter: [],
+          agentId: 'dc-agent',
+          label: 'DC',
+          enabled: true,
+        },
       ],
     };
     const result = resolveRoute(config, 'telegram', 'user1');
@@ -35,7 +51,15 @@ describe('resolveRoute', () => {
     const config: RoutingConfig = {
       defaultAgentId: 'default',
       rules: [
-        { id: 'r1', channel: 'telegram', userFilter: [], channelIdFilter: [], agentId: 'tg-agent', label: 'TG', enabled: false },
+        {
+          id: 'r1',
+          channel: 'telegram',
+          userFilter: [],
+          channelIdFilter: [],
+          agentId: 'tg-agent',
+          label: 'TG',
+          enabled: false,
+        },
       ],
     };
     const result = resolveRoute(config, 'telegram', 'user1');
@@ -46,7 +70,15 @@ describe('resolveRoute', () => {
     const config: RoutingConfig = {
       defaultAgentId: 'default',
       rules: [
-        { id: 'r1', channel: 'telegram', userFilter: ['vip'], channelIdFilter: [], agentId: 'vip-agent', label: 'VIP', enabled: true },
+        {
+          id: 'r1',
+          channel: 'telegram',
+          userFilter: ['vip'],
+          channelIdFilter: [],
+          agentId: 'vip-agent',
+          label: 'VIP',
+          enabled: true,
+        },
       ],
     };
     expect(resolveRoute(config, 'telegram', 'vip').agentId).toBe('vip-agent');
@@ -57,7 +89,15 @@ describe('resolveRoute', () => {
     const config: RoutingConfig = {
       defaultAgentId: 'default',
       rules: [
-        { id: 'r1', channel: '*', userFilter: [], channelIdFilter: [], agentId: 'catch-all', label: 'All', enabled: true },
+        {
+          id: 'r1',
+          channel: '*',
+          userFilter: [],
+          channelIdFilter: [],
+          agentId: 'catch-all',
+          label: 'All',
+          enabled: true,
+        },
       ],
     };
     expect(resolveRoute(config, 'discord', 'user1').agentId).toBe('catch-all');
@@ -96,8 +136,24 @@ describe('validateRoutingConfig', () => {
     const config: RoutingConfig = {
       defaultAgentId: 'default',
       rules: [
-        { id: 'r1', channel: '*', userFilter: [], channelIdFilter: [], agentId: 'a', label: 'All', enabled: true },
-        { id: 'r2', channel: 'telegram', userFilter: [], channelIdFilter: [], agentId: 'b', label: 'TG', enabled: true },
+        {
+          id: 'r1',
+          channel: '*',
+          userFilter: [],
+          channelIdFilter: [],
+          agentId: 'a',
+          label: 'All',
+          enabled: true,
+        },
+        {
+          id: 'r2',
+          channel: 'telegram',
+          userFilter: [],
+          channelIdFilter: [],
+          agentId: 'b',
+          label: 'TG',
+          enabled: true,
+        },
       ],
     };
     const issues = validateRoutingConfig(config);
@@ -117,7 +173,15 @@ describe('describeRoutingConfig', () => {
     const config: RoutingConfig = {
       defaultAgentId: 'default',
       rules: [
-        { id: 'r1', channel: 'telegram', userFilter: [], channelIdFilter: [], agentId: 'a', label: 'TG', enabled: true },
+        {
+          id: 'r1',
+          channel: 'telegram',
+          userFilter: [],
+          channelIdFilter: [],
+          agentId: 'a',
+          label: 'TG',
+          enabled: true,
+        },
       ],
     };
     expect(describeRoutingConfig(config)).toContain('1 routing rules');

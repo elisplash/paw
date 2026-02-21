@@ -23,7 +23,8 @@ setMoleculesState({
 export async function loadBrowserSettings() {
   const container = $('settings-browser-sandbox-content');
   if (!container) return;
-  container.innerHTML = '<p style="color:var(--text-muted)">Loading browser &amp; sandbox config…</p>';
+  container.innerHTML =
+    '<p style="color:var(--text-muted)">Loading browser &amp; sandbox config…</p>';
 
   try {
     const [browserConfig, screenshots, workspaces, networkPolicy] = await Promise.all([

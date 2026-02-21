@@ -21,7 +21,9 @@ const { setMoleculesState } = initMoleculesState();
 setMoleculesState({
   getAgents: () => _agents,
   getEditingTaskId: () => _editingTaskId,
-  setEditingTaskId: (id: string | null) => { _editingTaskId = id; },
+  setEditingTaskId: (id: string | null) => {
+    _editingTaskId = id;
+  },
 });
 
 // ── Public API ────────────────────────────────────────────────────────
@@ -58,6 +60,8 @@ export function initAutomations() {
           loadCron();
         }
       });
-    } catch { /* not in Tauri context */ }
+    } catch {
+      /* not in Tauri context */
+    }
   })();
 }

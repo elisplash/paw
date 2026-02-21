@@ -3,13 +3,7 @@
 
 import { pawEngine } from '../../engine';
 import { showToast } from '../../components/toast';
-import {
-  type Agent,
-  AGENT_TEMPLATES,
-  SPRITE_AVATARS,
-  AVATAR_COLORS,
-  spriteAvatar,
-} from './atoms';
+import { type Agent, AGENT_TEMPLATES, SPRITE_AVATARS, AVATAR_COLORS, spriteAvatar } from './atoms';
 
 export interface EditorCallbacks {
   /** Called after a new agent is created — push to array + persist + re-render */
@@ -75,8 +69,9 @@ export function openAgentCreator(cbs: EditorCallbacks) {
         <div class="form-group">
           <label class="form-label">Avatar</label>
           <div class="agent-avatar-picker" id="agent-avatar-picker">
-            ${SPRITE_AVATARS.map((s, i) =>
-              `<button class="agent-avatar-option${i === 0 ? ' selected' : ''}" data-avatar="${s}">${spriteAvatar(s, 36)}</button>`
+            ${SPRITE_AVATARS.map(
+              (s, i) =>
+                `<button class="agent-avatar-option${i === 0 ? ' selected' : ''}" data-avatar="${s}">${spriteAvatar(s, 36)}</button>`,
             ).join('')}
           </div>
         </div>
@@ -93,9 +88,9 @@ export function openAgentCreator(cbs: EditorCallbacks) {
   let selectedAvatar = SPRITE_AVATARS[0];
 
   // Template selection
-  modal.querySelectorAll('.agent-template-card').forEach(card => {
+  modal.querySelectorAll('.agent-template-card').forEach((card) => {
     card.addEventListener('click', () => {
-      modal.querySelectorAll('.agent-template-card').forEach(c => c.classList.remove('selected'));
+      modal.querySelectorAll('.agent-template-card').forEach((c) => c.classList.remove('selected'));
       card.classList.add('selected');
       selectedTemplate = card.getAttribute('data-template') || 'general';
 
@@ -107,9 +102,9 @@ export function openAgentCreator(cbs: EditorCallbacks) {
   });
 
   // Avatar selection
-  modal.querySelectorAll('.agent-avatar-option').forEach(btn => {
+  modal.querySelectorAll('.agent-avatar-option').forEach((btn) => {
     btn.addEventListener('click', () => {
-      modal.querySelectorAll('.agent-avatar-option').forEach(b => b.classList.remove('selected'));
+      modal.querySelectorAll('.agent-avatar-option').forEach((b) => b.classList.remove('selected'));
       btn.classList.add('selected');
       selectedAvatar = btn.getAttribute('data-avatar') || SPRITE_AVATARS[0];
     });
@@ -118,7 +113,9 @@ export function openAgentCreator(cbs: EditorCallbacks) {
   const close = () => modal.remove();
   modal.querySelector('.agent-modal-close')?.addEventListener('click', close);
   modal.querySelector('.agent-modal-cancel')?.addEventListener('click', close);
-  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) close();
+  });
 
   modal.querySelector('#agent-create-submit')?.addEventListener('click', () => {
     const name = (modal.querySelector('#agent-create-name') as HTMLInputElement)?.value.trim();
@@ -129,7 +126,10 @@ export function openAgentCreator(cbs: EditorCallbacks) {
       return;
     }
 
-    const agentSlug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    const agentSlug = name
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9-]/g, '');
     const agentId = `agent-${agentSlug}-${Date.now()}`;
     const template = AGENT_TEMPLATES[selectedTemplate];
     const agents = cbs.getAgents();
@@ -141,7 +141,11 @@ export function openAgentCreator(cbs: EditorCallbacks) {
       bio: bio || template?.bio || '',
       model: 'default',
       template: selectedTemplate as Agent['template'],
-      personality: template?.personality || { tone: 'balanced', initiative: 'balanced', detail: 'balanced' },
+      personality: template?.personality || {
+        tone: 'balanced',
+        initiative: 'balanced',
+        detail: 'balanced',
+      },
       skills: template?.skills || [],
       boundaries: [],
       createdAt: new Date().toISOString(),
@@ -151,14 +155,16 @@ export function openAgentCreator(cbs: EditorCallbacks) {
     cbs.onCreated(newAgent);
 
     // Also persist to backend SQLite so agents survive across devices
-    pawEngine.createAgent({
-      agent_id: agentId,
-      role: template?.bio || 'assistant',
-      specialty: selectedTemplate === 'general' ? 'general' : selectedTemplate,
-      model: undefined,
-      system_prompt: undefined,
-      capabilities: template?.skills || [],
-    }).catch(e => console.warn('[agents] Backend persist failed:', e));
+    pawEngine
+      .createAgent({
+        agent_id: agentId,
+        role: template?.bio || 'assistant',
+        specialty: selectedTemplate === 'general' ? 'general' : selectedTemplate,
+        model: undefined,
+        system_prompt: undefined,
+        capabilities: template?.skills || [],
+      })
+      .catch((e) => console.warn('[agents] Backend persist failed:', e));
 
     // Seed initial soul files so the agent knows who it is
     cbs.seedSoulFiles(newAgent);

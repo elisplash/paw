@@ -9,11 +9,7 @@ import {
   bindSkillEvents,
   setMoleculesState,
 } from './molecules';
-import {
-  renderCommunitySection,
-  bindCommunityEvents,
-  setCommunityReload,
-} from './community';
+import { renderCommunitySection, bindCommunityEvents, setCommunityReload } from './community';
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
 

@@ -22,7 +22,7 @@ export function getDb(): Database | null {
 // the Rust get_db_encryption_key command.
 
 let _cryptoKey: CryptoKey | null = null;
-const ENC_PREFIX = 'enc:';  // marker prefix for encrypted values
+const ENC_PREFIX = 'enc:'; // marker prefix for encrypted values
 
 /**
  * Initialise the encryption key from the OS keychain (via Tauri invoke).
@@ -37,21 +37,27 @@ export async function initDbEncryption(): Promise<boolean> {
 
     const hexKey = await invoke<string>('get_db_encryption_key');
     if (!hexKey || hexKey.length < 32) {
-      console.error('[db] OS keychain returned invalid encryption key — credential storage will be blocked');
+      console.error(
+        '[db] OS keychain returned invalid encryption key — credential storage will be blocked',
+      );
       return false;
     }
 
     // Convert hex string to raw bytes
     const hexPairs = hexKey.match(/.{1,2}/g);
     if (!hexPairs) return false;
-    const keyBytes = new Uint8Array(hexPairs.map(b => parseInt(b, 16)));
-    _cryptoKey = await crypto.subtle.importKey(
-      'raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']
-    );
+    const keyBytes = new Uint8Array(hexPairs.map((b) => parseInt(b, 16)));
+    _cryptoKey = await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, [
+      'encrypt',
+      'decrypt',
+    ]);
     console.debug('[db] Encryption key loaded from OS keychain');
     return true;
   } catch (e) {
-    console.error('[db] OS keychain unavailable — encryption disabled, credential storage blocked:', e);
+    console.error(
+      '[db] OS keychain unavailable — encryption disabled, credential storage blocked:',
+      e,
+    );
     return false;
   }
 }
@@ -63,8 +69,12 @@ export async function initDbEncryption(): Promise<boolean> {
  */
 export async function encryptField(plaintext: string): Promise<string> {
   if (!_cryptoKey) {
-    console.error('[db] encryptField blocked — OS keychain unavailable. Refusing to store plaintext.');
-    throw new Error('Encryption unavailable — OS keychain is not accessible. Cannot store sensitive data.');
+    console.error(
+      '[db] encryptField blocked — OS keychain unavailable. Refusing to store plaintext.',
+    );
+    throw new Error(
+      'Encryption unavailable — OS keychain is not accessible. Cannot store sensitive data.',
+    );
   }
   try {
     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -88,7 +98,7 @@ export async function decryptField(stored: string): Promise<string> {
   if (!stored.startsWith(ENC_PREFIX) || !_cryptoKey) return stored;
   try {
     const b64 = stored.slice(ENC_PREFIX.length);
-    const combined = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const combined = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
     const iv = combined.slice(0, 12);
     const ciphertext = combined.slice(12);
     const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, _cryptoKey, ciphertext);
@@ -285,15 +295,29 @@ async function seedDefaultModes(db: Database): Promise<void> {
   if (modes[0]?.count === 0) {
     await db.execute(
       `INSERT INTO agent_modes (id, name, model, system_prompt, icon, color, is_default) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      ['default', 'General', null, '', 'G', '#0073EA', 1]
+      ['default', 'General', null, '', 'G', '#0073EA', 1],
     );
     await db.execute(
       `INSERT INTO agent_modes (id, name, model, system_prompt, icon, color) VALUES (?, ?, ?, ?, ?, ?)`,
-      ['code-review', 'Code Review', null, 'You are a careful code reviewer. Focus on bugs, security issues, and performance problems. Be thorough and specific.', 'CR', '#A25DDC']
+      [
+        'code-review',
+        'Code Review',
+        null,
+        'You are a careful code reviewer. Focus on bugs, security issues, and performance problems. Be thorough and specific.',
+        'CR',
+        '#A25DDC',
+      ],
     );
     await db.execute(
       `INSERT INTO agent_modes (id, name, model, system_prompt, icon, color) VALUES (?, ?, ?, ?, ?, ?)`,
-      ['fast-chat', 'Quick Chat', null, 'Be concise and direct. Short answers preferred.', 'QC', '#FDAB3D']
+      [
+        'fast-chat',
+        'Quick Chat',
+        null,
+        'Be concise and direct. Short answers preferred.',
+        'QC',
+        '#FDAB3D',
+      ],
     );
   }
 }
@@ -308,7 +332,7 @@ async function runMigrations(db: Database) {
 
   // Get current version
   const rows = await db.select<{ version: number }[]>(
-    'SELECT COALESCE(MAX(version), 0) as version FROM schema_version'
+    'SELECT COALESCE(MAX(version), 0) as version FROM schema_version',
   );
   const currentVersion = rows[0]?.version ?? 0;
 
@@ -323,14 +347,16 @@ async function runMigrations(db: Database) {
       for (const sql of migration.statements) {
         await db.execute(sql);
       }
-      await db.execute(
-        'INSERT INTO schema_version (version, description) VALUES (?, ?)',
-        [migration.version, migration.description]
-      );
+      await db.execute('INSERT INTO schema_version (version, description) VALUES (?, ?)', [
+        migration.version,
+        migration.description,
+      ]);
       await db.execute('COMMIT');
     } catch (e) {
       await db.execute('ROLLBACK').catch(() => {});
-      throw new Error(`Migration v${migration.version} failed: ${e instanceof Error ? e.message : String(e)}`);
+      throw new Error(
+        `Migration v${migration.version} failed: ${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
@@ -365,7 +391,9 @@ export async function getMode(id: string): Promise<AgentMode | null> {
   return rows[0] ?? null;
 }
 
-export async function saveMode(mode: Partial<AgentMode> & { id: string; name: string }): Promise<void> {
+export async function saveMode(
+  mode: Partial<AgentMode> & { id: string; name: string },
+): Promise<void> {
   if (!db) return;
   await db.execute(
     `INSERT INTO agent_modes (id, name, model, system_prompt, skills, thinking_level, temperature, icon, color, is_default, updated_at)
@@ -381,9 +409,18 @@ export async function saveMode(mode: Partial<AgentMode> & { id: string; name: st
        color           = excluded.color,
        is_default      = excluded.is_default,
        updated_at      = datetime('now')`,
-    [mode.id, mode.name, mode.model ?? null, mode.system_prompt ?? '', mode.skills ?? '[]',
-     mode.thinking_level ?? 'normal', mode.temperature ?? 1.0, mode.icon ?? '',
-     mode.color ?? '#0073EA', mode.is_default ?? 0]
+    [
+      mode.id,
+      mode.name,
+      mode.model ?? null,
+      mode.system_prompt ?? '',
+      mode.skills ?? '[]',
+      mode.thinking_level ?? 'normal',
+      mode.temperature ?? 1.0,
+      mode.icon ?? '',
+      mode.color ?? '#0073EA',
+      mode.is_default ?? 0,
+    ],
   );
 }
 
@@ -407,10 +444,14 @@ export interface Project {
 
 export async function listProjects(space: string): Promise<Project[]> {
   if (!db) return [];
-  return db.select<Project[]>('SELECT * FROM projects WHERE space = ? ORDER BY updated_at DESC', [space]);
+  return db.select<Project[]>('SELECT * FROM projects WHERE space = ? ORDER BY updated_at DESC', [
+    space,
+  ]);
 }
 
-export async function saveProject(proj: Partial<Project> & { id: string; name: string; space: string }): Promise<void> {
+export async function saveProject(
+  proj: Partial<Project> & { id: string; name: string; space: string },
+): Promise<void> {
   if (!db) return;
   await db.execute(
     `INSERT INTO projects (id, name, space, description, session_key, metadata, updated_at)
@@ -422,7 +463,14 @@ export async function saveProject(proj: Partial<Project> & { id: string; name: s
        session_key = excluded.session_key,
        metadata    = excluded.metadata,
        updated_at  = datetime('now')`,
-    [proj.id, proj.name, proj.space, proj.description ?? '', proj.session_key ?? null, proj.metadata ?? '{}']
+    [
+      proj.id,
+      proj.name,
+      proj.space,
+      proj.description ?? '',
+      proj.session_key ?? null,
+      proj.metadata ?? '{}',
+    ],
   );
 }
 
@@ -455,7 +503,9 @@ export async function getDoc(id: string): Promise<ContentDoc | null> {
   return rows[0] ?? null;
 }
 
-export async function saveDoc(doc: Partial<ContentDoc> & { id: string; title: string }): Promise<void> {
+export async function saveDoc(
+  doc: Partial<ContentDoc> & { id: string; title: string },
+): Promise<void> {
   if (!db) return;
   const wordCount = (doc.content ?? '').split(/\s+/).filter(Boolean).length;
   await db.execute(
@@ -468,7 +518,14 @@ export async function saveDoc(doc: Partial<ContentDoc> & { id: string; title: st
        content_type = excluded.content_type,
        word_count   = excluded.word_count,
        updated_at   = datetime('now')`,
-    [doc.id, doc.project_id ?? null, doc.title, doc.content ?? '', doc.content_type ?? 'markdown', wordCount]
+    [
+      doc.id,
+      doc.project_id ?? null,
+      doc.title,
+      doc.content ?? '',
+      doc.content_type ?? 'markdown',
+      wordCount,
+    ],
   );
 }
 
@@ -488,7 +545,9 @@ export interface ModelPricingRow {
 
 export async function listModelPricing(): Promise<ModelPricingRow[]> {
   if (!db) return [];
-  return db.select<ModelPricingRow[]>('SELECT model_key, context_size, cost_input, cost_output FROM model_pricing ORDER BY model_key');
+  return db.select<ModelPricingRow[]>(
+    'SELECT model_key, context_size, cost_input, cost_output FROM model_pricing ORDER BY model_key',
+  );
 }
 
 export async function upsertModelPricing(row: ModelPricingRow): Promise<void> {
@@ -501,7 +560,7 @@ export async function upsertModelPricing(row: ModelPricingRow): Promise<void> {
        cost_input   = excluded.cost_input,
        cost_output  = excluded.cost_output,
        updated_at   = datetime('now')`,
-    [row.model_key, row.context_size, row.cost_input, row.cost_output]
+    [row.model_key, row.context_size, row.cost_input, row.cost_output],
   );
 }
 
@@ -524,10 +583,19 @@ export interface ProjectFile {
 
 export async function listProjectFiles(projectId: string): Promise<ProjectFile[]> {
   if (!db) return [];
-  return db.select<ProjectFile[]>('SELECT * FROM project_files WHERE project_id = ? ORDER BY path ASC', [projectId]);
+  return db.select<ProjectFile[]>(
+    'SELECT * FROM project_files WHERE project_id = ? ORDER BY path ASC',
+    [projectId],
+  );
 }
 
-export async function saveProjectFile(file: { id: string; project_id: string; path: string; content: string; language?: string }): Promise<void> {
+export async function saveProjectFile(file: {
+  id: string;
+  project_id: string;
+  path: string;
+  content: string;
+  language?: string;
+}): Promise<void> {
   if (!db) return;
   await db.execute(
     `INSERT INTO project_files (id, project_id, path, content, language, updated_at)
@@ -538,7 +606,7 @@ export async function saveProjectFile(file: { id: string; project_id: string; pa
        content    = excluded.content,
        language   = excluded.language,
        updated_at = datetime('now')`,
-    [file.id, file.project_id, file.path, file.content, file.language ?? null]
+    [file.id, file.project_id, file.path, file.content, file.language ?? null],
   );
 }
 
@@ -572,15 +640,22 @@ export async function logCredentialActivity(entry: {
   await db.execute(
     `INSERT INTO credential_activity_log (account_name, action, tool_name, detail, session_key, was_allowed)
      VALUES (?, ?, ?, ?, ?, ?)`,
-    [entry.accountName ?? null, entry.action, entry.toolName ?? null, entry.detail ?? null,
-     entry.sessionKey ?? null, entry.wasAllowed !== false ? 1 : 0]
+    [
+      entry.accountName ?? null,
+      entry.action,
+      entry.toolName ?? null,
+      entry.detail ?? null,
+      entry.sessionKey ?? null,
+      entry.wasAllowed !== false ? 1 : 0,
+    ],
   );
 }
 
 export async function getCredentialActivityLog(limit = 50): Promise<CredentialLogEntry[]> {
   if (!db) return [];
   return db.select<CredentialLogEntry[]>(
-    'SELECT * FROM credential_activity_log ORDER BY id DESC LIMIT ?', [limit]
+    'SELECT * FROM credential_activity_log ORDER BY id DESC LIMIT ?',
+    [limit],
   );
 }
 // ── Security Audit Log ────────────────────────────────────────────────────
@@ -621,19 +696,24 @@ export async function logSecurityEvent(entry: {
       entry.sessionKey ?? null,
       entry.wasAllowed !== false ? 1 : 0,
       entry.matchedPattern ?? null,
-    ]
+    ],
   );
 }
 
-export async function getSecurityAuditLog(limit = 100, eventType?: string): Promise<SecurityAuditEntry[]> {
+export async function getSecurityAuditLog(
+  limit = 100,
+  eventType?: string,
+): Promise<SecurityAuditEntry[]> {
   if (!db) return [];
   if (eventType) {
     return db.select<SecurityAuditEntry[]>(
-      'SELECT * FROM security_audit_log WHERE event_type = ? ORDER BY id DESC LIMIT ?', [eventType, limit]
+      'SELECT * FROM security_audit_log WHERE event_type = ? ORDER BY id DESC LIMIT ?',
+      [eventType, limit],
     );
   }
   return db.select<SecurityAuditEntry[]>(
-    'SELECT * FROM security_audit_log ORDER BY id DESC LIMIT ?', [limit]
+    'SELECT * FROM security_audit_log ORDER BY id DESC LIMIT ?',
+    [limit],
   );
 }
 
@@ -652,17 +732,22 @@ export async function listSecurityRules(ruleType?: string): Promise<SecurityRule
   if (!db) return [];
   if (ruleType) {
     return db.select<SecurityRule[]>(
-      'SELECT * FROM security_rules WHERE rule_type = ? ORDER BY id ASC', [ruleType]
+      'SELECT * FROM security_rules WHERE rule_type = ? ORDER BY id ASC',
+      [ruleType],
     );
   }
   return db.select<SecurityRule[]>('SELECT * FROM security_rules ORDER BY rule_type, id ASC');
 }
 
-export async function addSecurityRule(rule: { ruleType: string; pattern: string; description?: string }): Promise<void> {
+export async function addSecurityRule(rule: {
+  ruleType: string;
+  pattern: string;
+  description?: string;
+}): Promise<void> {
   if (!db) return;
   await db.execute(
     `INSERT INTO security_rules (rule_type, pattern, description) VALUES (?, ?, ?)`,
-    [rule.ruleType, rule.pattern, rule.description ?? null]
+    [rule.ruleType, rule.pattern, rule.description ?? null],
   );
 }
 
@@ -685,7 +770,7 @@ export async function toggleSecurityRule(id: number, enabled: boolean): Promise<
 export async function loadSecuritySettingsFromDb(): Promise<Record<string, unknown> | null> {
   if (!db) return null;
   const rows = await db.select<{ settings_json: string }[]>(
-    'SELECT settings_json FROM security_settings WHERE id = 1'
+    'SELECT settings_json FROM security_settings WHERE id = 1',
   );
   if (rows.length === 0) return null;
   try {
@@ -703,7 +788,7 @@ export async function saveSecuritySettingsToDb(settingsJson: string): Promise<vo
   await db.execute(
     `INSERT INTO security_settings (id, settings_json) VALUES (1, ?)
      ON CONFLICT(id) DO UPDATE SET settings_json = excluded.settings_json`,
-    [settingsJson]
+    [settingsJson],
   );
 }
 

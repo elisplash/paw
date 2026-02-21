@@ -3,21 +3,29 @@
 import { saveMode, deleteMode } from '../../db';
 import { $, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
-import {
-  initMoleculesState, loadModels, loadModes, editMode, hideModeModal
-} from './molecules';
+import { initMoleculesState, loadModels, loadModes, editMode, hideModeModal } from './molecules';
 
 // ── State ──────────────────────────────────────────────────────────────────
-let _cachedModels: { id: string; name?: string; provider?: string; contextWindow?: number; reasoning?: boolean }[] = [];
+let _cachedModels: {
+  id: string;
+  name?: string;
+  provider?: string;
+  contextWindow?: number;
+  reasoning?: boolean;
+}[] = [];
 let _editingModeId: string | null = null;
 
 // ── State bridge ───────────────────────────────────────────────────────────
 const { setMoleculesState } = initMoleculesState();
 setMoleculesState({
   getCachedModels: () => _cachedModels,
-  setCachedModels: (m) => { _cachedModels = m; },
+  setCachedModels: (m) => {
+    _cachedModels = m;
+  },
   getEditingModeId: () => _editingModeId,
-  setEditingModeId: (id) => { _editingModeId = id; },
+  setEditingModeId: (id) => {
+    _editingModeId = id;
+  },
 });
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -27,12 +35,15 @@ export function getCachedModels() {
 
 // ── Event wiring ───────────────────────────────────────────────────────────
 export function initFoundryEvents() {
-  $('refresh-models-btn')?.addEventListener('click', () => { loadModels(); loadModes(); });
+  $('refresh-models-btn')?.addEventListener('click', () => {
+    loadModels();
+    loadModes();
+  });
 
   // Foundry tab switching (Models / Chat Modes)
-  document.querySelectorAll('.foundry-tab').forEach(tab => {
+  document.querySelectorAll('.foundry-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.foundry-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.foundry-tab').forEach((t) => t.classList.remove('active'));
       tab.classList.add('active');
       const target = tab.getAttribute('data-foundry-tab');
       const modelsPanel = $('foundry-models-panel');
@@ -55,8 +66,16 @@ export function initFoundryEvents() {
 
   $('mode-modal-save')?.addEventListener('click', async () => {
     const name = ($('mode-form-name') as HTMLInputElement).value.trim();
-    if (!name) { showToast('Name is required', 'error'); return; }
-    const id = _editingModeId ?? name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (!name) {
+      showToast('Name is required', 'error');
+      return;
+    }
+    const id =
+      _editingModeId ??
+      name
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
     await saveMode({
       id,
       name,
@@ -72,7 +91,7 @@ export function initFoundryEvents() {
   });
 
   $('mode-modal-delete')?.addEventListener('click', async () => {
-    if (!_editingModeId || !await confirmModal('Delete this mode?')) return;
+    if (!_editingModeId || !(await confirmModal('Delete this mode?'))) return;
     await deleteMode(_editingModeId);
     hideModeModal();
     loadModes();

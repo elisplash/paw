@@ -35,21 +35,37 @@ let promptModalFn: ((title: string, placeholder?: string) => Promise<string | nu
 function initMoleculesState() {
   setMoleculesState({
     getActiveProject: () => _activeProject,
-    setActiveProject: (p: ResearchProject | null) => { _activeProject = p; },
+    setActiveProject: (p: ResearchProject | null) => {
+      _activeProject = p;
+    },
     getFindings: () => _findings,
-    setFindings: (f: ResearchFinding[]) => { _findings = f; },
+    setFindings: (f: ResearchFinding[]) => {
+      _findings = f;
+    },
     getIsResearching: () => _isResearching,
-    setIsResearching: (v: boolean) => { _isResearching = v; },
+    setIsResearching: (v: boolean) => {
+      _isResearching = v;
+    },
     getResearchMode: () => _researchMode,
     getStreamContent: () => _streamContent,
-    setStreamContent: (s: string) => { _streamContent = s; },
+    setStreamContent: (s: string) => {
+      _streamContent = s;
+    },
     getStreamResolve: () => _streamResolve,
-    setStreamResolve: (fn: ((text: string) => void) | null) => { _streamResolve = fn; },
+    setStreamResolve: (fn: ((text: string) => void) | null) => {
+      _streamResolve = fn;
+    },
     getLiveSources: () => _liveSources,
-    pushLiveSource: (s: ResearchSource) => { _liveSources.push(s); },
+    pushLiveSource: (s: ResearchSource) => {
+      _liveSources.push(s);
+    },
     getLiveSteps: () => _liveSteps,
-    pushLiveStep: (s: string) => { _liveSteps.push(s); },
-    setRunId: (id: string | null) => { _runId = id; },
+    pushLiveStep: (s: string) => {
+      _liveSteps.push(s);
+    },
+    setRunId: (id: string | null) => {
+      _runId = id;
+    },
     resetLiveState: () => {
       _streamContent = '';
       _liveSources = [];
@@ -58,7 +74,9 @@ function initMoleculesState() {
     getPromptModal: () => promptModalFn,
     reloadProjects: () => loadProjects(),
   } as ReturnType<typeof setMoleculesState> extends void
-    ? Parameters<typeof setMoleculesState>[0] & { setActiveProject: (p: ResearchProject | null) => void }
+    ? Parameters<typeof setMoleculesState>[0] & {
+        setActiveProject: (p: ResearchProject | null) => void;
+      }
     : never);
 }
 
@@ -81,7 +99,7 @@ export function appendDelta(text: string) {
   const urlMatches = text.match(/https?:\/\/[^\s\])"']+/g);
   if (urlMatches) {
     for (const url of urlMatches) {
-      if (!_liveSources.some(s => s.url === url)) {
+      if (!_liveSources.some((s) => s.url === url)) {
         const source: ResearchSource = {
           url,
           title: extractDomain(url),

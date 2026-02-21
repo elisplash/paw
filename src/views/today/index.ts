@@ -1,12 +1,7 @@
 // Today View — Orchestration, state, exports
 
 import type { Task } from './atoms';
-import {
-  initMoleculesState,
-  fetchWeather,
-  fetchUnreadEmails,
-  renderToday,
-} from './molecules';
+import { initMoleculesState, fetchWeather, fetchUnreadEmails, renderToday } from './molecules';
 
 // ── State ─────────────────────────────────────────────────────────────
 
@@ -17,7 +12,9 @@ let _tasks: Task[] = [];
 const { setMoleculesState } = initMoleculesState();
 setMoleculesState({
   getTasks: () => _tasks,
-  setTasks: (t: Task[]) => { _tasks = t; },
+  setTasks: (t: Task[]) => {
+    _tasks = t;
+  },
   getRenderToday: () => renderToday,
 });
 
@@ -32,10 +29,7 @@ export async function loadToday() {
   loadTasks();
   renderToday();
 
-  await Promise.all([
-    fetchWeather(),
-    fetchUnreadEmails(),
-  ]);
+  await Promise.all([fetchWeather(), fetchUnreadEmails()]);
 }
 
 export function initToday() {

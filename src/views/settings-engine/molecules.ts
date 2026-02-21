@@ -96,7 +96,9 @@ export function initEngineSettings(): void {
       if (saveStatus) {
         saveStatus.textContent = 'Saved! ✓';
         saveStatus.style.color = 'var(--text-success, green)';
-        setTimeout(() => { if (saveStatus) saveStatus.textContent = ''; }, 3000);
+        setTimeout(() => {
+          if (saveStatus) saveStatus.textContent = '';
+        }, 3000);
       }
 
       // Refresh provider list and clear the form
@@ -125,18 +127,19 @@ async function renderProvidersList(): Promise<void> {
     const providers = config.providers ?? [];
 
     if (!providers.length) {
-      list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No providers configured yet. Add one above.</div>';
+      list.innerHTML =
+        '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">No providers configured yet. Add one above.</div>';
       return;
     }
 
-    list.innerHTML = `<label class="form-label" style="margin-top:12px">Configured Providers</label>${ 
-      providers.map(p => {
+    list.innerHTML = `<label class="form-label" style="margin-top:12px">Configured Providers</label>${providers
+      .map((p) => {
         const label = ID_LABELS[p.id] || KIND_LABELS[p.kind] || p.id;
         const isDefault = p.id === config.default_provider;
         return `<div class="engine-provider-row" style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:4px 0;background:var(--bg-secondary);border-radius:6px;font-size:13px">
           <span style="flex:1">
             <strong>${escHtml(label)}</strong>
-            <span style="color:var(--text-muted);margin-left:6px">${escHtml(p.default_model ?? '')}${p.base_url ? ` · ${  escHtml(p.base_url)}` : ''}</span>
+            <span style="color:var(--text-muted);margin-left:6px">${escHtml(p.default_model ?? '')}${p.base_url ? ` · ${escHtml(p.base_url)}` : ''}</span>
             ${isDefault ? '<span style="color:var(--accent);margin-left:6px">★ default</span>' : ''}
           </span>
           <span style="color:var(--text-muted)">${p.api_key ? '<span class="ms ms-sm">key</span>' : p.kind === 'ollama' ? '<span class="ms ms-sm">home</span>' : '<span class="ms ms-sm">warning</span>'}</span>
@@ -144,40 +147,45 @@ async function renderProvidersList(): Promise<void> {
           <button class="btn btn-ghost btn-sm engine-edit-provider" data-id="${escHtml(p.id)}" title="Edit" style="padding:2px 6px">✎</button>
           <button class="btn btn-ghost btn-sm engine-remove-provider" data-id="${escHtml(p.id)}" title="Remove" style="padding:2px 6px;color:var(--text-danger,red)">✕</button>
         </div>`;
-      }).join('')}`;
+      })
+      .join('')}`;
 
     // Wire remove buttons
-    list.querySelectorAll('.engine-remove-provider').forEach(btn => {
+    list.querySelectorAll('.engine-remove-provider').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = (btn as HTMLElement).dataset.id!;
-        if (!await confirmModal(`Remove provider "${id}"?`)) return;
+        if (!(await confirmModal(`Remove provider "${id}"?`))) return;
         try {
           await pawEngine.removeProvider(id);
           await renderProvidersList();
-        } catch (e) { showToast(`Failed: ${e}`, 'error'); }
+        } catch (e) {
+          showToast(`Failed: ${e}`, 'error');
+        }
       });
     });
 
     // Wire set-default buttons
-    list.querySelectorAll('.engine-set-default').forEach(btn => {
+    list.querySelectorAll('.engine-set-default').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = (btn as HTMLElement).dataset.id!;
         try {
           const cfg = await pawEngine.getConfig();
           cfg.default_provider = id;
-          const p = cfg.providers.find(pr => pr.id === id);
+          const p = cfg.providers.find((pr) => pr.id === id);
           if (p?.default_model) cfg.default_model = p.default_model;
           await pawEngine.setConfig(cfg);
           await renderProvidersList();
-        } catch (e) { showToast(`Failed: ${e}`, 'error'); }
+        } catch (e) {
+          showToast(`Failed: ${e}`, 'error');
+        }
       });
     });
 
     // Wire edit buttons
-    list.querySelectorAll('.engine-edit-provider').forEach(btn => {
+    list.querySelectorAll('.engine-edit-provider').forEach((btn) => {
       btn.addEventListener('click', () => {
         const id = (btn as HTMLElement).dataset.id!;
-        const p = providers.find(pr => pr.id === id);
+        const p = providers.find((pr) => pr.id === id);
         if (!p) return;
         const providerKind = $('engine-provider-kind') as HTMLSelectElement | null;
         const apiKeyInput = $('engine-api-key') as HTMLInputElement | null;
@@ -186,8 +194,9 @@ async function renderProvidersList(): Promise<void> {
         // Select the right option by value
         if (providerKind) {
           // Try to find option matching provider id, fallback to kind
-          const opt = Array.from(providerKind.options).find(o => o.value === p.id)
-            ?? Array.from(providerKind.options).find(o => o.value === p.kind);
+          const opt =
+            Array.from(providerKind.options).find((o) => o.value === p.id) ??
+            Array.from(providerKind.options).find((o) => o.value === p.kind);
           if (opt) providerKind.value = opt.value;
         }
         if (apiKeyInput) apiKeyInput.value = p.api_key;
@@ -218,8 +227,9 @@ async function loadEngineConfig(): Promise<void> {
       const apiKeyInput = $('engine-api-key') as HTMLInputElement | null;
       const baseUrlInput = $('engine-base-url') as HTMLInputElement | null;
       if (providerKind) {
-        const opt = Array.from(providerKind.options).find(o => o.value === p.id)
-          ?? Array.from(providerKind.options).find(o => o.value === p.kind);
+        const opt =
+          Array.from(providerKind.options).find((o) => o.value === p.id) ??
+          Array.from(providerKind.options).find((o) => o.value === p.kind);
         if (opt) providerKind.value = opt.value;
       }
       if (apiKeyInput) apiKeyInput.value = p.api_key;

@@ -16,7 +16,9 @@ let _state: MoleculesState;
 
 export function initMoleculesState() {
   return {
-    setMoleculesState(s: MoleculesState) { _state = s; },
+    setMoleculesState(s: MoleculesState) {
+      _state = s;
+    },
   };
 }
 
@@ -30,7 +32,8 @@ function buildFormConfig(): TtsConfig {
     language_code: ($('tts-language') as HTMLSelectElement)?.value || 'en-US',
     auto_speak: ($('tts-auto-speak') as HTMLInputElement)?.checked ?? false,
     elevenlabs_api_key: ($('tts-elevenlabs-key') as HTMLInputElement)?.value || '',
-    elevenlabs_model: ($('tts-elevenlabs-model') as HTMLSelectElement)?.value || 'eleven_multilingual_v2',
+    elevenlabs_model:
+      ($('tts-elevenlabs-model') as HTMLSelectElement)?.value || 'eleven_multilingual_v2',
     stability: parseFloat(($('tts-stability') as HTMLInputElement)?.value || '0.5'),
     similarity_boost: parseFloat(($('tts-similarity') as HTMLInputElement)?.value || '0.75'),
   };
@@ -89,7 +92,7 @@ export function renderVoiceForm(container: HTMLElement) {
       <div class="form-group" id="tts-language-group" style="${isGoogle ? '' : 'display:none'}">
         <label class="form-label">Language</label>
         <select class="form-input" id="tts-language">
-          ${LANGUAGES.map(l => `<option value="${l.code}" ${config.language_code === l.code ? 'selected' : ''}>${l.label}</option>`).join('')}
+          ${LANGUAGES.map((l) => `<option value="${l.code}" ${config.language_code === l.code ? 'selected' : ''}>${l.label}</option>`).join('')}
         </select>
       </div>
 
@@ -97,7 +100,7 @@ export function renderVoiceForm(container: HTMLElement) {
       <div class="form-group">
         <label class="form-label">Voice</label>
         <select class="form-input" id="tts-voice">
-          ${voices.map(v => `<option value="${v.id}" ${config.voice === v.id ? 'selected' : ''}>${v.label} (${v.gender})</option>`).join('')}
+          ${voices.map((v) => `<option value="${v.id}" ${config.voice === v.id ? 'selected' : ''}>${v.label} (${v.gender})</option>`).join('')}
         </select>
       </div>
 
@@ -155,9 +158,9 @@ function bindFormEvents() {
     if (!voiceSelect) return;
 
     const voices = voicesForProvider(provider);
-    voiceSelect.innerHTML = voices.map(v =>
-      `<option value="${v.id}">${v.label} (${v.gender})</option>`
-    ).join('');
+    voiceSelect.innerHTML = voices
+      .map((v) => `<option value="${v.id}">${v.label} (${v.gender})</option>`)
+      .join('');
 
     if (langGroup) langGroup.style.display = provider === 'google' ? '' : 'none';
     if (elGroup) elGroup.style.display = provider === 'elevenlabs' ? '' : 'none';
@@ -189,7 +192,7 @@ function bindFormEvents() {
       await pawEngine.ttsSetConfig(config);
       showToast('Voice settings saved', 'success');
     } catch (e) {
-      showToast(`Failed to save: ${  e instanceof Error ? e.message : e}`, 'error');
+      showToast(`Failed to save: ${e instanceof Error ? e.message : e}`, 'error');
     }
   });
 
@@ -202,8 +205,10 @@ function bindFormEvents() {
       const config = buildFormConfig();
       _state.setConfig(config);
       await pawEngine.ttsSetConfig(config);
-      const base64Audio = await pawEngine.ttsSpeak('Hello! I am your Pawz assistant. This is a test of the text to speech system.');
-      const audioBytes = Uint8Array.from(atob(base64Audio), c => c.charCodeAt(0));
+      const base64Audio = await pawEngine.ttsSpeak(
+        'Hello! I am your Pawz assistant. This is a test of the text to speech system.',
+      );
+      const audioBytes = Uint8Array.from(atob(base64Audio), (c) => c.charCodeAt(0));
       const blob = new Blob([audioBytes], { type: 'audio/mp3' });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
@@ -211,7 +216,7 @@ function bindFormEvents() {
       audio.play();
       btn.innerHTML = `<span class="ms">volume_up</span> Test Voice`;
     } catch (e) {
-      showToast(`TTS test failed: ${  e instanceof Error ? e.message : e}`, 'error');
+      showToast(`TTS test failed: ${e instanceof Error ? e.message : e}`, 'error');
       btn.innerHTML = `<span class="ms">volume_up</span> Test Voice`;
     } finally {
       btn.disabled = false;
@@ -243,7 +248,7 @@ async function startTalkMode() {
 
   try {
     _audioStream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 }
+      audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 16000 },
     });
 
     _talkModeActive = true;
@@ -265,7 +270,7 @@ function stopTalkMode() {
   }
   _mediaRecorder = null;
   if (_audioStream) {
-    _audioStream.getTracks().forEach(t => t.stop());
+    _audioStream.getTracks().forEach((t) => t.stop());
     _audioStream = null;
   }
   if (_talkAudio) {
@@ -301,7 +306,10 @@ function startRecordingCycle() {
 
   _mediaRecorder.onstop = async () => {
     if (!_talkModeActive) return;
-    if (chunks.length === 0) { startRecordingCycle(); return; }
+    if (chunks.length === 0) {
+      startRecordingCycle();
+      return;
+    }
 
     const blob = new Blob(chunks, { type: mimeType });
 
@@ -323,7 +331,8 @@ function startRecordingCycle() {
         return;
       }
 
-      if (status) status.textContent = `You: "${transcript.substring(0, 60)}${transcript.length > 60 ? '...' : ''}"`;
+      if (status)
+        status.textContent = `You: "${transcript.substring(0, 60)}${transcript.length > 60 ? '...' : ''}"`;
 
       const { engineChatSend } = await import('../../engine/molecules/bridge');
       const { appState } = await import('../../state/index');
@@ -332,15 +341,16 @@ function startRecordingCycle() {
 
       if (!_talkModeActive) return;
 
-      const responseText = typeof response === 'string'
-        ? response
-        : (response as Record<string, unknown>)?.content as string || '';
+      const responseText =
+        typeof response === 'string'
+          ? response
+          : ((response as Record<string, unknown>)?.content as string) || '';
 
       if (responseText && _talkModeActive) {
         if (status) status.textContent = 'Speaking...';
         try {
           const audioB64 = await pawEngine.ttsSpeak(responseText);
-          const audioBytes = Uint8Array.from(atob(audioB64), c => c.charCodeAt(0));
+          const audioBytes = Uint8Array.from(atob(audioB64), (c) => c.charCodeAt(0));
           const audioBlob = new Blob([audioBytes], { type: 'audio/mp3' });
           const url = URL.createObjectURL(audioBlob);
           _talkAudio = new Audio(url);

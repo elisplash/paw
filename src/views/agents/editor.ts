@@ -10,12 +10,7 @@ import {
 } from '../../features/agent-policies';
 import { escHtml, escAttr, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
-import {
-  type Agent,
-  TOOL_GROUPS,
-  SPRITE_AVATARS,
-  spriteAvatar,
-} from './atoms';
+import { type Agent, TOOL_GROUPS, SPRITE_AVATARS, spriteAvatar } from './atoms';
 import { type EditorCallbacks } from './creator';
 
 // Re-export so index.ts can import both from one place
@@ -57,7 +52,7 @@ function buildEditorHtml(agent: Agent, availableModels: { id: string; name: stri
           <div class="form-group">
             <label class="form-label">Model</label>
             <select class="form-input" id="agent-edit-model">
-              ${availableModels.map(m => `<option value="${m.id}" ${agent.model === m.id ? 'selected' : ''}>${m.name}</option>`).join('')}
+              ${availableModels.map((m) => `<option value="${m.id}" ${agent.model === m.id ? 'selected' : ''}>${m.name}</option>`).join('')}
             </select>
             <div class="form-hint">Which AI model this agent uses</div>
           </div>
@@ -65,8 +60,9 @@ function buildEditorHtml(agent: Agent, availableModels: { id: string; name: stri
           <div class="form-group">
             <label class="form-label">Avatar</label>
             <div class="agent-avatar-picker">
-              ${SPRITE_AVATARS.map(s =>
-                `<button class="agent-avatar-option ${agent.avatar === s ? 'selected' : ''}" data-avatar="${s}">${spriteAvatar(s, 36)}</button>`
+              ${SPRITE_AVATARS.map(
+                (s) =>
+                  `<button class="agent-avatar-option ${agent.avatar === s ? 'selected' : ''}" data-avatar="${s}">${spriteAvatar(s, 36)}</button>`,
               ).join('')}
             </div>
           </div>
@@ -107,13 +103,17 @@ function buildEditorHtml(agent: Agent, availableModels: { id: string; name: stri
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <div class="form-hint" style="margin:0">Control which tools this agent can use</div>
             <div style="display:flex;gap:6px">
-              ${Object.entries(POLICY_PRESETS).map(([key, preset]) =>
-                `<button class="btn btn-ghost btn-xs agent-tool-preset" data-preset="${key}" title="${preset.description}">${preset.label}</button>`
-              ).join('')}
+              ${Object.entries(POLICY_PRESETS)
+                .map(
+                  ([key, preset]) =>
+                    `<button class="btn btn-ghost btn-xs agent-tool-preset" data-preset="${key}" title="${preset.description}">${preset.label}</button>`,
+                )
+                .join('')}
             </div>
           </div>
           <div id="agent-tool-groups">
-            ${TOOL_GROUPS.map(group => `
+            ${TOOL_GROUPS.map(
+              (group) => `
               <div class="agent-tool-group">
                 <div class="agent-tool-group-header">
                   <label class="agent-tool-group-toggle">
@@ -124,7 +124,9 @@ function buildEditorHtml(agent: Agent, availableModels: { id: string; name: stri
                   </label>
                 </div>
                 <div class="agent-tool-group-items">
-                  ${group.tools.map(t => `
+                  ${group.tools
+                    .map(
+                      (t) => `
                     <label class="agent-skill-toggle agent-tool-item">
                       <input type="checkbox" data-tool="${t.id}">
                       <div class="agent-skill-info">
@@ -132,10 +134,13 @@ function buildEditorHtml(agent: Agent, availableModels: { id: string; name: stri
                         <div class="agent-skill-desc">${t.desc}</div>
                       </div>
                     </label>
-                  `).join('')}
+                  `,
+                    )
+                    .join('')}
                 </div>
               </div>
-            `).join('')}
+            `,
+            ).join('')}
           </div>
 
           <div id="agent-community-skills-section" style="margin-top:24px">
@@ -160,21 +165,29 @@ function buildEditorHtml(agent: Agent, availableModels: { id: string; name: stri
           <div class="form-group">
             <label class="form-label">Boundaries & Rules</label>
             <div class="agent-boundaries" id="agent-boundaries">
-              ${agent.boundaries.map((b, i) => `
+              ${agent.boundaries
+                .map(
+                  (b, i) => `
                 <div class="agent-boundary-row">
                   <input type="text" class="form-input agent-boundary-input" value="${escAttr(b)}" data-index="${i}">
                   <button class="btn-icon agent-boundary-remove" data-index="${i}">×</button>
                 </div>
-              `).join('')}
+              `,
+                )
+                .join('')}
             </div>
             <button class="btn btn-ghost btn-sm" id="agent-add-boundary">+ Add rule</button>
           </div>
           
-          ${agent.id !== 'default' ? `
+          ${
+            agent.id !== 'default'
+              ? `
           <div class="agent-danger-zone">
             <button class="btn btn-ghost agent-delete-btn" style="color:var(--error)">Delete Agent</button>
           </div>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
       </div>
       <div class="agent-modal-footer">
@@ -189,12 +202,10 @@ function buildEditorHtml(agent: Agent, availableModels: { id: string; name: stri
 function wireToolPolicyUI(modal: HTMLElement, allToolIds: string[], agentId: string): void {
   const currentPolicy = getAgentPolicy(agentId);
   const isUnrestricted = currentPolicy.mode === 'unrestricted';
-  const allowedSet = new Set<string>(
-    isUnrestricted ? allToolIds : currentPolicy.allowed
-  );
+  const allowedSet = new Set<string>(isUnrestricted ? allToolIds : currentPolicy.allowed);
 
   function applyToolChecks(allowed: Set<string>) {
-    modal.querySelectorAll<HTMLInputElement>('[data-tool]').forEach(cb => {
+    modal.querySelectorAll<HTMLInputElement>('[data-tool]').forEach((cb) => {
       cb.checked = allowed.has(cb.getAttribute('data-tool')!);
     });
     updateGroupChecks();
@@ -203,9 +214,10 @@ function wireToolPolicyUI(modal: HTMLElement, allToolIds: string[], agentId: str
   function updateGroupChecks() {
     for (const group of TOOL_GROUPS) {
       const items = modal.querySelectorAll<HTMLInputElement>(`[data-tool]`);
-      const groupToolIds = new Set(group.tools.map(t => t.id));
-      let checked = 0, total = 0;
-      items.forEach(cb => {
+      const groupToolIds = new Set(group.tools.map((t) => t.id));
+      let checked = 0,
+        total = 0;
+      items.forEach((cb) => {
         const tid = cb.getAttribute('data-tool')!;
         if (groupToolIds.has(tid)) {
           total++;
@@ -224,13 +236,13 @@ function wireToolPolicyUI(modal: HTMLElement, allToolIds: string[], agentId: str
 
   applyToolChecks(allowedSet);
 
-  modal.querySelectorAll<HTMLInputElement>('.agent-tool-group-check').forEach(groupCb => {
+  modal.querySelectorAll<HTMLInputElement>('.agent-tool-group-check').forEach((groupCb) => {
     groupCb.addEventListener('change', () => {
       const groupLabel = groupCb.getAttribute('data-group')!;
-      const group = TOOL_GROUPS.find(g => g.label === groupLabel);
+      const group = TOOL_GROUPS.find((g) => g.label === groupLabel);
       if (!group) return;
       const checked = groupCb.checked;
-      group.tools.forEach(t => {
+      group.tools.forEach((t) => {
         const cb = modal.querySelector<HTMLInputElement>(`[data-tool="${t.id}"]`);
         if (cb) cb.checked = checked;
       });
@@ -238,11 +250,11 @@ function wireToolPolicyUI(modal: HTMLElement, allToolIds: string[], agentId: str
     });
   });
 
-  modal.querySelectorAll<HTMLInputElement>('[data-tool]').forEach(cb => {
+  modal.querySelectorAll<HTMLInputElement>('[data-tool]').forEach((cb) => {
     cb.addEventListener('change', () => updateGroupChecks());
   });
 
-  modal.querySelectorAll<HTMLButtonElement>('.agent-tool-preset').forEach(btn => {
+  modal.querySelectorAll<HTMLButtonElement>('.agent-tool-preset').forEach((btn) => {
     btn.addEventListener('click', () => {
       const presetKey = btn.getAttribute('data-preset')!;
       const preset = POLICY_PRESETS[presetKey];
@@ -253,9 +265,9 @@ function wireToolPolicyUI(modal: HTMLElement, allToolIds: string[], agentId: str
         applyToolChecks(new Set(preset.policy.allowed));
       } else if (preset.policy.mode === 'denylist') {
         const denied = new Set(preset.policy.denied);
-        applyToolChecks(new Set(allToolIds.filter(t => !denied.has(t))));
+        applyToolChecks(new Set(allToolIds.filter((t) => !denied.has(t))));
       }
-      modal.querySelectorAll('.agent-tool-preset').forEach(b => b.classList.remove('active'));
+      modal.querySelectorAll('.agent-tool-preset').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
     });
   });
@@ -263,26 +275,44 @@ function wireToolPolicyUI(modal: HTMLElement, allToolIds: string[], agentId: str
 
 /** Collect form values and persist agent edits + tool policy */
 function saveAgentEdits(
-  modal: HTMLElement, agent: Agent,
-  personality: Agent['personality'], boundaries: string[],
-  selectedAvatar: string, allToolIds: string[],
-  cbs: EditorCallbacks, close: () => void,
+  modal: HTMLElement,
+  agent: Agent,
+  personality: Agent['personality'],
+  boundaries: string[],
+  selectedAvatar: string,
+  allToolIds: string[],
+  cbs: EditorCallbacks,
+  close: () => void,
 ): void {
   const name = (modal.querySelector('#agent-edit-name') as HTMLInputElement)?.value.trim();
   const bio = (modal.querySelector('#agent-edit-bio') as HTMLInputElement)?.value.trim();
   const model = (modal.querySelector('#agent-edit-model') as HTMLSelectElement)?.value;
-  const systemPrompt = (modal.querySelector('#agent-edit-prompt') as HTMLTextAreaElement)?.value.trim();
+  const systemPrompt = (
+    modal.querySelector('#agent-edit-prompt') as HTMLTextAreaElement
+  )?.value.trim();
 
   const selectedTools: string[] = [];
-  modal.querySelectorAll<HTMLInputElement>('[data-tool]:checked').forEach(cb => {
+  modal.querySelectorAll<HTMLInputElement>('[data-tool]:checked').forEach((cb) => {
     const toolId = cb.getAttribute('data-tool');
     if (toolId) selectedTools.push(toolId);
   });
 
   const isAllSelected = selectedTools.length >= allToolIds.length;
   const newPolicy: ToolPolicy = isAllSelected
-    ? { mode: 'unrestricted', allowed: [], denied: [], requireApprovalForUnlisted: false, alwaysRequireApproval: [] }
-    : { mode: 'allowlist', allowed: selectedTools, denied: [], requireApprovalForUnlisted: false, alwaysRequireApproval: [] };
+    ? {
+        mode: 'unrestricted',
+        allowed: [],
+        denied: [],
+        requireApprovalForUnlisted: false,
+        alwaysRequireApproval: [],
+      }
+    : {
+        mode: 'allowlist',
+        allowed: selectedTools,
+        denied: [],
+        requireApprovalForUnlisted: false,
+        alwaysRequireApproval: [],
+      };
 
   if (!name) {
     showToast('Name is required', 'error');
@@ -295,20 +325,22 @@ function saveAgentEdits(
   agent.model = model || 'default';
   agent.personality = personality;
   agent.skills = selectedTools;
-  agent.boundaries = boundaries.filter(b => b.trim());
+  agent.boundaries = boundaries.filter((b) => b.trim());
   agent.systemPrompt = systemPrompt;
 
   setAgentPolicy(agent.id, newPolicy);
   cbs.onUpdated();
 
-  pawEngine.createAgent({
-    agent_id: agent.id,
-    role: agent.bio || 'assistant',
-    specialty: agent.template === 'general' ? 'general' : agent.template,
-    model: agent.model !== 'default' ? agent.model : undefined,
-    system_prompt: agent.systemPrompt,
-    capabilities: isAllSelected ? [] : selectedTools,
-  }).catch(e => console.warn('[agents] Backend update failed:', e));
+  pawEngine
+    .createAgent({
+      agent_id: agent.id,
+      role: agent.bio || 'assistant',
+      specialty: agent.template === 'general' ? 'general' : agent.template,
+      model: agent.model !== 'default' ? agent.model : undefined,
+      system_prompt: agent.systemPrompt,
+      capabilities: isAllSelected ? [] : selectedTools,
+    })
+    .catch((e) => console.warn('[agents] Backend update failed:', e));
 
   close();
   showToast('Changes saved', 'success');
@@ -319,21 +351,25 @@ function wireEditorBoundaries(modal: HTMLElement, boundaries: string[]): void {
   const renderBoundaries = () => {
     const container = modal.querySelector('#agent-boundaries');
     if (!container) return;
-    container.innerHTML = boundaries.map((b, i) => `
+    container.innerHTML = boundaries
+      .map(
+        (b, i) => `
       <div class="agent-boundary-row">
         <input type="text" class="form-input agent-boundary-input" value="${escAttr(b)}" data-index="${i}">
         <button class="btn-icon agent-boundary-remove" data-index="${i}">×</button>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
 
-    container.querySelectorAll('.agent-boundary-input').forEach(input => {
+    container.querySelectorAll('.agent-boundary-input').forEach((input) => {
       input.addEventListener('change', (e) => {
         const idx = parseInt((e.target as HTMLInputElement).getAttribute('data-index') || '0');
         boundaries[idx] = (e.target as HTMLInputElement).value;
       });
     });
 
-    container.querySelectorAll('.agent-boundary-remove').forEach(btn => {
+    container.querySelectorAll('.agent-boundary-remove').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         const idx = parseInt((e.target as HTMLElement).getAttribute('data-index') || '0');
         boundaries.splice(idx, 1);
@@ -352,11 +388,11 @@ function wireEditorBoundaries(modal: HTMLElement, boundaries: string[]): void {
 
 export function openAgentEditor(agentId: string, cbs: EditorCallbacks) {
   const agents = cbs.getAgents();
-  const agent = agents.find(a => a.id === agentId);
+  const agent = agents.find((a) => a.id === agentId);
   if (!agent) return;
 
   const availableModels = cbs.getAvailableModels();
-  const allToolIds = TOOL_GROUPS.flatMap(g => g.tools.map(t => t.id));
+  const allToolIds = TOOL_GROUPS.flatMap((g) => g.tools.map((t) => t.id));
 
   const modal = document.createElement('div');
   modal.className = 'agent-modal';
@@ -373,10 +409,10 @@ export function openAgentEditor(agentId: string, cbs: EditorCallbacks) {
   wireToolPolicyUI(modal, allToolIds, agent.id);
 
   // Tab switching
-  modal.querySelectorAll('.agent-tab').forEach(tab => {
+  modal.querySelectorAll('.agent-tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-      modal.querySelectorAll('.agent-tab').forEach(t => t.classList.remove('active'));
-      modal.querySelectorAll('.agent-tab-content').forEach(c => c.classList.remove('active'));
+      modal.querySelectorAll('.agent-tab').forEach((t) => t.classList.remove('active'));
+      modal.querySelectorAll('.agent-tab-content').forEach((c) => c.classList.remove('active'));
       tab.classList.add('active');
       const tabId = tab.getAttribute('data-tab');
       modal.querySelector(`#tab-${tabId}`)?.classList.add('active');
@@ -384,19 +420,21 @@ export function openAgentEditor(agentId: string, cbs: EditorCallbacks) {
   });
 
   // Avatar selection
-  modal.querySelectorAll('.agent-avatar-option').forEach(btn => {
+  modal.querySelectorAll('.agent-avatar-option').forEach((btn) => {
     btn.addEventListener('click', () => {
-      modal.querySelectorAll('.agent-avatar-option').forEach(b => b.classList.remove('selected'));
+      modal.querySelectorAll('.agent-avatar-option').forEach((b) => b.classList.remove('selected'));
       btn.classList.add('selected');
       selectedAvatar = btn.getAttribute('data-avatar') || SPRITE_AVATARS[0];
     });
   });
 
   // Personality selection
-  modal.querySelectorAll('.agent-personality-options').forEach(group => {
-    group.querySelectorAll('.agent-personality-btn').forEach(btn => {
+  modal.querySelectorAll('.agent-personality-options').forEach((group) => {
+    group.querySelectorAll('.agent-personality-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        group.querySelectorAll('.agent-personality-btn').forEach(b => b.classList.remove('selected'));
+        group
+          .querySelectorAll('.agent-personality-btn')
+          .forEach((b) => b.classList.remove('selected'));
         btn.classList.add('selected');
         const key = group.getAttribute('data-key') as keyof typeof personality;
         const value = btn.getAttribute('data-value');
@@ -413,7 +451,9 @@ export function openAgentEditor(agentId: string, cbs: EditorCallbacks) {
     if (await confirmModal(`Delete ${agent.name}? This cannot be undone.`)) {
       cbs.onDeleted(agentId);
       // Also remove from backend SQLite
-      pawEngine.deleteAgent(agentId).catch(e => console.warn('[agents] Backend delete failed:', e));
+      pawEngine
+        .deleteAgent(agentId)
+        .catch((e) => console.warn('[agents] Backend delete failed:', e));
       modal.remove();
       showToast(`${agent.name} deleted`, 'success');
     }
@@ -422,7 +462,9 @@ export function openAgentEditor(agentId: string, cbs: EditorCallbacks) {
   const close = () => modal.remove();
   modal.querySelector('.agent-modal-close')?.addEventListener('click', close);
   modal.querySelector('.agent-modal-cancel')?.addEventListener('click', close);
-  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) close();
+  });
 
   modal.querySelector('#agent-edit-save')?.addEventListener('click', () => {
     saveAgentEdits(modal, agent, personality, boundaries, selectedAvatar, allToolIds, cbs, close);
@@ -431,7 +473,11 @@ export function openAgentEditor(agentId: string, cbs: EditorCallbacks) {
 
 // ── Community Skills per-agent management ────────────────────────────────
 
-async function loadAgentCommunitySkills(modal: HTMLElement, agentId: string, agents: Agent[]): Promise<void> {
+async function loadAgentCommunitySkills(
+  modal: HTMLElement,
+  agentId: string,
+  agents: Agent[],
+): Promise<void> {
   const grid = modal.querySelector('#agent-community-skills-grid');
   if (!grid) return;
 
@@ -443,10 +489,12 @@ async function loadAgentCommunitySkills(modal: HTMLElement, agentId: string, age
       return;
     }
 
-    grid.innerHTML = allSkills.map(s => {
-      // Skill is assigned to this agent if agent_ids is empty (all agents) or includes this agent
-      const isAssigned = !s.agent_ids || s.agent_ids.length === 0 || s.agent_ids.includes(agentId);
-      return `
+    grid.innerHTML = allSkills
+      .map((s) => {
+        // Skill is assigned to this agent if agent_ids is empty (all agents) or includes this agent
+        const isAssigned =
+          !s.agent_ids || s.agent_ids.length === 0 || s.agent_ids.includes(agentId);
+        return `
         <label class="agent-skill-toggle">
           <input type="checkbox" class="agent-community-toggle" data-community-skill="${escHtml(s.id)}" ${isAssigned ? 'checked' : ''}>
           <div class="agent-skill-info">
@@ -457,14 +505,15 @@ async function loadAgentCommunitySkills(modal: HTMLElement, agentId: string, age
             <div class="agent-skill-desc">${escHtml(s.description)}</div>
           </div>
         </label>`;
-    }).join('');
+      })
+      .join('');
 
     // Bind toggle events
-    grid.querySelectorAll('.agent-community-toggle').forEach(el => {
+    grid.querySelectorAll('.agent-community-toggle').forEach((el) => {
       el.addEventListener('change', async (e) => {
         const input = e.target as HTMLInputElement;
         const skillId = input.dataset.communitySkill!;
-        const skill = allSkills.find(sk => sk.id === skillId);
+        const skill = allSkills.find((sk) => sk.id === skillId);
         if (!skill) return;
 
         try {
@@ -482,10 +531,10 @@ async function loadAgentCommunitySkills(modal: HTMLElement, agentId: string, age
             // Removing this agent
             if (currentIds.length === 0) {
               // Was "all agents" — switch to explicit list of all EXCEPT this one
-              const allAgentIds = agents.map(a => a.id);
-              newIds = allAgentIds.filter(id => id !== agentId);
+              const allAgentIds = agents.map((a) => a.id);
+              newIds = allAgentIds.filter((id) => id !== agentId);
             } else {
-              newIds = currentIds.filter(id => id !== agentId);
+              newIds = currentIds.filter((id) => id !== agentId);
             }
           }
 

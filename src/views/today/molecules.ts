@@ -28,7 +28,9 @@ let _state: MoleculesState;
 
 export function initMoleculesState() {
   return {
-    setMoleculesState(s: MoleculesState) { _state = s; },
+    setMoleculesState(s: MoleculesState) {
+      _state = s;
+    },
   };
 }
 
@@ -67,7 +69,9 @@ export async function fetchWeather() {
     const icon = getWeatherIcon(code);
 
     const area = data.nearest_area?.[0];
-    const location = area ? `${area.areaName?.[0]?.value ?? ''}${area.country?.[0]?.value ? `, ${  area.country[0].value}` : ''}` : '';
+    const location = area
+      ? `${area.areaName?.[0]?.value ?? ''}${area.country?.[0]?.value ? `, ${area.country[0].value}` : ''}`
+      : '';
 
     weatherEl.innerHTML = `
       <div class="today-weather-main">
@@ -111,18 +115,24 @@ export async function fetchUnreadEmails() {
       try {
         const toml = await invoke<string>('read_himalaya_config');
         if (toml) {
-          const accountBlocks = toml.matchAll(/\[accounts\.([^\]]+)\][\s\S]*?email\s*=\s*"([^"]+)"/g);
+          const accountBlocks = toml.matchAll(
+            /\[accounts\.([^\]]+)\][\s\S]*?email\s*=\s*"([^"]+)"/g,
+          );
           for (const match of accountBlocks) {
             accounts.push({ name: match[1], email: match[2] });
           }
         }
-      } catch { /* no config yet */ }
+      } catch {
+        /* no config yet */
+      }
     }
     if (accounts.length === 0) {
       try {
         const raw = localStorage.getItem('mail-accounts-fallback');
         if (raw) accounts = JSON.parse(raw);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     if (accounts.length === 0) {
@@ -151,28 +161,37 @@ export async function fetchUnreadEmails() {
     }
 
     let envelopes: EmailEnvelope[] = [];
-    try { envelopes = JSON.parse(jsonResult); } catch { /* ignore */ }
+    try {
+      envelopes = JSON.parse(jsonResult);
+    } catch {
+      /* ignore */
+    }
 
-    const unread = envelopes.filter(e => !e.flags?.includes('Seen'));
+    const unread = envelopes.filter((e) => !e.flags?.includes('Seen'));
 
     if (unread.length === 0) {
       emailsEl.innerHTML = `<div class="today-section-empty"><span class="ms ms-sm">mark_email_read</span> No unread emails — you're all caught up!</div>`;
       return;
     }
 
-    emailsEl.innerHTML = unread.slice(0, 8).map(email => {
-      const from = email.from?.name || email.from?.addr || 'Unknown';
-      const subject = email.subject || '(No subject)';
-      const date = email.date ? new Date(email.date) : null;
-      const timeStr = date ? date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
-      return `
+    emailsEl.innerHTML = unread
+      .slice(0, 8)
+      .map((email) => {
+        const from = email.from?.name || email.from?.addr || 'Unknown';
+        const subject = email.subject || '(No subject)';
+        const date = email.date ? new Date(email.date) : null;
+        const timeStr = date
+          ? date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+          : '';
+        return `
         <div class="today-email-item">
           <div class="today-email-from">${escHtml(from)}</div>
           <div class="today-email-subject">${escHtml(subject)}</div>
           ${timeStr ? `<div class="today-email-time">${timeStr}</div>` : ''}
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     if (unread.length > 8) {
       emailsEl.innerHTML += `<div class="today-email-more">+${unread.length - 8} more unread</div>`;
@@ -191,12 +210,16 @@ export function renderToday() {
 
   const tasks = _state.getTasks();
   const now = new Date();
-  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const dateStr = now.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
   const greeting = getGreeting();
   const userName = localStorage.getItem('paw-user-name') || '';
 
-  const pendingTasks = tasks.filter(t => !t.done);
-  const completedToday = tasks.filter(t => t.done && isToday(t.createdAt));
+  const pendingTasks = tasks.filter((t) => !t.done);
+  const completedToday = tasks.filter((t) => t.done && isToday(t.createdAt));
 
   const mainAgent = getCurrentAgent();
   const agentName = mainAgent?.name ?? 'Agent';
@@ -245,19 +268,31 @@ export function renderToday() {
           </div>
           <div class="today-card-body">
             <div class="today-tasks" id="today-tasks">
-              ${pendingTasks.length === 0 ? `
+              ${
+                pendingTasks.length === 0
+                  ? `
                 <div class="today-section-empty">No tasks yet. Add one to get started!</div>
-              ` : pendingTasks.map(task => `
+              `
+                  : pendingTasks
+                      .map(
+                        (task) => `
                 <div class="today-task" data-id="${task.id}">
                   <input type="checkbox" class="today-task-check" ${task.done ? 'checked' : ''}>
                   <span class="today-task-text">${escHtml(task.text)}</span>
                   <button class="today-task-delete" title="Delete">×</button>
                 </div>
-              `).join('')}
+              `,
+                      )
+                      .join('')
+              }
             </div>
-            ${completedToday.length > 0 ? `
+            ${
+              completedToday.length > 0
+                ? `
               <div class="today-completed-label">${completedToday.length} completed today</div>
-            ` : ''}
+            `
+                : ''
+            }
           </div>
         </div>
         
@@ -302,11 +337,13 @@ export function renderToday() {
 // ── Events ────────────────────────────────────────────────────────────
 
 function bindEvents() {
-  $('today-content')?.querySelector('.today-add-task-btn')?.addEventListener('click', () => {
-    openAddTaskModal();
-  });
+  $('today-content')
+    ?.querySelector('.today-add-task-btn')
+    ?.addEventListener('click', () => {
+      openAddTaskModal();
+    });
 
-  document.querySelectorAll('.today-task-check').forEach(checkbox => {
+  document.querySelectorAll('.today-task-check').forEach((checkbox) => {
     checkbox.addEventListener('change', (e) => {
       const taskEl = (e.target as HTMLElement).closest('.today-task');
       const taskId = taskEl?.getAttribute('data-id');
@@ -314,7 +351,7 @@ function bindEvents() {
     });
   });
 
-  document.querySelectorAll('.today-task-delete').forEach(btn => {
+  document.querySelectorAll('.today-task-delete').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       const taskEl = (e.target as HTMLElement).closest('.today-task');
       const taskId = taskEl?.getAttribute('data-id');
@@ -364,8 +401,12 @@ function openAddTaskModal() {
   modal.querySelector('.today-modal-close')?.addEventListener('click', close);
   modal.querySelector('.today-modal-cancel')?.addEventListener('click', close);
   modal.querySelector('#task-submit')?.addEventListener('click', submit);
-  input?.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
-  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submit();
+  });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) close();
+  });
 }
 
 // ── Task CRUD ─────────────────────────────────────────────────────────
@@ -387,7 +428,7 @@ function addTask(text: string) {
 
 function toggleTask(taskId: string) {
   const tasks = _state.getTasks();
-  const task = tasks.find(t => t.id === taskId);
+  const task = tasks.find((t) => t.id === taskId);
   if (task) {
     task.done = !task.done;
     _state.setTasks(tasks);
@@ -397,7 +438,7 @@ function toggleTask(taskId: string) {
 }
 
 function deleteTask(taskId: string) {
-  const tasks = _state.getTasks().filter(t => t.id !== taskId);
+  const tasks = _state.getTasks().filter((t) => t.id !== taskId);
   _state.setTasks(tasks);
   saveTasks();
   renderToday();
@@ -413,7 +454,10 @@ async function triggerBriefing() {
   showToast('Starting morning briefing...');
   switchView('chat');
   try {
-    await pawEngine.chatSend('main', 'Give me a morning briefing: weather, any calendar events today, and summarize my unread emails.');
+    await pawEngine.chatSend(
+      'main',
+      'Give me a morning briefing: weather, any calendar events today, and summarize my unread emails.',
+    );
   } catch {
     showToast('Failed to start briefing', 'error');
   }
@@ -423,7 +467,10 @@ async function triggerInboxSummary() {
   showToast('Summarizing inbox...');
   switchView('chat');
   try {
-    await pawEngine.chatSend('main', 'Check my email inbox and summarize the important unread messages.');
+    await pawEngine.chatSend(
+      'main',
+      'Check my email inbox and summarize the important unread messages.',
+    );
   } catch {
     showToast('Failed to summarize inbox', 'error');
   }

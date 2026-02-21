@@ -22,8 +22,12 @@ import {
 
 let _openMailAccountSetup: () => void = () => {};
 let _loadMail: () => void = () => {};
-export function setOpenMailAccountSetup(fn: () => void): void { _openMailAccountSetup = fn; }
-export function setLoadMailRef(fn: () => void): void { _loadMail = fn; }
+export function setOpenMailAccountSetup(fn: () => void): void {
+  _openMailAccountSetup = fn;
+}
+export function setLoadMailRef(fn: () => void): void {
+  _loadMail = fn;
+}
 
 // ── Module state refs (set by index.ts configure) ──────────────────────────
 
@@ -61,7 +65,10 @@ export function setMailSelectedId(id: string | null) {
 
 // ── Account list rendering ─────────────────────────────────────────────────
 
-export async function renderMailAccounts(_gmail: Record<string, unknown> | null, himalaya: SkillEntry | null) {
+export async function renderMailAccounts(
+  _gmail: Record<string, unknown> | null,
+  himalaya: SkillEntry | null,
+) {
   const list = $('mail-accounts-list');
   if (!list) return;
   list.innerHTML = '';
@@ -75,15 +82,21 @@ export async function renderMailAccounts(_gmail: Record<string, unknown> | null,
         _mailAccounts.push({ name: match[1], email: match[2] });
       }
     }
-  } catch { /* no config yet — try localStorage fallback */ }
+  } catch {
+    /* no config yet — try localStorage fallback */
+  }
 
   if (_mailAccounts.length === 0) {
     try {
-      const fallback = JSON.parse(localStorage.getItem('mail-accounts-fallback') ?? '[]') as MailAccount[];
+      const fallback = JSON.parse(
+        localStorage.getItem('mail-accounts-fallback') ?? '[]',
+      ) as MailAccount[];
       for (const acct of fallback) {
         _mailAccounts.push({ name: acct.name, email: acct.email });
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   for (const acct of _mailAccounts) {
@@ -94,13 +107,22 @@ export async function renderMailAccounts(_gmail: Record<string, unknown> | null,
     const domain = acct.email.split('@')[1] ?? '';
     let icon = 'M';
     if (domain.includes('gmail')) icon = 'G';
-    else if (domain.includes('outlook') || domain.includes('hotmail') || domain.includes('live')) icon = 'O';
+    else if (domain.includes('outlook') || domain.includes('hotmail') || domain.includes('live'))
+      icon = 'O';
     else if (domain.includes('yahoo')) icon = 'Y';
     else if (domain.includes('icloud') || domain.includes('me.com')) icon = 'iC';
     else if (domain.includes('fastmail')) icon = 'FM';
 
     const permCount = [perms.read, perms.send, perms.delete, perms.manage].filter(Boolean).length;
-    const permSummary = [perms.read && 'Read', perms.send && 'Send', perms.delete && 'Delete', perms.manage && 'Manage'].filter(Boolean).join(' · ') || 'No permissions';
+    const permSummary =
+      [
+        perms.read && 'Read',
+        perms.send && 'Send',
+        perms.delete && 'Delete',
+        perms.manage && 'Manage',
+      ]
+        .filter(Boolean)
+        .join(' · ') || 'No permissions';
 
     item.innerHTML = `
       <div class="mail-vault-header">
@@ -154,17 +176,29 @@ export async function renderMailAccounts(_gmail: Record<string, unknown> | null,
       expandBtn.textContent = open ? '▾' : '▴';
     });
 
-    item.querySelectorAll('.mail-vault-cb').forEach(cb => {
+    item.querySelectorAll('.mail-vault-cb').forEach((cb) => {
       cb.addEventListener('change', () => {
         const updated: MailPermissions = {
           read: (item.querySelector('[data-perm="read"]') as HTMLInputElement)?.checked ?? true,
           send: (item.querySelector('[data-perm="send"]') as HTMLInputElement)?.checked ?? true,
-          delete: (item.querySelector('[data-perm="delete"]') as HTMLInputElement)?.checked ?? false,
-          manage: (item.querySelector('[data-perm="manage"]') as HTMLInputElement)?.checked ?? false,
+          delete:
+            (item.querySelector('[data-perm="delete"]') as HTMLInputElement)?.checked ?? false,
+          manage:
+            (item.querySelector('[data-perm="manage"]') as HTMLInputElement)?.checked ?? false,
         };
         saveMailPermissions(acct.name, updated);
-        const count = [updated.read, updated.send, updated.delete, updated.manage].filter(Boolean).length;
-        const summary = [updated.read && 'Read', updated.send && 'Send', updated.delete && 'Delete', updated.manage && 'Manage'].filter(Boolean).join(' · ') || 'No permissions';
+        const count = [updated.read, updated.send, updated.delete, updated.manage].filter(
+          Boolean,
+        ).length;
+        const summary =
+          [
+            updated.read && 'Read',
+            updated.send && 'Send',
+            updated.delete && 'Delete',
+            updated.manage && 'Manage',
+          ]
+            .filter(Boolean)
+            .join(' · ') || 'No permissions';
         const statusEl = item.querySelector('.mail-account-status');
         const summaryEl = item.querySelector('.mail-vault-perm-summary');
         if (statusEl) statusEl.textContent = `${count}/4 permissions active`;
@@ -174,7 +208,12 @@ export async function renderMailAccounts(_gmail: Record<string, unknown> | null,
     });
 
     item.querySelector('.mail-vault-revoke')?.addEventListener('click', async () => {
-      if (!await confirmModal(`Remove ${acct.email} and revoke all access?\n\nThis deletes the stored credentials from your device. Your email account is not affected.`)) return;
+      if (
+        !(await confirmModal(
+          `Remove ${acct.email} and revoke all access?\n\nThis deletes the stored credentials from your device. Your email account is not affected.`,
+        ))
+      )
+        return;
       try {
         await pawEngine.mailRemoveAccount(acct.name);
         removeMailPermissions(acct.name);
@@ -197,8 +236,13 @@ export async function renderMailAccounts(_gmail: Record<string, unknown> | null,
     const missingBins = himalaya.missing?.bins?.length;
     let statusLabel = 'Not installed';
     let statusClass = '';
-    if (himalaya.disabled) { statusLabel = 'Disabled'; statusClass = 'muted'; }
-    else if (missingBins) { statusLabel = 'Missing CLI'; statusClass = 'error'; }
+    if (himalaya.disabled) {
+      statusLabel = 'Disabled';
+      statusClass = 'muted';
+    } else if (missingBins) {
+      statusLabel = 'Missing CLI';
+      statusClass = 'error';
+    }
 
     item.innerHTML = `
       <div class="mail-account-icon">H</div>
@@ -212,7 +256,10 @@ export async function renderMailAccounts(_gmail: Record<string, unknown> | null,
     list.appendChild(item);
 
     item.querySelector('.mail-himalaya-install')?.addEventListener('click', async () => {
-      showToast('Himalaya skill installation coming soon — install manually via CLI for now', 'info');
+      showToast(
+        'Himalaya skill installation coming soon — install manually via CLI for now',
+        'info',
+      );
     });
     item.querySelector('.mail-himalaya-enable')?.addEventListener('click', async () => {
       showToast('Himalaya skill management coming soon', 'info');
@@ -253,7 +300,7 @@ export async function renderCredentialActivityLog() {
       return;
     }
 
-    const blocked = entries.filter(e => !e.was_allowed).length;
+    const blocked = entries.filter((e) => !e.was_allowed).length;
     logSection.innerHTML = `
       <div class="mail-vault-activity-header" id="mail-vault-activity-toggle">
         <span class="ms ms-sm">description</span>
@@ -262,18 +309,37 @@ export async function renderCredentialActivityLog() {
         <span class="mail-vault-activity-chevron">▸</span>
       </div>
       <div class="mail-vault-activity-list" style="display:none">
-        ${entries.map(e => {
-          const icon = !e.was_allowed ? 'X' : e.action === 'send' ? 'S' : e.action === 'read' ? 'R' : e.action === 'delete' ? 'D' : e.action === 'manage' ? 'F' : '--';
-          const cls = !e.was_allowed ? 'vault-log-blocked' : '';
-          const time = e.timestamp ? new Date(`${e.timestamp  }Z`).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-          return `<div class="vault-log-entry ${cls}">
+        ${entries
+          .map((e) => {
+            const icon = !e.was_allowed
+              ? 'X'
+              : e.action === 'send'
+                ? 'S'
+                : e.action === 'read'
+                  ? 'R'
+                  : e.action === 'delete'
+                    ? 'D'
+                    : e.action === 'manage'
+                      ? 'F'
+                      : '--';
+            const cls = !e.was_allowed ? 'vault-log-blocked' : '';
+            const time = e.timestamp
+              ? new Date(`${e.timestamp}Z`).toLocaleString([], {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              : '';
+            return `<div class="vault-log-entry ${cls}">
             <span class="vault-log-icon">${icon}</span>
             <div class="vault-log-body">
               <div class="vault-log-action">${escHtml(e.detail ?? e.action)}</div>
-              <div class="vault-log-time">${time}${e.tool_name ? ` · ${  escHtml(e.tool_name)}` : ''}</div>
+              <div class="vault-log-time">${time}${e.tool_name ? ` · ${escHtml(e.tool_name)}` : ''}</div>
             </div>
           </div>`;
-        }).join('')}
+          })
+          .join('')}
       </div>
     `;
 
@@ -312,16 +378,22 @@ export async function loadMailInbox() {
     }
 
     let envelopes: HimalayaEnvelope[] = [];
-    try { envelopes = JSON.parse(jsonResult); } catch { /* ignore */ }
+    try {
+      envelopes = JSON.parse(jsonResult);
+    } catch {
+      /* ignore */
+    }
 
-    _mailMessages = envelopes.map(env => ({
-      id: String(env.id),
-      from: env.from?.name || env.from?.addr || 'Unknown',
-      subject: env.subject || '(No subject)',
-      snippet: '',
-      date: env.date ? new Date(env.date) : new Date(),
-      read: env.flags?.includes('Seen') ?? false,
-    })).sort((a, b) => b.date.getTime() - a.date.getTime());
+    _mailMessages = envelopes
+      .map((env) => ({
+        id: String(env.id),
+        from: env.from?.name || env.from?.addr || 'Unknown',
+        subject: env.subject || '(No subject)',
+        snippet: '',
+        date: env.date ? new Date(env.date) : new Date(),
+        read: env.flags?.includes('Seen') ?? false,
+      }))
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
 
     renderMailList();
     showMailEmpty(_mailMessages.length === 0);
@@ -392,7 +464,11 @@ export function showMailEmpty(show: boolean) {
         $('mail-compose-cta')?.addEventListener('click', () => {
           onSetCurrentSession?.(null);
           onSwitchView?.('chat');
-          if (chatInput) { chatInput.value = 'I want to compose a new email. Please help me draft it and use himalaya to send it when ready.'; chatInput.focus(); }
+          if (chatInput) {
+            chatInput.value =
+              'I want to compose a new email. Please help me draft it and use himalaya to send it when ready.';
+            chatInput.focus();
+          }
         });
       } else if (hasAccounts && !_mailHimalayaReady) {
         empty.innerHTML = `
@@ -422,7 +498,7 @@ export async function openMailMessage(msgId: string) {
   _mailSelectedId = msgId;
   renderMailList();
 
-  const msg = _mailMessages.find(m => m.id === msgId);
+  const msg = _mailMessages.find((m) => m.id === msgId);
   const preview = $('mail-preview');
   if (!preview || !msg) return;
 
@@ -476,20 +552,33 @@ export async function openMailMessage(msgId: string) {
     </div>
   `;
 
-  preview.querySelector('.mail-action-reply')?.addEventListener('click', () => openComposeModal('reply', msg));
-  preview.querySelector('.mail-action-forward')?.addEventListener('click', () => openComposeModal('forward', msg));
+  preview
+    .querySelector('.mail-action-reply')
+    ?.addEventListener('click', () => openComposeModal('reply', msg));
+  preview
+    .querySelector('.mail-action-forward')
+    ?.addEventListener('click', () => openComposeModal('forward', msg));
   preview.querySelector('.mail-action-archive')?.addEventListener('click', () => archiveEmail(msg));
   preview.querySelector('.mail-action-delete')?.addEventListener('click', () => deleteEmail(msg));
 
   // AI actions
-  preview.querySelector('.mail-ai-summarize')?.addEventListener('click', () => aiMailAction('summarize', msg));
-  preview.querySelector('.mail-ai-draft')?.addEventListener('click', () => aiMailAction('draft', msg));
-  preview.querySelector('.mail-ai-actions')?.addEventListener('click', () => aiMailAction('tasks', msg));
+  preview
+    .querySelector('.mail-ai-summarize')
+    ?.addEventListener('click', () => aiMailAction('summarize', msg));
+  preview
+    .querySelector('.mail-ai-draft')
+    ?.addEventListener('click', () => aiMailAction('draft', msg));
+  preview
+    .querySelector('.mail-ai-actions')
+    ?.addEventListener('click', () => aiMailAction('tasks', msg));
 }
 
 // ── Compose modal ──────────────────────────────────────────────────────────
 
-export function openComposeModal(mode: 'reply' | 'forward', msg: { from: string; subject: string; body?: string }) {
+export function openComposeModal(
+  mode: 'reply' | 'forward',
+  msg: { from: string; subject: string; body?: string },
+) {
   const modal = document.createElement('div');
   modal.className = 'mail-compose-modal';
   modal.innerHTML = `
@@ -501,7 +590,7 @@ export function openComposeModal(mode: 'reply' | 'forward', msg: { from: string;
       <div class="mail-compose-body">
         <input type="text" class="mail-compose-to" placeholder="To" value="${mode === 'reply' ? escAttr(msg.from) : ''}">
         <input type="text" class="mail-compose-subject" placeholder="Subject" value="${mode === 'reply' ? 'Re: ' : 'Fwd: '}${escAttr(msg.subject)}">
-        <textarea class="mail-compose-content" placeholder="Write your message...">${mode === 'forward' ? `\n\n--- Forwarded ---\n${  msg.body || ''}` : ''}</textarea>
+        <textarea class="mail-compose-content" placeholder="Write your message...">${mode === 'forward' ? `\n\n--- Forwarded ---\n${msg.body || ''}` : ''}</textarea>
       </div>
       <div class="mail-compose-footer">
         <button class="btn btn-ghost mail-compose-cancel">Cancel</button>
@@ -514,13 +603,18 @@ export function openComposeModal(mode: 'reply' | 'forward', msg: { from: string;
   const close = () => modal.remove();
   modal.querySelector('.mail-compose-close')?.addEventListener('click', close);
   modal.querySelector('.mail-compose-cancel')?.addEventListener('click', close);
-  modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) close();
+  });
 
   modal.querySelector('.mail-compose-send')?.addEventListener('click', async () => {
     const to = (modal.querySelector('.mail-compose-to') as HTMLInputElement)?.value;
     const subject = (modal.querySelector('.mail-compose-subject') as HTMLInputElement)?.value;
     const body = (modal.querySelector('.mail-compose-content') as HTMLTextAreaElement)?.value;
-    if (!to || !subject) { showToast('Please fill in To and Subject', 'error'); return; }
+    if (!to || !subject) {
+      showToast('Please fill in To and Subject', 'error');
+      return;
+    }
 
     try {
       const accountName = _mailAccounts.length > 0 ? _mailAccounts[0].name : undefined;
@@ -540,35 +634,40 @@ async function archiveEmail(msg: { id: string }) {
     const accountName = _mailAccounts.length > 0 ? _mailAccounts[0].name : undefined;
     await pawEngine.mailMove(accountName, msg.id, '[Gmail]/All Mail');
     showToast('Archived', 'success');
-    _mailMessages = _mailMessages.filter(m => m.id !== msg.id);
+    _mailMessages = _mailMessages.filter((m) => m.id !== msg.id);
     renderMailList();
     const preview = $('mail-preview');
-    if (preview) preview.innerHTML = '<div class="mail-preview-empty">Select an email to read</div>';
+    if (preview)
+      preview.innerHTML = '<div class="mail-preview-empty">Select an email to read</div>';
   } catch (e) {
     showToast(`Archive failed: ${e}`, 'error');
   }
 }
 
 async function deleteEmail(msg: { id: string; subject: string }) {
-  if (!await confirmModal(`Delete "${msg.subject}"?`)) return;
+  if (!(await confirmModal(`Delete "${msg.subject}"?`))) return;
   try {
     const accountName = _mailAccounts.length > 0 ? _mailAccounts[0].name : undefined;
     await pawEngine.mailDelete(accountName, msg.id);
     showToast('Deleted', 'success');
-    _mailMessages = _mailMessages.filter(m => m.id !== msg.id);
+    _mailMessages = _mailMessages.filter((m) => m.id !== msg.id);
     renderMailList();
     const preview = $('mail-preview');
-    if (preview) preview.innerHTML = '<div class="mail-preview-empty">Select an email to read</div>';
+    if (preview)
+      preview.innerHTML = '<div class="mail-preview-empty">Select an email to read</div>';
   } catch (e) {
     showToast(`Delete failed: ${e}`, 'error');
   }
 }
 
-function aiMailAction(action: 'summarize' | 'draft' | 'tasks', msg: { from: string; subject: string; body?: string }) {
+function aiMailAction(
+  action: 'summarize' | 'draft' | 'tasks',
+  msg: { from: string; subject: string; body?: string },
+) {
   const prompts: Record<string, string> = {
     summarize: `Summarize this email from ${msg.from}:\n\nSubject: ${msg.subject}\n\n${msg.body || ''}`,
     draft: `Draft a professional reply to this email from ${msg.from}:\n\nSubject: ${msg.subject}\n\n${msg.body || ''}`,
-    tasks: `Extract any action items or tasks from this email from ${msg.from}:\n\nSubject: ${msg.subject}\n\n${msg.body || ''}`
+    tasks: `Extract any action items or tasks from this email from ${msg.from}:\n\nSubject: ${msg.subject}\n\n${msg.body || ''}`,
   };
 
   onSetCurrentSession?.(null);

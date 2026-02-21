@@ -79,9 +79,7 @@ export function formatCompactionResult(result: {
   summary_length: number;
 }): string {
   const saved = result.tokens_before - result.tokens_after;
-  const pct = result.tokens_before > 0
-    ? Math.round((saved / result.tokens_before) * 100)
-    : 0;
+  const pct = result.tokens_before > 0 ? Math.round((saved / result.tokens_before) * 100) : 0;
 
   return [
     `**Session Compacted**`,

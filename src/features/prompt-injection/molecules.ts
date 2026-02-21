@@ -7,11 +7,11 @@ import { scanForInjection, type InjectionScanResult, type InjectionSeverity } fr
 
 export interface InjectionPolicy {
   enabled: boolean;
-  blockCritical: boolean;     // Auto-block critical severity
-  blockHigh: boolean;         // Auto-block high severity
-  warnMedium: boolean;        // Show warning for medium severity
-  logAll: boolean;            // Log all scan results (even clean)
-  scoreThreshold: number;     // Score above this = blocked (0–100)
+  blockCritical: boolean; // Auto-block critical severity
+  blockHigh: boolean; // Auto-block high severity
+  warnMedium: boolean; // Show warning for medium severity
+  logAll: boolean; // Log all scan results (even clean)
+  scoreThreshold: number; // Score above this = blocked (0–100)
   channelScanEnabled: boolean; // Scan incoming channel messages
 }
 
@@ -41,7 +41,9 @@ export function loadInjectionPolicy(): InjectionPolicy {
   try {
     const raw = localStorage.getItem(POLICY_KEY);
     if (raw) return { ...DEFAULT_POLICY, ...JSON.parse(raw) };
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { ...DEFAULT_POLICY };
 }
 
@@ -116,18 +118,26 @@ export function evaluateMessage(text: string, policy?: InjectionPolicy): Injecti
 
 export function severityColor(severity: InjectionSeverity): string {
   switch (severity) {
-    case 'critical': return '#e74c3c';
-    case 'high':     return '#e67e22';
-    case 'medium':   return '#f39c12';
-    case 'low':      return '#95a5a6';
+    case 'critical':
+      return '#e74c3c';
+    case 'high':
+      return '#e67e22';
+    case 'medium':
+      return '#f39c12';
+    case 'low':
+      return '#95a5a6';
   }
 }
 
 export function severityLabel(severity: InjectionSeverity): string {
   switch (severity) {
-    case 'critical': return 'CRITICAL';
-    case 'high':     return 'HIGH';
-    case 'medium':   return 'MEDIUM';
-    case 'low':      return 'LOW';
+    case 'critical':
+      return 'CRITICAL';
+    case 'high':
+      return 'HIGH';
+    case 'medium':
+      return 'MEDIUM';
+    case 'low':
+      return 'LOW';
   }
 }

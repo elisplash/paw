@@ -5,25 +5,24 @@ import { pawEngine } from '../../engine';
 import { $, escHtml, escAttr } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { CHANNEL_SETUPS, type ChannelField } from './atoms';
-import {
-  getChannelConfig,
-  setChannelConfig,
-  startChannel,
-  loadChannels,
-} from './molecules';
+import { getChannelConfig, setChannelConfig, startChannel, loadChannels } from './molecules';
 import { getChannelSetupType, saveMailImapSetup, clearChannelSetupType } from '../mail';
 
 // ── Module state ───────────────────────────────────────────────────────────
 
 let _channelSetupType: string | null = null;
 
-export function getSetupType(): string | null { return _channelSetupType; }
-export function clearSetupType() { _channelSetupType = null; }
+export function getSetupType(): string | null {
+  return _channelSetupType;
+}
+export function clearSetupType() {
+  _channelSetupType = null;
+}
 
 // ── Open channel setup modal ───────────────────────────────────────────────
 
 export async function openChannelSetup(channelType: string) {
-  const def = CHANNEL_SETUPS.find(c => c.id === channelType);
+  const def = CHANNEL_SETUPS.find((c) => c.id === channelType);
   if (!def) return;
   _channelSetupType = channelType;
 
@@ -53,7 +52,8 @@ export async function openChannelSetup(channelType: string) {
       if (cfg.port) existingValues['port'] = String(cfg.port);
       if (cfg.nick) existingValues['nick'] = cfg.nick;
       if (cfg.password) existingValues['password'] = cfg.password;
-      if (cfg.channels_to_join?.length) existingValues['channels'] = cfg.channels_to_join.join(', ');
+      if (cfg.channels_to_join?.length)
+        existingValues['channels'] = cfg.channels_to_join.join(', ');
     } else if (channelType === 'slack') {
       const cfg = await pawEngine.slackGetConfig();
       if (cfg.bot_token) existingValues['botToken'] = cfg.bot_token;
@@ -89,7 +89,8 @@ export async function openChannelSetup(channelType: string) {
       const cfg = await pawEngine.twitchGetConfig();
       if (cfg.oauth_token) existingValues['oauthToken'] = cfg.oauth_token;
       if (cfg.bot_username) existingValues['botUsername'] = cfg.bot_username;
-      if (cfg.channels_to_join?.length) existingValues['channels'] = cfg.channels_to_join.join(', ');
+      if (cfg.channels_to_join?.length)
+        existingValues['channels'] = cfg.channels_to_join.join(', ');
       if (cfg.dm_policy) existingValues['dmPolicy'] = cfg.dm_policy;
       if (cfg.agent_id) existingValues['agentId'] = cfg.agent_id;
     } else if (channelType === 'whatsapp') {
@@ -100,15 +101,17 @@ export async function openChannelSetup(channelType: string) {
       if (cfg.allowed_users?.length) existingValues['allowFrom'] = cfg.allowed_users.join(', ');
       if (cfg.agent_id) existingValues['agentId'] = cfg.agent_id;
     }
-  } catch { /* no existing config */ }
+  } catch {
+    /* no existing config */
+  }
 
   let html = def.descriptionHtml
     ? `<div class="channel-setup-desc">${def.descriptionHtml}</div>`
     : `<p class="channel-setup-desc">${escHtml(def.description)}</p>`;
 
   // Group fields: regular first, then "Advanced." hint fields in a collapsible
-  const regularFields = def.fields.filter(f => !f.hint?.startsWith('Advanced.'));
-  const advancedFields = def.fields.filter(f => f.hint?.startsWith('Advanced.'));
+  const regularFields = def.fields.filter((f) => !f.hint?.startsWith('Advanced.'));
+  const advancedFields = def.fields.filter((f) => f.hint?.startsWith('Advanced.'));
 
   const renderField = (field: ChannelField) => {
     let fhtml = `<div class="form-group">`;
@@ -119,7 +122,7 @@ export async function openChannelSetup(channelType: string) {
     if (field.type === 'select' && field.options) {
       fhtml += `<select class="form-input" id="ch-field-${field.key}" data-ch-field="${field.key}">`;
       for (const opt of field.options) {
-        const selVal = existVal ?? (field.defaultValue ?? '');
+        const selVal = existVal ?? field.defaultValue ?? '';
         const sel = opt.value === selVal ? ' selected' : '';
         fhtml += `<option value="${escAttr(opt.value)}"${sel}>${escHtml(opt.label)}</option>`;
       }
@@ -129,7 +132,8 @@ export async function openChannelSetup(channelType: string) {
       fhtml += `<label class="toggle-label"><input type="checkbox" id="ch-field-${field.key}" data-ch-field="${field.key}"${checked}> Enabled</label>`;
     } else {
       const inputType = field.type === 'password' ? 'password' : 'text';
-      const populateVal = existVal ?? (typeof field.defaultValue === 'string' ? field.defaultValue : '');
+      const populateVal =
+        existVal ?? (typeof field.defaultValue === 'string' ? field.defaultValue : '');
       const val = populateVal ? ` value="${escAttr(populateVal)}"` : '';
       fhtml += `<input class="form-input" id="ch-field-${field.key}" data-ch-field="${field.key}" type="${inputType}" placeholder="${escAttr(field.placeholder ?? '')}"${val}>`;
     }
@@ -169,7 +173,12 @@ export function closeChannelSetup() {
 // ── Save channel setup ─────────────────────────────────────────────────────
 
 export async function saveChannelSetup() {
-  console.debug('[mail-debug] saveChannelSetup called, _channelSetupType=', _channelSetupType, 'mailType=', getChannelSetupType());
+  console.debug(
+    '[mail-debug] saveChannelSetup called, _channelSetupType=',
+    _channelSetupType,
+    'mailType=',
+    getChannelSetupType(),
+  );
   if (_channelSetupType === '__mail_imap__' || getChannelSetupType() === '__mail_imap__') {
     console.debug('[mail-debug] Routing to MailModule.saveMailImapSetup()');
     await saveMailImapSetup();
@@ -183,7 +192,10 @@ export async function saveChannelSetup() {
   // ── Telegram ────────────────────────────────────────────────────────────
   if (_channelSetupType === 'telegram') {
     const saveBtn = $('channel-setup-save') as HTMLButtonElement | null;
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+    }
 
     try {
       const botToken = ($('ch-field-botToken') as HTMLInputElement)?.value?.trim() ?? '';
@@ -193,15 +205,25 @@ export async function saveChannelSetup() {
 
       if (!botToken) {
         showToast('Bot token is required', 'error');
-        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save & Connect'; }
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save & Connect';
+        }
         return;
       }
 
       let existing;
-      try { existing = await pawEngine.telegramGetConfig(); } catch { existing = null; }
+      try {
+        existing = await pawEngine.telegramGetConfig();
+      } catch {
+        existing = null;
+      }
 
       const allowedUsers = allowFrom
-        ? allowFrom.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
+        ? allowFrom
+            .split(',')
+            .map((s) => parseInt(s.trim()))
+            .filter((n) => !isNaN(n))
         : (existing?.allowed_users ?? []);
 
       const config = {
@@ -228,16 +250,24 @@ export async function saveChannelSetup() {
     } catch (e) {
       showToast(`Failed to save: ${e instanceof Error ? e.message : e}`, 'error');
     } finally {
-      if (saveBtn) { $('channel-setup-save') && (($('channel-setup-save') as HTMLButtonElement).disabled = false); ($('channel-setup-save') as HTMLButtonElement | null) && (($('channel-setup-save') as HTMLButtonElement).textContent = 'Save & Connect'); }
+      if (saveBtn) {
+        $('channel-setup-save') &&
+          (($('channel-setup-save') as HTMLButtonElement).disabled = false);
+        ($('channel-setup-save') as HTMLButtonElement | null) &&
+          (($('channel-setup-save') as HTMLButtonElement).textContent = 'Save & Connect');
+      }
     }
     return;
   }
 
   // ── Generic channel save ────────────────────────────────────────────────
-  const _chDef = CHANNEL_SETUPS.find(c => c.id === _channelSetupType);
+  const _chDef = CHANNEL_SETUPS.find((c) => c.id === _channelSetupType);
   if (_chDef) {
     const saveBtn = $('channel-setup-save') as HTMLButtonElement | null;
-    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+    }
 
     try {
       const values: Record<string, string | boolean> = {};
@@ -254,7 +284,10 @@ export async function saveChannelSetup() {
       for (const field of _chDef.fields) {
         if (field.required && !values[field.key]) {
           showToast(`${field.label} is required`, 'error');
-          if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save & Connect'; }
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save & Connect';
+          }
           return;
         }
       }
@@ -270,7 +303,7 @@ export async function saveChannelSetup() {
           enabled: false,
           instance_name: 'paw',
           api_url: 'http://127.0.0.1:8085',
-          api_key: `paw-wa-${  Math.random().toString(36).slice(2, 18)}`,
+          api_key: `paw-wa-${Math.random().toString(36).slice(2, 18)}`,
           api_port: 8085,
           webhook_port: 8086,
           dm_policy: 'pairing',
@@ -314,7 +347,10 @@ export async function saveChannelSetup() {
       showToast(`Failed to save: ${e instanceof Error ? e.message : e}`, 'error');
     } finally {
       const btn = $('channel-setup-save') as HTMLButtonElement | null;
-      if (btn) { btn.disabled = false; btn.textContent = 'Save & Connect'; }
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Save & Connect';
+      }
     }
     return;
   }

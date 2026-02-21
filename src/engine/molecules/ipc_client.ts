@@ -62,21 +62,29 @@ export class PawEngineClient {
   async startListening(): Promise<void> {
     if (this._tauriUnlisten) return;
     const { listen } = await import('@tauri-apps/api/event');
-    this._tauriUnlisten = await listen<EngineEvent>('engine-event', (event) => {
+    this._tauriUnlisten = (await listen<EngineEvent>('engine-event', (event) => {
       const payload = event.payload;
       const handlers = this._listeners.get(payload.kind);
       if (handlers) {
         for (const h of handlers) {
-          try { h(payload); } catch (e) { console.error('[engine] Event handler error:', e); }
+          try {
+            h(payload);
+          } catch (e) {
+            console.error('[engine] Event handler error:', e);
+          }
         }
       }
       const wildcardHandlers = this._listeners.get('*');
       if (wildcardHandlers) {
         for (const h of wildcardHandlers) {
-          try { h(payload); } catch (e) { console.error('[engine] Wildcard handler error:', e); }
+          try {
+            h(payload);
+          } catch (e) {
+            console.error('[engine] Wildcard handler error:', e);
+          }
         }
       }
-    }) as unknown as () => void;
+    })) as unknown as () => void;
   }
 
   on(kind: string, handler: (event: EngineEvent) => void): () => void {
@@ -97,10 +105,14 @@ export class PawEngineClient {
 
   // ── Chat ─────────────────────────────────────────────────────────────
 
-  async chatSend(sessionIdOrRequest: string | EngineChatRequest, message?: string): Promise<EngineChatResponse> {
-    const request: EngineChatRequest = typeof sessionIdOrRequest === 'string'
-      ? { session_id: sessionIdOrRequest, message: message ?? '' }
-      : sessionIdOrRequest;
+  async chatSend(
+    sessionIdOrRequest: string | EngineChatRequest,
+    message?: string,
+  ): Promise<EngineChatResponse> {
+    const request: EngineChatRequest =
+      typeof sessionIdOrRequest === 'string'
+        ? { session_id: sessionIdOrRequest, message: message ?? '' }
+        : sessionIdOrRequest;
     return invoke<EngineChatResponse>('engine_chat_send', { request });
   }
 
@@ -115,7 +127,10 @@ export class PawEngineClient {
   // ── Sessions ─────────────────────────────────────────────────────────
 
   async sessionsList(limit?: number, agentId?: string): Promise<EngineSession[]> {
-    return invoke<EngineSession[]>('engine_sessions_list', { limit: limit ?? 50, agentId: agentId ?? null });
+    return invoke<EngineSession[]>('engine_sessions_list', {
+      limit: limit ?? 50,
+      agentId: agentId ?? null,
+    });
   }
 
   async sessionRename(sessionId: string, label: string): Promise<void> {
@@ -131,12 +146,19 @@ export class PawEngineClient {
   }
 
   async sessionCleanup(maxAgeSecs?: number, excludeId?: string): Promise<number> {
-    return invoke<number>('engine_session_cleanup', { maxAgeSecs: maxAgeSecs ?? 3600, excludeId: excludeId ?? null });
+    return invoke<number>('engine_session_cleanup', {
+      maxAgeSecs: maxAgeSecs ?? 3600,
+      excludeId: excludeId ?? null,
+    });
   }
 
   async sessionCompact(sessionId: string): Promise<{
-    session_id: string; messages_before: number; messages_after: number;
-    tokens_before: number; tokens_after: number; summary_length: number;
+    session_id: string;
+    messages_before: number;
+    messages_after: number;
+    tokens_before: number;
+    tokens_after: number;
+    summary_length: number;
   }> {
     return invoke('engine_session_compact', { sessionId });
   }
@@ -163,7 +185,12 @@ export class PawEngineClient {
     return invoke<EngineStatus>('engine_status');
   }
 
-  async autoSetup(): Promise<{ action: string; model?: string; message?: string; available_models?: string[] }> {
+  async autoSetup(): Promise<{
+    action: string;
+    model?: string;
+    message?: string;
+    available_models?: string[];
+  }> {
     return invoke('engine_auto_setup');
   }
 
@@ -178,7 +205,10 @@ export class PawEngineClient {
   }
 
   async agentFileGet(fileName: string, agentId?: string): Promise<EngineAgentFile | null> {
-    return invoke<EngineAgentFile | null>('engine_agent_file_get', { agentId: agentId ?? 'default', fileName });
+    return invoke<EngineAgentFile | null>('engine_agent_file_get', {
+      agentId: agentId ?? 'default',
+      fileName,
+    });
   }
 
   async agentFileSet(fileName: string, content: string, agentId?: string): Promise<void> {
@@ -223,7 +253,12 @@ export class PawEngineClient {
     return invoke<number>('engine_test_embedding');
   }
 
-  async embeddingStatus(): Promise<{ ollama_running: boolean; model_available: boolean; model_name: string; error?: string }> {
+  async embeddingStatus(): Promise<{
+    ollama_running: boolean;
+    model_available: boolean;
+    model_name: string;
+    error?: string;
+  }> {
     return invoke('engine_embedding_status');
   }
 
@@ -363,7 +398,11 @@ export class PawEngineClient {
     return invoke('engine_position_close', { id });
   }
 
-  async positionUpdateTargets(id: string, stopLossPct: number, takeProfitPct: number): Promise<void> {
+  async positionUpdateTargets(
+    id: string,
+    stopLossPct: number,
+    takeProfitPct: number,
+  ): Promise<void> {
     return invoke('engine_position_update_targets', { id, stopLossPct, takeProfitPct });
   }
 
@@ -425,113 +464,273 @@ export class PawEngineClient {
 
   // ── Telegram ────────────────────────────────────────────────────────
 
-  async telegramStart(): Promise<void> { return invoke('engine_telegram_start'); }
-  async telegramStop(): Promise<void> { return invoke('engine_telegram_stop'); }
-  async telegramStatus(): Promise<TelegramStatus> { return invoke<TelegramStatus>('engine_telegram_status'); }
-  async telegramGetConfig(): Promise<TelegramConfig> { return invoke<TelegramConfig>('engine_telegram_get_config'); }
-  async telegramSetConfig(config: TelegramConfig): Promise<void> { return invoke('engine_telegram_set_config', { config }); }
-  async telegramApproveUser(userId: number): Promise<void> { return invoke('engine_telegram_approve_user', { userId }); }
-  async telegramDenyUser(userId: number): Promise<void> { return invoke('engine_telegram_deny_user', { userId }); }
-  async telegramRemoveUser(userId: number): Promise<void> { return invoke('engine_telegram_remove_user', { userId }); }
+  async telegramStart(): Promise<void> {
+    return invoke('engine_telegram_start');
+  }
+  async telegramStop(): Promise<void> {
+    return invoke('engine_telegram_stop');
+  }
+  async telegramStatus(): Promise<TelegramStatus> {
+    return invoke<TelegramStatus>('engine_telegram_status');
+  }
+  async telegramGetConfig(): Promise<TelegramConfig> {
+    return invoke<TelegramConfig>('engine_telegram_get_config');
+  }
+  async telegramSetConfig(config: TelegramConfig): Promise<void> {
+    return invoke('engine_telegram_set_config', { config });
+  }
+  async telegramApproveUser(userId: number): Promise<void> {
+    return invoke('engine_telegram_approve_user', { userId });
+  }
+  async telegramDenyUser(userId: number): Promise<void> {
+    return invoke('engine_telegram_deny_user', { userId });
+  }
+  async telegramRemoveUser(userId: number): Promise<void> {
+    return invoke('engine_telegram_remove_user', { userId });
+  }
 
   // ── Discord ─────────────────────────────────────────────────────────
 
-  async discordStart(): Promise<void> { return invoke('engine_discord_start'); }
-  async discordStop(): Promise<void> { return invoke('engine_discord_stop'); }
-  async discordStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_discord_status'); }
-  async discordGetConfig(): Promise<DiscordConfig> { return invoke<DiscordConfig>('engine_discord_get_config'); }
-  async discordSetConfig(config: DiscordConfig): Promise<void> { return invoke('engine_discord_set_config', { config }); }
-  async discordApproveUser(userId: string): Promise<void> { return invoke('engine_discord_approve_user', { userId }); }
-  async discordDenyUser(userId: string): Promise<void> { return invoke('engine_discord_deny_user', { userId }); }
-  async discordRemoveUser(userId: string): Promise<void> { return invoke('engine_discord_remove_user', { userId }); }
+  async discordStart(): Promise<void> {
+    return invoke('engine_discord_start');
+  }
+  async discordStop(): Promise<void> {
+    return invoke('engine_discord_stop');
+  }
+  async discordStatus(): Promise<ChannelStatus> {
+    return invoke<ChannelStatus>('engine_discord_status');
+  }
+  async discordGetConfig(): Promise<DiscordConfig> {
+    return invoke<DiscordConfig>('engine_discord_get_config');
+  }
+  async discordSetConfig(config: DiscordConfig): Promise<void> {
+    return invoke('engine_discord_set_config', { config });
+  }
+  async discordApproveUser(userId: string): Promise<void> {
+    return invoke('engine_discord_approve_user', { userId });
+  }
+  async discordDenyUser(userId: string): Promise<void> {
+    return invoke('engine_discord_deny_user', { userId });
+  }
+  async discordRemoveUser(userId: string): Promise<void> {
+    return invoke('engine_discord_remove_user', { userId });
+  }
 
   // ── IRC ──────────────────────────────────────────────────────────────
 
-  async ircStart(): Promise<void> { return invoke('engine_irc_start'); }
-  async ircStop(): Promise<void> { return invoke('engine_irc_stop'); }
-  async ircStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_irc_status'); }
-  async ircGetConfig(): Promise<IrcConfig> { return invoke<IrcConfig>('engine_irc_get_config'); }
-  async ircSetConfig(config: IrcConfig): Promise<void> { return invoke('engine_irc_set_config', { config }); }
-  async ircApproveUser(userId: string): Promise<void> { return invoke('engine_irc_approve_user', { userId }); }
-  async ircDenyUser(userId: string): Promise<void> { return invoke('engine_irc_deny_user', { userId }); }
-  async ircRemoveUser(userId: string): Promise<void> { return invoke('engine_irc_remove_user', { userId }); }
+  async ircStart(): Promise<void> {
+    return invoke('engine_irc_start');
+  }
+  async ircStop(): Promise<void> {
+    return invoke('engine_irc_stop');
+  }
+  async ircStatus(): Promise<ChannelStatus> {
+    return invoke<ChannelStatus>('engine_irc_status');
+  }
+  async ircGetConfig(): Promise<IrcConfig> {
+    return invoke<IrcConfig>('engine_irc_get_config');
+  }
+  async ircSetConfig(config: IrcConfig): Promise<void> {
+    return invoke('engine_irc_set_config', { config });
+  }
+  async ircApproveUser(userId: string): Promise<void> {
+    return invoke('engine_irc_approve_user', { userId });
+  }
+  async ircDenyUser(userId: string): Promise<void> {
+    return invoke('engine_irc_deny_user', { userId });
+  }
+  async ircRemoveUser(userId: string): Promise<void> {
+    return invoke('engine_irc_remove_user', { userId });
+  }
 
   // ── Slack ────────────────────────────────────────────────────────────
 
-  async slackStart(): Promise<void> { return invoke('engine_slack_start'); }
-  async slackStop(): Promise<void> { return invoke('engine_slack_stop'); }
-  async slackStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_slack_status'); }
-  async slackGetConfig(): Promise<SlackConfig> { return invoke<SlackConfig>('engine_slack_get_config'); }
-  async slackSetConfig(config: SlackConfig): Promise<void> { return invoke('engine_slack_set_config', { config }); }
-  async slackApproveUser(userId: string): Promise<void> { return invoke('engine_slack_approve_user', { userId }); }
-  async slackDenyUser(userId: string): Promise<void> { return invoke('engine_slack_deny_user', { userId }); }
-  async slackRemoveUser(userId: string): Promise<void> { return invoke('engine_slack_remove_user', { userId }); }
+  async slackStart(): Promise<void> {
+    return invoke('engine_slack_start');
+  }
+  async slackStop(): Promise<void> {
+    return invoke('engine_slack_stop');
+  }
+  async slackStatus(): Promise<ChannelStatus> {
+    return invoke<ChannelStatus>('engine_slack_status');
+  }
+  async slackGetConfig(): Promise<SlackConfig> {
+    return invoke<SlackConfig>('engine_slack_get_config');
+  }
+  async slackSetConfig(config: SlackConfig): Promise<void> {
+    return invoke('engine_slack_set_config', { config });
+  }
+  async slackApproveUser(userId: string): Promise<void> {
+    return invoke('engine_slack_approve_user', { userId });
+  }
+  async slackDenyUser(userId: string): Promise<void> {
+    return invoke('engine_slack_deny_user', { userId });
+  }
+  async slackRemoveUser(userId: string): Promise<void> {
+    return invoke('engine_slack_remove_user', { userId });
+  }
 
   // ── Matrix ───────────────────────────────────────────────────────────
 
-  async matrixStart(): Promise<void> { return invoke('engine_matrix_start'); }
-  async matrixStop(): Promise<void> { return invoke('engine_matrix_stop'); }
-  async matrixStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_matrix_status'); }
-  async matrixGetConfig(): Promise<MatrixConfig> { return invoke<MatrixConfig>('engine_matrix_get_config'); }
-  async matrixSetConfig(config: MatrixConfig): Promise<void> { return invoke('engine_matrix_set_config', { config }); }
-  async matrixApproveUser(userId: string): Promise<void> { return invoke('engine_matrix_approve_user', { userId }); }
-  async matrixDenyUser(userId: string): Promise<void> { return invoke('engine_matrix_deny_user', { userId }); }
-  async matrixRemoveUser(userId: string): Promise<void> { return invoke('engine_matrix_remove_user', { userId }); }
+  async matrixStart(): Promise<void> {
+    return invoke('engine_matrix_start');
+  }
+  async matrixStop(): Promise<void> {
+    return invoke('engine_matrix_stop');
+  }
+  async matrixStatus(): Promise<ChannelStatus> {
+    return invoke<ChannelStatus>('engine_matrix_status');
+  }
+  async matrixGetConfig(): Promise<MatrixConfig> {
+    return invoke<MatrixConfig>('engine_matrix_get_config');
+  }
+  async matrixSetConfig(config: MatrixConfig): Promise<void> {
+    return invoke('engine_matrix_set_config', { config });
+  }
+  async matrixApproveUser(userId: string): Promise<void> {
+    return invoke('engine_matrix_approve_user', { userId });
+  }
+  async matrixDenyUser(userId: string): Promise<void> {
+    return invoke('engine_matrix_deny_user', { userId });
+  }
+  async matrixRemoveUser(userId: string): Promise<void> {
+    return invoke('engine_matrix_remove_user', { userId });
+  }
 
   // ── Mattermost ───────────────────────────────────────────────────────
 
-  async mattermostStart(): Promise<void> { return invoke('engine_mattermost_start'); }
-  async mattermostStop(): Promise<void> { return invoke('engine_mattermost_stop'); }
-  async mattermostStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_mattermost_status'); }
-  async mattermostGetConfig(): Promise<MattermostConfig> { return invoke<MattermostConfig>('engine_mattermost_get_config'); }
-  async mattermostSetConfig(config: MattermostConfig): Promise<void> { return invoke('engine_mattermost_set_config', { config }); }
-  async mattermostApproveUser(userId: string): Promise<void> { return invoke('engine_mattermost_approve_user', { userId }); }
-  async mattermostDenyUser(userId: string): Promise<void> { return invoke('engine_mattermost_deny_user', { userId }); }
-  async mattermostRemoveUser(userId: string): Promise<void> { return invoke('engine_mattermost_remove_user', { userId }); }
+  async mattermostStart(): Promise<void> {
+    return invoke('engine_mattermost_start');
+  }
+  async mattermostStop(): Promise<void> {
+    return invoke('engine_mattermost_stop');
+  }
+  async mattermostStatus(): Promise<ChannelStatus> {
+    return invoke<ChannelStatus>('engine_mattermost_status');
+  }
+  async mattermostGetConfig(): Promise<MattermostConfig> {
+    return invoke<MattermostConfig>('engine_mattermost_get_config');
+  }
+  async mattermostSetConfig(config: MattermostConfig): Promise<void> {
+    return invoke('engine_mattermost_set_config', { config });
+  }
+  async mattermostApproveUser(userId: string): Promise<void> {
+    return invoke('engine_mattermost_approve_user', { userId });
+  }
+  async mattermostDenyUser(userId: string): Promise<void> {
+    return invoke('engine_mattermost_deny_user', { userId });
+  }
+  async mattermostRemoveUser(userId: string): Promise<void> {
+    return invoke('engine_mattermost_remove_user', { userId });
+  }
 
   // ── Nextcloud Talk ───────────────────────────────────────────────────
 
-  async nextcloudStart(): Promise<void> { return invoke('engine_nextcloud_start'); }
-  async nextcloudStop(): Promise<void> { return invoke('engine_nextcloud_stop'); }
-  async nextcloudStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_nextcloud_status'); }
-  async nextcloudGetConfig(): Promise<NextcloudConfig> { return invoke<NextcloudConfig>('engine_nextcloud_get_config'); }
-  async nextcloudSetConfig(config: NextcloudConfig): Promise<void> { return invoke('engine_nextcloud_set_config', { config }); }
-  async nextcloudApproveUser(userId: string): Promise<void> { return invoke('engine_nextcloud_approve_user', { userId }); }
-  async nextcloudDenyUser(userId: string): Promise<void> { return invoke('engine_nextcloud_deny_user', { userId }); }
-  async nextcloudRemoveUser(userId: string): Promise<void> { return invoke('engine_nextcloud_remove_user', { userId }); }
+  async nextcloudStart(): Promise<void> {
+    return invoke('engine_nextcloud_start');
+  }
+  async nextcloudStop(): Promise<void> {
+    return invoke('engine_nextcloud_stop');
+  }
+  async nextcloudStatus(): Promise<ChannelStatus> {
+    return invoke<ChannelStatus>('engine_nextcloud_status');
+  }
+  async nextcloudGetConfig(): Promise<NextcloudConfig> {
+    return invoke<NextcloudConfig>('engine_nextcloud_get_config');
+  }
+  async nextcloudSetConfig(config: NextcloudConfig): Promise<void> {
+    return invoke('engine_nextcloud_set_config', { config });
+  }
+  async nextcloudApproveUser(userId: string): Promise<void> {
+    return invoke('engine_nextcloud_approve_user', { userId });
+  }
+  async nextcloudDenyUser(userId: string): Promise<void> {
+    return invoke('engine_nextcloud_deny_user', { userId });
+  }
+  async nextcloudRemoveUser(userId: string): Promise<void> {
+    return invoke('engine_nextcloud_remove_user', { userId });
+  }
 
   // ── Nostr ────────────────────────────────────────────────────────────
 
-  async nostrStart(): Promise<void> { return invoke('engine_nostr_start'); }
-  async nostrStop(): Promise<void> { return invoke('engine_nostr_stop'); }
-  async nostrStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_nostr_status'); }
-  async nostrGetConfig(): Promise<NostrConfig> { return invoke<NostrConfig>('engine_nostr_get_config'); }
-  async nostrSetConfig(config: NostrConfig): Promise<void> { return invoke('engine_nostr_set_config', { config }); }
-  async nostrApproveUser(userId: string): Promise<void> { return invoke('engine_nostr_approve_user', { userId }); }
-  async nostrDenyUser(userId: string): Promise<void> { return invoke('engine_nostr_deny_user', { userId }); }
-  async nostrRemoveUser(userId: string): Promise<void> { return invoke('engine_nostr_remove_user', { userId }); }
+  async nostrStart(): Promise<void> {
+    return invoke('engine_nostr_start');
+  }
+  async nostrStop(): Promise<void> {
+    return invoke('engine_nostr_stop');
+  }
+  async nostrStatus(): Promise<ChannelStatus> {
+    return invoke<ChannelStatus>('engine_nostr_status');
+  }
+  async nostrGetConfig(): Promise<NostrConfig> {
+    return invoke<NostrConfig>('engine_nostr_get_config');
+  }
+  async nostrSetConfig(config: NostrConfig): Promise<void> {
+    return invoke('engine_nostr_set_config', { config });
+  }
+  async nostrApproveUser(userId: string): Promise<void> {
+    return invoke('engine_nostr_approve_user', { userId });
+  }
+  async nostrDenyUser(userId: string): Promise<void> {
+    return invoke('engine_nostr_deny_user', { userId });
+  }
+  async nostrRemoveUser(userId: string): Promise<void> {
+    return invoke('engine_nostr_remove_user', { userId });
+  }
 
   // ── Twitch ───────────────────────────────────────────────────────────
 
-  async twitchStart(): Promise<void> { return invoke('engine_twitch_start'); }
-  async twitchStop(): Promise<void> { return invoke('engine_twitch_stop'); }
-  async twitchStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_twitch_status'); }
-  async twitchGetConfig(): Promise<TwitchConfig> { return invoke<TwitchConfig>('engine_twitch_get_config'); }
-  async twitchSetConfig(config: TwitchConfig): Promise<void> { return invoke('engine_twitch_set_config', { config }); }
-  async twitchApproveUser(userId: string): Promise<void> { return invoke('engine_twitch_approve_user', { userId }); }
-  async twitchDenyUser(userId: string): Promise<void> { return invoke('engine_twitch_deny_user', { userId }); }
-  async twitchRemoveUser(userId: string): Promise<void> { return invoke('engine_twitch_remove_user', { userId }); }
+  async twitchStart(): Promise<void> {
+    return invoke('engine_twitch_start');
+  }
+  async twitchStop(): Promise<void> {
+    return invoke('engine_twitch_stop');
+  }
+  async twitchStatus(): Promise<ChannelStatus> {
+    return invoke<ChannelStatus>('engine_twitch_status');
+  }
+  async twitchGetConfig(): Promise<TwitchConfig> {
+    return invoke<TwitchConfig>('engine_twitch_get_config');
+  }
+  async twitchSetConfig(config: TwitchConfig): Promise<void> {
+    return invoke('engine_twitch_set_config', { config });
+  }
+  async twitchApproveUser(userId: string): Promise<void> {
+    return invoke('engine_twitch_approve_user', { userId });
+  }
+  async twitchDenyUser(userId: string): Promise<void> {
+    return invoke('engine_twitch_deny_user', { userId });
+  }
+  async twitchRemoveUser(userId: string): Promise<void> {
+    return invoke('engine_twitch_remove_user', { userId });
+  }
 
   // ── WhatsApp ─────────────────────────────────────────────────────────
 
-  async whatsappStart(): Promise<void> { return invoke('engine_whatsapp_start'); }
-  async whatsappStop(): Promise<void> { return invoke('engine_whatsapp_stop'); }
-  async whatsappStatus(): Promise<ChannelStatus> { return invoke<ChannelStatus>('engine_whatsapp_status'); }
-  async whatsappGetConfig(): Promise<WhatsAppConfig> { return invoke<WhatsAppConfig>('engine_whatsapp_get_config'); }
-  async whatsappSetConfig(config: WhatsAppConfig): Promise<void> { return invoke('engine_whatsapp_set_config', { config }); }
-  async whatsappApproveUser(userId: string): Promise<void> { return invoke('engine_whatsapp_approve_user', { userId }); }
-  async whatsappDenyUser(userId: string): Promise<void> { return invoke('engine_whatsapp_deny_user', { userId }); }
-  async whatsappRemoveUser(userId: string): Promise<void> { return invoke('engine_whatsapp_remove_user', { userId }); }
+  async whatsappStart(): Promise<void> {
+    return invoke('engine_whatsapp_start');
+  }
+  async whatsappStop(): Promise<void> {
+    return invoke('engine_whatsapp_stop');
+  }
+  async whatsappStatus(): Promise<ChannelStatus> {
+    return invoke<ChannelStatus>('engine_whatsapp_status');
+  }
+  async whatsappGetConfig(): Promise<WhatsAppConfig> {
+    return invoke<WhatsAppConfig>('engine_whatsapp_get_config');
+  }
+  async whatsappSetConfig(config: WhatsAppConfig): Promise<void> {
+    return invoke('engine_whatsapp_set_config', { config });
+  }
+  async whatsappApproveUser(userId: string): Promise<void> {
+    return invoke('engine_whatsapp_approve_user', { userId });
+  }
+  async whatsappDenyUser(userId: string): Promise<void> {
+    return invoke('engine_whatsapp_deny_user', { userId });
+  }
+  async whatsappRemoveUser(userId: string): Promise<void> {
+    return invoke('engine_whatsapp_remove_user', { userId });
+  }
 
   // ── Orchestrator: Projects ───────────────────────────────────────────
 
@@ -560,13 +759,20 @@ export class PawEngineClient {
   }
 
   async createAgent(agent: {
-    agent_id: string; role: string; specialty?: string;
-    model?: string; system_prompt?: string; capabilities?: string[];
+    agent_id: string;
+    role: string;
+    specialty?: string;
+    model?: string;
+    system_prompt?: string;
+    capabilities?: string[];
   }): Promise<void> {
     return invoke('engine_create_agent', {
-      agentId: agent.agent_id, role: agent.role,
-      specialty: agent.specialty ?? 'general', model: agent.model ?? null,
-      systemPrompt: agent.system_prompt ?? null, capabilities: agent.capabilities ?? [],
+      agentId: agent.agent_id,
+      role: agent.role,
+      specialty: agent.specialty ?? 'general',
+      model: agent.model ?? null,
+      systemPrompt: agent.system_prompt ?? null,
+      capabilities: agent.capabilities ?? [],
     });
   }
 
@@ -719,7 +925,12 @@ export class PawEngineClient {
     });
   }
 
-  async mailSend(account: string | undefined, to: string, subject: string, body: string): Promise<void> {
+  async mailSend(
+    account: string | undefined,
+    to: string,
+    subject: string,
+    body: string,
+  ): Promise<void> {
     return invoke('send_email', { account: account ?? null, to, subject, body });
   }
 

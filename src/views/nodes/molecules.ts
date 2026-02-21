@@ -28,20 +28,27 @@ export async function loadNodes() {
 
   try {
     // Gather status from engine
-    const [status, config] = await Promise.all([
-      pawEngine.status(),
-      pawEngine.getConfig(),
-    ]);
+    const [status, config] = await Promise.all([pawEngine.status(), pawEngine.getConfig()]);
 
-    let skillsInfo: Array<{ name: string; icon: string; configured_credentials: string[]; missing_credentials: string[] }> = [];
-    try { skillsInfo = await pawEngine.skillsList(); } catch { /* skills may not be loaded */ }
+    let skillsInfo: Array<{
+      name: string;
+      icon: string;
+      configured_credentials: string[];
+      missing_credentials: string[];
+    }> = [];
+    try {
+      skillsInfo = await pawEngine.skillsList();
+    } catch {
+      /* skills may not be loaded */
+    }
 
     target.innerHTML = '';
 
     // ── Engine Status ──────────────────────────────────────────────────
     const engineSection = document.createElement('div');
     engineSection.style.cssText = 'margin-bottom:16px';
-    const engineRunning = status && (status as unknown as Record<string, unknown>).running !== false;
+    const engineRunning =
+      status && (status as unknown as Record<string, unknown>).running !== false;
     engineSection.innerHTML = `
       <h3 class="settings-subsection-title">Engine Status</h3>
       <div style="display:flex;gap:12px;align-items:center;padding:8px 0">
@@ -60,19 +67,28 @@ export async function loadNodes() {
     provSection.innerHTML = '<h3 class="settings-subsection-title">Configured Providers</h3>';
 
     if (!config.providers.length) {
-      provSection.innerHTML += '<p style="color:var(--text-muted);font-size:13px;padding:4px 0">No providers configured. Go to Settings → Advanced to add Ollama or cloud providers.</p>';
+      provSection.innerHTML +=
+        '<p style="color:var(--text-muted);font-size:13px;padding:4px 0">No providers configured. Go to Settings → Advanced to add Ollama or cloud providers.</p>';
     } else {
       for (const prov of config.providers) {
         const card = document.createElement('div');
-        card.style.cssText = 'display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-light, rgba(255,255,255,0.06))';
+        card.style.cssText =
+          'display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-light, rgba(255,255,255,0.06))';
 
         const kindIcons: Record<string, string> = {
-          ollama: 'pets', openai: 'smart_toy', anthropic: 'psychology', google: 'auto_awesome', openrouter: 'language', custom: 'build'
+          ollama: 'pets',
+          openai: 'smart_toy',
+          anthropic: 'psychology',
+          google: 'auto_awesome',
+          openrouter: 'language',
+          custom: 'build',
         };
         const icon = `<span class="ms ms-sm">${kindIcons[prov.kind.toLowerCase()] ?? 'bolt'}</span>`;
         const isDefault = prov.id === config.default_provider;
-        const hasKey = prov.kind.toLowerCase() === 'ollama' || (prov.api_key && prov.api_key.length > 0);
-        const url = prov.base_url || (prov.kind.toLowerCase() === 'ollama' ? 'http://localhost:11434' : '—');
+        const hasKey =
+          prov.kind.toLowerCase() === 'ollama' || (prov.api_key && prov.api_key.length > 0);
+        const url =
+          prov.base_url || (prov.kind.toLowerCase() === 'ollama' ? 'http://localhost:11434' : '—');
 
         card.innerHTML = `
           <span style="font-size:20px">${icon}</span>
@@ -95,9 +111,12 @@ export async function loadNodes() {
               const testUrl = (prov.base_url || 'http://localhost:11434').replace(/\/$/, '');
               const resp = await fetch(`${testUrl}/api/tags`);
               if (resp.ok) {
-                const data = await resp.json() as { models?: Array<{ name: string }> };
+                const data = (await resp.json()) as { models?: Array<{ name: string }> };
                 const count = data.models?.length ?? 0;
-                showToast(`Ollama connected — ${count} model${count !== 1 ? 's' : ''} available`, 'success');
+                showToast(
+                  `Ollama connected — ${count} model${count !== 1 ? 's' : ''} available`,
+                  'success',
+                );
               } else {
                 showToast(`Ollama returned ${resp.status}`, 'error');
               }
@@ -163,7 +182,6 @@ export async function loadNodes() {
       </div>
     `;
     target.appendChild(cfgSection);
-
   } catch (e) {
     target.innerHTML = `<p style="color:var(--danger)">Failed to load status: ${esc(String(e))}</p>`;
   }

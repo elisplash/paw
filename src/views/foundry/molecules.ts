@@ -7,7 +7,13 @@ import { KIND_ICONS } from './atoms';
 
 // ── State bridge ───────────────────────────────────────────────────────────
 interface MoleculesState {
-  getCachedModels: () => { id: string; name?: string; provider?: string; contextWindow?: number; reasoning?: boolean }[];
+  getCachedModels: () => {
+    id: string;
+    name?: string;
+    provider?: string;
+    contextWindow?: number;
+    reasoning?: boolean;
+  }[];
   setCachedModels: (m: MoleculesState['getCachedModels'] extends () => infer R ? R : never) => void;
   getEditingModeId: () => string | null;
   setEditingModeId: (id: string | null) => void;
@@ -17,7 +23,9 @@ let _state: MoleculesState;
 
 export function initMoleculesState() {
   return {
-    setMoleculesState: (st: MoleculesState) => { _state = st; },
+    setMoleculesState: (st: MoleculesState) => {
+      _state = st;
+    },
   };
 }
 

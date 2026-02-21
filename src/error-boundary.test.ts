@@ -1,10 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-  reportError,
-  getErrorHistory,
-  clearErrorHistory,
-  setErrorHandler,
-} from './error-boundary';
+import { reportError, getErrorHistory, clearErrorHistory, setErrorHandler } from './error-boundary';
 
 beforeEach(() => {
   clearErrorHistory();
@@ -63,7 +58,9 @@ describe('clearErrorHistory', () => {
 describe('setErrorHandler', () => {
   it('calls callback when error is reported', () => {
     let called = false;
-    setErrorHandler(() => { called = true; });
+    setErrorHandler(() => {
+      called = true;
+    });
     reportError('trigger callback');
     expect(called).toBe(true);
     // Clean up

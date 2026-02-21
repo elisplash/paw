@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  specialtyIcon,
-  messageKindLabel,
-  formatTime,
-} from './atoms';
+import { specialtyIcon, messageKindLabel, formatTime } from './atoms';
 
 // ── specialtyIcon ──────────────────────────────────────────────────────
 

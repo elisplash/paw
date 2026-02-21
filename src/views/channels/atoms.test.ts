@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  isChannelConfigured,
-  emptyChannelConfig,
-  CHANNEL_CLASSES,
-  CHANNEL_SETUPS,
-} from './atoms';
+import { isChannelConfigured, emptyChannelConfig, CHANNEL_CLASSES, CHANNEL_SETUPS } from './atoms';
 
 // ── isChannelConfigured ────────────────────────────────────────────────
 
@@ -23,12 +18,16 @@ describe('isChannelConfigured', () => {
   });
 
   it('slack: needs both tokens', () => {
-    expect(isChannelConfigured('slack', { bot_token: 'xoxb-...', app_token: 'xapp-...' })).toBe(true);
+    expect(isChannelConfigured('slack', { bot_token: 'xoxb-...', app_token: 'xapp-...' })).toBe(
+      true,
+    );
     expect(isChannelConfigured('slack', { bot_token: 'xoxb-...' })).toBe(false);
   });
 
   it('matrix: needs homeserver and access_token', () => {
-    expect(isChannelConfigured('matrix', { homeserver: 'https://matrix.org', access_token: 'syt_...' })).toBe(true);
+    expect(
+      isChannelConfigured('matrix', { homeserver: 'https://matrix.org', access_token: 'syt_...' }),
+    ).toBe(true);
   });
 
   it('whatsapp: configured when enabled', () => {
@@ -70,7 +69,7 @@ describe('emptyChannelConfig', () => {
 describe('CHANNEL_CLASSES', () => {
   it('contains all expected channels', () => {
     expect(Object.keys(CHANNEL_CLASSES)).toEqual(
-      expect.arrayContaining(['telegram', 'discord', 'slack', 'matrix', 'whatsapp'])
+      expect.arrayContaining(['telegram', 'discord', 'slack', 'matrix', 'whatsapp']),
     );
   });
 });
@@ -79,7 +78,7 @@ describe('CHANNEL_CLASSES', () => {
 
 describe('CHANNEL_SETUPS', () => {
   it('has definitions for all channels', () => {
-    const ids = CHANNEL_SETUPS.map(s => s.id);
+    const ids = CHANNEL_SETUPS.map((s) => s.id);
     expect(ids).toContain('telegram');
     expect(ids).toContain('discord');
     expect(ids).toContain('webchat');

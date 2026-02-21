@@ -1,5 +1,5 @@
 // Pawz — Features Directory
-// 
+//
 // Atomic design pattern:
 //   atoms/     — Pure functions, single-responsibility (parsers, validators, formatters)
 //   molecules/ — Composed atoms (e.g. slash command parser + executor)

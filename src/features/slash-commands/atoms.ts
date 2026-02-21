@@ -36,35 +36,143 @@ export interface AutocompleteSuggestion {
 
 export const COMMANDS: SlashCommandDef[] = [
   // Chat
-  { name: 'model',    description: 'Switch AI model for this session',         usage: '/model <name>',           requiresArg: true,  category: 'chat' },
-  { name: 'think',    description: 'Set thinking/reasoning level',             usage: '/think <none|low|medium|high>', requiresArg: true, category: 'chat' },
-  { name: 'mode',     description: 'Switch chat mode',                         usage: '/mode <name>',            requiresArg: true,  category: 'chat' },
-  { name: 'agent',    description: 'Switch active agent',                      usage: '/agent <name>',           requiresArg: true,  category: 'chat' },
-  { name: 'temp',     description: 'Set temperature (0.0–2.0)',                usage: '/temp <value>',           requiresArg: true,  category: 'chat' },
+  {
+    name: 'model',
+    description: 'Switch AI model for this session',
+    usage: '/model <name>',
+    requiresArg: true,
+    category: 'chat',
+  },
+  {
+    name: 'think',
+    description: 'Set thinking/reasoning level',
+    usage: '/think <none|low|medium|high>',
+    requiresArg: true,
+    category: 'chat',
+  },
+  {
+    name: 'mode',
+    description: 'Switch chat mode',
+    usage: '/mode <name>',
+    requiresArg: true,
+    category: 'chat',
+  },
+  {
+    name: 'agent',
+    description: 'Switch active agent',
+    usage: '/agent <name>',
+    requiresArg: true,
+    category: 'chat',
+  },
+  {
+    name: 'temp',
+    description: 'Set temperature (0.0–2.0)',
+    usage: '/temp <value>',
+    requiresArg: true,
+    category: 'chat',
+  },
 
   // Session
-  { name: 'clear',    description: 'Clear current session history',            usage: '/clear',                  requiresArg: false, category: 'session' },
-  { name: 'compact',  description: 'Summarize & compact session context',      usage: '/compact',                requiresArg: false, category: 'session' },
-  { name: 'new',      description: 'Start a new session',                      usage: '/new [label]',            requiresArg: false, category: 'session' },
-  { name: 'rename',   description: 'Rename current session',                   usage: '/rename <label>',         requiresArg: true,  category: 'session' },
+  {
+    name: 'clear',
+    description: 'Clear current session history',
+    usage: '/clear',
+    requiresArg: false,
+    category: 'session',
+  },
+  {
+    name: 'compact',
+    description: 'Summarize & compact session context',
+    usage: '/compact',
+    requiresArg: false,
+    category: 'session',
+  },
+  {
+    name: 'new',
+    description: 'Start a new session',
+    usage: '/new [label]',
+    requiresArg: false,
+    category: 'session',
+  },
+  {
+    name: 'rename',
+    description: 'Rename current session',
+    usage: '/rename <label>',
+    requiresArg: true,
+    category: 'session',
+  },
 
   // Memory
-  { name: 'remember', description: 'Store text in long-term memory',           usage: '/remember <text>',        requiresArg: true,  category: 'memory' },
-  { name: 'forget',   description: 'Delete a memory by ID',                    usage: '/forget <id>',            requiresArg: true,  category: 'memory' },
-  { name: 'recall',   description: 'Search memories',                          usage: '/recall <query>',         requiresArg: true,  category: 'memory' },
+  {
+    name: 'remember',
+    description: 'Store text in long-term memory',
+    usage: '/remember <text>',
+    requiresArg: true,
+    category: 'memory',
+  },
+  {
+    name: 'forget',
+    description: 'Delete a memory by ID',
+    usage: '/forget <id>',
+    requiresArg: true,
+    category: 'memory',
+  },
+  {
+    name: 'recall',
+    description: 'Search memories',
+    usage: '/recall <query>',
+    requiresArg: true,
+    category: 'memory',
+  },
 
   // Tools
-  { name: 'web',      description: 'Force a web search',                       usage: '/web <query>',            requiresArg: true,  category: 'tools' },
-  { name: 'img',      description: 'Generate an image',                        usage: '/img <prompt>',           requiresArg: true,  category: 'tools' },
-  { name: 'exec',     description: 'Execute a shell command',                  usage: '/exec <command>',         requiresArg: true,  category: 'tools' },
+  {
+    name: 'web',
+    description: 'Force a web search',
+    usage: '/web <query>',
+    requiresArg: true,
+    category: 'tools',
+  },
+  {
+    name: 'img',
+    description: 'Generate an image',
+    usage: '/img <prompt>',
+    requiresArg: true,
+    category: 'tools',
+  },
+  {
+    name: 'exec',
+    description: 'Execute a shell command',
+    usage: '/exec <command>',
+    requiresArg: true,
+    category: 'tools',
+  },
 
   // Config
-  { name: 'help',     description: 'Show available slash commands',            usage: '/help',                   requiresArg: false, category: 'config' },
-  { name: 'status',   description: 'Show engine status & current settings',    usage: '/status',                 requiresArg: false, category: 'config' },
-  { name: 'debug',    description: 'Toggle debug/verbose mode',                usage: '/debug',                  requiresArg: false, category: 'config' },
+  {
+    name: 'help',
+    description: 'Show available slash commands',
+    usage: '/help',
+    requiresArg: false,
+    category: 'config',
+  },
+  {
+    name: 'status',
+    description: 'Show engine status & current settings',
+    usage: '/status',
+    requiresArg: false,
+    category: 'config',
+  },
+  {
+    name: 'debug',
+    description: 'Toggle debug/verbose mode',
+    usage: '/debug',
+    requiresArg: false,
+    category: 'config',
+  },
 ];
 
-const COMMAND_MAP = new Map(COMMANDS.map(c => [c.name, c]));
+const COMMAND_MAP = new Map(COMMANDS.map((c) => [c.name, c]));
 
 // ── Pure Functions ─────────────────────────────────────────────────────────
 
@@ -141,7 +249,7 @@ export function getAutocompleteSuggestions(partial: string): AutocompleteSuggest
 
   // If nothing typed yet, show all commands
   if (!typed) {
-    return COMMANDS.map(c => ({
+    return COMMANDS.map((c) => ({
       command: `/${c.name}`,
       description: c.description,
       usage: c.usage,
@@ -149,13 +257,11 @@ export function getAutocompleteSuggestions(partial: string): AutocompleteSuggest
   }
 
   // Filter by prefix match
-  return COMMANDS
-    .filter(c => c.name.startsWith(typed))
-    .map(c => ({
-      command: `/${c.name}`,
-      description: c.description,
-      usage: c.usage,
-    }));
+  return COMMANDS.filter((c) => c.name.startsWith(typed)).map((c) => ({
+    command: `/${c.name}`,
+    description: c.description,
+    usage: c.usage,
+  }));
 }
 
 /**
@@ -168,11 +274,11 @@ export function buildHelpText(): string {
   }
 
   const labels: Record<string, string> = {
-    chat:    'Chat',
+    chat: 'Chat',
     session: 'Session',
-    memory:  'Memory',
-    tools:   'Tools',
-    config:  'Config',
+    memory: 'Memory',
+    tools: 'Tools',
+    config: 'Config',
   };
 
   const lines: string[] = ['**Available Slash Commands**\n'];

@@ -47,8 +47,16 @@ export interface RouteResult {
 // ── Constants ──────────────────────────────────────────────────────────────
 
 export const ALL_CHANNELS = [
-  'telegram', 'discord', 'irc', 'slack', 'matrix',
-  'mattermost', 'nextcloud', 'nostr', 'twitch', 'webchat',
+  'telegram',
+  'discord',
+  'irc',
+  'slack',
+  'matrix',
+  'mattermost',
+  'nextcloud',
+  'nostr',
+  'twitch',
+  'webchat',
 ] as const;
 
 export const DEFAULT_ROUTING_CONFIG: RoutingConfig = {
@@ -78,7 +86,8 @@ export function resolveRoute(
     if (rule.userFilter.length > 0 && !rule.userFilter.includes(userId)) continue;
 
     // Channel ID filter: empty = matches all channel/group IDs
-    if (rule.channelIdFilter.length > 0 && channelId && !rule.channelIdFilter.includes(channelId)) continue;
+    if (rule.channelIdFilter.length > 0 && channelId && !rule.channelIdFilter.includes(channelId))
+      continue;
 
     return {
       agentId: rule.agentId,
@@ -161,6 +170,6 @@ export function describeRoutingConfig(config: RoutingConfig): string {
   if (config.rules.length === 0) {
     return `All channels → ${config.defaultAgentId}`;
   }
-  const active = config.rules.filter(r => r.enabled);
+  const active = config.rules.filter((r) => r.enabled);
   return `${active.length} routing rules, default → ${config.defaultAgentId}`;
 }

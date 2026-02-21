@@ -61,21 +61,27 @@ export async function getGitInfo(projectPath: string, forceRefresh = false): Pro
   const info: GitInfo = { isRepo: true };
 
   // Branch
-  info.branch = await gitExec(projectPath, 'rev-parse', '--abbrev-ref', 'HEAD') ?? undefined;
+  info.branch = (await gitExec(projectPath, 'rev-parse', '--abbrev-ref', 'HEAD')) ?? undefined;
 
   // Remote URL
-  info.remote = await gitExec(projectPath, 'config', '--get', 'remote.origin.url') ?? undefined;
+  info.remote = (await gitExec(projectPath, 'config', '--get', 'remote.origin.url')) ?? undefined;
 
   // Dirty file count
   const statusOut = await gitExec(projectPath, 'status', '--porcelain');
   if (statusOut !== null) {
-    info.dirty = statusOut === '' ? 0 : statusOut.split('\n').filter(l => l.trim()).length;
+    info.dirty = statusOut === '' ? 0 : statusOut.split('\n').filter((l) => l.trim()).length;
   }
 
   // Ahead/behind (only if upstream is set)
   const upstream = await gitExec(projectPath, 'rev-parse', '--abbrev-ref', '@{upstream}');
   if (upstream) {
-    const abOut = await gitExec(projectPath, 'rev-list', '--left-right', '--count', `HEAD...@{upstream}`);
+    const abOut = await gitExec(
+      projectPath,
+      'rev-list',
+      '--left-right',
+      '--count',
+      `HEAD...@{upstream}`,
+    );
     if (abOut) {
       const [ahead, behind] = abOut.split(/\s+/).map(Number);
       info.ahead = ahead || 0;
@@ -112,9 +118,10 @@ export function renderGitBanner(git: GitInfo, projectPath: string): string {
     ? `<span style="font-weight:600;font-family:var(--font-mono);font-size:12px;background:var(--accent-alpha, rgba(99,102,241,0.15));color:var(--accent);padding:2px 8px;border-radius:4px">${escHtml(git.branch)}</span>`
     : '';
 
-  const dirtyBadge = git.dirty !== undefined && git.dirty > 0
-    ? `<span style="font-size:11px;color:var(--warning)">● ${git.dirty} changed</span>`
-    : `<span style="font-size:11px;color:var(--success)">● Clean</span>`;
+  const dirtyBadge =
+    git.dirty !== undefined && git.dirty > 0
+      ? `<span style="font-size:11px;color:var(--warning)">● ${git.dirty} changed</span>`
+      : `<span style="font-size:11px;color:var(--success)">● Clean</span>`;
 
   let syncBadge = '';
   if (git.ahead || git.behind) {
@@ -160,7 +167,7 @@ export function bindGitActions(
   projectPath: string,
   onRefresh: (path: string) => Promise<void>,
 ): void {
-  container.querySelectorAll('.git-action').forEach(btn => {
+  container.querySelectorAll('.git-action').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const action = (btn as HTMLElement).dataset.action;
@@ -176,7 +183,10 @@ export function bindGitActions(
           case 'pull': {
             const out = await gitExec(path, 'pull');
             if (out !== null) {
-              showToast(out.includes('Already up to date') ? 'Already up to date' : 'Pull complete', 'success');
+              showToast(
+                out.includes('Already up to date') ? 'Already up to date' : 'Pull complete',
+                'success',
+              );
             } else {
               showToast('Pull failed — check remote & credentials', 'error');
             }
@@ -195,7 +205,10 @@ export function bindGitActions(
             const msg = prompt('Commit message:');
             if (!msg) break;
             const addOut = await gitExec(path, 'add', '-A');
-            if (addOut === null) { showToast('git add failed', 'error'); break; }
+            if (addOut === null) {
+              showToast('git add failed', 'error');
+              break;
+            }
             const commitOut = await gitExec(path, 'commit', '-m', msg);
             if (commitOut !== null) {
               showToast('Committed!', 'success');
@@ -222,7 +235,6 @@ export function bindGitActions(
         // Refresh git info
         clearGitInfoCache(path);
         await onRefresh(path);
-
       } catch (err) {
         showToast(`Git error: ${err instanceof Error ? err.message : err}`, 'error');
       } finally {

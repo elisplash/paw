@@ -12,7 +12,12 @@ import {
 } from './atoms';
 import type { Memory } from './atoms';
 
-const makeMem = (content: string, category = 'general', score = 1.0, createdAt?: string): Memory => ({
+const makeMem = (
+  content: string,
+  category = 'general',
+  score = 1.0,
+  createdAt?: string,
+): Memory => ({
   id: `m-${Math.random().toString(36).slice(2)}`,
   content,
   category,
@@ -49,7 +54,10 @@ describe('applyDecay', () => {
   it('reduces scores of old memories', () => {
     const old = new Date();
     old.setDate(old.getDate() - 60);
-    const memories = [makeMem('new', 'general', 1.0), makeMem('old', 'general', 1.0, old.toISOString())];
+    const memories = [
+      makeMem('new', 'general', 1.0),
+      makeMem('old', 'general', 1.0, old.toISOString()),
+    ];
     const decayed = applyDecay(memories);
     expect(decayed[0].score!).toBeGreaterThan(decayed[1].score!);
   });
@@ -100,10 +108,7 @@ describe('mmrRerank', () => {
   });
 
   it('selects highest scored first', () => {
-    const mems = [
-      makeMem('low score', 'general', 0.2),
-      makeMem('high score', 'general', 0.9),
-    ];
+    const mems = [makeMem('low score', 'general', 0.2), makeMem('high score', 'general', 0.9)];
     const result = mmrRerank(mems, 1);
     expect(result[0].content).toBe('high score');
   });
@@ -130,11 +135,7 @@ describe('formatMemoryForContext', () => {
 
 describe('groupByCategory', () => {
   it('groups memories by category', () => {
-    const mems = [
-      makeMem('a', 'fact'),
-      makeMem('b', 'fact'),
-      makeMem('c', 'preference'),
-    ];
+    const mems = [makeMem('a', 'fact'), makeMem('b', 'fact'), makeMem('c', 'preference')];
     const groups = groupByCategory(mems);
     expect(groups['fact']).toHaveLength(2);
     expect(groups['preference']).toHaveLength(1);

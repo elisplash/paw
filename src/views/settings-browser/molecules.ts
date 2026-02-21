@@ -1,6 +1,12 @@
 // Settings: Browser & Sandbox — DOM rendering + IPC
 
-import { pawEngine, type BrowserConfig, type ScreenshotEntry, type WorkspaceInfo, type NetworkPolicy } from '../../engine';
+import {
+  pawEngine,
+  type BrowserConfig,
+  type ScreenshotEntry,
+  type WorkspaceInfo,
+  type NetworkPolicy,
+} from '../../engine';
 import { showToast } from '../../components/toast';
 import { formatBytes, timeAgo, isValidDomain } from '../../features/browser-sandbox';
 import { $, escHtml, confirmModal } from '../../components/helpers';
@@ -15,7 +21,9 @@ let _state: MoleculesState;
 
 export function initMoleculesState() {
   return {
-    setMoleculesState(s: MoleculesState) { _state = s; },
+    setMoleculesState(s: MoleculesState) {
+      _state = s;
+    },
   };
 }
 
@@ -40,7 +48,8 @@ export function renderProfiles(container: HTMLElement, browserConfig: BrowserCon
 
   for (const profile of browserConfig.profiles) {
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface-elevated);border-radius:8px;border:1px solid var(--border-color)';
+    row.style.cssText =
+      'display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface-elevated);border-radius:8px;border:1px solid var(--border-color)';
     const isDefault = profile.id === browserConfig.default_profile;
     row.innerHTML = `
       <div style="flex:1;min-width:0">
@@ -74,7 +83,7 @@ export function renderProfiles(container: HTMLElement, browserConfig: BrowserCon
       deleteBtn.style.color = 'var(--error)';
       deleteBtn.textContent = 'Delete';
       deleteBtn.addEventListener('click', async () => {
-        if (!await confirmModal(`Delete profile "${profile.name}" and all its data?`)) return;
+        if (!(await confirmModal(`Delete profile "${profile.name}" and all its data?`))) return;
         await pawEngine.browserDeleteProfile(profile.id);
         showToast(`Profile "${profile.name}" deleted`, 'success');
         _state.getLoadBrowserSettings()();
@@ -143,7 +152,8 @@ export function renderProfiles(container: HTMLElement, browserConfig: BrowserCon
   saveBrowserBtn.addEventListener('click', async () => {
     browserConfig.headless = ($('browser-headless') as HTMLInputElement)?.checked ?? true;
     browserConfig.auto_close_tabs = ($('browser-auto-close') as HTMLInputElement)?.checked ?? true;
-    browserConfig.idle_timeout_secs = parseInt(($('browser-idle-timeout') as HTMLInputElement)?.value ?? '300', 10) || 300;
+    browserConfig.idle_timeout_secs =
+      parseInt(($('browser-idle-timeout') as HTMLInputElement)?.value ?? '300', 10) || 300;
     await pawEngine.browserSetConfig(browserConfig);
     showToast('Browser settings saved', 'success');
   });
@@ -170,20 +180,25 @@ export function renderScreenshots(container: HTMLElement, screenshots: Screensho
 
   if (screenshots.length === 0) {
     const empty = document.createElement('div');
-    empty.style.cssText = 'padding:24px;text-align:center;color:var(--text-muted);font-size:13px;background:var(--surface-elevated);border-radius:8px;border:1px solid var(--border-color)';
+    empty.style.cssText =
+      'padding:24px;text-align:center;color:var(--text-muted);font-size:13px;background:var(--surface-elevated);border-radius:8px;border:1px solid var(--border-color)';
     empty.textContent = 'No screenshots yet. Agents will save them here when using web_screenshot.';
     screenshotSection.appendChild(empty);
   } else {
     const grid = document.createElement('div');
-    grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px';
+    grid.style.cssText =
+      'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px';
 
     for (const ss of screenshots.slice(0, 50)) {
       const card = document.createElement('div');
-      card.style.cssText = 'position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border-color);background:var(--surface-elevated);cursor:pointer';
+      card.style.cssText =
+        'position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--border-color);background:var(--surface-elevated);cursor:pointer';
 
       const thumb = document.createElement('div');
-      thumb.style.cssText = 'height:120px;background:var(--bg-primary);display:flex;align-items:center;justify-content:center;overflow:hidden';
-      thumb.innerHTML = '<span class="ms" style="font-size:40px;color:var(--text-muted)">image</span>';
+      thumb.style.cssText =
+        'height:120px;background:var(--bg-primary);display:flex;align-items:center;justify-content:center;overflow:hidden';
+      thumb.innerHTML =
+        '<span class="ms" style="font-size:40px;color:var(--text-muted)">image</span>';
 
       const loadThumb = async () => {
         try {
@@ -196,7 +211,9 @@ export function renderScreenshots(container: HTMLElement, screenshots: Screensho
             img.alt = ss.filename;
             thumb.appendChild(img);
           }
-        } catch { /* ignore failed loads */ }
+        } catch {
+          /* ignore failed loads */
+        }
       };
 
       const observer = new IntersectionObserver((entries) => {
@@ -223,7 +240,8 @@ export function renderScreenshots(container: HTMLElement, screenshots: Screensho
             const win = window.open('', '_blank');
             if (win) {
               win.document.title = ss.filename;
-              win.document.body.style.cssText = 'margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh';
+              win.document.body.style.cssText =
+                'margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh';
               const img = win.document.createElement('img');
               img.src = `data:image/png;base64,${full.base64_png}`;
               img.style.maxWidth = '100%';
@@ -236,7 +254,8 @@ export function renderScreenshots(container: HTMLElement, screenshots: Screensho
       });
 
       const delBtn = document.createElement('button');
-      delBtn.style.cssText = 'position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);border:none;border-radius:4px;color:#ff6666;cursor:pointer;padding:2px 6px;font-size:12px';
+      delBtn.style.cssText =
+        'position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.7);border:none;border-radius:4px;color:#ff6666;cursor:pointer;padding:2px 6px;font-size:12px';
       delBtn.textContent = '✕';
       delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -275,8 +294,10 @@ export function renderWorkspaces(container: HTMLElement, workspaces: WorkspaceIn
 
   if (workspaces.length === 0) {
     const empty = document.createElement('div');
-    empty.style.cssText = 'padding:24px;text-align:center;color:var(--text-muted);font-size:13px;background:var(--surface-elevated);border-radius:8px;border:1px solid var(--border-color)';
-    empty.textContent = 'No agent workspaces created yet. They\'re auto-created when an agent writes files.';
+    empty.style.cssText =
+      'padding:24px;text-align:center;color:var(--text-muted);font-size:13px;background:var(--surface-elevated);border-radius:8px;border:1px solid var(--border-color)';
+    empty.textContent =
+      "No agent workspaces created yet. They're auto-created when an agent writes files.";
     workspaceSection.appendChild(empty);
   } else {
     const wsList = document.createElement('div');
@@ -284,7 +305,8 @@ export function renderWorkspaces(container: HTMLElement, workspaces: WorkspaceIn
 
     for (const ws of workspaces) {
       const row = document.createElement('div');
-      row.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface-elevated);border-radius:8px;border:1px solid var(--border-color)';
+      row.style.cssText =
+        'display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--surface-elevated);border-radius:8px;border:1px solid var(--border-color)';
       row.innerHTML = `
         <span class="ms ms-sm" style="color:var(--accent)">folder</span>
         <div style="flex:1;min-width:0">
@@ -304,7 +326,12 @@ export function renderWorkspaces(container: HTMLElement, workspaces: WorkspaceIn
       deleteBtn.style.color = 'var(--error)';
       deleteBtn.textContent = 'Delete';
       deleteBtn.addEventListener('click', async () => {
-        if (!await confirmModal(`Delete entire workspace for agent "${ws.agent_id}"? This cannot be undone.`)) return;
+        if (
+          !(await confirmModal(
+            `Delete entire workspace for agent "${ws.agent_id}"? This cannot be undone.`,
+          ))
+        )
+          return;
         await pawEngine.workspaceDelete(ws.agent_id);
         showToast(`Workspace for "${ws.agent_id}" deleted`, 'success');
         _state.getLoadBrowserSettings()();
@@ -339,7 +366,8 @@ export function renderNetworkPolicy(container: HTMLElement, networkPolicy: Netwo
 
   // Enable toggle
   const enableRow = document.createElement('label');
-  enableRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer';
+  enableRow.style.cssText =
+    'display:flex;align-items:center;gap:8px;margin-bottom:16px;cursor:pointer';
   enableRow.innerHTML = `
     <input type="checkbox" id="network-allowlist-enabled" ${networkPolicy.enabled ? 'checked' : ''} />
     <div>
@@ -351,7 +379,8 @@ export function renderNetworkPolicy(container: HTMLElement, networkPolicy: Netwo
 
   // Allowed domains
   const allowedLabel = document.createElement('h4');
-  allowedLabel.style.cssText = 'font-size:13px;font-weight:600;color:var(--text-secondary);margin:12px 0 6px';
+  allowedLabel.style.cssText =
+    'font-size:13px;font-weight:600;color:var(--text-secondary);margin:12px 0 6px';
   allowedLabel.textContent = 'Allowed Domains';
   networkSection.appendChild(allowedLabel);
 
@@ -359,14 +388,16 @@ export function renderNetworkPolicy(container: HTMLElement, networkPolicy: Netwo
   allowedTextarea.id = 'network-allowed-domains';
   allowedTextarea.className = 'form-input';
   allowedTextarea.rows = 6;
-  allowedTextarea.style.cssText = 'font-family:var(--font-mono);font-size:12px;width:100%;resize:vertical';
+  allowedTextarea.style.cssText =
+    'font-family:var(--font-mono);font-size:12px;width:100%;resize:vertical';
   allowedTextarea.placeholder = 'api.openai.com\napi.anthropic.com\n*.example.com';
   allowedTextarea.value = networkPolicy.allowed_domains.join('\n');
   networkSection.appendChild(allowedTextarea);
 
   // Blocked domains
   const blockedLabel = document.createElement('h4');
-  blockedLabel.style.cssText = 'font-size:13px;font-weight:600;color:var(--text-secondary);margin:12px 0 6px';
+  blockedLabel.style.cssText =
+    'font-size:13px;font-weight:600;color:var(--text-secondary);margin:12px 0 6px';
   blockedLabel.textContent = 'Blocked Domains (always blocked)';
   networkSection.appendChild(blockedLabel);
 
@@ -374,7 +405,8 @@ export function renderNetworkPolicy(container: HTMLElement, networkPolicy: Netwo
   blockedTextarea.id = 'network-blocked-domains';
   blockedTextarea.className = 'form-input';
   blockedTextarea.rows = 4;
-  blockedTextarea.style.cssText = 'font-family:var(--font-mono);font-size:12px;width:100%;resize:vertical';
+  blockedTextarea.style.cssText =
+    'font-family:var(--font-mono);font-size:12px;width:100%;resize:vertical';
   blockedTextarea.placeholder = 'pastebin.com\ntransfer.sh';
   blockedTextarea.value = networkPolicy.blocked_domains.join('\n');
   networkSection.appendChild(blockedTextarea);
@@ -406,9 +438,7 @@ export function renderNetworkPolicy(container: HTMLElement, networkPolicy: Netwo
     if (!url) return;
     try {
       const [allowed, domain] = await pawEngine.networkCheckUrl(url);
-      testResult.textContent = allowed
-        ? `${domain} — allowed`
-        : `${domain} — blocked`;
+      testResult.textContent = allowed ? `${domain} — allowed` : `${domain} — blocked`;
       testResult.style.color = allowed ? 'var(--success)' : 'var(--error)';
     } catch (e) {
       testResult.textContent = `Error: ${e}`;
@@ -428,12 +458,16 @@ export function renderNetworkPolicy(container: HTMLElement, networkPolicy: Netwo
   saveNetworkBtn.textContent = 'Save Network Policy';
   saveNetworkBtn.addEventListener('click', async () => {
     const allowedDomains = (($('network-allowed-domains') as HTMLTextAreaElement)?.value ?? '')
-      .split('\n').map(d => d.trim()).filter(d => d.length > 0);
+      .split('\n')
+      .map((d) => d.trim())
+      .filter((d) => d.length > 0);
     const blockedDomains = (($('network-blocked-domains') as HTMLTextAreaElement)?.value ?? '')
-      .split('\n').map(d => d.trim()).filter(d => d.length > 0);
+      .split('\n')
+      .map((d) => d.trim())
+      .filter((d) => d.length > 0);
 
-    const invalidAllowed = allowedDomains.filter(d => !isValidDomain(d));
-    const invalidBlocked = blockedDomains.filter(d => !isValidDomain(d));
+    const invalidAllowed = allowedDomains.filter((d) => !isValidDomain(d));
+    const invalidBlocked = blockedDomains.filter((d) => !isValidDomain(d));
     if (invalidAllowed.length > 0) {
       showToast(`Invalid allowed domains: ${invalidAllowed.join(', ')}`, 'error');
       return;
@@ -459,7 +493,8 @@ export function renderNetworkPolicy(container: HTMLElement, networkPolicy: Netwo
   resetNetworkBtn.className = 'btn btn-ghost btn-sm';
   resetNetworkBtn.textContent = 'Reset to Defaults';
   resetNetworkBtn.addEventListener('click', async () => {
-    const { DEFAULT_ALLOWED_DOMAINS, DEFAULT_BLOCKED_DOMAINS } = await import('../../features/browser-sandbox');
+    const { DEFAULT_ALLOWED_DOMAINS, DEFAULT_BLOCKED_DOMAINS } =
+      await import('../../features/browser-sandbox');
     await pawEngine.networkSetPolicy({
       enabled: false,
       allowed_domains: [...DEFAULT_ALLOWED_DOMAINS],
@@ -488,10 +523,12 @@ export async function browseWorkspace(agentId: string, parentSection: HTMLElemen
 
     const panel = document.createElement('div');
     panel.className = 'workspace-browser';
-    panel.style.cssText = 'margin-top:12px;padding:14px;background:var(--bg-primary);border-radius:8px;border:1px solid var(--border-color)';
+    panel.style.cssText =
+      'margin-top:12px;padding:14px;background:var(--bg-primary);border-radius:8px;border:1px solid var(--border-color)';
 
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px';
+    header.style.cssText =
+      'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px';
     header.innerHTML = `
       <div style="font-weight:600;font-size:13px;color:var(--text-primary)">
         <span class="ms ms-sm" style="color:var(--accent)">folder_open</span>
@@ -506,7 +543,8 @@ export async function browseWorkspace(agentId: string, parentSection: HTMLElemen
     panel.appendChild(header);
 
     if (files.length === 0) {
-      panel.innerHTML += '<p style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px">Workspace is empty</p>';
+      panel.innerHTML +=
+        '<p style="color:var(--text-muted);font-size:12px;text-align:center;padding:12px">Workspace is empty</p>';
     } else {
       const table = document.createElement('table');
       table.style.cssText = 'width:100%;font-size:12px;border-collapse:collapse';
@@ -523,7 +561,8 @@ export async function browseWorkspace(agentId: string, parentSection: HTMLElemen
 
       for (const file of files) {
         const tr = document.createElement('tr');
-        tr.style.cssText = 'border-bottom:1px solid var(--border-subtle);color:var(--text-secondary)';
+        tr.style.cssText =
+          'border-bottom:1px solid var(--border-subtle);color:var(--text-secondary)';
         const icon = file.is_dir ? 'folder' : 'description';
         const iconColor = file.is_dir ? 'var(--accent)' : 'var(--text-muted)';
         tr.innerHTML = `

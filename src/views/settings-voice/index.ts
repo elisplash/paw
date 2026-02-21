@@ -23,7 +23,9 @@ let _config: TtsConfig = {
 const { setMoleculesState } = initMoleculesState();
 setMoleculesState({
   getConfig: () => _config,
-  setConfig: (c: TtsConfig) => { _config = c; },
+  setConfig: (c: TtsConfig) => {
+    _config = c;
+  },
 });
 
 // ── Public API ────────────────────────────────────────────────────────

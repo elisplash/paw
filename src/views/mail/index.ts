@@ -15,7 +15,11 @@ import {
   setOpenMailAccountSetup,
   setLoadMailRef,
 } from './molecules';
-import { setCloseChannelSetupFn, openMailAccountSetup as _openMailAccountSetup, setLoadMailRefSetup } from './setup';
+import {
+  setCloseChannelSetupFn,
+  openMailAccountSetup as _openMailAccountSetup,
+  setLoadMailRefSetup,
+} from './setup';
 
 // ── Wire injected dependencies (break circular imports) ────────────────────
 
@@ -27,8 +31,19 @@ setLoadMailRefSetup(() => loadMail());
 
 export type { MailPermissions, MailAccount, MailMessage } from './atoms';
 export { loadMailPermissions, extractContent } from './atoms';
-export { openMailAccountSetup, saveMailImapSetup, getChannelSetupType, clearChannelSetupType } from './setup';
-export { renderMailAccounts, renderMailList, showMailEmpty, openMailMessage, openComposeModal } from './molecules';
+export {
+  openMailAccountSetup,
+  saveMailImapSetup,
+  getChannelSetupType,
+  clearChannelSetupType,
+} from './setup';
+export {
+  renderMailAccounts,
+  renderMailList,
+  showMailEmpty,
+  openMailMessage,
+  openComposeModal,
+} from './molecules';
 
 // ── Configure ──────────────────────────────────────────────────────────────
 
@@ -89,20 +104,26 @@ export function initMailEvents(): void {
   });
 
   // Mail folder switching
-  document.querySelectorAll('.mail-folder').forEach(folder => {
+  document.querySelectorAll('.mail-folder').forEach((folder) => {
     folder.addEventListener('click', () => {
-      document.querySelectorAll('.mail-folder').forEach(f => f.classList.remove('active'));
+      document.querySelectorAll('.mail-folder').forEach((f) => f.classList.remove('active'));
       folder.classList.add('active');
       const folderName = folder.getAttribute('data-folder') ?? 'inbox';
       setMailFolder(folderName);
       const titleEl = $('mail-folder-title');
       if (titleEl) {
-        const labels: Record<string, string> = { inbox: 'Inbox', drafts: 'Drafts', sent: 'Sent', agent: 'Agent Drafts' };
+        const labels: Record<string, string> = {
+          inbox: 'Inbox',
+          drafts: 'Drafts',
+          sent: 'Sent',
+          agent: 'Agent Drafts',
+        };
         titleEl.textContent = labels[folderName] ?? folderName;
       }
       renderMailList();
       const preview = $('mail-preview');
-      if (preview) preview.innerHTML = '<div class="mail-preview-empty">Select an email to read</div>';
+      if (preview)
+        preview.innerHTML = '<div class="mail-preview-empty">Select an email to read</div>';
       setMailSelectedId(null);
     });
   });

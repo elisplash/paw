@@ -4,13 +4,7 @@
 import { pawEngine, type BackendAgent } from '../../engine';
 import { isEngineMode } from '../../engine-bridge';
 import { listen } from '@tauri-apps/api/event';
-import {
-  type Agent,
-  AVATAR_COLORS,
-  SPRITE_AVATARS,
-  DEFAULT_AVATAR,
-  isAvatar,
-} from './atoms';
+import { type Agent, AVATAR_COLORS, SPRITE_AVATARS, DEFAULT_AVATAR, isAvatar } from './atoms';
 import { renderAgents } from './molecules';
 import { openAgentCreator, openAgentEditor } from './editor';
 import { openMiniChat as _openMiniChat, _miniChats } from './mini-chat';
@@ -67,7 +61,7 @@ function makeEditorCallbacks() {
       _renderAgents();
     },
     onDeleted: (agentId: string) => {
-      _agents = _agents.filter(a => a.id !== agentId);
+      _agents = _agents.filter((a) => a.id !== agentId);
       saveAgents();
       _renderAgents();
     },
@@ -104,14 +98,18 @@ export async function loadAgents() {
     const stored = localStorage.getItem('paw-agents');
     _agents = stored ? JSON.parse(stored) : [];
     // Tag localStorage agents as local
-    _agents.forEach(a => { if (!a.source) a.source = 'local'; });
+    _agents.forEach((a) => {
+      if (!a.source) a.source = 'local';
+    });
     // Migrate ANY non-numeric avatar to a new Pawz Boi avatar
     let migrated = false;
     const usedNums = new Set<number>();
-    _agents.forEach(a => {
+    _agents.forEach((a) => {
       if (!/^\d+$/.test(a.avatar)) {
         let num: number;
-        do { num = Math.floor(Math.random() * 50) + 1; } while (usedNums.has(num));
+        do {
+          num = Math.floor(Math.random() * 50) + 1;
+        } while (usedNums.has(num));
         usedNums.add(num);
         a.avatar = String(num);
         migrated = true;
@@ -124,7 +122,7 @@ export async function loadAgents() {
   }
 
   // Ensure there's always a default agent
-  const existingDefault = _agents.find(a => a.id === 'default');
+  const existingDefault = _agents.find((a) => a.id === 'default');
   if (existingDefault && !isAvatar(existingDefault.avatar)) {
     existingDefault.avatar = DEFAULT_AVATAR;
     saveAgents();
@@ -152,25 +150,37 @@ export async function loadAgents() {
     try {
       const backendAgents: BackendAgent[] = await pawEngine.listAllAgents();
       console.debug('[agents] Backend agents:', backendAgents.length);
-      const usedSprites = new Set(_agents.map(a => a.avatar));
+      const usedSprites = new Set(_agents.map((a) => a.avatar));
       function pickUniqueSprite(preferred: string): string {
-        if (!usedSprites.has(preferred)) { usedSprites.add(preferred); return preferred; }
-        const avail = SPRITE_AVATARS.find(s => !usedSprites.has(s));
-        if (avail) { usedSprites.add(avail); return avail; }
+        if (!usedSprites.has(preferred)) {
+          usedSprites.add(preferred);
+          return preferred;
+        }
+        const avail = SPRITE_AVATARS.find((s) => !usedSprites.has(s));
+        if (avail) {
+          usedSprites.add(avail);
+          return avail;
+        }
         return preferred; // fallback if all used
       }
       for (const ba of backendAgents) {
         // Skip if already in local list (by agent_id)
-        if (_agents.find(a => a.id === ba.agent_id)) continue;
+        if (_agents.find((a) => a.id === ba.agent_id)) continue;
         // Convert backend agent to Agent format — each gets a unique sprite
         const specialtySprite: Record<string, string> = {
-          coder: '10', researcher: '15', designer: '20', communicator: '25',
-          security: '30', general: '35', writer: '40', analyst: '45',
+          coder: '10',
+          researcher: '15',
+          designer: '20',
+          communicator: '25',
+          security: '30',
+          general: '35',
+          writer: '40',
+          analyst: '45',
         };
         const preferredSprite = specialtySprite[ba.specialty] || '35';
         _agents.push({
           id: ba.agent_id,
-          name: ba.agent_id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+          name: ba.agent_id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
           avatar: pickUniqueSprite(preferredSprite),
           color: AVATAR_COLORS[_agents.length % AVATAR_COLORS.length],
           bio: `${ba.role} — ${ba.specialty}`,
@@ -206,7 +216,7 @@ export function getAgents(): Agent[] {
 }
 
 export function getCurrentAgent(): Agent | null {
-  return _agents.find(a => a.id === _selectedAgent) || _agents[0] || null;
+  return _agents.find((a) => a.id === _selectedAgent) || _agents[0] || null;
 }
 
 /** Set the selected agent by ID (used by main.ts agent dropdown). */
@@ -239,7 +249,7 @@ function initProfileUpdateListener() {
 
     console.debug('[agents] Profile update event received:', data);
 
-    const agent = _agents.find(a => a.id === agentId);
+    const agent = _agents.find((a) => a.id === agentId);
     if (!agent) {
       console.warn(`[agents] update_profile: agent '${agentId}' not found`);
       return;
@@ -259,7 +269,7 @@ function initProfileUpdateListener() {
     // Notify main.ts to update chat header if this is the current agent
     if (_onProfileUpdated) _onProfileUpdated(agentId, agent);
     console.debug(`[agents] Profile updated for '${agentId}':`, agent.name, agent.avatar);
-  }).catch(e => console.warn('[agents] Failed to listen for profile updates:', e));
+  }).catch((e) => console.warn('[agents] Failed to listen for profile updates:', e));
 }
 
 export function initAgents() {

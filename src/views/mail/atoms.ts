@@ -28,21 +28,72 @@ export interface MailAccount {
 
 // ── Provider presets ───────────────────────────────────────────────────────
 
-export const EMAIL_PROVIDERS: Record<string, {
-  name: string;
-  icon: string;
-  imap: string;
-  imapPort: number;
-  smtp: string;
-  smtpPort: number;
-  hint: string;
-}> = {
-  gmail: { name: 'Gmail', icon: 'G', imap: 'imap.gmail.com', imapPort: 993, smtp: 'smtp.gmail.com', smtpPort: 465, hint: 'Use an App Password — go to Google Account → Security → App Passwords' },
-  outlook: { name: 'Outlook / Hotmail', icon: 'O', imap: 'outlook.office365.com', imapPort: 993, smtp: 'smtp.office365.com', smtpPort: 587, hint: 'Use your regular password, or an App Password if 2FA is on' },
-  yahoo: { name: 'Yahoo Mail', icon: 'Y', imap: 'imap.mail.yahoo.com', imapPort: 993, smtp: 'smtp.mail.yahoo.com', smtpPort: 465, hint: 'Generate an App Password in Yahoo Account Settings → Security' },
-  icloud: { name: 'iCloud Mail', icon: 'iC', imap: 'imap.mail.me.com', imapPort: 993, smtp: 'smtp.mail.me.com', smtpPort: 587, hint: 'Use an App-Specific Password from appleid.apple.com' },
-  fastmail: { name: 'Fastmail', icon: 'FM', imap: 'imap.fastmail.com', imapPort: 993, smtp: 'smtp.fastmail.com', smtpPort: 465, hint: 'Use an App Password from Settings → Privacy & Security' },
-  custom: { name: 'Other (IMAP/SMTP)', icon: '*', imap: '', imapPort: 993, smtp: '', smtpPort: 465, hint: 'Enter your mail server details manually' },
+export const EMAIL_PROVIDERS: Record<
+  string,
+  {
+    name: string;
+    icon: string;
+    imap: string;
+    imapPort: number;
+    smtp: string;
+    smtpPort: number;
+    hint: string;
+  }
+> = {
+  gmail: {
+    name: 'Gmail',
+    icon: 'G',
+    imap: 'imap.gmail.com',
+    imapPort: 993,
+    smtp: 'smtp.gmail.com',
+    smtpPort: 465,
+    hint: 'Use an App Password — go to Google Account → Security → App Passwords',
+  },
+  outlook: {
+    name: 'Outlook / Hotmail',
+    icon: 'O',
+    imap: 'outlook.office365.com',
+    imapPort: 993,
+    smtp: 'smtp.office365.com',
+    smtpPort: 587,
+    hint: 'Use your regular password, or an App Password if 2FA is on',
+  },
+  yahoo: {
+    name: 'Yahoo Mail',
+    icon: 'Y',
+    imap: 'imap.mail.yahoo.com',
+    imapPort: 993,
+    smtp: 'smtp.mail.yahoo.com',
+    smtpPort: 465,
+    hint: 'Generate an App Password in Yahoo Account Settings → Security',
+  },
+  icloud: {
+    name: 'iCloud Mail',
+    icon: 'iC',
+    imap: 'imap.mail.me.com',
+    imapPort: 993,
+    smtp: 'smtp.mail.me.com',
+    smtpPort: 587,
+    hint: 'Use an App-Specific Password from appleid.apple.com',
+  },
+  fastmail: {
+    name: 'Fastmail',
+    icon: 'FM',
+    imap: 'imap.fastmail.com',
+    imapPort: 993,
+    smtp: 'smtp.fastmail.com',
+    smtpPort: 465,
+    hint: 'Use an App Password from Settings → Privacy & Security',
+  },
+  custom: {
+    name: 'Other (IMAP/SMTP)',
+    icon: '*',
+    imap: '',
+    imapPort: 993,
+    smtp: '',
+    smtpPort: 465,
+    hint: 'Enter your mail server details manually',
+  },
 };
 
 // ── Content extraction ─────────────────────────────────────────────────────
@@ -50,7 +101,7 @@ export const EMAIL_PROVIDERS: Record<string, {
 export function extractContent(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
-    return content.map(c => (c as { text?: string }).text ?? '').join('');
+    return content.map((c) => (c as { text?: string }).text ?? '').join('');
   }
   return '';
 }
@@ -82,7 +133,7 @@ export function getAvatarClass(sender: string): string {
 export function getInitials(sender: string): string {
   const name = sender.replace(/<.*>/, '').trim();
   if (!name) return '?';
-  const parts = name.split(/[\s@._-]+/).filter(p => p.length > 0);
+  const parts = name.split(/[\s@._-]+/).filter((p) => p.length > 0);
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
   return name.slice(0, 2).toUpperCase();
 }
@@ -93,7 +144,9 @@ export function loadMailPermissions(accountName: string): MailPermissions {
   try {
     const raw = localStorage.getItem(`mail-perms-${accountName}`);
     if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { read: true, send: true, delete: false, manage: false };
 }
 

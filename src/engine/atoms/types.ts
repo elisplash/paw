@@ -6,7 +6,17 @@
 
 export interface EngineProviderConfig {
   id: string;
-  kind: 'openai' | 'anthropic' | 'google' | 'ollama' | 'openrouter' | 'custom' | 'deepseek' | 'grok' | 'mistral' | 'moonshot';
+  kind:
+    | 'openai'
+    | 'anthropic'
+    | 'google'
+    | 'ollama'
+    | 'openrouter'
+    | 'custom'
+    | 'deepseek'
+    | 'grok'
+    | 'mistral'
+    | 'moonshot';
   api_key: string;
   base_url?: string;
   default_model?: string;
@@ -290,15 +300,15 @@ export interface Position {
 // ── Text-to-Speech ────────────────────────────────────────────────────
 
 export interface TtsConfig {
-  provider: string;        // "google" | "openai" | "elevenlabs"
-  voice: string;           // e.g. "en-US-Chirp3-HD-Achernar" or "alloy" or ElevenLabs voice_id
-  speed: number;           // 0.25–4.0
-  language_code: string;   // e.g. "en-US"
-  auto_speak: boolean;     // automatically speak new responses
-  elevenlabs_api_key: string;  // ElevenLabs API key
-  elevenlabs_model: string;    // "eleven_multilingual_v2" | "eleven_turbo_v2_5"
-  stability: number;           // 0.0–1.0
-  similarity_boost: number;    // 0.0–1.0
+  provider: string; // "google" | "openai" | "elevenlabs"
+  voice: string; // e.g. "en-US-Chirp3-HD-Achernar" or "alloy" or ElevenLabs voice_id
+  speed: number; // 0.25–4.0
+  language_code: string; // e.g. "en-US"
+  auto_speak: boolean; // automatically speak new responses
+  elevenlabs_api_key: string; // ElevenLabs API key
+  elevenlabs_model: string; // "eleven_multilingual_v2" | "eleven_turbo_v2_5"
+  stability: number; // 0.0–1.0
+  similarity_boost: number; // 0.0–1.0
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────
@@ -327,7 +337,7 @@ export interface EngineTask {
 
 export interface TaskAgent {
   agent_id: string;
-  role: string;   // 'lead' | 'collaborator'
+  role: string; // 'lead' | 'collaborator'
 }
 
 export interface EngineTaskActivity {
@@ -345,7 +355,7 @@ export interface EngineProject {
   id: string;
   title: string;
   goal: string;
-  status: string;         // planning, running, paused, completed, failed
+  status: string; // planning, running, paused, completed, failed
   boss_agent: string;
   agents: EngineProjectAgent[];
   created_at: string;
@@ -354,9 +364,9 @@ export interface EngineProject {
 
 export interface EngineProjectAgent {
   agent_id: string;
-  role: string;           // boss, worker
-  specialty: string;      // coder, researcher, designer, communicator, security, general
-  status: string;         // idle, working, done, error
+  role: string; // boss, worker
+  specialty: string; // coder, researcher, designer, communicator, security, general
+  status: string; // idle, working, done, error
   current_task?: string;
   model?: string;
   system_prompt?: string;
@@ -368,7 +378,7 @@ export interface EngineProjectMessage {
   project_id: string;
   from_agent: string;
   to_agent?: string;
-  kind: string;           // delegation, progress, result, error, message
+  kind: string; // delegation, progress, result, error, message
   content: string;
   metadata?: string;
   created_at: string;

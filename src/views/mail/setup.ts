@@ -9,7 +9,9 @@ import { EMAIL_PROVIDERS, saveMailPermissions } from './atoms';
 // ── Injected dependency (set by index.ts to break circular imports) ────────
 
 let _loadMail: () => void = () => {};
-export function setLoadMailRefSetup(fn: () => void): void { _loadMail = fn; }
+export function setLoadMailRefSetup(fn: () => void): void {
+  _loadMail = fn;
+}
 
 // ── Setup state ────────────────────────────────────────────────────────────
 
@@ -45,17 +47,21 @@ export function openMailAccountSetup(): void {
   body.innerHTML = `
     <p class="channel-setup-desc">Choose your email provider to get started.</p>
     <div class="mail-provider-grid">
-      ${Object.entries(EMAIL_PROVIDERS).map(([id, p]) => `
+      ${Object.entries(EMAIL_PROVIDERS)
+        .map(
+          ([id, p]) => `
         <button class="mail-provider-btn" data-provider="${id}">
           <span class="mail-provider-icon">${p.icon}</span>
           <span class="mail-provider-name">${p.name}</span>
         </button>
-      `).join('')}
+      `,
+        )
+        .join('')}
     </div>
   `;
   footer.style.display = 'none';
 
-  body.querySelectorAll('.mail-provider-btn').forEach(btn => {
+  body.querySelectorAll('.mail-provider-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const providerId = btn.getAttribute('data-provider') ?? 'custom';
       showMailAccountForm(providerId);
@@ -97,7 +103,9 @@ function showMailAccountForm(providerId: string): void {
       <label class="form-label" for="ch-field-mail-password">${needsAppPw ? 'App Password' : 'Password'} <span class="required">*</span></label>
       <input class="form-input" id="ch-field-mail-password" type="password" placeholder="${providerId === 'gmail' ? '16-character app password' : 'Password'}">
     </div>
-    ${isCustom ? `
+    ${
+      isCustom
+        ? `
     <div class="form-row-2col">
       <div class="form-group">
         <label class="form-label" for="ch-field-mail-imap">IMAP Server <span class="required">*</span></label>
@@ -118,7 +126,8 @@ function showMailAccountForm(providerId: string): void {
         <input class="form-input" id="ch-field-mail-smtp-port" type="number" value="${provider.smtpPort}">
       </div>
     </div>
-    ` : `
+    `
+        : `
     <input type="hidden" id="ch-field-mail-imap" value="${escAttr(provider.imap)}">
     <input type="hidden" id="ch-field-mail-imap-port" value="${provider.imapPort}">
     <input type="hidden" id="ch-field-mail-smtp" value="${escAttr(provider.smtp)}">
@@ -127,7 +136,8 @@ function showMailAccountForm(providerId: string): void {
       <span>IMAP: ${provider.imap}:${provider.imapPort}</span>
       <span>SMTP: ${provider.smtp}:${provider.smtpPort}</span>
     </div>
-    `}
+    `
+    }
     <input type="hidden" id="ch-field-mail-provider" value="${providerId}">
 
     <div class="mail-permissions-setup">
@@ -188,13 +198,28 @@ export async function saveMailImapSetup(): Promise<void> {
   const smtpHost = ($('ch-field-mail-smtp') as HTMLInputElement)?.value.trim();
   const smtpPort = parseInt(($('ch-field-mail-smtp-port') as HTMLInputElement)?.value ?? '465', 10);
 
-  if (!email) { showToast('Email address is required', 'error'); return; }
-  if (!password) { showToast('Password is required', 'error'); return; }
-  if (!imapHost) { showToast('IMAP server is required', 'error'); return; }
-  if (!smtpHost) { showToast('SMTP server is required', 'error'); return; }
+  if (!email) {
+    showToast('Email address is required', 'error');
+    return;
+  }
+  if (!password) {
+    showToast('Password is required', 'error');
+    return;
+  }
+  if (!imapHost) {
+    showToast('IMAP server is required', 'error');
+    return;
+  }
+  if (!smtpHost) {
+    showToast('SMTP server is required', 'error');
+    return;
+  }
 
   const saveBtn = $('channel-setup-save') as HTMLButtonElement | null;
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Connecting...'; }
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Connecting...';
+  }
 
   try {
     const accountName = email.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
@@ -212,11 +237,30 @@ export async function saveMailImapSetup(): Promise<void> {
       });
     } catch {
       // Fallback: store account info in localStorage when Tauri is not available
-      console.warn('[mail] Tauri runtime not available — storing account config in localStorage (no keychain)');
-      const existing = JSON.parse(localStorage.getItem('mail-accounts-fallback') ?? '[]') as { name: string; email: string; imapHost: string; imapPort: number; smtpHost: string; smtpPort: number; displayName: string }[];
-      const idx = existing.findIndex(a => a.name === accountName);
-      const entry = { name: accountName, email, imapHost, imapPort, smtpHost, smtpPort, displayName: displayName || email };
-      if (idx >= 0) existing[idx] = entry; else existing.push(entry);
+      console.warn(
+        '[mail] Tauri runtime not available — storing account config in localStorage (no keychain)',
+      );
+      const existing = JSON.parse(localStorage.getItem('mail-accounts-fallback') ?? '[]') as {
+        name: string;
+        email: string;
+        imapHost: string;
+        imapPort: number;
+        smtpHost: string;
+        smtpPort: number;
+        displayName: string;
+      }[];
+      const idx = existing.findIndex((a) => a.name === accountName);
+      const entry = {
+        name: accountName,
+        email,
+        imapHost,
+        imapPort,
+        smtpHost,
+        smtpPort,
+        displayName: displayName || email,
+      };
+      if (idx >= 0) existing[idx] = entry;
+      else existing.push(entry);
       localStorage.setItem('mail-accounts-fallback', JSON.stringify(existing));
     }
 
@@ -228,7 +272,14 @@ export async function saveMailImapSetup(): Promise<void> {
     };
     saveMailPermissions(accountName, perms);
 
-    const permList = [perms.read && 'read', perms.send && 'send', perms.delete && 'delete', perms.manage && 'manage'].filter(Boolean).join(', ');
+    const permList = [
+      perms.read && 'read',
+      perms.send && 'send',
+      perms.delete && 'delete',
+      perms.manage && 'manage',
+    ]
+      .filter(Boolean)
+      .join(', ');
     logCredentialActivity({
       accountName,
       action: 'approved',
@@ -242,6 +293,9 @@ export async function saveMailImapSetup(): Promise<void> {
   } catch (e) {
     showToast(`Failed to connect: ${e instanceof Error ? e.message : e}`, 'error');
   } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Connect Account'; }
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Connect Account';
+    }
   }
 }

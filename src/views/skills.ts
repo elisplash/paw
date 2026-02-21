@@ -11,4 +11,3 @@ export async function loadSkills() {
 export function initSkillsEvents() {
   // No-op — event wiring is handled by settings-skills.ts
 }
-

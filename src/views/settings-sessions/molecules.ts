@@ -25,7 +25,8 @@ export async function loadSessionsSettings() {
 
     // ── Toolbar ──────────────────────────────────────────────────────────
     const toolbar = document.createElement('div');
-    toolbar.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px';
+    toolbar.style.cssText =
+      'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px';
 
     const info = document.createElement('span');
     info.style.color = 'var(--text-muted)';
@@ -56,7 +57,6 @@ export async function loadSessionsSettings() {
     for (const sess of _sessions) {
       container.appendChild(buildSessionCard(sess));
     }
-
   } catch (e: unknown) {
     container.innerHTML = `<p style="color:var(--danger)">Failed to load sessions: ${esc(e instanceof Error ? e.message : String(e))}</p>`;
   }
@@ -67,14 +67,16 @@ export async function loadSessionsSettings() {
 function buildSessionCard(sess: EngineSession): HTMLElement {
   const card = document.createElement('div');
   card.className = 'settings-card';
-  card.style.cssText = 'margin-bottom:10px; padding:12px; border:1px solid var(--border-color); border-radius:8px';
+  card.style.cssText =
+    'margin-bottom:10px; padding:12px; border:1px solid var(--border-color); border-radius:8px';
 
   const ts = sess.updated_at ? new Date(sess.updated_at).toLocaleString() : '—';
   const label = sess.label || (sess.message_count > 0 ? 'Untitled chat' : 'Empty session');
 
   // Header row
   const header = document.createElement('div');
-  header.style.cssText = 'display:flex; justify-content:space-between; align-items:start; gap:8px; flex-wrap:wrap';
+  header.style.cssText =
+    'display:flex; justify-content:space-between; align-items:start; gap:8px; flex-wrap:wrap';
   header.innerHTML = `
     <div style="flex:1; min-width:200px">
       <strong style="font-size:14px">${esc(label)}</strong>
@@ -116,7 +118,9 @@ function buildSessionCard(sess: EngineSession): HTMLElement {
       await pawEngine.sessionRename(sess.id, renameInp.value.trim());
       showToast(`Session renamed`, 'success');
       loadSessionsSettings();
-    } catch (e: unknown) { showToast(e instanceof Error ? e.message : String(e), 'error'); }
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : String(e), 'error');
+    }
   };
   renameRow.appendChild(renameInp);
   renameRow.appendChild(renameBtn);
@@ -135,7 +139,12 @@ function buildSessionCard(sess: EngineSession): HTMLElement {
     if (!clearPending) {
       clearPending = true;
       clearBtn.textContent = 'Confirm Clear?';
-      setTimeout(() => { if (clearPending) { clearPending = false; clearBtn.textContent = 'Clear Messages'; } }, 4000);
+      setTimeout(() => {
+        if (clearPending) {
+          clearPending = false;
+          clearBtn.textContent = 'Clear Messages';
+        }
+      }, 4000);
       return;
     }
     clearPending = false;
@@ -143,7 +152,9 @@ function buildSessionCard(sess: EngineSession): HTMLElement {
       await pawEngine.sessionClear(sess.id);
       showToast(`Session "${label}" cleared`, 'success');
       loadSessionsSettings();
-    } catch (e: unknown) { showToast(e instanceof Error ? e.message : String(e), 'error'); }
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : String(e), 'error');
+    }
   };
   actRow.appendChild(clearBtn);
 
@@ -157,7 +168,13 @@ function buildSessionCard(sess: EngineSession): HTMLElement {
       deletePending = true;
       deleteBtn.textContent = 'Confirm Delete?';
       deleteBtn.style.fontWeight = 'bold';
-      setTimeout(() => { if (deletePending) { deletePending = false; deleteBtn.textContent = 'Delete'; deleteBtn.style.fontWeight = ''; } }, 4000);
+      setTimeout(() => {
+        if (deletePending) {
+          deletePending = false;
+          deleteBtn.textContent = 'Delete';
+          deleteBtn.style.fontWeight = '';
+        }
+      }, 4000);
       return;
     }
     deletePending = false;
@@ -165,8 +182,10 @@ function buildSessionCard(sess: EngineSession): HTMLElement {
       await pawEngine.sessionDelete(sess.id);
       showToast(`Session "${label}" deleted`, 'success');
       card.remove();
-      _sessions = _sessions.filter(s => s.id !== sess.id);
-    } catch (e: unknown) { showToast(e instanceof Error ? e.message : String(e), 'error'); }
+      _sessions = _sessions.filter((s) => s.id !== sess.id);
+    } catch (e: unknown) {
+      showToast(e instanceof Error ? e.message : String(e), 'error');
+    }
   };
   actRow.appendChild(deleteBtn);
 

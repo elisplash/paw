@@ -8,7 +8,7 @@ export type RiskLevel = 'critical' | 'high' | 'medium' | 'low' | 'safe';
 export interface RiskClassification {
   level: RiskLevel;
   label: string;
-  reason: string;         // human-readable explanation
+  reason: string; // human-readable explanation
   matchedPattern: string; // the pattern that triggered
 }
 
@@ -23,82 +23,278 @@ interface DangerPattern {
 
 const DANGER_PATTERNS: DangerPattern[] = [
   // ── CRITICAL: Privilege escalation ──
-  { pattern: /\bsudo\b/i,          level: 'critical', label: 'Privilege Escalation',    reason: 'Uses sudo to run commands as root' },
-  { pattern: /\bsu\s+(-|root|\w)/i,level: 'critical', label: 'Privilege Escalation',    reason: 'Switches to another user (su)' },
-  { pattern: /\bdoas\b/i,          level: 'critical', label: 'Privilege Escalation',    reason: 'Uses doas to run commands as root' },
-  { pattern: /\bpkexec\b/i,        level: 'critical', label: 'Privilege Escalation',    reason: 'Uses pkexec for privilege escalation' },
-  { pattern: /\brunas\b/i,         level: 'critical', label: 'Privilege Escalation',    reason: 'Uses runas to run as another user' },
+  {
+    pattern: /\bsudo\b/i,
+    level: 'critical',
+    label: 'Privilege Escalation',
+    reason: 'Uses sudo to run commands as root',
+  },
+  {
+    pattern: /\bsu\s+(-|root|\w)/i,
+    level: 'critical',
+    label: 'Privilege Escalation',
+    reason: 'Switches to another user (su)',
+  },
+  {
+    pattern: /\bdoas\b/i,
+    level: 'critical',
+    label: 'Privilege Escalation',
+    reason: 'Uses doas to run commands as root',
+  },
+  {
+    pattern: /\bpkexec\b/i,
+    level: 'critical',
+    label: 'Privilege Escalation',
+    reason: 'Uses pkexec for privilege escalation',
+  },
+  {
+    pattern: /\brunas\b/i,
+    level: 'critical',
+    label: 'Privilege Escalation',
+    reason: 'Uses runas to run as another user',
+  },
 
   // ── CRITICAL: Destructive deletion ──
-  { pattern: /\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+(-[a-zA-Z]*r[a-zA-Z]*\s+)?|(-[a-zA-Z]*r[a-zA-Z]*\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?))[\/"'~*]/i,
-                                    level: 'critical', label: 'Destructive Deletion',    reason: 'Recursive forced deletion targeting root, home, or wildcard paths' },
-  { pattern: /\brm\s+-rf\s*\//i,   level: 'critical', label: 'Destructive Deletion',    reason: 'rm -rf / — destroys the entire filesystem' },
-  { pattern: /\brm\s+-rf\s+~/i,    level: 'critical', label: 'Destructive Deletion',    reason: 'rm -rf ~ — destroys the home directory' },
+  {
+    pattern:
+      /\brm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+(-[a-zA-Z]*r[a-zA-Z]*\s+)?|(-[a-zA-Z]*r[a-zA-Z]*\s+(-[a-zA-Z]*f[a-zA-Z]*\s+)?))[\/"'~*]/i,
+    level: 'critical',
+    label: 'Destructive Deletion',
+    reason: 'Recursive forced deletion targeting root, home, or wildcard paths',
+  },
+  {
+    pattern: /\brm\s+-rf\s*\//i,
+    level: 'critical',
+    label: 'Destructive Deletion',
+    reason: 'rm -rf / — destroys the entire filesystem',
+  },
+  {
+    pattern: /\brm\s+-rf\s+~/i,
+    level: 'critical',
+    label: 'Destructive Deletion',
+    reason: 'rm -rf ~ — destroys the home directory',
+  },
 
   // ── CRITICAL: Disk destruction ──
-  { pattern: /\bdd\s+if=/i,        level: 'critical', label: 'Disk Write',              reason: 'dd can overwrite disk partitions or devices' },
-  { pattern: /\bmkfs\b/i,          level: 'critical', label: 'Disk Format',             reason: 'mkfs formats a disk partition' },
-  { pattern: /\bfdisk\b/i,         level: 'critical', label: 'Disk Partition',           reason: 'fdisk modifies disk partitions' },
-  { pattern: />\s*\/dev\/sd/i,     level: 'critical', label: 'Device Write',            reason: 'Writing directly to a block device' },
+  {
+    pattern: /\bdd\s+if=/i,
+    level: 'critical',
+    label: 'Disk Write',
+    reason: 'dd can overwrite disk partitions or devices',
+  },
+  {
+    pattern: /\bmkfs\b/i,
+    level: 'critical',
+    label: 'Disk Format',
+    reason: 'mkfs formats a disk partition',
+  },
+  {
+    pattern: /\bfdisk\b/i,
+    level: 'critical',
+    label: 'Disk Partition',
+    reason: 'fdisk modifies disk partitions',
+  },
+  {
+    pattern: />\s*\/dev\/sd/i,
+    level: 'critical',
+    label: 'Device Write',
+    reason: 'Writing directly to a block device',
+  },
 
   // ── CRITICAL: Fork bomb ──
-  { pattern: /:\(\)\s*\{.*\|.*&\s*\}\s*;?\s*:/,
-                                    level: 'critical', label: 'Fork Bomb',               reason: 'Shell fork bomb — will crash the system' },
+  {
+    pattern: /:\(\)\s*\{.*\|.*&\s*\}\s*;?\s*:/,
+    level: 'critical',
+    label: 'Fork Bomb',
+    reason: 'Shell fork bomb — will crash the system',
+  },
 
   // ── CRITICAL: Remote code execution ──
-  { pattern: /\bcurl\b.*\|\s*(ba)?sh/i,  level: 'critical', label: 'Remote Code Exec', reason: 'Downloads and executes remote script (curl | sh)' },
-  { pattern: /\bwget\b.*\|\s*(ba)?sh/i,  level: 'critical', label: 'Remote Code Exec', reason: 'Downloads and executes remote script (wget | sh)' },
-  { pattern: /\bcurl\b.*\|\s*python/i,   level: 'critical', label: 'Remote Code Exec', reason: 'Downloads and pipes to python interpreter' },
-  { pattern: /\bwget\b.*\|\s*python/i,   level: 'critical', label: 'Remote Code Exec', reason: 'Downloads and pipes to python interpreter' },
+  {
+    pattern: /\bcurl\b.*\|\s*(ba)?sh/i,
+    level: 'critical',
+    label: 'Remote Code Exec',
+    reason: 'Downloads and executes remote script (curl | sh)',
+  },
+  {
+    pattern: /\bwget\b.*\|\s*(ba)?sh/i,
+    level: 'critical',
+    label: 'Remote Code Exec',
+    reason: 'Downloads and executes remote script (wget | sh)',
+  },
+  {
+    pattern: /\bcurl\b.*\|\s*python/i,
+    level: 'critical',
+    label: 'Remote Code Exec',
+    reason: 'Downloads and pipes to python interpreter',
+  },
+  {
+    pattern: /\bwget\b.*\|\s*python/i,
+    level: 'critical',
+    label: 'Remote Code Exec',
+    reason: 'Downloads and pipes to python interpreter',
+  },
 
   // ── HIGH: Firewall / network security ──
-  { pattern: /\biptables\s+-F/i,   level: 'high', label: 'Firewall Flush',              reason: 'Flushes all iptables/firewall rules' },
-  { pattern: /\bufw\s+disable/i,   level: 'high', label: 'Firewall Disable',            reason: 'Disables the UFW firewall' },
-  { pattern: /\bfirewalld?\b.*stop/i, level: 'high', label: 'Firewall Stop',            reason: 'Stops the firewall daemon' },
+  {
+    pattern: /\biptables\s+-F/i,
+    level: 'high',
+    label: 'Firewall Flush',
+    reason: 'Flushes all iptables/firewall rules',
+  },
+  {
+    pattern: /\bufw\s+disable/i,
+    level: 'high',
+    label: 'Firewall Disable',
+    reason: 'Disables the UFW firewall',
+  },
+  {
+    pattern: /\bfirewalld?\b.*stop/i,
+    level: 'high',
+    label: 'Firewall Stop',
+    reason: 'Stops the firewall daemon',
+  },
 
   // ── HIGH: User/account modification ──
-  { pattern: /\bpasswd\b/i,        level: 'high', label: 'Password Change',             reason: 'Modifies user passwords' },
-  { pattern: /\bchpasswd\b/i,      level: 'high', label: 'Password Change',             reason: 'Batch modifies user passwords' },
-  { pattern: /\busermod\b/i,       level: 'high', label: 'User Modification',           reason: 'Modifies user account properties' },
-  { pattern: /\buseradd\b/i,       level: 'high', label: 'User Creation',               reason: 'Creates a new user account' },
-  { pattern: /\buserdel\b/i,       level: 'high', label: 'User Deletion',               reason: 'Deletes a user account' },
+  {
+    pattern: /\bpasswd\b/i,
+    level: 'high',
+    label: 'Password Change',
+    reason: 'Modifies user passwords',
+  },
+  {
+    pattern: /\bchpasswd\b/i,
+    level: 'high',
+    label: 'Password Change',
+    reason: 'Batch modifies user passwords',
+  },
+  {
+    pattern: /\busermod\b/i,
+    level: 'high',
+    label: 'User Modification',
+    reason: 'Modifies user account properties',
+  },
+  {
+    pattern: /\buseradd\b/i,
+    level: 'high',
+    label: 'User Creation',
+    reason: 'Creates a new user account',
+  },
+  {
+    pattern: /\buserdel\b/i,
+    level: 'high',
+    label: 'User Deletion',
+    reason: 'Deletes a user account',
+  },
 
   // ── HIGH: Process killing ──
-  { pattern: /\bkill\s+-9\s+1\b/i, level: 'high', label: 'Kill Init',                  reason: 'Sends SIGKILL to PID 1 (init)' },
-  { pattern: /\bkillall\b/i,       level: 'high', label: 'Kill All Processes',          reason: 'Kills all processes matching a name' },
+  {
+    pattern: /\bkill\s+-9\s+1\b/i,
+    level: 'high',
+    label: 'Kill Init',
+    reason: 'Sends SIGKILL to PID 1 (init)',
+  },
+  {
+    pattern: /\bkillall\b/i,
+    level: 'high',
+    label: 'Kill All Processes',
+    reason: 'Kills all processes matching a name',
+  },
 
   // ── HIGH: Cron / scheduled task destruction ──
-  { pattern: /\bcrontab\s+-r\b/i,  level: 'high', label: 'Cron Wipe',                   reason: 'Removes all crontab entries' },
+  {
+    pattern: /\bcrontab\s+-r\b/i,
+    level: 'high',
+    label: 'Cron Wipe',
+    reason: 'Removes all crontab entries',
+  },
 
   // ── HIGH: SSH key destruction ──
-  { pattern: /\bssh-keygen\b.*-f/i, level: 'high', label: 'SSH Key Overwrite',          reason: 'May overwrite existing SSH keys' },
+  {
+    pattern: /\bssh-keygen\b.*-f/i,
+    level: 'high',
+    label: 'SSH Key Overwrite',
+    reason: 'May overwrite existing SSH keys',
+  },
 
   // ── MEDIUM: Permission changes ──
-  { pattern: /\bchmod\s+(777|a\+rwx)/i,  level: 'medium', label: 'Permission Exposure', reason: 'Sets world-readable/writable permissions (777)' },
-  { pattern: /\bchmod\s+-R\s+777/i,      level: 'medium', label: 'Recursive Perm Exposure', reason: 'Recursively sets 777 permissions' },
-  { pattern: /\bchown\b/i,                level: 'medium', label: 'Ownership Change',    reason: 'Changes file ownership' },
+  {
+    pattern: /\bchmod\s+(777|a\+rwx)/i,
+    level: 'medium',
+    label: 'Permission Exposure',
+    reason: 'Sets world-readable/writable permissions (777)',
+  },
+  {
+    pattern: /\bchmod\s+-R\s+777/i,
+    level: 'medium',
+    label: 'Recursive Perm Exposure',
+    reason: 'Recursively sets 777 permissions',
+  },
+  {
+    pattern: /\bchown\b/i,
+    level: 'medium',
+    label: 'Ownership Change',
+    reason: 'Changes file ownership',
+  },
 
   // ── MEDIUM: Potentially dangerous eval ──
-  { pattern: /\beval\s/i,          level: 'medium', label: 'Eval Execution',             reason: 'Evaluates a string as shell code' },
+  {
+    pattern: /\beval\s/i,
+    level: 'medium',
+    label: 'Eval Execution',
+    reason: 'Evaluates a string as shell code',
+  },
 
   // ── MEDIUM: Environment / system modification ──
-  { pattern: /\bsystemctl\s+(stop|disable|mask)/i,
-                                    level: 'medium', label: 'Service Modification',       reason: 'Stops or disables a system service' },
-  { pattern: /\bservice\s+\S+\s+stop/i,
-                                    level: 'medium', label: 'Service Stop',               reason: 'Stops a system service' },
+  {
+    pattern: /\bsystemctl\s+(stop|disable|mask)/i,
+    level: 'medium',
+    label: 'Service Modification',
+    reason: 'Stops or disables a system service',
+  },
+  {
+    pattern: /\bservice\s+\S+\s+stop/i,
+    level: 'medium',
+    label: 'Service Stop',
+    reason: 'Stops a system service',
+  },
   // ── SQL Destructive Operations ───────────────────
-  { pattern: /\bDELETE\s+FROM\b/i,
-                                    level: 'critical', label: 'SQL Delete',               reason: 'Deletes rows from a database table' },
-  { pattern: /\bDROP\s+(TABLE|DATABASE|SCHEMA|INDEX|VIEW)\b/i,
-                                    level: 'critical', label: 'SQL Drop',                 reason: 'Permanently drops a database object' },
-  { pattern: /\bTRUNCATE\s+(TABLE)?\b/i,
-                                    level: 'critical', label: 'SQL Truncate',             reason: 'Removes all rows from a table' },
-  { pattern: /\bALTER\s+TABLE\b.*\bDROP\b/i,
-                                    level: 'high',     label: 'SQL Alter Drop',           reason: 'Drops a column or constraint from a table' },
-  { pattern: /\bUPDATE\s+\S+\s+SET\b/i,
-                                    level: 'high',     label: 'SQL Update',               reason: 'Modifies existing data in a table' },
-  { pattern: /\bINSERT\s+(INTO|OVERWRITE)\b/i,
-                                    level: 'medium',   label: 'SQL Insert',               reason: 'Inserts data into a database table' },
+  {
+    pattern: /\bDELETE\s+FROM\b/i,
+    level: 'critical',
+    label: 'SQL Delete',
+    reason: 'Deletes rows from a database table',
+  },
+  {
+    pattern: /\bDROP\s+(TABLE|DATABASE|SCHEMA|INDEX|VIEW)\b/i,
+    level: 'critical',
+    label: 'SQL Drop',
+    reason: 'Permanently drops a database object',
+  },
+  {
+    pattern: /\bTRUNCATE\s+(TABLE)?\b/i,
+    level: 'critical',
+    label: 'SQL Truncate',
+    reason: 'Removes all rows from a table',
+  },
+  {
+    pattern: /\bALTER\s+TABLE\b.*\bDROP\b/i,
+    level: 'high',
+    label: 'SQL Alter Drop',
+    reason: 'Drops a column or constraint from a table',
+  },
+  {
+    pattern: /\bUPDATE\s+\S+\s+SET\b/i,
+    level: 'high',
+    label: 'SQL Update',
+    reason: 'Modifies existing data in a table',
+  },
+  {
+    pattern: /\bINSERT\s+(INTO|OVERWRITE)\b/i,
+    level: 'medium',
+    label: 'SQL Insert',
+    reason: 'Inserts data into a database table',
+  },
 ];
 
 // ── Classifier function ────────────────────────────────────────────────────
@@ -109,7 +305,7 @@ const DANGER_PATTERNS: DangerPattern[] = [
  */
 export function classifyCommandRisk(
   toolName: string,
-  args?: Record<string, unknown>
+  args?: Record<string, unknown>,
 ): RiskClassification | null {
   // Build a searchable string from tool + args
   const searchStr = buildSearchString(toolName, args);
@@ -178,19 +374,23 @@ function buildSearchString(toolName: string, args?: Record<string, unknown>): st
 // is updated immediately and flushed to the DB asynchronously.  On startup,
 // call initSecuritySettings() to hydrate the cache from the DB.
 
-import { loadSecuritySettingsFromDb, saveSecuritySettingsToDb, resetSecuritySettingsInDb } from './db';
+import {
+  loadSecuritySettingsFromDb,
+  saveSecuritySettingsToDb,
+  resetSecuritySettingsInDb,
+} from './db';
 
 const SEC_PREFIX = 'paw_security_';
 
 export interface SecuritySettings {
-  autoDenyPrivilegeEscalation: boolean;  // Auto-deny sudo/su/doas/pkexec
-  autoDenyCritical: boolean;             // Auto-deny all critical-risk commands
-  requireTypeToCritical: boolean;        // Require "ALLOW" to approve critical commands
-  commandAllowlist: string[];            // Regex patterns for auto-approved commands
-  commandDenylist: string[];             // Regex patterns for auto-denied commands
-  sessionOverrideUntil: number | null;   // Unix timestamp: auto-approve all until this time
-  tokenRotationIntervalDays: number;     // Auto-rotation schedule: 0 = disabled
-  readOnlyProjects: boolean;             // Block agent filesystem write tools in project paths
+  autoDenyPrivilegeEscalation: boolean; // Auto-deny sudo/su/doas/pkexec
+  autoDenyCritical: boolean; // Auto-deny all critical-risk commands
+  requireTypeToCritical: boolean; // Require "ALLOW" to approve critical commands
+  commandAllowlist: string[]; // Regex patterns for auto-approved commands
+  commandDenylist: string[]; // Regex patterns for auto-denied commands
+  sessionOverrideUntil: number | null; // Unix timestamp: auto-approve all until this time
+  tokenRotationIntervalDays: number; // Auto-rotation schedule: 0 = disabled
+  readOnlyProjects: boolean; // Block agent filesystem write tools in project paths
 }
 
 const DEFAULT_SETTINGS: SecuritySettings = {
@@ -371,8 +571,8 @@ export function loadSecuritySettings(): SecuritySettings {
  */
 export function saveSecuritySettings(settings: SecuritySettings): void {
   _cachedSettings = { ...settings };
-  saveSecuritySettingsToDb(JSON.stringify(settings)).catch(e =>
-    console.warn('[security] Failed to persist settings to DB:', e)
+  saveSecuritySettingsToDb(JSON.stringify(settings)).catch((e) =>
+    console.warn('[security] Failed to persist settings to DB:', e),
   );
 }
 
@@ -392,7 +592,9 @@ export async function resetSecuritySettings(): Promise<void> {
 export function extractCommandString(toolName: string, args?: Record<string, unknown>): string {
   if (toolName === 'exec' || toolName === 'shell' || toolName === 'run') {
     return args
-      ? Object.values(args).filter(v => typeof v === 'string').join(' ')
+      ? Object.values(args)
+          .filter((v) => typeof v === 'string')
+          .join(' ')
       : toolName;
   }
   return toolName;
@@ -444,7 +646,7 @@ function safeRegexTest(pattern: string, input: string): boolean {
  * Used for auto-approve of known safe commands.
  */
 export function matchesAllowlist(command: string, patterns: string[]): boolean {
-  return patterns.some(p => safeRegexTest(p, command));
+  return patterns.some((p) => safeRegexTest(p, command));
 }
 
 /**
@@ -452,26 +654,27 @@ export function matchesAllowlist(command: string, patterns: string[]): boolean {
  * Used for auto-deny of known dangerous commands.
  */
 export function matchesDenylist(command: string, patterns: string[]): boolean {
-  return patterns.some(p => safeRegexTest(p, command));
+  return patterns.some((p) => safeRegexTest(p, command));
 }
 
 // ── Network Request Auditing (Sprint C5) ──────────────────────────────────
 
 /** Tools/commands that perform outbound network requests. */
-const NETWORK_TOOLS = /\b(curl|wget|fetch|http|nc|ncat|netcat|nmap|ssh|scp|rsync|ftp|sftp|telnet|socat|lynx|aria2c|axel)\b/i;
+const NETWORK_TOOLS =
+  /\b(curl|wget|fetch|http|nc|ncat|netcat|nmap|ssh|scp|rsync|ftp|sftp|telnet|socat|lynx|aria2c|axel)\b/i;
 
 /** Patterns that suggest data exfiltration (piping data TO a remote host). */
 const EXFILTRATION_PATTERNS = [
-  /\bcat\b.*\|\s*(curl|wget|nc|ncat)/i,          // cat secret | curl
-  /\bcurl\b.*-d\s+@/i,                            // curl -d @file (upload file)
-  /\bcurl\b.*--data-binary\s+@/i,                 // curl --data-binary @file
-  /\bcurl\b.*-T\s+/i,                             // curl -T (upload)
-  /\bcurl\b.*--upload-file/i,                      // curl --upload-file
-  /\bwget\b.*--post-file/i,                        // wget --post-file
-  /\bnc\b.*<\s*\//i,                              // nc host < /file
-  /\bscp\b.*:\s*$/i,                              // scp file host: (outbound)
-  /\brsync\b.*[^@]+@[^:]+:/i,                     // rsync to remote
-  />\s*\/dev\/tcp\//i,                             // bash /dev/tcp redirect
+  /\bcat\b.*\|\s*(curl|wget|nc|ncat)/i, // cat secret | curl
+  /\bcurl\b.*-d\s+@/i, // curl -d @file (upload file)
+  /\bcurl\b.*--data-binary\s+@/i, // curl --data-binary @file
+  /\bcurl\b.*-T\s+/i, // curl -T (upload)
+  /\bcurl\b.*--upload-file/i, // curl --upload-file
+  /\bwget\b.*--post-file/i, // wget --post-file
+  /\bnc\b.*<\s*\//i, // nc host < /file
+  /\bscp\b.*:\s*$/i, // scp file host: (outbound)
+  /\brsync\b.*[^@]+@[^:]+:/i, // rsync to remote
+  />\s*\/dev\/tcp\//i, // bash /dev/tcp redirect
 ];
 
 /** Known-safe localhost / loopback destinations. */
@@ -485,7 +688,8 @@ export function extractNetworkTargets(command: string): string[] {
   let m: RegExpExecArray | null;
   while ((m = urlRe.exec(command)) !== null) targets.push(m[0]);
   // Match host:port patterns (e.g. nc example.com 443)
-  const hostPortRe = /(?:^|\s)(?:nc|ncat|netcat|ssh|scp|telnet|socat|ftp|sftp)\s+([a-z0-9._-]+)\s+(\d+)/gi;
+  const hostPortRe =
+    /(?:^|\s)(?:nc|ncat|netcat|ssh|scp|telnet|socat|ftp|sftp)\s+([a-z0-9._-]+)\s+(\d+)/gi;
   while ((m = hostPortRe.exec(command)) !== null) targets.push(`${m[1]}:${m[2]}`);
   return targets;
 }
@@ -504,7 +708,7 @@ export interface NetworkAuditResult {
  */
 export function auditNetworkRequest(
   toolName: string,
-  args?: Record<string, unknown>
+  args?: Record<string, unknown>,
 ): NetworkAuditResult {
   const searchStr = buildSearchString(toolName, args);
 
@@ -522,7 +726,8 @@ export function auditNetworkRequest(
   result.targets = extractNetworkTargets(searchStr);
 
   // Check if any target is non-local
-  result.allTargetsLocal = result.targets.length === 0 || result.targets.every(t => SAFE_HOSTS.test(t));
+  result.allTargetsLocal =
+    result.targets.length === 0 || result.targets.every((t) => SAFE_HOSTS.test(t));
 
   // Check for exfiltration patterns
   for (const ep of EXFILTRATION_PATTERNS) {
@@ -568,10 +773,14 @@ export function getSessionOverrideRemaining(): number {
 
 // ── Filesystem write tool detection (H3) ───────────────────────────────────
 
-const WRITE_TOOLS = /\b(write_file|append_file|delete_file|create_file|mv|cp|rename|remove|delete|mkdir|rmdir|chmod|chown|truncate|append|patch|edit)\b/i;
+const WRITE_TOOLS =
+  /\b(write_file|append_file|delete_file|create_file|mv|cp|rename|remove|delete|mkdir|rmdir|chmod|chown|truncate|append|patch|edit)\b/i;
 const WRITE_COMMANDS = /\b(mv|cp|rm|mkdir|rmdir|touch|chmod|chown|truncate|tee|sed\s+-i|install)\b/;
 
-export function isFilesystemWriteTool(tool: string, args?: Record<string, unknown>): { isWrite: boolean; targetPath: string | null } {
+export function isFilesystemWriteTool(
+  tool: string,
+  args?: Record<string, unknown>,
+): { isWrite: boolean; targetPath: string | null } {
   const result = { isWrite: false, targetPath: null as string | null };
 
   if (WRITE_TOOLS.test(tool)) {

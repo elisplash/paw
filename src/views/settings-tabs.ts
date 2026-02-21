@@ -15,14 +15,29 @@ let _activeSettingsTab = 'general';
 
 export function loadActiveSettingsTab() {
   switch (_activeSettingsTab) {
-    case 'models':        ModelsSettings.loadModelsSettings();         break;
-    case 'agent-defaults': AgentDefaultsSettings.loadAgentDefaultsSettings(); break;
-    case 'sessions':      SessionsSettings.loadSessionsSettings();      break;
-    case 'voice':         VoiceSettings.loadVoiceSettings();            break;
-    case 'skills':        SkillsSettings.loadSkillsSettings();          break;
-    case 'browser':       BrowserSettings.loadBrowserSettings();        break;
-    case 'tailscale':     TailscaleSettings.loadTailscaleSettings();    break;
-    default: break;
+    case 'models':
+      ModelsSettings.loadModelsSettings();
+      break;
+    case 'agent-defaults':
+      AgentDefaultsSettings.loadAgentDefaultsSettings();
+      break;
+    case 'sessions':
+      SessionsSettings.loadSessionsSettings();
+      break;
+    case 'voice':
+      VoiceSettings.loadVoiceSettings();
+      break;
+    case 'skills':
+      SkillsSettings.loadSkillsSettings();
+      break;
+    case 'browser':
+      BrowserSettings.loadBrowserSettings();
+      break;
+    case 'tailscale':
+      TailscaleSettings.loadTailscaleSettings();
+      break;
+    default:
+      break;
   }
 }
 
@@ -34,9 +49,9 @@ export function initSettingsTabs() {
     if (!btn) return;
     const tab = btn.dataset.settingsTab;
     if (!tab || tab === _activeSettingsTab) return;
-    bar.querySelectorAll('.settings-tab').forEach(b => b.classList.remove('active'));
+    bar.querySelectorAll('.settings-tab').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
-    document.querySelectorAll('.settings-tab-panel').forEach(p => {
+    document.querySelectorAll('.settings-tab-panel').forEach((p) => {
       (p as HTMLElement).style.display = 'none';
     });
     const panel = $(`settings-panel-${tab}`);

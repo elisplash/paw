@@ -9,7 +9,14 @@ import { escHtml, populateModelSelect, promptModal, icon } from './components/he
 import { showToast } from './components/toast';
 import { initTheme } from './components/molecules/theme';
 import { initHILModal } from './components/molecules/hil_modal';
-import { initChatListeners, switchToAgent, populateAgentSelect, appendStreamingDelta, recordTokenUsage, updateContextLimitFromModel } from './engine/organisms/chat_controller';
+import {
+  initChatListeners,
+  switchToAgent,
+  populateAgentSelect,
+  appendStreamingDelta,
+  recordTokenUsage,
+  updateContextLimitFromModel,
+} from './engine/organisms/chat_controller';
 import { registerStreamHandlers, registerResearchRouter } from './engine/molecules/event_bus';
 import { setLogTransport, flushBufferToTransport, type LogEntry } from './logger';
 import * as ResearchModule from './views/research';
@@ -26,7 +33,12 @@ registerResearchRouter({
   appendDelta: ResearchModule.appendDelta,
   resolveStream: ResearchModule.resolveStream,
 });
-import { initChannels, openMemoryFile, autoStartConfiguredChannels, closeChannelSetup } from './views/channels';
+import {
+  initChannels,
+  openMemoryFile,
+  autoStartConfiguredChannels,
+  closeChannelSetup,
+} from './views/channels';
 import { initContent } from './views/content';
 import { switchView, showView } from './views/router';
 import { initSettingsTabs } from './views/settings-tabs';
@@ -51,7 +63,9 @@ import * as OrchestratorModule from './views/orchestrator';
 interface TauriWindow {
   __TAURI__?: {
     core: { invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T> };
-    event: { listen: <T>(event: string, handler: (event: { payload: T }) => void) => Promise<() => void> };
+    event: {
+      listen: <T>(event: string, handler: (event: { payload: T }) => void) => Promise<() => void>;
+    };
   };
 }
 const tauriWindow = window as unknown as TauriWindow;
@@ -65,7 +79,9 @@ function crashLog(msg: string) {
     log.push(`${new Date().toISOString()} ${msg}`);
     while (log.length > 50) log.shift();
     localStorage.setItem('paw-crash-log', JSON.stringify(log));
-  } catch { /* localStorage might be full */ }
+  } catch {
+    /* localStorage might be full */
+  }
 }
 // Wire up the centralized error boundary (replaces inline error handlers)
 installErrorBoundary();
@@ -75,7 +91,6 @@ setErrorHandler((report) => {
 
 // ── DOM convenience ────────────────────────────────────────────────────────────────
 const $ = (id: string) => document.getElementById(id);
-
 
 // ── Model selector ──────────────────────────────────────────────────────────────────
 async function refreshModelLabel() {
@@ -91,7 +106,9 @@ async function refreshModelLabel() {
       currentValue: currentVal && currentVal !== 'default' ? currentVal : 'default',
       showDefaultModel: defaultModel || undefined,
     });
-  } catch { /* leave as-is */ }
+  } catch {
+    /* leave as-is */
+  }
 }
 (window as unknown as Record<string, unknown>).__refreshModelLabel = refreshModelLabel;
 
@@ -118,35 +135,49 @@ async function connectEngine(): Promise<boolean> {
         ? `${AgentsModule.spriteAvatar(initAgent.avatar, 20)} ${escHtml(initAgent.name)}`
         : `${AgentsModule.spriteAvatar('5', 20)} Paw`;
     }
-    if (chatAvatarEl && initAgent) chatAvatarEl.innerHTML = AgentsModule.spriteAvatar(initAgent.avatar, 32);
+    if (chatAvatarEl && initAgent)
+      chatAvatarEl.innerHTML = AgentsModule.spriteAvatar(initAgent.avatar, 32);
 
     refreshModelLabel();
     TasksModule.startCronTimer();
     if (listen) {
-      if (unlistenTaskUpdated) { unlistenTaskUpdated(); unlistenTaskUpdated = null; }
+      if (unlistenTaskUpdated) {
+        unlistenTaskUpdated();
+        unlistenTaskUpdated = null;
+      }
       listen<{ task_id: string; status: string }>('task-updated', (event) => {
         TasksModule.onTaskUpdated(event.payload);
-      }).then(fn => { unlistenTaskUpdated = fn; });
+      }).then((fn) => {
+        unlistenTaskUpdated = fn;
+      });
     }
 
-    pawEngine.autoSetup().then(result => {
-      if (result.action === 'ollama_added') {
-        showToast(result.message || `Ollama detected! Using model '${result.model}'.`, 'success');
-        ModelsSettings.loadModelsSettings();
-      }
-    }).catch(e => console.warn('[main] Auto-setup failed (non-fatal):', e));
+    pawEngine
+      .autoSetup()
+      .then((result) => {
+        if (result.action === 'ollama_added') {
+          showToast(result.message || `Ollama detected! Using model '${result.model}'.`, 'success');
+          ModelsSettings.loadModelsSettings();
+        }
+      })
+      .catch((e) => console.warn('[main] Auto-setup failed (non-fatal):', e));
 
-    pawEngine.ensureEmbeddingReady().then(status => {
-      if (status.error) console.warn('[main] Ollama embedding setup:', status.error);
-      else console.debug(`[main] Ollama ready: model=${status.model_name} dims=${status.embedding_dims}`);
-    }).catch(e => console.warn('[main] Ollama auto-init failed (non-fatal):', e));
+    pawEngine
+      .ensureEmbeddingReady()
+      .then((status) => {
+        if (status.error) console.warn('[main] Ollama embedding setup:', status.error);
+        else
+          console.debug(
+            `[main] Ollama ready: model=${status.model_name} dims=${status.embedding_dims}`,
+          );
+      })
+      .catch((e) => console.warn('[main] Ollama auto-init failed (non-fatal):', e));
 
     return true;
   }
   console.warn('[main] connectEngine: engine mode should have handled it above');
   return false;
 }
-
 
 // ── Initialize ──────────────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -164,9 +195,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const prevLog = localStorage.getItem('paw-crash-log');
       if (prevLog) {
         const entries = JSON.parse(prevLog) as string[];
-        if (entries.length) entries.slice(-5).forEach(e => console.warn('  ', e));
+        if (entries.length) entries.slice(-5).forEach((e) => console.warn('  ', e));
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     crashLog('startup');
 
     let dbReady = false;
@@ -177,7 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         break;
       } catch (e) {
         console.warn(`[main] DB init attempt ${attempt}/3 failed:`, e);
-        if (attempt < 3) await new Promise(r => setTimeout(r, 500 * attempt));
+        if (attempt < 3) await new Promise((r) => setTimeout(r, 500 * attempt));
       }
     }
     if (!dbReady) {
@@ -190,13 +223,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             dbBanner.style.display = 'none';
             showToast('Database connected successfully', 'success');
             // Continue the init chain that was skipped
-            await initDbEncryption().catch(e => {
+            await initDbEncryption().catch((e) => {
               console.error('[main] OS keychain unavailable after DB retry:', e);
             });
             await initSecuritySettings().catch(() => {});
           } catch (retryErr) {
             const msg = $('db-error-message');
-            if (msg) msg.textContent = `Retry failed: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`;
+            if (msg)
+              msg.textContent = `Retry failed: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`;
           }
         });
         $('db-error-dismiss')?.addEventListener('click', () => {
@@ -206,13 +240,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const encReady = dbReady
-      ? await initDbEncryption().catch(e => {
+      ? await initDbEncryption().catch((e) => {
           console.error('[main] OS keychain unavailable — DB field encryption disabled:', e);
           return false;
         })
       : false;
     if (dbReady) {
-      await initSecuritySettings().catch(e => console.warn('[main] Security settings init failed:', e));
+      await initSecuritySettings().catch((e) =>
+        console.warn('[main] Security settings init failed:', e),
+      );
       // Load model pricing overrides from DB
       try {
         const pricingRows = await listModelPricing();
@@ -235,16 +271,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       const logFile = await path.join(logDir, `paw-${today}.log`);
 
       // Prune log files older than 7 days (best-effort, non-blocking)
-      fs.readDir(logDir).then(async entries => {
-        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-        for (const entry of entries) {
-          if (!entry.name?.endsWith('.log')) continue;
-          const m = entry.name.match(/^paw-(\d{4}-\d{2}-\d{2})\.log$/);
-          if (m && new Date(m[1]).getTime() < cutoff) {
-            await fs.remove(await path.join(logDir, entry.name)).catch(() => {});
+      fs.readDir(logDir)
+        .then(async (entries) => {
+          const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+          for (const entry of entries) {
+            if (!entry.name?.endsWith('.log')) continue;
+            const m = entry.name.match(/^paw-(\d{4}-\d{2}-\d{2})\.log$/);
+            if (m && new Date(m[1]).getTime() < cutoff) {
+              await fs.remove(await path.join(logDir, entry.name)).catch(() => {});
+            }
           }
-        }
-      }).catch(() => {});
+        })
+        .catch(() => {});
 
       // Buffer writes and flush periodically to avoid excessive I/O
       let pendingLines: string[] = [];
@@ -256,7 +294,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         pendingLines = [];
         try {
           await fs.writeTextFile(logFile, batch, { append: true });
-        } catch { /* filesystem write failed — swallow to avoid cascade */ }
+        } catch {
+          /* filesystem write failed — swallow to avoid cascade */
+        }
       }
 
       setLogTransport((_entry: LogEntry, formatted: string) => {
@@ -295,7 +335,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     MailModule.configure({
       switchView,
-      setCurrentSession: (key) => { appState.currentSessionKey = key; },
+      setCurrentSession: (key) => {
+        appState.currentSessionKey = key;
+      },
       getChatInput: () => document.getElementById('chat-input') as HTMLTextAreaElement | null,
       closeChannelSetup,
     });
@@ -310,7 +352,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     AgentsModule.configure({
       switchView,
-      setCurrentAgent: (agentId) => { if (agentId) switchToAgent(agentId); },
+      setCurrentAgent: (agentId) => {
+        if (agentId) switchToAgent(agentId);
+      },
     });
     AgentsModule.initAgents();
     AgentsModule.onProfileUpdated((agentId, agent) => {
@@ -343,7 +387,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     switchView('dashboard');
     await connectEngine();
 
-    autoStartConfiguredChannels().catch(e => console.warn('[main] Auto-start channels error:', e));
+    autoStartConfiguredChannels().catch((e) =>
+      console.warn('[main] Auto-start channels error:', e),
+    );
     console.debug('[main] Pawz initialized');
   } catch (e) {
     console.error('[main] Init error:', e);
