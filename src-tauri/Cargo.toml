@@ -53,7 +53,7 @@ paste = "1"
 
 # ── Web Browsing & Scraping ──────────────────────────────────────
 headless_chrome = "1"
-scraper = "0.22"
+scraper = "0.25"
 url = "2"
 
 # ── Channel Bridges (WebSocket + IRC) ───────────────────────────
