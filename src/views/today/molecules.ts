@@ -1,12 +1,13 @@
-// Today View — Daily briefing with weather, calendar, tasks, and unread emails
+// Today View — DOM rendering + IPC
 
-import { pawEngine } from '../engine';
-import { getCurrentAgent, spriteAvatar } from './agents';
-import { switchView } from './router';
-import { $, escHtml } from '../components/helpers';
-import { showToast } from '../components/toast';
+import { pawEngine } from '../../engine';
+import { getCurrentAgent, spriteAvatar } from '../agents';
+import { switchView } from '../router';
+import { $, escHtml } from '../../components/helpers';
+import { showToast } from '../../components/toast';
+import { Task, getWeatherIcon, getGreeting, getPawzMessage, isToday } from './atoms';
 
-// ── Tauri bridge ───────────────────────────────────────────────────────────
+// ── Tauri bridge (no pawEngine equivalent for these commands) ──────────
 interface TauriWindow {
   __TAURI__?: {
     core: { invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T> };
@@ -15,57 +16,34 @@ interface TauriWindow {
 const tauriWindow = window as unknown as TauriWindow;
 const invoke = tauriWindow.__TAURI__?.core?.invoke;
 
-interface Task {
-  id: string;
-  text: string;
-  done: boolean;
-  dueDate?: string;
-  createdAt: string;
+// ── State bridge ──────────────────────────────────────────────────────
+
+interface MoleculesState {
+  getTasks: () => Task[];
+  setTasks: (t: Task[]) => void;
+  getRenderToday: () => () => void;
 }
 
-let _tasks: Task[] = [];
+let _state: MoleculesState;
 
-export function configure(_opts: Record<string, unknown>) {
-  // Future: callbacks for navigation etc
+export function initMoleculesState() {
+  return {
+    setMoleculesState(s: MoleculesState) { _state = s; },
+  };
 }
 
-export async function loadToday() {
-  console.log('[today] loadToday called');
-  loadTasks();
-  renderToday();
-  
-  // Fetch live data
-  await Promise.all([
-    fetchWeather(),
-    fetchUnreadEmails(),
-  ]);
-}
+// ── Weather ───────────────────────────────────────────────────────────
 
-function loadTasks() {
-  try {
-    const stored = localStorage.getItem('paw-tasks');
-    _tasks = stored ? JSON.parse(stored) : [];
-  } catch {
-    _tasks = [];
-  }
-}
-
-function saveTasks() {
-  localStorage.setItem('paw-tasks', JSON.stringify(_tasks));
-}
-
-async function fetchWeather() {
+export async function fetchWeather() {
   const weatherEl = $('today-weather');
   if (!weatherEl) return;
 
   try {
     let json: string | null = null;
 
-    // Primary: Use Tauri command (bypasses CSP)
     if (invoke) {
       json = await invoke<string>('fetch_weather', { location: null });
     } else {
-      // Fallback: direct fetch (only works if CSP allows it)
       const response = await fetch('https://wttr.in/?format=j1', {
         headers: { 'User-Agent': 'curl' },
         signal: AbortSignal.timeout(8000),
@@ -116,21 +94,9 @@ async function fetchWeather() {
   }
 }
 
-/** Map WMO weather code to Material Symbol icon (used by weather widget) */
-export function getWeatherIcon(code: string): string {
-  const c = parseInt(code);
-  const ms = (name: string) => `<span class="ms ms-lg">${name}</span>`;
-  if (c === 113) return ms('light_mode');
-  if (c === 116) return ms('partly_cloudy_day');
-  if ([119, 122].includes(c)) return ms('cloud');
-  if ([143, 248, 260].includes(c)) return ms('mist');
-  if ([176, 263, 266, 293, 296, 299, 302, 305, 308, 311, 314, 353, 356, 359].includes(c)) return ms('rainy');
-  if ([179, 182, 185, 281, 284, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374, 377].includes(c)) return ms('weather_snowy');
-  if ([200, 386, 389, 392, 395].includes(c)) return ms('thunderstorm');
-  return ms('partly_cloudy_day');
-}
+// ── Emails ────────────────────────────────────────────────────────────
 
-async function fetchUnreadEmails() {
+export async function fetchUnreadEmails() {
   const emailsEl = $('today-emails');
   if (!emailsEl) return;
 
@@ -140,7 +106,6 @@ async function fetchUnreadEmails() {
   }
 
   try {
-    // Load mail accounts from himalaya config (same as mail module)
     let accounts: { name: string; email: string }[] = [];
     if (invoke) {
       try {
@@ -153,7 +118,6 @@ async function fetchUnreadEmails() {
         }
       } catch { /* no config yet */ }
     }
-    // Fallback: localStorage
     if (accounts.length === 0) {
       try {
         const raw = localStorage.getItem('mail-accounts-fallback');
@@ -165,7 +129,6 @@ async function fetchUnreadEmails() {
       emailsEl.innerHTML = `<div class="today-section-empty">Set up email in the <a href="#" class="today-link-mail">Mail</a> view to see messages here</div>`;
       emailsEl.querySelector('.today-link-mail')?.addEventListener('click', (e) => {
         e.preventDefault();
-        // Try to switch view via the nav
         const mailNav = document.querySelector('[data-view="mail"]') as HTMLElement;
         mailNav?.click();
       });
@@ -190,7 +153,6 @@ async function fetchUnreadEmails() {
     let envelopes: EmailEnvelope[] = [];
     try { envelopes = JSON.parse(jsonResult); } catch { /* ignore */ }
 
-    // Filter to unread only
     const unread = envelopes.filter(e => !e.flags?.includes('Seen'));
 
     if (unread.length === 0) {
@@ -221,16 +183,19 @@ async function fetchUnreadEmails() {
   }
 }
 
-function renderToday() {
+// ── Dashboard Render ──────────────────────────────────────────────────
+
+export function renderToday() {
   const container = $('today-content');
   if (!container) return;
 
+  const tasks = _state.getTasks();
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const greeting = getGreeting();
 
-  const pendingTasks = _tasks.filter(t => !t.done);
-  const completedToday = _tasks.filter(t => t.done && isToday(t.createdAt));
+  const pendingTasks = tasks.filter(t => !t.done);
+  const completedToday = tasks.filter(t => t.done && isToday(t.createdAt));
 
   const mainAgent = getCurrentAgent();
   const agentName = mainAgent?.name ?? 'Agent';
@@ -333,13 +298,13 @@ function renderToday() {
   bindEvents();
 }
 
+// ── Events ────────────────────────────────────────────────────────────
+
 function bindEvents() {
-  // Add task button
   $('today-content')?.querySelector('.today-add-task-btn')?.addEventListener('click', () => {
     openAddTaskModal();
   });
 
-  // Task checkboxes
   document.querySelectorAll('.today-task-check').forEach(checkbox => {
     checkbox.addEventListener('change', (e) => {
       const taskEl = (e.target as HTMLElement).closest('.today-task');
@@ -348,7 +313,6 @@ function bindEvents() {
     });
   });
 
-  // Task delete buttons
   document.querySelectorAll('.today-task-delete').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const taskEl = (e.target as HTMLElement).closest('.today-task');
@@ -357,11 +321,12 @@ function bindEvents() {
     });
   });
 
-  // Quick actions
   $('today-briefing-btn')?.addEventListener('click', () => triggerBriefing());
   $('today-summarize-btn')?.addEventListener('click', () => triggerInboxSummary());
   $('today-schedule-btn')?.addEventListener('click', () => triggerScheduleCheck());
 }
+
+// ── Task Modal ────────────────────────────────────────────────────────
 
 function openAddTaskModal() {
   const modal = document.createElement('div');
@@ -402,33 +367,46 @@ function openAddTaskModal() {
   modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
 }
 
+// ── Task CRUD ─────────────────────────────────────────────────────────
+
 function addTask(text: string) {
+  const tasks = _state.getTasks();
   const task: Task = {
     id: `task-${Date.now()}`,
     text,
     done: false,
     createdAt: new Date().toISOString(),
   };
-  _tasks.unshift(task);
+  tasks.unshift(task);
+  _state.setTasks(tasks);
   saveTasks();
   renderToday();
   showToast('Task added');
 }
 
 function toggleTask(taskId: string) {
-  const task = _tasks.find(t => t.id === taskId);
+  const tasks = _state.getTasks();
+  const task = tasks.find(t => t.id === taskId);
   if (task) {
     task.done = !task.done;
+    _state.setTasks(tasks);
     saveTasks();
-    setTimeout(() => renderToday(), 300); // Delay for animation
+    setTimeout(() => renderToday(), 300);
   }
 }
 
 function deleteTask(taskId: string) {
-  _tasks = _tasks.filter(t => t.id !== taskId);
+  const tasks = _state.getTasks().filter(t => t.id !== taskId);
+  _state.setTasks(tasks);
   saveTasks();
   renderToday();
 }
+
+function saveTasks() {
+  localStorage.setItem('paw-tasks', JSON.stringify(_state.getTasks()));
+}
+
+// ── Quick Actions ─────────────────────────────────────────────────────
 
 async function triggerBriefing() {
   showToast('Starting morning briefing...');
@@ -458,51 +436,4 @@ async function triggerScheduleCheck() {
   } catch {
     showToast('Failed to check schedule', 'error');
   }
-}
-
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
-}
-
-function getPawzMessage(pendingTasks: number, completedToday: number): string {
-  const hour = new Date().getHours();
-  const day = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-  
-  let message = '';
-  
-  // Time-based opener
-  if (hour < 12) {
-    message = `Happy ${day}! Ready to make today count? `;
-  } else if (hour < 17) {
-    message = `Hope your ${day} is going well. `;
-  } else {
-    message = `Winding down this ${day}. `;
-  }
-  
-  // Task-based context
-  if (completedToday > 0 && pendingTasks === 0) {
-    message += `You crushed it — ${completedToday} task${completedToday > 1 ? 's' : ''} done and nothing pending!`;
-  } else if (completedToday > 0) {
-    message += `Nice progress! ${completedToday} down, ${pendingTasks} to go.`;
-  } else if (pendingTasks > 0) {
-    message += `You've got ${pendingTasks} task${pendingTasks > 1 ? 's' : ''} lined up. Let's knock them out.`;
-  } else {
-    message += `No tasks on the board yet. Add something or hit Morning Briefing to get started.`;
-  }
-  
-  return message;
-}
-
-function isToday(dateStr: string): boolean {
-  const date = new Date(dateStr);
-  const today = new Date();
-  return date.toDateString() === today.toDateString();
-}
-
-
-export function initToday() {
-  // Called on app startup
 }

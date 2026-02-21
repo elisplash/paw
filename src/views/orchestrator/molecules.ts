@@ -1,17 +1,33 @@
-// Paw — Orchestrator View
-// Multi-agent project coordination: create projects, assign agent teams,
-// run boss-agent orchestration, and monitor the message bus in real-time.
+// Orchestrator View — DOM rendering + IPC
 
-import { pawEngine, EngineProject, EngineProjectAgent, EngineProjectMessage } from '../engine';
-import { showToast } from '../components/toast';
-import { populateModelSelect, escHtml, formatTimeAgo } from '../components/helpers';
-import { listen } from '@tauri-apps/api/event';
+import { pawEngine, EngineProject, EngineProjectAgent, EngineProjectMessage } from '../../engine';
+import { showToast } from '../../components/toast';
+import { populateModelSelect, escHtml, formatTimeAgo } from '../../components/helpers';
+import { specialtyIcon, messageKindLabel, formatTime } from './atoms';
 
-let projects: EngineProject[] = [];
-let currentProject: EngineProject | null = null;
-let messagePollInterval: ReturnType<typeof setInterval> | null = null;
+// ── State bridge ──────────────────────────────────────────────────────
 
-// ── DOM refs ───────────────────────────────────────────────────────────
+interface MoleculesState {
+  getProjects: () => EngineProject[];
+  setProjects: (p: EngineProject[]) => void;
+  getCurrentProject: () => EngineProject | null;
+  setCurrentProject: (p: EngineProject | null) => void;
+  getMessagePollInterval: () => ReturnType<typeof setInterval> | null;
+  setMessagePollInterval: (i: ReturnType<typeof setInterval> | null) => void;
+  getLoadProjects: () => typeof loadProjectsFn;
+}
+
+let _state: MoleculesState;
+// placeholder for loadProjects from index - resolved via state bridge
+const loadProjectsFn: () => Promise<void> = async () => {};
+
+export function initMoleculesState() {
+  return {
+    setMoleculesState(s: MoleculesState) { _state = s; },
+  };
+}
+
+// ── DOM refs ──────────────────────────────────────────────────────────
 
 const els = {
   get list() { return document.getElementById('orch-project-list')!; },
@@ -23,7 +39,6 @@ const els = {
   get detailGoal() { return document.getElementById('orch-detail-goal')!; },
   get agentRoster() { return document.getElementById('orch-agent-roster')!; },
   get messageBus() { return document.getElementById('orch-message-bus')!; },
-  // modals
   get modal() { return document.getElementById('orch-modal')!; },
   get modalTitle() { return document.getElementById('orch-modal-title')!; },
   get formTitle() { return document.getElementById('orch-form-title') as HTMLInputElement; },
@@ -35,62 +50,10 @@ const els = {
   get agentFormModel() { return document.getElementById('orch-agent-form-model') as HTMLSelectElement | null; },
 };
 
-// ── Init ───────────────────────────────────────────────────────────────
+// ── Render list ───────────────────────────────────────────────────────
 
-export function initOrchestrator() {
-  // Buttons
-  document.getElementById('orch-create-btn')?.addEventListener('click', () => openCreateModal());
-  document.getElementById('orch-modal-close')?.addEventListener('click', () => closeModal());
-  document.getElementById('orch-modal-cancel')?.addEventListener('click', () => closeModal());
-  document.getElementById('orch-modal-save')?.addEventListener('click', () => saveProject());
-  document.getElementById('orch-back-btn')?.addEventListener('click', () => showList());
-  document.getElementById('orch-run-btn')?.addEventListener('click', () => runProject());
-  document.getElementById('orch-edit-btn')?.addEventListener('click', () => editProject());
-  document.getElementById('orch-delete-btn')?.addEventListener('click', () => deleteProject());
-  document.getElementById('orch-add-agent-btn')?.addEventListener('click', () => openAgentModal());
-  document.getElementById('orch-agent-modal-close')?.addEventListener('click', () => closeAgentModal());
-  document.getElementById('orch-agent-modal-cancel')?.addEventListener('click', () => closeAgentModal());
-  document.getElementById('orch-agent-modal-save')?.addEventListener('click', () => addAgent());
-
-  // Listen for project events from Rust backend
-  listen<any>('project-event', (event) => {
-    const data = event.payload;
-    if (data.kind === 'project_started' || data.kind === 'project_finished' || data.kind === 'project_complete') {
-      loadProjects();
-      if (currentProject && currentProject.id === data.project_id) {
-        loadProjectDetail(currentProject.id);
-      }
-    }
-    if (data.kind === 'delegation' || data.kind === 'progress' || data.kind === 'message' || data.kind === 'agent_finished') {
-      if (currentProject && currentProject.id === data.project_id) {
-        refreshMessages();
-        refreshAgents();
-      }
-    }
-  });
-}
-
-// ── Load projects ──────────────────────────────────────────────────────
-
-export async function loadProjects() {
-  try {
-    projects = await pawEngine.projectsList();
-    renderList();
-    updateStats();
-  } catch (e) {
-    console.error('[orchestrator] Failed to load projects:', e);
-  }
-}
-
-function updateStats() {
-  els.statTotal.textContent = `${projects.length} project${projects.length !== 1 ? 's' : ''}`;
-  const running = projects.filter(p => p.status === 'running').length;
-  els.statRunning.textContent = `${running} running`;
-}
-
-// ── Render list ────────────────────────────────────────────────────────
-
-function renderList() {
+export function renderList() {
+  const projects = _state.getProjects();
   const container = els.list;
   if (projects.length === 0) {
     container.innerHTML = `
@@ -116,7 +79,6 @@ function renderList() {
     </div>
   `).join('');
 
-  // Click handlers
   container.querySelectorAll('.orch-project-card').forEach(card => {
     card.addEventListener('click', () => {
       const id = (card as HTMLElement).dataset.id!;
@@ -125,18 +87,25 @@ function renderList() {
   });
 }
 
-// ── Project detail ─────────────────────────────────────────────────────
+export function updateStats() {
+  const projects = _state.getProjects();
+  els.statTotal.textContent = `${projects.length} project${projects.length !== 1 ? 's' : ''}`;
+  const running = projects.filter(p => p.status === 'running').length;
+  els.statRunning.textContent = `${running} running`;
+}
 
-async function loadProjectDetail(projectId: string) {
+// ── Project detail ────────────────────────────────────────────────────
+
+export async function loadProjectDetail(projectId: string) {
   try {
-    // Refresh project list first to get latest data
-    projects = await pawEngine.projectsList();
+    const projects = await pawEngine.projectsList();
+    _state.setProjects(projects);
     const project = projects.find(p => p.id === projectId);
     if (!project) {
       showToast('Project not found', 'error');
       return;
     }
-    currentProject = project;
+    _state.setCurrentProject(project);
 
     els.list.style.display = 'none';
     els.detail.style.display = 'block';
@@ -146,7 +115,6 @@ async function loadProjectDetail(projectId: string) {
     els.detailStatus.className = `orch-status-badge orch-status-${project.status}`;
     els.detailGoal.textContent = project.goal;
 
-    // Update run button state
     const runBtn = document.getElementById('orch-run-btn')!;
     if (project.status === 'running') {
       runBtn.textContent = '⏳ Running...';
@@ -159,28 +127,31 @@ async function loadProjectDetail(projectId: string) {
     renderAgentRoster(project.agents);
     await refreshMessages();
 
-    // Start polling messages while viewing
-    if (messagePollInterval) clearInterval(messagePollInterval);
-    messagePollInterval = setInterval(() => {
-      if (currentProject) refreshMessages();
-    }, 3000);
+    const oldInterval = _state.getMessagePollInterval();
+    if (oldInterval) clearInterval(oldInterval);
+    _state.setMessagePollInterval(setInterval(() => {
+      if (_state.getCurrentProject()) refreshMessages();
+    }, 3000));
   } catch (e) {
     console.error('[orchestrator] Failed to load project detail:', e);
   }
 }
 
-function showList() {
-  currentProject = null;
-  if (messagePollInterval) {
-    clearInterval(messagePollInterval);
-    messagePollInterval = null;
+export function showList() {
+  _state.setCurrentProject(null);
+  const interval = _state.getMessagePollInterval();
+  if (interval) {
+    clearInterval(interval);
+    _state.setMessagePollInterval(null);
   }
   els.detail.style.display = 'none';
   els.list.style.display = 'block';
-  loadProjects();
+  _state.getLoadProjects()();
 }
 
-function renderAgentRoster(agents: EngineProjectAgent[]) {
+// ── Agent roster ──────────────────────────────────────────────────────
+
+export function renderAgentRoster(agents: EngineProjectAgent[]) {
   if (agents.length === 0) {
     els.agentRoster.innerHTML = '<div class="empty-state-sm">No agents assigned yet.</div>';
     return;
@@ -203,11 +174,11 @@ function renderAgentRoster(agents: EngineProjectAgent[]) {
     </div>
   `).join('');
 
-  // Remove agent buttons
   els.agentRoster.querySelectorAll('.orch-remove-agent').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const agentId = (btn as HTMLElement).dataset.agent!;
+      const currentProject = _state.getCurrentProject();
       if (!currentProject) return;
       const newAgents = currentProject.agents.filter(a => a.agent_id !== agentId);
       await pawEngine.projectSetAgents(currentProject.id, newAgents);
@@ -219,26 +190,31 @@ function renderAgentRoster(agents: EngineProjectAgent[]) {
 }
 
 async function refreshAgents() {
+  const currentProject = _state.getCurrentProject();
   if (!currentProject) return;
   try {
-    projects = await pawEngine.projectsList();
-    const p = projects.find(p => p.id === currentProject!.id);
+    const projects = await pawEngine.projectsList();
+    _state.setProjects(projects);
+    const p = projects.find(p => p.id === currentProject.id);
     if (p) {
-      currentProject = p;
+      _state.setCurrentProject(p);
       renderAgentRoster(p.agents);
     }
-  } catch (e) {
+  } catch (_e) {
     // Ignore refresh errors
   }
 }
 
+// ── Messages ──────────────────────────────────────────────────────────
+
 async function refreshMessages() {
+  const currentProject = _state.getCurrentProject();
   if (!currentProject) return;
   try {
     const messages = await pawEngine.projectMessages(currentProject.id, 100);
     renderMessageBus(messages);
-  } catch (e) {
-    // Ignore refresh errors  
+  } catch (_e) {
+    // Ignore refresh errors
   }
 }
 
@@ -263,15 +239,14 @@ function renderMessageBus(messages: EngineProjectMessage[]) {
     `;
   }).join('');
 
-  // Auto-scroll to bottom
   els.messageBus.scrollTop = els.messageBus.scrollHeight;
 }
 
-// ── Create/Edit project ────────────────────────────────────────────────
+// ── Create/Edit project ───────────────────────────────────────────────
 
 let editingProjectId: string | null = null;
 
-function openCreateModal() {
+export function openCreateModal() {
   editingProjectId = null;
   (document.getElementById('orch-modal-title')!).textContent = 'New Project';
   (document.getElementById('orch-modal-save')!).textContent = 'Create Project';
@@ -281,7 +256,8 @@ function openCreateModal() {
   els.modal.style.display = 'flex';
 }
 
-function editProject() {
+export function editProject() {
+  const currentProject = _state.getCurrentProject();
   if (!currentProject) return;
   editingProjectId = currentProject.id;
   (document.getElementById('orch-modal-title')!).textContent = 'Edit Project';
@@ -292,12 +268,12 @@ function editProject() {
   els.modal.style.display = 'flex';
 }
 
-function closeModal() {
+export function closeModal() {
   els.modal.style.display = 'none';
   editingProjectId = null;
 }
 
-async function saveProject() {
+export async function saveProject() {
   const title = els.formTitle.value.trim();
   const goal = els.formGoal.value.trim();
   const boss = els.formBoss.value.trim() || 'default';
@@ -312,8 +288,10 @@ async function saveProject() {
   }
 
   try {
+    const projects = _state.getProjects();
+    const currentProject = _state.getCurrentProject();
+
     if (editingProjectId) {
-      // Update existing
       const existing = projects.find(p => p.id === editingProjectId);
       if (existing) {
         const updated: EngineProject = {
@@ -329,7 +307,6 @@ async function saveProject() {
         }
       }
     } else {
-      // Create new
       const project: EngineProject = {
         id: crypto.randomUUID(),
         title,
@@ -343,19 +320,21 @@ async function saveProject() {
         updated_at: new Date().toISOString(),
       };
       await pawEngine.projectCreate(project);
-      // Also set the boss as the first agent
       await pawEngine.projectSetAgents(project.id, project.agents);
       showToast('Project created');
     }
 
     closeModal();
-    await loadProjects();
+    await _state.getLoadProjects()();
   } catch (e: any) {
     showToast(`Error: ${e}`, 'error');
   }
 }
 
-async function deleteProject() {
+// ── Delete & Run ──────────────────────────────────────────────────────
+
+export async function deleteProject() {
+  const currentProject = _state.getCurrentProject();
   if (!currentProject) return;
   if (!confirm(`Delete project "${currentProject.title}"? This cannot be undone.`)) return;
 
@@ -368,9 +347,8 @@ async function deleteProject() {
   }
 }
 
-// ── Run project ────────────────────────────────────────────────────────
-
-async function runProject() {
+export async function runProject() {
+  const currentProject = _state.getCurrentProject();
   if (!currentProject) return;
   if (currentProject.status === 'running') {
     showToast('Project is already running', 'error');
@@ -385,7 +363,6 @@ async function runProject() {
     await pawEngine.projectRun(currentProject.id);
     showToast('Project started! The boss agent is orchestrating.');
 
-    // Update UI
     const runBtn = document.getElementById('orch-run-btn')!;
     runBtn.textContent = '⏳ Running...';
     (runBtn as HTMLButtonElement).disabled = true;
@@ -396,12 +373,11 @@ async function runProject() {
   }
 }
 
-// ── Add agent ──────────────────────────────────────────────────────────
+// ── Agent modal ───────────────────────────────────────────────────────
 
-function openAgentModal() {
+export function openAgentModal() {
   els.agentFormId.value = '';
   els.agentFormSpecialty.value = 'general';
-  // Populate model dropdown from configured providers
   if (els.agentFormModel) {
     pawEngine.getConfig().then(config => {
       populateModelSelect(els.agentFormModel!, config.providers ?? [], {
@@ -413,11 +389,12 @@ function openAgentModal() {
   els.agentModal.style.display = 'flex';
 }
 
-function closeAgentModal() {
+export function closeAgentModal() {
   els.agentModal.style.display = 'none';
 }
 
-async function addAgent() {
+export async function addAgent() {
+  const currentProject = _state.getCurrentProject();
   if (!currentProject) return;
   const agentId = els.agentFormId.value.trim();
   const specialty = els.agentFormSpecialty.value;
@@ -427,7 +404,6 @@ async function addAgent() {
     return;
   }
 
-  // Check if already assigned
   if (currentProject.agents.some(a => a.agent_id === agentId)) {
     showToast('This agent is already on the team', 'error');
     return;
@@ -454,37 +430,6 @@ async function addAgent() {
   }
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────
+// ── Refresh helpers (exported for event handler) ──────────────────────
 
-function specialtyIcon(specialty: string): string {
-  const icons: Record<string, string> = {
-    coder: 'code',
-    researcher: 'search',
-    designer: 'palette',
-    communicator: 'campaign',
-    security: 'shield',
-    general: 'smart_toy',
-  };
-  const name = icons[specialty] || 'smart_toy';
-  return `<span class="ms ms-sm">${name}</span>`;
-}
-
-function messageKindLabel(kind: string): string {
-  const labels: Record<string, string> = {
-    delegation: 'Delegation',
-    progress: 'Progress',
-    result: 'Result',
-    error: 'Error',
-    message: 'Message',
-  };
-  return labels[kind] || kind;
-}
-
-function formatTime(dateStr: string): string {
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  } catch {
-    return dateStr;
-  }
-}
+export { refreshAgents, refreshMessages };
