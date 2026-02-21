@@ -239,6 +239,44 @@ class PawEngineClient {
     return invoke('engine_memory_backfill');
   }
 
+  // ── Embedding config (legacy Tauri commands) ─────────────────────────
+
+  async getEmbeddingProvider(): Promise<string | null> {
+    return invoke<string | null>('get_embedding_provider');
+  }
+
+  async getEmbeddingBaseUrl(): Promise<string | null> {
+    return invoke<string | null>('get_embedding_base_url');
+  }
+
+  async getAzureApiVersion(): Promise<string | null> {
+    return invoke<string | null>('get_azure_api_version');
+  }
+
+  async testEmbeddingConnection(params: {
+    apiKey: string;
+    baseUrl: string | null;
+    model: string | null;
+    apiVersion: string | null;
+    provider: string;
+  }): Promise<void> {
+    return invoke('test_embedding_connection', params);
+  }
+
+  async enableMemoryPlugin(params: {
+    apiKey: string;
+    baseUrl: string | null;
+    model: string | null;
+    apiVersion: string | null;
+    provider: string;
+  }): Promise<void> {
+    return invoke('enable_memory_plugin', params);
+  }
+
+  async checkMemoryConfigured(): Promise<boolean> {
+    return invoke<boolean>('check_memory_configured');
+  }
+
   // ── Skills ───────────────────────────────────────────────────────────
 
   async skillsList(): Promise<EngineSkillStatus[]> {
