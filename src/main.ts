@@ -252,7 +252,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       async function flushToFile() {
         if (pendingLines.length === 0) return;
-        const batch = pendingLines.join('\n') + '\n';
+        const batch = `${pendingLines.join('\n')}\n`;
         pendingLines = [];
         try {
           await fs.writeTextFile(logFile, batch, { append: true });
