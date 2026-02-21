@@ -1148,6 +1148,7 @@ export function initChatListeners(): void {
 let _chatTalkActive = false;
 let _chatMediaRecorder: MediaRecorder | null = null;
 let _chatAudioStream: MediaStream | null = null;
+let _chatTalkTimeout: ReturnType<typeof setTimeout> | null = null;
 
 async function toggleChatTalkMode() {
   if (_chatTalkActive) {
@@ -1229,7 +1230,8 @@ async function startChatTalk() {
     _chatMediaRecorder.start();
 
     // Auto-stop after 30 seconds max
-    setTimeout(() => {
+    _chatTalkTimeout = setTimeout(() => {
+      _chatTalkTimeout = null;
       if (_chatMediaRecorder && _chatMediaRecorder.state === 'recording') {
         _chatMediaRecorder.stop();
       }
@@ -1242,12 +1244,14 @@ async function startChatTalk() {
 }
 
 function stopChatTalk() {
+  if (_chatTalkTimeout) { clearTimeout(_chatTalkTimeout); _chatTalkTimeout = null; }
   if (_chatMediaRecorder && _chatMediaRecorder.state === 'recording') {
     _chatMediaRecorder.stop();
   }
 }
 
 function cleanupChatTalk() {
+  if (_chatTalkTimeout) { clearTimeout(_chatTalkTimeout); _chatTalkTimeout = null; }
   _chatTalkActive = false;
   _chatMediaRecorder = null;
   if (_chatAudioStream) {

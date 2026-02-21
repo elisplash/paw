@@ -73,10 +73,10 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - **Bug:** `activeStreams.get(streamKey)!` can crash if session key mutated between setup and use.
 - **Fix:** Replaced `!` assertion with explicit null check. If stream state is missing, logs an error, re-enables the send button, and returns early instead of crashing.
 
-### 15. Timer leak in voice recording
+### ~~15. Timer leak in voice recording~~ ✅ FIXED
 - **File:** `src/engine/organisms/chat_controller.ts` L1215
 - **Bug:** 30s auto-stop timeout never cancelled on manual stop. Stale callbacks accumulate.
-- **Fix:** Store timeout ID, clear on manual stop.
+- **Fix:** Added `_chatTalkTimeout` module variable. The 30s auto-stop `setTimeout` ID is now stored and cleared in both `stopChatTalk()` and `cleanupChatTalk()`, preventing stale callbacks from firing after manual stop.
 
 ### 16. Hardcoded username "Eli" in greeting
 - **File:** `src/views/today/molecules.ts` L206
