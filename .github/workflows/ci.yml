@@ -30,7 +30,7 @@ jobs:
         run: npx tsc --noEmit
 
       - name: ESLint
-        run: npx eslint src/ --max-warnings 120
+        run: npx eslint src/ --max-warnings 0
 
       - name: Unit tests
         run: npx vitest run
