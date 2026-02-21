@@ -44,10 +44,8 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 ### ~~7. ReDoS in security allowlist/denylist~~ ✅ FIXED
 - Added `isReDoSRisk()` detector (nested quantifiers, overlapping alternation), `validateRegexPattern()` for save-time validation, and `safeRegexTest()` wrapper. Updated `matchesAllowlist` and `matchesDenylist` to reject ReDoS-risk patterns silently. 19 new tests in `src/security.test.ts`.
 
-### 8. Security settings stored in unprotected localStorage
-- **File:** `src/security.ts` L200-315
-- **Bug:** Allowlist, denylist, and `sessionOverrideUntil` stored in `localStorage` — accessible from DevTools or any XSS. An attacker could `activateSessionOverride(99999)` to disable all checks.
-- **Fix:** Move to the encrypted SQLite database or Tauri secure storage.
+### ~~8. Security settings stored in unprotected localStorage~~ ✅ FIXED
+- Moved security settings from `localStorage` to the encrypted SQLite database. Added `security_settings` table (single-row upsert), DB CRUD in `db.ts`, in-memory cache in `security.ts` for sync access. `initSecuritySettings()` hydrates cache at startup, auto-migrates legacy localStorage data, then clears it. `resetSecurityPolicies()` now uses DB delete instead of `localStorage.removeItem()`. 4 new tests for cache behaviour.
 
 ### 9. chatAbort is a no-op
 - **File:** `src/engine/molecules/ipc_client.ts` L107-109

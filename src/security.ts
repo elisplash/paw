@@ -173,7 +173,12 @@ function buildSearchString(toolName: string, args?: Record<string, unknown>): st
   return parts.join(' ');
 }
 
-// ── Security settings (persisted in localStorage) ──────────────────────────
+// ── Security settings (persisted in encrypted SQLite DB) ───────────────────
+// Settings are cached in memory for synchronous access.  On save, the cache
+// is updated immediately and flushed to the DB asynchronously.  On startup,
+// call initSecuritySettings() to hydrate the cache from the DB.
+
+import { loadSecuritySettingsFromDb, saveSecuritySettingsToDb, resetSecuritySettingsInDb } from './db';
 
 const SEC_PREFIX = 'paw_security_';
 
@@ -318,16 +323,66 @@ const DEFAULT_SETTINGS: SecuritySettings = {
   readOnlyProjects: false,
 };
 
-export function loadSecuritySettings(): SecuritySettings {
+// In-memory cache — populated at startup by initSecuritySettings()
+let _cachedSettings: SecuritySettings | null = null;
+
+/**
+ * Initialise the security settings cache from the encrypted database.
+ * Call once at app startup after initDb(). Migrates any legacy
+ * localStorage data automatically on first run.
+ */
+export async function initSecuritySettings(): Promise<void> {
   try {
-    const raw = localStorage.getItem(`${SEC_PREFIX}settings`);
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
-  } catch { /* ignore */ }
+    // Migrate from localStorage → DB on first run
+    const legacyRaw = localStorage.getItem(`${SEC_PREFIX}settings`);
+    if (legacyRaw) {
+      const fromDb = await loadSecuritySettingsFromDb();
+      if (!fromDb) {
+        // DB is empty — migrate the legacy settings
+        await saveSecuritySettingsToDb(legacyRaw);
+      }
+      // Either way, clear localStorage so XSS can no longer read it
+      localStorage.removeItem(`${SEC_PREFIX}settings`);
+    }
+
+    const fromDb = await loadSecuritySettingsFromDb();
+    if (fromDb) {
+      _cachedSettings = { ...DEFAULT_SETTINGS, ...fromDb } as SecuritySettings;
+    } else {
+      _cachedSettings = { ...DEFAULT_SETTINGS };
+    }
+  } catch (e) {
+    console.warn('[security] Failed to init settings from DB, using defaults:', e);
+    _cachedSettings = { ...DEFAULT_SETTINGS };
+  }
+}
+
+/**
+ * Load current security settings (synchronous — reads from in-memory cache).
+ * If the cache hasn't been initialised yet (app cold-start), falls back to defaults.
+ */
+export function loadSecuritySettings(): SecuritySettings {
+  if (_cachedSettings) return { ..._cachedSettings };
   return { ...DEFAULT_SETTINGS };
 }
 
+/**
+ * Save security settings — updates in-memory cache immediately and flushes
+ * to the encrypted database asynchronously.
+ */
 export function saveSecuritySettings(settings: SecuritySettings): void {
-  localStorage.setItem(`${SEC_PREFIX}settings`, JSON.stringify(settings));
+  _cachedSettings = { ...settings };
+  saveSecuritySettingsToDb(JSON.stringify(settings)).catch(e =>
+    console.warn('[security] Failed to persist settings to DB:', e)
+  );
+}
+
+/**
+ * Reset security settings to defaults — clears DB row and resets cache.
+ */
+export async function resetSecuritySettings(): Promise<void> {
+  _cachedSettings = { ...DEFAULT_SETTINGS };
+  await resetSecuritySettingsInDb();
 }
 
 /**

@@ -255,6 +255,14 @@ async function runMigrations(db: Database) {
     )
   `);
 
+  // Single-row table for security settings (moved from localStorage for XSS protection)
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS security_settings (
+      id INTEGER PRIMARY KEY CHECK (id = 1),  -- single row
+      settings_json TEXT NOT NULL DEFAULT '{}'
+    )
+  `);
+
   // Seed default agent mode if none exist
   const modes = await db.select<{ count: number }[]>('SELECT COUNT(*) as count FROM agent_modes');
   if (modes[0]?.count === 0) {
@@ -546,4 +554,43 @@ export async function removeSecurityRule(id: number): Promise<void> {
 export async function toggleSecurityRule(id: number, enabled: boolean): Promise<void> {
   if (!db) return;
   await db.execute('UPDATE security_rules SET enabled = ? WHERE id = ?', [enabled ? 1 : 0, id]);
+}
+
+// ── Security Settings (encrypted DB storage) ──────────────────────────────
+
+/**
+ * Load the raw security settings JSON from the database.
+ * Returns the parsed object or null if no row exists.
+ */
+export async function loadSecuritySettingsFromDb(): Promise<Record<string, unknown> | null> {
+  if (!db) return null;
+  const rows = await db.select<{ settings_json: string }[]>(
+    'SELECT settings_json FROM security_settings WHERE id = 1'
+  );
+  if (rows.length === 0) return null;
+  try {
+    return JSON.parse(rows[0].settings_json);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Save security settings JSON to the database (upsert).
+ */
+export async function saveSecuritySettingsToDb(settingsJson: string): Promise<void> {
+  if (!db) return;
+  await db.execute(
+    `INSERT INTO security_settings (id, settings_json) VALUES (1, ?)
+     ON CONFLICT(id) DO UPDATE SET settings_json = excluded.settings_json`,
+    [settingsJson]
+  );
+}
+
+/**
+ * Delete the security settings row (for reset to defaults).
+ */
+export async function resetSecuritySettingsInDb(): Promise<void> {
+  if (!db) return;
+  await db.execute('DELETE FROM security_settings WHERE id = 1');
 }

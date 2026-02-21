@@ -1,6 +1,6 @@
 // Settings View — Molecules (DOM rendering + IPC)
 
-import { loadSecuritySettings, saveSecuritySettings, getSessionOverrideRemaining, type SecuritySettings } from '../../security';
+import { loadSecuritySettings, saveSecuritySettings, getSessionOverrideRemaining, resetSecuritySettings, type SecuritySettings } from '../../security';
 import { getSecurityAuditLog, isEncryptionReady } from '../../db';
 import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
@@ -477,9 +477,13 @@ export function saveSecurityPolicies() {
 }
 
 export function resetSecurityPolicies() {
-  localStorage.removeItem('paw_security_settings');
-  loadSecurityPolicies();
-  showToast('Security policies reset to defaults', 'info');
+  resetSecuritySettings().then(() => {
+    loadSecurityPolicies();
+    showToast('Security policies reset to defaults', 'info');
+  }).catch(e => {
+    console.warn('[settings] Failed to reset security settings:', e);
+    showToast('Failed to reset security policies', 'error');
+  });
 }
 
 // ── Session override banner management ─────────────────────────────────────

@@ -2,6 +2,7 @@
 import { isEngineMode, setEngineMode, startEngineBridge } from './engine-bridge';
 import { pawEngine } from './engine';
 import { initDb, initDbEncryption } from './db';
+import { initSecuritySettings } from './security';
 import { appState } from './state/index';
 import { escHtml, populateModelSelect, promptModal, icon } from './components/helpers';
 import { showToast } from './components/toast';
@@ -172,6 +173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await initDb().catch(e => console.warn('[main] DB init failed:', e));
     await initDbEncryption().catch(e => console.warn('[main] DB encryption init failed:', e));
+    await initSecuritySettings().catch(e => console.warn('[main] Security settings init failed:', e));
 
     MemoryPalaceModule.initPalaceEvents();
     window.addEventListener('palace-open-file', (e: Event) => {

@@ -5,6 +5,8 @@ import {
   matchesAllowlist,
   matchesDenylist,
   extractCommandString,
+  loadSecuritySettings,
+  saveSecuritySettings,
 } from './security';
 
 describe('isReDoSRisk', () => {
@@ -102,5 +104,48 @@ describe('extractCommandString', () => {
   it('returns tool name for non-exec tools', () => {
     expect(extractCommandString('read_file')).toBe('read_file');
     expect(extractCommandString('fetch', { url: 'http://evil.com' })).toBe('fetch');
+  });
+});
+
+describe('loadSecuritySettings (cache-based)', () => {
+  it('returns default settings when cache not initialised', () => {
+    const settings = loadSecuritySettings();
+    expect(settings.autoDenyPrivilegeEscalation).toBe(true);
+    expect(settings.autoDenyCritical).toBe(true);
+    expect(settings.requireTypeToCritical).toBe(true);
+    expect(settings.sessionOverrideUntil).toBeNull();
+    expect(Array.isArray(settings.commandAllowlist)).toBe(true);
+    expect(settings.commandAllowlist.length).toBeGreaterThan(0);
+  });
+
+  it('returns a copy, not the cache reference', () => {
+    const a = loadSecuritySettings();
+    const b = loadSecuritySettings();
+    expect(a).not.toBe(b);
+    expect(a).toEqual(b);
+  });
+
+  it('saveSecuritySettings updates the in-memory cache', () => {
+    const settings = loadSecuritySettings();
+    settings.autoDenyCritical = false;
+    settings.commandDenylist = ['^rm\\b'];
+    saveSecuritySettings(settings);
+
+    const reloaded = loadSecuritySettings();
+    expect(reloaded.autoDenyCritical).toBe(false);
+    expect(reloaded.commandDenylist).toEqual(['^rm\\b']);
+
+    // Restore defaults for other tests
+    settings.autoDenyCritical = true;
+    settings.commandDenylist = [];
+    saveSecuritySettings(settings);
+  });
+
+  it('does not store settings in localStorage', () => {
+    const settings = loadSecuritySettings();
+    saveSecuritySettings(settings);
+    // In Node/Vitest, localStorage is not defined — which proves the new code
+    // doesn't depend on it. If it did, saveSecuritySettings would have thrown.
+    expect(typeof globalThis.localStorage).toBe('undefined');
   });
 });
