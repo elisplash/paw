@@ -7,6 +7,7 @@
 //        Or: User Settings → Security → Personal Access Tokens.
 //
 // Security:
+//   - HTTPS enforced — `http://` URLs are auto-coerced to `https://`
 //   - Allowlist by Mattermost user ID
 //   - Optional pairing mode
 //   - All communication goes through the Mattermost server's TLS API
@@ -72,6 +73,44 @@ fn get_stop_signal() -> Arc<AtomicBool> {
 
 const CONFIG_KEY: &str = "mattermost_config";
 
+/// Normalize the server URL to enforce HTTPS.
+/// - Strips trailing slashes
+/// - Coerces `http://` → `https://` with a warning
+/// - Adds `https://` if no scheme is present
+/// - Rejects URLs with non-http(s) schemes
+fn normalize_server_url(raw: &str) -> Result<String, String> {
+    let url = raw.trim().trim_end_matches('/');
+    if url.is_empty() {
+        return Err("Server URL is required.".into());
+    }
+
+    if url.starts_with("http://") {
+        let secure = format!("https://{}", &url["http://".len()..]);
+        warn!(
+            "[mattermost] Coerced server URL from http:// to https:// — \
+             credentials must not be sent over plaintext HTTP"
+        );
+        return Ok(secure);
+    }
+
+    if url.starts_with("https://") {
+        return Ok(url.to_string());
+    }
+
+    // Check for other schemes (ftp://, ws://, etc.)
+    if let Some(colon_pos) = url.find("://") {
+        let scheme = &url[..colon_pos];
+        return Err(format!(
+            "Unsupported URL scheme '{}://'. Use https:// for your Mattermost server.",
+            scheme
+        ));
+    }
+
+    // No scheme at all — assume https
+    warn!("[mattermost] No URL scheme provided, assuming https://{}", url);
+    Ok(format!("https://{}", url))
+}
+
 // ── Bridge Core ────────────────────────────────────────────────────────
 
 pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
@@ -79,13 +118,16 @@ pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
         return Err("Mattermost bridge is already running".into());
     }
 
-    let config: MattermostConfig = channels::load_channel_config(&app_handle, CONFIG_KEY)?;
+    let mut config: MattermostConfig = channels::load_channel_config(&app_handle, CONFIG_KEY)?;
     if config.server_url.is_empty() || config.token.is_empty() {
         return Err("Server URL and token are required.".into());
     }
     if !config.enabled {
         return Err("Mattermost bridge is disabled.".into());
     }
+
+    // Enforce HTTPS — coerce http:// or bare hostnames to https://
+    config.server_url = normalize_server_url(&config.server_url)?;
 
     let stop = get_stop_signal();
     stop.store(false, Ordering::Relaxed);
@@ -361,7 +403,12 @@ pub fn load_config(app_handle: &tauri::AppHandle) -> Result<MattermostConfig, St
 }
 
 pub fn save_config(app_handle: &tauri::AppHandle, config: &MattermostConfig) -> Result<(), String> {
-    channels::save_channel_config(app_handle, CONFIG_KEY, config)
+    // Normalize URL at save time so the UI reflects the coerced value
+    let mut config = config.clone();
+    if !config.server_url.is_empty() {
+        config.server_url = normalize_server_url(&config.server_url)?;
+    }
+    channels::save_channel_config(app_handle, CONFIG_KEY, &config)
 }
 
 pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {

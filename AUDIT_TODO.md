@@ -219,10 +219,10 @@ Found during the encryption audit of all 11 channel bridges.
 - **Bug:** The webchat server was a plain `TcpListener` serving HTTP (not HTTPS) and upgrading to `ws://` (not `wss://`). The access token was embedded in the served HTML page source (`const TOKEN="{token}"`). Server bound to `0.0.0.0` by default, exposing the unencrypted chat to the entire network.
 - **Fix applied:** Three-layer hardening: (1) Default bind changed from `0.0.0.0` to `127.0.0.1` (localhost only). (2) Token removed from HTML source entirely — replaced with `POST /auth` endpoint that validates the access token and returns a `paw_session` HttpOnly cookie (SameSite=Strict, 24h expiry); WebSocket upgrade now validates the session cookie instead of a URL query parameter. (3) Optional TLS via `rustls` `ServerConfig` — when `tls_cert_path` and `tls_key_path` are set, TCP streams are wrapped with `tokio_rustls::TlsAcceptor` for HTTPS/WSS. Used `Box<dyn ChatStream>` trait object + `PrefixedStream` adapter for stream-agnostic code. Added `rustls-pemfile` dependency for PEM cert/key loading. Warns in logs when binding to non-localhost without TLS.
 
-### 44. Mattermost bridge doesn't enforce HTTPS (MEDIUM)
-- **File:** `src-tauri/src/engine/mattermost.rs` L160-164
+### 44. ~~Mattermost bridge doesn't enforce HTTPS~~ (MEDIUM) ✅ FIXED
+- **File:** `src-tauri/src/engine/mattermost.rs`
 - **Bug:** User-supplied server URL is used as-is. If the user enters `http://`, the WebSocket uses `ws://` and the auth token is transmitted in plaintext.
-- **Fix:** Validate/coerce server URL to `https://`. Warn or reject `http://` URLs.
+- **Fix applied:** Added `normalize_server_url()` helper that enforces HTTPS at two points: (1) `start_bridge()` coerces the URL before any network calls, and (2) `save_config()` normalizes at save time so the UI reflects the corrected value. The function coerces `http://` → `https://` with a log warning, adds `https://` to bare hostnames, and rejects non-http(s) schemes. Bearer token and WebSocket auth payload now always travel over TLS.
 
 ### 45. Nextcloud bridge doesn't validate URL scheme (MEDIUM)
 - **File:** `src-tauri/src/engine/nextcloud.rs` L13
