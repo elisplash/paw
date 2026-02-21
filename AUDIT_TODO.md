@@ -214,10 +214,10 @@ Found during the encryption audit of all 11 channel bridges.
 - **Bug:** `IrcConfig` has a `tls: bool` field (defaults `true`), but `run_irc_loop()` always uses `TcpStream::connect()` — raw unencrypted TCP. The `PASS` command sends IRC credentials in plaintext.
 - **Fix applied:** Added `tokio-rustls`, `rustls`, and `webpki-roots` as direct dependencies. When `tls: true`, the `TcpStream` is wrapped with `tokio_rustls::TlsConnector` using Mozilla's CA root store (`webpki-roots`). TLS handshake failure is a hard error — no silent fallback. When `tls: false`, a warning is logged. Used `Box<dyn IrcStream>` trait object so the rest of the code is stream-type-agnostic. Default port was already 6697 (TLS).
 
-### 43. Webchat bridge has no TLS and exposes token (CRITICAL)
-- **File:** `src-tauri/src/engine/webchat.rs` L159, L466, L56
-- **Bug:** The webchat server is a plain `TcpListener` serving HTTP (not HTTPS) and upgrading to `ws://` (not `wss://`). The access token is embedded in the served HTML page source. Server binds to `0.0.0.0` by default, exposing the unencrypted chat to the entire network.
-- **Fix:** Default bind to `127.0.0.1` (localhost only). Add optional `rustls` TLS layer for HTTPS/WSS. Move token from HTML source to a POST-based auth flow or cookie.
+### 43. ~~Webchat bridge has no TLS and exposes token~~ (CRITICAL) ✅ FIXED
+- **File:** `src-tauri/src/engine/webchat.rs`
+- **Bug:** The webchat server was a plain `TcpListener` serving HTTP (not HTTPS) and upgrading to `ws://` (not `wss://`). The access token was embedded in the served HTML page source (`const TOKEN="{token}"`). Server bound to `0.0.0.0` by default, exposing the unencrypted chat to the entire network.
+- **Fix applied:** Three-layer hardening: (1) Default bind changed from `0.0.0.0` to `127.0.0.1` (localhost only). (2) Token removed from HTML source entirely — replaced with `POST /auth` endpoint that validates the access token and returns a `paw_session` HttpOnly cookie (SameSite=Strict, 24h expiry); WebSocket upgrade now validates the session cookie instead of a URL query parameter. (3) Optional TLS via `rustls` `ServerConfig` — when `tls_cert_path` and `tls_key_path` are set, TCP streams are wrapped with `tokio_rustls::TlsAcceptor` for HTTPS/WSS. Used `Box<dyn ChatStream>` trait object + `PrefixedStream` adapter for stream-agnostic code. Added `rustls-pemfile` dependency for PEM cert/key loading. Warns in logs when binding to non-localhost without TLS.
 
 ### 44. Mattermost bridge doesn't enforce HTTPS (MEDIUM)
 - **File:** `src-tauri/src/engine/mattermost.rs` L160-164

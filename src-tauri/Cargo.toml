@@ -74,4 +74,5 @@ bs58 = "0.5"
 
 # ── Mutex safety (no poisoning, faster, const-constructible) ─
 parking_lot = "0.12"
+rustls-pemfile = "2"
 
