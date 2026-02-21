@@ -345,7 +345,7 @@ async fn handle_room_message(
     if is_dm {
         let mut current_config: MatrixConfig = channels::load_channel_config(&app_handle, CONFIG_KEY)
             .unwrap_or(config.clone());
-        match channels::check_access(
+        if let Err(denial_msg) = channels::check_access(
             &current_config.dm_policy,
             &sender,
             &sender,
@@ -353,17 +353,14 @@ async fn handle_room_message(
             &current_config.allowed_users,
             &mut current_config.pending_users,
         ) {
-            Err(denial_msg) => {
-                let denial_str = denial_msg.to_string();
-                let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
-                let _ = app_handle.emit("matrix-status", json!({
-                    "kind": "pairing_request",
-                    "user_id": &sender,
-                }));
-                send_room_message(&room, &denial_str).await;
-                return;
-            }
-            Ok(()) => {}
+            let denial_str = denial_msg.to_string();
+            let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
+            let _ = app_handle.emit("matrix-status", json!({
+                "kind": "pairing_request",
+                "user_id": &sender,
+            }));
+            send_room_message(&room, &denial_str).await;
+            return;
         }
     }
 

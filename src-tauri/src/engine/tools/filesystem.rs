@@ -284,7 +284,7 @@ async fn execute_list_directory(args: &serde_json::Value, agent_id: &str) -> Eng
     fn walk_dir(dir: &std::path::Path, prefix: &str, depth: usize, max_depth: usize, entries: &mut Vec<String>) -> std::io::Result<()> {
         if depth > max_depth { return Ok(()); }
         let mut items: Vec<_> = std::fs::read_dir(dir)?.filter_map(|e| e.ok()).collect();
-        items.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+        items.sort_unstable_by_key(|a| a.file_name());
         for entry in &items {
             let name = entry.file_name().to_string_lossy().to_string();
             let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
@@ -310,7 +310,7 @@ async fn execute_list_directory(args: &serde_json::Value, agent_id: &str) -> Eng
             .map_err(|e| format!("Failed to list directory '{}': {}", path, e))?
             .filter_map(|e| e.ok())
             .collect();
-        items.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+        items.sort_unstable_by_key(|a| a.file_name());
         for entry in &items {
             let name = entry.file_name().to_string_lossy().to_string();
             let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);

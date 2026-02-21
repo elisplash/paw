@@ -30,7 +30,7 @@ impl Task {
 
 /// Populate `task.assigned_agents` for every task in `tasks`.
 /// Uses a single prepared statement to avoid N round-trips.
-fn load_task_agents(conn: &rusqlite::Connection, tasks: &mut Vec<Task>) -> EngineResult<()> {
+fn load_task_agents(conn: &rusqlite::Connection, tasks: &mut [Task]) -> EngineResult<()> {
     let mut agent_stmt = conn.prepare(
         "SELECT agent_id, role FROM task_agents WHERE task_id = ?1 ORDER BY added_at"
     )?;
@@ -60,7 +60,7 @@ impl SessionStore {
              FROM tasks ORDER BY updated_at DESC"
         )?;
 
-        let mut tasks: Vec<Task> = stmt.query_map([], |row| Task::from_row(row))?
+        let mut tasks: Vec<Task> = stmt.query_map([], Task::from_row)?
             .filter_map(|r| r.ok())
             .collect();
 
@@ -180,7 +180,7 @@ impl SessionStore {
              FROM tasks WHERE cron_enabled = 1 AND next_run_at IS NOT NULL AND next_run_at <= ?1"
         )?;
 
-        let mut tasks: Vec<Task> = stmt.query_map(params![now], |row| Task::from_row(row))?
+        let mut tasks: Vec<Task> = stmt.query_map(params![now], Task::from_row)?
             .filter_map(|r| r.ok())
             .collect();
 

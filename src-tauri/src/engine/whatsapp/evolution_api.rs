@@ -18,7 +18,7 @@ pub(crate) async fn create_evolution_instance(config: &WhatsAppConfig) -> Engine
     // v1.x format: webhook is a plain string URL, no "integration" field.
     // Webhook events are configured via container env vars (WEBHOOK_GLOBAL_*).
     // Provide a unique token per instance to avoid "Token already exists" collisions.
-    let instance_token = format!("paw-{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..12].to_string());
+    let instance_token = format!("paw-{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
     let body = json!({
         "instanceName": config.instance_name,
         "token": instance_token,
@@ -48,7 +48,7 @@ pub(crate) async fn create_evolution_instance(config: &WhatsAppConfig) -> Engine
             delete_evolution_instance(config).await;
 
             // Generate a fresh token for the retry
-            let retry_token = format!("paw-{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..12].to_string());
+            let retry_token = format!("paw-{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..12]);
             let retry_body = json!({
                 "instanceName": config.instance_name,
                 "token": retry_token,

@@ -85,8 +85,8 @@ fn normalize_server_url(raw: &str) -> EngineResult<String> {
         return Err("Server URL is required.".into());
     }
 
-    if url.starts_with("http://") {
-        let secure = format!("https://{}", &url["http://".len()..]);
+    if let Some(stripped) = url.strip_prefix("http://") {
+        let secure = format!("https://{}", stripped);
         warn!(
             "[mattermost] Coerced server URL from http:// to https:// — \
              credentials must not be sent over plaintext HTTP"
@@ -305,7 +305,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
 
             // Access control (DMs)
             if is_dm {
-                match channels::check_access(
+                if let Err(denial_msg) = channels::check_access(
                     &current_config.dm_policy,
                     sender_id,
                     &sender_username,
@@ -313,18 +313,15 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
                     &current_config.allowed_users,
                     &mut current_config.pending_users,
                 ) {
-                    Err(denial_msg) => {
-                        let denial_str = denial_msg.to_string();
-                        let _ = channels::save_channel_config(app_handle, CONFIG_KEY, &current_config);
-                        let _ = app_handle.emit("mattermost-status", json!({
-                            "kind": "pairing_request",
-                            "user_id": sender_id,
-                            "username": &sender_username,
-                        }));
-                        let _ = mm_send_message(&client, base, &config.token, &channel_id, &denial_str).await;
-                        continue;
-                    }
-                    Ok(()) => {}
+                    let denial_str = denial_msg.to_string();
+                    let _ = channels::save_channel_config(app_handle, CONFIG_KEY, &current_config);
+                    let _ = app_handle.emit("mattermost-status", json!({
+                        "kind": "pairing_request",
+                        "user_id": sender_id,
+                        "username": &sender_username,
+                    }));
+                    let _ = mm_send_message(&client, base, &config.token, &channel_id, &denial_str).await;
+                    continue;
                 }
             }
 

@@ -50,7 +50,7 @@ pub struct WhatsAppConfig {
 impl Default for WhatsAppConfig {
     fn default() -> Self {
         // Generate a random API key on first creation
-        let api_key = format!("paw-wa-{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..16].to_string());
+        let api_key = format!("paw-wa-{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..16]);
         WhatsAppConfig {
             enabled: false,
             instance_name: "paw".into(),

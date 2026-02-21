@@ -43,7 +43,7 @@ pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     }
     // Ensure API key is never empty (old configs may have been saved without one)
     if config.api_key.is_empty() {
-        config.api_key = format!("paw-wa-{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..16].to_string());
+        config.api_key = format!("paw-wa-{}", &uuid::Uuid::new_v4().to_string().replace('-', "")[..16]);
         let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &config);
     }
 

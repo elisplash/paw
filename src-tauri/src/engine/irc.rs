@@ -274,7 +274,7 @@ async fn run_irc_loop(app_handle: tauri::AppHandle, config: IrcConfig) -> Engine
 
             // Access control (DMs only)
             if is_dm {
-                match channels::check_access(
+                if let Err(denial_msg) = channels::check_access(
                     &current_config.dm_policy,
                     &sender_nick,
                     &sender_nick,
@@ -282,19 +282,16 @@ async fn run_irc_loop(app_handle: tauri::AppHandle, config: IrcConfig) -> Engine
                     &current_config.allowed_users,
                     &mut current_config.pending_users,
                 ) {
-                    Err(denial_msg) => {
-                        let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
-                        let _ = app_handle.emit("irc-status", json!({
-                            "kind": "pairing_request",
-                            "user_id": &sender_nick,
-                            "username": &sender_nick,
-                        }));
-                        let reply_target = if is_dm { &sender_nick } else { target };
-                        let mut w = write_handle.lock().await;
-                        let _ = w.write_all(format!("PRIVMSG {} :{}\r\n", reply_target, denial_msg).as_bytes()).await;
-                        continue;
-                    }
-                    Ok(()) => {}
+                    let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
+                    let _ = app_handle.emit("irc-status", json!({
+                        "kind": "pairing_request",
+                        "user_id": &sender_nick,
+                        "username": &sender_nick,
+                    }));
+                    let reply_target = if is_dm { &sender_nick } else { target };
+                    let mut w = write_handle.lock().await;
+                    let _ = w.write_all(format!("PRIVMSG {} :{}\r\n", reply_target, denial_msg).as_bytes()).await;
+                    continue;
                 }
             }
 
@@ -376,7 +373,7 @@ fn parse_irc_line(line: &str) -> IrcParsed {
     let prefix = if remaining.starts_with(':') {
         let end = remaining.find(' ').unwrap_or(remaining.len());
         let p = remaining[1..end].to_string();
-        remaining = &remaining[end..].trim_start();
+        remaining = remaining[end..].trim_start();
         Some(p)
     } else {
         None

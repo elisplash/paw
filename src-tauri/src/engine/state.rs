@@ -41,6 +41,12 @@ pub struct DailyTokenTracker {
     pub warnings_emitted: Mutex<Vec<u8>>,
 }
 
+impl Default for DailyTokenTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DailyTokenTracker {
     pub fn new() -> Self {
         DailyTokenTracker {
@@ -153,13 +159,13 @@ pub fn resolve_provider_for_model(model: &str, providers: &[ProviderConfig]) -> 
     } else if model.starts_with("gpt") || model.starts_with("o1") || model.starts_with("o3") || model.starts_with("o4") {
         providers.iter().find(|p| p.kind == ProviderKind::OpenAI).cloned()
     } else if model.starts_with("moonshot") || model.starts_with("kimi") {
-        providers.iter().find(|p| p.id == "moonshot" || p.base_url.as_deref().map_or(false, |u| u.contains("moonshot"))).cloned()
+        providers.iter().find(|p| p.id == "moonshot" || p.base_url.as_deref().is_some_and(|u| u.contains("moonshot"))).cloned()
     } else if model.starts_with("deepseek") {
-        providers.iter().find(|p| p.id == "deepseek" || p.base_url.as_deref().map_or(false, |u| u.contains("deepseek"))).cloned()
+        providers.iter().find(|p| p.id == "deepseek" || p.base_url.as_deref().is_some_and(|u| u.contains("deepseek"))).cloned()
     } else if model.starts_with("grok") {
-        providers.iter().find(|p| p.id == "xai" || p.base_url.as_deref().map_or(false, |u| u.contains("x.ai"))).cloned()
+        providers.iter().find(|p| p.id == "xai" || p.base_url.as_deref().is_some_and(|u| u.contains("x.ai"))).cloned()
     } else if model.starts_with("mistral") || model.starts_with("codestral") || model.starts_with("pixtral") {
-        providers.iter().find(|p| p.id == "mistral" || p.base_url.as_deref().map_or(false, |u| u.contains("mistral"))).cloned()
+        providers.iter().find(|p| p.id == "mistral" || p.base_url.as_deref().is_some_and(|u| u.contains("mistral"))).cloned()
     } else {
         None
     }

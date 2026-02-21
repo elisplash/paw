@@ -54,6 +54,7 @@ const SAFE_TOOLS: &[&str] = &[
 ///
 /// This replaces the former `run_boss_agent_loop` and `run_worker_agent_loop`
 /// with a single implementation parameterized by [`AgentRole`].
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(crate) async fn run_orchestrator_loop(
     app_handle: &tauri::AppHandle,
     provider: &AnyProvider,

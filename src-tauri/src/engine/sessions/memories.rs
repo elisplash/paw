@@ -195,7 +195,7 @@ impl SessionStore {
              LIMIT ?2"
         )?;
 
-        let memories = stmt.query_map(params![pattern, limit as i64], |row| Memory::from_row(row))?
+        let memories = stmt.query_map(params![pattern, limit as i64], Memory::from_row)?
         .filter_map(|r| r.ok())
         .collect();
 
@@ -210,7 +210,7 @@ impl SessionStore {
              ORDER BY created_at DESC LIMIT ?1"
         )?;
 
-        let memories = stmt.query_map(params![limit as i64], |row| Memory::from_row(row))?
+        let memories = stmt.query_map(params![limit as i64], Memory::from_row)?
             .filter_map(|r| r.ok())
             .collect();
 
@@ -226,7 +226,7 @@ impl SessionStore {
              ORDER BY created_at DESC LIMIT ?1"
         )?;
 
-        let memories = stmt.query_map(params![limit as i64], |row| Memory::from_row(row))?
+        let memories = stmt.query_map(params![limit as i64], Memory::from_row)?
             .filter_map(|r| r.ok())
             .collect();
 

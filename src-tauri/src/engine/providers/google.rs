@@ -256,7 +256,7 @@ impl GoogleProvider {
                 }
                 Value::Object(clean)
             }
-            Value::Array(arr) => Value::Array(arr.iter().map(|v| Self::sanitize_schema(v)).collect()),
+            Value::Array(arr) => Value::Array(arr.iter().map(Self::sanitize_schema).collect()),
             other => other.clone(),
         }
     }
@@ -395,8 +395,7 @@ impl GoogleProvider {
                     let line = buffer[..line_end].trim().to_string();
                     buffer = buffer[line_end + 1..].to_string();
 
-                    if line.starts_with("data: ") {
-                        let data = &line[6..];
+                    if let Some(data) = line.strip_prefix("data: ") {
                         if let Ok(v) = serde_json::from_str::<Value>(data) {
                             // Extract actual model version from Google's response
                             let api_model = v["modelVersion"].as_str().map(|s| s.to_string());

@@ -131,7 +131,7 @@ pub(crate) async fn run_relay_loop(
                     if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
 
                 // Access control
-                match channels::check_access(
+                if let Err(_denial_msg) = channels::check_access(
                     &current_config.dm_policy,
                     &sender_pk,
                     &sender_pk[..12],
@@ -139,16 +139,13 @@ pub(crate) async fn run_relay_loop(
                     &current_config.allowed_users,
                     &mut current_config.pending_users,
                 ) {
-                    Err(_denial_msg) => {
-                        let _ = channels::save_channel_config(app_handle, super::CONFIG_KEY, &current_config);
-                        let _ = app_handle.emit("nostr-status", json!({
-                            "kind": "pairing_request",
-                            "pubkey": &sender_pk,
-                        }));
-                        // Don't reply to denied users on public Nostr
-                        continue;
-                    }
-                    Ok(()) => {}
+                    let _ = channels::save_channel_config(app_handle, super::CONFIG_KEY, &current_config);
+                    let _ = app_handle.emit("nostr-status", json!({
+                        "kind": "pairing_request",
+                        "pubkey": &sender_pk,
+                    }));
+                    // Don't reply to denied users on public Nostr
+                    continue;
                 }
 
                 MESSAGE_COUNT.fetch_add(1, Ordering::Relaxed);

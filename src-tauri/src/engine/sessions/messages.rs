@@ -123,7 +123,7 @@ impl SessionStore {
             (text_len + tc_len) / 4 + 4 // +4 for role/overhead tokens
         };
 
-        let total_tokens: usize = messages.iter().map(|m| estimate_tokens(m)).sum();
+        let total_tokens: usize = messages.iter().map(&estimate_tokens).sum();
         if total_tokens > MAX_CONTEXT_TOKENS && messages.len() > 2 {
             // Keep system prompt (index 0) and trim oldest non-system messages
             let system_msg = if !messages.is_empty() && messages[0].role == Role::System {
@@ -134,9 +134,9 @@ impl SessionStore {
 
             // Drop from the front (oldest) until we fit, but ALWAYS keep the
             // last user message so the provider gets non-empty contents.
-            let running_tokens: usize = system_msg.as_ref().map(|m| estimate_tokens(m)).unwrap_or(0);
+            let running_tokens: usize = system_msg.as_ref().map(&estimate_tokens).unwrap_or(0);
             let mut keep_from = 0;
-            let msg_tokens: Vec<usize> = messages.iter().map(|m| estimate_tokens(m)).collect();
+            let msg_tokens: Vec<usize> = messages.iter().map(&estimate_tokens).collect();
             let total_msg_tokens: usize = msg_tokens.iter().sum();
             let mut drop_tokens = running_tokens + total_msg_tokens;
 

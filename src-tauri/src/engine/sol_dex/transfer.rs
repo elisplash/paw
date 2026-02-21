@@ -143,7 +143,7 @@ pub async fn execute_sol_transfer(
         let recipient_ata_b58 = bs58::encode(&recipient_ata).into_string();
         let ata_exists = rpc_call(rpc_url, "getAccountInfo", serde_json::json!([
             recipient_ata_b58, { "encoding": "base64" }
-        ])).await.map(|r| !r.get("value").map_or(true, |v| v.is_null())).unwrap_or(false);
+        ])).await.map(|r| r.get("value").is_some_and(|v| !v.is_null())).unwrap_or(false);
 
         // ATA Program ID
         let ata_program_bytes = bs58::decode("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")

@@ -29,7 +29,7 @@ pub(crate) fn hex_decode(s: &str) -> EngineResult<Vec<u8>> {
     }
     // Left-pad to even length (Ethereum RPC returns minimal hex like "0x0" or "0x1a3")
     let padded;
-    let hex_str = if s.len() % 2 != 0 {
+    let hex_str = if !s.len().is_multiple_of(2) {
         padded = format!("0{}", s);
         &padded
     } else {
@@ -102,7 +102,7 @@ pub(crate) fn parse_u256_decimal(s: &str) -> EngineResult<[u8; 32]> {
     // Convert to big-endian bytes using repeated division by 256
     let mut big = digits;
     let mut byte_pos = 31i32;
-    while !big.is_empty() && !(big.len() == 1 && big[0] == 0) && byte_pos >= 0 {
+    while (big.len() != 1 || big[0] != 0) && byte_pos >= 0 {
         let mut remainder = 0u16;
         let mut quotient = Vec::new();
         for &d in &big {

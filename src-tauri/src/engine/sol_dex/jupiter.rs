@@ -115,6 +115,7 @@ pub async fn execute_sol_quote(
 }
 
 /// Jupiter-specific quote execution
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn execute_sol_quote_jupiter(
     rpc_url: &str,
     api_key: &str,
@@ -257,19 +258,18 @@ pub async fn execute_sol_swap(
         Err("No JUPITER_API_KEY — skipping Jupiter, trying PumpPortal".into())
     };
 
-    let jupiter_err_msg;
-    match jupiter_result {
+    let jupiter_err_msg = match jupiter_result {
         Ok(result) => return Ok(result),
         Err(ref e) if is_jupiter_route_error(&e.to_string()) => {
-            info!("[sol_dex] Jupiter route failed: {} — falling back to PumpPortal", e);
-            jupiter_err_msg = e.to_string();
+            info!("[sol_dex] Jupiter route failed: {} \u2014 falling back to PumpPortal", e);
+            e.to_string()
         }
         Err(ref e) => {
-            // Non-routing error from Jupiter — still try PumpPortal as last resort
-            info!("[sol_dex] Jupiter error: {} — attempting PumpPortal fallback", e);
-            jupiter_err_msg = e.to_string();
+            // Non-routing error from Jupiter \u2014 still try PumpPortal as last resort
+            info!("[sol_dex] Jupiter error: {} \u2014 attempting PumpPortal fallback", e);
+            e.to_string()
         }
-    }
+    };
 
     // ── PumpPortal fallback ────────────────────────────────────────────
     info!("[sol_dex] Trying PumpPortal for {} {} → {}", amount_str, token_in_str, token_out_str);
@@ -295,6 +295,7 @@ pub async fn execute_sol_swap(
 }
 
 /// Jupiter-specific swap execution (extracted from execute_sol_swap)
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn execute_sol_swap_jupiter(
     rpc_url: &str,
     wallet: &str,
@@ -357,7 +358,7 @@ pub(crate) async fn execute_sol_swap_jupiter(
         }
     });
 
-    let swap_resp = client.post(&format!("{}/swap", JUPITER_API))
+    let swap_resp = client.post(format!("{}/swap", JUPITER_API))
         .header("x-api-key", api_key)
         .json(&swap_body)
         .timeout(Duration::from_secs(30))

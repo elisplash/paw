@@ -226,7 +226,7 @@ pub async fn execute_task(
     let store_path = sessions::engine_db_path();
     let task_id_for_spawn = task_id.to_string();
     let agent_count = agent_ids.len();
-    let is_recurring = task.cron_schedule.as_ref().map_or(false, |s| !s.is_empty());
+    let is_recurring = task.cron_schedule.as_ref().is_some_and(|s| !s.is_empty());
     let sem = state.run_semaphore.clone();
     let inflight = state.inflight_tasks.clone();
 
@@ -446,15 +446,14 @@ pub async fn execute_task(
     tauri::async_runtime::spawn(async move {
         let mut any_ok = false;
         for handle in handles {
-            match handle.await {
-                Ok(Ok(_)) => { any_ok = true; }
-                _ => {}
+            if let Ok(Ok(_)) = handle.await {
+                any_ok = true;
             }
         }
 
         inflight_clone.lock().remove(&task_id_for_cleanup);
 
-        if let Ok(conn) = rusqlite::Connection::open(&store_path) {
+        if let Ok(conn) = rusqlite::Connection::open(store_path) {
             let new_status = if is_recurring {
                 "in_progress"
             } else if any_ok {

@@ -255,8 +255,8 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
             if !rest.contains("PRIVMSG") { continue; }
 
             // Extract sender nick from :nick!user@host
-            let sender = if rest.starts_with(':') {
-                rest[1..].split('!').next().unwrap_or("")
+            let sender = if let Some(stripped) = rest.strip_prefix(':') {
+                stripped.split('!').next().unwrap_or("")
             } else {
                 ""
             };
@@ -300,7 +300,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
 
             // Access control
             let sender_lower = sender.to_lowercase();
-            match channels::check_access(
+            if let Err(_denial_msg) = channels::check_access(
                 &current_config.dm_policy,
                 &sender_lower,
                 &display_name,
@@ -308,17 +308,14 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
                 &current_config.allowed_users,
                 &mut current_config.pending_users,
             ) {
-                Err(_denial_msg) => {
-                    let _ = channels::save_channel_config(app_handle, CONFIG_KEY, &current_config);
-                    let _ = app_handle.emit("twitch-status", json!({
-                        "kind": "pairing_request",
-                        "user_id": &sender_lower,
-                        "username": &display_name,
-                    }));
-                    // Don't send denial in Twitch chat (too public)
-                    continue;
-                }
-                Ok(()) => {}
+                let _ = channels::save_channel_config(app_handle, CONFIG_KEY, &current_config);
+                let _ = app_handle.emit("twitch-status", json!({
+                    "kind": "pairing_request",
+                    "user_id": &sender_lower,
+                    "username": &display_name,
+                }));
+                // Don't send denial in Twitch chat (too public)
+                continue;
             }
 
             MESSAGE_COUNT.fetch_add(1, Ordering::Relaxed);

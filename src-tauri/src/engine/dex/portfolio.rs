@@ -42,15 +42,12 @@ pub async fn execute_dex_balance(
         for (sym, addr, dec) in KNOWN_TOKENS {
             if *sym == "ETH" { continue; }
             let calldata = encode_balance_of(&wallet_bytes);
-            match eth_call(rpc_url, addr, &calldata).await {
-                Ok(result) => {
-                    if let Ok(balance) = raw_to_amount(&result, *dec) {
-                        if balance != "0" {
-                            output.push_str(&format!("{}: {}\n", sym, balance));
-                        }
+            if let Ok(result) = eth_call(rpc_url, addr, &calldata).await {
+                if let Ok(balance) = raw_to_amount(&result, *dec) {
+                    if balance != "0" {
+                        output.push_str(&format!("{}: {}\n", sym, balance));
                     }
                 }
-                Err(_) => {} // Skip tokens that fail (might not exist on this chain)
             }
         }
     }
@@ -80,16 +77,13 @@ pub async fn execute_dex_portfolio(
     for (sym, addr, dec) in KNOWN_TOKENS {
         if *sym == "ETH" { continue; }
         let calldata = encode_balance_of(&wallet_bytes);
-        match eth_call(rpc_url, addr, &calldata).await {
-            Ok(result) => {
-                if let Ok(balance) = raw_to_amount(&result, *dec) {
-                    if balance != "0" {
-                        output.push_str(&format!("  {}: {}\n", sym, balance));
-                        has_tokens = true;
-                    }
+        if let Ok(result) = eth_call(rpc_url, addr, &calldata).await {
+            if let Ok(balance) = raw_to_amount(&result, *dec) {
+                if balance != "0" {
+                    output.push_str(&format!("  {}: {}\n", sym, balance));
+                    has_tokens = true;
                 }
             }
-            Err(_) => {}
         }
     }
 
@@ -115,12 +109,9 @@ pub async fn execute_dex_portfolio(
     }
 
     // Get chain info
-    match eth_chain_id(rpc_url).await {
-        Ok(id) => {
-            let chain = chain_name(id);
-            output.push_str(&format!("\nNetwork: {} (chain ID {})\n", chain, id));
-        }
-        Err(_) => {}
+    if let Ok(id) = eth_chain_id(rpc_url).await {
+        let chain = chain_name(id);
+        output.push_str(&format!("\nNetwork: {} (chain ID {})\n", chain, id));
     }
 
     Ok(output)

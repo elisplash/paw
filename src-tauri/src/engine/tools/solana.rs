@@ -137,7 +137,7 @@ pub async fn execute(
                             .and_then(|l| {
                                 let parts: Vec<&str> = l.split('|').collect();
                                 if parts.len() >= 3 {
-                                    parts[2].trim().split_whitespace().next()
+                                    parts[2].split_whitespace().next()
                                         .and_then(|s| s.replace(',', "").parse::<f64>().ok())
                                 } else {
                                     None

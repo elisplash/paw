@@ -8,6 +8,7 @@ impl SessionStore {
     // ── Positions (Stop-Loss / Take-Profit) ────────────────────────────
 
     /// Insert a new open position.
+    #[allow(clippy::too_many_arguments)]
     pub fn insert_position(
         &self,
         mint: &str,

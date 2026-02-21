@@ -80,7 +80,7 @@ pub async fn execute_sol_portfolio(
     // SOL balance
     let sol_lamports = get_sol_balance(rpc_url, wallet).await?;
     let sol_amount = lamports_to_amount(sol_lamports, 9);
-    output.push_str(&format!("| Token | Balance |\n|-------|--------|\n"));
+    output.push_str("| Token | Balance |\n|-------|--------|\n");
     output.push_str(&format!("| SOL | {} |\n", sol_amount));
 
     // All SPL token accounts
@@ -105,12 +105,9 @@ pub async fn execute_sol_portfolio(
     }
 
     // Get cluster version as network info
-    match rpc_call(rpc_url, "getVersion", serde_json::json!([])).await {
-        Ok(ver) => {
-            let v = ver.get("solana-core").and_then(|v| v.as_str()).unwrap_or("?");
-            output.push_str(&format!("\n**Network**: Solana Mainnet (node v{})\n", v));
-        }
-        Err(_) => {}
+    if let Ok(ver) = rpc_call(rpc_url, "getVersion", serde_json::json!([])).await {
+        let v = ver.get("solana-core").and_then(|v| v.as_str()).unwrap_or("?");
+        output.push_str(&format!("\n**Network**: Solana Mainnet (node v{})\n", v));
     }
 
     Ok(output)
@@ -164,7 +161,7 @@ pub async fn execute_sol_token_info(
             .map(|(sym, _, _)| *sym)
             .unwrap_or("Unknown");
 
-        output.push_str(&format!("| Field | Value |\n|-------|-------|\n"));
+        output.push_str("| Field | Value |\n|-------|-------|\n");
         output.push_str(&format!("| Symbol | {} |\n", symbol));
         output.push_str(&format!("| Decimals | {} |\n", decimals));
         output.push_str(&format!("| Total Supply | {} |\n", supply_human));
@@ -184,7 +181,7 @@ pub async fn execute_sol_token_info(
         }
 
         if !warnings.is_empty() {
-            output.push_str(&format!("\n**Safety Notes**:\n"));
+            output.push_str("\n**Safety Notes**:\n");
             for w in warnings {
                 output.push_str(&format!("- {}\n", w));
             }

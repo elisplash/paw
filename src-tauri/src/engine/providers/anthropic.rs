@@ -168,7 +168,7 @@ impl AnthropicProvider {
     /// Post-process formatted messages to add cache_control breakpoints
     /// for multi-turn conversations. Marks the second-to-last user turn
     /// so Anthropic caches the conversation prefix (system + tools + history).
-    fn add_turn_cache_breakpoints(messages: &mut Vec<Value>) {
+    fn add_turn_cache_breakpoints(messages: &mut [Value]) {
         if messages.len() < 4 { return; } // Need enough turns for caching to matter
 
         // Find the second-to-last user message (the breakpoint)
@@ -502,8 +502,7 @@ impl AnthropicProvider {
                     let line = buffer[..line_end].trim().to_string();
                     buffer = buffer[line_end + 1..].to_string();
 
-                    if line.starts_with("data: ") {
-                        let data = &line[6..];
+                    if let Some(data) = line.strip_prefix("data: ") {
                         if let Some(chunk) = Self::parse_sse_event(data) {
                             chunks.push(chunk);
                         }

@@ -98,7 +98,7 @@ pub fn engine_tailscale_status() -> Result<TailscaleStatus, String> {
     let serve_status: serde_json::Value = serde_json::from_str(&serve_json).unwrap_or_default();
 
     let serve_active = serve_status.get("TCP").or(serve_status.get("Web"))
-        .map(|v| !v.is_null() && v.as_object().map_or(false, |o| !o.is_empty()))
+        .map(|v| !v.is_null() && v.as_object().is_some_and(|o| !o.is_empty()))
         .unwrap_or(false);
 
     let funnel_active = serve_status.get("AllowFunnel")

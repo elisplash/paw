@@ -103,7 +103,7 @@ async fn execute_fetch(args: &serde_json::Value, app_handle: &tauri::AppHandle) 
                 let retry_after = resp.headers()
                     .get("retry-after")
                     .and_then(|v| v.to_str().ok())
-                    .and_then(|v| parse_retry_after(v));
+                    .and_then(parse_retry_after);
 
                 if is_retryable_status(status) && attempt < MAX_RETRIES {
                     log::warn!("[fetch] Retryable status {} on attempt {}, backing off", status, attempt + 1);

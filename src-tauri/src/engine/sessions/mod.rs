@@ -21,6 +21,7 @@ use std::path::PathBuf;
 use parking_lot::Mutex;
 use crate::atoms::error::EngineResult;
 
+#[allow(clippy::module_inception)]
 mod sessions;
 mod messages;
 mod config;

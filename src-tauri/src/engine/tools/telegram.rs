@@ -113,7 +113,7 @@ async fn execute_telegram_send(args: &serde_json::Value, app_handle: &tauri::App
                     config.known_users.keys().map(|k| format!("@{}", k)).collect::<Vec<_>>().join(", ")
                 }
             ))?
-    } else if let Some((&ref _name, &cid)) = config.known_users.iter().next() {
+    } else if let Some((_name, &cid)) = config.known_users.iter().next() {
         cid
     } else if let Some(&uid) = config.allowed_users.first() {
         uid

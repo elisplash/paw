@@ -442,12 +442,10 @@ async fn execute_coinbase_trade(
     let order_configuration = if order_type == "limit" {
         let price = limit_price.ok_or("coinbase_trade: limit orders require 'limit_price'")?;
         serde_json::json!({ "limit_limit_gtc": { "base_size": amount, "limit_price": price } })
+    } else if side == "buy" {
+        serde_json::json!({ "market_market_ioc": { "quote_size": amount } })
     } else {
-        if side == "buy" {
-            serde_json::json!({ "market_market_ioc": { "quote_size": amount } })
-        } else {
-            serde_json::json!({ "market_market_ioc": { "base_size": amount } })
-        }
+        serde_json::json!({ "market_market_ioc": { "base_size": amount } })
     };
 
     let body = serde_json::json!({

@@ -247,7 +247,7 @@ async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> E
 
                 // Access control (DMs)
                 if is_dm {
-                    match channels::check_access(
+                    if let Err(denial_msg) = channels::check_access(
                         &current_config.dm_policy,
                         &user_id,
                         &user_id,
@@ -255,17 +255,14 @@ async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> E
                         &current_config.allowed_users,
                         &mut current_config.pending_users,
                     ) {
-                        Err(denial_msg) => {
-                            let denial_str = denial_msg.to_string();
-                            let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
-                            let _ = app_handle.emit("slack-status", json!({
-                                "kind": "pairing_request",
-                                "user_id": &user_id,
-                            }));
-                            let _ = slack_send_message(&http_client, &config.bot_token, &channel_id, &denial_str).await;
-                            continue;
-                        }
-                        Ok(()) => {}
+                        let denial_str = denial_msg.to_string();
+                        let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
+                        let _ = app_handle.emit("slack-status", json!({
+                            "kind": "pairing_request",
+                            "user_id": &user_id,
+                        }));
+                        let _ = slack_send_message(&http_client, &config.bot_token, &channel_id, &denial_str).await;
+                        continue;
                     }
                 }
 

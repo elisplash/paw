@@ -175,7 +175,7 @@ pub(crate) fn derive_ata(wallet: &[u8; 32], mint: &[u8; 32], token_program: &[u8
         hasher.update(wallet);
         hasher.update(token_program);
         hasher.update(mint);
-        hasher.update(&[bump]);
+        hasher.update([bump]);
         hasher.update(&ata_program);
         hasher.update(b"ProgramDerivedAddress");
         let hash = hasher.finalize();

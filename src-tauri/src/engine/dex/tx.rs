@@ -6,6 +6,7 @@ use super::rlp::{rlp_encode_bytes, rlp_encode_list, u64_to_minimal_be, u256_to_m
 use crate::atoms::error::{EngineResult, EngineError};
 
 /// Sign an EIP-1559 transaction and return the raw serialized bytes.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn sign_eip1559_transaction(
     chain_id: u64,
     nonce: u64,

@@ -105,7 +105,7 @@ pub async fn execute_dex_watch_wallet(
             let hex = val.as_str().unwrap_or("0x0");
             u64::from_str_radix(hex.trim_start_matches("0x"), 16).unwrap_or(0)
         }
-        Err(e) => return Err(e.into()),
+        Err(e) => return Err(e),
     };
     let from_block = block_num.saturating_sub(blocks_back);
 
@@ -170,9 +170,7 @@ pub async fn execute_dex_watch_wallet(
 
     // Chain info
     if let Ok(chain_id) = eth_chain_id(rpc_url).await {
-        let chain = match chain_id {
-            chain_id => chain_name(chain_id),
-        };
+        let chain = chain_name(chain_id);
         output.push_str(&format!("\nNetwork: {} (chain ID {})\n", chain, chain_id));
     }
 
@@ -216,14 +214,14 @@ pub async fn execute_dex_whale_transfers(
             let hex = val.as_str().unwrap_or("0x0");
             u64::from_str_radix(hex.trim_start_matches("0x"), 16).unwrap_or(0)
         }
-        Err(e) => return Err(e.into()),
+        Err(e) => return Err(e),
     };
     let from_block = block_num.saturating_sub(blocks_back);
 
     // Get all Transfer events for this token
     let log_arr = chunked_get_logs(
         rpc_url,
-        Some(&addr_clean),
+        Some(addr_clean),
         from_block,
         block_num,
         vec![Some(serde_json::json!(TRANSFER_EVENT_TOPIC))],
@@ -329,9 +327,7 @@ pub async fn execute_dex_whale_transfers(
     }
 
     if let Ok(chain_id) = eth_chain_id(rpc_url).await {
-        let chain = match chain_id {
-            chain_id => chain_name(chain_id),
-        };
+        let chain = chain_name(chain_id);
         output.push_str(&format!("\nNetwork: {} (chain ID {})\n", chain, chain_id));
     }
 
@@ -375,13 +371,13 @@ pub async fn execute_dex_top_traders(
             let hex = val.as_str().unwrap_or("0x0");
             u64::from_str_radix(hex.trim_start_matches("0x"), 16).unwrap_or(0)
         }
-        Err(e) => return Err(e.into()),
+        Err(e) => return Err(e),
     };
     let from_block = block_num.saturating_sub(blocks_back);
 
     let log_arr = chunked_get_logs(
         rpc_url,
-        Some(&addr_clean),
+        Some(addr_clean),
         from_block,
         block_num,
         vec![Some(serde_json::json!(TRANSFER_EVENT_TOPIC))],
@@ -473,7 +469,7 @@ pub async fn execute_dex_top_traders(
 
     let mut scored: Vec<TraderScore> = Vec::new();
 
-    for (_, p) in &profiles {
+    for p in profiles.values() {
         let total_trades = p.buy_count + p.sell_count;
         if total_trades < min_trades { continue; }
 
@@ -567,9 +563,7 @@ pub async fn execute_dex_top_traders(
     }
 
     if let Ok(chain_id) = eth_chain_id(rpc_url).await {
-        let chain = match chain_id {
-            chain_id => chain_name(chain_id),
-        };
+        let chain = chain_name(chain_id);
         output.push_str(&format!("\nNetwork: {} (chain ID {})\n", chain, chain_id));
     }
 

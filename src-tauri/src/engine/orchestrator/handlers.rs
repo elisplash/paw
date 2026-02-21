@@ -368,7 +368,7 @@ fn handle_create_sub_agent(
                         agent_id, role, specialty, agent_id
                     ))
                 }
-                Err(e) => Err(e.into())
+                Err(e) => Err(e)
             }
         }
         None => Err("Could not access engine store".into())

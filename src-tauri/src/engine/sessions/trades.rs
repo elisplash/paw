@@ -6,6 +6,7 @@ use crate::atoms::error::EngineResult;
 impl SessionStore {
     // ── Trade History ──────────────────────────────────────────────────
 
+    #[allow(clippy::too_many_arguments)]
     pub fn insert_trade(
         &self,
         trade_type: &str,

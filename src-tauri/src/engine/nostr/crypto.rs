@@ -179,7 +179,7 @@ pub(crate) fn derive_pubkey(secret_key: &[u8]) -> EngineResult<Vec<u8>> {
 // ── Hex Utils ──────────────────────────────────────────────────────────
 
 pub(crate) fn hex_decode(hex: &str) -> EngineResult<Vec<u8>> {
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return Err("Odd hex length".into());
     }
     (0..hex.len())

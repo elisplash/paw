@@ -94,29 +94,23 @@ pub async fn execute_dex_token_info(
 
     // 6. Contract code size (is it actually a contract?)
     let code_result = rpc_call(rpc_url, "eth_getCode", serde_json::json!([addr_clean, "latest"])).await;
-    match code_result {
-        Ok(code) => {
-            let code_str = code.as_str().unwrap_or("0x");
-            let code_len = (code_str.len() - 2) / 2;
-            if code_len == 0 {
-                output.push_str("  Contract: NO CODE — this is an EOA (wallet), not a token!\n");
-            } else {
-                output.push_str(&format!("  Contract: {} bytes of bytecode [OK]\n", code_len));
-            }
+    if let Ok(code) = code_result {
+        let code_str = code.as_str().unwrap_or("0x");
+        let code_len = (code_str.len() - 2) / 2;
+        if code_len == 0 {
+            output.push_str("  Contract: NO CODE \u2014 this is an EOA (wallet), not a token!\n");
+        } else {
+            output.push_str(&format!("  Contract: {} bytes of bytecode [OK]\n", code_len));
         }
-        Err(_) => {}
     }
 
     // 7. Check ETH balance of the contract
-    match eth_get_balance(rpc_url, addr_clean).await {
-        Ok(bal_hex) => {
-            if let Ok(eth_bal) = raw_to_amount(&bal_hex, 18) {
-                if eth_bal != "0" {
-                    output.push_str(&format!("  Contract ETH balance: {} ETH\n", eth_bal));
-                }
+    if let Ok(bal_hex) = eth_get_balance(rpc_url, addr_clean).await {
+        if let Ok(eth_bal) = raw_to_amount(&bal_hex, 18) {
+            if eth_bal != "0" {
+                output.push_str(&format!("  Contract ETH balance: {} ETH\n", eth_bal));
             }
         }
-        Err(_) => {}
     }
 
     // 8. Check if the token can be quoted on Uniswap (basic swap viability)
@@ -134,8 +128,7 @@ pub async fn execute_dex_token_info(
             *fee,
         );
 
-        match eth_call(rpc_url, UNISWAP_QUOTER_V2, &quote_data).await {
-            Ok(result) => {
+        if let Ok(result) = eth_call(rpc_url, UNISWAP_QUOTER_V2, &quote_data).await {
                 let result_bytes = hex_decode(&result).unwrap_or_default();
                 if result_bytes.len() >= 32 {
                     let amount_out: [u8; 32] = result_bytes[..32].try_into()
@@ -186,8 +179,6 @@ pub async fn execute_dex_token_info(
                         break; // Found a working pool, done
                     }
                 }
-            }
-            Err(_) => {} // No pool at this fee tier, try next
         }
     }
 
@@ -288,8 +279,7 @@ pub async fn execute_dex_check_token(
 
     for fee in &[3000u32, 10000, 500, 100] {
         let buy_quote = encode_quote_exact_input_single(&weth_bytes, &token_bytes, &tiny_amount, *fee);
-        match eth_call(rpc_url, UNISWAP_QUOTER_V2, &buy_quote).await {
-            Ok(result) => {
+        if let Ok(result) = eth_call(rpc_url, UNISWAP_QUOTER_V2, &buy_quote).await {
                 let result_bytes = hex_decode(&result).unwrap_or_default();
                 if result_bytes.len() >= 32 {
                     let out: [u8; 32] = result_bytes[..32].try_into()
@@ -346,8 +336,6 @@ pub async fn execute_dex_check_token(
                         break;
                     }
                 }
-            }
-            Err(_) => {} // Try next fee tier
         }
     }
 

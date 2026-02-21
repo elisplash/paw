@@ -6,7 +6,7 @@ use crate::atoms::types::*;
 
 pub fn model_price(model: &str) -> ModelPrice {
     // Normalize: strip provider prefixes like "anthropic/"
-    let m = model.split('/').last().unwrap_or(model);
+    let m = model.split('/').next_back().unwrap_or(model);
     match m {
         // Anthropic
         s if s.starts_with("claude-3-haiku") => ModelPrice { input: 0.25, output: 1.25 },
@@ -55,7 +55,6 @@ pub fn estimate_cost_usd(model: &str, input: u64, output: u64, cache_read: u64, 
 // ── Task Complexity Classification ─────────────────────────────────────
 
 /// How complex a user message is — determines model tier.
-
 /// Classify a user message's complexity to choose the right model tier.
 /// Looks for signals of multi-step reasoning, code, analysis, etc.
 pub fn classify_task_complexity(message: &str) -> TaskComplexity {

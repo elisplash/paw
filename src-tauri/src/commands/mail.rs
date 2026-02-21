@@ -22,6 +22,7 @@ fn set_owner_only_permissions(_path: &std::path::Path) -> Result<(), String> {
 /// Password is stored in the OS keychain — the TOML contains only a keyring
 /// command reference so himalaya can look it up at runtime.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn write_himalaya_config(
     account_name: String,
     email: String,

@@ -56,7 +56,7 @@ pub(crate) async fn handle_inbound_message(app_handle: tauri::AppHandle, payload
         }
 
         // Access control
-        match channels::check_access(
+        if let Err(denial_msg) = channels::check_access(
             &config.dm_policy,
             &sender_id,
             &push_name,
@@ -64,19 +64,16 @@ pub(crate) async fn handle_inbound_message(app_handle: tauri::AppHandle, payload
             &config.allowed_users,
             &mut config.pending_users,
         ) {
-            Err(denial_msg) => {
-                let denial_str = denial_msg.to_string();
-                let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &config);
-                let _ = app_handle.emit("whatsapp-status", json!({
-                    "kind": "pairing_request",
-                    "user_id": &sender_id,
-                    "user_name": &push_name,
-                }));
-                // Send denial message back
-                let _ = send_whatsapp_message(&app_handle, remote_jid, &denial_str).await;
-                continue;
-            }
-            Ok(()) => {}
+            let denial_str = denial_msg.to_string();
+            let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &config);
+            let _ = app_handle.emit("whatsapp-status", json!({
+                "kind": "pairing_request",
+                "user_id": &sender_id,
+                "user_name": &push_name,
+            }));
+            // Send denial message back
+            let _ = send_whatsapp_message(&app_handle, remote_jid, &denial_str).await;
+            continue;
         }
 
         MESSAGE_COUNT.fetch_add(1, Ordering::Relaxed);

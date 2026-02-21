@@ -254,7 +254,7 @@ pub fn detect_response_loop(messages: &mut Vec<Message>) {
 pub fn process_attachments(
     user_message: &str,
     attachments: &[ChatAttachment],
-    messages: &mut Vec<Message>,
+    messages: &mut [Message],
 ) {
     if attachments.is_empty() {
         return;

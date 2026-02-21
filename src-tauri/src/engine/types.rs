@@ -84,7 +84,7 @@ impl MessageContent {
 // ── Tool Calling ───────────────────────────────────────────────────────
 
 
-/// A Gemini "thought" part that must be echoed back with function calls
+// A Gemini "thought" part that must be echoed back with function calls
 
 
 
@@ -132,9 +132,9 @@ pub use crate::engine::pricing::{model_price, estimate_cost_usd, classify_task_c
 
 // ── Agent Files (Soul / Persona) ───────────────────────────────────────
 
-/// An agent personality file (SOUL.md, AGENTS.md, USER.md, etc.)
+// An agent personality file (SOUL.md, AGENTS.md, USER.md, etc.)
 
-/// Standard agent files that define soul / persona.
+// Standard agent files that define soul / persona.
 
 // ── Memory (Long-term Semantic) ────────────────────────────────────────
 
@@ -160,7 +160,6 @@ impl Default for TradingPolicy {
 }
 
 /// Memory configuration (embedding provider settings).
-
 impl Default for MemoryConfig {
     fn default() -> Self {
         MemoryConfig {
@@ -175,14 +174,13 @@ impl Default for MemoryConfig {
     }
 }
 
-/// Statistics about the memory store.
+// Statistics about the memory store.
 
 // ── Model Routing (Multi-Model Agent System) ──────────────────────────
 
 /// Defines which models to use for different agent roles.
 /// With a single API key (e.g. Gemini), you can route the boss agent
 /// to a powerful model and sub-agents to cheaper/faster models.
-
 impl Default for ModelRouting {
     fn default() -> Self {
         ModelRouting {

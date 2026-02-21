@@ -352,7 +352,7 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
 
                                 // Access control (DMs only — mentions in servers bypass for now)
                                 if is_dm {
-                                    match channels::check_access(
+                                    if let Err(denial_msg) = channels::check_access(
                                         &current_config.dm_policy,
                                         &user_id,
                                         &username,
@@ -360,18 +360,15 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
                                         &current_config.allowed_users,
                                         &mut current_config.pending_users,
                                     ) {
-                                        Err(denial_msg) => {
-                                            let denial_str = denial_msg.to_string();
-                                            let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
-                                            let _ = app_handle.emit("discord-status", json!({
-                                                "kind": "pairing_request",
-                                                "user_id": &user_id,
-                                                "username": &username,
-                                            }));
-                                            let _ = send_message(&http_client, &token, &channel_id, &denial_str).await;
-                                            continue;
-                                        }
-                                        Ok(()) => {}
+                                        let denial_str = denial_msg.to_string();
+                                        let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &current_config);
+                                        let _ = app_handle.emit("discord-status", json!({
+                                            "kind": "pairing_request",
+                                            "user_id": &user_id,
+                                            "username": &username,
+                                        }));
+                                        let _ = send_message(&http_client, &token, &channel_id, &denial_str).await;
+                                        continue;
                                     }
                                 }
 

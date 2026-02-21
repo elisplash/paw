@@ -85,6 +85,7 @@ pub(crate) async fn pumpportal_get_tx(
 
 /// Execute a swap via PumpPortal (fallback when Jupiter has no route).
 /// Handles the full flow: get tx → sign → send → confirm.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn pumpportal_swap(
     rpc_url: &str,
     wallet: &str,

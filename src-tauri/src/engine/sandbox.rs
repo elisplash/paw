@@ -171,6 +171,7 @@ pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResu
     docker.start_container(&container_id, None::<StartContainerOptions<String>>).await
         .map_err(|e| {
             // Try to clean up on start failure
+            #[allow(clippy::let_underscore_future)]
             let _ = cleanup_container(&docker, &container_id);
             format!("Failed to start sandbox container: {}", e)
         })?;

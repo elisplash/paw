@@ -64,7 +64,7 @@ pub async fn engine_chat_send(
         };
 
         let user_explicitly_chose_model = request.model.as_ref()
-            .map_or(false, |m| !m.is_empty() && !m.eq_ignore_ascii_case("default"));
+            .is_some_and(|m| !m.is_empty() && !m.eq_ignore_ascii_case("default"));
         let (model, was_downgraded) = if !user_explicitly_chose_model {
             cfg.model_routing.resolve_auto_tier(&request.message, &base_model)
         } else {

@@ -100,7 +100,7 @@ pub async fn execute_tool(tool_call: &crate::engine::types::ToolCall, app_handle
         .or(coinbase::execute(name, &args, app_handle).await)
         .or(dex::execute(name, &args, app_handle).await)
         .or(solana::execute(name, &args, app_handle).await)
-        .unwrap_or_else(|| Err(format!("Unknown tool: {}", name).into()));
+        .unwrap_or_else(|| Err(format!("Unknown tool: {}", name)));
 
     match result {
         Ok(output) => ToolResult {

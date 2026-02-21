@@ -164,7 +164,7 @@ pub fn is_ollama_init_done() -> bool {
 
 /// Check if Ollama is reachable by hitting the /api/tags endpoint.
 async fn check_ollama_reachable(client: &Client, base_url: &str) -> bool {
-    match client.get(&format!("{}/api/tags", base_url))
+    match client.get(format!("{}/api/tags", base_url))
         .timeout(std::time::Duration::from_secs(3))
         .send()
         .await

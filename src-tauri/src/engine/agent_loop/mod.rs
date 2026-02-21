@@ -18,6 +18,7 @@ use crate::atoms::error::EngineResult;
 /// and repeat until the model produces a final text response or max rounds hit.
 ///
 /// Emits `engine-event` Tauri events for real-time streaming to the frontend.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub async fn run_agent_turn(
     app_handle: &tauri::AppHandle,
     provider: &AnyProvider,
