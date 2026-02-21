@@ -227,6 +227,8 @@ pub async fn engine_chat_send(
     let panic_run_id = run_id.clone();
     let panic_app = app_handle.clone();
     let daily_tokens = state.daily_tokens.clone();
+    let active_runs = state.active_runs.clone();
+    let abort_session_id = session_id.clone();
 
     // ── Spawn agent loop ───────────────────────────────────────────────────
     let handle = tauri::async_runtime::spawn(async move {
@@ -380,19 +382,44 @@ pub async fn engine_chat_send(
         }
     });
 
-    // ── Panic safety monitor ───────────────────────────────────────────────
+    // ── Register abort handle for this session ─────────────────────────────
+    active_runs.lock().insert(abort_session_id.clone(), handle.inner().abort_handle());
+
+    // ── Panic safety monitor + abort handle cleanup ────────────────────────
+    let cleanup_runs = active_runs.clone();
+    let cleanup_session_id = abort_session_id.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(join_err) = handle.await {
-            let msg = format!("Internal error: agent task crashed — {}", join_err);
-            error!("[engine] {}", msg);
-            let _ = panic_app.emit(
-                "engine-event",
-                EngineEvent::Error {
-                    session_id: panic_session_id,
-                    run_id: panic_run_id,
-                    message: msg,
-                },
-            );
+        let result = handle.await;
+        // Always clean up the abort handle when the task finishes
+        cleanup_runs.lock().remove(&cleanup_session_id);
+        if let Err(ref err) = result {
+            // Check if the error is a JoinError from cancellation
+            let is_cancelled = matches!(err, tauri::Error::JoinError(je) if je.is_cancelled());
+            if is_cancelled {
+                info!("[engine] Agent task aborted by user for session {}", cleanup_session_id);
+                let _ = panic_app.emit(
+                    "engine-event",
+                    EngineEvent::Complete {
+                        session_id: panic_session_id,
+                        run_id: panic_run_id,
+                        text: String::new(),
+                        tool_calls_count: 0,
+                        usage: None,
+                        model: None,
+                    },
+                );
+            } else {
+                let msg = format!("Internal error: agent task crashed — {}", err);
+                error!("[engine] {}", msg);
+                let _ = panic_app.emit(
+                    "engine-event",
+                    EngineEvent::Error {
+                        session_id: panic_session_id,
+                        run_id: panic_run_id,
+                        message: msg,
+                    },
+                );
+            }
         }
     });
 
@@ -407,6 +434,23 @@ pub fn engine_chat_history(
     limit: Option<i64>,
 ) -> Result<Vec<StoredMessage>, String> {
     state.store.get_messages(&session_id, limit.unwrap_or(200))
+}
+
+/// Abort an in-flight agent run for the given session.
+#[tauri::command]
+pub fn engine_chat_abort(
+    state: State<'_, EngineState>,
+    session_id: String,
+) -> Result<(), String> {
+    let mut runs = state.active_runs.lock();
+    if let Some(handle) = runs.remove(&session_id) {
+        handle.abort();
+        info!("[engine] Aborted agent run for session {}", session_id);
+        Ok(())
+    } else {
+        warn!("[engine] No active run found for session {} — may have already finished", session_id);
+        Ok(()) // Not an error — the run may have completed between click and arrival
+    }
 }
 
 // ── Sessions ─────────────────────────────────────────────────────────────────

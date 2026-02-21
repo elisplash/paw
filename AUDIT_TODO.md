@@ -47,10 +47,8 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 ### ~~8. Security settings stored in unprotected localStorage~~ ✅ FIXED
 - Moved security settings from `localStorage` to the encrypted SQLite database. Added `security_settings` table (single-row upsert), DB CRUD in `db.ts`, in-memory cache in `security.ts` for sync access. `initSecuritySettings()` hydrates cache at startup, auto-migrates legacy localStorage data, then clears it. `resetSecurityPolicies()` now uses DB delete instead of `localStorage.removeItem()`. 4 new tests for cache behaviour.
 
-### 9. chatAbort is a no-op
-- **File:** `src/engine/molecules/ipc_client.ts` L107-109
-- **Bug:** Logs a warning, does nothing. Users see an abort button that has no effect.
-- **Fix:** Implement backend abort or remove the abort button from the UI.
+### ~~9. chatAbort is a no-op~~ ✅ FIXED
+- Added `active_runs: HashMap<String, AbortHandle>` to `EngineState`. `engine_chat_send` registers the spawned task's abort handle keyed by session_id. New `engine_chat_abort` Tauri command looks up and aborts the task. The panic safety monitor detects cancellation vs crash and emits appropriate `Complete`/`Error` events. Frontend `chatAbort()` now invokes the real backend command. Research abort also works via same path.
 
 ### 10. Encryption silently falls back to plaintext
 - **File:** `src/db.ts` L62-68

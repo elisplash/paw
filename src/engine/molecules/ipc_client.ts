@@ -104,8 +104,8 @@ class PawEngineClient {
     return invoke<EngineChatResponse>('engine_chat_send', { request });
   }
 
-  async chatAbort(_sessionId: string): Promise<void> {
-    console.warn('[engine] chatAbort not yet implemented in backend');
+  async chatAbort(sessionId: string): Promise<void> {
+    return invoke<void>('engine_chat_abort', { sessionId });
   }
 
   async chatHistory(sessionId: string, limit?: number): Promise<EngineStoredMessage[]> {

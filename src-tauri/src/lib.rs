@@ -62,6 +62,7 @@ pub fn run() {
             // ── Chat & Sessions ──
             commands::chat::engine_chat_send,
             commands::chat::engine_chat_history,
+            commands::chat::engine_chat_abort,
             commands::chat::engine_sessions_list,
             commands::chat::engine_session_rename,
             commands::chat::engine_session_delete,

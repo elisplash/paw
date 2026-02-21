@@ -177,6 +177,9 @@ pub struct EngineState {
     pub inflight_tasks: Arc<Mutex<HashSet<String>>>,
     /// Daily token spend tracker — shared across all agent runs.
     pub daily_tokens: Arc<DailyTokenTracker>,
+    /// Abort handles for active agent runs, keyed by session_id.
+    /// Used by engine_chat_abort to cancel in-flight agent loops.
+    pub active_runs: Arc<Mutex<HashMap<String, tokio::task::AbortHandle>>>,
 }
 
 impl EngineState {
@@ -236,6 +239,7 @@ impl EngineState {
             run_semaphore: Arc::new(tokio::sync::Semaphore::new(max_concurrent as usize)),
             inflight_tasks: Arc::new(Mutex::new(HashSet::new())),
             daily_tokens: Arc::new(DailyTokenTracker::new()),
+            active_runs: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
