@@ -66,8 +66,12 @@ webpki-roots = "1.0"
 bollard = "0.16"
 
 # ── DEX / Ethereum Wallet ──────────────────────────────────────
-k256 = { version = "0.13", features = ["ecdsa", "schnorr"] }
+k256 = { version = "0.13", features = ["ecdsa", "schnorr", "ecdh"] }
 tiny-keccak = { version = "2", features = ["keccak"] }
+
+# ── NIP-04 Encrypted DMs (AES-256-CBC) ──────────────────────────
+aes = "0.8"
+cbc = "0.1"
 
 # ── Solana DEX Trading ───────────────────────────────────────
 bs58 = "0.5"

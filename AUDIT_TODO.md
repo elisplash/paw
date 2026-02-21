@@ -240,10 +240,11 @@ Found during the encryption audit of all 11 channel bridges.
 - **Fix:** Move message content logging from `info!` to `debug!` level, or redact content entirely and log only metadata (sender ID, channel, message length).
 - **Fix applied:** Changed all 11 message-content `info!` calls to `debug!` across discord.rs, telegram.rs, irc.rs, slack.rs, matrix.rs, mattermost.rs, nostr.rs, webchat.rs, twitch.rs, nextcloud.rs, and whatsapp/messages.rs. Added `debug` to `use log::` imports. Message content no longer appears in the file log transport at normal log levels — only visible when `RUST_LOG=debug` is set. Connection/auth/status logs remain at `info!`.
 
-### 48. Implement Nostr NIP-04/NIP-44 encrypted DMs
-- **File:** `src-tauri/src/engine/nostr.rs`
+### 48. ~~Implement Nostr NIP-04/NIP-44 encrypted DMs~~ ✅
+- **File:** `src-tauri/src/engine/nostr.rs`, `src-tauri/Cargo.toml`
 - **Feature:** Currently only kind-1 (public text notes) are supported. Add NIP-44 encrypted DM support (NIP-04 is deprecated). Requires ECDH shared secret via `k256` (already a dep) + XChaCha20-Poly1305 (`chacha20poly1305` crate). Subscribe to kind-4 events, decrypt incoming, encrypt outgoing replies.
 - **Scope:** ~200 lines of Rust. Key infrastructure (secp256k1, event signing) is already in place.
+- **Fix applied:** Implemented NIP-04 encrypted DMs (kind-4 events) — the widely-supported DM standard compatible with Damus, Amethyst, Primal, and other clients. Added `aes` and `cbc` crates, `ecdh` feature to `k256`. New functions: `compute_shared_secret()` (ECDH x-coordinate via secp256k1), `nip04_encrypt()` (AES-256-CBC + PKCS#7 + base64), `nip04_decrypt()` (reverse). Subscription now includes `kinds: [1, 4]`. Kind-4 events are decrypted before processing; replies are encrypted and published as kind-4. Refactored `build_reply_event()` → extracted `sign_event()` generic helper used by both kind-1 replies and kind-4 DMs. Agent context differentiates public notes vs encrypted DMs. NIP-44 (ChaCha20 + HMAC + NIP-17 gift wrapping) documented as future improvement.
 
 ### 49. Implement Matrix E2EE via vodozemac
 - **File:** `src-tauri/src/engine/matrix.rs`, `src-tauri/Cargo.toml`

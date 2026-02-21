@@ -9,15 +9,20 @@
 //
 // Protocol:
 //   - NIP-01: Basic event subscription + publishing
+//   - NIP-04: Encrypted direct messages (ECDH + AES-256-CBC)
 //   - kind 1 (text notes): Respond to @mentions in public
-//   - kind 4 (encrypted DMs): NOT supported yet (needs NIP-04/NIP-44 crypto)
+//   - kind 4 (encrypted DMs): Decrypt incoming, encrypt outgoing replies
 //   - Events are signed with secp256k1 Schnorr (BIP-340) via the k256 crate
 //
 // Security:
 //   - Private key stored in OS keychain, never in the config DB
+//   - DM content encrypted end-to-end via ECDH shared secret
 //   - Allowlist by npub / hex pubkey
 //   - Optional pairing mode
 //   - All communication through relay TLS WebSockets
+//
+// Future: NIP-44 (ChaCha20 + HMAC-SHA256) with NIP-17 gift wrapping for
+//         improved metadata privacy. Kind-4 NIP-04 DMs remain widely supported.
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
 use log::{debug, info, warn, error};
@@ -226,11 +231,11 @@ async fn run_relay_loop(
     }));
 
     // Subscribe to events mentioning our pubkey (NIP-01)
-    // kind 1 = text notes with #p tag pointing to us
+    // kind 1 = text notes, kind 4 = encrypted DMs (NIP-04)
     let sub_id = format!("paw-{}", &pubkey_hex[..8]);
     let req = json!(["REQ", &sub_id, {
         "#p": [pubkey_hex],
-        "kinds": [1],
+        "kinds": [1, 4],
         "since": chrono::Utc::now().timestamp() - 10, // Only new events
     }]);
     ws_tx.send(WsMessage::Text(req.to_string())).await
@@ -289,15 +294,32 @@ async fn run_relay_loop(
                 }
 
                 let kind = event["kind"].as_u64().unwrap_or(0);
-                if kind != 1 { continue; } // Only text notes for now
+                if kind != 1 && kind != 4 { continue; }
 
                 let sender_pk = event["pubkey"].as_str().unwrap_or("").to_string();
                 if sender_pk == pubkey_hex { continue; } // Skip own events
 
-                let content = event["content"].as_str().unwrap_or("").to_string();
+                let raw_content = event["content"].as_str().unwrap_or("").to_string();
+                if raw_content.is_empty() { continue; }
+
+                // Decrypt kind-4 DMs (NIP-04), pass through kind-1 text notes
+                let (content, is_dm) = if kind == 4 {
+                    match nip04_decrypt(secret_key, &sender_pk, &raw_content) {
+                        Ok(pt) => (pt, true),
+                        Err(e) => {
+                            warn!("[nostr] Failed to decrypt DM from {}...{}: {}",
+                                &sender_pk[..sender_pk.len().min(8)],
+                                &sender_pk[sender_pk.len().saturating_sub(4)..], e);
+                            continue;
+                        }
+                    }
+                } else {
+                    (raw_content, false)
+                };
                 if content.is_empty() { continue; }
 
-                debug!("[nostr] Event from {}...{}: {}",
+                debug!("[nostr] {} from {}...{}: {}",
+                    if is_dm { "DM" } else { "Event" },
                     &sender_pk[..8], &sender_pk[sender_pk.len()-4..],
                     if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
 
@@ -325,9 +347,15 @@ async fn run_relay_loop(
                 MESSAGE_COUNT.fetch_add(1, Ordering::Relaxed);
 
                 let agent_id = current_config.agent_id.as_deref().unwrap_or("default");
-                let ctx = "You are chatting via Nostr (a decentralized social network). \
-                           Use plain text. Keep responses concise. \
-                           Your reply will be published as a kind-1 note.";
+                let ctx = if is_dm {
+                    "You are replying to a private Nostr DM (NIP-04 encrypted). \
+                     Use plain text. Keep responses concise. \
+                     Your reply will be encrypted and sent as a kind-4 DM."
+                } else {
+                    "You are chatting via Nostr (a decentralized social network). \
+                     Use plain text. Keep responses concise. \
+                     Your reply will be published as a kind-1 note."
+                };
 
                 let response = channels::run_channel_agent(
                     app_handle, "nostr", ctx, &content, &sender_pk, agent_id,
@@ -335,17 +363,33 @@ async fn run_relay_loop(
 
                 match response {
                     Ok(reply) if !reply.is_empty() => {
-                        // Build and sign reply event
-                        match build_reply_event(secret_key, pubkey_hex, &reply, &event_id, &sender_pk) {
-                            Ok(reply_event) => {
-                                // Publish: ["EVENT", event_json]
-                                let publish = json!(["EVENT", reply_event]);
-                                if let Err(e) = ws_tx.send(WsMessage::Text(publish.to_string())).await {
-                                    warn!("[nostr] Failed to publish reply: {}", e);
+                        if is_dm {
+                            // Encrypt and send as kind-4 DM (NIP-04)
+                            match nip04_encrypt(secret_key, &sender_pk, &reply) {
+                                Ok(encrypted) => {
+                                    let tags = json!([["p", &sender_pk]]);
+                                    match sign_event(secret_key, pubkey_hex, 4, &tags, &encrypted) {
+                                        Ok(dm_event) => {
+                                            let publish = json!(["EVENT", dm_event]);
+                                            if let Err(e) = ws_tx.send(WsMessage::Text(publish.to_string())).await {
+                                                warn!("[nostr] Failed to send DM: {}", e);
+                                            }
+                                        }
+                                        Err(e) => error!("[nostr] Failed to sign DM: {}", e),
+                                    }
                                 }
+                                Err(e) => error!("[nostr] Failed to encrypt DM reply: {}", e),
                             }
-                            Err(e) => {
-                                error!("[nostr] Failed to sign reply: {}", e);
+                        } else {
+                            // Public reply (kind-1)
+                            match build_reply_event(secret_key, pubkey_hex, &reply, &event_id, &sender_pk) {
+                                Ok(reply_event) => {
+                                    let publish = json!(["EVENT", reply_event]);
+                                    if let Err(e) = ws_tx.send(WsMessage::Text(publish.to_string())).await {
+                                        warn!("[nostr] Failed to publish reply: {}", e);
+                                    }
+                                }
+                                Err(e) => error!("[nostr] Failed to sign reply: {}", e),
                             }
                         }
                     }
@@ -396,24 +440,18 @@ async fn run_relay_loop(
 //   id: sha256([0, pubkey, created_at, kind, tags, content])
 //   sig: schnorr signature of id using secret key (via k256 crate)
 
-fn build_reply_event(
+/// Create and sign a Nostr event with arbitrary kind and tags.
+fn sign_event(
     secret_key: &[u8],
     pubkey_hex: &str,
+    kind: u64,
+    tags: &serde_json::Value,
     content: &str,
-    reply_to_id: &str,
-    reply_to_pk: &str,
 ) -> Result<serde_json::Value, String> {
     use sha2::{Sha256, Digest};
     use k256::schnorr::SigningKey;
 
     let created_at = chrono::Utc::now().timestamp();
-    let kind = 1u64;
-
-    // Tags: reply to the event + mention the sender
-    let tags = json!([
-        ["e", reply_to_id, "", "reply"],
-        ["p", reply_to_pk]
-    ]);
 
     // Serialize for id computation: [0, pubkey, created_at, kind, tags, content]
     let serialized = json!([0, pubkey_hex, created_at, kind, tags, content]);
@@ -442,6 +480,107 @@ fn build_reply_event(
         "content": content,
         "sig": sig_hex,
     }))
+}
+
+/// Build a kind-1 public reply event (NIP-01).
+fn build_reply_event(
+    secret_key: &[u8],
+    pubkey_hex: &str,
+    content: &str,
+    reply_to_id: &str,
+    reply_to_pk: &str,
+) -> Result<serde_json::Value, String> {
+    let tags = json!([
+        ["e", reply_to_id, "", "reply"],
+        ["p", reply_to_pk]
+    ]);
+    sign_event(secret_key, pubkey_hex, 1, &tags, content)
+}
+
+// ── NIP-04 Encrypted DMs (ECDH + AES-256-CBC) ─────────────────────────
+//
+// NIP-04 protocol for kind-4 events:
+//   1. ECDH shared secret = x-coordinate of (our_privkey × their_pubkey)
+//   2. AES-256-CBC encrypt with random 16-byte IV and PKCS#7 padding
+//   3. Content format: base64(ciphertext) + "?iv=" + base64(iv)
+//
+// Note: NIP-04 is deprecated in favor of NIP-44 (ChaCha20 + HMAC-SHA256)
+// with NIP-17 gift wrapping. Kind-4 DMs remain widely supported by
+// clients (Damus, Amethyst, Primal, etc.).
+
+/// Compute ECDH shared secret (x-coordinate) between our secret key and a pubkey.
+fn compute_shared_secret(secret_key: &[u8], pubkey_hex: &str) -> Result<[u8; 32], String> {
+    let sk = k256::SecretKey::from_slice(secret_key)
+        .map_err(|e| format!("Invalid secret key: {}", e))?;
+
+    // BIP-340 x-only pubkey → SEC1 compressed (prepend 0x02)
+    let pk_bytes = hex_decode(pubkey_hex)?;
+    if pk_bytes.len() != 32 {
+        return Err(format!("Invalid pubkey length: {} (expected 32)", pk_bytes.len()));
+    }
+    let mut sec1 = Vec::with_capacity(33);
+    sec1.push(0x02);
+    sec1.extend_from_slice(&pk_bytes);
+    let pk = k256::PublicKey::from_sec1_bytes(&sec1)
+        .map_err(|e| format!("Invalid pubkey: {}", e))?;
+
+    use k256::elliptic_curve::ecdh::diffie_hellman;
+    let shared = diffie_hellman(sk.to_nonzero_scalar(), pk.as_affine());
+    let mut out = [0u8; 32];
+    out.copy_from_slice(shared.raw_secret_bytes().as_slice());
+    Ok(out)
+}
+
+/// NIP-04 encrypt: AES-256-CBC with ECDH shared key.
+fn nip04_encrypt(secret_key: &[u8], receiver_pk_hex: &str, plaintext: &str) -> Result<String, String> {
+    use base64::Engine;
+    use cbc::cipher::{BlockEncryptMut, KeyIvInit, block_padding::Pkcs7};
+
+    let shared = compute_shared_secret(secret_key, receiver_pk_hex)?;
+    let iv: [u8; 16] = rand::random();
+
+    let pt = plaintext.as_bytes();
+    // Buffer: plaintext + up to 16 bytes PKCS#7 padding
+    let mut buf = vec![0u8; pt.len() + 16];
+    buf[..pt.len()].copy_from_slice(pt);
+
+    let ciphertext = cbc::Encryptor::<aes::Aes256>::new_from_slices(&shared, &iv)
+        .map_err(|e| format!("AES init: {}", e))?
+        .encrypt_padded_mut::<Pkcs7>(&mut buf, pt.len())
+        .map_err(|e| format!("AES encrypt: {}", e))?;
+
+    let b64 = base64::engine::general_purpose::STANDARD;
+    Ok(format!("{}?iv={}", b64.encode(ciphertext), b64.encode(iv)))
+}
+
+/// NIP-04 decrypt: AES-256-CBC with ECDH shared key.
+fn nip04_decrypt(secret_key: &[u8], sender_pk_hex: &str, content: &str) -> Result<String, String> {
+    use base64::Engine;
+    use cbc::cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7};
+
+    let parts: Vec<&str> = content.split("?iv=").collect();
+    if parts.len() != 2 {
+        return Err("Invalid NIP-04 format (expected base64?iv=base64)".into());
+    }
+
+    let b64 = base64::engine::general_purpose::STANDARD;
+    let ciphertext = b64.decode(parts[0].trim())
+        .map_err(|e| format!("base64 ciphertext: {}", e))?;
+    let iv = b64.decode(parts[1].trim())
+        .map_err(|e| format!("base64 iv: {}", e))?;
+    if iv.len() != 16 {
+        return Err(format!("Invalid IV length: {} (expected 16)", iv.len()));
+    }
+
+    let shared = compute_shared_secret(secret_key, sender_pk_hex)?;
+
+    let mut buf = ciphertext;
+    let plaintext = cbc::Decryptor::<aes::Aes256>::new_from_slices(&shared, &iv)
+        .map_err(|e| format!("AES init: {}", e))?
+        .decrypt_padded_mut::<Pkcs7>(&mut buf)
+        .map_err(|e| format!("AES decrypt: {}", e))?;
+
+    String::from_utf8(plaintext.to_vec()).map_err(|e| format!("UTF-8: {}", e))
 }
 
 // ── secp256k1 Pubkey Derivation (BIP-340 x-only) ──────────────────────
