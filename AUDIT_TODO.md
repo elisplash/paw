@@ -142,10 +142,11 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - **Fix:** Use `INSERT ... ON CONFLICT ... DO UPDATE`.
 - Converted all 4 `INSERT OR REPLACE` statements (`saveMode`, `saveProject`, `saveDoc`, `saveProjectFile`) to proper `INSERT ... ON CONFLICT(id) DO UPDATE SET ...` upserts. Each now explicitly updates only the mutable columns, preserving the original `created_at` timestamp set by the `DEFAULT (datetime('now'))` on first insert.
 
-### 30. No file/network log transport
+### 30. ~~No file/network log transport~~ ✅ FIXED
 - **File:** `src/logger.ts`
 - Logs go only to console and in-memory buffer. No way to retrieve after crash.
 - **Fix:** Add file transport or Tauri-side log persistence.
+- Added pluggable transport hook: `setLogTransport(fn)` receives every log entry that passes the level filter, with both the structured `LogEntry` and a pre-formatted string. Added `flushBufferToTransport()` to replay pre-init logs. In `main.ts`, wired a file transport after startup that writes to `~/Documents/Paw/logs/paw-YYYY-MM-DD.log` via `@tauri-apps/plugin-fs`, with batched I/O (1s flush interval) and automatic 7-day log rotation. 10 new tests (360 total).
 
 ### 31. Singleton prevents test mocking
 - **File:** `src/engine/molecules/ipc_client.ts` L735

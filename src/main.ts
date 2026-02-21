@@ -11,6 +11,8 @@ import { initTheme } from './components/molecules/theme';
 import { initHILModal } from './components/molecules/hil_modal';
 import { initChatListeners, switchToAgent, populateAgentSelect, appendStreamingDelta, recordTokenUsage, updateContextLimitFromModel } from './engine/organisms/chat_controller';
 import { registerStreamHandlers, registerResearchRouter } from './engine/molecules/event_bus';
+import { setLogTransport, flushBufferToTransport } from './logger';
+import type { LogEntry } from './logger';
 import * as ResearchModule from './views/research';
 
 // ── Wire event_bus callbacks (engine ← view layer) ──
@@ -220,6 +222,58 @@ document.addEventListener('DOMContentLoaded', async () => {
       } catch (e) {
         console.warn('[main] Model pricing load failed:', e);
       }
+    }
+
+    // ── Persistent file log transport ────────────────────────────────────────
+    try {
+      const fs = await import('@tauri-apps/plugin-fs');
+      const path = await import('@tauri-apps/api/path');
+      const logDir = await path.join(await path.homeDir(), 'Documents', 'Paw', 'logs');
+      await fs.mkdir(logDir, { recursive: true });
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const logFile = await path.join(logDir, `paw-${today}.log`);
+
+      // Prune log files older than 7 days (best-effort, non-blocking)
+      fs.readDir(logDir).then(async entries => {
+        const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        for (const entry of entries) {
+          if (!entry.name?.endsWith('.log')) continue;
+          const m = entry.name.match(/^paw-(\d{4}-\d{2}-\d{2})\.log$/);
+          if (m && new Date(m[1]).getTime() < cutoff) {
+            await fs.remove(await path.join(logDir, entry.name)).catch(() => {});
+          }
+        }
+      }).catch(() => {});
+
+      // Buffer writes and flush periodically to avoid excessive I/O
+      let pendingLines: string[] = [];
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+      async function flushToFile() {
+        if (pendingLines.length === 0) return;
+        const batch = pendingLines.join('\n') + '\n';
+        pendingLines = [];
+        try {
+          await fs.writeTextFile(logFile, batch, { append: true });
+        } catch { /* filesystem write failed — swallow to avoid cascade */ }
+      }
+
+      setLogTransport((_entry: LogEntry, formatted: string) => {
+        pendingLines.push(formatted);
+        if (!flushTimer) {
+          flushTimer = setTimeout(() => {
+            flushTimer = null;
+            flushToFile();
+          }, 1000);
+        }
+      });
+
+      // Replay any logs emitted before the transport was ready
+      flushBufferToTransport();
+      await flushToFile(); // ensure replayed entries are written immediately
+      console.debug(`[main] File log transport active → ${logFile}`);
+    } catch (e) {
+      console.warn('[main] File log transport init failed (non-fatal):', e);
     }
 
     // Show persistent warning banner when encryption is unavailable

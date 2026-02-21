@@ -32,6 +32,43 @@ export function getLogLevel(): LogLevel {
   return globalMinLevel;
 }
 
+// ── Pluggable transport ──────────────────────────────────────────────────
+
+/** A transport receives every log entry that passes the level filter. */
+export type LogTransport = (entry: LogEntry, formatted: string) => void;
+
+let _transport: LogTransport | null = null;
+
+/**
+ * Register a persistent log transport (e.g. file writer).
+ * Only one transport is supported — subsequent calls replace the previous one.
+ */
+export function setLogTransport(transport: LogTransport | null): void {
+  _transport = transport;
+}
+
+/** Get the currently registered transport (for testing). */
+export function getLogTransport(): LogTransport | null {
+  return _transport;
+}
+
+/** Format a log entry into a single line suitable for file output. */
+export function formatLogEntry(entry: LogEntry): string {
+  const dataStr = entry.data ? ' ' + JSON.stringify(entry.data) : '';
+  return `[${entry.timestamp}] [${entry.level.toUpperCase().padEnd(5)}] [${entry.module}] ${entry.message}${dataStr}`;
+}
+
+/**
+ * Replay the in-memory buffer through the current transport.
+ * Call this once after setting a transport so pre-init logs are persisted.
+ */
+export function flushBufferToTransport(): void {
+  if (!_transport) return;
+  for (const entry of logBuffer) {
+    _transport(entry, formatLogEntry(entry));
+  }
+}
+
 /**
  * Create a scoped logger for a specific module.
  *
@@ -78,6 +115,11 @@ export function createLogger(module: string) {
 
     // Push to in-memory ring buffer for diagnostics panel
     pushToBuffer(entry);
+
+    // Forward to persistent transport (file, network, etc.) if registered
+    if (_transport) {
+      try { _transport(entry, formatLogEntry(entry)); } catch { /* transport must not throw */ }
+    }
   }
 
   return {

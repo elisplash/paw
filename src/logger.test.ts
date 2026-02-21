@@ -6,11 +6,17 @@ import {
   getRecentLogs,
   clearLogBuffer,
   getLogCounts,
+  setLogTransport,
+  getLogTransport,
+  flushBufferToTransport,
+  formatLogEntry,
 } from './logger';
+import type { LogEntry } from './logger';
 
 beforeEach(() => {
   clearLogBuffer();
   setLogLevel('debug');
+  setLogTransport(null);
 });
 
 describe('createLogger', () => {
@@ -84,5 +90,88 @@ describe('getLogCounts', () => {
     expect(counts.info).toBe(2);
     expect(counts.warn).toBe(1);
     expect(counts.error).toBe(1);
+  });
+});
+
+describe('formatLogEntry', () => {
+  it('formats entry without data', () => {
+    const entry: LogEntry = { level: 'info', message: 'hello', module: 'test', timestamp: '2026-01-01T00:00:00.000Z' };
+    expect(formatLogEntry(entry)).toBe('[2026-01-01T00:00:00.000Z] [INFO ] [test] hello');
+  });
+
+  it('formats entry with data as JSON', () => {
+    const entry: LogEntry = { level: 'error', message: 'fail', module: 'db', timestamp: '2026-01-01T00:00:00.000Z', data: { code: 42 } };
+    expect(formatLogEntry(entry)).toBe('[2026-01-01T00:00:00.000Z] [ERROR] [db] fail {"code":42}');
+  });
+});
+
+describe('setLogTransport / getLogTransport', () => {
+  it('defaults to null', () => {
+    expect(getLogTransport()).toBeNull();
+  });
+
+  it('registers and retrieves a transport', () => {
+    const fn = () => {};
+    setLogTransport(fn);
+    expect(getLogTransport()).toBe(fn);
+  });
+
+  it('clears transport with null', () => {
+    setLogTransport(() => {});
+    setLogTransport(null);
+    expect(getLogTransport()).toBeNull();
+  });
+
+  it('calls transport on each log emit', () => {
+    const received: Array<{ entry: LogEntry; formatted: string }> = [];
+    setLogTransport((entry, formatted) => { received.push({ entry, formatted }); });
+    const log = createLogger('mod');
+    log.info('test message', { key: 'val' });
+    expect(received).toHaveLength(1);
+    expect(received[0].entry.message).toBe('test message');
+    expect(received[0].entry.module).toBe('mod');
+    expect(received[0].formatted).toContain('[mod] test message');
+  });
+
+  it('does not call transport for suppressed levels', () => {
+    const received: LogEntry[] = [];
+    setLogTransport((entry) => { received.push(entry); });
+    setLogLevel('error');
+    const log = createLogger('test');
+    log.debug('skip');
+    log.info('skip');
+    log.warn('skip');
+    log.error('keep');
+    expect(received).toHaveLength(1);
+    expect(received[0].level).toBe('error');
+  });
+
+  it('swallows transport errors silently', () => {
+    setLogTransport(() => { throw new Error('boom'); });
+    const log = createLogger('test');
+    expect(() => log.info('should not throw')).not.toThrow();
+    // Entry should still be in the buffer despite transport failure
+    expect(getRecentLogs()).toHaveLength(1);
+  });
+});
+
+describe('flushBufferToTransport', () => {
+  it('replays buffered entries through transport', () => {
+    const log = createLogger('early');
+    log.info('before transport');
+    log.warn('also before');
+
+    const received: string[] = [];
+    setLogTransport((_entry, formatted) => { received.push(formatted); });
+    flushBufferToTransport();
+
+    expect(received).toHaveLength(2);
+    expect(received[0]).toContain('[early] before transport');
+    expect(received[1]).toContain('[early] also before');
+  });
+
+  it('does nothing when no transport is set', () => {
+    createLogger('test').info('log');
+    expect(() => flushBufferToTransport()).not.toThrow();
   });
 });
