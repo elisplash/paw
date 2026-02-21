@@ -2,6 +2,7 @@
 // rest_api_call, webhook_send, image_generate
 
 use crate::atoms::types::*;
+use crate::atoms::error::EngineResult;
 use log::info;
 use std::time::Duration;
 
@@ -279,7 +280,6 @@ async fn execute_image_generate(
     let output_path = output_dir.join(format!("{}.{}", output_name, ext));
 
     use base64::Engine as _;
-use crate::atoms::error::EngineResult;
     let bytes = base64::engine::general_purpose::STANDARD.decode(&base64_data)?;
 
     std::fs::write(&output_path, &bytes)?;

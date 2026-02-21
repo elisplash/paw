@@ -14,6 +14,7 @@ use log::{info, warn};
 use scraper::{Html, Selector};
 use std::sync::{Arc, OnceLock};
 use parking_lot::Mutex;
+use crate::atoms::error::EngineResult;
 use std::time::Duration;
 use tauri::Manager;
 
@@ -279,7 +280,6 @@ fn extract_readable_text(document: &Html) -> String {
 
 fn resolve_profile_dir(app_handle: &tauri::AppHandle) -> Option<std::path::PathBuf> {
     use crate::engine::state::EngineState;
-use crate::atoms::error::EngineResult;
     let state = app_handle.try_state::<EngineState>()?;
     let json = state.store.get_config("browser_config").ok()??;
     let config: serde_json::Value = serde_json::from_str(&json).ok()?;

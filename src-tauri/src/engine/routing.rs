@@ -3,6 +3,7 @@
 // Config is stored in the engine's config store (engine_config table).
 
 use crate::engine::sessions::SessionStore;
+use crate::atoms::error::EngineResult;
 use log::info;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -134,7 +135,6 @@ pub fn resolve_route(
 #[cfg(test)]
 mod tests {
     use super::*;
-use crate::atoms::error::EngineResult;
 
     fn make_rule(channel: &str, agent: &str, label: &str) -> RoutingRule {
         RoutingRule {

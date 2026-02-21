@@ -2,6 +2,7 @@
 // telegram_send, telegram_read
 
 use crate::atoms::types::*;
+use crate::atoms::error::EngineResult;
 use log::info;
 use std::time::Duration;
 
@@ -158,7 +159,6 @@ async fn execute_telegram_send(args: &serde_json::Value, app_handle: &tauri::App
 
 async fn execute_telegram_read(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> EngineResult<String> {
     use crate::engine::telegram::load_telegram_config;
-use crate::atoms::error::EngineResult;
 
     let info = args["info"].as_str().unwrap_or("status");
     let config = load_telegram_config(app_handle)?;

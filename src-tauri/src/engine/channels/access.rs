@@ -4,6 +4,7 @@
 
 use super::PendingUser;
 use crate::engine::state::EngineState;
+use crate::atoms::error::EngineResult;
 use log::info;
 use tauri::Manager;
 
@@ -120,7 +121,6 @@ pub fn remove_user_generic(
 #[cfg(test)]
 mod tests {
     use super::*;
-use crate::atoms::error::EngineResult;
 
     fn make_pending() -> Vec<PendingUser> {
         vec![]

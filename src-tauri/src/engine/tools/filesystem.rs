@@ -2,6 +2,7 @@
 // read_file, write_file, list_directory, append_file, delete_file
 
 use crate::atoms::types::*;
+use crate::atoms::error::EngineResult;
 use log::{info, warn};
 
 /// Sensitive paths that agents must never read or write.
@@ -339,7 +340,6 @@ async fn execute_append_file(args: &serde_json::Value, agent_id: &str) -> Engine
     info!("[engine] append_file: {} ({} bytes, agent={})", path, content.len(), agent_id);
 
     use std::io::Write;
-use crate::atoms::error::EngineResult;
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)

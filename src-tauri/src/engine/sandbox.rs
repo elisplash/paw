@@ -6,6 +6,7 @@ use bollard::Docker;
 use bollard::container::{Config, CreateContainerOptions, StartContainerOptions, LogsOptions, RemoveContainerOptions, WaitContainerOptions};
 use bollard::models::HostConfig;
 use futures::StreamExt;
+use crate::atoms::error::EngineResult;
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -321,7 +322,6 @@ pub fn format_sandbox_result(result: &SandboxResult) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-use crate::atoms::error::EngineResult;
 
     #[test]
     fn test_default_config() {

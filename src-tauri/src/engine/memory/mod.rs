@@ -18,6 +18,7 @@ pub use ollama::{OllamaReadyStatus, ensure_ollama_ready, is_ollama_init_done};
 
 use crate::engine::sessions::{SessionStore, f32_vec_to_bytes};
 use crate::engine::types::*;
+use crate::atoms::error::EngineResult;
 use log::{info, warn, error};
 
 // ── Store ──────────────────────────────────────────────────────────────
@@ -159,7 +160,6 @@ fn merge_search_results(
     vector_weight: f64,
 ) -> Vec<Memory> {
     use std::collections::HashMap;
-use crate::atoms::error::EngineResult;
 
     let mut score_map: HashMap<String, (Option<f64>, Option<f64>, Memory)> = HashMap::new();
 

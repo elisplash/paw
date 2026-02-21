@@ -29,7 +29,7 @@ use crate::atoms::error::EngineResult;
 use matrix_sdk::{
     Client, Room,
     config::SyncSettings,
-    matrix_auth::MatrixSession,
+    authentication::matrix::MatrixSession,
     ruma::{
         OwnedUserId, OwnedDeviceId,
         events::room::{
@@ -208,7 +208,7 @@ async fn run_sdk_bridge(app_handle: tauri::AppHandle, mut config: MatrixConfig) 
             user_id: user_id.clone(),
             device_id,
         },
-        tokens: matrix_sdk::matrix_auth::MatrixSessionTokens {
+        tokens: matrix_sdk::authentication::matrix::MatrixSessionTokens {
             access_token: config.access_token.clone(),
             refresh_token: None,
         },

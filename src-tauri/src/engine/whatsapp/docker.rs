@@ -2,6 +2,7 @@
 // EVOLUTION_IMAGE, CONTAINER_NAME, discover_colima_socket,
 // ensure_docker_ready, ensure_evolution_container
 
+use crate::atoms::error::EngineResult;
 use log::{info, warn, error};
 use serde_json::json;
 use std::sync::atomic::Ordering;
@@ -304,7 +305,6 @@ pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, co
     use bollard::models::HostConfig;
     use bollard::image::CreateImageOptions;
     use futures::StreamExt;
-use crate::atoms::error::EngineResult;
 
     let docker = ensure_docker_ready(app_handle).await?;
 

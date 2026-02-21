@@ -3,6 +3,7 @@
 
 use crate::atoms::types::*;
 use crate::engine::state::EngineState;
+use crate::atoms::error::EngineResult;
 use log::{info, warn};
 use std::time::Duration;
 use tauri::Manager;
@@ -279,7 +280,6 @@ fn sign_es256(pem: &str, message: &[u8]) -> EngineResult<String> {
         SigningKey::from_pkcs8_pem(pem)
     }.or_else(|_| {
         use p256::elliptic_curve::SecretKey;
-use crate::atoms::error::EngineResult;
         let secret_key = SecretKey::<p256::NistP256>::from_sec1_pem(pem)?;
         Ok::<SigningKey, String>(SigningKey::from(secret_key))
     })?;

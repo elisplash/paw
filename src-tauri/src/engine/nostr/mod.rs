@@ -29,7 +29,7 @@ mod relay;
 
 use crate::engine::channels::{self, PendingUser, ChannelStatus};
 use crypto::{hex_decode, hex_encode, derive_pubkey};
-use log::{info, warn};
+use log::{debug, info, warn};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;

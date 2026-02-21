@@ -5,6 +5,7 @@
 use crate::engine::types::*;
 use crate::engine::providers::AnyProvider;
 use crate::engine::sessions::SessionStore;
+use crate::atoms::error::EngineResult;
 use log::{info, warn};
 use std::sync::Arc;
 
@@ -279,7 +280,6 @@ pub async fn auto_compact_if_needed(
 #[cfg(test)]
 mod tests {
     use super::*;
-use crate::atoms::error::EngineResult;
 
     #[test]
     fn test_estimate_tokens() {

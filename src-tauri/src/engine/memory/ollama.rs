@@ -5,6 +5,7 @@
 // model is available before the memory system starts.
 
 use crate::engine::types::*;
+use crate::atoms::error::EngineResult;
 use log::{info, warn, error};
 use reqwest::Client;
 use serde_json::{json, Value};
@@ -197,7 +198,6 @@ async fn start_ollama_process() -> EngineResult<()> {
     #[cfg(not(target_os = "windows"))]
     {
         use std::process::Command;
-use crate::atoms::error::EngineResult;
         Command::new(&path)
             .arg("serve")
             .stdin(std::process::Stdio::null())

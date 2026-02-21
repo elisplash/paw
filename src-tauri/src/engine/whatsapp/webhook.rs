@@ -1,6 +1,7 @@
 // WhatsApp Bridge — Webhook HTTP Listener
 // run_webhook_listener
 
+use crate::atoms::error::EngineResult;
 use log::{info, warn};
 use serde_json::json;
 use std::sync::Arc;
@@ -17,7 +18,6 @@ pub(crate) async fn run_webhook_listener(
 ) -> EngineResult<()> {
     use tokio::net::TcpListener;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use crate::atoms::error::EngineResult;
 
     let addr = format!("127.0.0.1:{}", port);
     let listener = TcpListener::bind(&addr).await

@@ -11,6 +11,7 @@ mod access;
 mod agent;
 
 use crate::engine::state::EngineState;
+use crate::atoms::error::EngineResult;
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
@@ -121,7 +122,6 @@ pub fn is_provider_billing_error(err: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-use crate::atoms::error::EngineResult;
 
     #[test]
     fn split_message_short() {

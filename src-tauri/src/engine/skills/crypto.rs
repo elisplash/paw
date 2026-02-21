@@ -6,6 +6,7 @@
 
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use aes_gcm::aead::Aead;
+use crate::atoms::error::EngineResult;
 use log::{error, info, warn};
 
 const VAULT_KEYRING_SERVICE: &str = "paw-skill-vault";
@@ -123,7 +124,6 @@ pub fn is_legacy_encrypted(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-use crate::atoms::error::EngineResult;
 
     fn test_key() -> Vec<u8> {
         vec![0xAB; 32]

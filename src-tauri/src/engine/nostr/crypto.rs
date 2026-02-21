@@ -4,6 +4,7 @@
 // (ECDH + AES-256-CBC), pubkey derivation, and hex utilities.
 
 use serde_json::json;
+use crate::atoms::error::EngineResult;
 
 // ── Nostr Event Signing (secp256k1 Schnorr / BIP-340) ─────────────────
 //
@@ -182,7 +183,6 @@ pub(crate) fn hex_encode(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-use crate::atoms::error::EngineResult;
 
     // Generate a deterministic test keypair
     fn test_secret_key() -> Vec<u8> {

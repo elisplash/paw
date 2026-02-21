@@ -2,6 +2,7 @@
 // email_send, email_read
 
 use crate::atoms::types::*;
+use crate::atoms::error::EngineResult;
 use log::info;
 use std::process::Command as ProcessCommand;
 
@@ -111,7 +112,6 @@ async fn execute_email_send(
         .spawn()
         .and_then(|mut child| {
             use std::io::Write;
-use crate::atoms::error::EngineResult;
             if let Some(ref mut stdin) = child.stdin {
                 stdin.write_all(mail_body.as_bytes())?;
             }
