@@ -205,12 +205,60 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 
 ---
 
+## Tier 5 — Channel Security Hardening
+
+Found during the encryption audit of all 11 channel bridges.
+
+### 42. IRC bridge ignores TLS config flag (CRITICAL)
+- **File:** `src-tauri/src/engine/irc.rs` L137-151
+- **Bug:** `NostrConfig` has a `tls: bool` field (defaults `true`), but `run_relay_loop()` always uses `TcpStream::connect()` — raw unencrypted TCP. The `PASS` command sends IRC credentials in plaintext.
+- **Fix:** When `tls: true`, wrap the `TcpStream` with `tokio-rustls` `TlsConnector` before reading/writing. Reject connections if `tls: true` but TLS handshake fails. Default port should be 6697 (TLS) not 6667.
+
+### 43. Webchat bridge has no TLS and exposes token (CRITICAL)
+- **File:** `src-tauri/src/engine/webchat.rs` L159, L466, L56
+- **Bug:** The webchat server is a plain `TcpListener` serving HTTP (not HTTPS) and upgrading to `ws://` (not `wss://`). The access token is embedded in the served HTML page source. Server binds to `0.0.0.0` by default, exposing the unencrypted chat to the entire network.
+- **Fix:** Default bind to `127.0.0.1` (localhost only). Add optional `rustls` TLS layer for HTTPS/WSS. Move token from HTML source to a POST-based auth flow or cookie.
+
+### 44. Mattermost bridge doesn't enforce HTTPS (MEDIUM)
+- **File:** `src-tauri/src/engine/mattermost.rs` L160-164
+- **Bug:** User-supplied server URL is used as-is. If the user enters `http://`, the WebSocket uses `ws://` and the auth token is transmitted in plaintext.
+- **Fix:** Validate/coerce server URL to `https://`. Warn or reject `http://` URLs.
+
+### 45. Nextcloud bridge doesn't validate URL scheme (MEDIUM)
+- **File:** `src-tauri/src/engine/nextcloud.rs` L13
+- **Bug:** Basic Auth credentials (username + app password) are sent via HTTP header. If the user enters an `http://` server URL, credentials travel in plaintext.
+- **Fix:** Validate server URL starts with `https://`. Reject or warn on `http://`.
+
+### 46. Nostr private key stored in plaintext config DB (MEDIUM)
+- **File:** `src-tauri/src/engine/nostr.rs` L35
+- **Bug:** `private_key_hex` is stored as cleartext JSON in the engine config DB, unlike Solana/EVM private keys which use the OS keychain vault.
+- **Fix:** Store the Nostr private key in the OS keychain (via `keytar` / macOS Keychain / Windows Credential Manager / Linux Secret Service), same as other wallet keys.
+
+### 47. All channels log message content at info level (LOW)
+- **File:** All 11 channel bridge `.rs` files
+- **Bug:** Every bridge logs the first 50-80 chars of incoming message content at `info!` level. With the new file log transport (item #30), this means partial conversation content is written to `~/Documents/Paw/logs/`. Could leak sensitive data.
+- **Fix:** Move message content logging from `info!` to `debug!` level, or redact content entirely and log only metadata (sender ID, channel, message length).
+
+### 48. Implement Nostr NIP-04/NIP-44 encrypted DMs
+- **File:** `src-tauri/src/engine/nostr.rs`
+- **Feature:** Currently only kind-1 (public text notes) are supported. Add NIP-44 encrypted DM support (NIP-04 is deprecated). Requires ECDH shared secret via `k256` (already a dep) + XChaCha20-Poly1305 (`chacha20poly1305` crate). Subscribe to kind-4 events, decrypt incoming, encrypt outgoing replies.
+- **Scope:** ~200 lines of Rust. Key infrastructure (secp256k1, event signing) is already in place.
+
+### 49. Implement Matrix E2EE via vodozemac
+- **File:** `src-tauri/src/engine/matrix.rs`, `src-tauri/Cargo.toml`
+- **Feature:** Bridge uses raw `reqwest` HTTP — no `matrix-sdk` or `vodozemac`. Cannot decrypt messages in E2EE rooms. Add `matrix-sdk` crate with E2EE support (Olm/Megolm via `vodozemac`). Replaces manual `/sync` polling with SDK's state machine.
+- **Scope:** Major refactor (~500-800 lines). `matrix-sdk` replaces ~300 lines of manual HTTP code but adds device key management, key backup, and session persistence.
+
+---
+
 ## Stats
 
 | Severity | Count |
 |----------|-------|
-| Critical | 6 |
+| Critical | 8 |
 | High | 16 |
-| Medium / Quality | 11 |
+| Medium / Quality | 14 |
 | Docs | 8 |
-| **Total** | **41** |
+| Feature | 2 |
+| Low | 1 |
+| **Total** | **49** |
