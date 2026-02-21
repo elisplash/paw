@@ -600,7 +600,7 @@ Commit as: refactor: final views cleanup and verification (Phase 11)
 
 | Phase | Target | Status |
 |-------|--------|--------|
-| 0 | Deduplicate shared utilities | ⬜ |
+| 0 | Deduplicate shared utilities | ✅ be54dac |
 | 1 | agents.ts (1,586 → 5 files) | ⬜ |
 | 2 | channels.ts (1,166 → 4 files) | ⬜ |
 | 3 | mail.ts (985 → 4 files) | ⬜ |
