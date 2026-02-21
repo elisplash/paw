@@ -92,9 +92,9 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - **Rust channel bridge auto-approves `email_send`, `slack_send`, `webhook_send` — data exfiltration vectors.
 - **Fix:** Removed `email_send`, `slack_send`, `webhook_send`, and `rest_api_call` from the auto-approved `safe_tools` lists in both the boss and worker orchestrator loops. These tools now require HIL approval. Read-only counterparts (`email_read`, `slack_read`) remain auto-approved.
 
-### 19. Path traversal in filesystem tools
+### ~~19. Path traversal in filesystem tools~~ ✅ FIXED
 - **Rust filesystem tools accept absolute paths with no sandbox enforcement. Agents can read/write anywhere on the host.
-- **Fix:** Validate paths against project root or a configured sandbox.
+- **Fix:** Added `resolve_and_validate()` function to `filesystem.rs` that all 5 tools (read_file, write_file, list_directory, append_file, delete_file) now call. It canonicalizes paths (resolving `..` and symlinks), blocks `..` traversal that would escape the agent workspace, and checks against a `SENSITIVE_PATHS` deny-list covering credential stores (`.ssh`, `.gnupg`, `.aws/credentials`, etc.), system files (`/etc/shadow`, `/etc/passwd`), and engine internals.
 
 ### 20. DB init failure silently swallowed
 - **File:** `src/main.ts` L177-178

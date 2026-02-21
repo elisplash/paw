@@ -2,7 +2,110 @@
 // read_file, write_file, list_directory, append_file, delete_file
 
 use crate::atoms::types::*;
-use log::info;
+use log::{info, warn};
+
+/// Sensitive paths that agents must never read or write.
+/// Checked against the canonicalized path (lowercased on case-insensitive OS).
+const SENSITIVE_PATHS: &[&str] = &[
+    // Credentials & secrets
+    ".ssh",
+    ".gnupg",
+    ".gnome-keyring",
+    ".password-store",
+    ".aws/credentials",
+    ".config/gcloud",
+    ".azure",
+    ".npmrc",
+    ".pypirc",
+    ".docker/config.json",
+    ".kube/config",
+    // System
+    "/etc/shadow",
+    "/etc/passwd",
+    "/etc/sudoers",
+    // Paw engine internals
+    ".paw/db",
+    ".paw/keys",
+    "src-tauri/src/engine",
+];
+
+/// Resolve a raw path (absolute or relative to agent workspace) into a
+/// canonicalized `PathBuf`.  Returns `Err` if the path escapes the agent
+/// workspace via `..` traversal or targets a sensitive location.
+///
+/// `operation` is used in error messages (e.g. "read_file", "write_file").
+fn resolve_and_validate(
+    raw_path: &str,
+    agent_id: &str,
+    operation: &str,
+) -> Result<std::path::PathBuf, String> {
+    let resolved = if std::path::Path::new(raw_path).is_absolute() {
+        std::path::PathBuf::from(raw_path)
+    } else {
+        let ws = super::ensure_workspace(agent_id)?;
+        ws.join(raw_path)
+    };
+
+    // Canonicalize: resolve symlinks and `..` segments.
+    // For operations on not-yet-existing files (write, append), canonicalize the parent.
+    let canonical = if resolved.exists() {
+        resolved.canonicalize()
+            .map_err(|e| format!("{}: failed to resolve path '{}': {}", operation, raw_path, e))?
+    } else if let Some(parent) = resolved.parent() {
+        if parent.exists() {
+            let canon_parent = parent.canonicalize()
+                .map_err(|e| format!("{}: failed to resolve parent of '{}': {}", operation, raw_path, e))?;
+            canon_parent.join(resolved.file_name().unwrap_or_default())
+        } else {
+            // Parent doesn't exist yet — use the raw resolved path but check for `..`
+            resolved.clone()
+        }
+    } else {
+        resolved.clone()
+    };
+
+    // Block `..` in the raw path to prevent traversal even when canonicalize isn't decisive
+    if raw_path.contains("..") {
+        let ws = super::agent_workspace(agent_id);
+        if let Ok(canon_ws) = ws.canonicalize() {
+            if !canonical.starts_with(&canon_ws) {
+                warn!("[engine] {} blocked path traversal: {} (agent={})", operation, raw_path, agent_id);
+                return Err(format!(
+                    "{}: path '{}' escapes the agent workspace. Use paths within your workspace or absolute paths to allowed locations.",
+                    operation, raw_path
+                ));
+            }
+        }
+    }
+
+    // Check against sensitive paths
+    let path_str = canonical.to_string_lossy();
+    for sensitive in SENSITIVE_PATHS {
+        if sensitive.starts_with('/') {
+            // Absolute sensitive path
+            if path_str.starts_with(sensitive) {
+                warn!("[engine] {} blocked access to sensitive path: {} (agent={})", operation, raw_path, agent_id);
+                return Err(format!(
+                    "{}: access to '{}' is blocked by security policy. This path contains sensitive system or credential data.",
+                    operation, raw_path
+                ));
+            }
+        } else {
+            // Relative sensitive path — check if it appears as a path component
+            let needle = format!("/{}/", sensitive);
+            let needle_end = format!("/{}", sensitive);
+            if path_str.contains(&needle) || path_str.ends_with(&needle_end) {
+                warn!("[engine] {} blocked access to sensitive path: {} (matched '{}', agent={})", operation, raw_path, sensitive, agent_id);
+                return Err(format!(
+                    "{}: access to '{}' is blocked by security policy. This path contains sensitive credential data.",
+                    operation, raw_path
+                ));
+            }
+        }
+    }
+
+    Ok(canonical)
+}
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![
@@ -100,13 +203,7 @@ pub async fn execute(
 
 async fn execute_read_file(args: &serde_json::Value, agent_id: &str) -> Result<String, String> {
     let raw_path = args["path"].as_str().ok_or("read_file: missing 'path' argument")?;
-
-    let resolved = if std::path::Path::new(raw_path).is_absolute() {
-        std::path::PathBuf::from(raw_path)
-    } else {
-        let ws = super::ensure_workspace(agent_id)?;
-        ws.join(raw_path)
-    };
+    let resolved = resolve_and_validate(raw_path, agent_id, "read_file")?;
     let path = resolved.to_string_lossy();
 
     info!("[engine] read_file: {} (agent={})", path, agent_id);
@@ -137,13 +234,7 @@ async fn execute_read_file(args: &serde_json::Value, agent_id: &str) -> Result<S
 async fn execute_write_file(args: &serde_json::Value, agent_id: &str) -> Result<String, String> {
     let raw_path = args["path"].as_str().ok_or("write_file: missing 'path' argument")?;
     let content = args["content"].as_str().ok_or("write_file: missing 'content' argument")?;
-
-    let resolved = if std::path::Path::new(raw_path).is_absolute() {
-        std::path::PathBuf::from(raw_path)
-    } else {
-        let ws = super::ensure_workspace(agent_id)?;
-        ws.join(raw_path)
-    };
+    let resolved = resolve_and_validate(raw_path, agent_id, "write_file")?;
     let path = resolved.to_string_lossy();
 
     info!("[engine] write_file: {} ({} bytes, agent={})", path, content.len(), agent_id);
@@ -176,12 +267,7 @@ async fn execute_list_directory(args: &serde_json::Value, agent_id: &str) -> Res
     let recursive = args["recursive"].as_bool().unwrap_or(false);
     let max_depth = args["max_depth"].as_u64().unwrap_or(3) as usize;
 
-    let resolved = if std::path::Path::new(raw_path).is_absolute() {
-        std::path::PathBuf::from(raw_path)
-    } else {
-        let ws = super::ensure_workspace(agent_id)?;
-        ws.join(raw_path)
-    };
+    let resolved = resolve_and_validate(raw_path, agent_id, "list_directory")?;
     let path = resolved.to_string_lossy().to_string();
 
     info!("[engine] list_directory: {} recursive={} (agent={})", path, recursive, agent_id);
@@ -248,13 +334,7 @@ async fn execute_list_directory(args: &serde_json::Value, agent_id: &str) -> Res
 async fn execute_append_file(args: &serde_json::Value, agent_id: &str) -> Result<String, String> {
     let raw_path = args["path"].as_str().ok_or("append_file: missing 'path' argument")?;
     let content = args["content"].as_str().ok_or("append_file: missing 'content' argument")?;
-
-    let resolved = if std::path::Path::new(raw_path).is_absolute() {
-        std::path::PathBuf::from(raw_path)
-    } else {
-        let ws = super::ensure_workspace(agent_id)?;
-        ws.join(raw_path)
-    };
+    let resolved = resolve_and_validate(raw_path, agent_id, "append_file")?;
     let path = resolved.to_string_lossy();
 
     info!("[engine] append_file: {} ({} bytes, agent={})", path, content.len(), agent_id);
@@ -275,13 +355,7 @@ async fn execute_append_file(args: &serde_json::Value, agent_id: &str) -> Result
 async fn execute_delete_file(args: &serde_json::Value, agent_id: &str) -> Result<String, String> {
     let raw_path = args["path"].as_str().ok_or("delete_file: missing 'path' argument")?;
     let recursive = args["recursive"].as_bool().unwrap_or(false);
-
-    let resolved = if std::path::Path::new(raw_path).is_absolute() {
-        std::path::PathBuf::from(raw_path)
-    } else {
-        let ws = super::ensure_workspace(agent_id)?;
-        ws.join(raw_path)
-    };
+    let resolved = resolve_and_validate(raw_path, agent_id, "delete_file")?;
     let path = resolved.to_string_lossy();
 
     info!("[engine] delete_file: {} recursive={} (agent={})", path, recursive, agent_id);
