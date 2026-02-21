@@ -32,7 +32,7 @@ pub async fn store_memory(
     importance: u8,
     embedding_client: Option<&EmbeddingClient>,
     agent_id: Option<&str>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let id = uuid::Uuid::new_v4().to_string();
 
     let embedding_bytes = if let Some(client) = embedding_client {
@@ -75,7 +75,7 @@ pub async fn search_memories(
     threshold: f64,
     embedding_client: Option<&EmbeddingClient>,
     agent_id: Option<&str>,
-) -> Result<Vec<Memory>, String> {
+) -> EngineResult<Vec<Memory>> {
     let query_preview = &query[..query.len().min(80)];
     let fetch_limit = limit * 3; // Fetch extra for MMR re-ranking
 
@@ -159,6 +159,7 @@ fn merge_search_results(
     vector_weight: f64,
 ) -> Vec<Memory> {
     use std::collections::HashMap;
+use crate::atoms::error::EngineResult;
 
     let mut score_map: HashMap<String, (Option<f64>, Option<f64>, Memory)> = HashMap::new();
 
@@ -281,7 +282,7 @@ fn content_similarity(a: &str, b: &str) -> f64 {
 pub async fn backfill_embeddings(
     store: &SessionStore,
     client: &EmbeddingClient,
-) -> Result<(usize, usize), String> {
+) -> EngineResult<(usize, usize)> {
     let memories = store.list_memories_without_embeddings(500)?;
     if memories.is_empty() {
         info!("[memory] Backfill: all memories already have embeddings");

@@ -8,10 +8,6 @@
 //     Tauri command boundaries (`Result<T, String>`) can call `.map_err(|e|
 //     e.to_string())` without boilerplate.
 //   • No variant carries secret material (API keys, passwords) in its message.
-//
-// Migration note: functions currently returning `Result<T, String>` will
-// migrate to `EngineResult<T>` incrementally as each module is refactored.
-// Phase 2 will add `ProviderError` and wire it into `EngineError::Provider`.
 
 use thiserror::Error;
 
@@ -27,17 +23,33 @@ pub enum EngineError {
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 
+    /// HTTP / network failure (reqwest layer).
+    #[error("Network error: {0}")]
+    Network(#[from] reqwest::Error),
+
     /// SQLite / rusqlite database failure.
     #[error("Database error: {0}")]
-    Database(String),
+    Database(#[from] rusqlite::Error),
 
     /// AI provider HTTP or API-level failure (non-secret detail only).
-    #[error("Provider error: {0}")]
-    Provider(String),
+    #[error("Provider error: {provider}: {message}")]
+    Provider { provider: String, message: String },
+
+    /// Tool execution failure.
+    #[error("Tool error: {tool}: {message}")]
+    Tool { tool: String, message: String },
+
+    /// Channel / bridge failure.
+    #[error("Channel error: {channel}: {message}")]
+    Channel { channel: String, message: String },
 
     /// Engine or agent configuration is invalid or missing.
     #[error("Configuration error: {0}")]
     Config(String),
+
+    /// Authentication / authorization failure.
+    #[error("Auth error: {0}")]
+    Auth(String),
 
     /// Security policy violation (risk classification, approval denial, etc.).
     #[error("Security error: {0}")]
@@ -55,6 +67,41 @@ pub enum EngineError {
     /// Prefer adding a specific variant over using this in new code.
     #[error("{0}")]
     Other(String),
+}
+
+// ── Convenience constructors ───────────────────────────────────────────────
+
+impl EngineError {
+    /// Create a provider error with name and message.
+    pub fn provider(provider: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::Provider { provider: provider.into(), message: message.into() }
+    }
+
+    /// Create a tool error with name and message.
+    pub fn tool(tool: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::Tool { tool: tool.into(), message: message.into() }
+    }
+
+    /// Create a channel error with name and message.
+    pub fn channel(channel: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::Channel { channel: channel.into(), message: message.into() }
+    }
+}
+
+// ── Migration bridge: String → EngineError ─────────────────────────────────
+// Allows `?` on functions still returning `Result<T, String>` inside functions
+// that return `EngineResult<T>`. Remove once all modules are migrated.
+
+impl From<String> for EngineError {
+    fn from(s: String) -> Self {
+        EngineError::Other(s)
+    }
+}
+
+impl From<&str> for EngineError {
+    fn from(s: &str) -> Self {
+        EngineError::Other(s.to_string())
+    }
 }
 
 // ── Convenience alias ──────────────────────────────────────────────────────

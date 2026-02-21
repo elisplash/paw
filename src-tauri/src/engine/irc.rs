@@ -19,6 +19,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, AsyncRead, AsyncWrite, BufReader};
 use tokio::net::TcpStream;
+use crate::atoms::error::EngineResult;
 
 // ── IRC Config ─────────────────────────────────────────────────────────
 
@@ -77,7 +78,7 @@ const CONFIG_KEY: &str = "irc_config";
 
 // ── Bridge Core ────────────────────────────────────────────────────────
 
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         return Err("IRC bridge is already running".into());
     }
@@ -134,7 +135,7 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 trait IrcStream: AsyncRead + AsyncWrite + Unpin + Send {}
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> IrcStream for T {}
 
-async fn run_irc_loop(app_handle: tauri::AppHandle, config: IrcConfig) -> Result<(), String> {
+async fn run_irc_loop(app_handle: tauri::AppHandle, config: IrcConfig) -> EngineResult<()> {
     let stop = get_stop_signal();
     let addr = format!("{}:{}", config.server, config.port);
 
@@ -154,8 +155,7 @@ async fn run_irc_loop(app_handle: tauri::AppHandle, config: IrcConfig) -> Result
 
         let connector = tokio_rustls::TlsConnector::from(Arc::new(tls_config));
 
-        let server_name = rustls::pki_types::ServerName::try_from(config.server.clone())
-            .map_err(|e| format!("Invalid server name for TLS: {}", e))?;
+        let server_name = rustls::pki_types::ServerName::try_from(config.server.clone())?;
 
         let tls_stream = connector.connect(server_name, tcp).await
             .map_err(|e| format!("TLS handshake with {} failed: {}", addr, e))?;
@@ -176,12 +176,12 @@ async fn run_irc_loop(app_handle: tauri::AppHandle, config: IrcConfig) -> Result
         let mut w = write_handle.lock().await;
         if let Some(ref pass) = config.password {
             let cmd = format!("PASS {}\r\n", pass);
-            w.write_all(cmd.as_bytes()).await.map_err(|e| format!("PASS: {}", e))?;
+            w.write_all(cmd.as_bytes()).await?;
         }
         let nick_cmd = format!("NICK {}\r\n", config.nick);
         let user_cmd = format!("USER {} 0 * :Paw Agent\r\n", config.nick);
-        w.write_all(nick_cmd.as_bytes()).await.map_err(|e| format!("NICK: {}", e))?;
-        w.write_all(user_cmd.as_bytes()).await.map_err(|e| format!("USER: {}", e))?;
+        w.write_all(nick_cmd.as_bytes()).await?;
+        w.write_all(user_cmd.as_bytes()).await?;
     }
 
     info!("[irc] Sent NICK/USER to {}", addr);
@@ -397,22 +397,22 @@ fn parse_irc_line(line: &str) -> IrcParsed {
 
 // ── Config Persistence ─────────────────────────────────────────────────
 
-pub fn load_config(app_handle: &tauri::AppHandle) -> Result<IrcConfig, String> {
+pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<IrcConfig> {
     channels::load_channel_config(app_handle, CONFIG_KEY)
 }
 
-pub fn save_config(app_handle: &tauri::AppHandle, config: &IrcConfig) -> Result<(), String> {
+pub fn save_config(app_handle: &tauri::AppHandle, config: &IrcConfig) -> EngineResult<()> {
     channels::save_channel_config(app_handle, CONFIG_KEY, config)
 }
 
-pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::approve_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::deny_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::remove_user_generic(app_handle, CONFIG_KEY, user_id)
 }

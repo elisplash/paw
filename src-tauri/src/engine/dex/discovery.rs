@@ -2,13 +2,14 @@
 
 use std::collections::HashMap;
 use std::time::Duration;
+use crate::atoms::error::EngineResult;
 
 /// Search for tokens by name or symbol using the DexScreener public API.
 /// Returns contract addresses, chain, price, volume, liquidity, and pair info.
 pub async fn execute_dex_search_token(
     args: &serde_json::Value,
     _creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let query = args["query"].as_str()
         .ok_or("dex_search_token: missing 'query'. Provide a token name or symbol (e.g. 'KIMCHI', 'pepe', 'uniswap').")?;
 
@@ -21,20 +22,17 @@ pub async fn execute_dex_search_token(
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
         .user_agent("Mozilla/5.0 (compatible; PawAgent/1.0)")
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     let response = client.get(&url)
         .send()
-        .await
-        .map_err(|e| format!("DexScreener API request failed: {}", e))?;
+        .await?;
 
     if !response.status().is_success() {
-        return Err(format!("DexScreener API returned status {}", response.status()));
+        return Err(format!("DexScreener API returned status {}", response.status()).into());
     }
 
-    let body: serde_json::Value = response.json().await
-        .map_err(|e| format!("Failed to parse DexScreener response: {}", e))?;
+    let body: serde_json::Value = response.json().await?;
 
     let pairs = body["pairs"].as_array()
         .ok_or("No pairs found in DexScreener response")?;
@@ -145,15 +143,14 @@ pub async fn execute_dex_search_token(
 pub async fn execute_dex_trending(
     args: &serde_json::Value,
     _creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let chain_filter = args["chain"].as_str().unwrap_or("");
     let max_results = args["max_results"].as_u64().unwrap_or(20).min(50) as usize;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
         .user_agent("Mozilla/5.0 (compatible; PawAgent/1.0)")
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     let mut output = String::from("Trending Tokens\n\n");
 

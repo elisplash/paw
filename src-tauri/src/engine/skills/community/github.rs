@@ -3,10 +3,11 @@ use log::info;
 use crate::engine::sessions::SessionStore;
 use super::types::{CommunitySkill, DiscoveredSkill};
 use super::parser::parse_skill_md;
+use crate::atoms::error::EngineResult;
 
 /// Fetch the list of skills available in a GitHub repo.
 /// Uses the GitHub API to list files in skills/ directories.
-pub async fn fetch_repo_skills(source: &str) -> Result<Vec<DiscoveredSkill>, String> {
+pub async fn fetch_repo_skills(source: &str) -> EngineResult<Vec<DiscoveredSkill>> {
     let (owner, repo) = parse_github_source(source)?;
     let client = reqwest::Client::new();
 
@@ -19,12 +20,10 @@ pub async fn fetch_repo_skills(source: &str) -> Result<Vec<DiscoveredSkill>, Str
     let resp = client.get(&tree_url)
         .header("User-Agent", "Pawz/1.0")
         .header("Accept", "application/vnd.github.v3+json")
-        .send().await
-        .map_err(|e| format!("GitHub API error: {}", e))?;
+        .send().await?;
 
     let tree: serde_json::Value = if resp.status().is_success() {
-        resp.json().await
-            .map_err(|e| format!("Failed to parse GitHub response: {}", e))?
+        resp.json().await?
     } else {
         // Fallback to master branch
         let tree_url_master = format!(
@@ -34,14 +33,12 @@ pub async fn fetch_repo_skills(source: &str) -> Result<Vec<DiscoveredSkill>, Str
         let resp2 = client.get(&tree_url_master)
             .header("User-Agent", "Pawz/1.0")
             .header("Accept", "application/vnd.github.v3+json")
-            .send().await
-            .map_err(|e| format!("GitHub API error: {}", e))?;
+            .send().await?;
 
         if !resp2.status().is_success() {
-            return Err(format!("GitHub API returned {} (tried both main and master branches)", resp2.status()));
+            return Err(format!("GitHub API returned {} (tried both main and master branches)", resp2.status()).into());
         }
-        resp2.json().await
-            .map_err(|e| format!("Failed to parse GitHub response: {}", e))?
+        resp2.json().await?
     };
 
     // Find all SKILL.md files
@@ -59,7 +56,7 @@ pub async fn fetch_repo_skills(source: &str) -> Result<Vec<DiscoveredSkill>, Str
         .collect();
 
     if skill_paths.is_empty() {
-        return Err(format!("No SKILL.md files found in {}/{}", owner, repo));
+        return Err(format!("No SKILL.md files found in {}/{}", owner, repo).into());
     }
 
     // Fetch each SKILL.md and parse it (try main, then master)
@@ -112,7 +109,7 @@ pub async fn install_community_skill(
     source: &str,
     skill_path: &str,
     agent_id: Option<&str>,
-) -> Result<CommunitySkill, String> {
+) -> EngineResult<CommunitySkill> {
     let (owner, repo) = parse_github_source(source)?;
     let client = reqwest::Client::new();
 
@@ -135,8 +132,7 @@ pub async fn install_community_skill(
 
     let resp = client.get(&raw_url)
         .header("User-Agent", "Pawz/1.0")
-        .send().await
-        .map_err(|e| format!("Failed to fetch skill: {}", e))?;
+        .send().await?;
 
     if !resp.status().is_success() {
         // Try the 'master' branch as fallback
@@ -148,23 +144,20 @@ pub async fn install_community_skill(
 
         let resp2 = client.get(&fallback_url)
             .header("User-Agent", "Pawz/1.0")
-            .send().await
-            .map_err(|e| format!("Failed to fetch skill: {}", e))?;
+            .send().await?;
 
         if !resp2.status().is_success() {
             return Err(format!(
                 "Failed to download SKILL.md from {}/{}: HTTP {} (tried both main and master branches, path: '{}')",
                 owner, repo, resp2.status(), resolved_path
-            ));
+            ).into());
         }
 
-        let content = resp2.text().await
-            .map_err(|e| format!("Failed to read SKILL.md: {}", e))?;
+        let content = resp2.text().await?;
         return finish_install(store, &owner, &repo, source, &content, agent_id);
     }
 
-    let content = resp.text().await
-        .map_err(|e| format!("Failed to read SKILL.md: {}", e))?;
+    let content = resp.text().await?;
 
     finish_install(store, &owner, &repo, source, &content, agent_id)
 }
@@ -175,7 +168,7 @@ async fn discover_skill_path(
     client: &reqwest::Client,
     owner: &str,
     repo: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     // Try common paths first (fast, no API rate limit)
     let candidates = vec![
         "SKILL.md".to_string(),
@@ -237,7 +230,7 @@ async fn discover_skill_path(
         "No SKILL.md found in {}/{}. The repository may not contain a valid Paw skill. \
          Try specifying the path explicitly (e.g., 'skills/my-skill/SKILL.md').",
         owner, repo
-    ))
+    ).into())
 }
 
 /// Finalize skill installation: parse SKILL.md content, save to DB.
@@ -248,7 +241,7 @@ fn finish_install(
     source: &str,
     content: &str,
     agent_id: Option<&str>,
-) -> Result<CommunitySkill, String> {
+) -> EngineResult<CommunitySkill> {
     let (name, description, instructions) = parse_skill_md(content)
         .ok_or("Invalid SKILL.md format — missing name in frontmatter")?;
 
@@ -280,7 +273,7 @@ fn finish_install(
 }
 
 /// Parse "owner/repo" from a GitHub source string.
-fn parse_github_source(source: &str) -> Result<(String, String), String> {
+fn parse_github_source(source: &str) -> EngineResult<(String, String)> {
     // Handle full URLs: https://github.com/owner/repo
     let cleaned = source
         .trim()
@@ -290,7 +283,7 @@ fn parse_github_source(source: &str) -> Result<(String, String), String> {
 
     let parts: Vec<&str> = cleaned.split('/').collect();
     if parts.len() < 2 {
-        return Err(format!("Invalid source '{}' — expected 'owner/repo' format", source));
+        return Err(format!("Invalid source '{}' — expected 'owner/repo' format", source).into());
     }
 
     Ok((parts[0].to_string(), parts[1].to_string()))

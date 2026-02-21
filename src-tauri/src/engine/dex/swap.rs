@@ -21,12 +21,13 @@ use super::tx::sign_eip1559_transaction;
 use std::collections::HashMap;
 use std::time::Duration;
 use log::info;
+use crate::atoms::error::EngineResult;
 
 /// Get a swap quote from Uniswap V3 Quoter.
 pub async fn execute_dex_quote(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
     let token_in_sym = args["token_in"].as_str().ok_or("dex_quote: missing 'token_in'")?;
     let token_out_sym = args["token_out"].as_str().ok_or("dex_quote: missing 'token_out'")?;
@@ -68,7 +69,7 @@ pub async fn execute_dex_quote(
                 );
                 let multi_calldata = encode_quote_exact_input(&path, &amount_u256);
                 eth_call(rpc_url, UNISWAP_QUOTER_V2, &multi_calldata).await
-                    .map_err(|e| format!("Both single-hop and multi-hop (via WETH) quotes failed: {}", e))
+                    
             }
             Err(e) => Err(e),
         }
@@ -78,7 +79,7 @@ pub async fn execute_dex_quote(
     // amountOut is the first 32 bytes
     let result_bytes = hex_decode(&result)?;
     if result_bytes.len() < 32 {
-        return Err(format!("Unexpected quoter response length: {} bytes", result_bytes.len()));
+        return Err(format!("Unexpected quoter response length: {} bytes", result_bytes.len()).into());
     }
 
     let amount_out_bytes: [u8; 32] = result_bytes[..32].try_into()
@@ -121,7 +122,7 @@ pub async fn execute_dex_quote(
 pub async fn execute_dex_swap(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
     let wallet_address = creds.get("DEX_WALLET_ADDRESS").ok_or("No wallet. Use dex_wallet_create first.")?;
     let private_key_hex = creds.get("DEX_PRIVATE_KEY").ok_or("Missing private key")?;
@@ -136,7 +137,7 @@ pub async fn execute_dex_swap(
         .unwrap_or(DEFAULT_SLIPPAGE_BPS);
 
     if slippage_bps > MAX_SLIPPAGE_BPS {
-        return Err(format!("Slippage {}bps exceeds maximum allowed {}bps ({}%)", slippage_bps, MAX_SLIPPAGE_BPS, MAX_SLIPPAGE_BPS as f64 / 100.0));
+        return Err(format!("Slippage {}bps exceeds maximum allowed {}bps ({}%)", slippage_bps, MAX_SLIPPAGE_BPS, MAX_SLIPPAGE_BPS as f64 / 100.0).into());
     }
 
     let fee_tier = args.get("fee_tier")
@@ -179,8 +180,7 @@ pub async fn execute_dex_swap(
                     &[fee_tier, fee_tier],
                 );
                 let multi_calldata = encode_quote_exact_input(&path, &amount_u256);
-                let r = eth_call(rpc_url, UNISWAP_QUOTER_V2, &multi_calldata).await
-                    .map_err(|e| format!("Both single-hop and multi-hop quotes failed: {}", e))?;
+                let r = eth_call(rpc_url, UNISWAP_QUOTER_V2, &multi_calldata).await?;
                 let qb = hex_decode(&r)?;
                 if qb.len() < 32 { return Err("Invalid quoter response".into()); }
                 qb[..32].try_into().map_err(|_| "Quoter response byte conversion failed")?
@@ -217,8 +217,7 @@ pub async fn execute_dex_swap(
             let approve_data = encode_approve(&router_bytes, &max_approval);
 
             let pk_bytes = hex_decode(private_key_hex)?;
-            let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)
-                .map_err(|e| format!("Invalid private key: {}", e))?;
+            let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)?;
 
             let chain_id = eth_chain_id(rpc_url).await?;
             let nonce = eth_get_transaction_count(rpc_url, wallet_address).await?;
@@ -247,7 +246,7 @@ pub async fn execute_dex_swap(
                         info!("[dex] Token approval confirmed");
                         break;
                     } else {
-                        return Err(format!("Token approval transaction failed (reverted). Tx: {}", approve_hash));
+                        return Err(format!("Token approval transaction failed (reverted). Tx: {}", approve_hash).into());
                     }
                 }
             }
@@ -278,8 +277,7 @@ pub async fn execute_dex_swap(
     };
 
     let pk_bytes = hex_decode(private_key_hex)?;
-    let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)
-        .map_err(|e| format!("Invalid private key: {}", e))?;
+    let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)?;
 
     let chain_id = eth_chain_id(rpc_url).await?;
     let nonce = eth_get_transaction_count(rpc_url, wallet_address).await?;

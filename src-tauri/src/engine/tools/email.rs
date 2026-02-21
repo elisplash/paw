@@ -64,7 +64,7 @@ pub async fn execute(
 async fn execute_email_send(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let to = args["to"].as_str().ok_or("email_send: missing 'to'")?;
     let subject = args["subject"].as_str().ok_or("email_send: missing 'subject'")?;
     let body = args["body"].as_str().ok_or("email_send: missing 'body'")?;
@@ -111,25 +111,25 @@ async fn execute_email_send(
         .spawn()
         .and_then(|mut child| {
             use std::io::Write;
+use crate::atoms::error::EngineResult;
             if let Some(ref mut stdin) = child.stdin {
                 stdin.write_all(mail_body.as_bytes())?;
             }
             child.wait_with_output()
-        })
-        .map_err(|e| format!("Failed to send email: {}", e))?;
+        })?;
 
     if output.status.success() {
         Ok(format!("Email sent successfully to {}", to))
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(format!("SMTP error: {}", stderr))
+        Err(format!("SMTP error: {}", stderr).into())
     }
 }
 
 async fn execute_email_read(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let limit = args["limit"].as_u64().unwrap_or(5);
     let folder = args["folder"].as_str().unwrap_or("INBOX");
 
@@ -151,8 +151,7 @@ async fn execute_email_read(
         ])
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
-        .output()
-        .map_err(|e| format!("IMAP error: {}", e))?;
+        .output()?;
 
     if output.status.success() {
         let body = String::from_utf8_lossy(&output.stdout);
@@ -164,6 +163,6 @@ async fn execute_email_read(
         Ok(format!("Emails from {}/{}:\n\n{}", host, folder, truncated))
     } else {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(format!("IMAP error: {}", stderr))
+        Err(format!("IMAP error: {}", stderr).into())
     }
 }

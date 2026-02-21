@@ -1,6 +1,7 @@
 use rusqlite::params;
 use crate::engine::types::{Project, ProjectAgent, ProjectMessage};
 use super::SessionStore;
+use crate::atoms::error::EngineResult;
 
 impl ProjectAgent {
     /// Map columns starting at `offset` → ProjectAgent.
@@ -26,11 +27,11 @@ impl ProjectAgent {
 impl SessionStore {
     // ── Orchestrator: Projects ─────────────────────────────────────────
 
-    pub fn list_projects(&self) -> Result<Vec<Project>, String> {
+    pub fn list_projects(&self) -> EngineResult<Vec<Project>> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
             "SELECT id, title, goal, status, boss_agent, created_at, updated_at FROM projects ORDER BY updated_at DESC"
-        ).map_err(|e| e.to_string())?;
+        )?;
 
         let projects = stmt.query_map([], |row| {
             Ok(Project {
@@ -43,7 +44,7 @@ impl SessionStore {
                 created_at: row.get(5)?,
                 updated_at: row.get(6)?,
             })
-        }).map_err(|e| e.to_string())?
+        })?
         .filter_map(|r| r.ok())
         .collect::<Vec<_>>();
 
@@ -52,9 +53,8 @@ impl SessionStore {
         for mut p in projects {
             let mut agent_stmt = conn.prepare(
                 "SELECT agent_id, role, specialty, status, current_task, model, system_prompt, capabilities FROM project_agents WHERE project_id=?1"
-            ).map_err(|e| e.to_string())?;
-            p.agents = agent_stmt.query_map(params![p.id], |row| ProjectAgent::from_row_at(row, 0))
-                .map_err(|e| e.to_string())?
+            )?;
+            p.agents = agent_stmt.query_map(params![p.id], |row| ProjectAgent::from_row_at(row, 0))?
                 .filter_map(|r| r.ok())
                 .collect();
             result.push(p);
@@ -62,98 +62,95 @@ impl SessionStore {
         Ok(result)
     }
 
-    pub fn create_project(&self, project: &Project) -> Result<(), String> {
+    pub fn create_project(&self, project: &Project) -> EngineResult<()> {
         let conn = self.conn.lock();
         conn.execute(
             "INSERT INTO projects (id, title, goal, status, boss_agent) VALUES (?1, ?2, ?3, ?4, ?5)",
             params![project.id, project.title, project.goal, project.status, project.boss_agent],
-        ).map_err(|e| e.to_string())?;
+        )?;
         Ok(())
     }
 
-    pub fn update_project(&self, project: &Project) -> Result<(), String> {
+    pub fn update_project(&self, project: &Project) -> EngineResult<()> {
         let conn = self.conn.lock();
         conn.execute(
             "UPDATE projects SET title=?2, goal=?3, status=?4, boss_agent=?5, updated_at=datetime('now') WHERE id=?1",
             params![project.id, project.title, project.goal, project.status, project.boss_agent],
-        ).map_err(|e| e.to_string())?;
+        )?;
         Ok(())
     }
 
-    pub fn delete_project(&self, id: &str) -> Result<(), String> {
+    pub fn delete_project(&self, id: &str) -> EngineResult<()> {
         let conn = self.conn.lock();
-        conn.execute("DELETE FROM projects WHERE id=?1", params![id])
-            .map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM projects WHERE id=?1", params![id])?;
         Ok(())
     }
 
-    pub fn set_project_agents(&self, project_id: &str, agents: &[ProjectAgent]) -> Result<(), String> {
+    pub fn set_project_agents(&self, project_id: &str, agents: &[ProjectAgent]) -> EngineResult<()> {
         let conn = self.conn.lock();
-        conn.execute("DELETE FROM project_agents WHERE project_id=?1", params![project_id])
-            .map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM project_agents WHERE project_id=?1", params![project_id])?;
         for a in agents {
             let caps_json = serde_json::to_string(&a.capabilities).unwrap_or_default();
             conn.execute(
                 "INSERT INTO project_agents (project_id, agent_id, role, specialty, status, current_task, model, system_prompt, capabilities) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
                 params![project_id, a.agent_id, a.role, a.specialty, a.status, a.current_task, a.model, a.system_prompt, caps_json],
-            ).map_err(|e| e.to_string())?;
+            )?;
         }
         Ok(())
     }
 
-    pub fn add_project_agent(&self, project_id: &str, agent: &ProjectAgent) -> Result<(), String> {
+    pub fn add_project_agent(&self, project_id: &str, agent: &ProjectAgent) -> EngineResult<()> {
         let conn = self.conn.lock();
         let caps_json = serde_json::to_string(&agent.capabilities).unwrap_or_default();
         conn.execute(
             "INSERT OR REPLACE INTO project_agents (project_id, agent_id, role, specialty, status, current_task, model, system_prompt, capabilities) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)",
             params![project_id, agent.agent_id, agent.role, agent.specialty, agent.status, agent.current_task, agent.model, agent.system_prompt, caps_json],
-        ).map_err(|e| format!("Failed to insert agent: {}", e))?;
+        )?;
         Ok(())
     }
 
-    pub fn get_project_agents(&self, project_id: &str) -> Result<Vec<ProjectAgent>, String> {
+    pub fn get_project_agents(&self, project_id: &str) -> EngineResult<Vec<ProjectAgent>> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
             "SELECT agent_id, role, specialty, status, current_task, model, system_prompt, capabilities FROM project_agents WHERE project_id=?1"
-        ).map_err(|e| e.to_string())?;
-        let agents = stmt.query_map(params![project_id], |row| ProjectAgent::from_row_at(row, 0))
-            .map_err(|e| e.to_string())?
+        )?;
+        let agents = stmt.query_map(params![project_id], |row| ProjectAgent::from_row_at(row, 0))?
             .filter_map(|r| r.ok())
             .collect();
         Ok(agents)
     }
 
-    pub fn update_project_agent_status(&self, project_id: &str, agent_id: &str, status: &str, current_task: Option<&str>) -> Result<(), String> {
+    pub fn update_project_agent_status(&self, project_id: &str, agent_id: &str, status: &str, current_task: Option<&str>) -> EngineResult<()> {
         let conn = self.conn.lock();
         conn.execute(
             "UPDATE project_agents SET status=?3, current_task=?4 WHERE project_id=?1 AND agent_id=?2",
             params![project_id, agent_id, status, current_task],
-        ).map_err(|e| e.to_string())?;
+        )?;
         Ok(())
     }
 
     /// Delete an agent from a specific project.
-    pub fn delete_agent(&self, project_id: &str, agent_id: &str) -> Result<(), String> {
+    pub fn delete_agent(&self, project_id: &str, agent_id: &str) -> EngineResult<()> {
         let conn = self.conn.lock();
         conn.execute(
             "DELETE FROM project_agents WHERE project_id=?1 AND agent_id=?2",
             params![project_id, agent_id],
-        ).map_err(|e| e.to_string())?;
+        )?;
         Ok(())
     }
 
     /// List all unique agents across all projects (deduped by agent_id).
     /// Filters out rows with empty/NULL agent_id (bad data from manual SQL inserts).
-    pub fn list_all_agents(&self) -> Result<Vec<(String, ProjectAgent)>, String> {
+    pub fn list_all_agents(&self) -> EngineResult<Vec<(String, ProjectAgent)>> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
             "SELECT project_id, agent_id, role, specialty, status, current_task, model, system_prompt, capabilities FROM project_agents WHERE agent_id IS NOT NULL AND agent_id != '' ORDER BY agent_id"
-        ).map_err(|e| e.to_string())?;
+        )?;
         let agents = stmt.query_map([], |row| {
             let project_id: String = row.get(0)?;
             let agent = ProjectAgent::from_row_at(row, 1)?;
             Ok((project_id, agent))
-        }).map_err(|e| e.to_string())?
+        })?
         .filter_map(|r| r.ok())
         .collect();
         Ok(agents)
@@ -161,20 +158,20 @@ impl SessionStore {
 
     // ── Orchestrator: Message Bus ──────────────────────────────────────
 
-    pub fn add_project_message(&self, msg: &ProjectMessage) -> Result<(), String> {
+    pub fn add_project_message(&self, msg: &ProjectMessage) -> EngineResult<()> {
         let conn = self.conn.lock();
         conn.execute(
             "INSERT INTO project_messages (id, project_id, from_agent, to_agent, kind, content, metadata) VALUES (?1,?2,?3,?4,?5,?6,?7)",
             params![msg.id, msg.project_id, msg.from_agent, msg.to_agent, msg.kind, msg.content, msg.metadata],
-        ).map_err(|e| e.to_string())?;
+        )?;
         Ok(())
     }
 
-    pub fn get_project_messages(&self, project_id: &str, limit: i64) -> Result<Vec<ProjectMessage>, String> {
+    pub fn get_project_messages(&self, project_id: &str, limit: i64) -> EngineResult<Vec<ProjectMessage>> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
             "SELECT id, project_id, from_agent, to_agent, kind, content, metadata, created_at FROM project_messages WHERE project_id=?1 ORDER BY created_at DESC LIMIT ?2"
-        ).map_err(|e| e.to_string())?;
+        )?;
         let msgs = stmt.query_map(params![project_id, limit], |row| {
             Ok(ProjectMessage {
                 id: row.get(0)?,
@@ -186,7 +183,7 @@ impl SessionStore {
                 metadata: row.get(6)?,
                 created_at: row.get(7)?,
             })
-        }).map_err(|e| e.to_string())?
+        })?
         .filter_map(|r| r.ok())
         .collect::<Vec<_>>();
 

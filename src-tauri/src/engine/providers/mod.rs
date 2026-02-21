@@ -12,6 +12,7 @@ pub use google::GoogleProvider;
 
 use crate::engine::types::{Message, ToolDefinition, StreamChunk, ProviderConfig, ProviderKind};
 use crate::atoms::traits::AiProvider;
+use crate::atoms::error::EngineResult;
 
 // ── Provider factory ───────────────────────────────────────────────────────────
 
@@ -52,11 +53,11 @@ impl AnyProvider {
         tools: &[ToolDefinition],
         model: &str,
         temperature: Option<f64>,
-    ) -> Result<Vec<StreamChunk>, String> {
+    ) -> EngineResult<Vec<StreamChunk>> {
         self.0
             .chat_stream(messages, tools, model, temperature)
             .await
-            .map_err(|e| e.to_string())
+            
     }
 
     /// The ProviderKind discriminant of the underlying provider.

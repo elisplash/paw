@@ -45,8 +45,8 @@ pub async fn execute(
     app_handle: &tauri::AppHandle,
 ) -> Option<Result<String, String>> {
     match name {
-        "telegram_send" => Some(execute_telegram_send(args, app_handle).await),
-        "telegram_read" => Some(execute_telegram_read(args, app_handle).await),
+        "telegram_send" => Some(execute_telegram_send(args, app_handle).await.map_err(|e| e.to_string())),
+        "telegram_read" => Some(execute_telegram_read(args, app_handle).await.map_err(|e| e.to_string())),
         _ => None,
     }
 }
@@ -88,7 +88,7 @@ impl ToolDefinition {
     }
 }
 
-async fn execute_telegram_send(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+async fn execute_telegram_send(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> EngineResult<String> {
     use crate::engine::telegram::load_telegram_config;
 
     let text = args["text"].as_str().ok_or("telegram_send: missing 'text'")?;
@@ -125,8 +125,7 @@ async fn execute_telegram_send(args: &serde_json::Value, app_handle: &tauri::App
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     let chunks: Vec<String> = if text.len() > 4000 {
         text.chars().collect::<Vec<_>>()
@@ -146,21 +145,20 @@ async fn execute_telegram_send(args: &serde_json::Value, app_handle: &tauri::App
         let resp = client.post(format!("https://api.telegram.org/bot{}/sendMessage", config.bot_token))
             .json(&body)
             .send()
-            .await
-            .map_err(|e| format!("Telegram API error: {}", e))?;
-        let result: serde_json::Value = resp.json().await
-            .map_err(|e| format!("Failed to parse Telegram response: {}", e))?;
+            .await?;
+        let result: serde_json::Value = resp.json().await?;
         if !result["ok"].as_bool().unwrap_or(false) {
             let desc = result["description"].as_str().unwrap_or("unknown error");
-            return Err(format!("Telegram API error: {}", desc));
+            return Err(format!("Telegram API error: {}", desc).into());
         }
     }
 
     Ok(format!("Message sent to Telegram (chat_id: {}, {} chars, {} chunk(s))", chat_id, text.len(), chunks.len()))
 }
 
-async fn execute_telegram_read(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+async fn execute_telegram_read(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> EngineResult<String> {
     use crate::engine::telegram::load_telegram_config;
+use crate::atoms::error::EngineResult;
 
     let info = args["info"].as_str().unwrap_or("status");
     let config = load_telegram_config(app_handle)?;

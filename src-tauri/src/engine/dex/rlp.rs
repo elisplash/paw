@@ -66,6 +66,7 @@ pub(crate) fn u256_to_minimal_be(val: &[u8; 32]) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+use crate::atoms::error::EngineResult;
 
     #[test]
     fn rlp_single_byte_below_0x80() {

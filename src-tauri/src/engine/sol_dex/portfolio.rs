@@ -5,12 +5,13 @@ use std::collections::HashMap;
 use super::constants::KNOWN_TOKENS;
 use super::helpers::{lamports_to_amount, resolve_token};
 use super::rpc::{get_sol_balance, get_token_accounts, rpc_call};
+use crate::atoms::error::EngineResult;
 
 /// sol_balance — Check SOL + SPL token balances
 pub async fn execute_sol_balance(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("SOLANA_RPC_URL")
         .ok_or("Missing SOLANA_RPC_URL. Configure your Solana RPC endpoint in Settings → Skills → Solana DEX Trading.")?;
     let wallet = creds.get("SOLANA_WALLET_ADDRESS")
@@ -68,7 +69,7 @@ pub async fn execute_sol_balance(
 pub async fn execute_sol_portfolio(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("SOLANA_RPC_URL")
         .ok_or("Missing SOLANA_RPC_URL.")?;
     let wallet = creds.get("SOLANA_WALLET_ADDRESS")
@@ -119,7 +120,7 @@ pub async fn execute_sol_portfolio(
 pub async fn execute_sol_token_info(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("SOLANA_RPC_URL")
         .ok_or("Missing SOLANA_RPC_URL.")?;
 
@@ -140,7 +141,7 @@ pub async fn execute_sol_token_info(
 
     let account = mint_result.get("value");
     if account.is_none() || account.unwrap().is_null() {
-        return Err(format!("Mint account not found: {}", mint));
+        return Err(format!("Mint account not found: {}", mint).into());
     }
     let account = account.unwrap();
 

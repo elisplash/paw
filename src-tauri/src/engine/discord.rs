@@ -20,6 +20,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures::{SinkExt, StreamExt};
+use crate::atoms::error::EngineResult;
 
 // ── Discord API Types ──────────────────────────────────────────────────
 
@@ -114,7 +115,7 @@ const CONFIG_KEY: &str = "discord_config";
 
 // ── Bridge Core ────────────────────────────────────────────────────────
 
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         return Err("Discord bridge is already running".into());
     }
@@ -167,28 +168,26 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 
 // ── Discord Gateway WebSocket Loop ─────────────────────────────────────
 
-async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -> Result<(), String> {
+async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -> EngineResult<()> {
     let stop = get_stop_signal();
     let http_client = reqwest::Client::new();
     let token = config.bot_token.clone();
 
     // Connect to Gateway
     let (ws_stream, _) = connect_async(DISCORD_GATEWAY_URL)
-        .await
-        .map_err(|e| format!("Gateway connect failed: {}", e))?;
+        .await?;
 
     let (mut write, mut read) = ws_stream.split();
 
     // Read Hello (op 10) to get heartbeat interval
     let hello = read.next().await
-        .ok_or("Gateway closed before Hello")?
-        .map_err(|e| format!("WS read error: {}", e))?;
+        .ok_or("Gateway closed before Hello")??;
     let hello_payload: GatewayPayload = serde_json::from_str(
-        &hello.to_text().map_err(|e| format!("Hello not text: {}", e))?
-    ).map_err(|e| format!("Hello parse error: {}", e))?;
+        &hello.to_text()?
+    )?;
 
     if hello_payload.op != 10 {
-        return Err(format!("Expected Hello (op 10), got op {}", hello_payload.op));
+        return Err(format!("Expected Hello (op 10), got op {}", hello_payload.op).into());
     }
 
     let heartbeat_interval = hello_payload.d
@@ -214,8 +213,7 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
         }
     });
     write.send(WsMessage::Text(identify.to_string()))
-        .await
-        .map_err(|e| format!("Identify send failed: {}", e))?;
+        .await?;
 
     // State
     let mut _sequence: Option<u64> = None;
@@ -437,7 +435,7 @@ async fn send_message(
     token: &str,
     channel_id: &str,
     content: &str,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let url = format!("{}/channels/{}/messages", DISCORD_API, channel_id);
     let resp = client.post(&url)
         .header("Authorization", format!("Bot {}", token))
@@ -460,7 +458,7 @@ async fn send_typing(
     client: &reqwest::Client,
     token: &str,
     channel_id: &str,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let url = format!("{}/channels/{}/typing", DISCORD_API, channel_id);
     let _ = client.post(&url)
         .header("Authorization", format!("Bot {}", token))
@@ -470,22 +468,22 @@ async fn send_typing(
 
 // ── Config Persistence ─────────────────────────────────────────────────
 
-pub fn load_config(app_handle: &tauri::AppHandle) -> Result<DiscordConfig, String> {
+pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<DiscordConfig> {
     channels::load_channel_config(app_handle, CONFIG_KEY)
 }
 
-pub fn save_config(app_handle: &tauri::AppHandle, config: &DiscordConfig) -> Result<(), String> {
+pub fn save_config(app_handle: &tauri::AppHandle, config: &DiscordConfig) -> EngineResult<()> {
     channels::save_channel_config(app_handle, CONFIG_KEY, config)
 }
 
-pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::approve_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::deny_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::remove_user_generic(app_handle, CONFIG_KEY, user_id)
 }

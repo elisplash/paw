@@ -7,6 +7,7 @@ use crate::engine::sandbox;
 use log::{info, warn};
 use std::process::Command as ProcessCommand;
 use tauri::Manager;
+use crate::atoms::error::EngineResult;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![ToolDefinition {
@@ -35,12 +36,12 @@ pub async fn execute(
     agent_id: &str,
 ) -> Option<Result<String, String>> {
     match name {
-        "exec" => Some(execute_exec(args, app_handle, agent_id).await),
+        "exec" => Some(execute_exec(args, app_handle, agent_id).await.map_err(|e| e.to_string())),
         _ => None,
     }
 }
 
-async fn execute_exec(args: &serde_json::Value, app_handle: &tauri::AppHandle, agent_id: &str) -> Result<String, String> {
+async fn execute_exec(args: &serde_json::Value, app_handle: &tauri::AppHandle, agent_id: &str) -> EngineResult<String> {
     let command = args["command"].as_str()
         .ok_or("exec: missing 'command' argument")?;
 
@@ -57,7 +58,7 @@ async fn execute_exec(args: &serde_json::Value, app_handle: &tauri::AppHandle, a
                      coinbase_balance, coinbase_prices, coinbase_trade, coinbase_transfer. \
                      Call those tools directly.",
                     pkg
-                ));
+                ).into());
             }
         }
     }
@@ -122,6 +123,6 @@ async fn execute_exec(args: &serde_json::Value, app_handle: &tauri::AppHandle, a
 
             Ok(result)
         }
-        Err(e) => Err(format!("Failed to execute command: {}", e)),
+        Err(e) => Err(e.into()),
     }
 }

@@ -13,6 +13,7 @@ use crate::engine::chat as chat_org;
 use crate::engine::state::{EngineState, PendingApprovals, normalize_model_name, resolve_provider_for_model};
 use log::{info, warn, error};
 use tauri::Manager;
+use crate::atoms::error::EngineResult;
 
 /// Run a user message through the agent loop and return the text response.
 /// This is the shared core that every channel bridge calls after receiving a message.
@@ -29,7 +30,7 @@ pub async fn run_channel_agent(
     message: &str,
     user_id: &str,
     agent_id: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;
 
@@ -371,7 +372,7 @@ pub async fn run_routed_channel_agent(
     message: &str,
     user_id: &str,
     channel_id: Option<&str>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     // Load routing config and resolve agent
     let _engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;

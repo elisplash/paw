@@ -14,6 +14,7 @@ use tauri::{Emitter, Manager};
 use super::agent_loop::{run_orchestrator_loop, AgentRole};
 use super::handlers::get_store;
 use super::tools::worker_tools;
+use crate::atoms::error::EngineResult;
 
 /// Resolve a provider config for a given model string.
 /// Uses smart prefix matching (gemini → Google, claude → Anthropic, etc.)
@@ -51,7 +52,7 @@ pub(crate) async fn run_sub_agent(
     agent_id: &str,
     task_description: &str,
     context: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let state = app_handle.state::<EngineState>();
 
     // Get provider — use model routing for worker agents

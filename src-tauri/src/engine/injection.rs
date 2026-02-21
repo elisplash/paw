@@ -355,6 +355,7 @@ pub fn log_injection_detected(channel: &str, user_id: &str, result: &InjectionSc
 #[cfg(test)]
 mod tests {
     use super::*;
+use crate::atoms::error::EngineResult;
 
     #[test]
     fn test_clean_message() {

@@ -174,7 +174,7 @@ async fn check_ollama_reachable(client: &Client, base_url: &str) -> bool {
 }
 
 /// Try to start Ollama by spawning `ollama serve` as a detached background process.
-async fn start_ollama_process() -> Result<(), String> {
+async fn start_ollama_process() -> EngineResult<()> {
     let ollama_path = which_ollama();
     let path = ollama_path.ok_or_else(|| {
         "Ollama binary not found in PATH. Install Ollama from https://ollama.ai".to_string()
@@ -191,20 +191,19 @@ async fn start_ollama_process() -> Result<(), String> {
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .creation_flags(0x00000008) // DETACHED_PROCESS
-            .spawn()
-            .map_err(|e| format!("Failed to start ollama: {}", e))?;
+            .spawn()?;
     }
 
     #[cfg(not(target_os = "windows"))]
     {
         use std::process::Command;
+use crate::atoms::error::EngineResult;
         Command::new(&path)
             .arg("serve")
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .spawn()
-            .map_err(|e| format!("Failed to start ollama: {}", e))?;
+            .spawn()?;
     }
 
     Ok(())
@@ -261,20 +260,18 @@ fn which_ollama() -> Option<String> {
 }
 
 /// Check if a model is available in Ollama (static version, no &self).
-pub(crate) async fn check_model_available_static(client: &Client, base_url: &str, model: &str) -> Result<bool, String> {
+pub(crate) async fn check_model_available_static(client: &Client, base_url: &str, model: &str) -> EngineResult<bool> {
     let url = format!("{}/api/tags", base_url);
     let resp = client.get(&url)
         .timeout(std::time::Duration::from_secs(5))
         .send()
-        .await
-        .map_err(|e| format!("Cannot reach Ollama: {}", e))?;
+        .await?;
 
     if !resp.status().is_success() {
         return Err("Ollama returned an error".into());
     }
 
-    let v: Value = resp.json().await
-        .map_err(|e| format!("Parse error: {}", e))?;
+    let v: Value = resp.json().await?;
 
     if let Some(models) = v["models"].as_array() {
         let model_base = model.split(':').next().unwrap_or(model);
@@ -293,7 +290,7 @@ pub(crate) async fn check_model_available_static(client: &Client, base_url: &str
 }
 
 /// Pull a model from Ollama (static version, no &self).
-pub(crate) async fn pull_model_static(client: &Client, base_url: &str, model: &str) -> Result<(), String> {
+pub(crate) async fn pull_model_static(client: &Client, base_url: &str, model: &str) -> EngineResult<()> {
     let url = format!("{}/api/pull", base_url);
     let body = json!({
         "name": model,
@@ -306,13 +303,12 @@ pub(crate) async fn pull_model_static(client: &Client, base_url: &str, model: &s
         .json(&body)
         .timeout(std::time::Duration::from_secs(600))
         .send()
-        .await
-        .map_err(|e| format!("Pull request failed: {}", e))?;
+        .await?;
 
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        return Err(format!("Pull failed {} — {}", status, text));
+        return Err(format!("Pull failed {} — {}", status, text).into());
     }
 
     info!("[memory] Model '{}' pull complete", model);

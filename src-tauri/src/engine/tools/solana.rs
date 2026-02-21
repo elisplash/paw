@@ -3,6 +3,7 @@
 use crate::atoms::types::*;
 use crate::engine::state::EngineState;
 use tauri::Manager;
+use crate::atoms::error::EngineResult;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![

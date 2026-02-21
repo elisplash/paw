@@ -19,6 +19,7 @@ use log::info;
 use rusqlite::Connection;
 use std::path::PathBuf;
 use parking_lot::Mutex;
+use crate::atoms::error::EngineResult;
 
 mod sessions;
 mod messages;
@@ -53,12 +54,11 @@ pub struct SessionStore {
 
 impl SessionStore {
     /// Open (or create) the engine database and initialize tables.
-    pub fn open() -> Result<Self, String> {
+    pub fn open() -> EngineResult<Self> {
         let path = engine_db_path();
         info!("[engine] Opening session store at {:?}", path);
 
-        let conn = Connection::open(&path)
-            .map_err(|e| format!("Failed to open engine DB: {}", e))?;
+        let conn = Connection::open(&path)?;
 
         conn.execute_batch("PRAGMA journal_mode=WAL;").ok();
 

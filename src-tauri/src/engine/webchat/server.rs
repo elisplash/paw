@@ -16,6 +16,7 @@ use std::task::{Context, Poll};
 use tauri::Emitter;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::net::TcpListener;
+use crate::atoms::error::EngineResult;
 
 // ── Prefixed Stream (replays buffered bytes then delegates) ────────────
 
@@ -67,7 +68,7 @@ pub(crate) trait ChatStream: AsyncRead + AsyncWrite + Unpin + Send {}
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> ChatStream for T {}
 
 /// Build a TLS acceptor from PEM cert+key files, or `None` if not configured.
-pub(crate) fn build_tls_acceptor(config: &WebChatConfig) -> Result<Option<tokio_rustls::TlsAcceptor>, String> {
+pub(crate) fn build_tls_acceptor(config: &WebChatConfig) -> EngineResult<Option<tokio_rustls::TlsAcceptor>> {
     let (Some(cert_path), Some(key_path)) = (&config.tls_cert_path, &config.tls_key_path) else {
         return Ok(None);
     };
@@ -94,7 +95,7 @@ pub(crate) fn build_tls_acceptor(config: &WebChatConfig) -> Result<Option<tokio_
 
 // ── Server Core ────────────────────────────────────────────────────────
 
-pub(crate) async fn run_server(app_handle: tauri::AppHandle, config: WebChatConfig) -> Result<(), String> {
+pub(crate) async fn run_server(app_handle: tauri::AppHandle, config: WebChatConfig) -> EngineResult<()> {
     let stop = get_stop_signal();
     let addr = format!("{}:{}", config.bind_address, config.port);
 
@@ -173,7 +174,7 @@ async fn handle_connection(
     app_handle: tauri::AppHandle,
     config: Arc<WebChatConfig>,
     _stop: Arc<AtomicBool>,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     // Read the HTTP request (consumed — PrefixedStream replays it for WS)
     let mut buf = vec![0u8; 8192];
     let n = stream.read(&mut buf).await.map_err(|e| format!("Read: {e}"))?;
@@ -218,7 +219,7 @@ async fn handle_auth(
     mut stream: Box<dyn ChatStream>,
     request_bytes: &[u8],
     config: &WebChatConfig,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let request_str = String::from_utf8_lossy(request_bytes);
 
     // Extract JSON body (after \r\n\r\n)
@@ -258,7 +259,7 @@ async fn handle_auth(
 async fn serve_html(
     mut stream: Box<dyn ChatStream>,
     config: &WebChatConfig,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let html = build_chat_html(&config.page_title);
     let response = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",

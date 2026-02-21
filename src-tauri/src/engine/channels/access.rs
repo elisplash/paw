@@ -16,7 +16,7 @@ pub fn check_access(
     display_name: &str,
     allowed_users: &[String],
     pending_users: &mut Vec<PendingUser>,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     match dm_policy {
         "allowlist" => {
             if !allowed_users.contains(&user_id.to_string()) {
@@ -47,17 +47,15 @@ pub fn approve_user_generic(
     app_handle: &tauri::AppHandle,
     config_key: &str,
     user_id: &str,
-) -> Result<(), String>
+) -> EngineResult<()>
 where
 {
     // Load raw config as Value, modify, save
     let engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;
-    let json_str = engine_state.store.get_config(config_key)
-        .map_err(|e| format!("Load config: {}", e))?
+    let json_str = engine_state.store.get_config(config_key)?
         .unwrap_or_else(|| "{}".into());
-    let mut val: serde_json::Value = serde_json::from_str(&json_str)
-        .map_err(|e| format!("Parse config: {}", e))?;
+    let mut val: serde_json::Value = serde_json::from_str(&json_str)?;
 
     // Add to allowed_users
     if let Some(arr) = val.get_mut("allowed_users").and_then(|v| v.as_array_mut()) {
@@ -71,7 +69,7 @@ where
         arr.retain(|p| p.get("user_id").and_then(|v| v.as_str()) != Some(user_id));
     }
 
-    let new_json = serde_json::to_string(&val).map_err(|e| format!("Serialize: {}", e))?;
+    let new_json = serde_json::to_string(&val)?;
     engine_state.store.set_config(config_key, &new_json)?;
     info!("[{}] User {} approved", config_key, user_id);
     Ok(())
@@ -81,20 +79,18 @@ pub fn deny_user_generic(
     app_handle: &tauri::AppHandle,
     config_key: &str,
     user_id: &str,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;
-    let json_str = engine_state.store.get_config(config_key)
-        .map_err(|e| format!("Load config: {}", e))?
+    let json_str = engine_state.store.get_config(config_key)?
         .unwrap_or_else(|| "{}".into());
-    let mut val: serde_json::Value = serde_json::from_str(&json_str)
-        .map_err(|e| format!("Parse config: {}", e))?;
+    let mut val: serde_json::Value = serde_json::from_str(&json_str)?;
 
     if let Some(arr) = val.get_mut("pending_users").and_then(|v| v.as_array_mut()) {
         arr.retain(|p| p.get("user_id").and_then(|v| v.as_str()) != Some(user_id));
     }
 
-    let new_json = serde_json::to_string(&val).map_err(|e| format!("Serialize: {}", e))?;
+    let new_json = serde_json::to_string(&val)?;
     engine_state.store.set_config(config_key, &new_json)?;
     info!("[{}] User {} denied", config_key, user_id);
     Ok(())
@@ -104,20 +100,18 @@ pub fn remove_user_generic(
     app_handle: &tauri::AppHandle,
     config_key: &str,
     user_id: &str,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;
-    let json_str = engine_state.store.get_config(config_key)
-        .map_err(|e| format!("Load config: {}", e))?
+    let json_str = engine_state.store.get_config(config_key)?
         .unwrap_or_else(|| "{}".into());
-    let mut val: serde_json::Value = serde_json::from_str(&json_str)
-        .map_err(|e| format!("Parse config: {}", e))?;
+    let mut val: serde_json::Value = serde_json::from_str(&json_str)?;
 
     if let Some(arr) = val.get_mut("allowed_users").and_then(|v| v.as_array_mut()) {
         arr.retain(|v| v.as_str() != Some(user_id));
     }
 
-    let new_json = serde_json::to_string(&val).map_err(|e| format!("Serialize: {}", e))?;
+    let new_json = serde_json::to_string(&val)?;
     engine_state.store.set_config(config_key, &new_json)?;
     info!("[{}] User {} removed", config_key, user_id);
     Ok(())
@@ -126,6 +120,7 @@ pub fn remove_user_generic(
 #[cfg(test)]
 mod tests {
     use super::*;
+use crate::atoms::error::EngineResult;
 
     fn make_pending() -> Vec<PendingUser> {
         vec![]

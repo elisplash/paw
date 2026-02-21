@@ -20,6 +20,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures::{SinkExt, StreamExt};
+use crate::atoms::error::EngineResult;
 
 // ── Twitch Config ──────────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ const CONFIG_KEY: &str = "twitch_config";
 
 // ── Bridge Core ────────────────────────────────────────────────────────
 
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         return Err("Twitch bridge is already running".into());
     }
@@ -135,13 +136,12 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 
 // ── IRC-over-WebSocket Loop ────────────────────────────────────────────
 
-async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> Result<(), String> {
+async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> EngineResult<()> {
     let stop = get_stop_signal();
 
     // Twitch IRC over WebSocket endpoint
     let url = "wss://irc-ws.chat.twitch.tv:443";
-    let (ws_stream, _) = connect_async(url).await
-        .map_err(|e| format!("WS connect: {}", e))?;
+    let (ws_stream, _) = connect_async(url).await?;
     let (mut ws_tx, mut ws_rx) = ws_stream.split();
 
     // Authenticate
@@ -152,14 +152,11 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> Re
     };
     let nick = config.bot_username.to_lowercase();
 
-    ws_tx.send(WsMessage::Text(format!("PASS {}", token))).await
-        .map_err(|e| format!("WS PASS: {}", e))?;
-    ws_tx.send(WsMessage::Text(format!("NICK {}", nick))).await
-        .map_err(|e| format!("WS NICK: {}", e))?;
+    ws_tx.send(WsMessage::Text(format!("PASS {}", token))).await?;
+    ws_tx.send(WsMessage::Text(format!("NICK {}", nick))).await?;
 
     // Request tags capability for user display names etc
-    ws_tx.send(WsMessage::Text("CAP REQ :twitch.tv/tags twitch.tv/commands".into())).await
-        .map_err(|e| format!("WS CAP: {}", e))?;
+    ws_tx.send(WsMessage::Text("CAP REQ :twitch.tv/tags twitch.tv/commands".into())).await?;
 
     // Wait for successful auth (001/376)
     let mut authed = false;
@@ -198,8 +195,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> Re
     // Join channels
     for ch in &config.channels_to_join {
         let channel = if ch.starts_with('#') { ch.clone() } else { format!("#{}", ch) };
-        ws_tx.send(WsMessage::Text(format!("JOIN {}", channel))).await
-            .map_err(|e| format!("JOIN: {}", e))?;
+        ws_tx.send(WsMessage::Text(format!("JOIN {}", channel))).await?;
         info!("[twitch] Joined {}", channel);
     }
 
@@ -379,22 +375,22 @@ fn parse_tag(tags: &str, key: &str) -> Option<String> {
 
 // ── Config Persistence ─────────────────────────────────────────────────
 
-pub fn load_config(app_handle: &tauri::AppHandle) -> Result<TwitchConfig, String> {
+pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<TwitchConfig> {
     channels::load_channel_config(app_handle, CONFIG_KEY)
 }
 
-pub fn save_config(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> Result<(), String> {
+pub fn save_config(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> EngineResult<()> {
     channels::save_channel_config(app_handle, CONFIG_KEY, config)
 }
 
-pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::approve_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::deny_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::remove_user_generic(app_handle, CONFIG_KEY, user_id)
 }

@@ -10,6 +10,7 @@ use log::error;
 use tauri::Emitter;
 
 use super::sub_agent::run_sub_agent;
+use crate::atoms::error::EngineResult;
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -32,11 +33,11 @@ pub async fn execute_boss_tool(
         .unwrap_or(serde_json::json!({}));
 
     match name.as_str() {
-        "delegate_task" => Some(handle_delegate_task(&args, app_handle, project_id)),
-        "check_agent_status" => Some(handle_check_agent_status(app_handle, project_id)),
-        "send_agent_message" => Some(handle_send_agent_message(&args, app_handle, project_id)),
-        "project_complete" => Some(handle_project_complete(&args, app_handle, project_id)),
-        "create_sub_agent" => Some(handle_create_sub_agent(&args, app_handle, project_id)),
+        "delegate_task" => Some(handle_delegate_task(&args, app_handle, project_id).map_err(|e| e.to_string())),
+        "check_agent_status" => Some(handle_check_agent_status(app_handle, project_id).map_err(|e| e.to_string())),
+        "send_agent_message" => Some(handle_send_agent_message(&args, app_handle, project_id).map_err(|e| e.to_string())),
+        "project_complete" => Some(handle_project_complete(&args, app_handle, project_id).map_err(|e| e.to_string())),
+        "create_sub_agent" => Some(handle_create_sub_agent(&args, app_handle, project_id).map_err(|e| e.to_string())),
         _ => None,
     }
 }
@@ -108,7 +109,7 @@ fn handle_delegate_task(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
     project_id: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let agent_id = args["agent_id"].as_str().unwrap_or("").to_string();
     let task_desc = args["task_description"].as_str().unwrap_or("").to_string();
     let context = args["context"].as_str().unwrap_or("").to_string();
@@ -172,7 +173,7 @@ fn handle_delegate_task(
 fn handle_check_agent_status(
     app_handle: &tauri::AppHandle,
     project_id: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let store = get_store(app_handle);
     match store {
         Some(store) => {
@@ -210,7 +211,7 @@ fn handle_send_agent_message(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
     project_id: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let to = args["to_agent"].as_str().unwrap_or("").to_string();
     let message = args["message"].as_str().unwrap_or("").to_string();
 
@@ -248,7 +249,7 @@ fn handle_project_complete(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
     project_id: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let summary = args["summary"].as_str().unwrap_or("").to_string();
     let status = args["status"].as_str().unwrap_or("completed").to_string();
 
@@ -288,7 +289,7 @@ fn handle_create_sub_agent(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
     project_id: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let name = args["name"].as_str().unwrap_or("").to_string();
     let role = args["role"].as_str().unwrap_or("worker").to_string();
     let specialty = args["specialty"].as_str().unwrap_or("general").to_string();
@@ -315,7 +316,7 @@ fn handle_create_sub_agent(
         Some(store) => {
             if let Ok(existing) = store.get_project_agents(project_id) {
                 if existing.iter().any(|a| a.agent_id == agent_id) {
-                    return Err(format!("Agent '{}' already exists in this project", agent_id));
+                    return Err(format!("Agent '{}' already exists in this project", agent_id).into());
                 }
             }
 
@@ -367,7 +368,7 @@ fn handle_create_sub_agent(
                         agent_id, role, specialty, agent_id
                     ))
                 }
-                Err(e) => Err(format!("Failed to create agent: {}", e))
+                Err(e) => Err(e.into())
             }
         }
         None => Err("Could not access engine store".into())

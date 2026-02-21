@@ -4,10 +4,11 @@
 use std::collections::HashMap;
 use log::info;
 use super::rpc::rpc_call;
+use crate::atoms::error::{EngineError, EngineResult};
 
 /// Derive Solana public key (base58) from ed25519 secret key bytes
 #[allow(dead_code)]
-pub(crate) fn pubkey_from_secret(secret_bytes: &[u8; 32]) -> Result<String, String> {
+pub(crate) fn pubkey_from_secret(secret_bytes: &[u8; 32]) -> EngineResult<String> {
     use ed25519_dalek::SigningKey;
     let signing_key = SigningKey::from_bytes(secret_bytes);
     let public_key = signing_key.verifying_key();
@@ -19,7 +20,7 @@ pub async fn execute_sol_wallet_create(
     _args: &serde_json::Value,
     creds: &HashMap<String, String>,
     app_handle: &tauri::AppHandle,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     use tauri::Manager;
 
     // Check if wallet already exists
@@ -33,6 +34,7 @@ pub async fn execute_sol_wallet_create(
 
     // Generate a new ed25519 keypair
     use ed25519_dalek::SigningKey;
+use crate::atoms::error::EngineResult;
     let signing_key = SigningKey::generate(&mut rand::thread_rng());
     let public_key = signing_key.verifying_key();
 
@@ -44,7 +46,7 @@ pub async fn execute_sol_wallet_create(
     let private_key_b58 = bs58::encode(&keypair_bytes).into_string();
 
     let state = app_handle.try_state::<crate::engine::state::EngineState>()
-        .ok_or("Engine state not available")?;
+        .ok_or(EngineError::Other("Engine state not available".into()))?;
     let vault_key = crate::engine::skills::get_vault_key()?;
 
     let encrypted_key = crate::engine::skills::encrypt_credential(&private_key_b58, &vault_key);

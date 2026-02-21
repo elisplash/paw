@@ -4,6 +4,7 @@
 use crate::atoms::types::*;
 use log::info;
 use std::time::Duration;
+use crate::atoms::error::EngineResult;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![
@@ -63,7 +64,7 @@ pub async fn execute(
 async fn execute_slack_send(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let text = args["text"].as_str().ok_or("slack_send: missing 'text'")?;
     let token = creds.get("SLACK_BOT_TOKEN").ok_or("Missing SLACK_BOT_TOKEN")?;
     let channel = args["channel"].as_str()
@@ -75,33 +76,30 @@ async fn execute_slack_send(
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     let resp = client.post("https://slack.com/api/chat.postMessage")
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({ "channel": channel, "text": text }))
         .send()
-        .await
-        .map_err(|e| format!("Slack API error: {}", e))?;
+        .await?;
 
-    let body: serde_json::Value = resp.json().await
-        .map_err(|e| format!("Failed to parse Slack response: {}", e))?;
+    let body: serde_json::Value = resp.json().await?;
 
     if body["ok"].as_bool().unwrap_or(false) {
         let ts = body["ts"].as_str().unwrap_or("unknown");
         Ok(format!("Message sent to Slack channel {} (ts: {})", channel, ts))
     } else {
         let err = body["error"].as_str().unwrap_or("unknown error");
-        Err(format!("Slack API error: {}", err))
+        Err(format!("Slack API error: {}", err).into())
     }
 }
 
 async fn execute_slack_read(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let channel = args["channel"].as_str().ok_or("slack_read: missing 'channel'")?;
     let limit = args["limit"].as_u64().unwrap_or(10);
     let token = creds.get("SLACK_BOT_TOKEN").ok_or("Missing SLACK_BOT_TOKEN")?;
@@ -110,18 +108,15 @@ async fn execute_slack_read(
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     let resp = client.get("https://slack.com/api/conversations.history")
         .header("Authorization", format!("Bearer {}", token))
         .query(&[("channel", channel), ("limit", &limit.to_string())])
         .send()
-        .await
-        .map_err(|e| format!("Slack API error: {}", e))?;
+        .await?;
 
-    let body: serde_json::Value = resp.json().await
-        .map_err(|e| format!("Failed to parse Slack response: {}", e))?;
+    let body: serde_json::Value = resp.json().await?;
 
     if body["ok"].as_bool().unwrap_or(false) {
         let empty_vec = vec![];
@@ -136,6 +131,6 @@ async fn execute_slack_read(
         Ok(output)
     } else {
         let err = body["error"].as_str().unwrap_or("unknown error");
-        Err(format!("Slack API error: {}", err))
+        Err(format!("Slack API error: {}", err).into())
     }
 }

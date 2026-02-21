@@ -5,6 +5,7 @@ use super::constants::{chain_name, KNOWN_TOKENS, TRANSFER_EVENT_TOPIC};
 use super::primitives::{hex_decode, parse_address, raw_to_amount};
 use super::rpc::{chunked_get_logs, eth_call, eth_chain_id, eth_get_balance, rpc_call};
 use std::collections::HashMap;
+use crate::atoms::error::EngineResult;
 
 /// Internal representation of a parsed ERC-20 Transfer event.
 struct Transfer {
@@ -22,14 +23,14 @@ struct Transfer {
 pub async fn execute_dex_watch_wallet(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
     let wallet = args["wallet_address"].as_str()
         .ok_or("dex_watch_wallet: missing 'wallet_address'")?;
     let blocks_back = args["blocks_back"].as_u64().unwrap_or(1000);
     let addr_clean = wallet.trim();
     if !addr_clean.starts_with("0x") || addr_clean.len() != 42 {
-        return Err(format!("Invalid wallet address: '{}'", addr_clean));
+        return Err(format!("Invalid wallet address: '{}'", addr_clean).into());
     }
 
     let mut output = format!("Wallet Monitor: {}\n\n", addr_clean);
@@ -104,7 +105,7 @@ pub async fn execute_dex_watch_wallet(
             let hex = val.as_str().unwrap_or("0x0");
             u64::from_str_radix(hex.trim_start_matches("0x"), 16).unwrap_or(0)
         }
-        Err(e) => return Err(format!("Cannot get block number: {}", e)),
+        Err(e) => return Err(e.into()),
     };
     let from_block = block_num.saturating_sub(blocks_back);
 
@@ -182,7 +183,7 @@ pub async fn execute_dex_watch_wallet(
 pub async fn execute_dex_whale_transfers(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
     let token_address = args["token_address"].as_str()
         .ok_or("dex_whale_transfers: missing 'token_address'")?;
@@ -191,7 +192,7 @@ pub async fn execute_dex_whale_transfers(
 
     let addr_clean = token_address.trim();
     if !addr_clean.starts_with("0x") || addr_clean.len() != 42 {
-        return Err(format!("Invalid token address: '{}'", addr_clean));
+        return Err(format!("Invalid token address: '{}'", addr_clean).into());
     }
 
     // Get token info
@@ -215,7 +216,7 @@ pub async fn execute_dex_whale_transfers(
             let hex = val.as_str().unwrap_or("0x0");
             u64::from_str_radix(hex.trim_start_matches("0x"), 16).unwrap_or(0)
         }
-        Err(e) => return Err(format!("Cannot get block number: {}", e)),
+        Err(e) => return Err(e.into()),
     };
     let from_block = block_num.saturating_sub(blocks_back);
 
@@ -227,8 +228,7 @@ pub async fn execute_dex_whale_transfers(
         block_num,
         vec![Some(serde_json::json!(TRANSFER_EVENT_TOPIC))],
         500,
-    ).await
-        .map_err(|e| format!("Failed to get transfer logs: {}", e))?;
+    ).await?;
 
     if log_arr.is_empty() {
         output.push_str(&format!("No transfers found in last {} blocks.\n", blocks_back));
@@ -344,7 +344,7 @@ pub async fn execute_dex_whale_transfers(
 pub async fn execute_dex_top_traders(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
     let token_address = args["token_address"].as_str()
         .ok_or("dex_top_traders: missing 'token_address'")?;
@@ -353,7 +353,7 @@ pub async fn execute_dex_top_traders(
 
     let addr_clean = token_address.trim();
     if !addr_clean.starts_with("0x") || addr_clean.len() != 42 {
-        return Err(format!("Invalid token address: '{}'", addr_clean));
+        return Err(format!("Invalid token address: '{}'", addr_clean).into());
     }
 
     let symbol = match eth_call(rpc_url, addr_clean, &encode_symbol()).await {
@@ -375,7 +375,7 @@ pub async fn execute_dex_top_traders(
             let hex = val.as_str().unwrap_or("0x0");
             u64::from_str_radix(hex.trim_start_matches("0x"), 16).unwrap_or(0)
         }
-        Err(e) => return Err(format!("Cannot get block number: {}", e)),
+        Err(e) => return Err(e.into()),
     };
     let from_block = block_num.saturating_sub(blocks_back);
 
@@ -386,8 +386,7 @@ pub async fn execute_dex_top_traders(
         block_num,
         vec![Some(serde_json::json!(TRANSFER_EVENT_TOPIC))],
         500,
-    ).await
-        .map_err(|e| format!("Failed to get transfer logs: {}", e))?;
+    ).await?;
 
     if log_arr.is_empty() {
         output.push_str(&format!("No transfers found in last {} blocks.\n", blocks_back));

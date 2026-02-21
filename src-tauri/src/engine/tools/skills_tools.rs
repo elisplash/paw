@@ -6,6 +6,7 @@ use crate::engine::skills;
 use log::info;
 use tauri::Emitter;
 use tauri::Manager;
+use crate::atoms::error::EngineResult;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![
@@ -82,13 +83,12 @@ fn format_installs(n: u64) -> String {
 async fn execute_skill_search(
     args: &serde_json::Value,
     _app_handle: &tauri::AppHandle,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let query = args["query"].as_str().ok_or("Missing 'query' parameter")?;
 
     info!("[engine] skill_search tool: query={}", query);
 
-    let results = skills::search_community_skills(query).await
-        .map_err(|e| format!("Skill search failed: {}", e))?;
+    let results = skills::search_community_skills(query).await?;
 
     if results.is_empty() {
         return Ok(format!(
@@ -116,7 +116,7 @@ async fn execute_skill_install(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
     agent_id: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let source = args["source"].as_str().ok_or("Missing 'source' parameter")?;
     let path = args["path"].as_str().unwrap_or("");
 
@@ -125,8 +125,7 @@ async fn execute_skill_install(
     let state = app_handle.try_state::<EngineState>()
         .ok_or("Engine state not available")?;
 
-    let skill = skills::install_community_skill(&state.store, source, path, Some(agent_id)).await
-        .map_err(|e| format!("Skill installation failed: {}", e))?;
+    let skill = skills::install_community_skill(&state.store, source, path, Some(agent_id)).await?;
 
     let _ = app_handle.emit("community-skill-installed", serde_json::json!({ "skill_id": skill.id }));
 
@@ -145,7 +144,7 @@ async fn execute_skill_install(
 async fn execute_skill_list(
     app_handle: &tauri::AppHandle,
     agent_id: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let state = app_handle.try_state::<EngineState>()
         .ok_or("Engine state not available")?;
 

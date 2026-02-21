@@ -6,12 +6,13 @@ use super::primitives::{parse_address, raw_to_amount};
 use super::rpc::{eth_call, eth_chain_id, eth_get_balance};
 use super::tokens::resolve_token;
 use std::collections::HashMap;
+use crate::atoms::error::EngineResult;
 
 /// Check ETH and ERC-20 token balances for a single token or all known tokens.
 pub async fn execute_dex_balance(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL. Configure your RPC endpoint (Infura/Alchemy) in Settings → Skills → DEX Trading.")?;
     let wallet_address = creds.get("DEX_WALLET_ADDRESS").ok_or("No wallet found. Use dex_wallet_create first.")?;
 
@@ -61,7 +62,7 @@ pub async fn execute_dex_balance(
 pub async fn execute_dex_portfolio(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
     let wallet_address = creds.get("DEX_WALLET_ADDRESS").ok_or("No wallet. Use dex_wallet_create first.")?;
 

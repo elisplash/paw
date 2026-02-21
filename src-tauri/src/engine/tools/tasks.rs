@@ -5,6 +5,7 @@ use crate::engine::state::EngineState;
 use log::info;
 use tauri::Emitter;
 use tauri::Manager;
+use crate::atoms::error::EngineResult;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![
@@ -81,7 +82,7 @@ pub async fn execute(
 async fn execute_create_task(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let title = args["title"].as_str().ok_or("create_task: missing 'title'")?;
     let description = args["description"].as_str().ok_or("create_task: missing 'description'")?;
     let priority = args["priority"].as_str().unwrap_or("medium").to_string();
@@ -145,7 +146,7 @@ async fn execute_create_task(
 async fn execute_list_tasks(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let state = app_handle.try_state::<EngineState>()
         .ok_or("Engine state not available")?;
 
@@ -187,7 +188,7 @@ async fn execute_list_tasks(
 async fn execute_manage_task(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let task_id = args["task_id"].as_str().ok_or("manage_task: missing 'task_id'")?.to_string();
     let action = args["action"].as_str().ok_or("manage_task: missing 'action'")?;
 
@@ -214,7 +215,7 @@ async fn execute_manage_task(
                 app_handle.emit("task-updated", serde_json::json!({ "task_id": task_id })).ok();
                 Ok(format!("Task '{}' queued for immediate execution. It will run within the next 60-second heartbeat cycle.", task.title))
             } else {
-                Err(format!("Task not found: {}", task_id))
+                Err(format!("Task not found: {}", task_id).into())
             }
         }
         "pause" => {
@@ -225,7 +226,7 @@ async fn execute_manage_task(
                 app_handle.emit("task-updated", serde_json::json!({ "task_id": task_id })).ok();
                 Ok(format!("Automation '{}' paused.", task.title))
             } else {
-                Err(format!("Task not found: {}", task_id))
+                Err(format!("Task not found: {}", task_id).into())
             }
         }
         "enable" => {
@@ -239,7 +240,7 @@ async fn execute_manage_task(
                 app_handle.emit("task-updated", serde_json::json!({ "task_id": task_id })).ok();
                 Ok(format!("Automation '{}' enabled. Will run on next heartbeat.", task.title))
             } else {
-                Err(format!("Task not found: {}", task_id))
+                Err(format!("Task not found: {}", task_id).into())
             }
         }
         "update" => {
@@ -266,9 +267,9 @@ async fn execute_manage_task(
                 app_handle.emit("task-updated", serde_json::json!({ "task_id": task_id })).ok();
                 Ok(format!("Task '{}' updated.", task.title))
             } else {
-                Err(format!("Task not found: {}", task_id))
+                Err(format!("Task not found: {}", task_id).into())
             }
         }
-        _ => Err(format!("Unknown action: {}. Use: update, delete, run_now, pause, enable", action)),
+        _ => Err(format!("Unknown action: {}. Use: update, delete, run_now, pause, enable", action).into()),
     }
 }

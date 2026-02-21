@@ -83,7 +83,7 @@ pub async fn is_docker_available() -> bool {
 }
 
 /// Pull image if not already present.
-async fn ensure_image(docker: &Docker, image: &str) -> Result<(), String> {
+async fn ensure_image(docker: &Docker, image: &str) -> EngineResult<()> {
     use bollard::image::CreateImageOptions;
 
     // Check if image exists locally
@@ -103,7 +103,7 @@ async fn ensure_image(docker: &Docker, image: &str) -> Result<(), String> {
     while let Some(result) = stream.next().await {
         match result {
             Ok(_info) => {} // progress updates
-            Err(e) => return Err(format!("Failed to pull image '{}': {}", image, e)),
+            Err(e) => return Err(format!("Failed to pull image '{}': {}", image, e).into()),
         }
     }
 
@@ -115,9 +115,8 @@ async fn ensure_image(docker: &Docker, image: &str) -> Result<(), String> {
 
 /// Execute a shell command inside an ephemeral Docker container.
 /// The container is created, started, waited on, and removed automatically.
-pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> Result<SandboxResult, String> {
-    let docker = Docker::connect_with_local_defaults()
-        .map_err(|e| format!("Docker connection failed: {}", e))?;
+pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResult<SandboxResult> {
+    let docker = Docker::connect_with_local_defaults()?;
 
     // Ensure the image is available
     ensure_image(&docker, &config.image).await?;
@@ -160,8 +159,7 @@ pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> Result<San
     };
 
     // Create container
-    let container = docker.create_container(Some(create_opts), container_config).await
-        .map_err(|e| format!("Failed to create sandbox container: {}", e))?;
+    let container = docker.create_container(Some(create_opts), container_config).await?;
     let container_id = container.id.clone();
 
     info!("[sandbox] Created container {} for command: {}", &container_id[..12], &command[..command.len().min(100)]);
@@ -287,8 +285,8 @@ pub fn load_sandbox_config(store: &crate::engine::sessions::SessionStore) -> San
 }
 
 /// Save sandbox config to engine_config table.
-pub fn save_sandbox_config(store: &crate::engine::sessions::SessionStore, config: &SandboxConfig) -> Result<(), String> {
-    let json = serde_json::to_string(config).map_err(|e| e.to_string())?;
+pub fn save_sandbox_config(store: &crate::engine::sessions::SessionStore, config: &SandboxConfig) -> EngineResult<()> {
+    let json = serde_json::to_string(config)?;
     store.set_config("sandbox_config", &json)
 }
 
@@ -323,6 +321,7 @@ pub fn format_sandbox_result(result: &SandboxResult) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+use crate::atoms::error::EngineResult;
 
     #[test]
     fn test_default_config() {

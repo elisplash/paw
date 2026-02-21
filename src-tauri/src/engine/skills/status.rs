@@ -6,9 +6,10 @@ use crate::engine::sessions::SessionStore;
 use super::builtins::builtin_skills;
 use super::types::SkillStatus;
 use super::crypto::{decrypt_credential, encrypt_credential, get_vault_key, is_legacy_encrypted};
+use crate::atoms::error::EngineResult;
 
 /// Get the combined status of all skills (definition + stored state).
-pub fn get_all_skill_status(store: &SessionStore) -> Result<Vec<SkillStatus>, String> {
+pub fn get_all_skill_status(store: &SessionStore) -> EngineResult<Vec<SkillStatus>> {
     let definitions = builtin_skills();
     let mut statuses = Vec::new();
 
@@ -72,7 +73,7 @@ pub fn get_all_skill_status(store: &SessionStore) -> Result<Vec<SkillStatus>, St
 }
 
 /// Get credential values for a skill (decrypted). Used by tool executor at runtime.
-pub fn get_skill_credentials(store: &SessionStore, skill_id: &str) -> Result<std::collections::HashMap<String, String>, String> {
+pub fn get_skill_credentials(store: &SessionStore, skill_id: &str) -> EngineResult<std::collections::HashMap<String, String>> {
     let vault_key = get_vault_key()?;
     let keys = store.list_skill_credential_keys(skill_id)?;
     let mut creds = std::collections::HashMap::new();

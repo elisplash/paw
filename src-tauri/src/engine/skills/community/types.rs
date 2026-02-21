@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use crate::atoms::error::EngineResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommunitySkill {

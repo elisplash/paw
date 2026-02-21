@@ -6,11 +6,12 @@ use crate::engine::channels;
 use log::{info, warn};
 use serde_json::json;
 use super::config::{WhatsAppConfig, CONFIG_KEY};
+use crate::atoms::error::EngineResult;
 
 // ── Instance Management ────────────────────────────────────────────────
 
 /// Create a WhatsApp instance in Evolution API and get the QR code.
-pub(crate) async fn create_evolution_instance(config: &WhatsAppConfig) -> Result<String, String> {
+pub(crate) async fn create_evolution_instance(config: &WhatsAppConfig) -> EngineResult<String> {
     let client = reqwest::Client::new();
     let url = format!("{}/instance/create", config.api_url);
 
@@ -30,8 +31,7 @@ pub(crate) async fn create_evolution_instance(config: &WhatsAppConfig) -> Result
     let resp = client.post(&url)
         .header("apikey", &config.api_key)
         .json(&body)
-        .send().await
-        .map_err(|e| format!("Failed to create instance: {}", e))?;
+        .send().await?;
 
     let status = resp.status();
     let text = resp.text().await.unwrap_or_default();
@@ -60,28 +60,26 @@ pub(crate) async fn create_evolution_instance(config: &WhatsAppConfig) -> Result
             let resp2 = client.post(&url)
                 .header("apikey", &config.api_key)
                 .json(&retry_body)
-                .send().await
-                .map_err(|e| format!("Failed to create instance (retry): {}", e))?;
+                .send().await?;
 
             let status2 = resp2.status();
             let text2 = resp2.text().await.unwrap_or_default();
             info!("[whatsapp] Instance create (retry) response [{}]: {}", status2, &text2[..text2.len().min(500)]);
 
             if !status2.is_success() {
-                return Err(format!("Create instance failed after delete ({}): {}", status2, text2));
+                return Err(format!("Create instance failed after delete ({}): {}", status2, text2).into());
             }
 
             let resp_json: serde_json::Value = serde_json::from_str(&text2).unwrap_or_default();
             return Ok(extract_qr_from_response(&resp_json));
         }
-        return Err(format!("Create instance failed ({}): {}", status, text));
+        return Err(format!("Create instance failed ({}): {}", status, text).into());
     }
 
     info!("[whatsapp] Instance create response [{}]: {}", status, &text[..text.len().min(500)]);
 
     // Parse QR code from response
-    let resp_json: serde_json::Value = serde_json::from_str(&text)
-        .map_err(|e| format!("Parse create response: {}", e))?;
+    let resp_json: serde_json::Value = serde_json::from_str(&text)?;
 
     Ok(extract_qr_from_response(&resp_json))
 }
@@ -136,14 +134,13 @@ pub(crate) async fn delete_evolution_instance(config: &WhatsAppConfig) {
 
 /// Connect an existing Evolution API instance (fallback if delete+create fails).
 #[allow(dead_code)]
-pub(crate) async fn connect_evolution_instance(config: &WhatsAppConfig) -> Result<String, String> {
+pub(crate) async fn connect_evolution_instance(config: &WhatsAppConfig) -> EngineResult<String> {
     let client = reqwest::Client::new();
     let url = format!("{}/instance/connect/{}", config.api_url, config.instance_name);
 
     let resp = client.get(&url)
         .header("apikey", &config.api_key)
-        .send().await
-        .map_err(|e| format!("Failed to connect instance: {}", e))?;
+        .send().await?;
 
     let text = resp.text().await.unwrap_or_default();
     info!("[whatsapp] Connect instance response: {}", &text[..text.len().min(500)]);
@@ -159,7 +156,7 @@ pub(crate) async fn send_whatsapp_message(
     app_handle: &tauri::AppHandle,
     to_jid: &str,
     text: &str,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let config: WhatsAppConfig = channels::load_channel_config(app_handle, CONFIG_KEY)?;
     let client = reqwest::Client::new();
 

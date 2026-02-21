@@ -3,6 +3,7 @@
 // ModelPrice struct lives in crate::atoms::types.
 
 use crate::atoms::types::*;
+use crate::atoms::error::EngineResult;
 
 pub fn model_price(model: &str) -> ModelPrice {
     // Normalize: strip provider prefixes like "anthropic/"

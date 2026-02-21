@@ -11,6 +11,7 @@ use super::tokens::resolve_token;
 use super::tx::sign_eip1559_transaction;
 use std::collections::HashMap;
 use std::time::Duration;
+use crate::atoms::error::EngineResult;
 
 /// Transfer ETH or ERC-20 tokens to an external address.
 /// For ETH: simple value transfer (21000 gas, no calldata).
@@ -18,7 +19,7 @@ use std::time::Duration;
 pub async fn execute_dex_transfer(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
     let wallet_address = creds.get("DEX_WALLET_ADDRESS").ok_or("No wallet. Use dex_wallet_create first.")?;
     let private_key_hex = creds.get("DEX_PRIVATE_KEY").ok_or("Missing private key")?;
@@ -35,8 +36,7 @@ pub async fn execute_dex_transfer(
     let is_eth = currency_upper == "ETH";
 
     let pk_bytes = hex_decode(private_key_hex)?;
-    let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)
-        .map_err(|e| format!("Invalid private key: {}", e))?;
+    let signing_key = k256::ecdsa::SigningKey::from_slice(&pk_bytes)?;
 
     let chain_id = eth_chain_id(rpc_url).await?;
     let nonce = eth_get_transaction_count(rpc_url, wallet_address).await?;
@@ -56,7 +56,7 @@ pub async fn execute_dex_transfer(
         balance_u256[offset..].copy_from_slice(&balance_bytes[..std::cmp::min(balance_bytes.len(), 32)]);
         if balance_u256 < value_u256 {
             let bal_display = raw_to_amount(&balance_hex, decimals).unwrap_or("?".into());
-            return Err(format!("Insufficient ETH balance. Have: {} ETH, need: {} ETH", bal_display, amount_str));
+            return Err(format!("Insufficient ETH balance. Have: {} ETH, need: {} ETH", bal_display, amount_str).into());
         }
 
         // ETH transfer: 21000 gas, empty data
@@ -82,7 +82,7 @@ pub async fn execute_dex_transfer(
         balance_u256[offset..].copy_from_slice(&bal_bytes[..std::cmp::min(bal_bytes.len(), 32)]);
         if balance_u256 < amount_u256 {
             let bal_display = raw_to_amount(&bal_result, decimals).unwrap_or("?".into());
-            return Err(format!("Insufficient {} balance. Have: {}, need: {}", currency_upper, bal_display, amount_str));
+            return Err(format!("Insufficient {} balance. Have: {}, need: {}", currency_upper, bal_display, amount_str).into());
         }
 
         // Check ETH balance for gas

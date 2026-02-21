@@ -32,6 +32,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::Message as WsMessage;
 use futures::stream::StreamExt;
 use futures::SinkExt;
+use crate::atoms::error::EngineResult;
 
 // ── Web Chat Config ────────────────────────────────────────────────────
 
@@ -94,27 +95,27 @@ const CONFIG_KEY: &str = "webchat_config";
 
 // ── Public API ─────────────────────────────────────────────────────────
 
-pub fn load_config(app_handle: &tauri::AppHandle) -> Result<WebChatConfig, String> {
+pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<WebChatConfig> {
     channels::load_channel_config(app_handle, CONFIG_KEY)
 }
 
-pub fn save_config(app_handle: &tauri::AppHandle, config: &WebChatConfig) -> Result<(), String> {
+pub fn save_config(app_handle: &tauri::AppHandle, config: &WebChatConfig) -> EngineResult<()> {
     channels::save_channel_config(app_handle, CONFIG_KEY, config)
 }
 
-pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::approve_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::deny_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::remove_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         return Err("Web Chat is already running".into());
     }
@@ -173,9 +174,8 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     app_handle: tauri::AppHandle,
     config: Arc<WebChatConfig>,
     username: String,
-) -> Result<(), String> {
-    let ws_stream = tokio_tungstenite::accept_async(stream).await
-        .map_err(|e| format!("WebSocket handshake failed: {}", e))?;
+) -> EngineResult<()> {
+    let ws_stream = tokio_tungstenite::accept_async(stream).await?;
 
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
 

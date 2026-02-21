@@ -1,11 +1,12 @@
 use rusqlite::params;
 use crate::engine::types::{StoredMessage, Message, MessageContent, Role, ToolCall, ContentBlock};
+use crate::atoms::error::EngineResult;
 use super::SessionStore;
 
 impl SessionStore {
     // ── Message CRUD ───────────────────────────────────────────────────
 
-    pub fn add_message(&self, msg: &StoredMessage) -> Result<(), String> {
+    pub fn add_message(&self, msg: &StoredMessage) -> EngineResult<()> {
         let conn = self.conn.lock();
 
         conn.execute(
@@ -20,7 +21,7 @@ impl SessionStore {
                 msg.tool_call_id,
                 msg.name,
             ],
-        ).map_err(|e| format!("Insert message error: {}", e))?;
+        )?;
 
         // Update session stats
         conn.execute(
@@ -29,18 +30,18 @@ impl SessionStore {
                 updated_at = datetime('now')
              WHERE id = ?1",
             params![msg.session_id],
-        ).map_err(|e| format!("Update session error: {}", e))?;
+        )?;
 
         Ok(())
     }
 
-    pub fn get_messages(&self, session_id: &str, limit: i64) -> Result<Vec<StoredMessage>, String> {
+    pub fn get_messages(&self, session_id: &str, limit: i64) -> EngineResult<Vec<StoredMessage>> {
         let conn = self.conn.lock();
 
         let mut stmt = conn.prepare(
             "SELECT id, session_id, role, content, tool_calls_json, tool_call_id, name, created_at
              FROM messages WHERE session_id = ?1 ORDER BY created_at ASC LIMIT ?2"
-        ).map_err(|e| format!("Prepare error: {}", e))?;
+        )?;
 
         let messages = stmt.query_map(params![session_id, limit], |row| {
             Ok(StoredMessage {
@@ -53,7 +54,7 @@ impl SessionStore {
                 name: row.get(6)?,
                 created_at: row.get(7)?,
             })
-        }).map_err(|e| format!("Query error: {}", e))?
+        })?
         .filter_map(|r| r.ok())
         .collect();
 
@@ -61,7 +62,7 @@ impl SessionStore {
     }
 
     /// Convert stored messages to engine Message types for sending to AI provider.
-    pub fn load_conversation(&self, session_id: &str, system_prompt: Option<&str>) -> Result<Vec<Message>, String> {
+    pub fn load_conversation(&self, session_id: &str, system_prompt: Option<&str>) -> EngineResult<Vec<Message>> {
         // Load recent messages only — lean sessions rely on memory_search for
         // historical context rather than carrying the full conversation.
         let stored = self.get_messages(session_id, 50)?;

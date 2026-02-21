@@ -20,6 +20,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures::{SinkExt, StreamExt};
+use crate::atoms::error::EngineResult;
 
 // ── Slack Config ───────────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ const CONFIG_KEY: &str = "slack_config";
 
 // ── Bridge Core ────────────────────────────────────────────────────────
 
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         return Err("Slack bridge is already running".into());
     }
@@ -126,19 +127,17 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 
 // ── Slack Socket Mode ──────────────────────────────────────────────────
 
-async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> Result<(), String> {
+async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> EngineResult<()> {
     let stop = get_stop_signal();
     let http_client = reqwest::Client::new();
 
     // Get bot user ID via auth.test
     let auth_resp = http_client.post("https://slack.com/api/auth.test")
         .header("Authorization", format!("Bearer {}", config.bot_token))
-        .send().await
-        .map_err(|e| format!("auth.test failed: {}", e))?;
-    let auth_json: serde_json::Value = auth_resp.json().await
-        .map_err(|e| format!("auth.test parse: {}", e))?;
+        .send().await?;
+    let auth_json: serde_json::Value = auth_resp.json().await?;
     if !auth_json["ok"].as_bool().unwrap_or(false) {
-        return Err(format!("auth.test error: {}", auth_json["error"].as_str().unwrap_or("unknown")));
+        return Err(format!("auth.test error: {}", auth_json["error"].as_str().unwrap_or("unknown")).into());
     }
     let bot_user_id = auth_json["user_id"].as_str().unwrap_or("").to_string();
     let _ = BOT_USER_ID.set(bot_user_id.clone());
@@ -148,8 +147,7 @@ async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> R
     let ws_url = get_socket_mode_url(&http_client, &config.app_token).await?;
 
     let (ws_stream, _) = connect_async(&ws_url)
-        .await
-        .map_err(|e| format!("Socket Mode connect failed: {}", e))?;
+        .await?;
 
     let (mut write, mut read) = ws_stream.split();
 
@@ -306,18 +304,16 @@ async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> R
 
 // ── Slack API Helpers ──────────────────────────────────────────────────
 
-async fn get_socket_mode_url(client: &reqwest::Client, app_token: &str) -> Result<String, String> {
+async fn get_socket_mode_url(client: &reqwest::Client, app_token: &str) -> EngineResult<String> {
     let resp = client.post("https://slack.com/api/apps.connections.open")
         .header("Authorization", format!("Bearer {}", app_token))
         .header("Content-Type", "application/x-www-form-urlencoded")
-        .send().await
-        .map_err(|e| format!("connections.open failed: {}", e))?;
+        .send().await?;
 
-    let body: serde_json::Value = resp.json().await
-        .map_err(|e| format!("connections.open parse: {}", e))?;
+    let body: serde_json::Value = resp.json().await?;
 
     if !body["ok"].as_bool().unwrap_or(false) {
-        return Err(format!("connections.open error: {}", body["error"].as_str().unwrap_or("unknown")));
+        return Err(format!("connections.open error: {}", body["error"].as_str().unwrap_or("unknown")).into());
     }
 
     body["url"].as_str()
@@ -330,7 +326,7 @@ async fn slack_send_message(
     bot_token: &str,
     channel: &str,
     text: &str,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let resp = client.post("https://slack.com/api/chat.postMessage")
         .header("Authorization", format!("Bearer {}", bot_token))
         .json(&json!({
@@ -353,22 +349,22 @@ async fn slack_send_message(
 
 // ── Config Persistence ─────────────────────────────────────────────────
 
-pub fn load_config(app_handle: &tauri::AppHandle) -> Result<SlackConfig, String> {
+pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<SlackConfig> {
     channels::load_channel_config(app_handle, CONFIG_KEY)
 }
 
-pub fn save_config(app_handle: &tauri::AppHandle, config: &SlackConfig) -> Result<(), String> {
+pub fn save_config(app_handle: &tauri::AppHandle, config: &SlackConfig) -> EngineResult<()> {
     channels::save_channel_config(app_handle, CONFIG_KEY, config)
 }
 
-pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::approve_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::deny_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::remove_user_generic(app_handle, CONFIG_KEY, user_id)
 }

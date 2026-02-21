@@ -6,6 +6,7 @@ use crate::engine::memory;
 use log::info;
 use tauri::Emitter;
 use tauri::Manager;
+use crate::atoms::error::EngineResult;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![
@@ -112,7 +113,7 @@ pub async fn execute(
     })
 }
 
-async fn execute_self_info(app_handle: &tauri::AppHandle) -> Result<String, String> {
+async fn execute_self_info(app_handle: &tauri::AppHandle) -> EngineResult<String> {
     let state = app_handle.try_state::<EngineState>()
         .ok_or("Engine state not available")?;
 
@@ -180,7 +181,7 @@ async fn execute_self_info(app_handle: &tauri::AppHandle) -> Result<String, Stri
 async fn execute_update_profile(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let agent_id = args["agent_id"].as_str()
         .ok_or("update_profile: missing 'agent_id' argument (use 'default' for the main agent)")?;
 
@@ -231,7 +232,7 @@ async fn execute_update_profile(
 async fn execute_create_agent(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let name = args["name"].as_str().ok_or("create_agent: missing 'name'")?;
     let role = args["role"].as_str().ok_or("create_agent: missing 'role'")?;
     let system_prompt = args["system_prompt"].as_str().ok_or("create_agent: missing 'system_prompt'")?;
@@ -295,7 +296,7 @@ async fn execute_create_agent(
     ))
 }
 
-async fn execute_agent_list(app_handle: &tauri::AppHandle) -> Result<String, String> {
+async fn execute_agent_list(app_handle: &tauri::AppHandle) -> EngineResult<String> {
     let state = app_handle.try_state::<EngineState>()
         .ok_or("Engine state not available")?;
 
@@ -346,7 +347,7 @@ async fn execute_agent_list(app_handle: &tauri::AppHandle) -> Result<String, Str
 async fn execute_agent_skills(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let agent_id = args["agent_id"].as_str().ok_or("Missing 'agent_id' parameter")?;
 
     let state = app_handle.try_state::<EngineState>()
@@ -383,7 +384,7 @@ async fn execute_agent_skills(
 async fn execute_agent_skill_assign(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let skill_id = args["skill_id"].as_str().ok_or("Missing 'skill_id' parameter")?;
     let agent_id = args["agent_id"].as_str().ok_or("Missing 'agent_id' parameter")?;
     let action = args["action"].as_str().ok_or("Missing 'action' parameter (must be 'add' or 'remove')")?;
@@ -425,6 +426,6 @@ async fn execute_agent_skill_assign(
             let _ = app_handle.emit("community-skill-updated", serde_json::json!({ "skill_id": skill_id }));
             Ok(format!("Removed skill '{}' from agent '{}'.", skill.name, agent_id))
         }
-        _ => Err(format!("Invalid action '{}'. Must be 'add' or 'remove'.", action)),
+        _ => Err(format!("Invalid action '{}'. Must be 'add' or 'remove'.", action).into()),
     }
 }

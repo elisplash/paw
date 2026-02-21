@@ -5,9 +5,11 @@
 use log::info;
 use std::time::Duration;
 use super::constants::{TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID};
+use crate::atoms::error::{EngineError, EngineResult};
+use crate::atoms::error::EngineResult;
 
 /// Make a Solana JSON-RPC call
-pub(crate) async fn rpc_call(rpc_url: &str, method: &str, params: serde_json::Value) -> Result<serde_json::Value, String> {
+pub(crate) async fn rpc_call(rpc_url: &str, method: &str, params: serde_json::Value) -> EngineResult<serde_json::Value> {
     let client = reqwest::Client::new();
     let body = serde_json::json!({
         "jsonrpc": "2.0",
@@ -20,30 +22,28 @@ pub(crate) async fn rpc_call(rpc_url: &str, method: &str, params: serde_json::Va
         .json(&body)
         .timeout(Duration::from_secs(30))
         .send()
-        .await
-        .map_err(|e| format!("Solana RPC error: {}", e))?;
+        .await?;
 
-    let json: serde_json::Value = resp.json().await
-        .map_err(|e| format!("Solana RPC parse error: {}", e))?;
+    let json: serde_json::Value = resp.json().await?;
 
     if let Some(error) = json.get("error") {
-        return Err(format!("Solana RPC error: {}", error));
+        return Err(EngineError::Other(format!("Solana RPC error: {}", error)));
     }
 
     json.get("result").cloned()
-        .ok_or_else(|| "Solana RPC: missing 'result' field".into())
+        .ok_or_else(|| EngineError::Other("Solana RPC: missing 'result' field".into()))
 }
 
 /// Get SOL balance in lamports
-pub(crate) async fn get_sol_balance(rpc_url: &str, address: &str) -> Result<u64, String> {
+pub(crate) async fn get_sol_balance(rpc_url: &str, address: &str) -> EngineResult<u64> {
     let result = rpc_call(rpc_url, "getBalance", serde_json::json!([address])).await?;
     result.get("value")
         .and_then(|v| v.as_u64())
-        .ok_or_else(|| "Failed to parse SOL balance".into())
+        .ok_or_else(|| EngineError::Other("Failed to parse SOL balance".into()))
 }
 
 /// Get SPL token accounts for a wallet
-pub(crate) async fn get_token_accounts(rpc_url: &str, wallet: &str) -> Result<Vec<(String, u64, u8, String)>, String> {
+pub(crate) async fn get_token_accounts(rpc_url: &str, wallet: &str) -> EngineResult<Vec<(String, u64, u8, String)>> {
     // Returns (mint, amount, decimals, token_account_address)
     let mut all_accounts = Vec::new();
 
@@ -81,7 +81,7 @@ pub(crate) async fn get_token_accounts(rpc_url: &str, wallet: &str) -> Result<Ve
 }
 
 /// Get token metadata (name, symbol, decimals, supply) from on-chain mint
-pub(crate) async fn get_mint_info(rpc_url: &str, mint: &str) -> Result<serde_json::Value, String> {
+pub(crate) async fn get_mint_info(rpc_url: &str, mint: &str) -> EngineResult<serde_json::Value> {
     let result = rpc_call(rpc_url, "getAccountInfo", serde_json::json!([
         mint,
         { "encoding": "jsonParsed" }
@@ -91,7 +91,7 @@ pub(crate) async fn get_mint_info(rpc_url: &str, mint: &str) -> Result<serde_jso
     if let Some(info) = parsed {
         Ok(info.clone())
     } else {
-        Err(format!("Could not parse mint info for {}", mint))
+        Err(EngineError::Other(format!("Could not parse mint info for {}", mint)))
     }
 }
 

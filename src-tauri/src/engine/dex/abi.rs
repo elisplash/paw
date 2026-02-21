@@ -2,6 +2,7 @@
 // EVM ABI encoding, Uniswap V3 calldata builders, and ERC-20 introspection helpers.
 
 use super::primitives::{keccak256, hex_decode};
+use crate::atoms::error::{EngineError, EngineResult};
 
 /// Compute 4-byte function selector from signature
 pub(crate) fn function_selector(sig: &str) -> [u8; 4] {
@@ -224,38 +225,38 @@ pub(crate) fn encode_owner() -> Vec<u8> {
 }
 
 /// Decode an ABI-encoded string (dynamic type at offset 0)
-pub(crate) fn decode_abi_string(hex_data: &str) -> Result<String, String> {
+pub(crate) fn decode_abi_string(hex_data: &str) -> EngineResult<String> {
     let bytes = hex_decode(hex_data)?;
     if bytes.len() < 64 {
         // Might be a non-standard response — try UTF-8 directly from bytes32
         let trimmed: Vec<u8> = bytes.iter().copied().filter(|&b| b != 0).collect();
-        return String::from_utf8(trimmed).map_err(|_| "Cannot decode string".into());
+        return String::from_utf8(trimmed).map_err(|_| EngineError::Other("Cannot decode string".into()));
     }
     // Standard ABI: offset (32 bytes) + length (32 bytes) + data
-    let offset_bytes: [u8; 32] = bytes[..32].try_into().map_err(|_| "Bad offset")?;
+    let offset_bytes: [u8; 32] = bytes[..32].try_into().map_err(|_| EngineError::Other("Bad offset".into()))?;
     let offset = u32::from_be_bytes(
-        offset_bytes[28..32].try_into().map_err(|_| "Bad offset u32 slice")?
+        offset_bytes[28..32].try_into().map_err(|_| EngineError::Other("Bad offset u32 slice".into()))?
     ) as usize;
 
     if offset + 32 > bytes.len() {
         // Try bytes32 fallback
         let trimmed: Vec<u8> = bytes[..32].iter().copied().filter(|&b| b != 0).collect();
-        return String::from_utf8(trimmed).map_err(|_| "Cannot decode string".into());
+        return String::from_utf8(trimmed).map_err(|_| EngineError::Other("Cannot decode string".into()));
     }
 
     let len_start = offset;
-    let len_bytes: [u8; 32] = bytes[len_start..len_start + 32].try_into().map_err(|_| "Bad length")?;
+    let len_bytes: [u8; 32] = bytes[len_start..len_start + 32].try_into().map_err(|_| EngineError::Other("Bad length".into()))?;
     let len = u32::from_be_bytes(
-        len_bytes[28..32].try_into().map_err(|_| "Bad length u32 slice")?
+        len_bytes[28..32].try_into().map_err(|_| EngineError::Other("Bad length u32 slice".into()))?
     ) as usize;
 
     let data_start = len_start + 32;
     if data_start + len > bytes.len() {
-        return Err("String data exceeds response".into());
+        return Err(EngineError::Other("String data exceeds response".into()));
     }
 
     String::from_utf8(bytes[data_start..data_start + len].to_vec())
-        .map_err(|_| "Invalid UTF-8 in string".into())
+        .map_err(|_| EngineError::Other("Invalid UTF-8 in string".into()))
 }
 
 /// Encode ERC-20 transfer(address, uint256)
@@ -271,6 +272,7 @@ pub(crate) fn encode_transfer(to: &[u8; 20], amount: &[u8; 32]) -> Vec<u8> {
 mod tests {
     use super::*;
     use crate::engine::dex::primitives::hex_encode;
+use crate::atoms::error::EngineResult;
 
     #[test]
     fn function_selector_transfer() {

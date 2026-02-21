@@ -11,6 +11,7 @@ use super::config::{WhatsAppConfig, CONFIG_KEY};
 use super::docker::ensure_evolution_container;
 use super::evolution_api::create_evolution_instance;
 use super::webhook::run_webhook_listener;
+use crate::atoms::error::EngineResult;
 
 // ── Global State ───────────────────────────────────────────────────────
 
@@ -27,7 +28,7 @@ pub(crate) fn get_stop_signal() -> Arc<AtomicBool> {
 
 // ── Bridge Control ─────────────────────────────────────────────────────
 
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     // If bridge is already running, stop it first so Start always works
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         info!("[whatsapp] Bridge already running — restarting");
@@ -114,7 +115,7 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 /// 2. Create/connect WhatsApp instance (get QR code)
 /// 3. Start local webhook HTTP listener
 /// 4. Route inbound messages through the agent loop
-pub(crate) async fn run_whatsapp_bridge(app_handle: tauri::AppHandle, mut config: WhatsAppConfig) -> Result<(), String> {
+pub(crate) async fn run_whatsapp_bridge(app_handle: tauri::AppHandle, mut config: WhatsAppConfig) -> EngineResult<()> {
     let stop = get_stop_signal();
 
     // Step 1: Ensure backend service is available and container is running

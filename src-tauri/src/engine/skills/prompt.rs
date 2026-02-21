@@ -6,13 +6,14 @@ use super::builtins::builtin_skills;
 use super::types::CredentialField;
 use super::status::get_skill_credentials;
 use super::community::get_community_skill_instructions;
+use crate::atoms::error::EngineResult;
 
 /// Collect agent instructions from all enabled skills.
 /// Returns a combined string to be injected into the system prompt.
 /// - Prefers custom instructions over defaults (if user edited them).
 /// - For skills with credentials, injects actual decrypted values into placeholders.
 /// - `agent_id` filters community skills to only those assigned to this agent.
-pub fn get_enabled_skill_instructions(store: &SessionStore, agent_id: &str) -> Result<String, String> {
+pub fn get_enabled_skill_instructions(store: &SessionStore, agent_id: &str) -> EngineResult<String> {
     let definitions = builtin_skills();
     let mut sections: Vec<String> = Vec::new();
 

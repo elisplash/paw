@@ -14,9 +14,10 @@ pub(crate) async fn run_webhook_listener(
     app_handle: tauri::AppHandle,
     port: u16,
     stop: Arc<AtomicBool>,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     use tokio::net::TcpListener;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use crate::atoms::error::EngineResult;
 
     let addr = format!("127.0.0.1:{}", port);
     let listener = TcpListener::bind(&addr).await

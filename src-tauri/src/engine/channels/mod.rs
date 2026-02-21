@@ -25,7 +25,7 @@ pub use agent::{run_channel_agent, run_routed_channel_agent};
 pub fn load_channel_config<T: for<'de> Deserialize<'de> + Default>(
     app_handle: &tauri::AppHandle,
     config_key: &str,
-) -> Result<T, String> {
+) -> EngineResult<T> {
     let engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;
 
@@ -42,7 +42,7 @@ pub fn save_channel_config<T: Serialize>(
     app_handle: &tauri::AppHandle,
     config_key: &str,
     config: &T,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;
 
@@ -121,6 +121,7 @@ pub fn is_provider_billing_error(err: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+use crate::atoms::error::EngineResult;
 
     #[test]
     fn split_message_short() {

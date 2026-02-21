@@ -11,6 +11,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use parking_lot::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
+use crate::atoms::error::EngineResult;
 
 /// Pending tool approvals: maps tool_call_id → oneshot sender.
 /// The agent loop registers a sender before emitting ToolRequest,
@@ -183,7 +184,7 @@ pub struct EngineState {
 }
 
 impl EngineState {
-    pub fn new() -> Result<Self, String> {
+    pub fn new() -> EngineResult<Self> {
         let store = SessionStore::open()?;
 
         // Initialize skill vault tables

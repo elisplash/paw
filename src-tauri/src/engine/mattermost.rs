@@ -21,6 +21,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures::{SinkExt, StreamExt};
+use crate::atoms::error::EngineResult;
 
 // ── Mattermost Config ──────────────────────────────────────────────────
 
@@ -78,7 +79,7 @@ const CONFIG_KEY: &str = "mattermost_config";
 /// - Coerces `http://` → `https://` with a warning
 /// - Adds `https://` if no scheme is present
 /// - Rejects URLs with non-http(s) schemes
-fn normalize_server_url(raw: &str) -> Result<String, String> {
+fn normalize_server_url(raw: &str) -> EngineResult<String> {
     let url = raw.trim().trim_end_matches('/');
     if url.is_empty() {
         return Err("Server URL is required.".into());
@@ -103,7 +104,7 @@ fn normalize_server_url(raw: &str) -> Result<String, String> {
         return Err(format!(
             "Unsupported URL scheme '{}://'. Use https:// for your Mattermost server.",
             scheme
-        ));
+        ).into());
     }
 
     // No scheme at all — assume https
@@ -113,7 +114,7 @@ fn normalize_server_url(raw: &str) -> Result<String, String> {
 
 // ── Bridge Core ────────────────────────────────────────────────────────
 
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         return Err("Mattermost bridge is already running".into());
     }
@@ -175,7 +176,7 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 
 // ── WebSocket Loop ─────────────────────────────────────────────────────
 
-async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -> Result<(), String> {
+async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -> EngineResult<()> {
     let stop = get_stop_signal();
     let client = reqwest::Client::new();
     let base = config.server_url.trim_end_matches('/');
@@ -183,13 +184,13 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
     // Get bot user info
     let me: serde_json::Value = client.get(format!("{}/api/v4/users/me", base))
         .header("Authorization", format!("Bearer {}", config.token))
-        .send().await.map_err(|e| format!("users/me: {}", e))?
-        .json().await.map_err(|e| format!("users/me parse: {}", e))?;
+        .send().await?
+        .json().await?;
 
     if let Some(err_id) = me.get("id").and_then(|v| v.as_str()) {
         let _ = BOT_USER_ID.set(err_id.to_string());
     } else if me.get("status_code").is_some() {
-        return Err(format!("Auth failed: {}", me["message"].as_str().unwrap_or("unknown")));
+        return Err(format!("Auth failed: {}", me["message"].as_str().unwrap_or("unknown")).into());
     }
 
     let bot_id = me["id"].as_str().unwrap_or("").to_string();
@@ -205,8 +206,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
         format!("{}/api/v4/websocket", base.replacen("http", "ws", 1))
     };
 
-    let (ws_stream, _) = connect_async(&ws_url).await
-        .map_err(|e| format!("WS connect: {}", e))?;
+    let (ws_stream, _) = connect_async(&ws_url).await?;
     let (mut ws_tx, mut ws_rx) = ws_stream.split();
 
     // Authenticate on WebSocket
@@ -215,8 +215,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
         "action": "authentication_challenge",
         "data": { "token": config.token }
     });
-    ws_tx.send(WsMessage::Text(auth_msg.to_string())).await
-        .map_err(|e| format!("WS auth send: {}", e))?;
+    ws_tx.send(WsMessage::Text(auth_msg.to_string())).await?;
 
     let _ = app_handle.emit("mattermost-status", json!({
         "kind": "connected",
@@ -375,7 +374,7 @@ async fn mm_send_message(
     token: &str,
     channel_id: &str,
     message: &str,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let url = format!("{}/api/v4/posts", base);
     let body = json!({
         "channel_id": channel_id,
@@ -398,11 +397,11 @@ async fn mm_send_message(
 
 // ── Config Persistence ─────────────────────────────────────────────────
 
-pub fn load_config(app_handle: &tauri::AppHandle) -> Result<MattermostConfig, String> {
+pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<MattermostConfig> {
     channels::load_channel_config(app_handle, CONFIG_KEY)
 }
 
-pub fn save_config(app_handle: &tauri::AppHandle, config: &MattermostConfig) -> Result<(), String> {
+pub fn save_config(app_handle: &tauri::AppHandle, config: &MattermostConfig) -> EngineResult<()> {
     // Normalize URL at save time so the UI reflects the coerced value
     let mut config = config.clone();
     if !config.server_url.is_empty() {
@@ -411,14 +410,14 @@ pub fn save_config(app_handle: &tauri::AppHandle, config: &MattermostConfig) -> 
     channels::save_channel_config(app_handle, CONFIG_KEY, &config)
 }
 
-pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::approve_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::deny_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::remove_user_generic(app_handle, CONFIG_KEY, user_id)
 }

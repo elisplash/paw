@@ -38,7 +38,7 @@ fn resolve_and_validate(
     raw_path: &str,
     agent_id: &str,
     operation: &str,
-) -> Result<std::path::PathBuf, String> {
+) -> EngineResult<std::path::PathBuf> {
     let resolved = if std::path::Path::new(raw_path).is_absolute() {
         std::path::PathBuf::from(raw_path)
     } else {
@@ -73,7 +73,7 @@ fn resolve_and_validate(
                 return Err(format!(
                     "{}: path '{}' escapes the agent workspace. Use paths within your workspace or absolute paths to allowed locations.",
                     operation, raw_path
-                ));
+                ).into());
             }
         }
     }
@@ -88,7 +88,7 @@ fn resolve_and_validate(
                 return Err(format!(
                     "{}: access to '{}' is blocked by security policy. This path contains sensitive system or credential data.",
                     operation, raw_path
-                ));
+                ).into());
             }
         } else {
             // Relative sensitive path — check if it appears as a path component
@@ -99,7 +99,7 @@ fn resolve_and_validate(
                 return Err(format!(
                     "{}: access to '{}' is blocked by security policy. This path contains sensitive credential data.",
                     operation, raw_path
-                ));
+                ).into());
             }
         }
     }
@@ -192,16 +192,16 @@ pub async fn execute(
     agent_id: &str,
 ) -> Option<Result<String, String>> {
     match name {
-        "read_file"      => Some(execute_read_file(args, agent_id).await),
-        "write_file"     => Some(execute_write_file(args, agent_id).await),
-        "list_directory" => Some(execute_list_directory(args, agent_id).await),
-        "append_file"    => Some(execute_append_file(args, agent_id).await),
-        "delete_file"    => Some(execute_delete_file(args, agent_id).await),
+        "read_file"      => Some(execute_read_file(args, agent_id).await.map_err(|e| e.to_string())),
+        "write_file"     => Some(execute_write_file(args, agent_id).await.map_err(|e| e.to_string())),
+        "list_directory" => Some(execute_list_directory(args, agent_id).await.map_err(|e| e.to_string())),
+        "append_file"    => Some(execute_append_file(args, agent_id).await.map_err(|e| e.to_string())),
+        "delete_file"    => Some(execute_delete_file(args, agent_id).await.map_err(|e| e.to_string())),
         _ => None,
     }
 }
 
-async fn execute_read_file(args: &serde_json::Value, agent_id: &str) -> Result<String, String> {
+async fn execute_read_file(args: &serde_json::Value, agent_id: &str) -> EngineResult<String> {
     let raw_path = args["path"].as_str().ok_or("read_file: missing 'path' argument")?;
     let resolved = resolve_and_validate(raw_path, agent_id, "read_file")?;
     let path = resolved.to_string_lossy();
@@ -217,7 +217,7 @@ async fn execute_read_file(args: &serde_json::Value, agent_id: &str) -> Result<S
             "Cannot read engine source file '{}'. \
              Use your available tools directly — credentials and authentication are handled automatically.",
             path
-        ));
+        ).into());
     }
 
     let content = std::fs::read_to_string(&resolved)
@@ -231,7 +231,7 @@ async fn execute_read_file(args: &serde_json::Value, agent_id: &str) -> Result<S
     }
 }
 
-async fn execute_write_file(args: &serde_json::Value, agent_id: &str) -> Result<String, String> {
+async fn execute_write_file(args: &serde_json::Value, agent_id: &str) -> EngineResult<String> {
     let raw_path = args["path"].as_str().ok_or("write_file: missing 'path' argument")?;
     let content = args["content"].as_str().ok_or("write_file: missing 'content' argument")?;
     let resolved = resolve_and_validate(raw_path, agent_id, "write_file")?;
@@ -252,8 +252,7 @@ async fn execute_write_file(args: &serde_json::Value, agent_id: &str) -> Result<
     }
 
     if let Some(parent) = resolved.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("Failed to create directory: {}", e))?;
+        std::fs::create_dir_all(parent)?;
     }
 
     std::fs::write(&resolved, content)
@@ -262,7 +261,7 @@ async fn execute_write_file(args: &serde_json::Value, agent_id: &str) -> Result<
     Ok(format!("Successfully wrote {} bytes to {}", content.len(), path))
 }
 
-async fn execute_list_directory(args: &serde_json::Value, agent_id: &str) -> Result<String, String> {
+async fn execute_list_directory(args: &serde_json::Value, agent_id: &str) -> EngineResult<String> {
     let raw_path = args["path"].as_str().unwrap_or(".");
     let recursive = args["recursive"].as_bool().unwrap_or(false);
     let max_depth = args["max_depth"].as_u64().unwrap_or(3) as usize;
@@ -273,10 +272,10 @@ async fn execute_list_directory(args: &serde_json::Value, agent_id: &str) -> Res
     info!("[engine] list_directory: {} recursive={} (agent={})", path, recursive, agent_id);
 
     if !resolved.exists() {
-        return Err(format!("Directory '{}' does not exist", path));
+        return Err(format!("Directory '{}' does not exist", path).into());
     }
     if !resolved.is_dir() {
-        return Err(format!("'{}' is not a directory", path));
+        return Err(format!("'{}' is not a directory", path).into());
     }
 
     let mut entries = Vec::new();
@@ -331,7 +330,7 @@ async fn execute_list_directory(args: &serde_json::Value, agent_id: &str) -> Res
     }
 }
 
-async fn execute_append_file(args: &serde_json::Value, agent_id: &str) -> Result<String, String> {
+async fn execute_append_file(args: &serde_json::Value, agent_id: &str) -> EngineResult<String> {
     let raw_path = args["path"].as_str().ok_or("append_file: missing 'path' argument")?;
     let content = args["content"].as_str().ok_or("append_file: missing 'content' argument")?;
     let resolved = resolve_and_validate(raw_path, agent_id, "append_file")?;
@@ -340,6 +339,7 @@ async fn execute_append_file(args: &serde_json::Value, agent_id: &str) -> Result
     info!("[engine] append_file: {} ({} bytes, agent={})", path, content.len(), agent_id);
 
     use std::io::Write;
+use crate::atoms::error::EngineResult;
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -352,7 +352,7 @@ async fn execute_append_file(args: &serde_json::Value, agent_id: &str) -> Result
     Ok(format!("Appended {} bytes to {}", content.len(), path))
 }
 
-async fn execute_delete_file(args: &serde_json::Value, agent_id: &str) -> Result<String, String> {
+async fn execute_delete_file(args: &serde_json::Value, agent_id: &str) -> EngineResult<String> {
     let raw_path = args["path"].as_str().ok_or("delete_file: missing 'path' argument")?;
     let recursive = args["recursive"].as_bool().unwrap_or(false);
     let resolved = resolve_and_validate(raw_path, agent_id, "delete_file")?;
@@ -361,7 +361,7 @@ async fn execute_delete_file(args: &serde_json::Value, agent_id: &str) -> Result
     info!("[engine] delete_file: {} recursive={} (agent={})", path, recursive, agent_id);
 
     if !resolved.exists() {
-        return Err(format!("Path '{}' does not exist", path));
+        return Err(format!("Path '{}' does not exist", path).into());
     }
 
     if resolved.is_dir() {

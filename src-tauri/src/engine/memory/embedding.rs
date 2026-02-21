@@ -8,6 +8,7 @@ use log::{info, warn};
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicBool, Ordering};
+use crate::atoms::error::EngineResult;
 
 /// Track whether we've already tried to pull the model this session.
 static MODEL_PULL_ATTEMPTED: AtomicBool = AtomicBool::new(false);
@@ -31,7 +32,7 @@ impl EmbeddingClient {
     /// Get embedding vector for a text string.
     /// Tries Ollama API format first, falls back to OpenAI format.
     /// On first failure, attempts to auto-pull the model from Ollama.
-    pub async fn embed(&self, text: &str) -> Result<Vec<f32>, String> {
+    pub async fn embed(&self, text: &str) -> EngineResult<Vec<f32>> {
         // Try Ollama format first (new /api/embed endpoint, then legacy /api/embeddings)
         let ollama_result = self.embed_ollama(text).await;
         if let Ok(vec) = ollama_result {
@@ -69,12 +70,12 @@ impl EmbeddingClient {
             "Embedding failed. Ollama: {} | OpenAI: {}",
             ollama_err,
             openai_result.unwrap_err()
-        ))
+        ).into())
     }
 
     /// Ollama current API: POST /api/embed { model, input } → { embeddings: [[f32...]] }
     /// Falls back to legacy: POST /api/embeddings { model, prompt } → { embedding: [f32...] }
-    async fn embed_ollama(&self, text: &str) -> Result<Vec<f32>, String> {
+    async fn embed_ollama(&self, text: &str) -> EngineResult<Vec<f32>> {
         // ── Try new /api/embed endpoint first (Ollama 0.4+) ──
         let new_url = format!("{}/api/embed", self.base_url.trim_end_matches('/'));
         let new_body = json!({
@@ -116,7 +117,7 @@ impl EmbeddingClient {
                 let status = resp.status();
                 let body = resp.text().await.unwrap_or_default();
                 if status.as_u16() == 404 || body.contains("not found") || body.contains("does not exist") {
-                    return Err(format!("Model '{}' not found — {}", self.model, body));
+                    return Err(format!("Model '{}' not found — {}", self.model, body).into());
                 }
                 info!("[memory] New /api/embed returned {} — trying legacy endpoint", status);
             }
@@ -139,11 +140,10 @@ impl EmbeddingClient {
         if !resp.status().is_success() {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
-            return Err(format!("Ollama embed {} — {}", status, text));
+            return Err(format!("Ollama embed {} — {}", status, text).into());
         }
 
-        let v: Value = resp.json().await
-            .map_err(|e| format!("Ollama embed parse error: {}", e))?;
+        let v: Value = resp.json().await?;
 
         let embedding = v["embedding"].as_array()
             .ok_or_else(|| "No 'embedding' array in Ollama response".to_string())?;
@@ -160,7 +160,7 @@ impl EmbeddingClient {
     }
 
     /// OpenAI-compatible format: POST /v1/embeddings { model, input }
-    async fn embed_openai(&self, text: &str) -> Result<Vec<f32>, String> {
+    async fn embed_openai(&self, text: &str) -> EngineResult<Vec<f32>> {
         let url = format!("{}/v1/embeddings", self.base_url.trim_end_matches('/'));
         let body = json!({
             "model": self.model,
@@ -171,17 +171,15 @@ impl EmbeddingClient {
             .json(&body)
             .timeout(std::time::Duration::from_secs(30))
             .send()
-            .await
-            .map_err(|e| format!("OpenAI embed request failed: {}", e))?;
+            .await?;
 
         if !resp.status().is_success() {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
-            return Err(format!("OpenAI embed {} — {}", status, text));
+            return Err(format!("OpenAI embed {} — {}", status, text).into());
         }
 
-        let v: Value = resp.json().await
-            .map_err(|e| format!("OpenAI embed parse error: {}", e))?;
+        let v: Value = resp.json().await?;
 
         let embedding = v["data"][0]["embedding"].as_array()
             .ok_or_else(|| "No 'data[0].embedding' array in OpenAI response".to_string())?;
@@ -198,13 +196,13 @@ impl EmbeddingClient {
     }
 
     /// Check if the embedding service is reachable and the model works.
-    pub async fn test_connection(&self) -> Result<usize, String> {
+    pub async fn test_connection(&self) -> EngineResult<usize> {
         let vec = self.embed("test connection").await?;
         Ok(vec.len())
     }
 
     /// Check if Ollama is reachable.
-    pub async fn check_ollama_running(&self) -> Result<bool, String> {
+    pub async fn check_ollama_running(&self) -> EngineResult<bool> {
         let url = format!("{}/api/tags", self.base_url.trim_end_matches('/'));
         match self.client.get(&url)
             .timeout(std::time::Duration::from_secs(5))
@@ -217,20 +215,18 @@ impl EmbeddingClient {
     }
 
     /// Check if the configured model is available in Ollama.
-    pub async fn check_model_available(&self) -> Result<bool, String> {
+    pub async fn check_model_available(&self) -> EngineResult<bool> {
         let url = format!("{}/api/tags", self.base_url.trim_end_matches('/'));
         let resp = self.client.get(&url)
             .timeout(std::time::Duration::from_secs(5))
             .send()
-            .await
-            .map_err(|e| format!("Cannot reach Ollama: {}", e))?;
+            .await?;
 
         if !resp.status().is_success() {
             return Err("Ollama returned an error".into());
         }
 
-        let v: Value = resp.json().await
-            .map_err(|e| format!("Parse error: {}", e))?;
+        let v: Value = resp.json().await?;
 
         if let Some(models) = v["models"].as_array() {
             let model_base = self.model.split(':').next().unwrap_or(&self.model);
@@ -253,7 +249,7 @@ impl EmbeddingClient {
     }
 
     /// Pull a model from Ollama. Blocks until download completes.
-    pub async fn pull_model(&self) -> Result<(), String> {
+    pub async fn pull_model(&self) -> EngineResult<()> {
         let url = format!("{}/api/pull", self.base_url.trim_end_matches('/'));
         let body = json!({
             "name": self.model,
@@ -266,13 +262,12 @@ impl EmbeddingClient {
             .json(&body)
             .timeout(std::time::Duration::from_secs(600))
             .send()
-            .await
-            .map_err(|e| format!("Pull request failed: {}", e))?;
+            .await?;
 
         if !resp.status().is_success() {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
-            return Err(format!("Pull failed {} — {}", status, text));
+            return Err(format!("Pull failed {} — {}", status, text).into());
         }
 
         let v: Value = resp.json().await.unwrap_or(json!({}));
@@ -283,7 +278,7 @@ impl EmbeddingClient {
 
     /// Pull a model from Ollama with streaming progress.
     /// Calls `on_progress` with (status, completed_bytes, total_bytes) for each update.
-    pub async fn pull_model_streaming<F>(&self, mut on_progress: F) -> Result<(), String>
+    pub async fn pull_model_streaming<F>(&self, mut on_progress: F) -> EngineResult<()>
     where
         F: FnMut(&str, u64, u64),
     {
@@ -299,16 +294,15 @@ impl EmbeddingClient {
             .json(&body)
             .timeout(std::time::Duration::from_secs(600))
             .send()
-            .await
-            .map_err(|e| format!("Pull request failed: {}", e))?;
+            .await?;
 
         if !resp.status().is_success() {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
-            return Err(format!("Pull failed {} — {}", status, text));
+            return Err(format!("Pull failed {} — {}", status, text).into());
         }
 
-        let body_text = resp.text().await.map_err(|e| format!("Read error: {}", e))?;
+        let body_text = resp.text().await?;
         for line in body_text.lines() {
             let line = line.trim();
             if line.is_empty() { continue; }

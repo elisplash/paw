@@ -94,7 +94,7 @@ pub async fn execute(
 async fn execute_rest_api_call(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let path = args["path"].as_str().ok_or("rest_api_call: missing 'path'")?;
     let method = args["method"].as_str().unwrap_or("GET");
     let base_url = creds.get("API_BASE_URL").ok_or("Missing API_BASE_URL")?;
@@ -107,8 +107,7 @@ async fn execute_rest_api_call(
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     let mut request = match method.to_uppercase().as_str() {
         "POST"   => client.post(&url),
@@ -132,9 +131,9 @@ async fn execute_rest_api_call(
         request = request.header("Content-Type", "application/json").body(body.to_string());
     }
 
-    let resp = request.send().await.map_err(|e| format!("API error: {}", e))?;
+    let resp = request.send().await?;
     let status = resp.status().as_u16();
-    let body = resp.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
+    let body = resp.text().await?;
     let truncated = if body.len() > 30_000 { format!("{}...\n[truncated, {} total bytes]", &body[..30_000], body.len()) } else { body };
 
     Ok(format!("API {} {} → {}\n\n{}", method, path, status, truncated))
@@ -143,15 +142,14 @@ async fn execute_rest_api_call(
 async fn execute_webhook_send(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let payload = args.get("payload").ok_or("webhook_send: missing 'payload'")?;
     let url = creds.get("WEBHOOK_URL").ok_or("Missing WEBHOOK_URL")?;
     info!("[skill:webhook] POST {}", url);
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     let mut request = client.post(url.as_str())
         .header("Content-Type", "application/json")
@@ -165,14 +163,14 @@ async fn execute_webhook_send(
         }
     }
 
-    let resp = request.send().await.map_err(|e| format!("Webhook error: {}", e))?;
+    let resp = request.send().await?;
     let status = resp.status().as_u16();
     let body = resp.text().await.unwrap_or_default();
 
     if status < 400 {
         Ok(format!("Webhook delivered (HTTP {}). Response: {}", status, &body[..body.len().min(1000)]))
     } else {
-        Err(format!("Webhook failed (HTTP {}): {}", status, &body[..body.len().min(1000)]))
+        Err(format!("Webhook failed (HTTP {}): {}", status, &body[..body.len().min(1000)]).into())
     }
 }
 
@@ -188,7 +186,7 @@ fn simple_hmac_hex(key: &str, data: &str) -> String {
 async fn execute_image_generate(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let prompt = args["prompt"].as_str().ok_or("image_generate: missing 'prompt'")?;
     let filename = args["filename"].as_str().unwrap_or("");
     let api_key = creds.get("GEMINI_API_KEY").ok_or("Missing GEMINI_API_KEY credential")?;
@@ -197,8 +195,7 @@ async fn execute_image_generate(
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(120))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     let url = format!(
         "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key={}",
@@ -214,18 +211,16 @@ async fn execute_image_generate(
         .header("Content-Type", "application/json")
         .json(&body)
         .send()
-        .await
-        .map_err(|e| format!("Gemini API error: {}", e))?;
+        .await?;
 
     let status = resp.status().as_u16();
-    let resp_text = resp.text().await.map_err(|e| format!("Read response: {}", e))?;
+    let resp_text = resp.text().await?;
 
     if status >= 400 {
-        return Err(format!("Gemini API error (HTTP {}): {}", status, &resp_text[..resp_text.len().min(500)]));
+        return Err(format!("Gemini API error (HTTP {}): {}", status, &resp_text[..resp_text.len().min(500)]).into());
     }
 
-    let resp_json: serde_json::Value = serde_json::from_str(&resp_text)
-        .map_err(|e| format!("Parse Gemini response: {}", e))?;
+    let resp_json: serde_json::Value = serde_json::from_str(&resp_text)?;
 
     let parts = resp_json
         .get("candidates").and_then(|c| c.get(0))
@@ -279,17 +274,15 @@ async fn execute_image_generate(
         .map(|h| std::path::PathBuf::from(h).join("Pictures").join("paw"))
         .unwrap_or_else(|_| std::env::temp_dir().join("paw_images"));
 
-    std::fs::create_dir_all(&output_dir)
-        .map_err(|e| format!("Create output dir: {}", e))?;
+    std::fs::create_dir_all(&output_dir)?;
 
     let output_path = output_dir.join(format!("{}.{}", output_name, ext));
 
     use base64::Engine as _;
-    let bytes = base64::engine::general_purpose::STANDARD.decode(&base64_data)
-        .map_err(|e| format!("Decode image data: {}", e))?;
+use crate::atoms::error::EngineResult;
+    let bytes = base64::engine::general_purpose::STANDARD.decode(&base64_data)?;
 
-    std::fs::write(&output_path, &bytes)
-        .map_err(|e| format!("Write image file: {}", e))?;
+    std::fs::write(&output_path, &bytes)?;
 
     let path_str = output_path.to_string_lossy().to_string();
     let size_kb = bytes.len() / 1024;

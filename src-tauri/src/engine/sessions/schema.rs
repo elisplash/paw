@@ -6,8 +6,9 @@
 
 use log::{info, warn};
 use rusqlite::Connection;
+use crate::atoms::error::EngineResult;
 
-pub(crate) fn run_migrations(conn: &Connection) -> Result<(), String> {
+pub(crate) fn run_migrations(conn: &Connection) -> EngineResult<()> {
     // ── Pre-migration: detect stale project_agents schema ───────────
     // Older versions created project_agents with (id INTEGER PK, project_id INTEGER,
     // name TEXT, …) which is incompatible with the current (project_id TEXT,
@@ -183,7 +184,7 @@ pub(crate) fn run_migrations(conn: &Connection) -> Result<(), String> {
             ON trade_history(created_at DESC);
         CREATE INDEX IF NOT EXISTS idx_trade_history_type
             ON trade_history(trade_type, created_at DESC);
-    ").map_err(|e| format!("Failed to create tables: {}", e))?;
+    ")?;
 
     // ── Migrations: add columns to existing tables ──────────────────
     // SQLite silently ignores ALTER TABLE ADD COLUMN errors if the column exists.
@@ -248,7 +249,7 @@ pub(crate) fn run_migrations(conn: &Connection) -> Result<(), String> {
         "INSERT OR IGNORE INTO projects (id, title, goal, status, boss_agent)
          VALUES ('_standalone', 'Standalone Agents', 'Container for user-created agents', 'active', 'system')",
         [],
-    ).map_err(|e| format!("Failed to seed _standalone project: {}", e))?;
+    )?;
 
     // ── One-time dedup migration ─────────────────────────────────────
     // Removes duplicate messages caused by a historical bug that re-inserted

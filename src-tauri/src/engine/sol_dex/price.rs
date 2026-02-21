@@ -2,36 +2,35 @@
 // get_token_price_usd
 
 use std::time::Duration;
+use crate::atoms::error::{EngineError, EngineResult};
+use crate::atoms::error::EngineResult;
 
 /// Fetch the current USD price of a Solana token by mint address.
 /// Uses DexScreener's token endpoint which returns all pairs for a token.
 /// Returns the price from the pair with the highest liquidity.
-pub async fn get_token_price_usd(mint: &str) -> Result<f64, String> {
+pub async fn get_token_price_usd(mint: &str) -> EngineResult<f64> {
     let url = format!("https://api.dexscreener.com/latest/dex/tokens/{}", mint);
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .user_agent("Mozilla/5.0 (compatible; PawAgent/1.0)")
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     let resp = client.get(&url)
         .send()
-        .await
-        .map_err(|e| format!("DexScreener price request failed: {}", e))?;
+        .await?;
 
     if !resp.status().is_success() {
-        return Err(format!("DexScreener returned status {}", resp.status()));
+        return Err(EngineError::Other(format!("DexScreener returned status {}", resp.status())));
     }
 
-    let body: serde_json::Value = resp.json().await
-        .map_err(|e| format!("Failed to parse DexScreener response: {}", e))?;
+    let body: serde_json::Value = resp.json().await?;
 
     let pairs = body["pairs"].as_array()
-        .ok_or_else(|| format!("No pairs found for mint {}", &mint[..std::cmp::min(12, mint.len())]))?;
+        .ok_or_else(|| EngineError::Other(format!("No pairs found for mint {}", &mint[..std::cmp::min(12, mint.len())])))?;
 
     if pairs.is_empty() {
-        return Err(format!("No trading pairs for mint {}", &mint[..std::cmp::min(12, mint.len())]));
+        return Err(EngineError::Other(format!("No trading pairs for mint {}", &mint[..std::cmp::min(12, mint.len())])));
     }
 
     // Find the pair with highest USD liquidity for best price accuracy
@@ -50,5 +49,5 @@ pub async fn get_token_price_usd(mint: &str) -> Result<f64, String> {
         }
     }
 
-    best_price.ok_or_else(|| format!("No USD price found for mint {}", &mint[..std::cmp::min(12, mint.len())]))
+    best_price.ok_or_else(|| EngineError::Other(format!("No USD price found for mint {}", &mint[..std::cmp::min(12, mint.len())])))
 }

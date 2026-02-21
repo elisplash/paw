@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
 use tauri::{Emitter, Manager};
+use crate::atoms::error::EngineResult;
 
 // ── Telegram API Types ─────────────────────────────────────────────────
 
@@ -143,15 +144,15 @@ fn get_stop_signal() -> Arc<AtomicBool> {
 
 const TG_API: &str = "https://api.telegram.org/bot";
 
-async fn tg_get_me(client: &reqwest::Client, token: &str) -> Result<(String, String), String> {
+async fn tg_get_me(client: &reqwest::Client, token: &str) -> EngineResult<(String, String)> {
     let url = format!("{}{}/getMe", TG_API, token);
     let resp: TgResponse<serde_json::Value> = client
         .get(&url)
-        .send().await.map_err(|e| format!("getMe request failed: {}", e))?
-        .json().await.map_err(|e| format!("getMe parse failed: {}", e))?;
+        .send().await?
+        .json().await?;
 
     if !resp.ok {
-        return Err(format!("getMe failed: {}", resp.description.unwrap_or_default()));
+        return Err(format!("getMe failed: {}", resp.description.unwrap_or_default()).into());
     }
 
     let result = resp.result.ok_or("getMe: no result")?;
@@ -165,7 +166,7 @@ async fn tg_get_updates(
     token: &str,
     offset: i64,
     timeout: u64,
-) -> Result<Vec<TgUpdate>, String> {
+) -> EngineResult<Vec<TgUpdate>> {
     let url = format!(
         "{}{}/getUpdates?offset={}&timeout={}&allowed_updates=[\"message\"]",
         TG_API, token, offset, timeout
@@ -173,11 +174,11 @@ async fn tg_get_updates(
     let resp: TgResponse<Vec<TgUpdate>> = client
         .get(&url)
         .timeout(std::time::Duration::from_secs(timeout + 10))
-        .send().await.map_err(|e| format!("getUpdates failed: {}", e))?
-        .json().await.map_err(|e| format!("getUpdates parse failed: {}", e))?;
+        .send().await?
+        .json().await?;
 
     if !resp.ok {
-        return Err(format!("getUpdates error: {}", resp.description.unwrap_or_default()));
+        return Err(format!("getUpdates error: {}", resp.description.unwrap_or_default()).into());
     }
 
     Ok(resp.result.unwrap_or_default())
@@ -189,7 +190,7 @@ async fn tg_send_message(
     chat_id: i64,
     text: &str,
     reply_to: Option<i64>,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     // Telegram message limit = 4096 chars. Split if needed.
     let chunks = channels::split_message(text, 4000);
     for (i, chunk) in chunks.iter().enumerate() {
@@ -238,7 +239,7 @@ async fn tg_send_chat_action(
     client: &reqwest::Client,
     token: &str,
     chat_id: i64,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let url = format!("{}{}/sendChatAction", TG_API, token);
     let body = serde_json::json!({
         "chat_id": chat_id,
@@ -257,7 +258,7 @@ pub fn is_bridge_running() -> bool {
 
 /// Start the Telegram polling bridge. Returns immediately;
 /// the actual polling runs in a background tokio task.
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         return Err("Telegram bridge is already running".into());
     }
@@ -313,11 +314,10 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> TelegramStatus {
 }
 
 /// The main polling loop. Runs forever until stop signal.
-async fn run_polling_loop(app_handle: tauri::AppHandle, config: TelegramConfig) -> Result<(), String> {
+async fn run_polling_loop(app_handle: tauri::AppHandle, config: TelegramConfig) -> EngineResult<()> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(120))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     // Verify bot token with getMe
     let (username, name) = tg_get_me(&client, &config.bot_token).await?;
@@ -478,25 +478,24 @@ async fn run_polling_loop(app_handle: tauri::AppHandle, config: TelegramConfig) 
 
 // ── Config Persistence ─────────────────────────────────────────────────
 
-pub fn load_telegram_config(app_handle: &tauri::AppHandle) -> Result<TelegramConfig, String> {
+pub fn load_telegram_config(app_handle: &tauri::AppHandle) -> EngineResult<TelegramConfig> {
     let engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;
 
     match engine_state.store.get_config("telegram_config") {
         Ok(Some(json)) => {
             serde_json::from_str::<TelegramConfig>(&json)
-                .map_err(|e| format!("Parse telegram config: {}", e))
+                
         }
         _ => Ok(TelegramConfig::default()),
     }
 }
 
-pub fn save_telegram_config(app_handle: &tauri::AppHandle, config: &TelegramConfig) -> Result<(), String> {
+pub fn save_telegram_config(app_handle: &tauri::AppHandle, config: &TelegramConfig) -> EngineResult<()> {
     let engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;
 
-    let json = serde_json::to_string(config)
-        .map_err(|e| format!("Serialize telegram config: {}", e))?;
+    let json = serde_json::to_string(config)?;
 
     engine_state.store.set_config("telegram_config", &json)?;
     Ok(())
@@ -504,7 +503,7 @@ pub fn save_telegram_config(app_handle: &tauri::AppHandle, config: &TelegramConf
 
 /// Approve a pending pairing request. Adds user to allowlist, removes from pending.
 /// Sends a confirmation message to the user on Telegram.
-pub async fn approve_user(app_handle: &tauri::AppHandle, user_id: i64) -> Result<(), String> {
+pub async fn approve_user(app_handle: &tauri::AppHandle, user_id: i64) -> EngineResult<()> {
     let mut config = load_telegram_config(app_handle)?;
 
     if !config.allowed_users.contains(&user_id) {
@@ -532,7 +531,7 @@ pub async fn approve_user(app_handle: &tauri::AppHandle, user_id: i64) -> Result
 
 /// Deny a pending pairing request. Removes from pending.
 /// Sends a rejection message to the user on Telegram.
-pub async fn deny_user(app_handle: &tauri::AppHandle, user_id: i64) -> Result<(), String> {
+pub async fn deny_user(app_handle: &tauri::AppHandle, user_id: i64) -> EngineResult<()> {
     let config = load_telegram_config(app_handle)?;
 
     // Send rejection before removing
@@ -555,7 +554,7 @@ pub async fn deny_user(app_handle: &tauri::AppHandle, user_id: i64) -> Result<()
 }
 
 /// Remove a user from the allowlist.
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: i64) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: i64) -> EngineResult<()> {
     let mut config = load_telegram_config(app_handle)?;
     config.allowed_users.retain(|&id| id != user_id);
     save_telegram_config(app_handle, &config)?;

@@ -148,7 +148,7 @@ fn build_cdp_jwt(
     method: &str,
     host: &str,
     path: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     use base64::Engine as _;
 
     let now = chrono::Utc::now().timestamp() as u64;
@@ -189,9 +189,9 @@ fn build_cdp_jwt(
     });
 
     let b64_header = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .encode(serde_json::to_string(&header).map_err(|e| format!("JWT header: {}", e))?);
+        .encode(serde_json::to_string(&header)?);
     let b64_payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .encode(serde_json::to_string(&payload).map_err(|e| format!("JWT payload: {}", e))?);
+        .encode(serde_json::to_string(&payload)?);
 
     let signing_input = format!("{}.{}", b64_header, b64_payload);
 
@@ -225,14 +225,13 @@ fn detect_key_type(secret: &str) -> KeyType {
     KeyType::Ed25519Raw
 }
 
-fn sign_ed25519_raw(secret_b64: &str, message: &[u8]) -> Result<String, String> {
+fn sign_ed25519_raw(secret_b64: &str, message: &[u8]) -> EngineResult<String> {
     use ed25519_dalek::Signer;
     use base64::Engine as _;
 
     let key_bytes = base64::engine::general_purpose::STANDARD
         .decode(secret_b64.trim())
-        .or_else(|_| base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(secret_b64.trim()))
-        .map_err(|e| format!("Failed to decode API secret as base64: {}", e))?;
+        .or_else(|_| base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(secret_b64.trim()))?;
 
     info!("[skill:coinbase] Ed25519 raw key decoded to {} bytes", key_bytes.len());
 
@@ -245,15 +244,14 @@ fn sign_ed25519_raw(secret_b64: &str, message: &[u8]) -> Result<String, String> 
         64 => {
             let mut keypair = [0u8; 64];
             keypair.copy_from_slice(&key_bytes);
-            ed25519_dalek::SigningKey::from_keypair_bytes(&keypair)
-                .map_err(|e| format!("Invalid Ed25519 keypair (64 bytes): {}", e))?
+            ed25519_dalek::SigningKey::from_keypair_bytes(&keypair)?
         }
         n => {
             return Err(format!(
                 "API secret decoded to {} bytes, expected 32 (seed) or 64 (keypair) for Ed25519. \
                  If your secret starts with '-----BEGIN', paste the entire PEM block including headers.",
                 n
-            ));
+            ).into());
         }
     };
 
@@ -261,18 +259,17 @@ fn sign_ed25519_raw(secret_b64: &str, message: &[u8]) -> Result<String, String> 
     Ok(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(signature.to_bytes()))
 }
 
-fn sign_ed25519_pem(pem: &str, message: &[u8]) -> Result<String, String> {
+fn sign_ed25519_pem(pem: &str, message: &[u8]) -> EngineResult<String> {
     use ed25519_dalek::pkcs8::DecodePrivateKey;
     use ed25519_dalek::Signer;
     use base64::Engine as _;
 
-    let signing_key = ed25519_dalek::SigningKey::from_pkcs8_pem(pem)
-        .map_err(|e| format!("Invalid Ed25519 PEM key: {}", e))?;
+    let signing_key = ed25519_dalek::SigningKey::from_pkcs8_pem(pem)?;
     let signature = signing_key.sign(message);
     Ok(base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(signature.to_bytes()))
 }
 
-fn sign_es256(pem: &str, message: &[u8]) -> Result<String, String> {
+fn sign_es256(pem: &str, message: &[u8]) -> EngineResult<String> {
     use p256::ecdsa::SigningKey;
     use p256::ecdsa::signature::Signer;
     use base64::Engine as _;
@@ -282,8 +279,8 @@ fn sign_es256(pem: &str, message: &[u8]) -> Result<String, String> {
         SigningKey::from_pkcs8_pem(pem)
     }.or_else(|_| {
         use p256::elliptic_curve::SecretKey;
-        let secret_key = SecretKey::<p256::NistP256>::from_sec1_pem(pem)
-            .map_err(|e| format!("Invalid EC key (tried PKCS#8 and SEC1): {}", e))?;
+use crate::atoms::error::EngineResult;
+        let secret_key = SecretKey::<p256::NistP256>::from_sec1_pem(pem)?;
         Ok::<SigningKey, String>(SigningKey::from(secret_key))
     })?;
 
@@ -296,7 +293,7 @@ async fn cdp_request(
     method: &str,
     path: &str,
     body: Option<&serde_json::Value>,
-) -> Result<serde_json::Value, String> {
+) -> EngineResult<serde_json::Value> {
     let key_name = creds.get("CDP_API_KEY_NAME").ok_or("Missing CDP_API_KEY_NAME")?;
     let key_secret = creds.get("CDP_API_KEY_SECRET").ok_or("Missing CDP_API_KEY_SECRET")?;
 
@@ -322,13 +319,13 @@ async fn cdp_request(
         req = req.json(b);
     }
 
-    let resp = req.send().await.map_err(|e| format!("Coinbase API request failed: {}", e))?;
+    let resp = req.send().await?;
     let status = resp.status();
-    let text = resp.text().await.map_err(|e| format!("Read response: {}", e))?;
+    let text = resp.text().await?;
 
     if !status.is_success() {
         warn!("[skill:coinbase] API error {} on {} {}: {}", status, method, path, &text[..text.len().min(500)]);
-        return Err(format!("Coinbase API error (HTTP {}): {}", status.as_u16(), &text[..text.len().min(500)]));
+        return Err(format!("Coinbase API error (HTTP {}): {}", status.as_u16(), &text[..text.len().min(500)]).into());
     }
 
     info!("[skill:coinbase] {} {} -> {}", method, path, status);
@@ -341,7 +338,7 @@ async fn cdp_request(
 async fn execute_coinbase_prices(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let symbols_str = args["symbols"].as_str().ok_or("coinbase_prices: missing 'symbols'")?;
     let symbols: Vec<String> = symbols_str.split(',').map(|s| s.trim().to_uppercase().to_string()).collect();
 
@@ -368,7 +365,7 @@ async fn execute_coinbase_prices(
 async fn execute_coinbase_balance(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let filter_currency = args["currency"].as_str().map(|s| s.to_uppercase());
     info!("[skill:coinbase] Fetching account balances");
 
@@ -409,7 +406,7 @@ async fn execute_coinbase_balance(
 async fn execute_coinbase_wallet_create(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let name = args["name"].as_str().ok_or("coinbase_wallet_create: missing 'name'")?;
     info!("[skill:coinbase] Creating wallet: {}", name);
 
@@ -428,7 +425,7 @@ async fn execute_coinbase_wallet_create(
 async fn execute_coinbase_trade(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let side = args["side"].as_str().ok_or("coinbase_trade: missing 'side'")?;
     let product_id = args["product_id"].as_str().ok_or("coinbase_trade: missing 'product_id'")?;
     let amount = args["amount"].as_str().ok_or("coinbase_trade: missing 'amount'")?;
@@ -472,7 +469,7 @@ async fn execute_coinbase_trade(
         let err_msg = data["error_response"]["message"].as_str()
             .or_else(|| data["message"].as_str())
             .unwrap_or("Unknown error");
-        Err(format!("Trade failed: {} — Full response: {}", err_msg, serde_json::to_string_pretty(&data).unwrap_or_default()))
+        Err(format!("Trade failed: {} — Full response: {}", err_msg, serde_json::to_string_pretty(&data).unwrap_or_default()).into())
     }
 }
 
@@ -481,7 +478,7 @@ async fn execute_coinbase_trade(
 async fn execute_coinbase_transfer(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let currency = args["currency"].as_str().ok_or("coinbase_transfer: missing 'currency'")?;
     let amount = args["amount"].as_str().ok_or("coinbase_transfer: missing 'amount'")?;
     let to_address = args["to_address"].as_str().ok_or("coinbase_transfer: missing 'to_address'")?;
@@ -502,7 +499,7 @@ async fn execute_coinbase_transfer(
     let avail_f: f64 = available.parse().unwrap_or(0.0);
     let amount_f: f64 = amount.parse().unwrap_or(0.0);
     if amount_f > avail_f {
-        return Err(format!("Insufficient {} balance: {} available, {} requested", currency, available, amount));
+        return Err(format!("Insufficient {} balance: {} available, {} requested", currency, available, amount).into());
     }
 
     let send_path = format!("/v2/accounts/{}/transactions", account_uuid);

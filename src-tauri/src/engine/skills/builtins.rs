@@ -2,6 +2,7 @@
 // 40+ built-in skill definitions.
 
 use super::types::{CredentialField, SkillCategory, SkillDefinition, SkillTier};
+use crate::atoms::error::EngineResult;
 
 pub fn builtin_skills() -> Vec<SkillDefinition> {
     vec![

@@ -72,9 +72,8 @@ pub fn load_routing_config(store: &Arc<SessionStore>) -> RoutingConfig {
     }
 }
 
-pub fn save_routing_config(store: &Arc<SessionStore>, config: &RoutingConfig) -> Result<(), String> {
-    let json = serde_json::to_string(config)
-        .map_err(|e| format!("Serialize routing config: {}", e))?;
+pub fn save_routing_config(store: &Arc<SessionStore>, config: &RoutingConfig) -> EngineResult<()> {
+    let json = serde_json::to_string(config)?;
     store.set_config(CONFIG_KEY, &json)
 }
 
@@ -135,6 +134,7 @@ pub fn resolve_route(
 #[cfg(test)]
 mod tests {
     use super::*;
+use crate::atoms::error::EngineResult;
 
     fn make_rule(channel: &str, agent: &str, label: &str) -> RoutingRule {
         RoutingRule {

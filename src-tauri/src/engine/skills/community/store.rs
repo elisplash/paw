@@ -1,11 +1,12 @@
 use crate::engine::sessions::SessionStore;
 use super::types::CommunitySkill;
+use crate::atoms::error::EngineResult;
 
 // ── DB Storage for Community Skills ────────────────────────────────────
 
 impl SessionStore {
     /// Initialize the community skills table.
-    pub fn init_community_skills_table(&self) -> Result<(), String> {
+    pub fn init_community_skills_table(&self) -> EngineResult<()> {
         let conn = self.conn.lock();
         conn.execute_batch("
             CREATE TABLE IF NOT EXISTS community_skills (
@@ -19,7 +20,7 @@ impl SessionStore {
                 installed_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
-        ").map_err(|e| format!("Failed to create community_skills table: {}", e))?;
+        ")?;
 
         // Migration: add agent_ids column if table existed without it
         let _ = conn.execute_batch(
@@ -30,7 +31,7 @@ impl SessionStore {
     }
 
     /// Save (upsert) a community skill.
-    pub fn save_community_skill(&self, skill: &CommunitySkill) -> Result<(), String> {
+    pub fn save_community_skill(&self, skill: &CommunitySkill) -> EngineResult<()> {
         let conn = self.conn.lock();
         let agent_ids_json = serde_json::to_string(&skill.agent_ids).unwrap_or_else(|_| "[]".to_string());
         conn.execute(
@@ -41,17 +42,17 @@ impl SessionStore {
                 skill.id, skill.name, skill.description, skill.instructions,
                 skill.source, skill.enabled as i32, agent_ids_json, skill.installed_at, skill.updated_at
             ],
-        ).map_err(|e| format!("Save community skill error: {}", e))?;
+        )?;
         Ok(())
     }
 
     /// List all installed community skills.
-    pub fn list_community_skills(&self) -> Result<Vec<CommunitySkill>, String> {
+    pub fn list_community_skills(&self) -> EngineResult<Vec<CommunitySkill>> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
             "SELECT id, name, description, instructions, source, enabled, agent_ids, installed_at, updated_at
              FROM community_skills ORDER BY name"
-        ).map_err(|e| format!("Query error: {}", e))?;
+        )?;
 
         let skills = stmt.query_map([], |row| {
             let agent_ids_json: String = row.get::<_, String>(6).unwrap_or_else(|_| "[]".to_string());
@@ -67,7 +68,7 @@ impl SessionStore {
                 installed_at: row.get(7)?,
                 updated_at: row.get(8)?,
             })
-        }).map_err(|e| format!("Query error: {}", e))?
+        })?
         .filter_map(|r| r.ok())
         .collect();
 
@@ -75,34 +76,34 @@ impl SessionStore {
     }
 
     /// Set enabled state for a community skill.
-    pub fn set_community_skill_enabled(&self, id: &str, enabled: bool) -> Result<(), String> {
+    pub fn set_community_skill_enabled(&self, id: &str, enabled: bool) -> EngineResult<()> {
         let conn = self.conn.lock();
         conn.execute(
             "UPDATE community_skills SET enabled = ?1, updated_at = datetime('now') WHERE id = ?2",
             rusqlite::params![enabled as i32, id],
-        ).map_err(|e| format!("Update error: {}", e))?;
+        )?;
         Ok(())
     }
 
     /// Remove a community skill.
-    pub fn remove_community_skill(&self, id: &str) -> Result<(), String> {
+    pub fn remove_community_skill(&self, id: &str) -> EngineResult<()> {
         let conn = self.conn.lock();
         conn.execute(
             "DELETE FROM community_skills WHERE id = ?1",
             rusqlite::params![id],
-        ).map_err(|e| format!("Delete error: {}", e))?;
+        )?;
         Ok(())
     }
 
     /// Update the agent_ids for a community skill.
     /// Empty vec = all agents. Non-empty = only those specific agents.
-    pub fn set_community_skill_agents(&self, id: &str, agent_ids: &[String]) -> Result<(), String> {
+    pub fn set_community_skill_agents(&self, id: &str, agent_ids: &[String]) -> EngineResult<()> {
         let conn = self.conn.lock();
         let agent_ids_json = serde_json::to_string(agent_ids).unwrap_or_else(|_| "[]".to_string());
         conn.execute(
             "UPDATE community_skills SET agent_ids = ?1, updated_at = datetime('now') WHERE id = ?2",
             rusqlite::params![agent_ids_json, id],
-        ).map_err(|e| format!("Update agent_ids error: {}", e))?;
+        )?;
         Ok(())
     }
 }
@@ -110,7 +111,7 @@ impl SessionStore {
 /// Get instructions from enabled community skills for a specific agent.
 /// Skills with empty agent_ids apply to ALL agents.
 /// Skills with specific agent_ids only apply to those agents.
-pub fn get_community_skill_instructions(store: &SessionStore, agent_id: &str) -> Result<String, String> {
+pub fn get_community_skill_instructions(store: &SessionStore, agent_id: &str) -> EngineResult<String> {
     let skills = store.list_community_skills()?;
     let mut sections: Vec<String> = Vec::new();
 

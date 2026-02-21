@@ -21,7 +21,7 @@ use tauri::Manager;
 
 static BROWSER: OnceLock<Mutex<Option<Arc<Browser>>>> = OnceLock::new();
 
-fn get_or_launch_browser(profile_dir: Option<std::path::PathBuf>) -> Result<Arc<Browser>, String> {
+fn get_or_launch_browser(profile_dir: Option<std::path::PathBuf>) -> EngineResult<Arc<Browser>> {
     let mutex = BROWSER.get_or_init(|| Mutex::new(None));
     let mut guard = mutex.lock();
 
@@ -50,7 +50,7 @@ fn get_or_launch_browser(profile_dir: Option<std::path::PathBuf>) -> Result<Arc<
     let browser = Browser::new(
         builder
             .build()
-            .map_err(|e| format!("Browser launch options error: {}", e))?,
+            ?,
     ).map_err(|e| format!(
         "Failed to launch Chrome/Chromium: {}. Make sure Chrome or Chromium is installed.",
         e
@@ -64,7 +64,7 @@ fn get_or_launch_browser(profile_dir: Option<std::path::PathBuf>) -> Result<Arc<
 
 // ── web_search: DuckDuckGo search ──────────────────────────────────────
 
-pub async fn execute_web_search(args: &serde_json::Value) -> Result<String, String> {
+pub async fn execute_web_search(args: &serde_json::Value) -> EngineResult<String> {
     let query = args["query"].as_str()
         .ok_or("web_search: missing 'query' argument")?;
     let limit = args["limit"].as_u64().unwrap_or(8) as usize;
@@ -80,13 +80,10 @@ pub async fn execute_web_search(args: &serde_json::Value) -> Result<String, Stri
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))
         .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
-    let resp = client.get(&url).send().await
-        .map_err(|e| format!("Search request failed: {}", e))?;
-    let html = resp.text().await
-        .map_err(|e| format!("Failed to read search results: {}", e))?;
+    let resp = client.get(&url).send().await?;
+    let html = resp.text().await?;
 
     // Parse DuckDuckGo HTML results
     let document = Html::parse_document(&html);
@@ -142,7 +139,7 @@ pub async fn execute_web_search(args: &serde_json::Value) -> Result<String, Stri
 
 // ── web_read: Fetch URL → readable text ────────────────────────────────
 
-pub async fn execute_web_read(args: &serde_json::Value) -> Result<String, String> {
+pub async fn execute_web_read(args: &serde_json::Value) -> EngineResult<String> {
     let url = args["url"].as_str()
         .ok_or("web_read: missing 'url' argument")?;
     let selector = args["selector"].as_str();
@@ -153,11 +150,9 @@ pub async fn execute_web_read(args: &serde_json::Value) -> Result<String, String
         .timeout(Duration::from_secs(30))
         .user_agent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         .redirect(reqwest::redirect::Policy::limited(5))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
-    let resp = client.get(url).send().await
-        .map_err(|e| format!("Request failed: {}", e))?;
+    let resp = client.get(url).send().await?;
 
     let status = resp.status().as_u16();
     let content_type = resp.headers()
@@ -166,8 +161,7 @@ pub async fn execute_web_read(args: &serde_json::Value) -> Result<String, String
         .unwrap_or("")
         .to_string();
 
-    let body = resp.text().await
-        .map_err(|e| format!("Failed to read response: {}", e))?;
+    let body = resp.text().await?;
 
     // If non-HTML content, return raw (could be JSON, XML, plain text)
     if !content_type.contains("html") {
@@ -191,7 +185,7 @@ pub async fn execute_web_read(args: &serde_json::Value) -> Result<String, String
                     .collect::<Vec<_>>()
                     .join("\n\n")
             }
-            Err(_) => return Err(format!("Invalid CSS selector: {}", sel_str)),
+            Err(_) => return Err(format!("Invalid CSS selector: {}", sel_str).into()),
         }
     } else {
         // Auto-extract: try <article>, <main>, then <body>
@@ -285,6 +279,7 @@ fn extract_readable_text(document: &Html) -> String {
 
 fn resolve_profile_dir(app_handle: &tauri::AppHandle) -> Option<std::path::PathBuf> {
     use crate::engine::state::EngineState;
+use crate::atoms::error::EngineResult;
     let state = app_handle.try_state::<EngineState>()?;
     let json = state.store.get_config("browser_config").ok()??;
     let config: serde_json::Value = serde_json::from_str(&json).ok()?;
@@ -299,7 +294,7 @@ fn resolve_profile_dir(app_handle: &tauri::AppHandle) -> Option<std::path::PathB
 
 // ── web_screenshot: Headless Chrome screenshot ─────────────────────────
 
-pub async fn execute_web_screenshot(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+pub async fn execute_web_screenshot(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> EngineResult<String> {
     let url = args["url"].as_str()
         .ok_or("web_screenshot: missing 'url' argument")?;
     let full_page = args["full_page"].as_bool().unwrap_or(false);
@@ -315,7 +310,7 @@ pub async fn execute_web_screenshot(args: &serde_json::Value, app_handle: &tauri
     let result = tokio::task::spawn_blocking(move || {
         let browser = get_or_launch_browser(profile_dir)?;
 
-        let tab = browser.new_tab().map_err(|e| format!("New tab error: {}", e))?;
+        let tab = browser.new_tab()?;
 
         // Set viewport size
         tab.set_bounds(headless_chrome::types::Bounds::Normal {
@@ -326,11 +321,9 @@ pub async fn execute_web_screenshot(args: &serde_json::Value, app_handle: &tauri
         }).ok();
 
         // Navigate and wait for load
-        tab.navigate_to(&url_owned)
-            .map_err(|e| format!("Navigation error: {}", e))?;
+        tab.navigate_to(&url_owned)?;
 
-        tab.wait_until_navigated()
-            .map_err(|e| format!("Page load timeout: {}", e))?;
+        tab.wait_until_navigated()?;
 
         // Wait a bit for dynamic content
         std::thread::sleep(Duration::from_secs(2));
@@ -341,7 +334,7 @@ pub async fn execute_web_screenshot(args: &serde_json::Value, app_handle: &tauri
             None,  // quality
             None,  // clip
             true,  // from_surface
-        ).map_err(|e| format!("Screenshot error: {}", e))?;
+        )?;
 
         // Get page title and URL for context
         let title = tab.get_title().unwrap_or_default();
@@ -352,8 +345,7 @@ pub async fn execute_web_screenshot(args: &serde_json::Value, app_handle: &tauri
         std::fs::create_dir_all(&tmp_dir).ok();
         let filename = format!("screenshot-{}.png", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
         let filepath = tmp_dir.join(&filename);
-        std::fs::write(&filepath, &png_data)
-            .map_err(|e| format!("Failed to save screenshot: {}", e))?;
+        std::fs::write(&filepath, &png_data)?;
 
         // Also extract visible text for the agent to "see"
         let page_text = tab.get_content()
@@ -371,14 +363,14 @@ pub async fn execute_web_screenshot(args: &serde_json::Value, app_handle: &tauri
             "Screenshot saved: {}\nPage: {} ({})\nSize: {} bytes ({} x {})\n\nVisible text preview:\n{}",
             filepath.display(), title, final_url, png_data.len(), width, height, page_text
         ))
-    }).await.map_err(|e| format!("Task error: {}", e))?;
+    }).await?;
 
     result
 }
 
 // ── web_browse: Interactive headless browser session ───────────────────
 
-pub async fn execute_web_browse(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+pub async fn execute_web_browse(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> EngineResult<String> {
     let action = args["action"].as_str()
         .ok_or("web_browse: missing 'action' argument")?;
     let url = args["url"].as_str().map(|s| s.to_string());
@@ -396,10 +388,10 @@ pub async fn execute_web_browse(args: &serde_json::Value, app_handle: &tauri::Ap
 
         // Get or create the working tab (reuse first tab for session continuity)
         let tab: Arc<Tab> = {
-            let tabs = browser.get_tabs().lock().map_err(|e| format!("Tab lock error: {}", e))?;
+            let tabs = browser.get_tabs().lock()?;
             if tabs.is_empty() {
                 drop(tabs);
-                browser.new_tab().map_err(|e| format!("New tab error: {}", e))?
+                browser.new_tab()?
             } else {
                 let t = Arc::clone(&tabs[0]);
                 drop(tabs);
@@ -410,10 +402,8 @@ pub async fn execute_web_browse(args: &serde_json::Value, app_handle: &tauri::Ap
         match action_owned.as_str() {
             "navigate" | "goto" => {
                 let target_url = url.ok_or("web_browse: 'url' is required for navigate action")?;
-                tab.navigate_to(&target_url)
-                    .map_err(|e| format!("Navigation error: {}", e))?;
-                tab.wait_until_navigated()
-                    .map_err(|e| format!("Page load timeout: {}", e))?;
+                tab.navigate_to(&target_url)?;
+                tab.wait_until_navigated()?;
                 std::thread::sleep(Duration::from_millis(1500));
 
                 let title = tab.get_title().unwrap_or_default();
@@ -427,8 +417,7 @@ pub async fn execute_web_browse(args: &serde_json::Value, app_handle: &tauri::Ap
                 let sel = selector.ok_or("web_browse: 'selector' is required for click action")?;
                 tab.find_element(&sel)
                     .map_err(|e| format!("Element not found '{}': {}", sel, e))?
-                    .click()
-                    .map_err(|e| format!("Click error: {}", e))?;
+                    .click()?;
 
                 std::thread::sleep(Duration::from_millis(1500));
                 let title = tab.get_title().unwrap_or_default();
@@ -443,18 +432,15 @@ pub async fn execute_web_browse(args: &serde_json::Value, app_handle: &tauri::Ap
 
                 tab.find_element(&sel)
                     .map_err(|e| format!("Element not found '{}': {}", sel, e))?
-                    .click()
-                    .map_err(|e| format!("Focus error: {}", e))?;
-                tab.type_str(&input_text)
-                    .map_err(|e| format!("Type error: {}", e))?;
+                    .click()?;
+                tab.type_str(&input_text)?;
 
                 Ok(format!("Typed '{}' into '{}'", input_text, sel))
             }
 
             "press" => {
                 let key = text.ok_or("web_browse: 'text' (key name) is required for press action")?;
-                tab.press_key(&key)
-                    .map_err(|e| format!("Key press error: {}", e))?;
+                tab.press_key(&key)?;
                 std::thread::sleep(Duration::from_millis(1000));
                 let page_text = get_tab_text(&tab, 3000);
                 Ok(format!("Pressed key '{}'\n\n{}", key, page_text))
@@ -489,8 +475,7 @@ pub async fn execute_web_browse(args: &serde_json::Value, app_handle: &tauri::Ap
             "javascript" | "eval" | "js" => {
                 let script = js.or(text).ok_or("web_browse: 'javascript' is required for js action")?;
 
-                let result = tab.evaluate(&script, false)
-                    .map_err(|e| format!("JavaScript error: {}", e))?;
+                let result = tab.evaluate(&script, false)?;
 
                 let value = match result.value {
                     Some(v) => serde_json::to_string_pretty(&v).unwrap_or_else(|_| format!("{:?}", v)),
@@ -508,8 +493,7 @@ pub async fn execute_web_browse(args: &serde_json::Value, app_handle: &tauri::Ap
                     "bottom" => 99999,
                     _ => 500,  // down
                 };
-                tab.evaluate(&format!("window.scrollBy(0, {})", pixels), false)
-                    .map_err(|e| format!("Scroll error: {}", e))?;
+                tab.evaluate(&format!("window.scrollBy(0, {})", pixels), false)?;
                 std::thread::sleep(Duration::from_millis(500));
                 let page_text = get_tab_text(&tab, 3000);
                 Ok(format!("Scrolled {}. Visible content:\n\n{}", direction, page_text))
@@ -519,7 +503,7 @@ pub async fn execute_web_browse(args: &serde_json::Value, app_handle: &tauri::Ap
                 let result = tab.evaluate(
                     "JSON.stringify(Array.from(document.querySelectorAll('a[href]')).slice(0, 50).map(a => ({text: a.innerText.trim().slice(0, 100), href: a.href})).filter(a => a.text && a.href))",
                     false
-                ).map_err(|e| format!("Extract links error: {}", e))?;
+                )?;
 
                 let value_str = result.value
                     .and_then(|v| v.as_str().map(|s| s.to_string()))
@@ -544,9 +528,9 @@ pub async fn execute_web_browse(args: &serde_json::Value, app_handle: &tauri::Ap
             _ => Err(format!(
                 "Unknown browse action '{}'. Available: navigate, click, type, press, extract, javascript, scroll, links, info",
                 action_owned
-            )),
+            ).into()),
         }
-    }).await.map_err(|e| format!("Task error: {}", e))?;
+    }).await?;
 
     result
 }

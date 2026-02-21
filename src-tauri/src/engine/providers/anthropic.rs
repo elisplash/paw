@@ -10,6 +10,7 @@ use futures::StreamExt;
 use log::{info, warn, error};
 use reqwest::Client;
 use serde_json::{json, Value};
+use crate::atoms::error::EngineResult;
 
 // ── Struct ────────────────────────────────────────────────────────────────────
 
@@ -352,7 +353,7 @@ impl AnthropicProvider {
         tools: &[ToolDefinition],
         model: &str,
         temperature: Option<f64>,
-    ) -> Result<Vec<StreamChunk>, String> {
+    ) -> EngineResult<Vec<StreamChunk>> {
         let url = if self.is_azure {
             let base = self.base_url.trim_end_matches('/');
             if base.contains('?') {
@@ -464,7 +465,7 @@ impl AnthropicProvider {
             let mut buffer = String::new();
 
             while let Some(result) = byte_stream.next().await {
-                let bytes = result.map_err(|e| format!("Stream read error: {}", e))?;
+                let bytes = result?;
                 buffer.push_str(&String::from_utf8_lossy(&bytes));
 
                 while let Some(line_end) = buffer.find('\n') {

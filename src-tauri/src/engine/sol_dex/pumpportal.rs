@@ -7,6 +7,7 @@ use super::constants::PUMPPORTAL_API;
 use super::helpers::slippage_pct;
 use super::rpc::{rpc_call, check_tx_confirmation};
 use super::transaction::sign_solana_transaction;
+use crate::atoms::error::EngineResult;
 
 // ── PumpPortal Fallback ────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ pub(crate) async fn pumpportal_get_tx(
     amount: &str,        // SOL amount (if buy, denominatedInSol=true) or token amount (if sell)
     denominated_in_sol: bool,
     slippage_pct: u64,   // percent, not bps
-) -> Result<Vec<u8>, String> {
+) -> EngineResult<Vec<u8>> {
     let client = reqwest::Client::new();
 
     let body = serde_json::json!({
@@ -54,8 +55,7 @@ pub(crate) async fn pumpportal_get_tx(
         .json(&body)
         .timeout(Duration::from_secs(30))
         .send()
-        .await
-        .map_err(|e| format!("PumpPortal request error: {}", e))?;
+        .await?;
 
     let status = resp.status();
 
@@ -68,13 +68,12 @@ pub(crate) async fn pumpportal_get_tx(
             let msg = err_json.get("message").or(err_json.get("error"))
                 .and_then(|v| v.as_str())
                 .unwrap_or(&err_text);
-            return Err(format!("PumpPortal error ({}): {}", status, msg));
+            return Err(format!("PumpPortal error ({}): {}", status, msg).into());
         }
-        return Err(format!("PumpPortal error ({}): {}", status, err_text));
+        return Err(format!("PumpPortal error ({}): {}", status, err_text).into());
     }
 
-    let tx_bytes = resp.bytes().await
-        .map_err(|e| format!("PumpPortal response read error: {}", e))?;
+    let tx_bytes = resp.bytes().await?;
 
     if tx_bytes.is_empty() {
         return Err("PumpPortal returned empty transaction".into());
@@ -98,7 +97,7 @@ pub(crate) async fn pumpportal_swap(
     slippage_bps: u64,
     token_in_str: &str,
     token_out_str: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let sol_mint = "So11111111111111111111111111111111111111112";
     let slippage_pct = slippage_pct(slippage_bps); // bps → percent, minimum 1%
 

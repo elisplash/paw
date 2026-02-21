@@ -2,15 +2,17 @@
 // parse_solana_keypair, slippage_pct, resolve_token, lamports_to_amount, amount_to_lamports
 
 use super::constants::KNOWN_TOKENS;
+use crate::atoms::error::{EngineError, EngineResult};
+use crate::atoms::error::EngineResult;
 
 // ── Keypair Parsing ───────────────────────────────────────────────────
 
 /// Decode a base58-encoded Solana keypair and extract the 32-byte secret key.
-pub(crate) fn parse_solana_keypair(private_key_b58: &str) -> Result<[u8; 32], String> {
+pub(crate) fn parse_solana_keypair(private_key_b58: &str) -> EngineResult<[u8; 32]> {
     let keypair_bytes = bs58::decode(private_key_b58).into_vec()
-        .map_err(|e| format!("Invalid private key encoding: {}", e))?;
+        .map_err(|e| EngineError::Other(format!("Invalid private key encoding: {}", e)))?;
     if keypair_bytes.len() < 64 {
-        return Err("Invalid Solana keypair (expected 64 bytes)".into());
+        return Err(EngineError::Other("Invalid Solana keypair (expected 64 bytes)".into()));
     }
     let mut secret_bytes = [0u8; 32];
     secret_bytes.copy_from_slice(&keypair_bytes[..32]);
@@ -27,7 +29,7 @@ pub(crate) fn slippage_pct(bps: u64) -> u64 {
 
 /// Resolve a token symbol or mint address to (mint_address, decimals)
 /// Returns decimals=0 for unknown tokens — caller should use resolve_decimals_on_chain()
-pub(crate) fn resolve_token(sym_or_addr: &str) -> Result<(String, u8), String> {
+pub(crate) fn resolve_token(sym_or_addr: &str) -> EngineResult<(String, u8)> {
     let upper = sym_or_addr.trim().to_uppercase();
 
     // Check known tokens
@@ -44,7 +46,7 @@ pub(crate) fn resolve_token(sym_or_addr: &str) -> Result<(String, u8), String> {
         return Ok((trimmed.to_string(), 0));
     }
 
-    Err(format!("Unknown Solana token: '{}'. Use a mint address or known symbol: {}", sym_or_addr,
+    Err(EngineError::Other(format!("Unknown Solana token: '{}'. Use a mint address or known symbol: {}", sym_or_addr,
         KNOWN_TOKENS.iter().map(|(s, _, _)| *s).collect::<Vec<_>>().join(", ")))
 }
 
@@ -66,20 +68,20 @@ pub(crate) fn lamports_to_amount(lamports: u64, decimals: u8) -> String {
 }
 
 /// Parse amount string (e.g. "1.5") to smallest units given decimals
-pub(crate) fn amount_to_lamports(amount_str: &str, decimals: u8) -> Result<u64, String> {
+pub(crate) fn amount_to_lamports(amount_str: &str, decimals: u8) -> EngineResult<u64> {
     let amount_str = amount_str.trim();
     if let Some(dot_pos) = amount_str.find('.') {
-        let whole: u64 = amount_str[..dot_pos].parse().map_err(|e| format!("Invalid amount: {}", e))?;
+        let whole: u64 = amount_str[..dot_pos].parse().map_err(|e| EngineError::Other(format!("Invalid amount: {}", e)))?;
         let frac_str = &amount_str[dot_pos + 1..];
         let frac_len = frac_str.len();
         if frac_len > decimals as usize {
-            return Err(format!("Too many decimal places (max {})", decimals));
+            return Err(EngineError::Other(format!("Too many decimal places (max {})", decimals)));
         }
-        let frac: u64 = frac_str.parse().map_err(|e| format!("Invalid fractional: {}", e))?;
+        let frac: u64 = frac_str.parse().map_err(|e| EngineError::Other(format!("Invalid fractional: {}", e)))?;
         let multiplier = 10u64.pow((decimals as u32) - frac_len as u32);
         Ok(whole * 10u64.pow(decimals as u32) + frac * multiplier)
     } else {
-        let whole: u64 = amount_str.parse().map_err(|e| format!("Invalid amount: {}", e))?;
+        let whole: u64 = amount_str.parse().map_err(|e| EngineError::Other(format!("Invalid amount: {}", e)))?;
         Ok(whole * 10u64.pow(decimals as u32))
     }
 }

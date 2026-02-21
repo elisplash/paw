@@ -9,6 +9,7 @@ use super::helpers::{resolve_token, amount_to_lamports, lamports_to_amount, pars
 use super::rpc::{rpc_call, resolve_decimals_on_chain, check_tx_confirmation};
 use super::pumpportal::{is_jupiter_route_error, pumpportal_get_tx, pumpportal_swap};
 use super::transaction::sign_solana_transaction;
+use crate::atoms::error::EngineResult;
 
 // ── Quote ─────────────────────────────────────────────────────────────
 
@@ -16,7 +17,7 @@ use super::transaction::sign_solana_transaction;
 pub async fn execute_sol_quote(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("SOLANA_RPC_URL")
         .ok_or("Missing SOLANA_RPC_URL.")?;
     let api_key = creds.get("JUPITER_API_KEY");
@@ -28,7 +29,7 @@ pub async fn execute_sol_quote(
     let slippage_bps = args.get("slippage_bps").and_then(|v| v.as_u64()).unwrap_or(DEFAULT_SLIPPAGE_BPS);
 
     if slippage_bps > MAX_SLIPPAGE_BPS {
-        return Err(format!("Slippage too high: {}bps. Max is {}bps ({}%)", slippage_bps, MAX_SLIPPAGE_BPS, MAX_SLIPPAGE_BPS / 100));
+        return Err(format!("Slippage too high: {}bps. Max is {}bps ({}%)", slippage_bps, MAX_SLIPPAGE_BPS, MAX_SLIPPAGE_BPS / 100).into());
     }
 
     let (input_mint, input_decimals) = resolve_token(token_in_str)?;
@@ -75,7 +76,7 @@ pub async fn execute_sol_quote(
     } else if output_mint == sol_mint {
         ("sell", input_mint.as_str(), amount_raw.to_string(), false)
     } else {
-        return Err(format!("No route found on Jupiter ({}) and PumpPortal only supports SOL pairs.", jupiter_err_msg));
+        return Err(format!("No route found on Jupiter ({}) and PumpPortal only supports SOL pairs.", jupiter_err_msg).into());
     };
 
     let slippage_pct = slippage_pct(slippage_bps);
@@ -108,7 +109,7 @@ pub async fn execute_sol_quote(
                 "No route found on any DEX:\n• Jupiter: {}\n• PumpPortal: {}\n\n\
                 This token may have zero liquidity.",
                 jupiter_err_msg, pump_err
-            ))
+            ).into())
         }
     }
 }
@@ -126,7 +127,7 @@ pub(crate) async fn execute_sol_quote_jupiter(
     slippage_bps: u64,
     token_in_str: &str,
     token_out_str: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     // Call Jupiter Quote API (Metis v1)
     let client = reqwest::Client::new();
     let url = format!(
@@ -140,18 +141,16 @@ pub(crate) async fn execute_sol_quote_jupiter(
         .header("x-api-key", api_key)
         .timeout(Duration::from_secs(15))
         .send()
-        .await
-        .map_err(|e| format!("Jupiter API error: {}", e))?;
+        .await?;
 
     let status = resp.status();
-    let body: serde_json::Value = resp.json().await
-        .map_err(|e| format!("Jupiter response parse error: {}", e))?;
+    let body: serde_json::Value = resp.json().await?;
 
     if !status.is_success() {
         let msg = body.get("error").and_then(|v| v.as_str())
             .or_else(|| body.get("message").and_then(|v| v.as_str()))
             .unwrap_or("Unknown error");
-        return Err(format!("Jupiter quote failed: {}", msg));
+        return Err(format!("Jupiter quote failed: {}", msg).into());
     }
 
     // Parse quote response
@@ -216,7 +215,7 @@ pub(crate) async fn execute_sol_quote_jupiter(
 pub async fn execute_sol_swap(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("SOLANA_RPC_URL")
         .ok_or("Missing SOLANA_RPC_URL.")?;
     let wallet = creds.get("SOLANA_WALLET_ADDRESS")
@@ -233,7 +232,7 @@ pub async fn execute_sol_swap(
     let slippage_bps = args.get("slippage_bps").and_then(|v| v.as_u64()).unwrap_or(DEFAULT_SLIPPAGE_BPS);
 
     if slippage_bps > MAX_SLIPPAGE_BPS {
-        return Err(format!("Slippage too high: {}bps (max {}bps)", slippage_bps, MAX_SLIPPAGE_BPS));
+        return Err(format!("Slippage too high: {}bps (max {}bps)", slippage_bps, MAX_SLIPPAGE_BPS).into());
     }
 
     let (input_mint, input_decimals) = resolve_token(token_in_str)?;
@@ -290,7 +289,7 @@ pub async fn execute_sol_swap(
                 "Swap failed on both routes:\n• Jupiter: {}\n• PumpPortal: {}\n\n\
                 This token may have zero liquidity on all DEXes.",
                 jupiter_err, pump_err
-            ))
+            ).into())
         }
     }
 }
@@ -310,7 +309,7 @@ pub(crate) async fn execute_sol_swap_jupiter(
     slippage_bps: u64,
     token_in_str: &str,
     token_out_str: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let client = reqwest::Client::new();
 
     // Step 1: Get Jupiter quote (Metis v1)
@@ -325,17 +324,15 @@ pub(crate) async fn execute_sol_swap_jupiter(
         .header("x-api-key", api_key)
         .timeout(Duration::from_secs(15))
         .send()
-        .await
-        .map_err(|e| format!("Jupiter quote error: {}", e))?;
+        .await?;
 
-    let quote: serde_json::Value = quote_resp.json().await
-        .map_err(|e| format!("Quote parse error: {}", e))?;
+    let quote: serde_json::Value = quote_resp.json().await?;
 
     if quote.get("error").is_some() || quote.get("outAmount").is_none() {
         let msg = quote.get("error").and_then(|v| v.as_str())
             .or_else(|| quote.get("message").and_then(|v| v.as_str()))
             .unwrap_or("No route found");
-        return Err(format!("Jupiter quote failed: {}", msg));
+        return Err(format!("Jupiter quote failed: {}", msg).into());
     }
 
     let out_amount_str = quote.get("outAmount").and_then(|v| v.as_str()).unwrap_or("0");
@@ -365,11 +362,9 @@ pub(crate) async fn execute_sol_swap_jupiter(
         .json(&swap_body)
         .timeout(Duration::from_secs(30))
         .send()
-        .await
-        .map_err(|e| format!("Jupiter swap API error: {}", e))?;
+        .await?;
 
-    let swap_data: serde_json::Value = swap_resp.json().await
-        .map_err(|e| format!("Swap response parse error: {}", e))?;
+    let swap_data: serde_json::Value = swap_resp.json().await?;
 
     let swap_tx_b64 = swap_data.get("swapTransaction").and_then(|v| v.as_str())
         .ok_or("Jupiter did not return a swap transaction")?;
@@ -377,8 +372,7 @@ pub(crate) async fn execute_sol_swap_jupiter(
     // Step 3: Decode, sign, and send the transaction
     info!("[sol_dex] Signing and sending transaction...");
 
-    let tx_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, swap_tx_b64)
-        .map_err(|e| format!("Failed to decode transaction: {}", e))?;
+    let tx_bytes = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, swap_tx_b64)?;
 
     // Sign the transaction
     let signed_tx = sign_solana_transaction(&tx_bytes, secret_bytes)?;

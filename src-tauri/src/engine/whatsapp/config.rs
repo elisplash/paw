@@ -3,6 +3,7 @@
 
 use crate::engine::channels::{self, PendingUser};
 use serde::{Deserialize, Serialize};
+use crate::atoms::error::EngineResult;
 
 // ── Constants ──────────────────────────────────────────────────────────
 
@@ -71,22 +72,22 @@ impl Default for WhatsAppConfig {
 
 // ── Config Persistence ─────────────────────────────────────────────────
 
-pub fn load_config(app_handle: &tauri::AppHandle) -> Result<WhatsAppConfig, String> {
+pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<WhatsAppConfig> {
     channels::load_channel_config(app_handle, CONFIG_KEY)
 }
 
-pub fn save_config(app_handle: &tauri::AppHandle, config: &WhatsAppConfig) -> Result<(), String> {
+pub fn save_config(app_handle: &tauri::AppHandle, config: &WhatsAppConfig) -> EngineResult<()> {
     channels::save_channel_config(app_handle, CONFIG_KEY, config)
 }
 
-pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::approve_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::deny_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::remove_user_generic(app_handle, CONFIG_KEY, user_id)
 }

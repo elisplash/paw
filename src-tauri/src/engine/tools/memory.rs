@@ -6,6 +6,7 @@ use crate::engine::state::EngineState;
 use crate::engine::memory;
 use log::info;
 use tauri::Manager;
+use crate::atoms::error::EngineResult;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![
@@ -52,13 +53,13 @@ pub async fn execute(
     app_handle: &tauri::AppHandle,
 ) -> Option<Result<String, String>> {
     match name {
-        "memory_store"  => Some(execute_memory_store(args, app_handle).await),
-        "memory_search" => Some(execute_memory_search(args, app_handle).await),
+        "memory_store"  => Some(execute_memory_store(args, app_handle).await.map_err(|e| e.to_string())),
+        "memory_search" => Some(execute_memory_search(args, app_handle).await.map_err(|e| e.to_string())),
         _ => None,
     }
 }
 
-async fn execute_memory_store(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+async fn execute_memory_store(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> EngineResult<String> {
     let content = args["content"].as_str().ok_or("memory_store: missing 'content' argument")?;
     let category = args["category"].as_str().unwrap_or("general");
     info!("[engine] memory_store: category={} len={}", category, content.len());
@@ -68,7 +69,7 @@ async fn execute_memory_store(args: &serde_json::Value, app_handle: &tauri::AppH
     Ok(format!("Memory stored (id: {}). I'll recall this automatically when it's relevant.", &id[..8]))
 }
 
-async fn execute_memory_search(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+async fn execute_memory_search(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> EngineResult<String> {
     let query = args["query"].as_str().ok_or("memory_search: missing 'query' argument")?;
     let limit = args["limit"].as_u64().unwrap_or(5) as usize;
     info!("[engine] memory_search: query='{}' limit={}", &query[..query.len().min(100)], limit);

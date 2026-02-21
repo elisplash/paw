@@ -11,13 +11,14 @@ use super::primitives::{
 };
 use super::rpc::{eth_call, eth_chain_id, eth_get_balance, rpc_call};
 use std::collections::HashMap;
+use crate::atoms::error::EngineResult;
 
 /// Get comprehensive token info by reading on-chain ERC-20 data directly via RPC.
 /// No website scraping needed — this queries the blockchain.
 pub async fn execute_dex_token_info(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
     let token_address = args["token_address"].as_str()
         .ok_or("dex_token_info: missing 'token_address'. Provide the ERC-20 contract address.")?;
@@ -25,7 +26,7 @@ pub async fn execute_dex_token_info(
     // Validate address format
     let addr_clean = token_address.trim();
     if !addr_clean.starts_with("0x") || addr_clean.len() != 42 {
-        return Err(format!("Invalid contract address format: '{}'. Must be 0x + 40 hex chars.", addr_clean));
+        return Err(format!("Invalid contract address format: '{}'. Must be 0x + 40 hex chars.", addr_clean).into());
     }
 
     let mut output = format!("Token Analysis: {}\n\n", addr_clean);
@@ -204,14 +205,14 @@ pub async fn execute_dex_token_info(
 pub async fn execute_dex_check_token(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL")?;
     let token_address = args["token_address"].as_str()
         .ok_or("dex_check_token: missing 'token_address'")?;
 
     let addr_clean = token_address.trim();
     if !addr_clean.starts_with("0x") || addr_clean.len() != 42 {
-        return Err(format!("Invalid address: '{}'", addr_clean));
+        return Err(format!("Invalid address: '{}'", addr_clean).into());
     }
 
     let mut output = String::from("Token Safety Report\n\n");

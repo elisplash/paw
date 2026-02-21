@@ -1,6 +1,7 @@
 use chrono::Utc;
 use rusqlite::params;
 use super::SessionStore;
+use crate::atoms::error::EngineResult;
 
 impl SessionStore {
     // ── Trade History ──────────────────────────────────────────────────
@@ -21,23 +22,23 @@ impl SessionStore {
         session_id: Option<&str>,
         agent_id: Option<&str>,
         raw_response: Option<&str>,
-    ) -> Result<String, String> {
+    ) -> EngineResult<String> {
         let conn = self.conn.lock();
         let id = uuid::Uuid::new_v4().to_string();
         conn.execute(
             "INSERT INTO trade_history (id, trade_type, side, product_id, currency, amount, order_type, order_id, status, usd_value, to_address, reason, session_id, agent_id, raw_response)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
             params![id, trade_type, side, product_id, currency, amount, order_type, order_id, status, usd_value, to_address, reason, session_id, agent_id, raw_response],
-        ).map_err(|e| format!("Insert trade error: {}", e))?;
+        )?;
         Ok(id)
     }
 
-    pub fn list_trades(&self, limit: u32) -> Result<Vec<serde_json::Value>, String> {
+    pub fn list_trades(&self, limit: u32) -> EngineResult<Vec<serde_json::Value>> {
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
             "SELECT id, trade_type, side, product_id, currency, amount, order_type, order_id, status, usd_value, to_address, reason, session_id, agent_id, created_at
              FROM trade_history ORDER BY created_at DESC LIMIT ?1"
-        ).map_err(|e| format!("Prepare error: {}", e))?;
+        )?;
         let rows = stmt.query_map(params![limit], |row| {
             Ok(serde_json::json!({
                 "id": row.get::<_, String>(0)?,
@@ -56,16 +57,16 @@ impl SessionStore {
                 "agent_id": row.get::<_, Option<String>>(13)?,
                 "created_at": row.get::<_, String>(14)?,
             }))
-        }).map_err(|e| format!("Query error: {}", e))?;
+        })?;
         let mut trades = Vec::new();
         for row in rows {
-            trades.push(row.map_err(|e| format!("Row error: {}", e))?);
+            trades.push(row?);
         }
         Ok(trades)
     }
 
     /// Get daily P&L: sum of all trades today, grouped by side
-    pub fn daily_trade_summary(&self) -> Result<serde_json::Value, String> {
+    pub fn daily_trade_summary(&self) -> EngineResult<serde_json::Value> {
         let conn = self.conn.lock();
         let today = Utc::now().format("%Y-%m-%d").to_string();
         // SQLite datetime('now') uses space separator: "2026-02-19 00:00:00"

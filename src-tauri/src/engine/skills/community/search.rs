@@ -1,8 +1,9 @@
 use super::types::DiscoveredSkill;
+use crate::atoms::error::EngineResult;
 
 /// Search for skills via the skills.sh directory API.
 /// Uses https://skills.sh/api/search?q={query} to find skills across the ecosystem.
-pub async fn search_community_skills(query: &str) -> Result<Vec<DiscoveredSkill>, String> {
+pub async fn search_community_skills(query: &str) -> EngineResult<Vec<DiscoveredSkill>> {
     let client = reqwest::Client::new();
 
     let encoded_query = query.replace(' ', "+");
@@ -13,17 +14,15 @@ pub async fn search_community_skills(query: &str) -> Result<Vec<DiscoveredSkill>
 
     let resp = client.get(&search_url)
         .header("User-Agent", "Pawz/1.0")
-        .send().await
-        .map_err(|e| format!("skills.sh search error: {}", e))?;
+        .send().await?;
 
     if !resp.status().is_success() {
         let status = resp.status();
         let body = resp.text().await.unwrap_or_default();
-        return Err(format!("skills.sh returned HTTP {}: {}", status, body));
+        return Err(format!("skills.sh returned HTTP {}: {}", status, body).into());
     }
 
-    let data: serde_json::Value = resp.json().await
-        .map_err(|e| format!("Failed to parse skills.sh response: {}", e))?;
+    let data: serde_json::Value = resp.json().await?;
 
     let empty_vec = vec![];
     let items = data["skills"].as_array()

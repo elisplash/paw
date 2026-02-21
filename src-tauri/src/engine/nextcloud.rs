@@ -20,6 +20,7 @@ use serde_json::json;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
 use tauri::Emitter;
+use crate::atoms::error::EngineResult;
 
 // ── Nextcloud Talk Config ──────────────────────────────────────────────
 
@@ -77,7 +78,7 @@ const CONFIG_KEY: &str = "nextcloud_config";
 /// - Coerces `http://` → `https://` with a warning
 /// - Adds `https://` if no scheme is present
 /// - Rejects URLs with non-http(s) schemes
-fn normalize_server_url(raw: &str) -> Result<String, String> {
+fn normalize_server_url(raw: &str) -> EngineResult<String> {
     let url = raw.trim().trim_end_matches('/');
     if url.is_empty() {
         return Err("Server URL is required.".into());
@@ -102,7 +103,7 @@ fn normalize_server_url(raw: &str) -> Result<String, String> {
         return Err(format!(
             "Unsupported URL scheme '{}://'. Use https:// for your Nextcloud server.",
             scheme
-        ));
+        ).into());
     }
 
     // No scheme — assume https
@@ -112,7 +113,7 @@ fn normalize_server_url(raw: &str) -> Result<String, String> {
 
 // ── Bridge Core ────────────────────────────────────────────────────────
 
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         return Err("Nextcloud Talk bridge is already running".into());
     }
@@ -168,12 +169,11 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 
 // ── Nextcloud Talk Polling Loop ────────────────────────────────────────
 
-async fn run_poll_loop(app_handle: tauri::AppHandle, config: NextcloudConfig) -> Result<(), String> {
+async fn run_poll_loop(app_handle: tauri::AppHandle, config: NextcloudConfig) -> EngineResult<()> {
     let stop = get_stop_signal();
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(60))
-        .build()
-        .map_err(|e| format!("HTTP client: {}", e))?;
+        .build()?;
 
     let base = config.server_url.trim_end_matches('/');
     let bot_user = config.username.clone();
@@ -185,15 +185,13 @@ async fn run_poll_loop(app_handle: tauri::AppHandle, config: NextcloudConfig) ->
         .basic_auth(&config.username, Some(&config.password))
         .header("OCS-APIREQUEST", "true")
         .header("Accept", "application/json")
-        .send().await
-        .map_err(|e| format!("Capabilities check failed: {}", e))?;
+        .send().await?;
 
     if !caps_resp.status().is_success() {
-        return Err(format!("Auth failed: HTTP {}", caps_resp.status()));
+        return Err(format!("Auth failed: HTTP {}", caps_resp.status()).into());
     }
 
-    let caps: serde_json::Value = caps_resp.json().await
-        .map_err(|e| format!("Capabilities parse: {}", e))?;
+    let caps: serde_json::Value = caps_resp.json().await?;
 
     // Check that Talk is enabled
     let has_talk = caps["ocs"]["data"]["capabilities"]["spreed"].is_object();
@@ -388,16 +386,14 @@ async fn nc_get_rooms(
     rooms_url: &str,
     username: &str,
     password: &str,
-) -> Result<Vec<serde_json::Value>, String> {
+) -> EngineResult<Vec<serde_json::Value>> {
     let resp = client.get(rooms_url)
         .basic_auth(username, Some(password))
         .header("OCS-APIREQUEST", "true")
         .header("Accept", "application/json")
-        .send().await
-        .map_err(|e| format!("Get rooms: {}", e))?;
+        .send().await?;
 
-    let body: serde_json::Value = resp.json().await
-        .map_err(|e| format!("Get rooms parse: {}", e))?;
+    let body: serde_json::Value = resp.json().await?;
 
     Ok(body["ocs"]["data"].as_array().cloned().unwrap_or_default())
 }
@@ -409,7 +405,7 @@ async fn nc_send_message(
     password: &str,
     room_token: &str,
     message: &str,
-) -> Result<(), String> {
+) -> EngineResult<()> {
     let url = format!("{}/ocs/v2.php/apps/spreed/api/v1/chat/{}", base, room_token);
 
     match client.post(&url)
@@ -430,11 +426,11 @@ async fn nc_send_message(
 
 // ── Config Persistence ─────────────────────────────────────────────────
 
-pub fn load_config(app_handle: &tauri::AppHandle) -> Result<NextcloudConfig, String> {
+pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<NextcloudConfig> {
     channels::load_channel_config(app_handle, CONFIG_KEY)
 }
 
-pub fn save_config(app_handle: &tauri::AppHandle, config: &NextcloudConfig) -> Result<(), String> {
+pub fn save_config(app_handle: &tauri::AppHandle, config: &NextcloudConfig) -> EngineResult<()> {
     // Normalize URL at save time so the UI reflects the coerced value
     let mut config = config.clone();
     if !config.server_url.is_empty() {
@@ -443,14 +439,14 @@ pub fn save_config(app_handle: &tauri::AppHandle, config: &NextcloudConfig) -> R
     channels::save_channel_config(app_handle, CONFIG_KEY, &config)
 }
 
-pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::approve_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::deny_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::remove_user_generic(app_handle, CONFIG_KEY, user_id)
 }

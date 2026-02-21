@@ -12,6 +12,7 @@ use log::{info, warn};
 use std::time::Duration;
 use tauri::Emitter;
 use trading::check_trading_auto_approve;
+use crate::atoms::error::EngineResult;
 
 /// Run a complete agent turn: send messages to the model, execute tool calls,
 /// and repeat until the model produces a final text response or max rounds hit.
@@ -32,7 +33,7 @@ pub async fn run_agent_turn(
     agent_id: &str,
     daily_budget_usd: f64,
     daily_tokens: Option<&DailyTokenTracker>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let mut round = 0;
     let mut final_text = String::new();
     let mut last_input_tokens: u64 = 0;   // Only the LAST round's input (= actual context size)

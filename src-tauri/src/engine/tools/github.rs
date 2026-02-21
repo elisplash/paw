@@ -4,6 +4,7 @@
 use crate::atoms::types::*;
 use log::info;
 use std::time::Duration;
+use crate::atoms::error::EngineResult;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![ToolDefinition {
@@ -34,13 +35,13 @@ pub async fn execute(
         Ok(c) => c,
         Err(e) => return Some(Err(e)),
     };
-    Some(execute_github_api(args, &creds).await)
+    Some(execute_github_api(args, &creds).await.map_err(|e| e.to_string()))
 }
 
 async fn execute_github_api(
     args: &serde_json::Value,
     creds: &std::collections::HashMap<String, String>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let endpoint = args["endpoint"].as_str().ok_or("github_api: missing 'endpoint'")?;
     let method = args["method"].as_str().unwrap_or("GET");
     let token = creds.get("GITHUB_TOKEN").ok_or("Missing GITHUB_TOKEN")?;
@@ -55,8 +56,7 @@ async fn execute_github_api(
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("HTTP client error: {}", e))?;
+        .build()?;
 
     let mut request = match method.to_uppercase().as_str() {
         "POST"   => client.post(&url),
@@ -78,9 +78,9 @@ async fn execute_github_api(
         }
     }
 
-    let resp = request.send().await.map_err(|e| format!("GitHub API error: {}", e))?;
+    let resp = request.send().await?;
     let status = resp.status().as_u16();
-    let body = resp.text().await.map_err(|e| format!("Failed to read response: {}", e))?;
+    let body = resp.text().await?;
 
     let truncated = if body.len() > 30_000 {
         format!("{}...\n[truncated, {} total bytes]", &body[..30_000], body.len())

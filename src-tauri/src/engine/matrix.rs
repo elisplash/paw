@@ -26,6 +26,7 @@ use std::sync::Arc;
 use tauri::Emitter;
 
 use matrix_sdk::{
+use crate::atoms::error::EngineResult;
     Client, Room,
     config::SyncSettings,
     matrix_auth::MatrixSession,
@@ -108,7 +109,7 @@ fn store_path() -> std::path::PathBuf {
 
 // ── Bridge Core ────────────────────────────────────────────────────────
 
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         return Err("Matrix bridge is already running".into());
     }
@@ -161,7 +162,7 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 
 // ── matrix-sdk E2EE Bridge ─────────────────────────────────────────────
 
-async fn run_sdk_bridge(app_handle: tauri::AppHandle, mut config: MatrixConfig) -> Result<(), String> {
+async fn run_sdk_bridge(app_handle: tauri::AppHandle, mut config: MatrixConfig) -> EngineResult<()> {
     let stop = get_stop_signal();
     let hs = config.homeserver.trim_end_matches('/');
 
@@ -170,8 +171,7 @@ async fn run_sdk_bridge(app_handle: tauri::AppHandle, mut config: MatrixConfig) 
         .homeserver_url(hs)
         .sqlite_store(store_path(), None)
         .build()
-        .await
-        .map_err(|e| format!("SDK client build: {}", e))?;
+        .await?;
 
     // ── Restore session from access token ─────────────────────────────
     // We need user_id and device_id to restore. If not cached, resolve
@@ -202,8 +202,7 @@ async fn run_sdk_bridge(app_handle: tauri::AppHandle, mut config: MatrixConfig) 
         },
     };
 
-    sdk_client.restore_session(session).await
-        .map_err(|e| format!("Session restore: {}", e))?;
+    sdk_client.restore_session(session).await?;
 
     let bot_user_id_str = user_id.to_string();
     let _ = BOT_USER_ID.set(bot_user_id_str.clone());
@@ -251,8 +250,7 @@ async fn run_sdk_bridge(app_handle: tauri::AppHandle, mut config: MatrixConfig) 
     // ── Initial sync (catch up, don't process old messages) ───────────
     let sync_settings = SyncSettings::default()
         .timeout(std::time::Duration::from_secs(30));
-    let initial_response = sdk_client.sync_once(sync_settings.clone()).await
-        .map_err(|e| format!("Initial sync: {}", e))?;
+    let initial_response = sdk_client.sync_once(sync_settings.clone()).await?;
     info!("[matrix] Initial sync complete");
 
     // ── Long-polling sync loop ────────────────────────────────────────
@@ -391,17 +389,17 @@ async fn send_room_message(room: &Room, text: &str) {
 }
 
 /// Resolve user_id and device_id from an access token via the /whoami endpoint.
-async fn resolve_whoami(homeserver: &str, access_token: &str) -> Result<(String, String), String> {
+async fn resolve_whoami(homeserver: &str, access_token: &str) -> EngineResult<(String, String)> {
     let http = reqwest::Client::new();
     let whoami_url = format!("{}/_matrix/client/v3/account/whoami", homeserver);
     let resp: serde_json::Value = http.get(&whoami_url)
         .header("Authorization", format!("Bearer {}", access_token))
-        .send().await.map_err(|e| format!("whoami: {}", e))?
-        .json().await.map_err(|e| format!("whoami parse: {}", e))?;
+        .send().await?
+        .json().await?;
 
     if let Some(err) = resp.get("errcode") {
         return Err(format!("Matrix auth error: {} - {}",
-            err, resp["error"].as_str().unwrap_or("")));
+            err, resp["error"].as_str().unwrap_or("")).into());
     }
 
     let user_id = resp["user_id"].as_str()
@@ -416,22 +414,22 @@ async fn resolve_whoami(homeserver: &str, access_token: &str) -> Result<(String,
 
 // ── Config Persistence ─────────────────────────────────────────────────
 
-pub fn load_config(app_handle: &tauri::AppHandle) -> Result<MatrixConfig, String> {
+pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<MatrixConfig> {
     channels::load_channel_config(app_handle, CONFIG_KEY)
 }
 
-pub fn save_config(app_handle: &tauri::AppHandle, config: &MatrixConfig) -> Result<(), String> {
+pub fn save_config(app_handle: &tauri::AppHandle, config: &MatrixConfig) -> EngineResult<()> {
     channels::save_channel_config(app_handle, CONFIG_KEY, config)
 }
 
-pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::approve_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::deny_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::remove_user_generic(app_handle, CONFIG_KEY, user_id)
 }

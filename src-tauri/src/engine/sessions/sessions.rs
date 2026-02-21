@@ -1,18 +1,19 @@
 use rusqlite::params;
 use log::info;
 use crate::engine::types::Session;
+use crate::atoms::error::EngineResult;
 use super::SessionStore;
 
 impl SessionStore {
     // ── Session CRUD ───────────────────────────────────────────────────
 
-    pub fn create_session(&self, id: &str, model: &str, system_prompt: Option<&str>, agent_id: Option<&str>) -> Result<Session, String> {
+    pub fn create_session(&self, id: &str, model: &str, system_prompt: Option<&str>, agent_id: Option<&str>) -> EngineResult<Session> {
         let conn = self.conn.lock();
 
         conn.execute(
             "INSERT INTO sessions (id, model, system_prompt, agent_id) VALUES (?1, ?2, ?3, ?4)",
             params![id, model, system_prompt, agent_id],
-        ).map_err(|e| format!("Failed to create session: {}", e))?;
+        )?;
 
         Ok(Session {
             id: id.to_string(),
@@ -26,12 +27,12 @@ impl SessionStore {
         })
     }
 
-    pub fn list_sessions(&self, limit: i64) -> Result<Vec<Session>, String> {
+    pub fn list_sessions(&self, limit: i64) -> EngineResult<Vec<Session>> {
         self.list_sessions_filtered(limit, None)
     }
 
     /// List sessions, optionally filtered by agent_id.
-    pub fn list_sessions_filtered(&self, limit: i64, agent_id: Option<&str>) -> Result<Vec<Session>, String> {
+    pub fn list_sessions_filtered(&self, limit: i64, agent_id: Option<&str>) -> EngineResult<Vec<Session>> {
         let conn = self.conn.lock();
 
         let (sql, params_vec): (String, Vec<Box<dyn rusqlite::types::ToSql>>) = if let Some(aid) = agent_id {
@@ -48,7 +49,7 @@ impl SessionStore {
             )
         };
 
-        let mut stmt = conn.prepare(&sql).map_err(|e| format!("Prepare error: {}", e))?;
+        let mut stmt = conn.prepare(&sql)?;
         let param_refs: Vec<&dyn rusqlite::types::ToSql> = params_vec.iter().map(|b| b.as_ref()).collect();
 
         let sessions = stmt.query_map(param_refs.as_slice(), |row| {
@@ -62,14 +63,14 @@ impl SessionStore {
                 message_count: row.get(6)?,
                 agent_id: row.get(7)?,
             })
-        }).map_err(|e| format!("Query error: {}", e))?
+        })?
         .filter_map(|r| r.ok())
         .collect();
 
         Ok(sessions)
     }
 
-    pub fn get_session(&self, id: &str) -> Result<Option<Session>, String> {
+    pub fn get_session(&self, id: &str) -> EngineResult<Option<Session>> {
         let conn = self.conn.lock();
 
         let result = conn.query_row(
@@ -93,37 +94,34 @@ impl SessionStore {
         match result {
             Ok(session) => Ok(Some(session)),
             Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
-            Err(e) => Err(format!("Query error: {}", e)),
+            Err(e) => Err(e.into()),
         }
     }
 
-    pub fn rename_session(&self, id: &str, label: &str) -> Result<(), String> {
+    pub fn rename_session(&self, id: &str, label: &str) -> EngineResult<()> {
         let conn = self.conn.lock();
         conn.execute(
             "UPDATE sessions SET label = ?1, updated_at = datetime('now') WHERE id = ?2",
             params![label, id],
-        ).map_err(|e| format!("Update error: {}", e))?;
+        )?;
         Ok(())
     }
 
-    pub fn delete_session(&self, id: &str) -> Result<(), String> {
+    pub fn delete_session(&self, id: &str) -> EngineResult<()> {
         let conn = self.conn.lock();
-        conn.execute("DELETE FROM messages WHERE session_id = ?1", params![id])
-            .map_err(|e| format!("Delete messages error: {}", e))?;
-        conn.execute("DELETE FROM sessions WHERE id = ?1", params![id])
-            .map_err(|e| format!("Delete session error: {}", e))?;
+        conn.execute("DELETE FROM messages WHERE session_id = ?1", params![id])?;
+        conn.execute("DELETE FROM sessions WHERE id = ?1", params![id])?;
         Ok(())
     }
 
     /// Clear all messages for a session but keep the session itself.
-    pub fn clear_messages(&self, session_id: &str) -> Result<(), String> {
+    pub fn clear_messages(&self, session_id: &str) -> EngineResult<()> {
         let conn = self.conn.lock();
-        conn.execute("DELETE FROM messages WHERE session_id = ?1", params![session_id])
-            .map_err(|e| format!("Delete messages error: {}", e))?;
+        conn.execute("DELETE FROM messages WHERE session_id = ?1", params![session_id])?;
         conn.execute(
             "UPDATE sessions SET message_count = 0, updated_at = datetime('now') WHERE id = ?1",
             params![session_id],
-        ).map_err(|e| format!("Update session error: {}", e))?;
+        )?;
         info!("[engine] Cleared all messages for session {}", session_id);
         Ok(())
     }
@@ -131,7 +129,7 @@ impl SessionStore {
     /// Bulk-delete sessions with 0 messages that are older than `max_age_secs`.
     /// Skips the `exclude_id` session (the user's current session).
     /// Returns the number of sessions deleted.
-    pub fn cleanup_empty_sessions(&self, max_age_secs: i64, exclude_id: Option<&str>) -> Result<usize, String> {
+    pub fn cleanup_empty_sessions(&self, max_age_secs: i64, exclude_id: Option<&str>) -> EngineResult<usize> {
         let conn = self.conn.lock();
         let deleted = if let Some(eid) = exclude_id {
             conn.execute(
@@ -146,7 +144,7 @@ impl SessionStore {
                  AND updated_at < datetime('now', ?1)",
                 params![format!("-{} seconds", max_age_secs)],
             )
-        }.map_err(|e| format!("Cleanup error: {}", e))?;
+        }?;
 
         if deleted > 0 {
             info!("[engine] Cleaned up {} empty session(s) older than {}s", deleted, max_age_secs);
@@ -159,7 +157,7 @@ impl SessionStore {
     /// across recurring task runs — the #1 cause of runaway token costs.
     ///
     /// Returns the number of messages deleted.
-    pub fn prune_session_messages(&self, session_id: &str, keep: i64) -> Result<usize, String> {
+    pub fn prune_session_messages(&self, session_id: &str, keep: i64) -> EngineResult<usize> {
         let conn = self.conn.lock();
 
         // Count current messages
@@ -167,7 +165,7 @@ impl SessionStore {
             "SELECT COUNT(*) FROM messages WHERE session_id = ?1",
             params![session_id],
             |r| r.get(0),
-        ).map_err(|e| format!("Count error: {}", e))?;
+        )?;
 
         if total <= keep {
             return Ok(0);
@@ -180,7 +178,7 @@ impl SessionStore {
                 ORDER BY created_at DESC LIMIT ?2
             )",
             params![session_id, keep],
-        ).map_err(|e| format!("Prune error: {}", e))?;
+        )?;
 
         // Update session message count
         conn.execute(
@@ -189,7 +187,7 @@ impl SessionStore {
                 updated_at = datetime('now')
              WHERE id = ?1",
             params![session_id],
-        ).map_err(|e| format!("Update session error: {}", e))?;
+        )?;
 
         if deleted > 0 {
             info!("[engine] Pruned {} old messages from session {} (kept {})", deleted, session_id, keep);

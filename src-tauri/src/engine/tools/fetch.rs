@@ -5,6 +5,7 @@ use crate::atoms::types::*;
 use log::info;
 use std::time::Duration;
 use tauri::Manager;
+use crate::atoms::error::EngineResult;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![ToolDefinition {
@@ -36,12 +37,12 @@ pub async fn execute(
     app_handle: &tauri::AppHandle,
 ) -> Option<Result<String, String>> {
     match name {
-        "fetch" => Some(execute_fetch(args, app_handle).await),
+        "fetch" => Some(execute_fetch(args, app_handle).await.map_err(|e| e.to_string())),
         _ => None,
     }
 }
 
-async fn execute_fetch(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> Result<String, String> {
+async fn execute_fetch(args: &serde_json::Value, app_handle: &tauri::AppHandle) -> EngineResult<String> {
     let url = args["url"].as_str().ok_or("fetch: missing 'url' argument")?;
     let method = args["method"].as_str().unwrap_or("GET");
 
@@ -53,12 +54,12 @@ async fn execute_fetch(args: &serde_json::Value, app_handle: &tauri::AppHandle) 
             if let Ok(policy) = serde_json::from_str::<crate::commands::browser::NetworkPolicy>(&policy_json) {
                 let domain = crate::commands::browser::extract_domain_from_url(url);
                 if policy.blocked_domains.iter().any(|d| crate::commands::browser::domain_matches_pub(&domain, d)) {
-                    return Err(format!("Network policy: domain '{}' is blocked", domain));
+                    return Err(format!("Network policy: domain '{}' is blocked", domain).into());
                 }
                 if policy.enabled {
                     let allowed = policy.allowed_domains.iter().any(|d| crate::commands::browser::domain_matches_pub(&domain, d));
                     if !allowed {
-                        return Err(format!("Network policy: domain '{}' is not in the allowlist", domain));
+                        return Err(format!("Network policy: domain '{}' is not in the allowlist", domain).into());
                     }
                 }
             }
@@ -67,8 +68,7 @@ async fn execute_fetch(args: &serde_json::Value, app_handle: &tauri::AppHandle) 
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(30))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+        .build()?;
 
     let mut request = match method.to_uppercase().as_str() {
         "POST"   => client.post(url),
@@ -91,12 +91,10 @@ async fn execute_fetch(args: &serde_json::Value, app_handle: &tauri::AppHandle) 
         request = request.body(body.to_string());
     }
 
-    let response = request.send().await
-        .map_err(|e| format!("HTTP request failed: {}", e))?;
+    let response = request.send().await?;
 
     let status = response.status().as_u16();
-    let body = response.text().await
-        .map_err(|e| format!("Failed to read response body: {}", e))?;
+    let body = response.text().await?;
 
     const MAX_BODY: usize = 50_000;
     let truncated = if body.len() > MAX_BODY {

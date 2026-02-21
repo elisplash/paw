@@ -24,6 +24,7 @@ use tauri::{Emitter, Manager};
 use agent_loop::{run_orchestrator_loop, AgentRole};
 use sub_agent::resolve_provider_for_model;
 use tools::boss_tools;
+use crate::atoms::error::EngineResult;
 
 // ── Public API ─────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ use tools::boss_tools;
 pub async fn run_project(
     app_handle: &tauri::AppHandle,
     project_id: &str,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let state = app_handle.state::<EngineState>();
     let run_id = uuid::Uuid::new_v4().to_string();
 

@@ -13,6 +13,7 @@ use log::{info, warn};
 use tauri::Emitter;
 
 use super::handlers::{execute_boss_tool, execute_worker_tool};
+use crate::atoms::error::EngineResult;
 
 // ── Role enum ──────────────────────────────────────────────────────────
 
@@ -67,7 +68,7 @@ pub(crate) async fn run_orchestrator_loop(
     project_id: &str,
     agent_id: &str,
     role: AgentRole<'_>,
-) -> Result<String, String> {
+) -> EngineResult<String> {
     let label = match &role {
         AgentRole::Boss => "Boss".to_string(),
         AgentRole::Worker { agent_id } => format!("Worker {}", agent_id),

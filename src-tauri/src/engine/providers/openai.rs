@@ -46,6 +46,7 @@ pub(crate) async fn retry_delay(attempt: u32, retry_after_secs: Option<u64>) -> 
 /// Simple deterministic jitter source (no extra crate needed).
 fn rand_jitter() -> i64 {
     use std::time::SystemTime;
+use crate::atoms::error::EngineResult;
     let nanos = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap_or_default()

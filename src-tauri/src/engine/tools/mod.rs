@@ -10,6 +10,7 @@ use crate::engine::state::EngineState;
 use crate::engine::skills;
 use log::info;
 use tauri::Manager;
+use crate::atoms::error::EngineResult;
 
 pub mod exec;
 pub mod fetch;
@@ -99,7 +100,7 @@ pub async fn execute_tool(tool_call: &crate::engine::types::ToolCall, app_handle
         .or(coinbase::execute(name, &args, app_handle).await)
         .or(dex::execute(name, &args, app_handle).await)
         .or(solana::execute(name, &args, app_handle).await)
-        .unwrap_or_else(|| Err(format!("Unknown tool: {}", name)));
+        .unwrap_or_else(|| Err(format!("Unknown tool: {}", name).into()));
 
     match result {
         Ok(output) => ToolResult {
@@ -125,7 +126,7 @@ pub fn agent_workspace(agent_id: &str) -> std::path::PathBuf {
 }
 
 /// Ensure the agent's workspace directory exists.
-pub fn ensure_workspace(agent_id: &str) -> Result<std::path::PathBuf, String> {
+pub fn ensure_workspace(agent_id: &str) -> EngineResult<std::path::PathBuf> {
     let ws = agent_workspace(agent_id);
     std::fs::create_dir_all(&ws)
         .map_err(|e| format!("Failed to create workspace for agent '{}': {}", agent_id, e))?;
@@ -138,12 +139,12 @@ pub fn ensure_workspace(agent_id: &str) -> Result<std::path::PathBuf, String> {
 pub fn get_skill_creds(
     skill_id: &str,
     app_handle: &tauri::AppHandle,
-) -> Result<std::collections::HashMap<String, String>, String> {
+) -> EngineResult<std::collections::HashMap<String, String>> {
     let state = app_handle.try_state::<EngineState>()
         .ok_or("Engine state not available")?;
 
     if !state.store.is_skill_enabled(skill_id)? {
-        return Err(format!("Skill '{}' is not enabled. Ask the user to enable it in Settings → Skills.", skill_id));
+        return Err(format!("Skill '{}' is not enabled. Ask the user to enable it in Settings → Skills.", skill_id).into());
     }
 
     let creds = skills::get_skill_credentials(&state.store, skill_id)?;
@@ -158,7 +159,7 @@ pub fn get_skill_creds(
             return Err(format!(
                 "Skill '{}' is missing required credentials: {}. Ask the user to configure them in Settings → Skills.",
                 skill_id, missing.join(", ")
-            ));
+            ).into());
         }
     }
 

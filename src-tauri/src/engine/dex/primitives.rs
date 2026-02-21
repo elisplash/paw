@@ -1,6 +1,8 @@
 // Paw Agent Engine — DEX Ethereum Primitives
 // Core hex, keccak, address, and amount conversion utilities.
 
+use crate::atoms::error::{EngineError, EngineResult};
+
 /// Keccak-256 hash (Ethereum's hash function)
 pub(crate) fn keccak256(data: &[u8]) -> [u8; 32] {
     use tiny_keccak::{Hasher, Keccak};
@@ -19,7 +21,7 @@ pub(crate) fn hex_encode(data: &[u8]) -> String {
 /// Hex-decode a 0x-prefixed string
 /// Handles Ethereum RPC's minimal hex encoding (e.g. "0x0", "0x1a3")
 /// by left-padding to even length.
-pub(crate) fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn hex_decode(s: &str) -> EngineResult<Vec<u8>> {
     let s = s.strip_prefix("0x").unwrap_or(s);
     // Handle empty hex
     if s.is_empty() {
@@ -35,7 +37,7 @@ pub(crate) fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
     };
     (0..hex_str.len())
         .step_by(2)
-        .map(|i| u8::from_str_radix(&hex_str[i..i + 2], 16).map_err(|e| format!("Hex decode: {}", e)))
+        .map(|i| u8::from_str_radix(&hex_str[i..i + 2], 16).map_err(|e| EngineError::Other(format!("Hex decode: {}", e))))
         .collect()
 }
 
@@ -67,11 +69,11 @@ pub(crate) fn eip55_checksum(addr_bytes: &[u8]) -> String {
 }
 
 /// Parse an address string to 20 bytes
-pub(crate) fn parse_address(addr: &str) -> Result<[u8; 20], String> {
+pub(crate) fn parse_address(addr: &str) -> EngineResult<[u8; 20]> {
     let addr = addr.trim();
     let bytes = hex_decode(addr)?;
     if bytes.len() != 20 {
-        return Err(format!("Invalid address length: {} bytes (expected 20). Address: '{}'", bytes.len(), addr));
+        return Err(EngineError::Other(format!("Invalid address length: {} bytes (expected 20). Address: '{}'", bytes.len(), addr)));
     }
     let mut arr = [0u8; 20];
     arr.copy_from_slice(&bytes);
@@ -79,20 +81,20 @@ pub(crate) fn parse_address(addr: &str) -> Result<[u8; 20], String> {
 }
 
 /// Parse a U256 from decimal string
-pub(crate) fn parse_u256_decimal(s: &str) -> Result<[u8; 32], String> {
+pub(crate) fn parse_u256_decimal(s: &str) -> EngineResult<[u8; 32]> {
     // Simple decimal-to-big-endian conversion
     let mut result = [0u8; 32];
 
     // Handle scientific notation
     if s.contains('e') || s.contains('E') {
-        return Err("Scientific notation not supported, use plain decimal".into());
+        return Err(EngineError::Other("Scientific notation not supported, use plain decimal".into()));
     }
 
     // Convert decimal string to bytes
     let mut digits: Vec<u8> = Vec::new();
     for c in s.chars() {
         if !c.is_ascii_digit() {
-            return Err(format!("Invalid decimal character: {}", c));
+            return Err(EngineError::Other(format!("Invalid decimal character: {}", c)));
         }
         digits.push(c as u8 - b'0');
     }
@@ -120,16 +122,16 @@ pub(crate) fn parse_u256_decimal(s: &str) -> Result<[u8; 32], String> {
 
 /// Convert a token amount with decimals to raw units
 /// e.g., "1.5" with 18 decimals → "1500000000000000000"
-pub(crate) fn amount_to_raw(amount: &str, decimals: u8) -> Result<String, String> {
+pub(crate) fn amount_to_raw(amount: &str, decimals: u8) -> EngineResult<String> {
     let parts: Vec<&str> = amount.split('.').collect();
     if parts.len() > 2 {
-        return Err("Invalid amount format".into());
+        return Err(EngineError::Other("Invalid amount format".into()));
     }
     let integer_part = parts[0];
     let decimal_part = if parts.len() == 2 { parts[1] } else { "" };
 
     if decimal_part.len() > decimals as usize {
-        return Err(format!("Too many decimal places (max {} for this token)", decimals));
+        return Err(EngineError::Other(format!("Too many decimal places (max {} for this token)", decimals)));
     }
 
     let padded_decimals = format!("{:0<width$}", decimal_part, width = decimals as usize);
@@ -140,7 +142,7 @@ pub(crate) fn amount_to_raw(amount: &str, decimals: u8) -> Result<String, String
 }
 
 /// Convert raw units to human-readable amount
-pub(crate) fn raw_to_amount(raw_hex: &str, decimals: u8) -> Result<String, String> {
+pub(crate) fn raw_to_amount(raw_hex: &str, decimals: u8) -> EngineResult<String> {
     let raw_bytes = hex_decode(raw_hex)?;
     // Convert big-endian bytes to decimal string
     let mut value = Vec::new();
@@ -186,6 +188,7 @@ pub(crate) fn raw_to_amount(raw_hex: &str, decimals: u8) -> Result<String, Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+use crate::atoms::error::EngineResult;
 
     #[test]
     fn hex_encode_empty() {

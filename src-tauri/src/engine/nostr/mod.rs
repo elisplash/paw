@@ -33,6 +33,7 @@ use log::{info, warn};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
+use crate::atoms::error::EngineResult;
 
 // ── Nostr Config ───────────────────────────────────────────────────────
 
@@ -86,42 +87,38 @@ const KEYRING_SERVICE: &str = "paw-nostr";
 const KEYRING_USER: &str = "private-key";
 
 /// Store the Nostr private key in the OS keychain.
-fn keychain_set_private_key(hex_key: &str) -> Result<(), String> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)
-        .map_err(|e| format!("Keyring init failed: {}", e))?;
-    entry.set_password(hex_key)
-        .map_err(|e| format!("Failed to store Nostr key in keychain: {}", e))?;
+fn keychain_set_private_key(hex_key: &str) -> EngineResult<()> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)?;
+    entry.set_password(hex_key)?;
     info!("[nostr] Private key stored in OS keychain");
     Ok(())
 }
 
 /// Retrieve the Nostr private key from the OS keychain.
-fn keychain_get_private_key() -> Result<Option<String>, String> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)
-        .map_err(|e| format!("Keyring init failed: {}", e))?;
+fn keychain_get_private_key() -> EngineResult<Option<String>> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)?;
     match entry.get_password() {
         Ok(key) if !key.is_empty() => Ok(Some(key)),
         Ok(_) => Ok(None),
         Err(keyring::Error::NoEntry) => Ok(None),
-        Err(e) => Err(format!("Keyring error: {}", e)),
+        Err(e) => Err(e.into()),
     }
 }
 
 /// Delete the Nostr private key from the OS keychain.
 #[allow(dead_code)]
-fn keychain_delete_private_key() -> Result<(), String> {
-    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)
-        .map_err(|e| format!("Keyring init failed: {}", e))?;
+fn keychain_delete_private_key() -> EngineResult<()> {
+    let entry = keyring::Entry::new(KEYRING_SERVICE, KEYRING_USER)?;
     match entry.delete_credential() {
         Ok(()) => { info!("[nostr] Private key removed from OS keychain"); Ok(()) }
         Err(keyring::Error::NoEntry) => Ok(()),
-        Err(e) => Err(format!("Keyring delete failed: {}", e)),
+        Err(e) => Err(e.into()),
     }
 }
 
 // ── Bridge Core ────────────────────────────────────────────────────────
 
-pub fn start_bridge(app_handle: tauri::AppHandle) -> Result<(), String> {
+pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     if BRIDGE_RUNNING.load(Ordering::Relaxed) {
         return Err("Nostr bridge is already running".into());
     }
@@ -210,7 +207,7 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 
 // ── Config Persistence ─────────────────────────────────────────────────
 
-pub fn load_config(app_handle: &tauri::AppHandle) -> Result<NostrConfig, String> {
+pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<NostrConfig> {
     let mut config: NostrConfig = channels::load_channel_config(app_handle, CONFIG_KEY)?;
 
     // Hydrate private key from OS keychain
@@ -234,7 +231,7 @@ pub fn load_config(app_handle: &tauri::AppHandle) -> Result<NostrConfig, String>
     Ok(config)
 }
 
-pub fn save_config(app_handle: &tauri::AppHandle, config: &NostrConfig) -> Result<(), String> {
+pub fn save_config(app_handle: &tauri::AppHandle, config: &NostrConfig) -> EngineResult<()> {
     let mut config = config.clone();
 
     // If a private key is being saved, store it in the OS keychain
@@ -247,14 +244,14 @@ pub fn save_config(app_handle: &tauri::AppHandle, config: &NostrConfig) -> Resul
     channels::save_channel_config(app_handle, CONFIG_KEY, &config)
 }
 
-pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn approve_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::approve_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn deny_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::deny_user_generic(app_handle, CONFIG_KEY, user_id)
 }
 
-pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> Result<(), String> {
+pub fn remove_user(app_handle: &tauri::AppHandle, user_id: &str) -> EngineResult<()> {
     channels::remove_user_generic(app_handle, CONFIG_KEY, user_id)
 }

@@ -132,7 +132,7 @@ pub async fn compact_session(
     model: &str,
     session_id: &str,
     config: &CompactionConfig,
-) -> Result<CompactionResult, String> {
+) -> EngineResult<CompactionResult> {
     // 1. Load all messages
     let all_messages = store.get_messages(session_id, 10_000)?;
     let total_before = all_messages.len();
@@ -141,7 +141,7 @@ pub async fn compact_session(
         return Err(format!(
             "Session has only {} messages (minimum {} for compaction)",
             total_before, config.min_messages
-        ));
+        ).into());
     }
 
     let tokens_before: usize = all_messages.iter().map(estimate_message_tokens).sum();
@@ -167,8 +167,7 @@ pub async fn compact_session(
     let summary_prompt = build_summary_prompt(old_messages);
     let chunks = provider
         .chat_stream(&summary_prompt, &[], model, Some(0.3))
-        .await
-        .map_err(|e| format!("Summary generation failed: {}", e))?;
+        .await?;
 
     let summary_text: String = chunks
         .iter()
@@ -192,8 +191,7 @@ pub async fn compact_session(
             conn.execute(
                 "DELETE FROM messages WHERE id = ?1",
                 rusqlite::params![msg.id],
-            )
-            .map_err(|e| format!("Delete message error: {}", e))?;
+            )?;
         }
 
         // Update message count
@@ -203,8 +201,7 @@ pub async fn compact_session(
                 updated_at = datetime('now')
              WHERE id = ?1",
             rusqlite::params![session_id],
-        )
-        .map_err(|e| format!("Update session error: {}", e))?;
+        )?;
     }
 
     // 5. Insert summary as the first message
@@ -282,6 +279,7 @@ pub async fn auto_compact_if_needed(
 #[cfg(test)]
 mod tests {
     use super::*;
+use crate::atoms::error::EngineResult;
 
     #[test]
     fn test_estimate_tokens() {

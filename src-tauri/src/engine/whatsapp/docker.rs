@@ -55,7 +55,7 @@ pub(crate) fn discover_colima_socket() {}
 /// If Docker isn't installed, install it automatically.
 /// If Docker isn't running, start it automatically.
 /// Returns the Docker client on success, or a user-friendly error.
-pub(crate) async fn ensure_docker_ready(app_handle: &tauri::AppHandle) -> Result<bollard::Docker, String> {
+pub(crate) async fn ensure_docker_ready(app_handle: &tauri::AppHandle) -> EngineResult<bollard::Docker> {
     use bollard::Docker;
 
     let stop = get_stop_signal();
@@ -299,11 +299,12 @@ async fn force_remove_container(docker: &bollard::Docker, container_id: &str) {
 
 /// Ensure the Evolution API Docker container is running.
 /// Pulls the image if needed, creates and starts the container.
-pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, config: &WhatsAppConfig) -> Result<String, String> {
+pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, config: &WhatsAppConfig) -> EngineResult<String> {
     use bollard::container::{Config as ContainerConfig, CreateContainerOptions, StartContainerOptions, ListContainersOptions};
     use bollard::models::HostConfig;
     use bollard::image::CreateImageOptions;
     use futures::StreamExt;
+use crate::atoms::error::EngineResult;
 
     let docker = ensure_docker_ready(app_handle).await?;
 
@@ -316,8 +317,7 @@ pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, co
         ..Default::default()
     };
 
-    let containers = docker.list_containers(Some(opts)).await
-        .map_err(|e| format!("Failed to list containers: {}", e))?;
+    let containers = docker.list_containers(Some(opts)).await?;
 
     if let Some(existing) = containers.first() {
         let container_id = existing.id.clone().unwrap_or_default();
@@ -385,8 +385,7 @@ pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, co
         } else {
             // Container exists but stopped — start it and wait for API
             info!("[whatsapp] Starting existing Evolution API container");
-            docker.start_container(&container_id, None::<StartContainerOptions<String>>).await
-                .map_err(|e| format!("Failed to start container: {}", e))?;
+            docker.start_container(&container_id, None::<StartContainerOptions<String>>).await?;
 
             info!("[whatsapp] Waiting for Evolution API to be ready...");
             let client = reqwest::Client::new();
@@ -414,7 +413,7 @@ pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, co
             let mut stream = docker.create_image(Some(pull_opts), None, None);
             while let Some(result) = stream.next().await {
                 if let Err(e) = result {
-                    return Err(format!("Failed to pull Evolution API image: {}", e));
+                    return Err(e.into());
                 }
             }
             info!("[whatsapp] Image pulled successfully");
@@ -477,15 +476,13 @@ pub(crate) async fn ensure_evolution_container(app_handle: &tauri::AppHandle, co
         platform: None,
     };
 
-    let container = docker.create_container(Some(create_opts), container_config).await
-        .map_err(|e| format!("Failed to create Evolution API container: {}", e))?;
+    let container = docker.create_container(Some(create_opts), container_config).await?;
 
     let container_id = container.id.clone();
     info!("[whatsapp] Created Evolution API container: {}", &container_id[..12]);
 
     // Start it
-    docker.start_container(&container_id, None::<StartContainerOptions<String>>).await
-        .map_err(|e| format!("Failed to start Evolution API container: {}", e))?;
+    docker.start_container(&container_id, None::<StartContainerOptions<String>>).await?;
 
     info!("[whatsapp] Evolution API container started on port {}", config.api_port);
 
