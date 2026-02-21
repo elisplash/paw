@@ -22,10 +22,10 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - **Bug:** Audit found that `formatMarkdown()` already escapes raw HTML tags via `escHtml()` (DOM-based `textContent` → `innerHTML` round-trip). However, the markdown link regex `[text](url)` placed the URL directly into `href="$2"` without attribute-escaping. Since `escHtml()` does not escape `"`, an LLM could craft `[click](https://evil.com" onmouseover="alert(1))` to break out of the href attribute.
 - **Fix applied:** Changed the link regex replacement from string form to function form, applying `escAttr()` to the URL before interpolation into the `href` attribute. `escAttr()` escapes `"` and `'` to their HTML entities.
 
-### 4. Compact button calls sessionClear instead of sessionCompact (CRITICAL)
-- **File:** `src/engine/organisms/chat_controller.ts` L1107-1115
-- **Bug:** The "Compact" button handler calls `pawEngine.sessionClear()` (destroys all messages) instead of `pawEngine.sessionCompact()` (summarizes them). Users lose their entire session.
-- **Fix:** Change `sessionClear` → `sessionCompact` at L1110.
+### ~~4. Compact button calls sessionClear instead of sessionCompact (CRITICAL)~~ ✅ FIXED
+- **File:** `src/engine/organisms/chat_controller.ts` L1110
+- **Bug:** The "Compact" button handler called `pawEngine.sessionClear()` (destroys all messages) instead of `pawEngine.sessionCompact()` (summarizes them). Users lost their entire session.
+- **Fix applied:** Changed to `pawEngine.sessionCompact()`, added toast showing before/after message count, and reloads compacted history into the UI so the user sees the summarized conversation.
 
 ### 5. Nostr crypto uses SHA-256 placeholder (CRITICAL)
 - **File:** `src-tauri/src/engine/nostr.rs` L418-436

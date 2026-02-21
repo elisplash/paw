@@ -1108,13 +1108,21 @@ export function initChatListeners(): void {
   });
 
   $('session-compact-btn')?.addEventListener('click', async () => {
-    if (!appState.wsConnected) return;
+    if (!appState.wsConnected || !appState.currentSessionKey) return;
     try {
-      if (appState.currentSessionKey) await pawEngine.sessionClear(appState.currentSessionKey);
-      showToast('Session compacted', 'success');
+      const result = await pawEngine.sessionCompact(appState.currentSessionKey);
+      showToast(`Compacted: ${result.messages_before} → ${result.messages_after} messages`, 'success');
       resetTokenMeter();
       const ba = document.getElementById('session-budget-alert');
       if (ba) ba.style.display = 'none';
+      // Reload compacted history into the UI
+      const history = await pawEngine.chatHistory(appState.currentSessionKey, 100);
+      appState.messages = history.map(m => ({
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: m.content,
+        timestamp: new Date(m.created_at),
+      }));
+      renderMessages();
     } catch (e) { showToast(`Compact failed: ${e instanceof Error ? e.message : e}`, 'error'); }
   });
 
