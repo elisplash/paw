@@ -5,7 +5,7 @@
 // loop detection, and attachment preprocessing.
 //
 // Dependency rule (one-way):
-//   engine/chat.rs → engine/types, engine/skills, engine/tool_executor, engine/telegram
+//   engine/chat.rs → engine/types, engine/skills, engine/tools, engine/telegram
 //   engine/chat.rs has NO import from commands/ — EngineState is NEVER referenced here.
 //
 // Called by: commands/chat.rs (the thin System layer)
@@ -13,7 +13,7 @@
 use crate::engine::types::*;
 use crate::engine::sessions::SessionStore;
 use crate::engine::skills;
-use crate::engine::tool_executor;
+use crate::engine::tools;
 use log::{info, warn};
 
 // ── Tool builder ───────────────────────────────────────────────────────────────
@@ -110,7 +110,7 @@ pub fn build_runtime_context(
         )
     };
 
-    let ws = tool_executor::agent_workspace(agent_id);
+    let ws = tools::agent_workspace(agent_id);
 
     format!(
         "## Runtime\n\

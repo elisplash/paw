@@ -930,7 +930,7 @@ async fn run_boss_agent_loop(
                 continue;
             }
 
-            let result = crate::engine::tool_executor::execute_tool(tc, app_handle, agent_id).await;
+            let result = crate::engine::tools::execute_tool(tc, app_handle, agent_id).await;
             let _ = app_handle.emit("engine-event", EngineEvent::ToolResultEvent {
                 session_id: session_id.to_string(),
                 run_id: run_id.to_string(),
@@ -968,7 +968,7 @@ async fn run_sub_agent(
     let state = app_handle.state::<EngineState>();
 
     // Get provider — use model routing for worker agents
-    let (provider_config, model) = {
+    let (provider_config, model, agent_capabilities) = {
         let cfg = state.config.lock();
         let default_model = cfg.default_model.clone().unwrap_or_else(|| "gpt-4o".to_string());
 
@@ -976,6 +976,7 @@ async fn run_sub_agent(
         let agent_entry = state.store.get_project_agents(project_id).ok()
             .and_then(|agents| agents.into_iter().find(|a| a.agent_id == agent_id));
         let specialty = agent_entry.as_ref().map(|a| a.specialty.as_str()).unwrap_or("general");
+        let capabilities = agent_entry.as_ref().map(|a| a.capabilities.clone()).unwrap_or_default();
 
         // Resolve model: per-agent field > model_routing > default
         let model = if let Some(agent_model) = agent_entry.as_ref().and_then(|a| a.model.as_deref()).filter(|m| !m.is_empty()) {
@@ -988,7 +989,7 @@ async fn run_sub_agent(
 
         let provider = resolve_provider_for_model(&cfg, &model);
         match provider {
-            Some(p) => (p, model),
+            Some(p) => (p, model, capabilities),
             None => return Err("No AI provider configured".into()),
         }
     };
@@ -1044,6 +1045,20 @@ Your boss agent has delegated this task to you.
         all_tools.extend(ToolDefinition::skill_tools(&enabled_ids));
     }
     all_tools.extend(worker_tools());
+
+    // Apply per-agent tool capabilities filter (if the agent has a non-empty capabilities list)
+    if !agent_capabilities.is_empty() {
+        let before = all_tools.len();
+        all_tools.retain(|tool| agent_capabilities.contains(&tool.function.name));
+        // Always keep worker control tools (report_progress, sub_agent_message) regardless of policy
+        for wt in worker_tools() {
+            if !all_tools.iter().any(|t| t.function.name == wt.function.name) {
+                all_tools.push(wt);
+            }
+        }
+        info!("[orchestrator] Capabilities filter for '{}': {} → {} tools (capabilities: {:?})",
+            agent_id, before, all_tools.len(), agent_capabilities);
+    }
 
     // Create per-agent session
     let session_id = format!("eng-project-{}-{}", project_id, agent_id);
@@ -1310,7 +1325,7 @@ async fn run_worker_agent_loop(
                 continue;
             }
 
-            let result = crate::engine::tool_executor::execute_tool(tc, app_handle, agent_id).await;
+            let result = crate::engine::tools::execute_tool(tc, app_handle, agent_id).await;
             messages.push(Message {
                 role: Role::Tool,
                 content: MessageContent::Text(result.output),

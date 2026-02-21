@@ -8,7 +8,6 @@ pub mod tools;
 pub mod pricing;
 pub mod providers;
 pub mod agent_loop;
-pub mod tool_executor;
 pub mod sessions;
 // commands module moved to crate::commands::channels — see src/commands/channels.rs
 pub mod chat;

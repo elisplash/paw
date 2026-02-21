@@ -1,0 +1,127 @@
+// Paw Agent Engine — exec tool
+// Execute shell commands on the user's machine.
+
+use crate::atoms::types::*;
+use crate::engine::state::EngineState;
+use crate::engine::sandbox;
+use log::{info, warn};
+use std::process::Command as ProcessCommand;
+use tauri::Manager;
+
+pub fn definitions() -> Vec<ToolDefinition> {
+    vec![ToolDefinition {
+        tool_type: "function".into(),
+        function: FunctionDefinition {
+            name: "exec".into(),
+            description: "Execute a shell command on the user's machine. Returns stdout and stderr. Use this for file operations, git, package managers, CLI tools, etc.".into(),
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "command": {
+                        "type": "string",
+                        "description": "The shell command to execute"
+                    }
+                },
+                "required": ["command"]
+            }),
+        },
+    }]
+}
+
+pub async fn execute(
+    name: &str,
+    args: &serde_json::Value,
+    app_handle: &tauri::AppHandle,
+    agent_id: &str,
+) -> Option<Result<String, String>> {
+    match name {
+        "exec" => Some(execute_exec(args, app_handle, agent_id).await),
+        _ => None,
+    }
+}
+
+async fn execute_exec(args: &serde_json::Value, app_handle: &tauri::AppHandle, agent_id: &str) -> Result<String, String> {
+    let command = args["command"].as_str()
+        .ok_or("exec: missing 'command' argument")?;
+
+    info!("[engine] exec: {}", &command[..command.len().min(200)]);
+
+    // Block installing packages that duplicate built-in skill tools
+    let cmd_lower = command.to_lowercase();
+    let blocked_packages = ["cdp-sdk", "coinbase-sdk", "coinbase-advanced-py", "cbpro", "coinbase"];
+    if cmd_lower.contains("pip") || cmd_lower.contains("npm") {
+        for pkg in &blocked_packages {
+            if cmd_lower.contains(pkg) {
+                return Err(format!(
+                    "Do not install '{}'. Coinbase access is handled by built-in tools: \
+                     coinbase_balance, coinbase_prices, coinbase_trade, coinbase_transfer. \
+                     Call those tools directly.",
+                    pkg
+                ));
+            }
+        }
+    }
+
+    // Check sandbox config — if enabled, route through Docker container
+    let sandbox_config = {
+        let state = app_handle.state::<EngineState>();
+        sandbox::load_sandbox_config(&state.store)
+    };
+
+    if sandbox_config.enabled {
+        info!("[engine] exec: routing through sandbox (image={})", sandbox_config.image);
+        match sandbox::run_in_sandbox(command, &sandbox_config).await {
+            Ok(result) => return Ok(sandbox::format_sandbox_result(&result)),
+            Err(e) => {
+                warn!("[engine] Sandbox execution failed, falling back to host: {}", e);
+                // Fall through to host execution
+            }
+        }
+    }
+
+    // Set working directory to agent's workspace
+    let workspace = super::ensure_workspace(agent_id)?;
+
+    // Run via sh -c (Unix) or cmd /C (Windows)
+    let output = if cfg!(target_os = "windows") {
+        ProcessCommand::new("cmd")
+            .args(["/C", command])
+            .current_dir(&workspace)
+            .output()
+    } else {
+        ProcessCommand::new("sh")
+            .args(["-c", command])
+            .current_dir(&workspace)
+            .output()
+    };
+
+    match output {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+
+            let mut result = String::new();
+            if !stdout.is_empty() {
+                result.push_str(&stdout);
+            }
+            if !stderr.is_empty() {
+                if !result.is_empty() {
+                    result.push_str("\n--- stderr ---\n");
+                }
+                result.push_str(&stderr);
+            }
+            if result.is_empty() {
+                result = format!("(exit code: {})", out.status.code().unwrap_or(-1));
+            }
+
+            const MAX_OUTPUT: usize = 50_000;
+            if result.len() > MAX_OUTPUT {
+                result.truncate(MAX_OUTPUT);
+                result.push_str("\n\n... [output truncated]");
+            }
+
+            Ok(result)
+        }
+        Err(e) => Err(format!("Failed to execute command: {}", e)),
+    }
+}

@@ -4,7 +4,7 @@
 
 use crate::engine::types::*;
 use crate::engine::providers::AnyProvider;
-use crate::engine::tool_executor;
+use crate::engine::tools;
 use crate::engine::state::{EngineState, PendingApprovals, DailyTokenTracker};
 use log::{info, warn};
 use std::time::Duration;
@@ -376,7 +376,7 @@ pub async fn run_agent_turn(
             }
 
             // Execute the tool (pass agent_id so tools know which agent is calling)
-            let result = tool_executor::execute_tool(tc, app_handle, agent_id).await;
+            let result = tools::execute_tool(tc, app_handle, agent_id).await;
 
             info!("[engine] Tool result: {} success={} output_len={}",
                 tc.function.name, result.success, result.output.len());
