@@ -188,7 +188,6 @@ pub(crate) fn raw_to_amount(raw_hex: &str, decimals: u8) -> EngineResult<String>
 #[cfg(test)]
 mod tests {
     use super::*;
-use crate::atoms::error::EngineResult;
 
     #[test]
     fn hex_encode_empty() {

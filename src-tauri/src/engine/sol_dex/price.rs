@@ -3,7 +3,6 @@
 
 use std::time::Duration;
 use crate::atoms::error::{EngineError, EngineResult};
-use crate::atoms::error::EngineResult;
 
 /// Fetch the current USD price of a Solana token by mint address.
 /// Uses DexScreener's token endpoint which returns all pairs for a token.

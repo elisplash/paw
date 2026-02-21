@@ -25,8 +25,8 @@ use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
 use tauri::Emitter;
 
-use matrix_sdk::{
 use crate::atoms::error::EngineResult;
+use matrix_sdk::{
     Client, Room,
     config::SyncSettings,
     matrix_auth::MatrixSession,

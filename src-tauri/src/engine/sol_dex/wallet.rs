@@ -34,7 +34,6 @@ pub async fn execute_sol_wallet_create(
 
     // Generate a new ed25519 keypair
     use ed25519_dalek::SigningKey;
-use crate::atoms::error::EngineResult;
     let signing_key = SigningKey::generate(&mut rand::thread_rng());
     let public_key = signing_key.verifying_key();
 

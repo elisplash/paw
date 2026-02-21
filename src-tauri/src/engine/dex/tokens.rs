@@ -2,7 +2,6 @@
 
 use super::constants::{KNOWN_TOKENS, WETH_ADDRESS};
 use crate::atoms::error::{EngineError, EngineResult};
-use crate::atoms::error::EngineResult;
 
 /// Resolve a token symbol or address to (address, decimals).
 pub(crate) fn resolve_token(symbol_or_address: &str) -> EngineResult<(String, u8)> {

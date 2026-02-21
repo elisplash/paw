@@ -35,7 +35,6 @@ pub async fn execute_dex_wallet_create(
     let private_key_hex = hex_encode(&signing_key.to_bytes());
 
     use tauri::Manager;
-use crate::atoms::error::EngineResult;
     let state = app_handle.try_state::<crate::engine::state::EngineState>()
         .ok_or(EngineError::Other("Engine state not available".into()))?;
     let vault_key = crate::engine::skills::get_vault_key()?;

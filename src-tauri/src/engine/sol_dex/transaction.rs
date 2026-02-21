@@ -165,7 +165,6 @@ pub(crate) fn build_solana_transaction(
 /// ATA = PDA of [wallet, TOKEN_PROGRAM_ID, mint] with ATA_PROGRAM_ID
 pub(crate) fn derive_ata(wallet: &[u8; 32], mint: &[u8; 32], token_program: &[u8; 32]) -> EngineResult<[u8; 32]> {
     use sha2::Digest;
-use crate::atoms::error::EngineResult;
     let ata_program = bs58::decode("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
         .into_vec().map_err(|e| EngineError::Other(format!("ATA program decode: {}", e)))?;
 

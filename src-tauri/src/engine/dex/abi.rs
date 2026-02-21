@@ -272,7 +272,6 @@ pub(crate) fn encode_transfer(to: &[u8; 20], amount: &[u8; 32]) -> Vec<u8> {
 mod tests {
     use super::*;
     use crate::engine::dex::primitives::hex_encode;
-use crate::atoms::error::EngineResult;
 
     #[test]
     fn function_selector_transfer() {

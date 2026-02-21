@@ -3,7 +3,6 @@
 use super::primitives::hex_encode;
 use crate::atoms::error::{EngineError, EngineResult};
 use std::time::Duration;
-use crate::atoms::error::EngineResult;
 
 /// Low-level JSON-RPC call
 pub(crate) async fn rpc_call(

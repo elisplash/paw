@@ -6,7 +6,6 @@ use log::info;
 use std::time::Duration;
 use super::constants::{TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID};
 use crate::atoms::error::{EngineError, EngineResult};
-use crate::atoms::error::EngineResult;
 
 /// Make a Solana JSON-RPC call
 pub(crate) async fn rpc_call(rpc_url: &str, method: &str, params: serde_json::Value) -> EngineResult<serde_json::Value> {
