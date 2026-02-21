@@ -1,7 +1,6 @@
 // Orchestrator View — DOM rendering + IPC
 
-import type { EngineProject, EngineProjectAgent, EngineProjectMessage } from '../../engine';
-import { pawEngine } from '../../engine';
+import { pawEngine, type EngineProject, type EngineProjectAgent, type EngineProjectMessage } from '../../engine';
 import { showToast } from '../../components/toast';
 import { populateModelSelect, escHtml, formatTimeAgo } from '../../components/helpers';
 import { specialtyIcon, messageKindLabel, formatTime } from './atoms';
@@ -15,12 +14,12 @@ interface MoleculesState {
   setCurrentProject: (p: EngineProject | null) => void;
   getMessagePollInterval: () => ReturnType<typeof setInterval> | null;
   setMessagePollInterval: (i: ReturnType<typeof setInterval> | null) => void;
-  getLoadProjects: () => typeof loadProjectsFn;
+  getLoadProjects: () => typeof _loadProjectsFn;
 }
 
 let _state: MoleculesState;
 // placeholder for loadProjects from index - resolved via state bridge
-const loadProjectsFn: () => Promise<void> = async () => {};
+const _loadProjectsFn: () => Promise<void> = async () => {};
 
 export function initMoleculesState() {
   return {
@@ -201,7 +200,7 @@ async function refreshAgents() {
       _state.setCurrentProject(p);
       renderAgentRoster(p.agents);
     }
-  } catch (_e) {
+  } catch {
     // Ignore refresh errors
   }
 }
@@ -214,7 +213,7 @@ async function refreshMessages() {
   try {
     const messages = await pawEngine.projectMessages(currentProject.id, 100);
     renderMessageBus(messages);
-  } catch (_e) {
+  } catch {
     // Ignore refresh errors
   }
 }
@@ -327,8 +326,8 @@ export async function saveProject() {
 
     closeModal();
     await _state.getLoadProjects()();
-  } catch (e: any) {
-    showToast(`Error: ${e}`, 'error');
+  } catch (e: unknown) {
+    showToast(`Error: ${e instanceof Error ? e.message : String(e)}`, 'error');
   }
 }
 
@@ -343,8 +342,8 @@ export async function deleteProject() {
     await pawEngine.projectDelete(currentProject.id);
     showToast('Project deleted');
     showList();
-  } catch (e: any) {
-    showToast(`Error: ${e}`, 'error');
+  } catch (e: unknown) {
+    showToast(`Error: ${e instanceof Error ? e.message : String(e)}`, 'error');
   }
 }
 
@@ -369,8 +368,8 @@ export async function runProject() {
     (runBtn as HTMLButtonElement).disabled = true;
     els.detailStatus.textContent = 'running';
     els.detailStatus.className = 'orch-status-badge orch-status-running';
-  } catch (e: any) {
-    showToast(`Error: ${e}`, 'error');
+  } catch (e: unknown) {
+    showToast(`Error: ${e instanceof Error ? e.message : String(e)}`, 'error');
   }
 }
 
@@ -426,8 +425,8 @@ export async function addAgent() {
     renderAgentRoster(allAgents);
     closeAgentModal();
     showToast(`Added agent ${agentId}`);
-  } catch (e: any) {
-    showToast(`Error: ${e}`, 'error');
+  } catch (e: unknown) {
+    showToast(`Error: ${e instanceof Error ? e.message : String(e)}`, 'error');
   }
 }
 

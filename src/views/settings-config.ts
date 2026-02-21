@@ -59,6 +59,7 @@ export async function setEngineConfig(config: EngineConfig, silent = false): Pro
 
 /** Deep-get a config value by dot path. Returns undefined if missing. */
 export function getVal(config: Record<string, unknown>, path: string): unknown {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return path.split('.').reduce((obj: any, key) => obj?.[key], config);
 }
 

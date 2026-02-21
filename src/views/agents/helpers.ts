@@ -59,7 +59,7 @@ export async function seedSoulFiles(agent: Agent): Promise<void> {
       await pawEngine.agentFileSet('USER.md', user, agent.id);
     }
 
-    console.log(`[agents] Seeded soul files for ${agent.name} (${agent.id})`);
+    console.debug(`[agents] Seeded soul files for ${agent.name} (${agent.id})`);
   } catch (e) {
     console.warn(`[agents] Failed to seed soul files for ${agent.id}:`, e);
   }

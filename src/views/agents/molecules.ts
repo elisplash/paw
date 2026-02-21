@@ -13,9 +13,9 @@ export interface RenderAgentsCallbacks {
 }
 
 export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
-  console.log('[agents] renderAgents called');
+  console.debug('[agents] renderAgents called');
   const grid = $('agents-grid');
-  console.log('[agents] grid element:', grid);
+  console.debug('[agents] grid element:', grid);
   if (!grid) return;
 
   grid.innerHTML = `${agents.map(agent => `

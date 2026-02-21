@@ -55,7 +55,7 @@ export async function loadMemoryPalace(): Promise<void> {
     try {
       const stats = await pawEngine.memoryStats();
       _palaceAvailable = true;
-      console.log('[memory] Engine mode — memory available, total:', stats.total_memories);
+      console.debug('[memory] Engine mode — memory available, total:', stats.total_memories);
     } catch (e) {
       console.warn('[memory] Engine mode — memory check failed:', e);
       _palaceAvailable = true; // Still available, just might not have embeddings

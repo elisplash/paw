@@ -28,7 +28,7 @@ export function configure(_opts: Record<string, unknown>) {
 }
 
 export async function loadToday() {
-  console.log('[today] loadToday called');
+  console.debug('[today] loadToday called');
   loadTasks();
   renderToday();
 

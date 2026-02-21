@@ -24,14 +24,17 @@ import {
 // ── Tauri FS state (set by index.ts) ──────────────────────────────────────
 
 let _tauriAvailable = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _readDir: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _readTextFile: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _join: any = null;
 
 export function initTauriRefs(opts: {
-  readDir: any;
-  readTextFile: any;
-  join: any;
+  readDir: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  readTextFile: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+  join: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   available: boolean;
 }): void {
   _readDir = opts.readDir;

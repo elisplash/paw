@@ -33,21 +33,25 @@ Pawz is a Tauri v2 desktop AI agent. Every system call flows through the Rust ba
 └──────────────────────────────────────────────────────────┘
 ```
 
-**Key design principle**: The agent never touches the OS directly. Every tool call goes through the Rust tool executor → emits a `ToolRequest` event → the frontend shows a risk-classified approval modal → user decides → `engine_approve_tool` resolves.
+**Key design principle**: The agent never touches the OS directly. Every tool call goes through the Rust tool executor. Read-only tools (fetch, read_file, web_search, etc.) are auto-approved at the Rust level. Side-effect tools (exec, write_file, delete_file) emit a `ToolRequest` event → the frontend shows a risk-classified approval modal → user decides → `engine_approve_tool` resolves.
 
 ---
 
 ## Human-in-the-Loop (HIL) Approval
 
-All tool calls require approval before execution. The approval flow classifies each request by risk:
+Tool calls are classified into two tiers at the Rust engine level:
+
+**Auto-approved (no modal):** Read-only and informational tools — `fetch`, `read_file`, `list_directory`, `web_search`, `web_read`, `memory_search`, `soul_read`, `soul_write`, `self_info`, `email_read`, `slack_read`, `create_task`, `image_generate`, etc.
+
+**Requires user approval (modal shown):** Side-effect tools — `exec`, `write_file`, `append_file`, `delete_file`, and all trading write operations (swaps, transfers). The approval modal classifies each request by risk:
 
 | Risk Level | Behavior | Example |
 |------------|----------|---------|
-| **Critical** | Red modal, user must type "ALLOW" | `sudo rm -rf /`, `curl \| bash` |
+| **Critical** | Auto-denied by default; red modal if auto-deny disabled, user must type "ALLOW" | `sudo rm -rf /`, `curl \| bash` |
 | **High** | Orange warning modal | `chmod 777`, `kill -9` |
 | **Medium** | Yellow caution modal | `npm install`, outbound HTTP |
-| **Low** | Standard modal | `git status`, file reads |
-| **Safe** | Auto-approved (if allowlisted) | `ls`, `cat`, `echo` |
+| **Low** | Standard approval modal | unknown exec commands |
+| **Safe** | Auto-approved if matches allowlist (90+ default patterns) | `git status`, `ls`, `cat` |
 
 ### Danger Pattern Detection
 
@@ -75,6 +79,17 @@ Configurable regex patterns in Settings:
 ### Session Override
 
 Timed "allow all" mode with configurable duration (30min, 1hr, 2hr). Privilege escalation commands remain blocked even during override. Auto-expires. Cancellable from Settings banner.
+
+### Trading Approval Policy
+
+Financial tools (swaps, transfers) require HIL approval by default. A configurable trading policy can auto-approve within limits:
+
+- **Max trade size** — per-transaction USD cap
+- **Daily loss limit** — cumulative daily spending cap
+- **Allowed pairs** — whitelist of tradeable pairs
+- **Transfer toggle + cap** — opt-in with per-transfer limit
+- Applies to all chains: Coinbase, Solana (Jupiter), EVM DEX (Uniswap)
+- Read-only trading tools (balances, quotes, portfolio, prices) are always auto-approved
 
 ---
 

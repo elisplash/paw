@@ -189,8 +189,8 @@ export interface SecuritySettings {
 }
 
 const DEFAULT_SETTINGS: SecuritySettings = {
-  autoDenyPrivilegeEscalation: false,
-  autoDenyCritical: false,
+  autoDenyPrivilegeEscalation: true,
+  autoDenyCritical: true,
   requireTypeToCritical: true,
   commandAllowlist: [
     '^git\\b',
@@ -311,7 +311,6 @@ const DEFAULT_SETTINGS: SecuritySettings = {
     '^pbpaste\\b',
     '^xclip\\b',
     '^xsel\\b',
-    '.*',
   ],
   commandDenylist: [],
   sessionOverrideUntil: null,

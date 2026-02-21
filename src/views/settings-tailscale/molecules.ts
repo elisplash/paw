@@ -18,8 +18,8 @@ export async function loadTailscaleSettings() {
       pawEngine.tailscaleStatus(),
       pawEngine.tailscaleGetConfig(),
     ]);
-  } catch (e: any) {
-    container.innerHTML = `<p style="color:var(--text-error)">Failed to load: ${esc(e.message ?? String(e))}</p>`;
+  } catch (e: unknown) {
+    container.innerHTML = `<p style="color:var(--text-error)">Failed to load: ${esc(e instanceof Error ? e.message : String(e))}</p>`;
     return;
   }
 
@@ -71,13 +71,13 @@ export async function loadTailscaleSettings() {
   if (status.running) {
     const disconnectBtn = makeBtn('Disconnect', 'btn-ghost', async () => {
       try { await pawEngine.tailscaleDisconnect(); showToast('Disconnected', 'success'); loadTailscaleSettings(); }
-      catch (e: any) { showToast(`Failed: ${e.message ?? e}`, 'error'); }
+      catch (e: unknown) { showToast(`Failed: ${e instanceof Error ? e.message : String(e)}`, 'error'); }
     });
     connBtns.appendChild(disconnectBtn);
   } else {
     const connectBtn = makeBtn('Connect', 'btn-primary', async () => {
       try { await pawEngine.tailscaleConnect(config.auth_key || undefined); showToast('Connecting…', 'info'); setTimeout(() => loadTailscaleSettings(), 3000); }
-      catch (e: any) { showToast(`Failed: ${e.message ?? e}`, 'error'); }
+      catch (e: unknown) { showToast(`Failed: ${e instanceof Error ? e.message : String(e)}`, 'error'); }
     });
     connBtns.appendChild(connectBtn);
   }
@@ -97,25 +97,25 @@ export async function loadTailscaleSettings() {
   if (status.serve_active) {
     serveBtns.appendChild(makeBtn('Stop Serve', 'btn-ghost', async () => {
       try { await pawEngine.tailscaleServeStop(); showToast('Serve stopped', 'success'); loadTailscaleSettings(); }
-      catch (e: any) { showToast(`Failed: ${e.message ?? e}`, 'error'); }
+      catch (e: unknown) { showToast(`Failed: ${e instanceof Error ? e.message : String(e)}`, 'error'); }
     }));
   } else {
     serveBtns.appendChild(makeBtn('Start Serve', 'btn-primary', async () => {
       try { await pawEngine.tailscaleServeStart(config.serve_port); showToast('Serve started', 'success'); loadTailscaleSettings(); }
-      catch (e: any) { showToast(`Failed: ${e.message ?? e}`, 'error'); }
+      catch (e: unknown) { showToast(`Failed: ${e instanceof Error ? e.message : String(e)}`, 'error'); }
     }));
   }
 
   if (status.funnel_active) {
     serveBtns.appendChild(makeBtn('Stop Funnel', 'btn-ghost', async () => {
       try { await pawEngine.tailscaleFunnelStop(); showToast('Funnel stopped', 'success'); loadTailscaleSettings(); }
-      catch (e: any) { showToast(`Failed: ${e.message ?? e}`, 'error'); }
+      catch (e: unknown) { showToast(`Failed: ${e instanceof Error ? e.message : String(e)}`, 'error'); }
     }));
   } else {
     serveBtns.appendChild(makeBtn('Start Funnel (Public)', 'btn-primary', async () => {
       if (!confirm('Funnel exposes Pawz to the PUBLIC internet. Continue?')) return;
       try { await pawEngine.tailscaleFunnelStart(config.serve_port); showToast('Funnel started', 'success'); loadTailscaleSettings(); }
-      catch (e: any) { showToast(`Failed: ${e.message ?? e}`, 'error'); }
+      catch (e: unknown) { showToast(`Failed: ${e instanceof Error ? e.message : String(e)}`, 'error'); }
     }));
   }
 
@@ -165,8 +165,8 @@ export async function loadTailscaleSettings() {
     try {
       await pawEngine.tailscaleSetConfig(updated);
       showToast('Config saved', 'success');
-    } catch (e: any) {
-      showToast(`Failed: ${e.message ?? e}`, 'error');
+    } catch (e: unknown) {
+      showToast(`Failed: ${e instanceof Error ? e.message : String(e)}`, 'error');
     }
   });
 

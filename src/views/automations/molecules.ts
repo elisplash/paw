@@ -1,7 +1,6 @@
 // Automations / Cron View — DOM rendering + IPC
 
-import { pawEngine } from '../../engine';
-import type { EngineTask, EngineTaskActivity } from '../../engine';
+import { pawEngine, type EngineTask, type EngineTaskActivity } from '../../engine';
 import { $, escHtml, escAttr } from '../../components/helpers';
 import { isConnected } from '../../state/connection';
 import { MORNING_BRIEF_PROMPT, isValidSchedule } from './atoms';

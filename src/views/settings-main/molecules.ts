@@ -5,8 +5,7 @@ import { getSecurityAuditLog, isEncryptionReady } from '../../db';
 import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { isConnected } from '../../state/connection';
-import { getBudgetLimit, setBudgetLimit, downloadFile } from './atoms';
-import type { ToolRule } from './atoms';
+import { getBudgetLimit, setBudgetLimit, downloadFile, type ToolRule } from './atoms';
 
 // ── State accessors (set by index.ts) ──────────────────────────────────────
 
@@ -61,7 +60,7 @@ export async function loadSettingsUsage() {
 // ── Budget Alert ───────────────────────────────────────────────────────────
 
 // @ts-ignore: reserved for budget alert feature
-function checkBudgetAlert(currentCost: number) { void currentCost;
+function _checkBudgetAlert(currentCost: number) { void currentCost;
   const limit = getBudgetLimit();
   if (limit == null) return;
   const alertEl = $('budget-alert');

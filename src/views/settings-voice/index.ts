@@ -1,7 +1,6 @@
 // Settings: Voice — Orchestration, state, exports
 
-import type { TtsConfig } from '../../engine';
-import { pawEngine } from '../../engine';
+import { pawEngine, type TtsConfig } from '../../engine';
 import { $ } from '../../components/helpers';
 import { initMoleculesState, renderVoiceForm } from './molecules';
 

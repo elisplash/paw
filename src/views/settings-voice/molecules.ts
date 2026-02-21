@@ -1,7 +1,6 @@
 // Settings: Voice — DOM rendering, sliders, TTS test, talk mode
 
-import type { TtsConfig } from '../../engine';
-import { pawEngine } from '../../engine';
+import { pawEngine, type TtsConfig } from '../../engine';
 import { showToast } from '../../components/toast';
 import { $ } from '../../components/helpers';
 import { LANGUAGES, voicesForProvider, providerHint } from './atoms';

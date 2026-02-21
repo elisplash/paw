@@ -487,7 +487,7 @@ async function loadAgentCommunitySkills(modal: HTMLElement, agentId: string, age
         }
       });
     });
-  } catch (err) {
+  } catch {
     grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px">Could not load community skills</div>`;
   }
 }

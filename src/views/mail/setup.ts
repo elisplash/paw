@@ -178,10 +178,10 @@ function showMailAccountForm(providerId: string): void {
 // ── Save handler ───────────────────────────────────────────────────────────
 
 export async function saveMailImapSetup(): Promise<void> {
-  console.log('[mail-debug] saveMailImapSetup() called');
+  console.debug('[mail-debug] saveMailImapSetup() called');
   const email = ($('ch-field-mail-email') as HTMLInputElement)?.value.trim();
   const password = ($('ch-field-mail-password') as HTMLInputElement)?.value.trim();
-  console.log('[mail-debug] email=', email, 'passwordLen=', password?.length);
+  console.debug('[mail-debug] email=', email, 'passwordLen=', password?.length);
   const displayName = ($('ch-field-mail-display') as HTMLInputElement)?.value.trim();
   const imapHost = ($('ch-field-mail-imap') as HTMLInputElement)?.value.trim();
   const imapPort = parseInt(($('ch-field-mail-imap-port') as HTMLInputElement)?.value ?? '993', 10);

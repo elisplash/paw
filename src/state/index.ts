@@ -2,7 +2,7 @@
 // All mutable UI state lives here so it can be shared across
 // chat_controller, event_bus, channels, and main without circular deps.
 
-import type { AppConfig, Session } from '../types';
+import type { AppConfig, Session, ToolCall } from '../types';
 
 // ── Extended message type ──────────────────────────────────────────────────
 export interface ChatAttachmentLocal {
@@ -17,7 +17,7 @@ export interface MessageWithAttachments {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
-  toolCalls?: import('../types').ToolCall[];
+  toolCalls?: ToolCall[];
   attachments?: ChatAttachmentLocal[];
 }
 

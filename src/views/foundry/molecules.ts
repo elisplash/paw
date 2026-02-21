@@ -1,7 +1,6 @@
 // Foundry — DOM rendering + IPC
 
-import { listModes } from '../../db';
-import type { AgentMode } from '../../db';
+import { listModes, type AgentMode } from '../../db';
 import { pawEngine } from '../../engine';
 import { $, escHtml } from '../../components/helpers';
 import { KIND_ICONS } from './atoms';

@@ -28,10 +28,13 @@ export { renderProjectsSidebar, showProjectsEmpty, selectProject } from './molec
 // ── Module state ───────────────────────────────────────────────────────────
 
 let _projects: ProjectFolder[] = [];
-const _fileTreeCache = new Map<string, unknown[]>();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _fileTreeCache = new Map<string, any>();
 const _expandedPaths = new Set<string>();
 let _tauriAvailable = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _homeDir: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _join: any = null;
 
 // ── Tauri detection ───────────────────────────────────────────────────────
@@ -71,6 +74,7 @@ async function initShell(): Promise<boolean> {
 function syncModuleState(): void {
   setModuleState({
     projects: _projects,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fileTreeCache: _fileTreeCache as any,
     expandedPaths: _expandedPaths,
   });
@@ -148,6 +152,7 @@ export async function removeProject(path: string): Promise<void> {
 export async function promptAddFolder(): Promise<void> {
   if (_tauriAvailable) {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tauriDialog = (window as any).__TAURI__?.dialog;
       if (tauriDialog?.open) {
         const selected = await tauriDialog.open({

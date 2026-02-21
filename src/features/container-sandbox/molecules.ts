@@ -2,10 +2,9 @@
 // Composed functions with side effects: Tauri IPC, localStorage.
 // Builds on atoms for sandbox config management.
 
-import type {
-  SandboxConfig,
-  SandboxStatus} from './atoms';
 import {
+  type SandboxConfig,
+  type SandboxStatus,
   DEFAULT_SANDBOX_CONFIG,
   SANDBOX_PRESETS,
   validateSandboxConfig,
@@ -83,7 +82,7 @@ export async function getSandboxStatus(): Promise<SandboxStatus> {
       lastChecked: Date.now(),
       containerCount: 0,
     };
-  } catch (e) {
+  } catch {
     _cachedStatus = {
       dockerAvailable: false,
       lastChecked: Date.now(),

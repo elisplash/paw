@@ -101,7 +101,7 @@ export async function loadEnvSettings() {
           skillSection.appendChild(row);
         }
       }
-    } catch (e) {
+    } catch {
       // Skills may not be available
       const hint = document.createElement('p');
       hint.style.cssText = 'color:var(--text-muted);font-size:12px;padding:4px 0';

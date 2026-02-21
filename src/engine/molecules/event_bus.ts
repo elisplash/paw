@@ -46,7 +46,7 @@ function handleAgentEvent(payload: unknown): void {
     const evtSession = evt.sessionKey as string | undefined;
 
     if (stream !== 'assistant') {
-      console.log(`[event_bus] stream=${stream} session=${evtSession} runId=${String(runId).slice(0, 12)} isLoading=${appState.isLoading}`);
+      console.debug(`[event_bus] stream=${stream} session=${evtSession} runId=${String(runId).slice(0, 12)} isLoading=${appState.isLoading}`);
     }
 
     // ── Route research sessions ──
@@ -100,9 +100,9 @@ function handleAgentEvent(payload: unknown): void {
       const phase = data.phase as string | undefined;
       if (phase === 'start') {
         if (stream_s && !stream_s.runId && runId) stream_s.runId = runId;
-        console.log(`[event_bus] Agent run started: ${runId}`);
+        console.debug(`[event_bus] Agent run started: ${runId}`);
       } else if (phase === 'end') {
-        console.log(`[event_bus] Agent run ended: ${runId} chars=${stream_s?.content.length ?? 0}`);
+        console.debug(`[event_bus] Agent run ended: ${runId} chars=${stream_s?.content.length ?? 0}`);
         const dAny    = data as Record<string, unknown>;
         const dNested = (dAny.response as Record<string, unknown> | undefined);
 
@@ -136,7 +136,7 @@ function handleAgentEvent(payload: unknown): void {
             stream_s.resolve(stream_s.content);
             stream_s.resolve = null;
           } else {
-            console.log('[event_bus] No content at lifecycle end — waiting 3s for chat.final...');
+            console.debug('[event_bus] No content at lifecycle end — waiting 3s for chat.final...');
             const savedResolve = stream_s.resolve;
             setTimeout(() => {
               if (stream_s.resolve === savedResolve && stream_s.resolve) {
@@ -153,7 +153,7 @@ function handleAgentEvent(payload: unknown): void {
       const tool  = (data.name ?? data.tool) as string | undefined;
       const phase = data.phase as string | undefined;
       if (phase === 'start' && tool) {
-        console.log(`[event_bus] Tool: ${tool}`);
+        console.debug(`[event_bus] Tool: ${tool}`);
         if (stream_s?.el) _streamHandlers?.onDelta(`\n\n▶ ${tool}...`);
       }
 

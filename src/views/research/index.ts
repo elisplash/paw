@@ -4,8 +4,7 @@
 import type { ResearchProject, ResearchFinding, ResearchSource } from '../../workspace';
 import * as workspace from '../../workspace';
 import { $ } from '../../components/helpers';
-import { extractDomain, parseProgressStep } from './atoms';
-import type { ResearchMode } from './atoms';
+import { extractDomain, parseProgressStep, type ResearchMode } from './atoms';
 import {
   setMoleculesState,
   renderProjectList,

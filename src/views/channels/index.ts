@@ -2,10 +2,9 @@
 // Imports from sub-modules and provides the unified public interface
 
 import { pawEngine } from '../../engine';
-import { $ } from '../../components/helpers';
+import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { appState } from '../../state/index';
-import { escHtml } from '../../components/helpers';
 import { CHANNEL_SETUPS, CHANNEL_CLASSES } from './atoms';
 import { loadChannels, getChannelConfig, getChannelStatus, startChannel, setOpenChannelSetup } from './molecules';
 import { openChannelSetup, closeChannelSetup, saveChannelSetup } from './setup';
@@ -45,7 +44,7 @@ export async function loadMemory() {
 }
 
 export async function openMemoryFile(filePath: string) {
-  console.log('[main] openMemoryFile:', filePath);
+  console.debug('[main] openMemoryFile:', filePath);
 }
 
 // ── Dashboard / Space cron stubs ───────────────────────────────────────────
@@ -65,7 +64,7 @@ export function initChannels() {
   $('channel-setup-close')?.addEventListener('click', closeChannelSetup);
   $('channel-setup-cancel')?.addEventListener('click', closeChannelSetup);
   const _saveBtn = $('channel-setup-save');
-  console.log('[mail-debug] Binding save button, element found:', !!_saveBtn);
+  console.debug('[mail-debug] Binding save button, element found:', !!_saveBtn);
   _saveBtn?.addEventListener('click', saveChannelSetup);
   $('channel-setup-modal')?.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).id === 'channel-setup-modal') closeChannelSetup();
@@ -162,7 +161,7 @@ export async function autoStartConfiguredChannels(): Promise<void> {
       const tgStatus = await pawEngine.telegramStatus();
       if (!tgStatus.running) {
         await pawEngine.telegramStart();
-        console.log('[channels] Auto-started Telegram bridge');
+        console.debug('[channels] Auto-started Telegram bridge');
       }
     }
   } catch (e) { console.warn('[channels] Telegram auto-start skipped:', e); }
@@ -175,7 +174,7 @@ export async function autoStartConfiguredChannels(): Promise<void> {
         const status = await getChannelStatus(ch);
         if (status && !status.running) {
           await startChannel(ch);
-          console.log(`[channels] Auto-started ${ch} bridge`);
+          console.debug(`[channels] Auto-started ${ch} bridge`);
         }
       }
     } catch (e) { console.warn(`[channels] ${ch} auto-start skipped:`, e); }

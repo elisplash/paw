@@ -96,7 +96,7 @@ export function configure(opts: {
 }
 
 export async function loadAgents() {
-  console.log('[agents] loadAgents called');
+  console.debug('[agents] loadAgents called');
   // Refresh available models from engine config (non-blocking)
   _availableModels = await refreshAvailableModels();
   // Load from localStorage (manually created agents)
@@ -118,7 +118,7 @@ export async function loadAgents() {
       }
     });
     if (migrated) localStorage.setItem('paw-agents', JSON.stringify(_agents));
-    console.log('[agents] Loaded from storage:', _agents.length, 'agents');
+    console.debug('[agents] Loaded from storage:', _agents.length, 'agents');
   } catch {
     _agents = [];
   }
@@ -151,7 +151,7 @@ export async function loadAgents() {
   if (isEngineMode()) {
     try {
       const backendAgents: BackendAgent[] = await pawEngine.listAllAgents();
-      console.log('[agents] Backend agents:', backendAgents.length);
+      console.debug('[agents] Backend agents:', backendAgents.length);
       const usedSprites = new Set(_agents.map(a => a.avatar));
       function pickUniqueSprite(preferred: string): string {
         if (!usedSprites.has(preferred)) { usedSprites.add(preferred); return preferred; }
@@ -237,7 +237,7 @@ function initProfileUpdateListener() {
     const agentId = data.agent_id;
     if (!agentId) return;
 
-    console.log('[agents] Profile update event received:', data);
+    console.debug('[agents] Profile update event received:', data);
 
     const agent = _agents.find(a => a.id === agentId);
     if (!agent) {
@@ -258,7 +258,7 @@ function initProfileUpdateListener() {
 
     // Notify main.ts to update chat header if this is the current agent
     if (_onProfileUpdated) _onProfileUpdated(agentId, agent);
-    console.log(`[agents] Profile updated for '${agentId}':`, agent.name, agent.avatar);
+    console.debug(`[agents] Profile updated for '${agentId}':`, agent.name, agent.avatar);
   }).catch(e => console.warn('[agents] Failed to listen for profile updates:', e));
 }
 

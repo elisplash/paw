@@ -57,8 +57,8 @@ export async function loadSessionsSettings() {
       container.appendChild(buildSessionCard(sess));
     }
 
-  } catch (e: any) {
-    container.innerHTML = `<p style="color:var(--danger)">Failed to load sessions: ${esc(String(e))}</p>`;
+  } catch (e: unknown) {
+    container.innerHTML = `<p style="color:var(--danger)">Failed to load sessions: ${esc(e instanceof Error ? e.message : String(e))}</p>`;
   }
 }
 
@@ -116,7 +116,7 @@ function buildSessionCard(sess: EngineSession): HTMLElement {
       await pawEngine.sessionRename(sess.id, renameInp.value.trim());
       showToast(`Session renamed`, 'success');
       loadSessionsSettings();
-    } catch (e: any) { showToast(e.message || String(e), 'error'); }
+    } catch (e: unknown) { showToast(e instanceof Error ? e.message : String(e), 'error'); }
   };
   renameRow.appendChild(renameInp);
   renameRow.appendChild(renameBtn);
@@ -143,7 +143,7 @@ function buildSessionCard(sess: EngineSession): HTMLElement {
       await pawEngine.sessionClear(sess.id);
       showToast(`Session "${label}" cleared`, 'success');
       loadSessionsSettings();
-    } catch (e: any) { showToast(e.message || String(e), 'error'); }
+    } catch (e: unknown) { showToast(e instanceof Error ? e.message : String(e), 'error'); }
   };
   actRow.appendChild(clearBtn);
 
@@ -166,7 +166,7 @@ function buildSessionCard(sess: EngineSession): HTMLElement {
       showToast(`Session "${label}" deleted`, 'success');
       card.remove();
       _sessions = _sessions.filter(s => s.id !== sess.id);
-    } catch (e: any) { showToast(e.message || String(e), 'error'); }
+    } catch (e: unknown) { showToast(e instanceof Error ? e.message : String(e), 'error'); }
   };
   actRow.appendChild(deleteBtn);
 

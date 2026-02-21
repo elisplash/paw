@@ -1,8 +1,7 @@
 // molecules.ts — Channel card rendering, IPC operations, status display
 // Depends on: atoms, engine, helpers, toast
 
-import { pawEngine } from '../../engine';
-import type { ChannelStatus } from '../../engine';
+import { pawEngine, type ChannelStatus } from '../../engine';
 import { $, escHtml, escAttr } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { CHANNEL_CLASSES, CHANNEL_SETUPS, isChannelConfigured, emptyChannelConfig } from './atoms';
@@ -33,15 +32,15 @@ export async function getChannelConfig(ch: string): Promise<Record<string, unkno
 
 export async function setChannelConfig(ch: string, config: Record<string, unknown>): Promise<void> {
   switch (ch) {
-    case 'discord': return pawEngine.discordSetConfig(config as any);
-    case 'irc': return pawEngine.ircSetConfig(config as any);
-    case 'slack': return pawEngine.slackSetConfig(config as any);
-    case 'matrix': return pawEngine.matrixSetConfig(config as any);
-    case 'mattermost': return pawEngine.mattermostSetConfig(config as any);
-    case 'nextcloud': return pawEngine.nextcloudSetConfig(config as any);
-    case 'nostr': return pawEngine.nostrSetConfig(config as any);
-    case 'twitch': return pawEngine.twitchSetConfig(config as any);
-    case 'whatsapp': return pawEngine.whatsappSetConfig(config as any);
+    case 'discord': return pawEngine.discordSetConfig(config as never);
+    case 'irc': return pawEngine.ircSetConfig(config as never);
+    case 'slack': return pawEngine.slackSetConfig(config as never);
+    case 'matrix': return pawEngine.matrixSetConfig(config as never);
+    case 'mattermost': return pawEngine.mattermostSetConfig(config as never);
+    case 'nextcloud': return pawEngine.nextcloudSetConfig(config as never);
+    case 'nostr': return pawEngine.nostrSetConfig(config as never);
+    case 'twitch': return pawEngine.twitchSetConfig(config as never);
+    case 'whatsapp': return pawEngine.whatsappSetConfig(config as never);
   }
 }
 
@@ -277,7 +276,7 @@ export async function loadChannels() {
 
                 // Ignore disconnected/error from old bridge during restart
                 if (!gotMeaningfulEvent && (kind === 'disconnected' || kind === 'error')) {
-                  console.log('[wa-ui] Ignoring stale event from old bridge:', kind);
+                  console.debug('[wa-ui] Ignoring stale event from old bridge:', kind);
                   return;
                 }
 

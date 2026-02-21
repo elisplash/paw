@@ -5,8 +5,7 @@ import { getCurrentAgent, spriteAvatar } from '../agents';
 import { switchView } from '../router';
 import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
-import type { Task} from './atoms';
-import { getWeatherIcon, getGreeting, getPawzMessage, isToday } from './atoms';
+import { type Task, getWeatherIcon, getGreeting, getPawzMessage, isToday } from './atoms';
 
 // ── Tauri bridge (no pawEngine equivalent for these commands) ──────────
 interface TauriWindow {

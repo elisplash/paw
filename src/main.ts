@@ -100,7 +100,7 @@ async function refreshModelLabel() {
 // ── Engine connection ───────────────────────────────────────────────────────────
 async function connectEngine(): Promise<boolean> {
   if (isEngineMode()) {
-    console.log('[main] Engine mode — using Tauri IPC');
+    console.debug('[main] Engine mode — using Tauri IPC');
     await startEngineBridge();
     appState.wsConnected = true;
     setConnected(true);
@@ -139,7 +139,7 @@ async function connectEngine(): Promise<boolean> {
 
     pawEngine.ensureEmbeddingReady().then(status => {
       if (status.error) console.warn('[main] Ollama embedding setup:', status.error);
-      else console.log(`[main] Ollama ready: model=${status.model_name} dims=${status.embedding_dims}`);
+      else console.debug(`[main] Ollama ready: model=${status.model_name} dims=${status.embedding_dims}`);
     }).catch(e => console.warn('[main] Ollama auto-init failed (non-fatal):', e));
 
     return true;
@@ -152,7 +152,7 @@ async function connectEngine(): Promise<boolean> {
 // ── Initialize ──────────────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    console.log('[main] Paw starting...');
+    console.debug('[main] Paw starting...');
 
     for (const el of document.querySelectorAll<HTMLElement>('[data-icon]')) {
       const name = el.dataset.icon;
@@ -224,12 +224,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     initChatListeners();
     initHILModal();
 
-    console.log('[main] Pawz engine mode — starting...');
+    console.debug('[main] Pawz engine mode — starting...');
     switchView('dashboard');
     await connectEngine();
 
     autoStartConfiguredChannels().catch(e => console.warn('[main] Auto-start channels error:', e));
-    console.log('[main] Pawz initialized');
+    console.debug('[main] Pawz initialized');
   } catch (e) {
     console.error('[main] Init error:', e);
     showView('setup-view');

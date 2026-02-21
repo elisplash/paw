@@ -56,7 +56,7 @@ export function initOrchestrator() {
   document.getElementById('orch-agent-modal-cancel')?.addEventListener('click', () => closeAgentModal());
   document.getElementById('orch-agent-modal-save')?.addEventListener('click', () => addAgent());
 
-  listen<any>('project-event', (event) => {
+  listen<Record<string, unknown>>('project-event', (event) => {
     const data = event.payload;
     if (data.kind === 'project_started' || data.kind === 'project_finished' || data.kind === 'project_complete') {
       loadProjects();

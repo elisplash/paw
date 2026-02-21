@@ -1,7 +1,6 @@
 // Tasks Hub — Molecules (DOM rendering + IPC)
 
-import { pawEngine } from '../../engine';
-import type { EngineTask, EngineTaskActivity, TaskStatus, TaskPriority, TaskAgent } from '../../engine';
+import { pawEngine, type EngineTask, type EngineTaskActivity, type TaskStatus, type TaskPriority, type TaskAgent } from '../../engine';
 import { showToast } from '../../components/toast';
 import { populateModelSelect, $, escHtml, formatTimeAgo } from '../../components/helpers';
 import { spriteAvatar } from '../agents';

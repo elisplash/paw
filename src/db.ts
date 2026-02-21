@@ -43,7 +43,7 @@ export async function initDbEncryption(): Promise<boolean> {
     _cryptoKey = await crypto.subtle.importKey(
       'raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']
     );
-    console.log('[db] Encryption key loaded from OS keychain');
+    console.debug('[db] Encryption key loaded from OS keychain');
     return true;
   } catch (e) {
     console.warn('[db] Failed to init encryption key:', e);

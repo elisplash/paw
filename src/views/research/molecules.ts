@@ -6,8 +6,7 @@ import type { ResearchFinding, ResearchSource } from '../../workspace';
 import { $, escHtml, formatMarkdown } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { isConnected } from '../../state/connection';
-import { extractDomain, buildResearchPrompt, modeTimeout } from './atoms';
-import type { ResearchMode } from './atoms';
+import { extractDomain, buildResearchPrompt, modeTimeout, type ResearchMode } from './atoms';
 
 // ── State accessors (set by index.ts) ──────────────────────────────────────
 

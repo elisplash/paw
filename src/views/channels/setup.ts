@@ -169,9 +169,9 @@ export function closeChannelSetup() {
 // ── Save channel setup ─────────────────────────────────────────────────────
 
 export async function saveChannelSetup() {
-  console.log('[mail-debug] saveChannelSetup called, _channelSetupType=', _channelSetupType, 'mailType=', getChannelSetupType());
+  console.debug('[mail-debug] saveChannelSetup called, _channelSetupType=', _channelSetupType, 'mailType=', getChannelSetupType());
   if (_channelSetupType === '__mail_imap__' || getChannelSetupType() === '__mail_imap__') {
-    console.log('[mail-debug] Routing to MailModule.saveMailImapSetup()');
+    console.debug('[mail-debug] Routing to MailModule.saveMailImapSetup()');
     await saveMailImapSetup();
     clearChannelSetupType();
     _channelSetupType = null;

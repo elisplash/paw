@@ -2,14 +2,15 @@
 
 import { escHtml, escAttr } from '../../components/helpers';
 import { showToast } from '../../components/toast';
-import type { GitInfo } from './atoms';
-import { shortenRemote } from './atoms';
+import { shortenRemote, type GitInfo } from './atoms';
 
 // ── Shell state (set by index.ts) ──────────────────────────────────────────
 
 let _shellAvailable = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _shellCommand: any = null;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function initShellRefs(shellCommand: any, available: boolean): void {
   _shellCommand = shellCommand;
   _shellAvailable = available;

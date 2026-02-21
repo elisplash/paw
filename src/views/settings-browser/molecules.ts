@@ -1,6 +1,6 @@
 // Settings: Browser & Sandbox — DOM rendering + IPC
 
-import { pawEngine } from '../../engine';
+import { pawEngine, type BrowserConfig, type ScreenshotEntry, type WorkspaceInfo, type NetworkPolicy } from '../../engine';
 import { showToast } from '../../components/toast';
 import { formatBytes, timeAgo, isValidDomain } from '../../features/browser-sandbox';
 import { $, escHtml } from '../../components/helpers';
@@ -21,7 +21,7 @@ export function initMoleculesState() {
 
 // ── Render Profiles ───────────────────────────────────────────────────
 
-export function renderProfiles(container: HTMLElement, browserConfig: any) {
+export function renderProfiles(container: HTMLElement, browserConfig: BrowserConfig) {
   const profileSection = document.createElement('div');
   profileSection.className = 'settings-subsection';
   profileSection.innerHTML = `
@@ -153,7 +153,7 @@ export function renderProfiles(container: HTMLElement, browserConfig: any) {
 
 // ── Render Screenshots ────────────────────────────────────────────────
 
-export function renderScreenshots(container: HTMLElement, screenshots: any[]) {
+export function renderScreenshots(container: HTMLElement, screenshots: ScreenshotEntry[]) {
   const screenshotSection = document.createElement('div');
   screenshotSection.className = 'settings-subsection';
   screenshotSection.style.marginTop = '24px';
@@ -258,7 +258,7 @@ export function renderScreenshots(container: HTMLElement, screenshots: any[]) {
 
 // ── Render Workspaces ─────────────────────────────────────────────────
 
-export function renderWorkspaces(container: HTMLElement, workspaces: any[]) {
+export function renderWorkspaces(container: HTMLElement, workspaces: WorkspaceInfo[]) {
   const workspaceSection = document.createElement('div');
   workspaceSection.className = 'settings-subsection';
   workspaceSection.style.marginTop = '24px';
@@ -322,7 +322,7 @@ export function renderWorkspaces(container: HTMLElement, workspaces: any[]) {
 
 // ── Render Network Policy ─────────────────────────────────────────────
 
-export function renderNetworkPolicy(container: HTMLElement, networkPolicy: any) {
+export function renderNetworkPolicy(container: HTMLElement, networkPolicy: NetworkPolicy) {
   const networkSection = document.createElement('div');
   networkSection.className = 'settings-subsection';
   networkSection.style.marginTop = '24px';

@@ -17,7 +17,7 @@ import * as SettingsModule from '../../views/settings-main';
 import { interceptSlashCommand, getSessionOverrides as getSlashOverrides,
          getAutocompleteSuggestions, isSlashCommand,
          type CommandContext } from '../../features/slash-commands';
-import type { Message, ToolCall } from '../../types';
+import type { Message, ToolCall, ChatAttachment, Agent } from '../../types';
 
 const $ = (id: string) => document.getElementById(id);
 
@@ -97,7 +97,7 @@ export async function loadSessions(opts?: { skipHistory?: boolean }): Promise<vo
 
     // ── Auto-prune empty sessions older than 1 hour (bulk Rust-side) ──
     pawEngine.sessionCleanup(3600, appState.currentSessionKey ?? undefined)
-      .then(n => { if (n > 0) console.log(`[chat] Pruned ${n} empty session(s)`); })
+      .then(n => { if (n > 0) console.debug(`[chat] Pruned ${n} empty session(s)`); })
       .catch(e => console.warn('[chat] Session cleanup failed:', e));
 
     // Filter out empty old sessions on the display side too
@@ -251,7 +251,7 @@ export async function switchToAgent(agentId: string): Promise<void> {
       if (chatSessionSelect) chatSessionSelect.value = '';
     }
   }
-  console.log(`[chat] Switched to agent "${agent?.name}" (${agentId}), session=${appState.currentSessionKey ?? 'new'}`);
+  console.debug(`[chat] Switched to agent "${agent?.name}" (${agentId}), session=${appState.currentSessionKey ?? 'new'}`);
 }
 
 export async function loadChatHistory(sessionKey: string): Promise<void> {
@@ -337,7 +337,7 @@ export function updateContextLimitFromModel(modelName: string): void {
   for (const [prefix, limit] of Object.entries(MODEL_CONTEXT_SIZES)) {
     if (lower.includes(prefix)) {
       if (appState.modelContextLimit !== limit) {
-        console.log(`[token] Context limit: ${appState.modelContextLimit.toLocaleString()} → ${limit.toLocaleString()} (${modelName})`);
+        console.debug(`[token] Context limit: ${appState.modelContextLimit.toLocaleString()} → ${limit.toLocaleString()} (${modelName})`);
         appState.modelContextLimit = limit;
         updateTokenMeter();
       }
@@ -449,7 +449,7 @@ export function finalizeStreaming(finalContent: string, toolCalls?: ToolCall[]):
 
   const currentAgent = AgentsModule.getCurrentAgent();
   if (streamingAgent && currentAgent && streamingAgent !== currentAgent.id) {
-    console.log(`[chat] Streaming agent (${streamingAgent}) differs from current (${currentAgent.id}) — skipping UI render`);
+    console.debug(`[chat] Streaming agent (${streamingAgent}) differs from current (${currentAgent.id}) — skipping UI render`);
     return;
   }
 
@@ -469,7 +469,7 @@ export function finalizeStreaming(finalContent: string, toolCalls?: ToolCall[]):
       appState.sessionTokensUsed   += estInput + estOutput;
       const rate = MODEL_COST_PER_TOKEN[appState.activeModelKey] ?? MODEL_COST_PER_TOKEN['default'];
       appState.sessionCost += estInput * rate.input + estOutput * rate.output;
-      console.log(`[token] Fallback estimate: ~${estInput + estOutput} tokens`);
+      console.debug(`[token] Fallback estimate: ~${estInput + estOutput} tokens`);
       updateTokenMeter();
     }
   } else {
@@ -871,8 +871,8 @@ export async function sendMessage(): Promise<void> {
     model?: string;
     thinkingLevel?: string;
     temperature?: number;
-    attachments?: import('../../types').ChatAttachment[];
-    agentProfile?: Partial<import('../../types').Agent>;
+    attachments?: ChatAttachment[];
+    agentProfile?: Partial<Agent>;
   } = {};
 
   try {
@@ -882,7 +882,7 @@ export async function sendMessage(): Promise<void> {
       if (currentAgent.model && currentAgent.model !== 'default') chatOpts.model = currentAgent.model;
       (chatOpts as Record<string, unknown>).agentProfile = currentAgent;
     }
-    if (attachments.length) chatOpts.attachments = attachments as import('../../types').ChatAttachment[];
+    if (attachments.length) chatOpts.attachments = attachments as ChatAttachment[];
 
     const chatModelVal = chatModelSelect?.value;
     if (chatModelVal && chatModelVal !== 'default') chatOpts.model = chatModelVal;
@@ -896,7 +896,7 @@ export async function sendMessage(): Promise<void> {
       ...chatOpts,
       attachments: chatOpts.attachments as Array<{ type?: string; mimeType: string; content: string }> | undefined,
     });
-    console.log('[chat] send ack:', JSON.stringify(result).slice(0, 300));
+    console.debug('[chat] send ack:', JSON.stringify(result).slice(0, 300));
 
     if (result.runId) ss.runId = result.runId;
     if (result.sessionKey) {
@@ -919,7 +919,7 @@ export async function sendMessage(): Promise<void> {
           const s = appState.sessions.find(s2 => s2.key === result.sessionKey);
           if (s) { s.label = autoLabel; s.displayName = autoLabel; }
           renderSessionSelect();
-          console.log('[chat] Auto-labeled session:', autoLabel);
+          console.debug('[chat] Auto-labeled session:', autoLabel);
         }).catch(e => console.warn('[chat] Auto-label failed:', e));
       }
     }

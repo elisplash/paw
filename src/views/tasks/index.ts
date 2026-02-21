@@ -2,8 +2,7 @@
 // Agents pick up tasks, work on them autonomously, move them through columns.
 // Supports drag-and-drop, live feed, cron scheduling, and agent auto-work.
 
-import { pawEngine } from '../../engine';
-import type { EngineTask, EngineTaskActivity, TaskAgent } from '../../engine';
+import { pawEngine, type EngineTask, type EngineTaskActivity, type TaskAgent } from '../../engine';
 import { showToast } from '../../components/toast';
 import { $ } from '../../components/helpers';
 import {

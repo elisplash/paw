@@ -381,7 +381,7 @@ async function executeCompact(ctx: CommandContext): Promise<CommandResult> {
         rewrittenInput: summaryPrompt,
         preventDefault: false,
       };
-    } catch (inner) {
+    } catch {
       return {
         handled: true,
         systemMessage: `Compaction failed: ${e}`,

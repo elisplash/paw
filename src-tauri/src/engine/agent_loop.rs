@@ -282,8 +282,8 @@ pub async fn run_agent_turn(
         for tc in &tool_calls {
             info!("[engine] Tool call: {} id={}", tc.function.name, tc.id);
 
-            // Per-tool autonomy: auto-approve safe/trading tools,
-            // require user approval for dangerous or side-effect-heavy tools.
+            // Per-tool autonomy: auto-approve read-only/informational tools,
+            // require user approval for dangerous, side-effect-heavy, or financial tools.
             let auto_approved_tools: &[&str] = &[
                 // ── Read-only / informational ──
                 "fetch", "read_file", "list_directory",
@@ -294,17 +294,12 @@ pub async fn run_agent_turn(
                 "soul_write", "memory_store", "update_profile",
                 // ── Task management ──
                 "create_task", "manage_task",
-                // ── Trading: Solana (Jupiter) ──
-                "sol_wallet_create", "sol_balance", "sol_quote", "sol_swap",
-                "sol_portfolio", "sol_token_info", "sol_transfer",
-                // ── Trading: EVM DEX (Uniswap) ──
-                "dex_wallet_create", "dex_balance", "dex_quote", "dex_swap",
-                "dex_portfolio", "dex_token_info", "dex_check_token",
-                "dex_search_token", "dex_watch_wallet", "dex_whale_transfers",
-                "dex_top_traders", "dex_trending", "dex_transfer",
-                // ── Trading: Coinbase ──
-                "coinbase_prices", "coinbase_balance", "coinbase_wallet_create",
-                "coinbase_trade", "coinbase_transfer",
+                // ── Trading: read-only (balances, quotes, portfolio, info) ──
+                "sol_balance", "sol_quote", "sol_portfolio", "sol_token_info",
+                "dex_balance", "dex_quote", "dex_portfolio", "dex_token_info",
+                "dex_check_token", "dex_search_token", "dex_watch_wallet",
+                "dex_whale_transfers", "dex_top_traders", "dex_trending",
+                "coinbase_prices", "coinbase_balance",
                 // ── Media ──
                 "image_generate",
                 // ── Agent Management (read/assign skills) ──
@@ -313,7 +308,20 @@ pub async fn run_agent_turn(
                 "skill_search", "skill_install", "skill_list",
             ];
 
-            let skip_hil = auto_approved_tools.contains(&tc.function.name.as_str());
+            // Trading write tools check the policy-based approval function
+            let trading_write_tools = [
+                "sol_swap", "sol_transfer", "sol_wallet_create",
+                "dex_swap", "dex_transfer", "dex_wallet_create",
+                "coinbase_trade", "coinbase_transfer", "coinbase_wallet_create",
+            ];
+
+            let skip_hil = if auto_approved_tools.contains(&tc.function.name.as_str()) {
+                true
+            } else if trading_write_tools.contains(&tc.function.name.as_str()) {
+                check_trading_auto_approve(&tc.function.name, &tc.function.arguments, &app_handle)
+            } else {
+                false
+            };
 
             let approved = if skip_hil {
                 info!("[engine] Auto-approved safe tool: {}", tc.function.name);
@@ -411,13 +419,15 @@ pub async fn run_agent_turn(
     }
 }
 
-/// Check if a coinbase trading tool should be auto-approved based on the trading policy.
-/// Returns true if the trade is within policy bounds and should skip HIL.
-#[allow(dead_code)]
+/// Policy-based auto-approval for trading write tools (all chains: Coinbase, Solana, EVM DEX).
+/// Checks configurable limits (max trade size, daily loss, allowed pairs, transfer caps).
+/// Returns false (requiring HIL) when no policy is configured or limits exceeded.
 fn check_trading_auto_approve(tool_name: &str, args_str: &str, app_handle: &tauri::AppHandle) -> bool {
-    // Only applies to coinbase write tools
+    // Trading write tools — wallet creation, swaps, transfers
     match tool_name {
-        "coinbase_trade" | "coinbase_transfer" | "coinbase_wallet_create" => {}
+        "coinbase_trade" | "coinbase_transfer" | "coinbase_wallet_create"
+        | "sol_swap" | "sol_transfer" | "sol_wallet_create"
+        | "dex_swap" | "dex_transfer" | "dex_wallet_create" => {}
         _ => return false,
     }
 
@@ -437,18 +447,23 @@ fn check_trading_auto_approve(tool_name: &str, args_str: &str, app_handle: &taur
     }
 
     // Wallet creation is always safe if auto-approve is on
-    if tool_name == "coinbase_wallet_create" {
-        info!("[engine] Auto-approved coinbase_wallet_create via trading policy");
+    if tool_name.ends_with("_wallet_create") {
+        info!("[engine] Auto-approved {} via trading policy", tool_name);
         return true;
     }
 
     let args: serde_json::Value = serde_json::from_str(args_str).unwrap_or_default();
 
-    if tool_name == "coinbase_trade" {
+    // Swap/Trade tools — check trade size and daily limits
+    if tool_name == "coinbase_trade" || tool_name == "sol_swap" || tool_name == "dex_swap" {
         let amount: f64 = args["amount"].as_str()
             .and_then(|s| s.parse().ok())
+            .or_else(|| args["amount"].as_f64())
             .unwrap_or(f64::MAX);
-        let product_id = args["product_id"].as_str().unwrap_or("");
+        let product_id = args["product_id"].as_str()
+            .or_else(|| args["input_mint"].as_str())
+            .or_else(|| args["token_in"].as_str())
+            .unwrap_or("");
 
         // Check trade size
         if amount > policy.max_trade_usd {
@@ -475,11 +490,12 @@ fn check_trading_auto_approve(tool_name: &str, args_str: &str, app_handle: &taur
             }
         }
 
-        info!("[engine] Auto-approved coinbase_trade ${:.2} {} via trading policy", amount, product_id);
+        info!("[engine] Auto-approved {} ${:.2} {} via trading policy", tool_name, amount, product_id);
         return true;
     }
 
-    if tool_name == "coinbase_transfer" {
+    // Transfer tools — check transfer limits
+    if tool_name == "coinbase_transfer" || tool_name == "sol_transfer" || tool_name == "dex_transfer" {
         if !policy.allow_transfers {
             info!("[engine] Transfers not auto-approved in trading policy");
             return false;
@@ -487,6 +503,7 @@ fn check_trading_auto_approve(tool_name: &str, args_str: &str, app_handle: &taur
 
         let amount: f64 = args["amount"].as_str()
             .and_then(|s| s.parse().ok())
+            .or_else(|| args["amount"].as_f64())
             .unwrap_or(f64::MAX);
 
         if amount > policy.max_transfer_usd {
@@ -504,7 +521,7 @@ fn check_trading_auto_approve(tool_name: &str, args_str: &str, app_handle: &taur
             }
         }
 
-        info!("[engine] Auto-approved coinbase_transfer ${:.2} via trading policy", amount);
+        info!("[engine] Auto-approved {} ${:.2} via trading policy", tool_name, amount);
         return true;
     }
 
