@@ -27,7 +27,7 @@ import { initChannels, openMemoryFile, autoStartConfiguredChannels, closeChannel
 import { initContent } from './views/content';
 import { switchView, showView } from './views/router';
 import { initSettingsTabs } from './views/settings-tabs';
-import * as SettingsModule from './views/settings';
+import * as SettingsModule from './views/settings-main';
 import * as ModelsSettings from './views/settings-models';
 import * as AgentDefaultsSettings from './views/settings-agent-defaults';
 import * as SessionsSettings from './views/settings-sessions';

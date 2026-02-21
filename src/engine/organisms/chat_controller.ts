@@ -13,7 +13,7 @@ import { formatMarkdown } from '../../components/molecules/markdown';
 import { escHtml, icon } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import * as AgentsModule from '../../views/agents';
-import * as SettingsModule from '../../views/settings';
+import * as SettingsModule from '../../views/settings-main';
 import { interceptSlashCommand, getSessionOverrides as getSlashOverrides,
          getAutocompleteSuggestions, isSlashCommand,
          type CommandContext } from '../../features/slash-commands';

@@ -1,41 +1,56 @@
-// Settings View — Logs, Usage, Presence, Nodes, Devices, Exec Approvals, Security Policies
-// Extracted from main.ts for maintainability
-// NOTE: Many settings sections require engine API (not yet implemented)
+// Settings View — Molecules (DOM rendering + IPC)
 
-import { loadSecuritySettings, saveSecuritySettings, getSessionOverrideRemaining, clearSessionOverride, type SecuritySettings } from '../security';
-import { getSecurityAuditLog, isEncryptionReady } from '../db';
-import { $, escHtml } from '../components/helpers';
-import { showToast } from '../components/toast';
-import { isConnected } from '../state/connection';
+import { loadSecuritySettings, saveSecuritySettings, getSessionOverrideRemaining, type SecuritySettings } from '../../security';
+import { getSecurityAuditLog, isEncryptionReady } from '../../db';
+import { $, escHtml } from '../../components/helpers';
+import { showToast } from '../../components/toast';
+import { isConnected } from '../../state/connection';
+import { getBudgetLimit, setBudgetLimit, downloadFile } from './atoms';
+import type { ToolRule } from './atoms';
+
+// ── State accessors (set by index.ts) ──────────────────────────────────────
+
+interface MoleculesState {
+  getToolRules: () => ToolRule[];
+  setToolRules: (rules: ToolRule[]) => void;
+  pushToolRule: (rule: ToolRule) => void;
+  spliceToolRule: (idx: number) => void;
+  getOverrideBannerInterval: () => ReturnType<typeof setInterval> | null;
+  setOverrideBannerInterval: (v: ReturnType<typeof setInterval> | null) => void;
+}
+
+let _state: MoleculesState;
+
+export function setMoleculesState(s: MoleculesState) {
+  _state = s;
+}
 
 // ── Engine Status ──────────────────────────────────────────────────────────
+
 export async function loadSettingsStatus() {
   if (!isConnected()) return;
   const section = $('settings-status-section');
   const content = $('settings-status-content');
-  // Engine status — show basic info
   if (section) section.style.display = '';
   if (content) content.innerHTML = '<div class="status-card"><div class="status-card-label">Runtime</div><div class="status-card-value">Paw Engine (Tauri)</div></div>';
 }
 
 // ── Logs Viewer ────────────────────────────────────────────────────────────
+
 export async function loadSettingsLogs() {
   if (!isConnected()) return;
   const section = $('settings-logs-section');
   const output = $('settings-logs-output');
-  // Engine logs — coming soon via Tauri
   if (section) section.style.display = '';
   if (output) output.textContent = '(Engine logs viewer coming soon — check the Tauri console for now)';
 }
 
 // ── Usage Dashboard ────────────────────────────────────────────────────────
-let _usageRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
 export async function loadSettingsUsage() {
   if (!isConnected()) return;
   const section = $('settings-usage-section');
   const content = $('settings-usage-content');
-  // Engine usage tracking — coming soon
   if (section) section.style.display = '';
   if (content) content.innerHTML = `<div class="usage-empty-state">
     <p style="color:var(--text-secondary);margin:0 0 8px">Usage tracking coming soon to the Paw engine.</p>
@@ -43,38 +58,7 @@ export async function loadSettingsUsage() {
   </div>`;
 }
 
-/** Start auto-refresh for usage dashboard (every 30s) */
-export function startUsageAutoRefresh() {
-  stopUsageAutoRefresh();
-  _usageRefreshInterval = setInterval(() => {
-    if (isConnected()) loadSettingsUsage().catch(() => {});
-  }, 30_000);
-}
-
-export function stopUsageAutoRefresh() {
-  if (_usageRefreshInterval) {
-    clearInterval(_usageRefreshInterval);
-    _usageRefreshInterval = null;
-  }
-}
-
 // ── Budget Alert ───────────────────────────────────────────────────────────
-const BUDGET_KEY = 'paw-budget-limit';
-
-export function getBudgetLimit(): number | null {
-  const saved = localStorage.getItem(BUDGET_KEY);
-  if (!saved) return null;
-  const n = parseFloat(saved);
-  return isNaN(n) || n <= 0 ? null : n;
-}
-
-export function setBudgetLimit(limit: number | null) {
-  if (limit == null || limit <= 0) {
-    localStorage.removeItem(BUDGET_KEY);
-  } else {
-    localStorage.setItem(BUDGET_KEY, String(limit));
-  }
-}
 
 // @ts-ignore: reserved for budget alert feature
 function checkBudgetAlert(currentCost: number) { void currentCost;
@@ -114,7 +98,6 @@ export function initBudgetSettings() {
     }
     setBudgetLimit(val);
     showToast(`Budget alert set at $${val.toFixed(2)}`, 'success');
-    // Re-check immediately
     loadSettingsUsage().catch(() => {});
   });
 
@@ -128,85 +111,80 @@ export function initBudgetSettings() {
 }
 
 // ── System Presence ────────────────────────────────────────────────────────
+
 export async function loadSettingsPresence() {
-  // Presence not available in engine mode
   const section = $('settings-presence-section');
   if (section) section.style.display = 'none';
 }
 
 // ── Nodes View ─────────────────────────────────────────────────────────────
+
 export async function loadSettingsNodes() {
-  // Nodes not available in engine mode
   const section = $('settings-nodes-section');
   if (section) section.style.display = 'none';
 }
 
 // ── Device Pairing ─────────────────────────────────────────────────────────
+
 export async function loadSettingsDevices() {
-  // Device pairing not available in engine mode
   const section = $('settings-devices-section');
   if (section) section.style.display = 'none';
 }
 
 // ── Onboarding Wizard ──────────────────────────────────────────────────────
+
 export async function loadSettingsWizard() {
-  // Wizard not available in engine mode
   const section = $('settings-wizard-section');
   if (section) section.style.display = 'none';
 }
 
-async function startWizard() {
+export async function startWizard() {
   showToast('Wizard not available in engine mode', 'info');
 }
 
-async function wizardNext() {
+export async function wizardNext() {
   showToast('Wizard not available in engine mode', 'info');
 }
 
-async function cancelWizard() {
+export async function cancelWizard() {
   // no-op
 }
 
 // ── Self-Update ────────────────────────────────────────────────────────
-async function runUpdate() {
+
+export async function runUpdate() {
   showToast('Self-update not available in engine mode — use your package manager', 'info');
 }
 
 // ── Browser Control ────────────────────────────────────────────────────
+
 export async function loadSettingsBrowser() {
   const section = $('settings-browser-section');
   if (section) section.style.display = 'none';
 }
 
-async function startBrowser() {
+export async function startBrowser() {
   showToast('Browser control coming soon to the Paw engine', 'info');
 }
 
-async function stopBrowser() {
+export async function stopBrowser() {
   // no-op
 }
 
 // ── Exec Approvals Config ──────────────────────────────────────────────────
-// Each tool gets a 3-way toggle row: Allow | Ask | Deny
-// Tools are gathered from the existing allow/deny lists
 
-interface ToolRule {
-  name: string;
-  state: 'allow' | 'ask' | 'deny';
-}
-
-let _toolRules: ToolRule[] = [];
-
-function renderToolRules() {
+export function renderToolRules() {
   const list = $('approvals-tool-list');
   if (!list) return;
 
-  if (_toolRules.length === 0) {
+  const toolRules = _state.getToolRules();
+
+  if (toolRules.length === 0) {
     list.innerHTML = '<div class="approvals-empty">No tool-specific rules yet. Click "Add rule" to create one.</div>';
     return;
   }
 
-  list.innerHTML = _toolRules.map((rule, i) => `
+  list.innerHTML = toolRules.map((rule, i) => `
     <div class="approvals-tool-row" data-idx="${i}">
       <div class="approvals-tool-name">${escHtml(rule.name)}</div>
       <div class="approvals-toggle-group">
@@ -234,8 +212,10 @@ function renderToolRules() {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.getAttribute('data-idx') ?? '-1', 10);
       const state = btn.getAttribute('data-state') as 'allow' | 'ask' | 'deny';
-      if (idx < 0 || idx >= _toolRules.length) return;
-      _toolRules[idx].state = state;
+      const rules = _state.getToolRules();
+      if (idx < 0 || idx >= rules.length) return;
+      rules[idx].state = state;
+      _state.setToolRules(rules);
       renderToolRules();
     });
   });
@@ -244,15 +224,15 @@ function renderToolRules() {
   list.querySelectorAll('.approvals-remove-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = parseInt(btn.getAttribute('data-idx') ?? '-1', 10);
-      if (idx < 0 || idx >= _toolRules.length) return;
-      _toolRules.splice(idx, 1);
+      const rules = _state.getToolRules();
+      if (idx < 0 || idx >= rules.length) return;
+      _state.spliceToolRule(idx);
       renderToolRules();
     });
   });
 }
 
-function addToolRule() {
-  // Use the prompt modal if available, otherwise native prompt
+export function addToolRule() {
   const promptModal = $('prompt-modal');
   const promptInput = $('prompt-modal-input') as HTMLInputElement | null;
   const promptTitle = $('prompt-modal-title');
@@ -277,11 +257,12 @@ function addToolRule() {
       const name = promptInput.value.trim();
       cleanup();
       if (!name) return;
-      if (_toolRules.some(r => r.name === name)) {
+      const rules = _state.getToolRules();
+      if (rules.some(r => r.name === name)) {
         showToast(`"${name}" already has a rule`, 'info');
         return;
       }
-      _toolRules.push({ name, state: 'ask' });
+      _state.pushToolRule({ name, state: 'ask' });
       renderToolRules();
     };
     const onCancel = () => cleanup();
@@ -294,38 +275,37 @@ function addToolRule() {
     const name = prompt('Tool name (e.g. brave_search):');
     if (!name?.trim()) return;
     const trimmed = name.trim();
-    if (_toolRules.some(r => r.name === trimmed)) {
+    const rules = _state.getToolRules();
+    if (rules.some(r => r.name === trimmed)) {
       showToast(`"${trimmed}" already has a rule`, 'info');
       return;
     }
-    _toolRules.push({ name: trimmed, state: 'ask' });
+    _state.pushToolRule({ name: trimmed, state: 'ask' });
     renderToolRules();
   }
 }
 
 export async function loadSettingsApprovals() {
-  // Exec approvals managed locally via security.ts — gateway not needed
   const section = $('settings-approvals-section');
   if (section) section.style.display = '';
-  // Show existing tool rules from local state
   renderToolRules();
 }
 
-async function saveSettingsApprovals() {
+export async function saveSettingsApprovals() {
   const policyRadio = document.querySelector('input[name="approvals-policy"]:checked') as HTMLInputElement | null;
   const policy = policyRadio?.value ?? 'ask';
 
-  const allow = _toolRules.filter(r => r.state === 'allow').map(r => r.name);
-  const deny = _toolRules.filter(r => r.state === 'deny').map(r => r.name);
+  const toolRules = _state.getToolRules();
+  const allow = toolRules.filter(r => r.state === 'allow').map(r => r.name);
+  const deny = toolRules.filter(r => r.state === 'deny').map(r => r.name);
 
-  // Save locally — engine approvals managed via security.ts
   localStorage.setItem('paw-tool-approvals', JSON.stringify({ allow, deny, askPolicy: policy }));
   showToast('Approval rules saved locally', 'success');
 }
 
 // ── Security Audit Dashboard ───────────────────────────────────────────────
 
-function updateEncryptionStatus() {
+export function updateEncryptionStatus() {
   const bar = $('encryption-status-bar');
   const text = $('encryption-status-text');
   if (!bar || !text) return;
@@ -345,8 +325,6 @@ export async function loadSecurityAudit() {
   if (!section || !tbody) return;
 
   section.style.display = '';
-
-  // C2: Update encryption status indicator
   updateEncryptionStatus();
 
   const filterType = ($('audit-filter-type') as HTMLSelectElement | null)?.value || undefined;
@@ -356,12 +334,10 @@ export async function loadSecurityAudit() {
   try {
     const entries = await getSecurityAuditLog(limit, filterType);
 
-    // Apply client-side risk filter if set
     const filtered = filterRisk
       ? entries.filter(e => e.risk_level === filterRisk)
       : entries;
 
-    // Update score cards
     const denied = entries.filter(e => !e.was_allowed).length;
     const allowed = entries.filter(e => e.was_allowed).length;
     const critical = entries.filter(e => e.risk_level === 'critical').length;
@@ -407,10 +383,7 @@ export async function loadSecurityAudit() {
   }
 }
 
-function exportAuditJSON() {
-  const tbody = $('audit-log-body');
-  if (!tbody) return;
-  // Re-fetch and export
+export function exportAuditJSON() {
   const filterType = ($('audit-filter-type') as HTMLSelectElement | null)?.value || undefined;
   const limit = parseInt(($('audit-filter-limit') as HTMLSelectElement | null)?.value || '100', 10);
   getSecurityAuditLog(limit, filterType).then(entries => {
@@ -419,7 +392,7 @@ function exportAuditJSON() {
   }).catch(e => showToast(`Export failed: ${e}`, 'error'));
 }
 
-function exportAuditCSV() {
+export function exportAuditCSV() {
   const filterType = ($('audit-filter-type') as HTMLSelectElement | null)?.value || undefined;
   const limit = parseInt(($('audit-filter-limit') as HTMLSelectElement | null)?.value || '100', 10);
   getSecurityAuditLog(limit, filterType).then(entries => {
@@ -434,16 +407,6 @@ function exportAuditCSV() {
     const csv = [headers.join(','), ...rows].join('\n');
     downloadFile('paw-security-audit.csv', csv, 'text/csv');
   }).catch(e => showToast(`Export failed: ${e}`, 'error'));
-}
-
-function downloadFile(filename: string, content: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 // ── Security Policies (local settings) ─────────────────────────────────────
@@ -475,11 +438,10 @@ export function loadSecurityPolicies() {
     }
   }
 
-  // Session override banner
   updateSessionOverrideBanner();
 }
 
-function saveSecurityPolicies() {
+export function saveSecurityPolicies() {
   const autoDenyPriv = ($('sec-auto-deny-priv') as HTMLInputElement | null)?.checked ?? false;
   const autoDenyCritical = ($('sec-auto-deny-critical') as HTMLInputElement | null)?.checked ?? false;
   const requireType = ($('sec-require-type') as HTMLInputElement | null)?.checked ?? true;
@@ -491,7 +453,6 @@ function saveSecurityPolicies() {
   const commandAllowlist = allowlistRaw.split('\n').map(l => l.trim()).filter(Boolean);
   const commandDenylist = denylistRaw.split('\n').map(l => l.trim()).filter(Boolean);
 
-  // Validate regex patterns
   for (const p of [...commandAllowlist, ...commandDenylist]) {
     try { new RegExp(p); }
     catch {
@@ -500,7 +461,6 @@ function saveSecurityPolicies() {
     }
   }
 
-  // Preserve session override from current settings
   const existing = loadSecuritySettings();
 
   const settings: SecuritySettings = {
@@ -517,15 +477,13 @@ function saveSecurityPolicies() {
   showToast('Security policies saved', 'success');
 }
 
-function resetSecurityPolicies() {
+export function resetSecurityPolicies() {
   localStorage.removeItem('paw_security_settings');
   loadSecurityPolicies();
   showToast('Security policies reset to defaults', 'info');
 }
 
 // ── Session override banner management ─────────────────────────────────────
-
-let _overrideBannerInterval: ReturnType<typeof setInterval> | null = null;
 
 export function updateSessionOverrideBanner(): void {
   const banner = $('session-override-banner');
@@ -538,88 +496,23 @@ export function updateSessionOverrideBanner(): void {
     banner.style.display = 'flex';
     if (label) label.textContent = `Session override active — auto-approving all tools for ${mins} minute${mins !== 1 ? 's' : ''}`;
 
-    // Start periodic update if not already running
-    if (!_overrideBannerInterval) {
-      _overrideBannerInterval = setInterval(() => {
+    if (!_state.getOverrideBannerInterval()) {
+      const interval = setInterval(() => {
         const r = getSessionOverrideRemaining();
         if (r <= 0) {
           if (banner) banner.style.display = 'none';
-          if (_overrideBannerInterval) { clearInterval(_overrideBannerInterval); _overrideBannerInterval = null; }
+          const cur = _state.getOverrideBannerInterval();
+          if (cur) { clearInterval(cur); _state.setOverrideBannerInterval(null); }
           return;
         }
         const m = Math.ceil(r / 60000);
         if (label) label.textContent = `Session override active — auto-approving all tools for ${m} minute${m !== 1 ? 's' : ''}`;
-      }, 30000); // Update every 30 seconds
+      }, 30000);
+      _state.setOverrideBannerInterval(interval);
     }
   } else {
     banner.style.display = 'none';
-    if (_overrideBannerInterval) { clearInterval(_overrideBannerInterval); _overrideBannerInterval = null; }
+    const cur = _state.getOverrideBannerInterval();
+    if (cur) { clearInterval(cur); _state.setOverrideBannerInterval(null); }
   }
-}
-
-// ── Token auto-rotation check (H4) ────────────────────────────────────────
-
-export async function checkTokenAutoRotation(): Promise<void> {
-  // Device token rotation not available in engine mode
-}
-
-
-// ── Initialize event listeners ─────────────────────────────────────────────
-export function initSettings() {
-  $('settings-refresh-status')?.addEventListener('click', () => loadSettingsStatus());
-  $('settings-refresh-logs')?.addEventListener('click', () => loadSettingsLogs());
-  $('settings-refresh-usage')?.addEventListener('click', () => loadSettingsUsage());
-  $('settings-refresh-presence')?.addEventListener('click', () => loadSettingsPresence());
-  $('settings-refresh-nodes')?.addEventListener('click', () => loadSettingsNodes());
-  $('settings-refresh-devices')?.addEventListener('click', () => loadSettingsDevices());
-  $('settings-refresh-approvals')?.addEventListener('click', () => loadSettingsApprovals());
-  $('settings-save-approvals')?.addEventListener('click', () => saveSettingsApprovals());
-  $('approvals-add-tool')?.addEventListener('click', () => addToolRule());
-  // Wizard
-  $('settings-wizard-start')?.addEventListener('click', () => startWizard());
-  $('settings-wizard-next')?.addEventListener('click', () => wizardNext());
-  $('settings-wizard-cancel')?.addEventListener('click', () => cancelWizard());
-  // Update
-  $('settings-update-run')?.addEventListener('click', () => runUpdate());
-  // Browser
-  $('settings-browser-start')?.addEventListener('click', () => startBrowser());
-  $('settings-browser-stop')?.addEventListener('click', () => stopBrowser());
-  $('settings-refresh-browser')?.addEventListener('click', () => loadSettingsBrowser());
-  // Security audit
-  $('audit-refresh')?.addEventListener('click', () => loadSecurityAudit());
-  $('audit-export-json')?.addEventListener('click', () => exportAuditJSON());
-  $('audit-export-csv')?.addEventListener('click', () => exportAuditCSV());
-  $('audit-filter-type')?.addEventListener('change', () => loadSecurityAudit());
-  $('audit-filter-risk')?.addEventListener('change', () => loadSecurityAudit());
-  $('audit-filter-limit')?.addEventListener('change', () => loadSecurityAudit());
-  // Security policies
-  $('settings-save-security')?.addEventListener('click', () => saveSecurityPolicies());
-  $('settings-reset-security')?.addEventListener('click', () => resetSecurityPolicies());
-  // Session override cancel
-  $('session-override-cancel')?.addEventListener('click', () => {
-    clearSessionOverride();
-    updateSessionOverrideBanner();
-    showToast('Session override cancelled — approval modal restored', 'info');
-  });
-  // Budget
-  initBudgetSettings();
-}
-
-// ── Load all settings data ─────────────────────────────────────────────────
-export async function loadSettings() {
-  loadSecurityPolicies(); // synchronous — reads from localStorage
-  await Promise.all([
-    loadSecurityAudit(),
-    loadSettingsStatus(),
-    loadSettingsLogs(),
-    loadSettingsUsage(),
-    loadSettingsPresence(),
-    loadSettingsNodes(),
-    loadSettingsDevices(),
-    loadSettingsApprovals(),
-    loadSettingsWizard(),
-    loadSettingsBrowser(),
-  ]);
-  // H4: Check for token auto-rotation after devices are loaded
-  checkTokenAutoRotation().catch(() => {});
 }

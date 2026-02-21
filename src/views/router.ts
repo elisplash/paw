@@ -17,7 +17,7 @@ import * as NodesModule from './nodes';
 import * as TasksModule from './tasks';
 import * as OrchestratorModule from './orchestrator';
 import * as TradingModule from './trading';
-import * as SettingsModule from './settings';
+import * as SettingsModule from './settings-main';
 import * as ResearchModule from './research';
 import * as MailModule from './mail';
 import * as TodayModule from './today';
