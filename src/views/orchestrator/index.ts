@@ -86,6 +86,14 @@ export async function loadProjects() {
   }
 }
 
+/** Clear the message-poll interval (call on view unmount). */
+export function stopMessagePoll() {
+  if (messagePollInterval) {
+    clearInterval(messagePollInterval);
+    messagePollInterval = null;
+  }
+}
+
 // ── Re-exports ────────────────────────────────────────────────────────
 
 export { specialtyIcon, messageKindLabel } from './atoms';

@@ -125,9 +125,10 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 - **Fix:** Use Tauri events or IPC callbacks.
 - Audited all 32 `setTimeout` calls. Identified 13 polling-pattern instances where an IPC call was already `await`ed but a blind `setTimeout` delayed before refreshing the UI. Replaced all 13 with immediate reload calls (`loadChannels()`, `loadCron()`, `loadPalaceStats()`, `loadTailscaleSettings()`, `_loadMail()`, `renderToday()`). Remaining 19 `setTimeout` calls are legitimate: CSS animation delays, button-revert timeouts, toast auto-dismiss, streaming safety timeouts, recording-cycle timing, retry backoff, and event-bus grace periods.
 
-### 27. `setInterval` without view-switch cleanup (3 views)
+### 27. ~~`setInterval` without view-switch cleanup (3 views)~~ ✅ FIXED
 - Orchestrator, settings, tasks views start intervals that aren't cleared on navigation.
 - **Fix:** Clear intervals when view unmounts.
+- Audited all 4 `setInterval` usages. Orchestrator message-poll (3s) and settings override-banner (30s) were view-specific but never cleared on navigation. Added `stopMessagePoll()` to orchestrator/index.ts and `stopOverrideBannerInterval()` to settings-main/index.ts. Wired both into `switchView()` in router.ts so they clear when navigating away. Settings usage-refresh was already handled. Tasks cron timer is intentionally global (runs cron scheduling regardless of active view) — left as-is.
 
 ### 28. Hardcoded model prices
 - **File:** `src/state/index.ts` L30-80

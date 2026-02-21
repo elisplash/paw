@@ -70,6 +70,14 @@ export function stopUsageAutoRefresh() {
   }
 }
 
+/** Clear the session-override banner interval (call on view unmount). */
+export function stopOverrideBannerInterval() {
+  if (_overrideBannerInterval) {
+    clearInterval(_overrideBannerInterval);
+    _overrideBannerInterval = null;
+  }
+}
+
 // ── Token auto-rotation check (H4) ────────────────────────────────────────
 
 export async function checkTokenAutoRotation(): Promise<void> {

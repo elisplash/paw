@@ -89,6 +89,8 @@ export function switchView(viewName: string) {
     }
   }
   if (viewName !== 'settings') SettingsModule.stopUsageAutoRefresh();
+  if (viewName !== 'settings') SettingsModule.stopOverrideBannerInterval();
+  if (viewName !== 'orchestrator') OrchestratorModule.stopMessagePoll();
   switch (viewName) {
     case 'content': loadContentDocs(); if (appState.wsConnected) loadSpaceCron('content'); break;
     case 'research': ResearchModule.loadResearchProjects(); if (appState.wsConnected) loadSpaceCron('research'); break;
