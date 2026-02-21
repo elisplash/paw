@@ -3,7 +3,7 @@
 import { pawEngine } from '../../engine';
 import * as workspace from '../../workspace';
 import type { ResearchFinding, ResearchSource } from '../../workspace';
-import { $, escHtml, formatMarkdown } from '../../components/helpers';
+import { $, escHtml, formatMarkdown, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { isConnected } from '../../state/connection';
 import { extractDomain, buildResearchPrompt, modeTimeout, type ResearchMode } from './atoms';
@@ -281,7 +281,7 @@ export function renderFindings() {
       e.stopPropagation();
       const id = btn.getAttribute('data-id');
       const activeProject = _state.getActiveProject();
-      if (id && activeProject && confirm('Delete this finding?')) {
+      if (id && activeProject && await confirmModal('Delete this finding?')) {
         await workspace.deleteFinding(activeProject.id, id);
         _state.setFindings(await workspace.listFindings(activeProject.id));
         renderFindings();
@@ -545,7 +545,7 @@ export async function createNewProject() {
 export async function deleteCurrentProject() {
   const activeProject = _state.getActiveProject();
   if (!activeProject) return;
-  if (!confirm(`Delete "${activeProject.name}" and all its findings? This cannot be undone.`)) return;
+  if (!await confirmModal(`Delete "${activeProject.name}" and all its findings? This cannot be undone.`)) return;
 
   try {
     await workspace.deleteResearchProject(activeProject.id);

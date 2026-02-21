@@ -2,7 +2,7 @@
 
 import { pawEngine, type EngineProject, type EngineProjectAgent, type EngineProjectMessage } from '../../engine';
 import { showToast } from '../../components/toast';
-import { populateModelSelect, escHtml, formatTimeAgo } from '../../components/helpers';
+import { populateModelSelect, escHtml, formatTimeAgo, confirmModal } from '../../components/helpers';
 import { specialtyIcon, messageKindLabel, formatTime } from './atoms';
 
 // ── State bridge ──────────────────────────────────────────────────────
@@ -336,7 +336,7 @@ export async function saveProject() {
 export async function deleteProject() {
   const currentProject = _state.getCurrentProject();
   if (!currentProject) return;
-  if (!confirm(`Delete project "${currentProject.title}"? This cannot be undone.`)) return;
+  if (!await confirmModal(`Delete project "${currentProject.title}"? This cannot be undone.`)) return;
 
   try {
     await pawEngine.projectDelete(currentProject.id);

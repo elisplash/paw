@@ -1,7 +1,7 @@
 // Settings Skills — Community (community skills browser, search, browse, install)
 
 import { pawEngine, type CommunitySkill, type DiscoveredSkill } from '../../engine';
-import { $, escHtml } from '../../components/helpers';
+import { $, escHtml, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { POPULAR_REPOS, POPULAR_TAGS, msIcon, formatInstalls } from './atoms';
 
@@ -368,7 +368,7 @@ export function bindCommunityEvents(): void {
       const skillId = btn.dataset.skill!;
       const name = skillId.split('/').pop() || skillId;
 
-      if (!confirm(`Remove "${name}"? You can reinstall it later.`)) return;
+      if (!await confirmModal(`Remove "${name}"? You can reinstall it later.`)) return;
 
       try {
         await pawEngine.communitySkillRemove(skillId);

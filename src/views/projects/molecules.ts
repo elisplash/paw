@@ -1,6 +1,6 @@
 // Projects View — Molecules (DOM rendering, file tree, file viewer)
 
-import { $, escHtml, escAttr } from '../../components/helpers';
+import { $, escHtml, escAttr, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { logSecurityEvent } from '../../db';
 import {
@@ -206,10 +206,10 @@ export function renderProjectsSidebar(): void {
   });
 
   sidebar.querySelectorAll('.projects-remove-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const path = btn.getAttribute('data-remove');
-      if (path && confirm(`Remove "${_projects.find(p => p.path === path)?.name}" from projects?`)) {
+      if (path && await confirmModal(`Remove "${_projects.find(p => p.path === path)?.name}" from projects?`)) {
         _onRemoveProject?.(path);
       }
     });

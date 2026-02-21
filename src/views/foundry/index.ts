@@ -1,7 +1,8 @@
 // Foundry — orchestration, state, public API
 
 import { saveMode, deleteMode } from '../../db';
-import { $ } from '../../components/helpers';
+import { $, confirmModal } from '../../components/helpers';
+import { showToast } from '../../components/toast';
 import {
   initMoleculesState, loadModels, loadModes, editMode, hideModeModal
 } from './molecules';
@@ -54,7 +55,7 @@ export function initFoundryEvents() {
 
   $('mode-modal-save')?.addEventListener('click', async () => {
     const name = ($('mode-form-name') as HTMLInputElement).value.trim();
-    if (!name) { alert('Name is required'); return; }
+    if (!name) { showToast('Name is required', 'error'); return; }
     const id = _editingModeId ?? name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
     await saveMode({
       id,
@@ -71,7 +72,7 @@ export function initFoundryEvents() {
   });
 
   $('mode-modal-delete')?.addEventListener('click', async () => {
-    if (!_editingModeId || !confirm('Delete this mode?')) return;
+    if (!_editingModeId || !await confirmModal('Delete this mode?')) return;
     await deleteMode(_editingModeId);
     hideModeModal();
     loadModes();

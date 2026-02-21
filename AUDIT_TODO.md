@@ -115,9 +115,10 @@ Codebase: 24,750 lines TS · 30,935 lines Rust · 327 tests passing · ESLint 0 
 ### ~~24. No migration versioning~~ ✅ FIXED
 - Added `schema_version` table (auto-created on first run). Migrations are now a typed `Migration[]` array with sequential version numbers. `runMigrations()` reads `MAX(version)` from `schema_version`, only runs pending migrations, wraps each in a `BEGIN/COMMIT` transaction with `ROLLBACK` on failure, and records the version + description + timestamp. Existing `CREATE TABLE IF NOT EXISTS` statements become migration v1 (idempotent on existing DBs). Future `ALTER TABLE` changes just append a new version entry.
 
-### 25. `confirm()`/`alert()` used in Tauri context (8 files)
+### 25. ~~`confirm()`/`alert()` used in Tauri context (8 files)~~ ✅ FIXED
 - Native `confirm()` / `alert()` may not render in Tauri webview context.
 - **Fix:** Replace with Tauri dialog API or custom modal.
+- Added `confirmModal()` in `helpers.ts` — a Promise-based custom modal (`#confirm-modal` in `index.html`) with keyboard support (Enter/Escape) and backdrop dismiss. Replaced all 21 `confirm()` calls across 14 files with `await confirmModal()`. Replaced all 11 `alert()` calls (4 files) with `showToast(message, 'error')`. Zero native dialog usage remains.
 
 ### 26. `setTimeout` as polling substitute (10+ instances)
 - Arbitrary `setTimeout` delays instead of listening for backend completion events.

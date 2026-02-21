@@ -2008,6 +2008,23 @@
       </div>
     </div>
 
+    <!-- Generic Confirm Modal (replaces window.confirm which doesn't work in Tauri webview) -->
+    <div class="modal-overlay" id="confirm-modal" style="display:none">
+      <div class="modal-card" style="width:420px">
+        <div class="modal-header">
+          <h2 class="modal-title" id="confirm-modal-title">Confirm</h2>
+          <button class="btn-icon" id="confirm-modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <p id="confirm-modal-message" style="margin:0;white-space:pre-wrap"></p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="confirm-modal-cancel">Cancel</button>
+          <button class="btn btn-danger" id="confirm-modal-ok">Confirm</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Generic Prompt Modal (replaces window.prompt which doesn't work in Tauri webview) -->
     <div class="modal-overlay" id="prompt-modal" style="display:none">
       <div class="modal-card" style="width:420px">

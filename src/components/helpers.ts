@@ -206,6 +206,49 @@ export function formatMarkdown(text: string): string {
     .replace(/\n/g, '<br>');
 }
 
+// Tauri 2 WKWebView (macOS) does not support window.confirm() — it may not render.
+// This custom modal replaces all confirm() usage in the app.
+export function confirmModal(message: string, title = 'Confirm'): Promise<boolean> {
+  return new Promise(resolve => {
+    const overlay = $('confirm-modal');
+    const titleEl = $('confirm-modal-title');
+    const messageEl = $('confirm-modal-message');
+    const okBtn = $('confirm-modal-ok');
+    const cancelBtn = $('confirm-modal-cancel');
+    const closeBtn = $('confirm-modal-close');
+    if (!overlay) { resolve(false); return; }
+
+    if (titleEl) titleEl.textContent = title;
+    if (messageEl) messageEl.textContent = message;
+    overlay.style.display = 'flex';
+    okBtn?.focus();
+
+    function cleanup() {
+      overlay!.style.display = 'none';
+      okBtn?.removeEventListener('click', onOk);
+      cancelBtn?.removeEventListener('click', onCancel);
+      closeBtn?.removeEventListener('click', onCancel);
+      overlay?.removeEventListener('click', onBackdrop);
+      document.removeEventListener('keydown', onKey);
+    }
+    function onOk() { cleanup(); resolve(true); }
+    function onCancel() { cleanup(); resolve(false); }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+      else if (e.key === 'Enter') { e.preventDefault(); onOk(); }
+    }
+    function onBackdrop(e: MouseEvent) {
+      if (e.target === overlay) onCancel();
+    }
+
+    okBtn?.addEventListener('click', onOk);
+    cancelBtn?.addEventListener('click', onCancel);
+    closeBtn?.addEventListener('click', onCancel);
+    overlay.addEventListener('click', onBackdrop);
+    document.addEventListener('keydown', onKey);
+  });
+}
+
 // Tauri 2 WKWebView (macOS) does not support window.prompt() — it returns null.
 // This custom modal replaces all prompt() usage in the app.
 export function promptModal(title: string, placeholder?: string): Promise<string | null> {

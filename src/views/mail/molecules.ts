@@ -3,7 +3,7 @@
 
 import type { SkillEntry } from '../../types';
 import { logCredentialActivity, getCredentialActivityLog } from '../../db';
-import { $, escHtml, escAttr, formatMarkdown } from '../../components/helpers';
+import { $, escHtml, escAttr, formatMarkdown, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { pawEngine } from '../../engine';
 import {
@@ -174,7 +174,7 @@ export async function renderMailAccounts(_gmail: Record<string, unknown> | null,
     });
 
     item.querySelector('.mail-vault-revoke')?.addEventListener('click', async () => {
-      if (!confirm(`Remove ${acct.email} and revoke all access?\n\nThis deletes the stored credentials from your device. Your email account is not affected.`)) return;
+      if (!await confirmModal(`Remove ${acct.email} and revoke all access?\n\nThis deletes the stored credentials from your device. Your email account is not affected.`)) return;
       try {
         await pawEngine.mailRemoveAccount(acct.name);
         removeMailPermissions(acct.name);
@@ -550,7 +550,7 @@ async function archiveEmail(msg: { id: string }) {
 }
 
 async function deleteEmail(msg: { id: string; subject: string }) {
-  if (!confirm(`Delete "${msg.subject}"?`)) return;
+  if (!await confirmModal(`Delete "${msg.subject}"?`)) return;
   try {
     const accountName = _mailAccounts.length > 0 ? _mailAccounts[0].name : undefined;
     await pawEngine.mailDelete(accountName, msg.id);

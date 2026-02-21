@@ -2,7 +2,7 @@
 // Depends on: atoms, engine, helpers, toast
 
 import { pawEngine, type ChannelStatus } from '../../engine';
-import { $, escHtml, escAttr } from '../../components/helpers';
+import { $, escHtml, escAttr, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { CHANNEL_CLASSES, CHANNEL_SETUPS, isChannelConfigured, emptyChannelConfig } from './atoms';
 
@@ -370,7 +370,7 @@ export async function loadChannels() {
         });
         $(`${cardId}-edit`)?.addEventListener('click', () => _openChannelSetup('telegram'));
         $(`${cardId}-remove`)?.addEventListener('click', async () => {
-          if (!confirm('Remove Telegram configuration?')) return;
+          if (!await confirmModal('Remove Telegram configuration?')) return;
           try {
             await pawEngine.telegramStop();
             await pawEngine.telegramSetConfig({ bot_token: '', enabled: false, dm_policy: 'pairing', allowed_users: [], pending_users: [] });

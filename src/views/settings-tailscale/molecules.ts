@@ -3,7 +3,7 @@
 import { pawEngine } from '../../engine';
 import { showToast } from '../../components/toast';
 import type { TailscaleStatus, TailscaleConfig } from '../../engine/atoms/types';
-import { $ } from '../../components/helpers';
+import { $, confirmModal } from '../../components/helpers';
 import { esc, makeBtn } from './atoms';
 
 export async function loadTailscaleSettings() {
@@ -113,7 +113,7 @@ export async function loadTailscaleSettings() {
     }));
   } else {
     serveBtns.appendChild(makeBtn('Start Funnel (Public)', 'btn-primary', async () => {
-      if (!confirm('Funnel exposes Pawz to the PUBLIC internet. Continue?')) return;
+      if (!await confirmModal('Funnel exposes Pawz to the PUBLIC internet. Continue?')) return;
       try { await pawEngine.tailscaleFunnelStart(config.serve_port); showToast('Funnel started', 'success'); loadTailscaleSettings(); }
       catch (e: unknown) { showToast(`Failed: ${e instanceof Error ? e.message : String(e)}`, 'error'); }
     }));

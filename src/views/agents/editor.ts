@@ -8,7 +8,7 @@ import {
   getAgentPolicy,
   setAgentPolicy,
 } from '../../features/agent-policies';
-import { escHtml, escAttr } from '../../components/helpers';
+import { escHtml, escAttr, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import {
   type Agent,
@@ -409,8 +409,8 @@ export function openAgentEditor(agentId: string, cbs: EditorCallbacks) {
   wireEditorBoundaries(modal, boundaries);
 
   // Delete
-  modal.querySelector('.agent-delete-btn')?.addEventListener('click', () => {
-    if (confirm(`Delete ${agent.name}? This cannot be undone.`)) {
+  modal.querySelector('.agent-delete-btn')?.addEventListener('click', async () => {
+    if (await confirmModal(`Delete ${agent.name}? This cannot be undone.`)) {
       cbs.onDeleted(agentId);
       // Also remove from backend SQLite
       pawEngine.deleteAgent(agentId).catch(e => console.warn('[agents] Backend delete failed:', e));

@@ -1,7 +1,8 @@
 // Automations / Cron View — DOM rendering + IPC
 
 import { pawEngine, type EngineTask, type EngineTaskActivity } from '../../engine';
-import { $, escHtml, escAttr } from '../../components/helpers';
+import { $, escHtml, escAttr, confirmModal } from '../../components/helpers';
+import { showToast } from '../../components/toast';
 import { isConnected } from '../../state/connection';
 import { MORNING_BRIEF_PROMPT, isValidSchedule } from './atoms';
 
@@ -153,7 +154,7 @@ function wireCardActions(container: HTMLElement | null) {
         await pawEngine.taskRun(id);
         (btn as HTMLElement).textContent = '⏳ Running…';
         setTimeout(() => loadCron(), 3000);
-      } catch (e) { alert(`Run failed: ${e}`); }
+      } catch (e) { showToast(`Run failed: ${e}`, 'error'); }
     });
   });
   container.querySelectorAll('.cron-edit').forEach(btn => {
@@ -179,17 +180,17 @@ function wireCardActions(container: HTMLElement | null) {
           await pawEngine.taskUpdate(task);
           loadCron();
         }
-      } catch (e) { alert(`Toggle failed: ${e}`); }
+      } catch (e) { showToast(`Toggle failed: ${e}`, 'error'); }
     });
   });
   container.querySelectorAll('.cron-delete').forEach(btn => {
     btn.addEventListener('click', async () => {
       const id = (btn as HTMLElement).dataset.id!;
-      if (!confirm('Delete this automation?')) return;
+      if (!await confirmModal('Delete this automation?')) return;
       try {
         await pawEngine.taskDelete(id);
         loadCron();
-      } catch (e) { alert(`Delete failed: ${e}`); }
+      } catch (e) { showToast(`Delete failed: ${e}`, 'error'); }
     });
   });
 }
@@ -278,10 +279,10 @@ export async function saveCronJob() {
   const schedule = ($('cron-form-schedule') as HTMLInputElement).value.trim();
   const prompt_ = ($('cron-form-prompt') as HTMLTextAreaElement).value.trim();
   const agentId = ($('cron-form-agent') as HTMLInputElement | HTMLSelectElement)?.value.trim() || 'default';
-  if (!label || !schedule || !prompt_) { alert('Name, schedule, and prompt are required'); return; }
+  if (!label || !schedule || !prompt_) { showToast('Name, schedule, and prompt are required', 'error'); return; }
 
   if (!isValidSchedule(schedule)) {
-    alert('Invalid schedule format. Use: every 5m, every 1h, daily 09:00');
+    showToast('Invalid schedule format. Use: every 5m, every 1h, daily 09:00', 'error');
     return;
   }
 
@@ -321,7 +322,7 @@ export async function saveCronJob() {
     hideCronModal();
     loadCron();
   } catch (e) {
-    alert(`Failed to ${editingTaskId ? 'update' : 'create'}: ${e instanceof Error ? e.message : e}`);
+    showToast(`Failed to ${editingTaskId ? 'update' : 'create'}: ${e instanceof Error ? e.message : e}`, 'error');
   }
 }
 
@@ -348,6 +349,6 @@ export async function createMorningBrief() {
     await pawEngine.taskSetAgents(id, [{ agent_id: 'default', role: 'lead' }]);
     loadCron();
   } catch (e) {
-    alert(`Failed to create Morning Brief: ${e instanceof Error ? e.message : e}`);
+    showToast(`Failed to create Morning Brief: ${e instanceof Error ? e.message : e}`, 'error');
   }
 }

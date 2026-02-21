@@ -1,7 +1,7 @@
 // Trading Dashboard — DOM rendering + IPC
 
 import { pawEngine, type TradeRecord, type TradingSummary, type TradingPolicy, type Position } from '../../engine';
-import { $, escHtml } from '../../components/helpers';
+import { $, escHtml, confirmModal } from '../../components/helpers';
 import { isConnected } from '../../state/connection';
 import {
   formatUsd, formatAmount, formatTime, formatPrice,
@@ -347,7 +347,7 @@ function bindPositionEvents() {
       const id = el.dataset.id;
       const symbol = el.dataset.symbol;
       if (!id) return;
-      if (!confirm(`Close position for ${symbol}? This does NOT auto-sell — it just stops monitoring.`)) return;
+      if (!await confirmModal(`Close position for ${symbol}? This does NOT auto-sell — it just stops monitoring.`)) return;
       try {
         await pawEngine.positionClose(id);
         showTradingToast(`Position for ${symbol} closed`, 'success');

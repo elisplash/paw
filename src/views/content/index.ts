@@ -2,7 +2,7 @@
 
 import { saveDoc, deleteDoc } from '../../db';
 import { pawEngine } from '../../engine';
-import { $} from '../../components/helpers';
+import { $, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { appState } from '../../state/index';
 import {
@@ -65,7 +65,7 @@ export function initContent() {
   $('content-delete-doc')?.addEventListener('click', async () => {
     const docId = getActiveDocId();
     if (!docId) return;
-    if (!confirm('Delete this document?')) return;
+    if (!await confirmModal('Delete this document?')) return;
     await deleteDoc(docId);
     setActiveDocId(null);
     loadContentDocs();

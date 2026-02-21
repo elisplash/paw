@@ -3,7 +3,7 @@
 import { pawEngine, type BrowserConfig, type ScreenshotEntry, type WorkspaceInfo, type NetworkPolicy } from '../../engine';
 import { showToast } from '../../components/toast';
 import { formatBytes, timeAgo, isValidDomain } from '../../features/browser-sandbox';
-import { $, escHtml } from '../../components/helpers';
+import { $, escHtml, confirmModal } from '../../components/helpers';
 
 // ── State bridge ──────────────────────────────────────────────────────
 
@@ -74,7 +74,7 @@ export function renderProfiles(container: HTMLElement, browserConfig: BrowserCon
       deleteBtn.style.color = 'var(--error)';
       deleteBtn.textContent = 'Delete';
       deleteBtn.addEventListener('click', async () => {
-        if (!confirm(`Delete profile "${profile.name}" and all its data?`)) return;
+        if (!await confirmModal(`Delete profile "${profile.name}" and all its data?`)) return;
         await pawEngine.browserDeleteProfile(profile.id);
         showToast(`Profile "${profile.name}" deleted`, 'success');
         _state.getLoadBrowserSettings()();
@@ -304,7 +304,7 @@ export function renderWorkspaces(container: HTMLElement, workspaces: WorkspaceIn
       deleteBtn.style.color = 'var(--error)';
       deleteBtn.textContent = 'Delete';
       deleteBtn.addEventListener('click', async () => {
-        if (!confirm(`Delete entire workspace for agent "${ws.agent_id}"? This cannot be undone.`)) return;
+        if (!await confirmModal(`Delete entire workspace for agent "${ws.agent_id}"? This cannot be undone.`)) return;
         await pawEngine.workspaceDelete(ws.agent_id);
         showToast(`Workspace for "${ws.agent_id}" deleted`, 'success');
         _state.getLoadBrowserSettings()();

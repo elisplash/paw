@@ -1,7 +1,7 @@
 // Settings Skills — Molecules (DOM rendering, event binding for built-in skills)
 
 import { pawEngine, type EngineSkillStatus } from '../../engine';
-import { escHtml } from '../../components/helpers';
+import { escHtml, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { CATEGORY_META, msIcon, skillIcon } from './atoms';
 
@@ -334,7 +334,7 @@ export function bindSkillEvents(): void {
       const btn = el as HTMLButtonElement;
       const skillId = btn.dataset.skill!;
 
-      if (!confirm(`Revoke ALL credentials for ${skillId}? This can't be undone.`)) return;
+      if (!await confirmModal(`Revoke ALL credentials for ${skillId}? This can't be undone.`)) return;
 
       try {
         await pawEngine.skillRevokeAll(skillId);
@@ -370,7 +370,7 @@ export function bindSkillEvents(): void {
       const btn = el as HTMLButtonElement;
       const skillId = btn.dataset.skill!;
 
-      if (!confirm('Reset to default instructions? Your customizations will be lost.')) return;
+      if (!await confirmModal('Reset to default instructions? Your customizations will be lost.')) return;
 
       try {
         await pawEngine.skillSetInstructions(skillId, '');

@@ -10,7 +10,7 @@ import { appState, agentSessionMap, persistAgentSessionMap,
          createStreamState, type StreamState,
          type MessageWithAttachments } from '../../state/index';
 import { formatMarkdown } from '../../components/molecules/markdown';
-import { escHtml, icon } from '../../components/helpers';
+import { escHtml, icon, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import * as AgentsModule from '../../views/agents';
 import * as SettingsModule from '../../views/settings-main';
@@ -1110,7 +1110,7 @@ export function initChatListeners(): void {
 
   $('session-delete-btn')?.addEventListener('click', async () => {
     if (!appState.currentSessionKey || !appState.wsConnected) return;
-    if (!confirm('Delete this session? This cannot be undone.')) return;
+    if (!await confirmModal('Delete this session? This cannot be undone.')) return;
     try {
       await pawEngine.sessionDelete(appState.currentSessionKey);
       appState.currentSessionKey = null;
@@ -1123,7 +1123,7 @@ export function initChatListeners(): void {
 
   $('session-clear-btn')?.addEventListener('click', async () => {
     if (!appState.currentSessionKey || !appState.wsConnected) return;
-    if (!confirm('Clear all messages in this session?')) return;
+    if (!await confirmModal('Clear all messages in this session?')) return;
     try {
       await pawEngine.sessionClear(appState.currentSessionKey);
       appState.messages = [];

@@ -397,7 +397,7 @@ export function initPalaceRemember(onSaved?: () => Promise<void>): void {
     const importance = parseInt(importanceStr, 10) || 5;
 
     if (!content) {
-      alert('Content is required.');
+      showToast('Content is required.', 'error');
       return;
     }
 

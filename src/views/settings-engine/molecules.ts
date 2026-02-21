@@ -2,7 +2,8 @@
 
 import { pawEngine, type EngineProviderConfig } from '../../engine';
 import { setEngineMode } from '../../engine-bridge';
-import { $, escHtml } from '../../components/helpers';
+import { $, escHtml, confirmModal } from '../../components/helpers';
+import { showToast } from '../../components/toast';
 import { KIND_LABELS, ID_LABELS } from './atoms';
 
 /** Initialize engine settings UI — call once on app load. */
@@ -149,11 +150,11 @@ async function renderProvidersList(): Promise<void> {
     list.querySelectorAll('.engine-remove-provider').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = (btn as HTMLElement).dataset.id!;
-        if (!confirm(`Remove provider "${id}"?`)) return;
+        if (!await confirmModal(`Remove provider "${id}"?`)) return;
         try {
           await pawEngine.removeProvider(id);
           await renderProvidersList();
-        } catch (e) { alert(`Failed: ${e}`); }
+        } catch (e) { showToast(`Failed: ${e}`, 'error'); }
       });
     });
 
@@ -168,7 +169,7 @@ async function renderProvidersList(): Promise<void> {
           if (p?.default_model) cfg.default_model = p.default_model;
           await pawEngine.setConfig(cfg);
           await renderProvidersList();
-        } catch (e) { alert(`Failed: ${e}`); }
+        } catch (e) { showToast(`Failed: ${e}`, 'error'); }
       });
     });
 
