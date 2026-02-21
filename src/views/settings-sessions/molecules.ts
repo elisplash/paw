@@ -1,17 +1,12 @@
-// Settings: Sessions
-// List sessions, rename, clear, delete — all via Paw engine (Tauri IPC)
-// No gateway WebSocket.
+// Settings: Sessions — DOM rendering + IPC
 
-import { pawEngine, type EngineSession } from '../engine';
-import { showToast } from '../components/toast';
-import { isConnected } from '../state/connection';
-import {
-  esc
-} from './settings-config';
+import { pawEngine, type EngineSession } from '../../engine';
+import { showToast } from '../../components/toast';
+import { isConnected } from '../../state/connection';
+import { esc } from '../settings-config';
+import { $ } from '../../components/helpers';
 
-import { $ } from '../components/helpers';
-
-// ── State ───────────────────────────────────────────────────────────────────
+// ── Internal state ──────────────────────────────────────────────────────────
 
 let _sessions: EngineSession[] = [];
 
@@ -179,8 +174,4 @@ function buildSessionCard(sess: EngineSession): HTMLElement {
   details.appendChild(actionsBody);
   card.appendChild(details);
   return card;
-}
-
-export function initSessionsSettings() {
-  // All dynamic — no static elements to bind
 }

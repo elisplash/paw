@@ -1,20 +1,26 @@
-// Foundry View — Models & Chat Modes
-// Models: shows configured providers and their available models
-// Chat Modes: named presets (model + system prompt + temperature) for the chat mode selector
+// Foundry — DOM rendering + IPC
 
-import { listModes, saveMode, deleteMode } from '../db';
-import type { AgentMode } from '../db';
-import { pawEngine } from '../engine';
-import { $, escHtml } from '../components/helpers';
+import { listModes } from '../../db';
+import type { AgentMode } from '../../db';
+import { pawEngine } from '../../engine';
+import { $, escHtml } from '../../components/helpers';
+import { KIND_ICONS } from './atoms';
 
-// ── Module state ───────────────────────────────────────────────────────────
-let _cachedModels: { id: string; name?: string; provider?: string; contextWindow?: number; reasoning?: boolean }[] = [];
-let _editingModeId: string | null = null;
-
-export function getCachedModels() {
-  return _cachedModels;
+// ── State bridge ───────────────────────────────────────────────────────────
+interface MoleculesState {
+  getCachedModels: () => { id: string; name?: string; provider?: string; contextWindow?: number; reasoning?: boolean }[];
+  setCachedModels: (m: MoleculesState['getCachedModels'] extends () => infer R ? R : never) => void;
+  getEditingModeId: () => string | null;
+  setEditingModeId: (id: string | null) => void;
 }
 
+let _state: MoleculesState;
+
+export function initMoleculesState() {
+  return {
+    setMoleculesState: (st: MoleculesState) => { _state = st; },
+  };
+}
 
 // ── Models ─────────────────────────────────────────────────────────────────
 export async function loadModels() {
@@ -32,7 +38,7 @@ export async function loadModels() {
     if (loading) loading.style.display = 'none';
 
     // Reset cached models on each load to avoid duplicates
-    _cachedModels = [];
+    _state.setCachedModels([]);
 
     const providers = config.providers ?? [];
     if (!providers.length) {
@@ -40,10 +46,7 @@ export async function loadModels() {
       return;
     }
 
-    const KIND_ICONS: Record<string, string> = {
-      ollama: 'pets', openai: 'smart_toy', anthropic: 'psychology', google: 'auto_awesome', openrouter: 'language', custom: 'build',
-      deepseek: 'explore', grok: 'bolt', mistral: 'air', moonshot: 'dark_mode',
-    };
+    const newModels: MoleculesState['getCachedModels'] extends () => infer R ? R : never = [];
 
     for (const p of providers) {
       const iconName = KIND_ICONS[p.kind] ?? 'build';
@@ -65,11 +68,13 @@ export async function loadModels() {
 
       // Cache for mode editor model picker
       if (p.default_model) {
-        _cachedModels.push({ id: p.default_model, name: p.default_model, provider: p.kind });
+        newModels.push({ id: p.default_model, name: p.default_model, provider: p.kind });
       }
 
       list.appendChild(card);
     }
+
+    _state.setCachedModels(newModels);
 
     // Show global default model info
     if (config.default_model) {
@@ -129,8 +134,8 @@ export async function loadModes() {
   }
 }
 
-function editMode(mode?: AgentMode) {
-  _editingModeId = mode?.id ?? null;
+export function editMode(mode?: AgentMode) {
+  _state.setEditingModeId(mode?.id ?? null);
   const modal = $('mode-modal');
   const title = $('mode-modal-title');
   const deleteBtn = $('mode-modal-delete');
@@ -142,7 +147,7 @@ function editMode(mode?: AgentMode) {
   const modelSelect = $('mode-form-model') as HTMLSelectElement;
   if (modelSelect) {
     modelSelect.innerHTML = '<option value="">Default model</option>';
-    for (const m of _cachedModels) {
+    for (const m of _state.getCachedModels()) {
       const opt = document.createElement('option');
       opt.value = m.id;
       opt.textContent = m.name ?? m.id;
@@ -161,63 +166,8 @@ function editMode(mode?: AgentMode) {
   if (tempVal) tempVal.textContent = String(mode?.temperature ?? 1.0);
 }
 
-function hideModeModal() {
+export function hideModeModal() {
   const modal = $('mode-modal');
   if (modal) modal.style.display = 'none';
-  _editingModeId = null;
+  _state.setEditingModeId(null);
 }
-
-// ── Event wiring ───────────────────────────────────────────────────────────
-export function initFoundryEvents() {
-  $('refresh-models-btn')?.addEventListener('click', () => { loadModels(); loadModes(); });
-
-  // Foundry tab switching (Models / Chat Modes)
-  document.querySelectorAll('.foundry-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.foundry-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const target = tab.getAttribute('data-foundry-tab');
-      const modelsPanel = $('foundry-models-panel');
-      const modesPanel = $('foundry-modes-panel');
-      if (modelsPanel) modelsPanel.style.display = target === 'models' ? '' : 'none';
-      if (modesPanel) modesPanel.style.display = target === 'modes' ? '' : 'none';
-    });
-  });
-
-  // Mode modal
-  $('modes-add-btn')?.addEventListener('click', () => editMode());
-  $('mode-modal-close')?.addEventListener('click', hideModeModal);
-  $('mode-modal-cancel')?.addEventListener('click', hideModeModal);
-
-  $('mode-form-temp')?.addEventListener('input', () => {
-    const val = ($('mode-form-temp') as HTMLInputElement).value;
-    const display = $('mode-form-temp-value');
-    if (display) display.textContent = parseFloat(val).toFixed(1);
-  });
-
-  $('mode-modal-save')?.addEventListener('click', async () => {
-    const name = ($('mode-form-name') as HTMLInputElement).value.trim();
-    if (!name) { alert('Name is required'); return; }
-    const id = _editingModeId ?? name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    await saveMode({
-      id,
-      name,
-      icon: ($('mode-form-icon') as HTMLInputElement).value || '',
-      color: ($('mode-form-color') as HTMLInputElement).value || '#0073EA',
-      model: ($('mode-form-model') as HTMLSelectElement).value || null,
-      system_prompt: ($('mode-form-prompt') as HTMLTextAreaElement).value,
-      thinking_level: ($('mode-form-thinking') as HTMLSelectElement).value,
-      temperature: parseFloat(($('mode-form-temp') as HTMLInputElement).value),
-    });
-    hideModeModal();
-    loadModes();
-  });
-
-  $('mode-modal-delete')?.addEventListener('click', async () => {
-    if (!_editingModeId || !confirm('Delete this mode?')) return;
-    await deleteMode(_editingModeId);
-    hideModeModal();
-    loadModes();
-  });
-}
-

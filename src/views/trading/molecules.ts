@@ -1,69 +1,20 @@
-// Trading Dashboard — Portfolio, P&L, Trade History, Auto-Trade Policy
-// Visual representation of Coinbase + DEX trading activity and automated guidelines.
+// Trading Dashboard — DOM rendering + IPC
 
-import { pawEngine, type TradeRecord, type TradingSummary, type TradingPolicy, type Position } from '../engine';
-import { $, escHtml } from '../components/helpers';
-import { isConnected } from '../state/connection';
+import { pawEngine, type TradeRecord, type TradingSummary, type TradingPolicy, type Position } from '../../engine';
+import { $, escHtml } from '../../components/helpers';
+import { isConnected } from '../../state/connection';
+import {
+  formatUsd, formatAmount, formatTime, formatPrice,
+  pnlClass, tradeTypeLabel, tradeSideLabel, tradePairLabel,
+} from './atoms';
 
 // ── Module state ───────────────────────────────────────────────────────────
 let _refreshBound = false;
-
-function formatUsd(value: number | string | null): string {
-  if (value === null || value === undefined) return '$0.00';
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return '$0.00';
-  return num < 0 ? `-$${Math.abs(num).toFixed(2)}` : `$${num.toFixed(2)}`;
-}
-
-function formatAmount(value: string | number): string {
-  const num = typeof value === 'string' ? parseFloat(value) : value;
-  if (isNaN(num)) return String(value);
-  if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(2)}B`;
-  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(2)}M`;
-  if (num >= 10_000) return `${(num / 1_000).toFixed(1)}K`;
-  if (num < 0.0001 && num > 0) return num.toExponential(2);
-  if (num >= 100) return num.toFixed(2);
-  return num.toPrecision(6);
-}
-
-function formatTime(isoStr: string): string {
-  try {
-    const d = new Date(isoStr + (isoStr.includes('Z') ? '' : 'Z'));
-    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  } catch { return isoStr; }
-}
-
-function pnlClass(value: number): string {
-  if (value > 0) return 'trading-positive';
-  if (value < 0) return 'trading-negative';
-  return 'trading-neutral';
-}
-
-function tradeTypeLabel(t: TradeRecord): string {
-  if (t.trade_type === 'dex_swap') return 'DEX_SWAP';
-  if (t.trade_type === 'transfer') return 'TRANSFER';
-  return 'TRADE';
-}
-
-function tradeSideLabel(t: TradeRecord): string {
-  if (t.trade_type === 'dex_swap') return 'swap';
-  return t.side || '-';
-}
-
-function tradePairLabel(t: TradeRecord): string {
-  if (t.trade_type === 'dex_swap' && t.product_id) return t.product_id;
-  if (t.trade_type === 'dex_swap' && t.currency) {
-    const out = t.to_address && !t.to_address.startsWith('0x') ? t.to_address : '?';
-    return `${t.currency.toUpperCase()} → ${out.toUpperCase()}`;
-  }
-  return t.product_id || t.currency || '-';
-}
 
 // ── Main Loader ────────────────────────────────────────────────────────────
 export async function loadTrading() {
   if (!isConnected()) return;
 
-  // Wire refresh button once
   const refreshBtn = $('trading-refresh');
   if (refreshBtn && !_refreshBound) {
     _refreshBound = true;
@@ -98,7 +49,6 @@ function renderDashboard(
   const totalOps = summary.trade_count + summary.transfer_count + summary.dex_swap_count;
   const hasDex = summary.dex_swap_count > 0;
 
-  // Recent activity streak
   const recentTrades = trades.slice(0, 5);
   const latestStatus = recentTrades.length > 0 ? recentTrades[0].status : 'none';
   const streakIcon = latestStatus === 'completed'
@@ -247,7 +197,6 @@ function renderDashboard(
     </div>
   `;
 
-  // Wire up event listeners
   bindPolicyEvents();
   bindPositionEvents();
 }
@@ -338,14 +287,14 @@ function renderPositionsPanel(positions: Position[]): string {
             <tbody>
               ${openPositions.map(p => {
                 const pnlPct = p.entry_price_usd > 0 ? ((p.last_price_usd / p.entry_price_usd) - 1) * 100 : 0;
-                const pnlClass = pnlPct > 0 ? 'trading-positive' : pnlPct < 0 ? 'trading-negative' : 'trading-neutral';
+                const pnlCls = pnlPct > 0 ? 'trading-positive' : pnlPct < 0 ? 'trading-negative' : 'trading-neutral';
                 const pnlSign = pnlPct >= 0 ? '+' : '';
                 return `
                 <tr class="trading-row position-row" data-id="${escHtml(p.id)}">
                   <td class="trading-pair"><strong>${escHtml(p.symbol)}</strong><br><span class="trading-usd">${escHtml(p.mint.slice(0, 8))}…</span></td>
                   <td>$${formatPrice(p.entry_price_usd)}</td>
                   <td>$${formatPrice(p.last_price_usd)}</td>
-                  <td class="${pnlClass}"><strong>${pnlSign}${pnlPct.toFixed(1)}%</strong></td>
+                  <td class="${pnlCls}"><strong>${pnlSign}${pnlPct.toFixed(1)}%</strong></td>
                   <td class="trading-amount">${formatAmount(p.current_amount)}</td>
                   <td>${p.entry_sol.toFixed(4)}</td>
                   <td>${(p.stop_loss_pct * 100).toFixed(0)}%</td>
@@ -389,13 +338,6 @@ function renderPositionsPanel(positions: Position[]): string {
       </div>
     ` : ''}
   </div>`;
-}
-
-function formatPrice(price: number): string {
-  if (price === 0) return '0';
-  if (price >= 1) return price.toFixed(4);
-  if (price >= 0.001) return price.toFixed(6);
-  return price.toExponential(4);
 }
 
 function bindPositionEvents() {

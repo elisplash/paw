@@ -1,21 +1,9 @@
-// Settings — Paw Engine Configuration
-// Manages the runtime mode toggle and AI provider settings.
-// Supports multiple providers configured simultaneously.
+// Settings: Engine — DOM rendering + IPC
 
-import { pawEngine, type EngineProviderConfig } from '../engine';
-import { setEngineMode } from '../engine-bridge';
-import { $, escHtml } from '../components/helpers';
-
-const KIND_LABELS: Record<string, string> = {
-  anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google',
-  openrouter: 'OpenRouter', ollama: 'Ollama', custom: 'Custom',
-};
-
-const ID_LABELS: Record<string, string> = {
-  moonshot: 'Kimi / Moonshot', deepseek: 'DeepSeek', xai: 'xAI (Grok)',
-  mistral: 'Mistral', together: 'Together AI', fireworks: 'Fireworks',
-  groq: 'Groq', 'google-openai': 'Google (OpenAI-compat)',
-};
+import { pawEngine, type EngineProviderConfig } from '../../engine';
+import { setEngineMode } from '../../engine-bridge';
+import { $, escHtml } from '../../components/helpers';
+import { KIND_LABELS, ID_LABELS } from './atoms';
 
 /** Initialize engine settings UI — call once on app load. */
 export function initEngineSettings(): void {

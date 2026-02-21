@@ -1,11 +1,10 @@
-// Settings: Tailscale — Remote Access
-// Tailscale Serve / Funnel integration for remote access to Pawz.
+// Settings: Tailscale — DOM rendering + IPC
 
-import { pawEngine } from '../engine';
-import { showToast } from '../components/toast';
-import type { TailscaleStatus, TailscaleConfig } from '../engine/atoms/types';
-
-import { $ } from '../components/helpers';
+import { pawEngine } from '../../engine';
+import { showToast } from '../../components/toast';
+import type { TailscaleStatus, TailscaleConfig } from '../../engine/atoms/types';
+import { $ } from '../../components/helpers';
+import { esc, makeBtn } from './atoms';
 
 export async function loadTailscaleSettings() {
   const container = $('settings-tailscale-content');
@@ -172,17 +171,4 @@ export async function loadTailscaleSettings() {
   });
 
   form.querySelector('#ts-reload')?.addEventListener('click', () => loadTailscaleSettings());
-}
-
-function makeBtn(label: string, cls: string, handler: () => void): HTMLButtonElement {
-  const btn = document.createElement('button');
-  btn.className = `btn ${cls} btn-sm`;
-  btn.textContent = label;
-  btn.addEventListener('click', handler);
-  return btn;
-}
-
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }

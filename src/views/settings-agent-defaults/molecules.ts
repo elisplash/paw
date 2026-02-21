@@ -1,15 +1,12 @@
-// Settings: Agent Defaults
-// Configure engine defaults — model, system prompt, tool rounds, timeout
-// All reads/writes go through the Paw engine (Tauri IPC). No gateway.
+// Settings: Agent Defaults — DOM rendering + IPC
 
-import { pawEngine } from '../engine';
-import { showToast } from '../components/toast';
-import { isConnected } from '../state/connection';
+import { pawEngine } from '../../engine';
+import { showToast } from '../../components/toast';
+import { isConnected } from '../../state/connection';
 import {
   esc, formRow, selectInput, textInput, numberInput, toggleSwitch, saveReloadButtons
-} from './settings-config';
-
-import { $ } from '../components/helpers';
+} from '../settings-config';
+import { $ } from '../../components/helpers';
 
 // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -332,8 +329,4 @@ export async function loadAgentDefaultsSettings() {
   } catch (e) {
     container.innerHTML = `<p style="color:var(--danger)">Failed to load: ${esc(String(e))}</p>`;
   }
-}
-
-export function initAgentDefaultsSettings() {
-  // All dynamic
 }

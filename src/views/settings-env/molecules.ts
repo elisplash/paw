@@ -1,15 +1,10 @@
-// Settings: Environment & API Keys
-// Manages API keys via the Paw engine's skill credential vault.
-// Environment variables are inherited from the system — no gateway config.
+// Settings: Environment — DOM rendering + IPC
 
-import { pawEngine } from '../engine';
-import { showToast } from '../components/toast';
-import { isConnected } from '../state/connection';
-import {
-  esc, textInput
-} from './settings-config';
-
-import { $ } from '../components/helpers';
+import { pawEngine } from '../../engine';
+import { showToast } from '../../components/toast';
+import { isConnected } from '../../state/connection';
+import { esc, textInput } from '../settings-config';
+import { $ } from '../../components/helpers';
 
 // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -138,8 +133,4 @@ export async function loadEnvSettings() {
   } catch (e) {
     container.innerHTML = `<p style="color:var(--danger)">Failed to load: ${esc(String(e))}</p>`;
   }
-}
-
-export function initEnvSettings() {
-  // All dynamic — nothing to bind
 }

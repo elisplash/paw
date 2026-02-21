@@ -1,20 +1,26 @@
-// Automations / Cron View
-// Uses the engine Tasks API with cron_schedule + cron_enabled fields.
-// The backend heartbeat (60s interval) auto-executes due cron tasks.
+// Automations / Cron View — DOM rendering + IPC
 
-import { pawEngine } from '../engine';
-import type { EngineTask, EngineTaskActivity } from '../engine';
-import { $, escHtml, escAttr } from '../components/helpers';
-import { isConnected } from '../state/connection';
+import { pawEngine } from '../../engine';
+import type { EngineTask, EngineTaskActivity } from '../../engine';
+import { $, escHtml, escAttr } from '../../components/helpers';
+import { isConnected } from '../../state/connection';
+import { MORNING_BRIEF_PROMPT, isValidSchedule } from './atoms';
 
-let _agents: { id: string; name: string; avatar: string }[] = [];
+// ── State bridge ───────────────────────────────────────────────────────────
 
-export function setAgents(agents: { id: string; name: string; avatar: string }[]) {
-  _agents = agents;
+interface MoleculesState {
+  getAgents: () => { id: string; name: string; avatar: string }[];
+  getEditingTaskId: () => string | null;
+  setEditingTaskId: (id: string | null) => void;
 }
 
-/** Currently editing task id (null = creating new) */
-let _editingTaskId: string | null = null;
+let _state: MoleculesState;
+
+export function initMoleculesState() {
+  return {
+    setMoleculesState: (st: MoleculesState) => { _state = st; },
+  };
+}
 
 // ── Load Automations ───────────────────────────────────────────────────────
 export async function loadCron() {
@@ -37,13 +43,11 @@ export async function loadCron() {
   if (historyCards) historyCards.innerHTML = '';
 
   try {
-    // Get all tasks — filter to those with a cron_schedule
     const tasks = await pawEngine.tasksList();
     const cronTasks = tasks.filter(t => t.cron_schedule && t.cron_schedule.length > 0);
 
     if (loading) loading.style.display = 'none';
 
-    // Status indicator
     if (statusEl) {
       statusEl.className = 'cron-service-status active';
       statusEl.textContent = 'Heartbeat active';
@@ -81,7 +85,6 @@ export async function loadCron() {
           <button class="btn btn-ghost btn-sm cron-delete" data-id="${escAttr(task.id)}">Delete</button>
         </div>
       `;
-      // Store task data for editing
       (card as unknown as Record<string, unknown>)._task = task;
       if (task.cron_enabled) {
         active++;
@@ -94,11 +97,9 @@ export async function loadCron() {
     if (activeCount) activeCount.textContent = String(active);
     if (pausedCount) pausedCount.textContent = String(paused);
 
-    // Wire card actions
     wireCardActions(activeCards);
     wireCardActions(pausedCards);
 
-    // Load run history (recent cron-related activity)
     try {
       const activities = await pawEngine.taskActivity(undefined, 30);
       const cronActivities = activities.filter(a =>
@@ -169,12 +170,10 @@ function wireCardActions(container: HTMLElement | null) {
       const id = (btn as HTMLElement).dataset.id!;
       const enabled = (btn as HTMLElement).dataset.enabled === 'true';
       try {
-        // Toggle cron_enabled
         const tasks = await pawEngine.tasksList();
         const task = tasks.find(t => t.id === id);
         if (task) {
           task.cron_enabled = !enabled;
-          // If enabling and no next_run_at, set it to now (will trigger on next heartbeat)
           if (task.cron_enabled && !task.next_run_at) {
             task.next_run_at = new Date().toISOString();
           }
@@ -201,7 +200,6 @@ function populateAgentDropdown() {
   const el = $('cron-form-agent');
   if (!el) return;
 
-  // If it's an input, replace with a select
   if (el.tagName === 'INPUT') {
     const newSelect = document.createElement('select');
     newSelect.id = 'cron-form-agent';
@@ -215,7 +213,7 @@ function populateAgentDropdown() {
 
 function populateAgentDropdownElement(select: HTMLSelectElement) {
   select.innerHTML = '<option value="default">default</option>';
-  for (const agent of _agents) {
+  for (const agent of _state.getAgents()) {
     const opt = document.createElement('option');
     opt.value = agent.id;
     opt.textContent = `${agent.name} (${agent.id})`;
@@ -224,15 +222,14 @@ function populateAgentDropdownElement(select: HTMLSelectElement) {
 }
 
 // ── Cron Modal (Create + Edit) ─────────────────────────────────────────────
-function openCreateModal() {
-  _editingTaskId = null;
+export function openCreateModal() {
+  _state.setEditingTaskId(null);
   const modal = $('cron-modal');
   const title = $('cron-modal-title');
   const saveBtn = $('cron-modal-save');
   if (modal) modal.style.display = 'flex';
   if (title) title.textContent = 'New Automation';
   if (saveBtn) saveBtn.textContent = 'Create';
-  // Reset form
   const label = $('cron-form-label') as HTMLInputElement;
   const schedule = $('cron-form-schedule') as HTMLInputElement;
   const prompt_ = $('cron-form-prompt') as HTMLTextAreaElement;
@@ -245,14 +242,13 @@ function openCreateModal() {
 }
 
 function openEditModal(task: EngineTask) {
-  _editingTaskId = task.id;
+  _state.setEditingTaskId(task.id);
   const modal = $('cron-modal');
   const title = $('cron-modal-title');
   const saveBtn = $('cron-modal-save');
   if (modal) modal.style.display = 'flex';
   if (title) title.textContent = 'Edit Automation';
   if (saveBtn) saveBtn.textContent = 'Save';
-  // Populate form
   const label = $('cron-form-label') as HTMLInputElement;
   const schedule = $('cron-form-schedule') as HTMLInputElement;
   const prompt_ = $('cron-form-prompt') as HTMLTextAreaElement;
@@ -262,7 +258,6 @@ function openEditModal(task: EngineTask) {
   if (preset) preset.value = '';
   if (prompt_) prompt_.value = task.description;
   populateAgentDropdown();
-  // Select the assigned agent
   const agentSelect = $('cron-form-agent') as HTMLSelectElement;
   if (agentSelect) {
     const assignedAgent = task.assigned_agents.length
@@ -272,43 +267,39 @@ function openEditModal(task: EngineTask) {
   }
 }
 
-function hideCronModal() {
+export function hideCronModal() {
   const modal = $('cron-modal');
   if (modal) modal.style.display = 'none';
-  _editingTaskId = null;
+  _state.setEditingTaskId(null);
 }
 
-async function saveCronJob() {
+export async function saveCronJob() {
+  const editingTaskId = _state.getEditingTaskId();
   const label = ($('cron-form-label') as HTMLInputElement).value.trim();
   const schedule = ($('cron-form-schedule') as HTMLInputElement).value.trim();
   const prompt_ = ($('cron-form-prompt') as HTMLTextAreaElement).value.trim();
   const agentId = ($('cron-form-agent') as HTMLInputElement | HTMLSelectElement)?.value.trim() || 'default';
   if (!label || !schedule || !prompt_) { alert('Name, schedule, and prompt are required'); return; }
 
-  // Validate schedule format
   if (!isValidSchedule(schedule)) {
     alert('Invalid schedule format. Use: every 5m, every 1h, daily 09:00');
     return;
   }
 
   try {
-    if (_editingTaskId) {
-      // Update existing task
+    if (editingTaskId) {
       const tasks = await pawEngine.tasksList();
-      const existing = tasks.find(t => t.id === _editingTaskId);
+      const existing = tasks.find(t => t.id === editingTaskId);
       if (existing) {
         existing.title = label;
         existing.description = prompt_;
         existing.cron_schedule = schedule;
         existing.cron_enabled = true;
-        // Recompute next_run_at (set to now so heartbeat picks it up)
         existing.next_run_at = new Date().toISOString();
         await pawEngine.taskUpdate(existing);
-        // Update agent assignment
-        await pawEngine.taskSetAgents(_editingTaskId, [{ agent_id: agentId, role: 'lead' }]);
+        await pawEngine.taskSetAgents(editingTaskId, [{ agent_id: agentId, role: 'lead' }]);
       }
     } else {
-      // Create new cron task
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
       const task: EngineTask = {
@@ -321,46 +312,22 @@ async function saveCronJob() {
         assigned_agents: [{ agent_id: agentId, role: 'lead' }],
         cron_schedule: schedule,
         cron_enabled: true,
-        next_run_at: now, // Run on next heartbeat
+        next_run_at: now,
         created_at: now,
         updated_at: now,
       };
       await pawEngine.taskCreate(task);
-      // Set agents via the multi-agent API
       await pawEngine.taskSetAgents(id, [{ agent_id: agentId, role: 'lead' }]);
     }
     hideCronModal();
     loadCron();
   } catch (e) {
-    alert(`Failed to ${_editingTaskId ? 'update' : 'create'}: ${e instanceof Error ? e.message : e}`);
+    alert(`Failed to ${editingTaskId ? 'update' : 'create'}: ${e instanceof Error ? e.message : e}`);
   }
-}
-
-function isValidSchedule(s: string): boolean {
-  const lower = s.trim().toLowerCase();
-  if (lower.startsWith('every ')) {
-    const rest = lower.slice(6).trim();
-    if (/^\d+m$/.test(rest) || /^\d+h$/.test(rest)) return true;
-  }
-  if (lower.startsWith('daily ')) {
-    const time = lower.slice(6).trim();
-    if (/^\d{2}:\d{2}$/.test(time)) return true;
-  }
-  return false;
 }
 
 // ── Morning Brief Template ─────────────────────────────────────────────────
-const MORNING_BRIEF_PROMPT = `Good morning! Please give me a concise daily briefing that includes:
-
-1. **Weather** — Current conditions and today's forecast for my location
-2. **Calendar** — Any scheduled events or deadlines today
-3. **Tasks** — My top priority tasks and anything overdue
-4. **News** — 3-5 key headlines relevant to my interests
-5. **Memories** — Any important context from recent conversations
-
-Keep it brief and actionable. End with a motivational note to start the day.`;
-
-async function createMorningBrief() {
+export async function createMorningBrief() {
   try {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -384,36 +351,4 @@ async function createMorningBrief() {
   } catch (e) {
     alert(`Failed to create Morning Brief: ${e instanceof Error ? e.message : e}`);
   }
-}
-
-// ── Initialize ─────────────────────────────────────────────────────────────
-export function initAutomations() {
-  $('add-cron-btn')?.addEventListener('click', openCreateModal);
-  $('cron-empty-add')?.addEventListener('click', openCreateModal);
-  $('add-morning-brief-btn')?.addEventListener('click', createMorningBrief);
-  $('cron-empty-morning-brief')?.addEventListener('click', createMorningBrief);
-  $('cron-modal-close')?.addEventListener('click', hideCronModal);
-  $('cron-modal-cancel')?.addEventListener('click', hideCronModal);
-
-  $('cron-form-schedule-preset')?.addEventListener('change', () => {
-    const preset = ($('cron-form-schedule-preset') as HTMLSelectElement).value;
-    const scheduleInput = $('cron-form-schedule') as HTMLInputElement;
-    if (preset && scheduleInput) scheduleInput.value = preset;
-  });
-
-  $('cron-modal-save')?.addEventListener('click', saveCronJob);
-
-  // Listen for heartbeat events from backend
-  (async () => {
-    try {
-      const { listen } = await import('@tauri-apps/api/event');
-      listen('cron-heartbeat', () => {
-        // Refresh automations view if it's currently visible
-        const view = $('automations-view');
-        if (view && view.style.display !== 'none') {
-          loadCron();
-        }
-      });
-    } catch { /* not in Tauri context */ }
-  })();
 }

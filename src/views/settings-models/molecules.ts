@@ -1,96 +1,20 @@
-// Settings: Models & Providers
-// Multi-provider management — add/edit/remove AI providers, set default model
-// All config goes through the Paw engine (Tauri IPC). No gateway.
+// Settings: Models & Providers — DOM rendering + IPC
 
-import { pawEngine, type EngineProviderConfig, type EngineConfig, type ModelRouting } from '../engine';
-import { showToast } from '../components/toast';
-import { isConnected } from '../state/connection';
+import { pawEngine, type EngineProviderConfig, type EngineConfig, type ModelRouting } from '../../engine';
+import { showToast } from '../../components/toast';
+import { isConnected } from '../../state/connection';
 import {
   getEngineConfig, setEngineConfig,
   esc, formRow, selectInput, textInput, saveReloadButtons
-} from './settings-config';
+} from '../settings-config';
+import { $ } from '../../components/helpers';
+import {
+  PROVIDER_KINDS, DEFAULT_BASE_URLS, POPULAR_MODELS, KIND_ICONS,
+  SPECIALTIES, TIER_LABELS, buildAllKnownModels, getAvailableModelsList,
+} from './atoms';
 
-import { $ } from '../components/helpers';
-
-// ── Provider Kinds ──────────────────────────────────────────────────────────
-
-const PROVIDER_KINDS: Array<{ value: string; label: string }> = [
-  { value: 'ollama', label: 'Ollama (local)' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'google', label: 'Google' },
-  { value: 'deepseek', label: 'DeepSeek' },
-  { value: 'grok', label: 'xAI (Grok)' },
-  { value: 'mistral', label: 'Mistral' },
-  { value: 'moonshot', label: 'Moonshot / Kimi' },
-  { value: 'openrouter', label: 'OpenRouter' },
-  { value: 'custom', label: 'Custom / Compatible' },
-];
-
-const DEFAULT_BASE_URLS: Record<string, string> = {
-  ollama: 'http://localhost:11434',
-  openai: 'https://api.openai.com/v1',
-  anthropic: 'https://api.anthropic.com',
-  google: 'https://generativelanguage.googleapis.com/v1beta',
-  deepseek: 'https://api.deepseek.com/v1',
-  grok: 'https://api.x.ai/v1',
-  mistral: 'https://api.mistral.ai/v1',
-  moonshot: 'https://api.moonshot.cn/v1',
-  openrouter: 'https://openrouter.ai/api/v1',
-  custom: '',
-};
-
-const POPULAR_MODELS: Record<string, string[]> = {
-  ollama: [
-    'llama3.2:3b', 'llama3.2:1b', 'llama3.1:8b', 'llama3.1:70b', 'llama3.3:70b',
-    'mistral:7b', 'mixtral:8x7b', 'codellama:13b', 'codellama:34b',
-    'deepseek-coder:6.7b', 'deepseek-coder-v2:16b',
-    'phi3:mini', 'phi3:medium', 'qwen2.5:7b', 'qwen2.5:32b', 'qwen2.5:72b',
-    'gemma2:9b', 'gemma2:27b', 'command-r:35b',
-  ],
-  openai: [
-    'gpt-4o', 'gpt-4o-mini', 'gpt-4.1', 'gpt-4.1-mini', 'gpt-4.1-nano',
-    'o1', 'o1-mini', 'o3', 'o3-mini', 'o4-mini',
-  ],
-  anthropic: [
-    'claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001',
-    'claude-sonnet-4-5-20250929', 'claude-3-haiku-20240307',
-  ],
-  google: [
-    'gemini-2.5-pro', 'gemini-2.5-flash',
-    'gemini-2.0-flash', 'gemini-2.0-flash-lite',
-    'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-1.5-flash-8b',
-  ],
-  openrouter: [
-    'anthropic/claude-sonnet-4-6', 'anthropic/claude-haiku-4-5-20251001',
-    'anthropic/claude-3-haiku-20240307',
-    'openai/gpt-4o', 'openai/gpt-4o-mini',
-    'google/gemini-2.5-pro', 'google/gemini-2.5-flash',
-    'meta-llama/llama-3.1-405b-instruct', 'meta-llama/llama-3.1-70b-instruct',
-    'deepseek/deepseek-chat', 'deepseek/deepseek-r1',
-    'mistralai/mistral-large', 'qwen/qwen-2.5-72b-instruct',
-  ],
-  deepseek: [
-    'deepseek-chat', 'deepseek-reasoner',
-  ],
-  grok: [
-    'grok-3', 'grok-3-mini', 'grok-2', 'grok-2-mini',
-  ],
-  mistral: [
-    'mistral-large-latest', 'mistral-medium-latest', 'mistral-small-latest',
-    'codestral-latest', 'open-mistral-nemo', 'mistral-embed',
-  ],
-  moonshot: [
-    'moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k',
-  ],
-  custom: ['deepseek-chat', 'deepseek-reasoner'],
-};
-
-const KIND_ICONS: Record<string, string> = {
-  ollama: 'pets', openai: 'smart_toy', anthropic: 'psychology', google: 'auto_awesome',
-  deepseek: 'explore', grok: 'bolt', mistral: 'air', moonshot: 'dark_mode',
-  openrouter: 'language', custom: 'build',
-};
+// Re-export for external consumers
+export { getAvailableModelsList };
 
 // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -202,7 +126,6 @@ export async function loadModelsSettings() {
     const defModelInp = textInput(config.default_model ?? '', 'gpt-4o, claude-sonnet-4-6, llama3.1:8b …');
     defModelInp.style.maxWidth = '400px';
     defModelInp.setAttribute('list', 'default-model-datalist');
-    // Use datalist for suggestions but allow free-form input
     const datalist = document.createElement('datalist');
     datalist.id = 'default-model-datalist';
     for (const opt of allModelOpts) {
@@ -262,26 +185,6 @@ export async function loadModelsSettings() {
 
 // ── Model Routing Section ───────────────────────────────────────────────────
 
-/** Build model list dynamically from all configured providers */
-function buildAllKnownModels(providers: EngineProviderConfig[]): string[] {
-  const seen = new Set<string>();
-  const models: string[] = [];
-  const addModel = (m: string) => {
-    if (m && !seen.has(m)) { seen.add(m); models.push(m); }
-  };
-  // Add configured provider defaults first (these are what the user actually uses)
-  for (const p of providers) {
-    if (p.default_model) addModel(p.default_model);
-  }
-  // Then popular models for each configured provider kind
-  for (const p of providers) {
-    for (const m of (POPULAR_MODELS[p.kind] ?? [])) addModel(m);
-  }
-  return models;
-}
-
-const SPECIALTIES = ['coder', 'researcher', 'designer', 'communicator', 'security', 'general'];
-
 function buildModelRoutingSection(
   config: EngineConfig,
   _allModelOpts: Array<{ value: string; label: string }>
@@ -294,7 +197,7 @@ function buildModelRoutingSection(
 
   const routing = config.model_routing ?? {};
 
-  // Build datalist for model suggestions — dynamic from configured providers
+  // Build datalist for model suggestions
   const allKnownModels = buildAllKnownModels(config.providers ?? []);
   const dlId = 'routing-model-datalist';
   const dl = document.createElement('datalist');
@@ -317,7 +220,6 @@ function buildModelRoutingSection(
   autoTierLabel.style.cssText = 'font-size:12px;color:var(--text-muted);margin-left:8px';
   autoTierCheck.addEventListener('change', () => {
     autoTierLabel.textContent = autoTierCheck.checked ? 'Enabled — saves cost on simple tasks' : 'Disabled — always uses default model';
-    // Show/hide cheap model row
     cheapRow.style.display = autoTierCheck.checked ? '' : 'none';
   });
   const autoTierWrap = document.createElement('div');
@@ -414,7 +316,7 @@ function buildModelRoutingSection(
         boss_model: bossInp.value.trim() || undefined,
         worker_model: workerInp.value.trim() || undefined,
         specialty_models: Object.keys(specialtyModels).length > 0 ? specialtyModels : undefined,
-        agent_models: routing.agent_models, // preserve existing per-agent overrides
+        agent_models: routing.agent_models,
         cheap_model: cheapInp.value.trim() || undefined,
         auto_tier: autoTierCheck.checked,
       };
@@ -434,65 +336,6 @@ function buildModelRoutingSection(
 
 // ── Available Models Panel ──────────────────────────────────────────────────
 
-/** Exported so other views (tasks, agents) can get the dynamic model list */
-export function getAvailableModelsList(providers: EngineProviderConfig[]): string[] {
-  return buildAllKnownModels(providers);
-}
-
-const TIER_LABELS: Record<string, Record<string, string>> = {
-  anthropic: {
-    'claude-opus-4-6': 'Flagship — $5/$25 per MTok — complex reasoning, coding agents',
-    'claude-sonnet-4-6': 'Best value — $3/$15 per MTok — general purpose workhorse',
-    'claude-haiku-4-5-20251001': 'Fast + cheap — $1/$5 per MTok — bulk, cron jobs, summaries',
-    'claude-3-haiku-20240307': 'Cheapest — $0.25/$1.25 per MTok — cron jobs, simple tasks',
-    'claude-sonnet-4-5-20250929': 'Agentic — strong for computer use tasks',
-  },
-  openai: {
-    'gpt-4o': 'Best value — multimodal',
-    'gpt-4o-mini': 'Fast + cheap',
-    'gpt-4.1': 'Latest flagship',
-    'gpt-4.1-mini': 'Latest mini',
-    'gpt-4.1-nano': 'Cheapest',
-    'o1': 'Deep reasoning',
-    'o1-mini': 'Reasoning — cheaper',
-    'o3': 'Latest reasoning',
-    'o3-mini': 'Reasoning — fast',
-    'o4-mini': 'Latest reasoning mini',
-  },
-  google: {
-    'gemini-2.5-pro': 'Flagship — best reasoning',
-    'gemini-2.5-flash': 'Best value — fast + smart',
-    'gemini-2.0-flash': 'Previous gen — fast',
-    'gemini-2.0-flash-lite': 'Cheapest',
-    'gemini-1.5-pro': 'Previous flagship',
-    'gemini-1.5-flash': 'Previous fast',
-    'gemini-1.5-flash-8b': 'Smallest',
-  },
-  deepseek: {
-    'deepseek-chat': 'V3 — best value — general purpose',
-    'deepseek-reasoner': 'R1 — deep reasoning + math',
-  },
-  grok: {
-    'grok-3': 'Flagship — strongest reasoning',
-    'grok-3-mini': 'Fast reasoning — think budget',
-    'grok-2': 'Previous flagship',
-    'grok-2-mini': 'Previous — fast + cheap',
-  },
-  mistral: {
-    'mistral-large-latest': 'Flagship — best reasoning',
-    'mistral-medium-latest': 'Balanced — cost-effective',
-    'mistral-small-latest': 'Fast + cheap',
-    'codestral-latest': 'Code-specialized',
-    'open-mistral-nemo': 'Lightweight open model',
-    'mistral-embed': 'Embedding model',
-  },
-  moonshot: {
-    'moonshot-v1-8k': '8K context — fast',
-    'moonshot-v1-32k': '32K context — balanced',
-    'moonshot-v1-128k': '128K context — long documents',
-  },
-};
-
 function buildAvailableModelsPanel(providers: EngineProviderConfig[]): HTMLDivElement {
   const section = document.createElement('div');
   section.className = 'settings-subsection';
@@ -506,7 +349,6 @@ function buildAvailableModelsPanel(providers: EngineProviderConfig[]): HTMLDivEl
     return section;
   }
 
-  // Group models by provider
   for (const p of providers) {
     const models = POPULAR_MODELS[p.kind] ?? [];
     if (!models.length) continue;
@@ -520,7 +362,6 @@ function buildAvailableModelsPanel(providers: EngineProviderConfig[]): HTMLDivEl
     provTitle.innerHTML = `${iconHtml2} ${esc(p.id)} <span style="font-size:11px;color:var(--text-muted);font-weight:normal">${esc(p.kind)}</span>`;
     provBlock.appendChild(provTitle);
 
-    // Active model tag
     if (p.default_model) {
       const activeTag = document.createElement('div');
       activeTag.style.cssText = 'font-size:11px;color:var(--text-muted);margin-bottom:6px';
@@ -560,7 +401,6 @@ function buildAvailableModelsPanel(providers: EngineProviderConfig[]): HTMLDivEl
     }
     provBlock.appendChild(chipsWrap);
 
-    // Tier legend if available
     if (Object.keys(tierInfo).length > 0) {
       const legend = document.createElement('div');
       legend.style.cssText = 'font-size:10px;color:var(--text-muted);margin-top:6px';
@@ -612,25 +452,21 @@ function buildAddProviderForm(config: EngineConfig): HTMLDivElement {
   modelRow.appendChild(modelInp);
   form.appendChild(modelRow);
 
-  // Auto-fill URL when kind changes
   kindSel.addEventListener('change', () => {
     const kind = kindSel.value;
     if (!urlInp.value || Object.values(DEFAULT_BASE_URLS).includes(urlInp.value)) {
       urlInp.value = DEFAULT_BASE_URLS[kind] ?? '';
     }
     urlInp.placeholder = DEFAULT_BASE_URLS[kind] ?? '';
-    // Auto-fill ID if empty
     if (!idInp.value) {
       idInp.value = kind;
     }
-    // Suggest models
     const models = POPULAR_MODELS[kind] ?? [];
     if (models.length && !modelInp.value) {
       modelInp.placeholder = models[0];
     }
   });
 
-  // Trigger initial fill
   kindSel.dispatchEvent(new Event('change'));
 
   const formBtns = document.createElement('div');
@@ -703,7 +539,6 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
   const iconHtml3 = `<span class="ms ms-sm">${KIND_ICONS[provider.kind] ?? 'build'}</span>`;
   const isDefault = provider.id === config.default_provider;
 
-  // Header
   const header = document.createElement('div');
   header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:12px';
   const titleWrap = document.createElement('div');
@@ -717,7 +552,6 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
   const actions = document.createElement('div');
   actions.style.cssText = 'display:flex;gap:6px';
 
-  // Set as default button
   if (!isDefault) {
     const defBtn = document.createElement('button');
     defBtn.className = 'btn btn-ghost btn-sm';
@@ -735,7 +569,6 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
     actions.appendChild(defBtn);
   }
 
-  // Delete button with confirm
   const delBtn = document.createElement('button');
   delBtn.className = 'btn btn-danger btn-sm';
   delBtn.textContent = 'Remove';
@@ -771,7 +604,6 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
   header.appendChild(actions);
   card.appendChild(header);
 
-  // Editable fields
   const kindRow = formRow('Provider Type');
   const kindSel = selectInput(PROVIDER_KINDS, provider.kind);
   kindSel.style.maxWidth = '260px';
@@ -793,7 +625,6 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
   const modelRow = formRow('Default Model', 'Model used when no specific model is requested');
   const modelInp = textInput(provider.default_model ?? '', '');
   modelInp.style.maxWidth = '320px';
-  // Add datalist with popular models for this kind
   const popular = POPULAR_MODELS[provider.kind] ?? [];
   if (popular.length) {
     const dlId = `models-${provider.id}`;
@@ -810,7 +641,6 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
   modelRow.appendChild(modelInp);
   card.appendChild(modelRow);
 
-  // Popular models as quick-select chips
   if (popular.length) {
     const chipsWrap = document.createElement('div');
     chipsWrap.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:4px';
@@ -825,7 +655,6 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
     card.appendChild(chipsWrap);
   }
 
-  // Save / Reload
   card.appendChild(saveReloadButtons(
     async () => {
       const updated: EngineProviderConfig = {
@@ -839,7 +668,6 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
         await pawEngine.upsertProvider(updated);
         const modelMsg = updated.default_model ? ` — model: ${updated.default_model}` : '';
         showToast(`Provider "${provider.id}" updated${modelMsg}`, 'success');
-        // Refresh chat header model label
         const refreshFn = (window as unknown as Record<string, unknown>).__refreshModelLabel as (() => void) | undefined;
         if (refreshFn) refreshFn();
         loadModelsSettings();
@@ -851,10 +679,4 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
   ));
 
   return card;
-}
-
-// ── Init ────────────────────────────────────────────────────────────────────
-
-export function initModelsSettings() {
-  // Nothing to bind — all dynamic
 }

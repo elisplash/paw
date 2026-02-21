@@ -1,23 +1,9 @@
-// Nodes View — Connections & Status Dashboard
-// Shows engine status, configured providers, Ollama health, and skill readiness.
-// Replaces the legacy gateway device-pairing view.
+// Nodes — DOM rendering + IPC
 
-import { pawEngine } from '../engine';
-import { showToast } from '../components/toast';
-
-import { $ } from '../components/helpers';
-
-// ── Compat stubs (called from main.ts — kept to avoid breaking imports) ───
-export function loadPairingRequests() { /* no pairing in engine mode */ }
-export function handleNodePairRequested(_payload: unknown) { /* noop */ }
-export function handleNodePairResolved(_payload: unknown) { /* noop */ }
-export function configureCallbacks(_opts: Record<string, unknown>) { /* noop */ }
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
+import { pawEngine } from '../../engine';
+import { showToast } from '../../components/toast';
+import { $ } from '../../components/helpers';
+import { esc } from './atoms';
 
 // ── Main loader ────────────────────────────────────────────────────────────
 export async function loadNodes() {
@@ -181,9 +167,4 @@ export async function loadNodes() {
   } catch (e) {
     target.innerHTML = `<p style="color:var(--danger)">Failed to load status: ${esc(String(e))}</p>`;
   }
-}
-
-// ── Init ───────────────────────────────────────────────────────────────────
-export function initNodesEvents() {
-  $('nodes-refresh')?.addEventListener('click', () => loadNodes());
 }
