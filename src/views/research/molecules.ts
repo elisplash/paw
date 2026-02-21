@@ -1,128 +1,50 @@
-// Research View — Redesigned with live sources, structured findings, iteration
-// Saves to ~/Documents/Paw/Research as markdown files
+// Research View — Molecules (DOM rendering + IPC)
 
-import { pawEngine } from '../engine';
-import * as workspace from '../workspace';
-import type { ResearchProject, ResearchFinding, ResearchSource, ResearchReport } from '../workspace';
-import { $, escHtml, formatMarkdown } from '../components/helpers';
-import { showToast } from '../components/toast';
-import { isConnected } from '../state/connection';
+import { pawEngine } from '../../engine';
+import * as workspace from '../../workspace';
+import type { ResearchFinding, ResearchSource } from '../../workspace';
+import { $, escHtml, formatMarkdown } from '../../components/helpers';
+import { showToast } from '../../components/toast';
+import { isConnected } from '../../state/connection';
+import { extractDomain, buildResearchPrompt, modeTimeout } from './atoms';
+import type { ResearchMode } from './atoms';
 
-// ── Module state ───────────────────────────────────────────────────────────
-let _activeProject: ResearchProject | null = null;
-let _findings: ResearchFinding[] = [];
-let _isResearching = false;
-let _researchMode: 'quick' | 'deep' = 'quick';
-let _runId: string | null = null;
-let _streamContent = '';
-let _streamResolve: ((text: string) => void) | null = null;
-let _liveSources: ResearchSource[] = [];
-let _liveSteps: string[] = [];
+// ── State accessors (set by index.ts) ──────────────────────────────────────
 
-// For agent event routing
-export function isStreaming(): boolean {
-  return _isResearching;
+interface MoleculesState {
+  getActiveProject: () => workspace.ResearchProject | null;
+  getFindings: () => ResearchFinding[];
+  setFindings: (f: ResearchFinding[]) => void;
+  getIsResearching: () => boolean;
+  setIsResearching: (v: boolean) => void;
+  getResearchMode: () => ResearchMode;
+  getStreamContent: () => string;
+  setStreamContent: (s: string) => void;
+  getStreamResolve: () => ((text: string) => void) | null;
+  setStreamResolve: (fn: ((text: string) => void) | null) => void;
+  getLiveSources: () => ResearchSource[];
+  pushLiveSource: (s: ResearchSource) => void;
+  getLiveSteps: () => string[];
+  pushLiveStep: (s: string) => void;
+  setRunId: (id: string | null) => void;
+  resetLiveState: () => void;
+  getPromptModal: () => ((title: string, placeholder?: string) => Promise<string | null>) | null;
+  reloadProjects: () => Promise<void>;
 }
 
-export function getRunId(): string | null {
-  return _runId;
+let _state: MoleculesState;
+
+export function setMoleculesState(s: MoleculesState) {
+  _state = s;
 }
 
-// ── Live streaming handlers ────────────────────────────────────────────────
+// ── Live streaming UI ──────────────────────────────────────────────────────
 
-export function appendDelta(text: string) {
-  _streamContent += text;
-  
-  // Parse for URLs being fetched (agent typically outputs these)
-  const urlMatches = text.match(/https?:\/\/[^\s\])"']+/g);
-  if (urlMatches) {
-    for (const url of urlMatches) {
-      if (!_liveSources.some(s => s.url === url)) {
-        const source: ResearchSource = {
-          url,
-          title: extractDomain(url),
-          credibility: 3,
-          extractedAt: new Date().toISOString(),
-          snippets: [],
-        };
-        _liveSources.push(source);
-        renderLiveSourceFeed();
-      }
-    }
-  }
-  
-  // Update live content display
-  const liveContent = $('research-live-content');
-  if (liveContent) {
-    liveContent.textContent = _streamContent.slice(-2000); // Show last 2000 chars
-    liveContent.scrollTop = liveContent.scrollHeight;
-  }
-  
-  // Parse for progress indicators
-  parseProgressStep(text);
-}
-
-export function resolveStream(text?: string) {
-  if (_streamResolve) {
-    _streamResolve(text ?? _streamContent);
-    _streamResolve = null;
-  }
-}
-
-export function getContent(): string {
-  return _streamContent;
-}
-
-export function setContent(text: string) {
-  _streamContent = text;
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function extractDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace('www.', '');
-  } catch {
-    return url.slice(0, 30);
-  }
-}
-
-function parseProgressStep(text: string) {
-  // Detect common research patterns
-  const patterns = [
-    { regex: /searching|search for/i, step: 'Searching the web...' },
-    { regex: /reading|fetching|loading/i, step: 'Reading sources...' },
-    { regex: /analyzing|analysis/i, step: 'Analyzing content...' },
-    { regex: /found|discovered/i, step: 'Found relevant information' },
-    { regex: /summarizing|summary/i, step: 'Summarizing findings...' },
-  ];
-  
-  for (const { regex, step } of patterns) {
-    if (regex.test(text) && !_liveSteps.includes(step)) {
-      _liveSteps.push(step);
-      renderProgressSteps();
-      break;
-    }
-  }
-}
-
-// ── Callbacks ──────────────────────────────────────────────────────────────
-
-let promptModalFn: ((title: string, placeholder?: string) => Promise<string | null>) | null = null;
-
-export function configure(opts: {
-  promptModal: (title: string, placeholder?: string) => Promise<string | null>;
-}) {
-  promptModalFn = opts.promptModal;
-}
-
-// ── Render Functions ───────────────────────────────────────────────────────
-
-function renderLiveSourceFeed() {
+export function renderLiveSourceFeed() {
   const feed = $('research-source-feed');
   if (!feed) return;
-  
-  feed.innerHTML = _liveSources.slice(-8).map(source => `
+
+  feed.innerHTML = _state.getLiveSources().slice(-8).map(source => `
     <div class="research-live-source">
       <span class="research-live-source-icon"><span class="ms ms-sm">language</span></span>
       <span class="research-live-source-domain">${escHtml(source.title)}</span>
@@ -130,38 +52,42 @@ function renderLiveSourceFeed() {
   `).join('');
 }
 
-function renderProgressSteps() {
+export function renderProgressSteps() {
   const container = $('research-progress-steps');
   if (!container) return;
-  
-  container.innerHTML = _liveSteps.map((step, i) => `
-    <div class="research-progress-step ${i === _liveSteps.length - 1 ? 'active' : 'done'}">
-      <span class="research-step-icon">${i === _liveSteps.length - 1 ? '◉' : '✓'}</span>
+
+  const steps = _state.getLiveSteps();
+  container.innerHTML = steps.map((step, i) => `
+    <div class="research-progress-step ${i === steps.length - 1 ? 'active' : 'done'}">
+      <span class="research-step-icon">${i === steps.length - 1 ? '◉' : '✓'}</span>
       <span class="research-step-text">${escHtml(step)}</span>
     </div>
   `).join('');
 }
 
-export async function loadProjects() {
+// ── Project list ───────────────────────────────────────────────────────────
+
+export async function renderProjectList() {
   await workspace.ensureWorkspace();
-  
+
   const list = $('research-project-list');
   const empty = $('research-empty');
   const main = $('research-workspace');
   if (!list) return;
-  
+
   const projects = await workspace.listResearchProjects();
   list.innerHTML = '';
-  
-  if (!projects.length && !_activeProject) {
+  const active = _state.getActiveProject();
+
+  if (!projects.length && !active) {
     if (empty) empty.style.display = 'flex';
     if (main) main.style.display = 'none';
     return;
   }
-  
+
   for (const p of projects) {
     const item = document.createElement('div');
-    item.className = `research-project-item${p.id === _activeProject?.id ? ' active' : ''}`;
+    item.className = `research-project-item${p.id === active?.id ? ' active' : ''}`;
     item.innerHTML = `
       <div class="research-project-name">${escHtml(p.name)}</div>
       <div class="research-project-meta">
@@ -173,12 +99,12 @@ export async function loadProjects() {
     item.addEventListener('click', () => openProject(p.id));
     list.appendChild(item);
   }
-  
+
   // Recent queries section
   const recentQueries = projects
     .flatMap(p => p.queries.slice(-3).map(q => ({ query: q, projectId: p.id, projectName: p.name })))
     .slice(0, 5);
-  
+
   const recentList = $('research-recent-queries');
   if (recentList && recentQueries.length) {
     recentList.innerHTML = recentQueries.map(r => `
@@ -187,7 +113,7 @@ export async function loadProjects() {
         <span class="research-recent-text">${escHtml(r.query.slice(0, 40))}${r.query.length > 40 ? '...' : ''}</span>
       </div>
     `).join('');
-    
+
     recentList.querySelectorAll('.research-recent-query').forEach(el => {
       el.addEventListener('click', async () => {
         const projectId = el.getAttribute('data-project');
@@ -202,18 +128,25 @@ export async function loadProjects() {
   }
 }
 
-async function openProject(id: string) {
+// ── Open project ───────────────────────────────────────────────────────────
+
+export async function openProject(id: string) {
   const project = await workspace.getResearchProject(id);
   if (!project) return;
-  
-  _activeProject = project;
-  _findings = await workspace.listFindings(id);
-  
+
+  // Update state via index
+  _state.setFindings(await workspace.listFindings(id));
+
+  // Expose the project to index.ts — we need a special setter
+  // The project is written directly into module state through the accessor
+  // pattern: index.ts passes getActiveProject/setActiveProject
+  ((_state as unknown) as { setActiveProject: (p: workspace.ResearchProject | null) => void }).setActiveProject(project);
+
   const empty = $('research-empty');
   const main = $('research-workspace');
   if (empty) empty.style.display = 'none';
   if (main) main.style.display = '';
-  
+
   // Update header
   const header = $('research-project-header');
   if (header) {
@@ -226,24 +159,29 @@ async function openProject(id: string) {
         <button class="btn btn-ghost btn-sm btn-error" id="research-delete-project">Delete</button>
       </div>
     `;
-    
+
     $('research-open-folder')?.addEventListener('click', () => {
-      if (_activeProject) workspace.openInFinder(_activeProject.id);
+      const ap = _state.getActiveProject();
+      if (ap) workspace.openInFinder(ap.id);
     });
-    
+
     $('research-delete-project')?.addEventListener('click', deleteCurrentProject);
   }
-  
+
   renderFindings();
   renderSourcesPanel();
-  loadProjects();
+  renderProjectList();
 }
 
-function renderFindings() {
+// ── Findings ───────────────────────────────────────────────────────────────
+
+export function renderFindings() {
   const container = $('research-findings-grid');
   if (!container) return;
-  
-  if (!_findings.length) {
+
+  const findings = _state.getFindings();
+
+  if (!findings.length) {
     container.innerHTML = `
       <div class="research-findings-empty">
         <p>No findings yet. Enter a research query above to get started.</p>
@@ -251,16 +189,16 @@ function renderFindings() {
     `;
     return;
   }
-  
-  container.innerHTML = _findings.map(finding => `
+
+  container.innerHTML = findings.map(finding => `
     <div class="research-finding-card" data-id="${finding.id}">
       <div class="research-finding-header">
         <div class="research-finding-query">${escHtml(finding.query)}</div>
         <div class="research-finding-date">${new Date(finding.created).toLocaleDateString()}</div>
       </div>
-      
+
       ${finding.summary ? `<div class="research-finding-summary">${escHtml(finding.summary)}</div>` : ''}
-      
+
       ${finding.keyPoints.length ? `
         <div class="research-finding-keypoints">
           ${finding.keyPoints.slice(0, 3).map(point => `
@@ -271,7 +209,7 @@ function renderFindings() {
           `).join('')}
         </div>
       ` : ''}
-      
+
       <div class="research-finding-sources">
         ${finding.sources.slice(0, 3).map(s => `
           <a href="${s.url}" target="_blank" class="research-source-chip" title="${escHtml(s.title)}">
@@ -281,7 +219,7 @@ function renderFindings() {
         `).join('')}
         ${finding.sources.length > 3 ? `<span class="research-source-more">+${finding.sources.length - 3} more</span>` : ''}
       </div>
-      
+
       <div class="research-finding-actions">
         <button class="btn btn-ghost btn-xs research-action-dig" data-id="${finding.id}" title="Research this deeper">
           <span class="ms ms-sm">search</span> Dig Deeper
@@ -298,13 +236,13 @@ function renderFindings() {
       </div>
     </div>
   `).join('');
-  
+
   // Wire up action buttons
   container.querySelectorAll('.research-action-dig').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      const finding = _findings.find(f => f.id === id);
+      const finding = findings.find(f => f.id === id);
       if (finding) {
         const input = $('research-topic-input') as HTMLInputElement;
         if (input) {
@@ -314,12 +252,12 @@ function renderFindings() {
       }
     });
   });
-  
+
   container.querySelectorAll('.research-action-related').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      const finding = _findings.find(f => f.id === id);
+      const finding = findings.find(f => f.id === id);
       if (finding) {
         const input = $('research-topic-input') as HTMLInputElement;
         if (input) {
@@ -329,23 +267,24 @@ function renderFindings() {
       }
     });
   });
-  
+
   container.querySelectorAll('.research-action-expand').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      const finding = _findings.find(f => f.id === id);
+      const finding = findings.find(f => f.id === id);
       if (finding) showFindingDetail(finding);
     });
   });
-  
+
   container.querySelectorAll('.research-action-delete').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = btn.getAttribute('data-id');
-      if (id && _activeProject && confirm('Delete this finding?')) {
-        await workspace.deleteFinding(_activeProject.id, id);
-        _findings = await workspace.listFindings(_activeProject.id);
+      const activeProject = _state.getActiveProject();
+      if (id && activeProject && confirm('Delete this finding?')) {
+        await workspace.deleteFinding(activeProject.id, id);
+        _state.setFindings(await workspace.listFindings(activeProject.id));
         renderFindings();
         renderSourcesPanel();
       }
@@ -353,16 +292,19 @@ function renderFindings() {
   });
 }
 
-function renderSourcesPanel() {
+// ── Sources panel ──────────────────────────────────────────────────────────
+
+export function renderSourcesPanel() {
   const panel = $('research-sources-panel');
-  if (!panel || !_activeProject) return;
-  
-  workspace.getAllSources(_activeProject.id).then(sources => {
+  const activeProject = _state.getActiveProject();
+  if (!panel || !activeProject) return;
+
+  workspace.getAllSources(activeProject.id).then(sources => {
     if (!sources.length) {
       panel.innerHTML = '<div class="research-sources-empty">Sources will appear here as you research</div>';
       return;
     }
-    
+
     panel.innerHTML = `
       <div class="research-sources-header">
         <span>${sources.length} sources</span>
@@ -379,17 +321,19 @@ function renderSourcesPanel() {
   });
 }
 
-function showFindingDetail(finding: ResearchFinding) {
+// ── Finding detail modal ───────────────────────────────────────────────────
+
+export function showFindingDetail(finding: ResearchFinding) {
   const modal = $('research-detail-modal');
   const content = $('research-detail-content');
   if (!modal || !content) return;
-  
+
   content.innerHTML = `
     <div class="research-detail-header">
       <h2>${escHtml(finding.query)}</h2>
       <span class="research-detail-date">${new Date(finding.created).toLocaleString()}</span>
     </div>
-    
+
     ${finding.keyPoints.length ? `
       <div class="research-detail-section">
         <h3>Key Points</h3>
@@ -398,12 +342,12 @@ function showFindingDetail(finding: ResearchFinding) {
         </ul>
       </div>
     ` : ''}
-    
+
     <div class="research-detail-section">
       <h3>Full Content</h3>
       <div class="research-detail-body">${formatMarkdown(finding.content)}</div>
     </div>
-    
+
     <div class="research-detail-section">
       <h3>Sources (${finding.sources.length})</h3>
       <div class="research-detail-sources">
@@ -417,34 +361,31 @@ function showFindingDetail(finding: ResearchFinding) {
       </div>
     </div>
   `;
-  
+
   modal.style.display = 'flex';
 }
 
+// ── Research execution ─────────────────────────────────────────────────────
 
+export async function runResearch() {
+  const activeProject = _state.getActiveProject();
+  if (!activeProject || !isConnected() || _state.getIsResearching()) return;
 
-// ── Research Execution ─────────────────────────────────────────────────────
-
-async function runResearch() {
-  if (!_activeProject || !isConnected() || _isResearching) return;
-  
   const input = $('research-topic-input') as HTMLInputElement;
   const query = input?.value.trim();
   if (!query) return;
-  
+
   // Reset state
-  _isResearching = true;
-  _streamContent = '';
-  _liveSources = [];
-  _liveSteps = [];
-  _runId = null;
-  
+  _state.setIsResearching(true);
+  _state.resetLiveState();
+  _state.setRunId(null);
+
   // Show live panel
   const livePanel = $('research-live-panel');
   const findingsArea = $('research-findings-area');
   if (livePanel) livePanel.style.display = '';
   if (findingsArea) findingsArea.classList.add('researching');
-  
+
   // Clear and show loading state
   const liveContent = $('research-live-content');
   const sourceFeed = $('research-source-feed');
@@ -452,144 +393,147 @@ async function runResearch() {
   if (liveContent) liveContent.innerHTML = '';
   if (sourceFeed) sourceFeed.innerHTML = '';
   if (progressSteps) progressSteps.innerHTML = '';
-  
+
   // Update button
   const runBtn = $('research-run-btn');
   const stopBtn = $('research-stop-btn');
   if (runBtn) runBtn.style.display = 'none';
   if (stopBtn) stopBtn.style.display = '';
-  
+
   // Add initial step
-  _liveSteps.push('Starting research...');
+  _state.pushLiveStep('Starting research...');
   renderProgressSteps();
-  
-  const sessionKey = `paw-research-${_activeProject.id}`;
-  const prompt = _researchMode === 'deep'
-    ? `Research this topic thoroughly and comprehensively. Browse the web, find at least 10 diverse sources, cross-reference information, and provide detailed findings with specific data points, examples, and source URLs. Be exhaustive.\n\nTopic: ${query}`
-    : `Research this topic efficiently. Find 3-5 reliable sources, extract key information, and provide a focused summary with the most important findings and source URLs.\n\nTopic: ${query}`;
-  
+
+  const mode = _state.getResearchMode();
+  const sessionKey = `paw-research-${activeProject.id}`;
+  const prompt = buildResearchPrompt(query, mode);
+
   const done = new Promise<string>((resolve) => {
-    _streamResolve = resolve;
-    setTimeout(() => resolve(_streamContent || '(Research timed out)'), _researchMode === 'deep' ? 300_000 : 120_000);
+    _state.setStreamResolve(resolve);
+    setTimeout(() => resolve(_state.getStreamContent() || '(Research timed out)'), modeTimeout(mode));
   });
-  
+
   try {
     const result = await pawEngine.chatSend(sessionKey, prompt);
-    if (result.run_id) _runId = result.run_id;
-    
+    if (result.run_id) _state.setRunId(result.run_id);
+
     const finalText = await done;
-    
+
     // Parse and save finding
     const now = new Date().toISOString();
-    const parsed = workspace.parseAgentResponse(query, finalText, _liveSources);
+    const parsed = workspace.parseAgentResponse(query, finalText, _state.getLiveSources());
     const finding: ResearchFinding = {
       id: workspace.generateFindingId(),
       ...parsed,
       created: now,
       updated: now,
     };
-    
-    await workspace.saveFinding(_activeProject.id, finding);
-    _findings = await workspace.listFindings(_activeProject.id);
-    
+
+    await workspace.saveFinding(activeProject.id, finding);
+    _state.setFindings(await workspace.listFindings(activeProject.id));
+
     // Clear input
     if (input) input.value = '';
     showToast('Research complete! Finding saved.', 'success');
-    
+
   } catch (e) {
     console.error('[research] Error:', e);
     showToast(`Research failed: ${e instanceof Error ? e.message : e}`, 'error');
   } finally {
-    _isResearching = false;
-    _runId = null;
-    _streamResolve = null;
-    
+    _state.setIsResearching(false);
+    _state.setRunId(null);
+    _state.setStreamResolve(null);
+
     // Hide live panel, show findings
     if (livePanel) livePanel.style.display = 'none';
     if (findingsArea) findingsArea.classList.remove('researching');
     if (runBtn) runBtn.style.display = '';
     if (stopBtn) stopBtn.style.display = 'none';
-    
+
     renderFindings();
     renderSourcesPanel();
   }
 }
 
-async function stopResearch() {
-  if (!_activeProject) return;
-  
+export async function stopResearch() {
+  const activeProject = _state.getActiveProject();
+  if (!activeProject) return;
+
   try {
-    await pawEngine.chatAbort(`paw-research-${_activeProject.id}`);
+    await pawEngine.chatAbort(`paw-research-${activeProject.id}`);
   } catch (e) {
     console.warn('[research] Abort error:', e);
   }
-  
-  if (_streamResolve) {
-    _streamResolve(_streamContent || '(Aborted)');
-    _streamResolve = null;
+
+  const resolve = _state.getStreamResolve();
+  if (resolve) {
+    resolve(_state.getStreamContent() || '(Aborted)');
+    _state.setStreamResolve(null);
   }
 }
 
-async function generateReport() {
-  if (!_activeProject || !_findings.length || !isConnected()) {
+export async function generateReport() {
+  const activeProject = _state.getActiveProject();
+  const findings = _state.getFindings();
+  if (!activeProject || !findings.length || !isConnected()) {
     showToast('No findings to generate report from', 'error');
     return;
   }
-  
+
   const reportModal = $('research-report-modal');
   const reportContent = $('research-report-content');
   if (!reportModal || !reportContent) return;
-  
+
   reportModal.style.display = 'flex';
   reportContent.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div><p>Generating report...</p>';
-  
-  const findingsText = _findings.map((f, i) => 
+
+  const findingsText = findings.map((f, i) =>
     `## Finding ${i + 1}: ${f.query}\n\n${f.summary || ''}\n\n${f.content}\n\nSources: ${f.sources.map(s => s.url).join(', ')}`
   ).join('\n\n---\n\n');
-  
-  const sessionKey = `paw-research-${_activeProject.id}`;
-  
-  _isResearching = true;
-  _streamContent = '';
-  
+
+  const sessionKey = `paw-research-${activeProject.id}`;
+
+  _state.setIsResearching(true);
+  _state.setStreamContent('');
+
   const done = new Promise<string>((resolve) => {
-    _streamResolve = resolve;
-    setTimeout(() => resolve(_streamContent || '(Report generation timed out)'), 180_000);
+    _state.setStreamResolve(resolve);
+    setTimeout(() => resolve(_state.getStreamContent() || '(Report generation timed out)'), 180_000);
   });
-  
+
   try {
     await pawEngine.chatSend(sessionKey,
       `Based on all the research findings below, write a comprehensive, well-structured report. Include:\n\n1. Executive Summary (2-3 paragraphs)\n2. Key Findings (organized by theme)\n3. Detailed Analysis\n4. Conclusions and Recommendations\n5. Sources Bibliography\n\nUse markdown formatting.\n\n${findingsText}`
     );
-    
+
     const reportText = await done;
-    
+
     // Save report
-    const report: ResearchReport = {
+    const report: workspace.ResearchReport = {
       id: workspace.generateFindingId(),
       title: `Research Report — ${new Date().toLocaleDateString()}`,
       created: new Date().toISOString(),
       content: reportText,
-      findingIds: _findings.map(f => f.id),
+      findingIds: findings.map(f => f.id),
     };
-    
-    await workspace.saveReport(_activeProject.id, report);
-    
+
+    await workspace.saveReport(activeProject.id, report);
+
     reportContent.innerHTML = formatMarkdown(reportText);
     showToast('Report generated and saved!', 'success');
-    
+
   } catch (e) {
     reportContent.innerHTML = `<p class="error">Failed to generate report: ${e instanceof Error ? e.message : e}</p>`;
   } finally {
-    _isResearching = false;
-    _streamResolve = null;
+    _state.setIsResearching(false);
+    _state.setStreamResolve(null);
   }
 }
 
-async function createNewProject() {
-  const name = await promptModalFn?.('Research project name:', 'My Research');
+export async function createNewProject() {
+  const name = await _state.getPromptModal()?.('Research project name:', 'My Research');
   if (!name) return;
-  
+
   try {
     const project = await workspace.createResearchProject(name);
     await openProject(project.id);
@@ -599,78 +543,24 @@ async function createNewProject() {
   }
 }
 
-async function deleteCurrentProject() {
-  if (!_activeProject) return;
-  if (!confirm(`Delete "${_activeProject.name}" and all its findings? This cannot be undone.`)) return;
-  
+export async function deleteCurrentProject() {
+  const activeProject = _state.getActiveProject();
+  if (!activeProject) return;
+  if (!confirm(`Delete "${activeProject.name}" and all its findings? This cannot be undone.`)) return;
+
   try {
-    await workspace.deleteResearchProject(_activeProject.id);
-    _activeProject = null;
-    _findings = [];
-    
+    await workspace.deleteResearchProject(activeProject.id);
+    ((_state as unknown) as { setActiveProject: (p: workspace.ResearchProject | null) => void }).setActiveProject(null);
+    _state.setFindings([]);
+
     const empty = $('research-empty');
     const main = $('research-workspace');
     if (empty) empty.style.display = 'flex';
     if (main) main.style.display = 'none';
-    
-    await loadProjects();
+
+    await _state.reloadProjects();
     showToast('Project deleted', 'success');
   } catch (e) {
     showToast(`Failed to delete: ${e}`, 'error');
   }
 }
-
-// ── Event Wiring ───────────────────────────────────────────────────────────
-
-export function initResearchEvents() {
-  // New project buttons
-  $('research-new-project')?.addEventListener('click', createNewProject);
-  $('research-create-first')?.addEventListener('click', createNewProject);
-  
-  // Research mode toggle
-  $('research-mode-quick')?.addEventListener('click', () => {
-    _researchMode = 'quick';
-    $('research-mode-quick')?.classList.add('active');
-    $('research-mode-deep')?.classList.remove('active');
-  });
-  
-  $('research-mode-deep')?.addEventListener('click', () => {
-    _researchMode = 'deep';
-    $('research-mode-deep')?.classList.add('active');
-    $('research-mode-quick')?.classList.remove('active');
-  });
-  
-  // Run research
-  $('research-run-btn')?.addEventListener('click', runResearch);
-  $('research-topic-input')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      runResearch();
-    }
-  });
-  
-  // Stop research
-  $('research-stop-btn')?.addEventListener('click', stopResearch);
-  
-  // Generate report
-  $('research-generate-report')?.addEventListener('click', generateReport);
-  
-  // Close modals
-  $('research-detail-close')?.addEventListener('click', () => {
-    const modal = $('research-detail-modal');
-    if (modal) modal.style.display = 'none';
-  });
-  
-  $('research-report-close')?.addEventListener('click', () => {
-    const modal = $('research-report-modal');
-    if (modal) modal.style.display = 'none';
-  });
-  
-  // Open workspace folder
-  $('research-open-workspace')?.addEventListener('click', () => {
-    workspace.openInFinder();
-  });
-}
-
-// Re-export for backwards compatibility
-export { loadProjects as loadResearchProjects };
