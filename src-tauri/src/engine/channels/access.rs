@@ -147,7 +147,7 @@ mod tests {
         let allowed = vec!["other_user".to_string()];
         let result = check_access("allowlist", "user123", "bob", "Bob", &allowed, &mut pending);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("allowlist"));
+        assert!(result.unwrap_err().to_string().contains("allowlist"));
     }
 
     #[test]
