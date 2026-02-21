@@ -4341,6 +4341,90 @@ button:focus:not(:focus-visible) { outline: none; }
 .agent-skill-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
 .agent-skill-desc { font-size: 11px; color: var(--text-muted); }
 
+/* Tool group assignment UI */
+.agent-tool-presets {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.agent-tool-preset {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.agent-tool-preset:hover { border-color: var(--accent); color: var(--text-primary); }
+.agent-tool-preset.active {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 500;
+}
+.agent-tool-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.agent-tool-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-fast);
+}
+.agent-tool-group-header:hover { background: var(--bg-tertiary); }
+.agent-tool-group-toggle {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+.agent-tool-group-header label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.agent-tool-group-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+.agent-tool-group-items {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--border);
+}
+.agent-tool-group-items label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.agent-tool-group-items label:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+.agent-tool-group-items input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
 /* System prompt */
 .agent-system-prompt {
   min-height: 120px;

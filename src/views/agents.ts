@@ -5,6 +5,12 @@
 import { pawEngine, type BackendAgent, type CommunitySkill } from '../engine';
 import { isEngineMode } from '../engine-bridge';
 import { listen } from '@tauri-apps/api/event';
+import {
+  POLICY_PRESETS,
+  type ToolPolicy,
+  getAgentPolicy,
+  setAgentPolicy,
+} from '../features/agent-policies';
 
 const $ = (id: string) => document.getElementById(id);
 
@@ -152,18 +158,89 @@ async function refreshAvailableModels() {
   }
 }
 
-// Available skills
-const AVAILABLE_SKILLS = [
-  { id: 'web_search', name: 'Web Search', desc: 'Search the internet' },
-  { id: 'web_fetch', name: 'Web Fetch', desc: 'Read web pages' },
-  { id: 'browser', name: 'Browser', desc: 'Control a web browser' },
-  { id: 'read', name: 'Read Files', desc: 'Read local files' },
-  { id: 'write', name: 'Write Files', desc: 'Create and edit files' },
-  { id: 'exec', name: 'Run Commands', desc: 'Execute shell commands' },
-  { id: 'image', name: 'Image Analysis', desc: 'Analyze images' },
-  { id: 'memory_store', name: 'Memory', desc: 'Remember information' },
-  { id: 'cron', name: 'Scheduling', desc: 'Set reminders and schedules' },
-  { id: 'message', name: 'Messaging', desc: 'Send messages' },
+// Tool groups for the per-agent tool assignment UI
+const TOOL_GROUPS: { label: string; icon: string; tools: { id: string; name: string; desc: string }[] }[] = [
+  { label: 'Core', icon: 'terminal', tools: [
+    { id: 'exec', name: 'Run Commands', desc: 'Execute shell commands' },
+    { id: 'fetch', name: 'HTTP Fetch', desc: 'Make HTTP requests' },
+  ] },
+  { label: 'Files', icon: 'folder_open', tools: [
+    { id: 'read_file', name: 'Read File', desc: 'Read file contents' },
+    { id: 'write_file', name: 'Write File', desc: 'Create and edit files' },
+    { id: 'list_directory', name: 'List Directory', desc: 'Browse file listings' },
+    { id: 'append_file', name: 'Append File', desc: 'Add content to files' },
+    { id: 'delete_file', name: 'Delete File', desc: 'Remove files' },
+  ] },
+  { label: 'Web', icon: 'language', tools: [
+    { id: 'web_search', name: 'Web Search', desc: 'Search the internet' },
+    { id: 'web_read', name: 'Web Read', desc: 'Read web page content' },
+    { id: 'web_screenshot', name: 'Web Screenshot', desc: 'Capture screenshots' },
+    { id: 'web_browse', name: 'Web Browse', desc: 'Interactive browsing' },
+  ] },
+  { label: 'Soul & Memory', icon: 'psychology', tools: [
+    { id: 'soul_read', name: 'Soul Read', desc: 'Read persona files' },
+    { id: 'soul_write', name: 'Soul Write', desc: 'Write persona files' },
+    { id: 'soul_list', name: 'Soul List', desc: 'List persona files' },
+    { id: 'memory_store', name: 'Memory Store', desc: 'Save to long-term memory' },
+    { id: 'memory_search', name: 'Memory Search', desc: 'Recall from memory' },
+    { id: 'self_info', name: 'Self Info', desc: 'View own configuration' },
+  ] },
+  { label: 'Agents & Tasks', icon: 'group', tools: [
+    { id: 'update_profile', name: 'Update Profile', desc: 'Modify agent profile' },
+    { id: 'create_agent', name: 'Create Agent', desc: 'Spawn new agents' },
+    { id: 'agent_list', name: 'Agent List', desc: 'List all agents' },
+    { id: 'agent_skills', name: 'Agent Skills', desc: 'View agent skills' },
+    { id: 'agent_skill_assign', name: 'Assign Skill', desc: 'Assign skills to agents' },
+    { id: 'create_task', name: 'Create Task', desc: 'Create new tasks' },
+    { id: 'list_tasks', name: 'List Tasks', desc: 'View task list' },
+    { id: 'manage_task', name: 'Manage Task', desc: 'Update/delete tasks' },
+    { id: 'skill_search', name: 'Skill Search', desc: 'Search community skills' },
+    { id: 'skill_install', name: 'Skill Install', desc: 'Install community skills' },
+    { id: 'skill_list', name: 'Skill List', desc: 'List installed skills' },
+  ] },
+  { label: 'Communication', icon: 'chat', tools: [
+    { id: 'email_send', name: 'Email Send', desc: 'Send emails' },
+    { id: 'email_read', name: 'Email Read', desc: 'Read emails' },
+    { id: 'slack_send', name: 'Slack Send', desc: 'Send Slack messages' },
+    { id: 'slack_read', name: 'Slack Read', desc: 'Read Slack messages' },
+    { id: 'telegram_send', name: 'Telegram Send', desc: 'Send Telegram messages' },
+    { id: 'telegram_read', name: 'Telegram Read', desc: 'Read Telegram status' },
+    { id: 'github_api', name: 'GitHub API', desc: 'Interact with GitHub' },
+    { id: 'rest_api_call', name: 'REST API', desc: 'Call REST APIs' },
+    { id: 'webhook_send', name: 'Webhook', desc: 'Send webhooks' },
+    { id: 'image_generate', name: 'Image Generate', desc: 'Generate images' },
+  ] },
+  { label: 'Trading: Coinbase', icon: 'account_balance', tools: [
+    { id: 'coinbase_prices', name: 'Prices', desc: 'Get crypto prices' },
+    { id: 'coinbase_balance', name: 'Balance', desc: 'Check balances' },
+    { id: 'coinbase_wallet_create', name: 'Create Wallet', desc: 'Create wallets' },
+    { id: 'coinbase_trade', name: 'Trade', desc: 'Execute trades' },
+    { id: 'coinbase_transfer', name: 'Transfer', desc: 'Transfer funds' },
+  ] },
+  { label: 'Trading: Solana', icon: 'currency_bitcoin', tools: [
+    { id: 'sol_wallet_create', name: 'Create Wallet', desc: 'Create Solana wallet' },
+    { id: 'sol_balance', name: 'Balance', desc: 'Check SOL balance' },
+    { id: 'sol_quote', name: 'Quote', desc: 'Get swap quotes' },
+    { id: 'sol_swap', name: 'Swap', desc: 'Execute swaps' },
+    { id: 'sol_portfolio', name: 'Portfolio', desc: 'View portfolio' },
+    { id: 'sol_token_info', name: 'Token Info', desc: 'Look up tokens' },
+    { id: 'sol_transfer', name: 'Transfer', desc: 'Transfer tokens' },
+  ] },
+  { label: 'Trading: EVM DEX', icon: 'swap_horiz', tools: [
+    { id: 'dex_wallet_create', name: 'Create Wallet', desc: 'Create EVM wallet' },
+    { id: 'dex_balance', name: 'Balance', desc: 'Check balances' },
+    { id: 'dex_quote', name: 'Quote', desc: 'Get swap quotes' },
+    { id: 'dex_swap', name: 'Swap', desc: 'Execute swaps' },
+    { id: 'dex_portfolio', name: 'Portfolio', desc: 'View portfolio' },
+    { id: 'dex_token_info', name: 'Token Info', desc: 'Token details' },
+    { id: 'dex_check_token', name: 'Check Token', desc: 'Verify token safety' },
+    { id: 'dex_search_token', name: 'Search Token', desc: 'Find tokens' },
+    { id: 'dex_watch_wallet', name: 'Watch Wallet', desc: 'Monitor wallets' },
+    { id: 'dex_whale_transfers', name: 'Whale Transfers', desc: 'Track large transfers' },
+    { id: 'dex_top_traders', name: 'Top Traders', desc: 'See top traders' },
+    { id: 'dex_trending', name: 'Trending', desc: 'Trending tokens' },
+    { id: 'dex_transfer', name: 'Transfer', desc: 'Transfer tokens' },
+  ] },
 ];
 
 // Default agent templates
@@ -365,7 +442,10 @@ function renderAgents() {
       </div>
       <div class="agent-bio">${escHtml(agent.bio)}</div>
       <div class="agent-stats">
-        <span class="agent-stat">${agent.skills.length} skills</span>
+        <span class="agent-stat">${(() => {
+          const p = getAgentPolicy(agent.id);
+          return p.mode === 'unrestricted' ? 'All tools' : `${p.allowed.length} tools`;
+        })()}</span>
         <span class="agent-stat">${agent.boundaries.length} rules</span>
       </div>
       <div class="agent-actions">
@@ -578,7 +658,7 @@ function openAgentEditor(agentId: string) {
         <div class="agent-editor-tabs">
           <button class="agent-tab active" data-tab="basics">Basics</button>
           <button class="agent-tab" data-tab="personality">Personality</button>
-          <button class="agent-tab" data-tab="skills">Skills</button>
+          <button class="agent-tab" data-tab="skills">Tools</button>
           <button class="agent-tab" data-tab="advanced">Advanced</button>
         </div>
         
@@ -642,18 +722,39 @@ function openAgentEditor(agentId: string) {
           </div>
         </div>
         
-        <!-- Skills Tab -->
+        <!-- Tools Tab -->
         <div class="agent-tab-content" id="tab-skills">
-          <div class="form-hint" style="margin-bottom:16px">Choose which tools this agent can use</div>
-          <div class="agent-skills-grid">
-            ${AVAILABLE_SKILLS.map(s => `
-              <label class="agent-skill-toggle">
-                <input type="checkbox" data-skill="${s.id}" ${agent.skills.includes(s.id) ? 'checked' : ''}>
-                <div class="agent-skill-info">
-                  <div class="agent-skill-name">${s.name}</div>
-                  <div class="agent-skill-desc">${s.desc}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div class="form-hint" style="margin:0">Control which tools this agent can use</div>
+            <div style="display:flex;gap:6px">
+              ${Object.entries(POLICY_PRESETS).map(([key, preset]) =>
+                `<button class="btn btn-ghost btn-xs agent-tool-preset" data-preset="${key}" title="${preset.description}">${preset.label}</button>`
+              ).join('')}
+            </div>
+          </div>
+          <div id="agent-tool-groups">
+            ${TOOL_GROUPS.map(group => `
+              <div class="agent-tool-group">
+                <div class="agent-tool-group-header">
+                  <label class="agent-tool-group-toggle">
+                    <input type="checkbox" class="agent-tool-group-check" data-group="${group.label}">
+                    <span class="ms ms-sm">${group.icon}</span>
+                    <strong>${group.label}</strong>
+                    <span class="agent-tool-group-count" data-group-count="${group.label}"></span>
+                  </label>
                 </div>
-              </label>
+                <div class="agent-tool-group-items">
+                  ${group.tools.map(t => `
+                    <label class="agent-skill-toggle agent-tool-item">
+                      <input type="checkbox" data-tool="${t.id}">
+                      <div class="agent-skill-info">
+                        <div class="agent-skill-name">${t.name}</div>
+                        <div class="agent-skill-desc">${t.desc}</div>
+                      </div>
+                    </label>
+                  `).join('')}
+                </div>
+              </div>
             `).join('')}
           </div>
 
@@ -710,6 +811,89 @@ function openAgentEditor(agentId: string) {
 
   // Load community skills for this agent
   loadAgentCommunitySkills(modal, agent.id);
+
+  // ── Tool policy UI wiring ─────────────────────────────────────────────
+  const currentPolicy = getAgentPolicy(agent.id);
+  const allToolIds = TOOL_GROUPS.flatMap(g => g.tools.map(t => t.id));
+
+  // Determine which tools are currently allowed
+  const isUnrestricted = currentPolicy.mode === 'unrestricted';
+  const allowedSet = new Set<string>(
+    isUnrestricted ? allToolIds : currentPolicy.allowed
+  );
+
+  // Check the right boxes based on current policy
+  function applyToolChecks(allowed: Set<string>) {
+    modal.querySelectorAll<HTMLInputElement>('[data-tool]').forEach(cb => {
+      cb.checked = allowed.has(cb.getAttribute('data-tool')!);
+    });
+    updateGroupChecks();
+  }
+
+  // Update group header checkboxes and counts
+  function updateGroupChecks() {
+    for (const group of TOOL_GROUPS) {
+      const items = modal.querySelectorAll<HTMLInputElement>(`[data-tool]`);
+      const groupToolIds = new Set(group.tools.map(t => t.id));
+      let checked = 0, total = 0;
+      items.forEach(cb => {
+        const tid = cb.getAttribute('data-tool')!;
+        if (groupToolIds.has(tid)) {
+          total++;
+          if (cb.checked) checked++;
+        }
+      });
+      const groupCb = modal.querySelector<HTMLInputElement>(`[data-group="${group.label}"]`);
+      if (groupCb) {
+        groupCb.checked = checked === total;
+        groupCb.indeterminate = checked > 0 && checked < total;
+      }
+      const countEl = modal.querySelector(`[data-group-count="${group.label}"]`);
+      if (countEl) countEl.textContent = `(${checked}/${total})`;
+    }
+  }
+
+  applyToolChecks(allowedSet);
+
+  // Group header checkbox toggles all tools in that group
+  modal.querySelectorAll<HTMLInputElement>('.agent-tool-group-check').forEach(groupCb => {
+    groupCb.addEventListener('change', () => {
+      const groupLabel = groupCb.getAttribute('data-group')!;
+      const group = TOOL_GROUPS.find(g => g.label === groupLabel);
+      if (!group) return;
+      const checked = groupCb.checked;
+      group.tools.forEach(t => {
+        const cb = modal.querySelector<HTMLInputElement>(`[data-tool="${t.id}"]`);
+        if (cb) cb.checked = checked;
+      });
+      updateGroupChecks();
+    });
+  });
+
+  // Individual tool checkbox updates the group header
+  modal.querySelectorAll<HTMLInputElement>('[data-tool]').forEach(cb => {
+    cb.addEventListener('change', () => updateGroupChecks());
+  });
+
+  // Preset buttons
+  modal.querySelectorAll<HTMLButtonElement>('.agent-tool-preset').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const presetKey = btn.getAttribute('data-preset')!;
+      const preset = POLICY_PRESETS[presetKey];
+      if (!preset) return;
+      if (preset.policy.mode === 'unrestricted') {
+        applyToolChecks(new Set(allToolIds));
+      } else if (preset.policy.mode === 'allowlist') {
+        applyToolChecks(new Set(preset.policy.allowed));
+      } else if (preset.policy.mode === 'denylist') {
+        const denied = new Set(preset.policy.denied);
+        applyToolChecks(new Set(allToolIds.filter(t => !denied.has(t))));
+      }
+      // Highlight active preset
+      modal.querySelectorAll('.agent-tool-preset').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
 
   // Tab switching
   modal.querySelectorAll('.agent-tab').forEach(tab => {
@@ -800,12 +984,18 @@ function openAgentEditor(agentId: string) {
     const model = (modal.querySelector('#agent-edit-model') as HTMLSelectElement)?.value;
     const systemPrompt = (modal.querySelector('#agent-edit-prompt') as HTMLTextAreaElement)?.value.trim();
     
-    // Collect selected skills
-    const skills: string[] = [];
-    modal.querySelectorAll('.agent-skill-toggle input:checked').forEach(input => {
-      const skill = (input as HTMLInputElement).getAttribute('data-skill');
-      if (skill) skills.push(skill);
+    // Collect selected tools from the tool assignment UI
+    const selectedTools: string[] = [];
+    modal.querySelectorAll<HTMLInputElement>('[data-tool]:checked').forEach(cb => {
+      const toolId = cb.getAttribute('data-tool');
+      if (toolId) selectedTools.push(toolId);
     });
+    
+    // Build tool policy: if all tools selected → unrestricted, otherwise allowlist
+    const isAllSelected = selectedTools.length >= allToolIds.length;
+    const newPolicy: ToolPolicy = isAllSelected
+      ? { mode: 'unrestricted', allowed: [], denied: [], requireApprovalForUnlisted: false, alwaysRequireApproval: [] }
+      : { mode: 'allowlist', allowed: selectedTools, denied: [], requireApprovalForUnlisted: false, alwaysRequireApproval: [] };
     
     if (!name) {
       showToast('Name is required', 'error');
@@ -817,20 +1007,23 @@ function openAgentEditor(agentId: string) {
     agent.avatar = selectedAvatar;
     agent.model = model || 'default';
     agent.personality = personality;
-    agent.skills = skills;
+    agent.skills = selectedTools;
     agent.boundaries = boundaries.filter(b => b.trim());
     agent.systemPrompt = systemPrompt;
     
     saveAgents();
 
-    // Sync changes to backend SQLite
+    // Persist tool policy to localStorage (used by frontend tool_filter)
+    setAgentPolicy(agent.id, newPolicy);
+
+    // Sync changes to backend SQLite (capabilities used by orchestrator)
     pawEngine.createAgent({
       agent_id: agent.id,
       role: agent.bio || 'assistant',
       specialty: agent.template === 'general' ? 'general' : agent.template,
       model: agent.model !== 'default' ? agent.model : undefined,
       system_prompt: agent.systemPrompt,
-      capabilities: agent.skills,
+      capabilities: isAllSelected ? [] : selectedTools,
     }).catch(e => console.warn('[agents] Backend update failed:', e));
 
     renderAgents();
