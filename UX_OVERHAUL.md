@@ -277,9 +277,9 @@ These are capabilities a platform like Pawz should have but currently doesn't:
 
 ## Success Criteria
 
-- [ ] Sidebar has ≤15 items (down from 18)
-- [ ] No dead/stub views in navigation
+- [x] Sidebar has ≤15 items (down from 18)
+- [x] No dead/stub views in navigation
 - [x] No duplicate data stores (Today tasks = Kanban tasks)
 - [x] Memory supports per-agent filtering
-- [ ] Squads have a real UI workspace
+- [x] Squads have a real UI workspace
 - [ ] Every backend feature has a corresponding frontend surface
