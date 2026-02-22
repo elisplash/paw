@@ -19,3 +19,4 @@ pub mod mail;
 pub mod utility;
 pub mod browser;
 pub mod tailscale;
+pub mod webhook;

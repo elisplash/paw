@@ -653,3 +653,13 @@ export interface TailscaleConfig {
   auth_key: string;
   hostname_override: string;
 }
+
+export interface WebhookConfig {
+  enabled: boolean;
+  bind_address: string;
+  port: number;
+  auth_token: string;
+  default_agent_id: string;
+  rate_limit_per_minute: number;
+  allow_dangerous_tools: boolean;
+}
