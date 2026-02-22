@@ -320,29 +320,25 @@ impl GoogleProvider {
             body["generationConfig"] = json!({"maxOutputTokens": 8192});
         }
 
-        // Gemini thinking models require explicit config to expose thought parts.
-        // Auto-enable for 2.5 models; users can override with /think low|medium|high.
-        let is_thinking_model = model.contains("2.5") || model.contains("thinking");
-        let effective_thinking = match thinking_level {
-            Some("none") => None,
-            Some(level) => Some(match level {
-                "low" => 4096,
-                "high" => 32768,
-                _ => 16384,
-            }),
-            None if is_thinking_model => Some(8192), // default budget for thinking models
-            None => None,
-        };
-
-        if let Some(budget) = effective_thinking {
-            // thinkingConfig goes inside generationConfig for the Gemini API
-            body["generationConfig"]["responseModalities"] = json!(["TEXT"]);
-            body["generationConfig"]["thinkingConfig"] = json!({
-                "thinkingBudget": budget,
-            });
-            info!("[engine] Google: thinking config enabled (budget={})", budget);
+        // Gemini does not expose internal reasoning in its API responses.
+        // The thinkingConfig only controls Gemini's internal thinking budget,
+        // NOT whether thoughts are surfaced to users. Only send it when the
+        // user explicitly requests it via /think — it may improve response
+        // quality for complex questions even though we can't display the thoughts.
+        if let Some(level) = thinking_level {
+            if level != "none" {
+                let budget = match level {
+                    "low" => 4096,
+                    "high" => 32768,
+                    _ => 16384,
+                };
+                body["generationConfig"]["responseModalities"] = json!(["TEXT"]);
+                body["generationConfig"]["thinkingConfig"] = json!({
+                    "thinkingBudget": budget,
+                });
+                info!("[engine] Google: thinking config set (budget={})", budget);
+            }
         }
-
         info!("[engine] Google request model={}", model);
 
         // Circuit breaker: reject immediately if too many recent failures
@@ -472,13 +468,12 @@ impl GoogleProvider {
                                     }
 
                                     if let Some(parts) = content["parts"].as_array() {
-                                        // First pass: collect thought parts (identified by "thought": true OR thoughtSignature)
+                                        // First pass: collect thought parts (only those with "thought": true).
+                                        // Note: thoughtSignature alone does NOT indicate thinking — it's a
+                                        // round-trip signature. We still collect it for API replay.
                                         let mut collected_thoughts: Vec<ThoughtPart> = Vec::new();
                                         for part in parts {
-                                            let is_thought = part.get("thought").and_then(|v| v.as_bool()).unwrap_or(false)
-                                                || part.get("thoughtSignature").is_some()
-                                                || part.get("thought_signature").is_some();
-                                            if is_thought {
+                                            if part.get("thought").and_then(|v| v.as_bool()).unwrap_or(false) {
                                                 if let Some(text) = part["text"].as_str() {
                                                     let sig = part.get("thoughtSignature")
                                                         .or_else(|| part.get("thought_signature"))
@@ -493,8 +488,7 @@ impl GoogleProvider {
                                                         thought_parts: vec![],
                                                         thinking_text: Some(text.to_string()),
                                                     });
-                                                    info!("[engine] Google: thought part detected (len={}, has_sig={})", text.len(), sig.is_some());
-                                                    // Also collect for round-tripping if signature present
+                                                    info!("[engine] Google: thought part detected (len={})", text.len());
                                                     if let Some(s) = sig {
                                                         collected_thoughts.push(ThoughtPart {
                                                             text: text.to_string(),
@@ -508,13 +502,20 @@ impl GoogleProvider {
                                         // Second pass: process text and functionCall parts
                                         for part in parts {
                                             // Skip thought parts (already collected above)
-                                            let is_thought = part.get("thought").and_then(|v| v.as_bool()).unwrap_or(false)
-                                                || part.get("thoughtSignature").is_some()
-                                                || part.get("thought_signature").is_some();
-                                            if is_thought && part.get("functionCall").is_none() {
+                                            if part.get("thought").and_then(|v| v.as_bool()).unwrap_or(false) {
                                                 continue;
                                             }
+                                            // Collect thoughtSignature from text parts for round-tripping
                                             if let Some(text) = part["text"].as_str() {
+                                                let sig = part.get("thoughtSignature")
+                                                    .or_else(|| part.get("thought_signature"))
+                                                    .and_then(|v| v.as_str());
+                                                if let Some(s) = sig {
+                                                    collected_thoughts.push(ThoughtPart {
+                                                        text: text.to_string(),
+                                                        thought_signature: s.to_string(),
+                                                    });
+                                                }
                                                 chunks.push(StreamChunk {
                                                     delta_text: Some(text.to_string()),
                                                     tool_calls: vec![],

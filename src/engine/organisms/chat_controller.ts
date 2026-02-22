@@ -507,14 +507,10 @@ export function appendThinkingDelta(text: string): void {
   const ss = appState.activeStreams.get(key);
   if (!ss) return;
   ss.thinkingContent += text;
-  console.debug('[thinking] delta received:', JSON.stringify(text), 'total:', ss.thinkingContent.length);
 
   // Find or create the thinking container inside the streaming message
   const streamMsg = document.getElementById('streaming-message');
-  if (!streamMsg) {
-    console.debug('[thinking] no streaming-message element found');
-    return;
-  }
+  if (!streamMsg) return;
 
   let thinkingEl = streamMsg.querySelector('.thinking-block') as HTMLElement | null;
   if (!thinkingEl) {
