@@ -167,7 +167,7 @@ pub async fn compact_session(
     // 3. Generate summary using AI
     let summary_prompt = build_summary_prompt(old_messages);
     let chunks = provider
-        .chat_stream(&summary_prompt, &[], model, Some(0.3))
+        .chat_stream(&summary_prompt, &[], model, Some(0.3), None)
         .await?;
 
     let summary_text: String = chunks

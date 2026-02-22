@@ -240,6 +240,7 @@ pub async fn run_channel_agent(
             agent_id,
             daily_budget,
             Some(&daily_tokens_tracker),
+            None, // thinking_level
         ).await;
 
         // If the primary provider failed with a billing/auth/rate error, try fallback providers
@@ -280,6 +281,7 @@ pub async fn run_channel_agent(
                         agent_id,
                         daily_budget,
                         Some(&daily_tokens_tracker),
+                        None, // thinking_level
                     ).await {
                         Ok(text) => {
                             info!("[{}] Fallback {:?} succeeded", channel_prefix, fb_provider_cfg.kind);

@@ -408,6 +408,7 @@ pub async fn execute_task(
                 &agent_id,
                 task_daily_budget_clone,
                 Some(&task_daily_tokens_clone),
+                None, // thinking_level
             ).await;
 
             if let Ok(conn) = rusqlite::Connection::open(&store_path_clone) {

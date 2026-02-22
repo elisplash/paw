@@ -88,7 +88,7 @@ pub(crate) async fn run_orchestrator_loop(
         info!("[orchestrator] {} round {}/{} project={}", label, round, max_rounds, project_id);
 
         // ── Stream from the AI model ───────────────────────────────
-        let chunks = provider.chat_stream(messages, tools, model, None, None).await?;;
+        let chunks = provider.chat_stream(messages, tools, model, None, None).await?;
 
         let mut text_accum = String::new();
         let mut tool_call_map: std::collections::HashMap<
