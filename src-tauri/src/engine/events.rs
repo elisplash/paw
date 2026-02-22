@@ -88,10 +88,10 @@ pub async fn dispatch_event(
                 &format!("Event-triggered: {}", event_desc),
             ).ok();
 
-            let state_inner = app_handle.state::<EngineState>();
             let task_id = task.id.clone();
             let app = app_handle.clone();
             tauri::async_runtime::spawn(async move {
+                let state_inner = app.state::<EngineState>();
                 if let Err(e) = crate::commands::task::execute_task(&app, &state_inner, &task_id).await {
                     warn!("[events] Failed to execute event-triggered task {}: {}", task_id, e);
                 }
