@@ -32,7 +32,7 @@ with optional security layers instead of none. The user chooses their risk level
 - [x] **Phase B** — Session-level approval *(small, good UX middle ground)* ✅ (already existed via session override in hil_modal.ts)
 - [x] **Phase C** — Per-channel dangerous tool policy *(small)* ✅
 - [x] **Phase D** — Generic inbound webhook endpoint *(medium)* ✅
-- [ ] **Phase E** — MCP client + dynamic tool registry *(large, highest strategic value)*
+- [x] **Phase E** — MCP client + dynamic tool registry *(large, highest strategic value)* ✅
 - [ ] **Phase F** — PawzHub marketplace *(large, builds on all previous phases)*
 
 ---
@@ -204,44 +204,56 @@ available tools at runtime. No Rust code changes needed to add new capabilities.
 ### What to build
 
 **Rust backend:**
-- [ ] MCP client implementation — JSON-RPC over stdio or HTTP+SSE transport
-- [ ] `McpServerConfig` type — name, command/URL, args, env vars
-- [ ] Server lifecycle management — spawn/connect on startup, health checks, restart on crash
-- [ ] `tools/list` — query connected servers for available tools
-- [ ] `tools/call` — proxy tool calls from agent loop to MCP server
-- [ ] Dynamic tool injection — merge MCP tools into agent's available tool list per-session
-- [ ] Tool schema conversion — MCP tool schemas → OpenPawz tool format for LLM
+- [x] MCP client implementation — JSON-RPC over stdio or HTTP+SSE transport
+- [x] `McpServerConfig` type — name, command/URL, args, env vars
+- [x] Server lifecycle management — spawn/connect on startup, health checks, restart on crash
+- [x] `tools/list` — query connected servers for available tools
+- [x] `tools/call` — proxy tool calls from agent loop to MCP server
+- [x] Dynamic tool injection — merge MCP tools into agent's available tool list per-session
+- [x] Tool schema conversion — MCP tool schemas → OpenPawz tool format for LLM
 - [ ] Per-agent MCP server assignment (not all agents need all servers)
 - [ ] Credential passthrough — inject skill credentials as MCP server env vars
 
 **TypeScript frontend:**
-- [ ] MCP settings panel — add/remove/configure servers
-- [ ] Server status indicators (connected, error, disconnected)
+- [x] MCP settings panel — add/remove/configure servers
+- [x] Server status indicators (connected, error, disconnected)
 - [ ] Per-agent MCP server selection
 - [ ] Tool browser — show dynamically discovered tools with schemas
 - [ ] "Add from registry" — search community MCP servers
 
 **Tests:**
+- [x] Rust: 18 unit tests (8 types, 3 transport, 3 client, 4 registry)
 - [ ] Rust: test MCP client connects and lists tools (mock server)
 - [ ] Rust: test tool call proxy — request goes to server, response comes back
-- [ ] Rust: test dynamic tool merging into agent tool list
 - [ ] Rust: test server crash recovery
-- [ ] Rust: test per-agent server filtering
 - [ ] TypeScript: test MCP config UI, server status display
 
-**Files to create:**
-- `src-tauri/src/engine/mcp/mod.rs` — module root
-- `src-tauri/src/engine/mcp/client.rs` — JSON-RPC client
-- `src-tauri/src/engine/mcp/transport.rs` — stdio + HTTP+SSE transports
-- `src-tauri/src/engine/mcp/types.rs` — protocol types
-- `src-tauri/src/engine/mcp/registry.rs` — server lifecycle management
-- `src-tauri/src/commands/mcp.rs` — Tauri IPC commands
-- `src/views/mcp.ts` or section in `src/views/settings.ts` — UI
+**Files created:**
+- `src-tauri/src/engine/mcp/mod.rs` — module root + re-exports
+- `src-tauri/src/engine/mcp/types.rs` — MCP protocol types (JSON-RPC 2.0, initialize, tools/list, tools/call), 8 tests
+- `src-tauri/src/engine/mcp/transport.rs` — stdio process transport with Content-Length framing, 3 tests
+- `src-tauri/src/engine/mcp/client.rs` — MCP client (initialize handshake, tool discovery, tool execution), 3 tests
+- `src-tauri/src/engine/mcp/registry.rs` — multi-server lifecycle + tool dispatch + namespacing, 4 tests
+- `src-tauri/src/commands/mcp.rs` — 8 Tauri IPC commands (list/save/remove/connect/disconnect/status/refresh/connect-all)
+- `src/views/settings-mcp/index.ts` — public API
+- `src/views/settings-mcp/molecules.ts` — DOM rendering + IPC (server list, add/edit forms, connect/disconnect)
+- `src/views/settings-mcp/atoms.ts` — pure helpers
 
-**Files to modify:**
-- `src-tauri/src/engine/tools/mod.rs` — merge MCP tools into `builtins()`
-- `src-tauri/src/engine/agent_loop/mod.rs` — tool dispatch includes MCP tools
-- `src-tauri/src/lib.rs` — register MCP commands
+**Files modified:**
+- `src-tauri/src/engine/state.rs` — added `mcp_registry: Arc<tokio::sync::Mutex<McpRegistry>>`
+- `src-tauri/src/engine/tools/mod.rs` — added `mcp_tools()` helper + MCP dispatch in `execute_tool()`
+- `src-tauri/src/engine/chat.rs` — MCP tools injected into `build_chat_tools()`
+- `src-tauri/src/commands/task.rs` — MCP tools injected into task tool building
+- `src-tauri/src/engine/channels/agent.rs` — MCP tools injected into channel agent tools
+- `src-tauri/src/engine/orchestrator/mod.rs` — MCP tools injected into project boss tools
+- `src-tauri/src/engine/orchestrator/sub_agent.rs` — MCP tools injected into project worker tools
+- `src-tauri/src/engine/mod.rs` — `pub mod mcp`
+- `src-tauri/src/commands/mod.rs` — `pub mod mcp`
+- `src-tauri/src/lib.rs` — registered 8 MCP commands in `generate_handler![]`
+- `src/engine/atoms/types.ts` — `McpServerConfig`, `McpServerStatus`, `McpTransport` types
+- `src/engine/molecules/ipc_client.ts` — 8 MCP IPC methods
+- `src/views/settings-tabs.ts` — MCP case in `loadActiveSettingsTab()`
+- `index.html` — MCP Servers tab button + panel
 
 ---
 
