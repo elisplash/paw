@@ -472,6 +472,13 @@ impl GoogleProvider {
                                     }
 
                                     if let Some(parts) = content["parts"].as_array() {
+                                        // Debug: log raw part keys to diagnose thinking
+                                        for (pi, part) in parts.iter().enumerate() {
+                                            let keys: Vec<&str> = part.as_object()
+                                                .map(|o| o.keys().map(|k| k.as_str()).collect())
+                                                .unwrap_or_default();
+                                            info!("[engine] Google SSE part[{}] keys={:?} thought={:?}", pi, keys, part.get("thought"));
+                                        }
                                         // First pass: collect thought parts (they accompany function calls)
                                         let mut collected_thoughts: Vec<ThoughtPart> = Vec::new();
                                         for part in parts {
