@@ -331,9 +331,7 @@ pub async fn run_agent_turn(
                 "coinbase_trade", "coinbase_transfer", "coinbase_wallet_create",
             ];
 
-            let skip_hil = if auto_approve_all {
-                true
-            } else if auto_approved_tools.contains(&tc.function.name.as_str()) {
+            let skip_hil = if auto_approve_all || auto_approved_tools.contains(&tc.function.name.as_str()) {
                 true
             } else if trading_write_tools.contains(&tc.function.name.as_str()) {
                 check_trading_auto_approve(&tc.function.name, &tc.function.arguments, app_handle)
