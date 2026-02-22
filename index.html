@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -16,7 +16,7 @@
             <span class="sidebar-title">Pawz</span>
           </div>
         </div>
-        
+
         <nav class="sidebar-nav">
           <div class="nav-section">
             <div class="nav-item active" data-view="dashboard">
@@ -73,7 +73,7 @@
               <span>Trading</span>
             </div>
           </div>
-          
+
           <div class="nav-section">
             <div class="nav-section-label">System</div>
             <div class="nav-item" data-view="memory">
@@ -90,7 +90,7 @@
             </div>
           </div>
         </nav>
-        
+
         <div class="sidebar-footer">
           <div class="status-indicator">
             <span class="status-dot" id="status-dot"></span>
@@ -101,20 +101,27 @@
 
       <!-- Main Content -->
       <main class="main">
-
         <!-- DB initialization error banner -->
-        <div class="db-error-banner" id="db-error-banner" style="display:none">
+        <div class="db-error-banner" id="db-error-banner" style="display: none">
           <span class="ms ms-sm">error</span>
-          <span id="db-error-message">Database failed to initialize — features requiring storage will not work.</span>
+          <span id="db-error-message"
+            >Database failed to initialize — features requiring storage will not work.</span
+          >
           <button class="btn btn-ghost btn-sm" id="db-error-retry" title="Retry">Retry</button>
           <button class="btn btn-ghost btn-sm" id="db-error-dismiss" title="Dismiss">×</button>
         </div>
 
         <!-- Global encryption warning banner (shown when OS keychain unavailable) -->
-        <div class="encryption-warning-banner" id="encryption-warning-banner" style="display:none">
+        <div class="encryption-warning-banner" id="encryption-warning-banner" style="display: none">
           <span class="ms ms-sm">warning</span>
-          <span>OS keychain unavailable — credential storage is blocked and sensitive fields cannot be encrypted. Check your keychain provider (GNOME Keyring, KWallet, or macOS Keychain).</span>
-          <button class="btn btn-ghost btn-sm" id="encryption-warning-dismiss" title="Dismiss">×</button>
+          <span
+            >OS keychain unavailable — credential storage is blocked and sensitive fields cannot be
+            encrypted. Check your keychain provider (GNOME Keyring, KWallet, or macOS
+            Keychain).</span
+          >
+          <button class="btn btn-ghost btn-sm" id="encryption-warning-dismiss" title="Dismiss">
+            ×
+          </button>
         </div>
 
         <!-- ═══ Dashboard ═══ -->
@@ -152,7 +159,9 @@
                   <span class="ms ms-lg">chat</span>
                 </div>
                 <div class="feature-card-title">Chat</div>
-                <div class="feature-card-desc">Talk to your agent — ask anything, get answers, run tasks</div>
+                <div class="feature-card-desc">
+                  Talk to your agent — ask anything, get answers, run tasks
+                </div>
               </button>
 
               <button class="feature-card" data-view="tasks">
@@ -160,7 +169,9 @@
                   <span class="ms ms-lg">task</span>
                 </div>
                 <div class="feature-card-title">Tasks</div>
-                <div class="feature-card-desc">Kanban board — assign tasks to agents and watch them work</div>
+                <div class="feature-card-desc">
+                  Kanban board — assign tasks to agents and watch them work
+                </div>
                 <span class="feature-card-tag new">New</span>
               </button>
 
@@ -169,7 +180,9 @@
                   <span class="ms ms-lg">code</span>
                 </div>
                 <div class="feature-card-title">Code</div>
-                <div class="feature-card-desc">Git repos, branches, PRs, code review — managed by your agent</div>
+                <div class="feature-card-desc">
+                  Git repos, branches, PRs, code review — managed by your agent
+                </div>
               </button>
             </div>
           </div>
@@ -183,7 +196,9 @@
                   <span class="ms ms-lg">mail</span>
                 </div>
                 <div class="feature-card-title">Mail</div>
-                <div class="feature-card-desc">Read, draft and send emails with approval guardrails</div>
+                <div class="feature-card-desc">
+                  Read, draft and send emails with approval guardrails
+                </div>
                 <span class="feature-card-tag new">New</span>
               </button>
 
@@ -192,7 +207,9 @@
                   <span class="ms ms-lg">auto_fix_high</span>
                 </div>
                 <div class="feature-card-title">Automate</div>
-                <div class="feature-card-desc">Scheduled tasks, triggers, and recurring workflows</div>
+                <div class="feature-card-desc">
+                  Scheduled tasks, triggers, and recurring workflows
+                </div>
               </button>
 
               <button class="feature-card" data-view="research">
@@ -200,7 +217,9 @@
                   <span class="ms ms-lg">science</span>
                 </div>
                 <div class="feature-card-title">Research</div>
-                <div class="feature-card-desc">Browse the web, find data, compile reports automatically</div>
+                <div class="feature-card-desc">
+                  Browse the web, find data, compile reports automatically
+                </div>
                 <span class="feature-card-tag beta">Beta</span>
               </button>
 
@@ -209,7 +228,9 @@
                   <span class="ms ms-lg">edit_note</span>
                 </div>
                 <div class="feature-card-title">Create</div>
-                <div class="feature-card-desc">Blog posts, social content, marketing copy, and more</div>
+                <div class="feature-card-desc">
+                  Blog posts, social content, marketing copy, and more
+                </div>
               </button>
             </div>
           </div>
@@ -254,15 +275,21 @@
           </div>
 
           <!-- Scheduled Tasks Widget -->
-          <div class="feature-section" id="dashboard-cron-section" style="display:none">
+          <div class="feature-section" id="dashboard-cron-section" style="display: none">
             <div class="feature-section-title">
-              <span class="ms ms-sm" style="display:inline;vertical-align:-2px;margin-right:4px">auto_fix_high</span>
+              <span
+                class="ms ms-sm"
+                style="display: inline; vertical-align: -2px; margin-right: 4px"
+                >auto_fix_high</span
+              >
               Scheduled Tasks
             </div>
             <div class="dash-cron-grid" id="dashboard-cron-list"></div>
-            <div class="dash-cron-empty" id="dashboard-cron-empty" style="display:none">
+            <div class="dash-cron-empty" id="dashboard-cron-empty" style="display: none">
               <span>No scheduled tasks running.</span>
-              <button class="btn btn-ghost btn-sm" data-view="automations">Set up automations →</button>
+              <button class="btn btn-ghost btn-sm" data-view="automations">
+                Set up automations →
+              </button>
             </div>
           </div>
         </div>
@@ -272,18 +299,16 @@
           <div class="setup-card">
             <div class="setup-header">
               <div class="setup-icon">
-                <span class="ms" style="font-size:48px">layers</span>
+                <span class="ms" style="font-size: 48px">layers</span>
               </div>
               <h1 class="setup-title">Welcome to Pawz</h1>
               <p class="setup-subtitle">Configure your AI provider to get started</p>
             </div>
-            
-            <div class="setup-options">
 
-              
+            <div class="setup-options">
               <button class="setup-option" id="setup-new">
                 <div class="setup-option-icon">
-                  <span class="ms" style="font-size:48px">add_circle</span>
+                  <span class="ms" style="font-size: 48px">add_circle</span>
                 </div>
                 <div class="setup-option-text">
                   <div class="setup-option-title">New Setup</div>
@@ -299,12 +324,12 @@
           <div class="setup-card">
             <div class="setup-header">
               <div class="setup-icon">
-                <span class="ms" style="font-size:48px">download</span>
+                <span class="ms" style="font-size: 48px">download</span>
               </div>
               <h1 class="setup-title">Set Up Pawz</h1>
               <p class="setup-subtitle">We'll configure everything for you</p>
             </div>
-            
+
             <div class="install-requirements">
               <div class="requirement-item" id="req-node">
                 <span class="ms ms-sm">radio_button_unchecked</span>
@@ -315,12 +340,14 @@
                 <span>Pawz engine</span>
               </div>
             </div>
-            
+
             <div class="install-progress">
-              <div class="progress-bar"><div class="progress-fill" id="install-progress-bar"></div></div>
+              <div class="progress-bar">
+                <div class="progress-fill" id="install-progress-bar"></div>
+              </div>
               <p class="progress-text" id="install-progress-text">Ready to install</p>
             </div>
-            
+
             <div class="btn-group">
               <button type="button" class="btn btn-secondary" id="install-back">Back</button>
               <button type="button" class="btn btn-primary" id="start-install">Install Now</button>
@@ -333,16 +360,13 @@
           <div class="setup-card">
             <div class="setup-header">
               <div class="setup-icon">
-                <span class="ms" style="font-size:48px">computer</span>
+                <span class="ms" style="font-size: 48px">computer</span>
               </div>
               <h1 class="setup-title">Engine Configuration</h1>
               <p class="setup-subtitle">Enter your Pawz engine details</p>
             </div>
-            
-
           </div>
         </div>
-
 
         <!-- ═══ Today View ═══ -->
         <div class="view today-view" id="today-view">
@@ -370,13 +394,23 @@
           <div class="chat-header">
             <div class="chat-header-left">
               <div class="chat-avatar" id="chat-avatar">
-                <img src="/src/assets/avatars/5.png" alt="" width="32" height="32" style="border-radius:50%">
+                <img
+                  src="/src/assets/avatars/5.png"
+                  alt=""
+                  width="32"
+                  height="32"
+                  style="border-radius: 50%"
+                />
               </div>
               <div>
                 <div class="chat-title" id="chat-agent-name">Agent</div>
-                <select class="chat-model-select" id="chat-model-select" title="Switch model for this chat">
-                <option value="default">Default Model</option>
-              </select>
+                <select
+                  class="chat-model-select"
+                  id="chat-model-select"
+                  title="Switch model for this chat"
+                >
+                  <option value="default">Default Model</option>
+                </select>
               </div>
               <!-- Token meter -->
               <div class="token-meter" id="token-meter" title="Session token usage">
@@ -386,21 +420,33 @@
                 <span class="token-meter-label" id="token-meter-label">0 tokens</span>
               </div>
             </div>
-            <div style="display:flex;gap:6px;align-items:center">
+            <div style="display: flex; gap: 6px; align-items: center">
               <select class="chat-mode-select" id="chat-agent-select" title="Switch agent">
                 <option value="default">Agent</option>
               </select>
-              <select class="chat-session-select" id="chat-session-select" title="Switch session"></select>
+              <select
+                class="chat-session-select"
+                id="chat-session-select"
+                title="Switch session"
+              ></select>
               <button class="btn btn-ghost btn-sm" id="session-rename-btn" title="Rename session">
                 <span class="ms ms-sm">edit</span>
               </button>
               <button class="btn btn-ghost btn-sm" id="session-delete-btn" title="Delete session">
                 <span class="ms ms-sm">delete</span>
               </button>
-              <button class="btn btn-ghost btn-sm" id="session-clear-btn" title="Clear session history">
+              <button
+                class="btn btn-ghost btn-sm"
+                id="session-clear-btn"
+                title="Clear session history"
+              >
                 <span class="ms ms-sm">delete_sweep</span>
               </button>
-              <button class="btn btn-ghost btn-sm" id="session-compact-btn" title="Compact session storage">
+              <button
+                class="btn btn-ghost btn-sm"
+                id="session-compact-btn"
+                title="Compact session storage"
+              >
                 <span class="ms ms-sm">compress</span>
               </button>
               <button class="btn btn-ghost" id="new-chat-btn" title="New Chat">
@@ -410,41 +456,80 @@
           </div>
 
           <!-- Compaction warning banner -->
-          <div class="compaction-warning" id="compaction-warning" style="display:none">
+          <div class="compaction-warning" id="compaction-warning" style="display: none">
             <span class="ms ms-sm">warning</span>
-            <span id="compaction-warning-text">Context window filling up — older messages may be compacted soon</span>
-            <button class="btn btn-ghost btn-sm" id="compaction-warning-dismiss" title="Dismiss">×</button>
+            <span id="compaction-warning-text"
+              >Context window filling up — older messages may be compacted soon</span
+            >
+            <button class="btn btn-ghost btn-sm" id="compaction-warning-dismiss" title="Dismiss">
+              ×
+            </button>
           </div>
 
           <!-- Session budget alert banner -->
-          <div class="compaction-warning budget-alert" id="session-budget-alert" style="display:none">
+          <div
+            class="compaction-warning budget-alert"
+            id="session-budget-alert"
+            style="display: none"
+          >
             <span class="ms ms-sm">attach_money</span>
             <span id="session-budget-alert-text">Approaching budget limit</span>
-            <button class="btn btn-ghost btn-sm" onclick="this.parentElement.style.display='none'" title="Dismiss">×</button>
+            <button
+              class="btn btn-ghost btn-sm"
+              onclick="this.parentElement.style.display = 'none'"
+              title="Dismiss"
+            >
+              ×
+            </button>
           </div>
-          
+
           <div class="chat-messages" id="chat-messages">
             <div class="empty-state" id="chat-empty">
               <div class="empty-icon">
-                <span class="ms" style="font-size:48px">chat</span>
+                <span class="ms" style="font-size: 48px">chat</span>
               </div>
               <div class="empty-title">Start a conversation</div>
               <div class="empty-subtitle">Ask anything — your agent is ready</div>
             </div>
           </div>
-          
+
           <div class="chat-input-container">
-            <div class="chat-attachment-preview" id="chat-attachment-preview" style="display:none"></div>
+            <div
+              class="chat-attachment-preview"
+              id="chat-attachment-preview"
+              style="display: none"
+            ></div>
             <div class="chat-input-wrapper">
-              <button class="chat-attach-btn" id="chat-attach-btn" title="Attach file" data-icon="paperclip"></button>
-              <input type="file" id="chat-file-input" multiple accept="image/jpeg,image/png,image/gif,image/webp,.pdf,.txt,.md,.csv,.json,.xml,.yaml,.yml,.toml,.py,.rs,.js,.ts,.html,.css,.sh,.log,.c,.cpp,.h,.java,.rb,.go,.sql" style="display:none" />
-              <textarea class="chat-input" id="chat-input" placeholder="Message your agent..." rows="1"></textarea>
+              <button
+                class="chat-attach-btn"
+                id="chat-attach-btn"
+                title="Attach file"
+                data-icon="paperclip"
+              ></button>
+              <input
+                type="file"
+                id="chat-file-input"
+                multiple
+                accept="image/jpeg,image/png,image/gif,image/webp,.pdf,.txt,.md,.csv,.json,.xml,.yaml,.yml,.toml,.py,.rs,.js,.ts,.html,.css,.sh,.log,.c,.cpp,.h,.java,.rb,.go,.sql"
+                style="display: none"
+              />
+              <textarea
+                class="chat-input"
+                id="chat-input"
+                placeholder="Message your agent..."
+                rows="1"
+              ></textarea>
               <button class="chat-talk-btn" id="chat-talk-btn" title="Talk Mode — hold to speak">
                 <span class="ms">mic</span>
               </button>
-              <button class="chat-send" id="chat-send" title="Send message" data-icon="arrow-up"></button>
+              <button
+                class="chat-send"
+                id="chat-send"
+                title="Send message"
+                data-icon="arrow-up"
+              ></button>
             </div>
-            <button class="chat-abort-btn" id="chat-abort-btn" style="display:none">
+            <button class="chat-abort-btn" id="chat-abort-btn" style="display: none">
               <span data-icon="square"></span>
               Stop
             </button>
@@ -492,7 +577,11 @@
                   <span class="tasks-column-title">Assigned</span>
                   <span class="tasks-column-count" id="tasks-count-assigned">0</span>
                 </div>
-                <div class="tasks-column-cards" id="tasks-cards-assigned" data-status="assigned"></div>
+                <div
+                  class="tasks-column-cards"
+                  id="tasks-cards-assigned"
+                  data-status="assigned"
+                ></div>
               </div>
 
               <div class="tasks-column" data-status="in_progress">
@@ -501,7 +590,11 @@
                   <span class="tasks-column-title">In Progress</span>
                   <span class="tasks-column-count" id="tasks-count-in_progress">0</span>
                 </div>
-                <div class="tasks-column-cards" id="tasks-cards-in_progress" data-status="in_progress"></div>
+                <div
+                  class="tasks-column-cards"
+                  id="tasks-cards-in_progress"
+                  data-status="in_progress"
+                ></div>
               </div>
 
               <div class="tasks-column" data-status="review">
@@ -519,7 +612,11 @@
                   <span class="tasks-column-title">Blocked</span>
                   <span class="tasks-column-count" id="tasks-count-blocked">0</span>
                 </div>
-                <div class="tasks-column-cards" id="tasks-cards-blocked" data-status="blocked"></div>
+                <div
+                  class="tasks-column-cards"
+                  id="tasks-cards-blocked"
+                  data-status="blocked"
+                ></div>
               </div>
 
               <div class="tasks-column tasks-column-done" data-status="done">
@@ -549,7 +646,7 @@
           </div>
 
           <!-- Task detail modal (hidden by default) -->
-          <div class="tasks-modal-overlay" id="tasks-detail-modal" style="display:none">
+          <div class="tasks-modal-overlay" id="tasks-detail-modal" style="display: none">
             <div class="tasks-modal">
               <div class="tasks-modal-header">
                 <h2 class="tasks-modal-title" id="tasks-modal-title">Task</h2>
@@ -558,11 +655,21 @@
               <div class="tasks-modal-body">
                 <div class="tasks-modal-field">
                   <label>Title</label>
-                  <input type="text" id="tasks-modal-input-title" class="input" placeholder="Task title">
+                  <input
+                    type="text"
+                    id="tasks-modal-input-title"
+                    class="input"
+                    placeholder="Task title"
+                  />
                 </div>
                 <div class="tasks-modal-field">
                   <label>Description</label>
-                  <textarea id="tasks-modal-input-desc" class="input" rows="4" placeholder="Describe what needs to be done..."></textarea>
+                  <textarea
+                    id="tasks-modal-input-desc"
+                    class="input"
+                    rows="4"
+                    placeholder="Describe what needs to be done..."
+                  ></textarea>
                 </div>
                 <div class="tasks-modal-row">
                   <div class="tasks-modal-field">
@@ -577,38 +684,59 @@
                   <div class="tasks-modal-field">
                     <label>Assign Agents</label>
                     <div id="tasks-modal-agents-tags" class="agent-tags-container"></div>
-                    <select id="tasks-modal-input-agent" class="input" style="margin-top:6px">
+                    <select id="tasks-modal-input-agent" class="input" style="margin-top: 6px">
                       <option value="">+ Add agent</option>
                     </select>
-                    <div class="tasks-modal-hint">Click tag to toggle lead ★ / collaborator. First agent is lead by default.</div>
+                    <div class="tasks-modal-hint">
+                      Click tag to toggle lead ★ / collaborator. First agent is lead by default.
+                    </div>
                   </div>
                 </div>
                 <div class="tasks-modal-field">
                   <label>Schedule (Cron)</label>
                   <div class="tasks-modal-cron-row">
-                    <input type="text" id="tasks-modal-input-cron" class="input" placeholder="e.g. every 1h, daily 09:00">
+                    <input
+                      type="text"
+                      id="tasks-modal-input-cron"
+                      class="input"
+                      placeholder="e.g. every 1h, daily 09:00"
+                    />
                     <label class="tasks-modal-cron-toggle">
-                      <input type="checkbox" id="tasks-modal-input-cron-enabled">
+                      <input type="checkbox" id="tasks-modal-input-cron-enabled" />
                       <span>Enabled</span>
                     </label>
                   </div>
                 </div>
                 <div class="tasks-modal-field">
                   <label>Model Override</label>
-                  <select id="tasks-modal-input-model" class="input" style="max-width:320px">
+                  <select id="tasks-modal-input-model" class="input" style="max-width: 320px">
                     <option value="">(use default)</option>
                   </select>
-                  <div class="tasks-modal-hint">Leave empty to use the agent's default model. Select a model to override for this task only.</div>
+                  <div class="tasks-modal-hint">
+                    Leave empty to use the agent's default model. Select a model to override for
+                    this task only.
+                  </div>
                 </div>
-                <div class="tasks-modal-field" id="tasks-modal-activity-section" style="display:none">
+                <div
+                  class="tasks-modal-field"
+                  id="tasks-modal-activity-section"
+                  style="display: none"
+                >
                   <label>Activity</label>
                   <div class="tasks-modal-activity" id="tasks-modal-activity"></div>
                 </div>
               </div>
               <div class="tasks-modal-footer">
-                <button class="btn btn-ghost btn-sm" id="tasks-modal-delete" style="display:none">Delete</button>
-                <div style="flex:1"></div>
-                <button class="btn btn-ghost btn-sm" id="tasks-modal-run" style="display:none" title="Send task to agent now">
+                <button class="btn btn-ghost btn-sm" id="tasks-modal-delete" style="display: none">
+                  Delete
+                </button>
+                <div style="flex: 1"></div>
+                <button
+                  class="btn btn-ghost btn-sm"
+                  id="tasks-modal-run"
+                  style="display: none"
+                  title="Send task to agent now"
+                >
                   <span class="ms ms-sm">play_arrow</span>
                   Run Now
                 </button>
@@ -642,14 +770,16 @@
           <div class="orchestrator-content">
             <div class="orch-project-list" id="orch-project-list">
               <div class="empty-state">
-                <span class="ms" style="font-size:48px">account_tree</span>
+                <span class="ms" style="font-size: 48px">account_tree</span>
                 <h3>No projects yet</h3>
-                <p>Create a project to orchestrate multiple agents working together on a shared goal.</p>
+                <p>
+                  Create a project to orchestrate multiple agents working together on a shared goal.
+                </p>
               </div>
             </div>
 
             <!-- Project detail (hidden by default) -->
-            <div class="orch-project-detail" id="orch-project-detail" style="display:none;">
+            <div class="orch-project-detail" id="orch-project-detail" style="display: none">
               <div class="orch-detail-header">
                 <button class="btn btn-ghost btn-sm" id="orch-back-btn">← Back</button>
                 <div class="orch-detail-title">
@@ -677,15 +807,17 @@
               <div class="orch-section">
                 <h3>Message Bus</h3>
                 <div class="orch-message-bus" id="orch-message-bus">
-                  <div class="empty-state-sm">No messages yet. Run the project to see agent communication.</div>
+                  <div class="empty-state-sm">
+                    No messages yet. Run the project to see agent communication.
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Create/Edit Project Modal -->
-          <div class="modal-overlay" id="orch-modal" style="display:none;">
-            <div class="modal" style="max-width:560px;">
+          <div class="modal-overlay" id="orch-modal" style="display: none">
+            <div class="modal" style="max-width: 560px">
               <div class="modal-header">
                 <h3 id="orch-modal-title">New Project</h3>
                 <button class="modal-close" id="orch-modal-close">×</button>
@@ -693,16 +825,35 @@
               <div class="modal-body">
                 <div class="form-group">
                   <label>Project Title</label>
-                  <input type="text" class="form-input" id="orch-form-title" placeholder="e.g. Build Landing Page">
+                  <input
+                    type="text"
+                    class="form-input"
+                    id="orch-form-title"
+                    placeholder="e.g. Build Landing Page"
+                  />
                 </div>
                 <div class="form-group">
                   <label>Goal</label>
-                  <textarea class="form-input" id="orch-form-goal" rows="4" placeholder="Describe what this project should achieve..."></textarea>
+                  <textarea
+                    class="form-input"
+                    id="orch-form-goal"
+                    rows="4"
+                    placeholder="Describe what this project should achieve..."
+                  ></textarea>
                 </div>
                 <div class="form-group">
                   <label>Boss Agent ID</label>
-                  <input type="text" class="form-input" id="orch-form-boss" placeholder="default" value="default">
-                  <small class="form-hint">The agent that orchestrates the project. Must have a soul file in the Foundry.</small>
+                  <input
+                    type="text"
+                    class="form-input"
+                    id="orch-form-boss"
+                    placeholder="default"
+                    value="default"
+                  />
+                  <small class="form-hint"
+                    >The agent that orchestrates the project. Must have a soul file in the
+                    Foundry.</small
+                  >
                 </div>
               </div>
               <div class="modal-footer">
@@ -713,8 +864,8 @@
           </div>
 
           <!-- Add Agent Modal -->
-          <div class="modal-overlay" id="orch-agent-modal" style="display:none;">
-            <div class="modal" style="max-width:480px;">
+          <div class="modal-overlay" id="orch-agent-modal" style="display: none">
+            <div class="modal" style="max-width: 480px">
               <div class="modal-header">
                 <h3>Add Agent to Project</h3>
                 <button class="modal-close" id="orch-agent-modal-close">×</button>
@@ -722,7 +873,12 @@
               <div class="modal-body">
                 <div class="form-group">
                   <label>Agent ID</label>
-                  <input type="text" class="form-input" id="orch-agent-form-id" placeholder="e.g. coder-1">
+                  <input
+                    type="text"
+                    class="form-input"
+                    id="orch-agent-form-id"
+                    placeholder="e.g. coder-1"
+                  />
                 </div>
                 <div class="form-group">
                   <label>Specialty</label>
@@ -736,7 +892,12 @@
                   </select>
                 </div>
                 <div class="form-group">
-                  <label>Model <span style="font-weight:normal;color:var(--text-muted)">(optional — uses routing config if blank)</span></label>
+                  <label
+                    >Model
+                    <span style="font-weight: normal; color: var(--text-muted)"
+                      >(optional — uses routing config if blank)</span
+                    ></label
+                  >
                   <select class="form-input" id="orch-agent-form-model">
                     <option value="">(use routing default)</option>
                   </select>
@@ -754,7 +915,7 @@
         <div class="view projects-view" id="code-view">
           <div class="view-header">
             <h1 class="view-title">Projects</h1>
-            <div style="display:flex;gap:6px">
+            <div style="display: flex; gap: 6px">
               <button class="btn btn-primary btn-sm" id="projects-add-folder">
                 <span class="ms ms-sm">add</span>
                 Add Folder
@@ -777,10 +938,12 @@
               <div class="projects-file-viewer" id="projects-file-viewer"></div>
               <div class="empty-state" id="projects-empty">
                 <div class="empty-icon">
-                  <span class="ms" style="font-size:48px">folder</span>
+                  <span class="ms" style="font-size: 48px">folder</span>
                 </div>
                 <div class="empty-title">Your Projects</div>
-                <div class="empty-subtitle">Add a local folder to browse files your agent is working on</div>
+                <div class="empty-subtitle">
+                  Add a local folder to browse files your agent is working on
+                </div>
               </div>
             </div>
           </div>
@@ -800,8 +963,12 @@
             </div>
           </div>
           <div class="studio-main">
-            <div class="studio-toolbar" id="content-toolbar" style="display:none">
-              <input class="studio-title-input" id="content-title" placeholder="Untitled document" />
+            <div class="studio-toolbar" id="content-toolbar" style="display: none">
+              <input
+                class="studio-title-input"
+                id="content-title"
+                placeholder="Untitled document"
+              />
               <div class="studio-toolbar-actions">
                 <select class="studio-type-select" id="content-type">
                   <option value="markdown">Markdown</option>
@@ -813,21 +980,42 @@
                   AI Improve
                 </button>
                 <button class="btn btn-primary btn-sm" id="content-save">Save</button>
-                <button class="btn btn-ghost btn-sm btn-error" id="content-delete-doc" title="Delete document">Delete</button>
+                <button
+                  class="btn btn-ghost btn-sm btn-error"
+                  id="content-delete-doc"
+                  title="Delete document"
+                >
+                  Delete
+                </button>
               </div>
             </div>
             <div class="studio-editor" id="content-editor-area">
               <div class="empty-state" id="content-empty">
-                <div class="empty-icon"><span class="ms" style="font-size:48px">edit</span></div>
+                <div class="empty-icon"><span class="ms" style="font-size: 48px">edit</span></div>
                 <div class="empty-title">Content studio</div>
-                <div class="empty-subtitle">Create blog posts, marketing copy, documentation — with AI assistance</div>
-                <button class="btn btn-primary" id="content-create-first" style="margin-top:16px">Create Document</button>
+                <div class="empty-subtitle">
+                  Create blog posts, marketing copy, documentation — with AI assistance
+                </div>
+                <button class="btn btn-primary" id="content-create-first" style="margin-top: 16px">
+                  Create Document
+                </button>
               </div>
-              <textarea class="studio-content-editor" id="content-body" style="display:none" placeholder="Start writing..."></textarea>
+              <textarea
+                class="studio-content-editor"
+                id="content-body"
+                style="display: none"
+                placeholder="Start writing..."
+              ></textarea>
             </div>
-            <div class="studio-word-count" id="content-word-count" style="display:none">0 words</div>
+            <div class="studio-word-count" id="content-word-count" style="display: none">
+              0 words
+            </div>
             <!-- Content scheduled tasks -->
-            <div class="space-cron-widget space-cron-widget-inline" id="content-cron-widget" style="display:none">
+            <div
+              class="space-cron-widget space-cron-widget-inline"
+              id="content-cron-widget"
+              style="display: none"
+            >
               <div class="space-cron-header">
                 <span class="ms ms-sm">bolt</span>
                 <span>Publishing schedule</span>
@@ -875,13 +1063,21 @@
               <div id="mail-accounts-list">
                 <div class="mail-no-accounts">No accounts connected</div>
               </div>
-              <button class="btn btn-ghost btn-sm" id="mail-add-account" style="width:100%;margin-top:8px">
+              <button
+                class="btn btn-ghost btn-sm"
+                id="mail-add-account"
+                style="width: 100%; margin-top: 8px"
+              >
                 <span class="ms ms-sm">add</span>
                 Add Account
               </button>
             </div>
             <!-- Mail scheduled tasks -->
-            <div class="space-cron-widget space-cron-widget-sidebar" id="mail-cron-widget" style="display:none">
+            <div
+              class="space-cron-widget space-cron-widget-sidebar"
+              id="mail-cron-widget"
+              style="display: none"
+            >
               <div class="space-cron-header">
                 <span class="ms ms-sm">bolt</span>
                 <span>Digests</span>
@@ -899,10 +1095,14 @@
             </div>
             <div class="mail-items" id="mail-items"></div>
             <div class="empty-state" id="mail-empty">
-              <div class="empty-icon"><span class="ms" style="font-size:48px">mail</span></div>
+              <div class="empty-icon"><span class="ms" style="font-size: 48px">mail</span></div>
               <div class="empty-title">Connect your email</div>
-              <div class="empty-subtitle">Add an IMAP/SMTP account to read, draft, and send emails with AI assistance</div>
-              <button class="btn btn-primary" id="mail-setup-account" style="margin-top:16px">Add Email Account</button>
+              <div class="empty-subtitle">
+                Add an IMAP/SMTP account to read, draft, and send emails with AI assistance
+              </div>
+              <button class="btn btn-primary" id="mail-setup-account" style="margin-top: 16px">
+                Add Email Account
+              </button>
             </div>
           </div>
           <div class="mail-preview" id="mail-preview">
@@ -914,8 +1114,12 @@
         <div class="view auto-view" id="automations-view">
           <div class="view-header">
             <h1 class="view-title">Automations</h1>
-            <div style="display:flex;gap:6px;align-items:center">
-              <span class="cron-service-status" id="cron-service-status" title="Cron service status"></span>
+            <div style="display: flex; gap: 6px; align-items: center">
+              <span
+                class="cron-service-status"
+                id="cron-service-status"
+                title="Cron service status"
+              ></span>
               <button class="btn btn-ghost btn-sm" id="cron-view-toggle" title="Toggle view">
                 <span class="ms ms-sm">grid_view</span>
               </button>
@@ -923,7 +1127,11 @@
                 <span class="ms ms-sm">add</span>
                 New Automation
               </button>
-              <button class="btn btn-ghost btn-sm" id="add-morning-brief-btn" title="Quick-add a Morning Brief automation">
+              <button
+                class="btn btn-ghost btn-sm"
+                id="add-morning-brief-btn"
+                title="Quick-add a Morning Brief automation"
+              >
                 <span class="ms ms-sm">wb_sunny</span>
                 Morning Brief
               </button>
@@ -955,19 +1163,31 @@
             </div>
           </div>
           <div class="empty-state" id="cron-empty">
-            <div class="empty-icon"><span class="ms" style="font-size:48px">bolt</span></div>
+            <div class="empty-icon"><span class="ms" style="font-size: 48px">bolt</span></div>
             <div class="empty-title">No automations yet</div>
-            <div class="empty-subtitle">Create scheduled tasks, triggers, and recurring workflows</div>
-            <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;justify-content:center">
+            <div class="empty-subtitle">
+              Create scheduled tasks, triggers, and recurring workflows
+            </div>
+            <div
+              style="
+                display: flex;
+                gap: 12px;
+                margin-top: 16px;
+                flex-wrap: wrap;
+                justify-content: center;
+              "
+            >
               <button class="btn btn-primary" id="cron-empty-add">Create Automation</button>
               <button class="btn btn-ghost" id="cron-empty-morning-brief">
                 <span class="ms">wb_sunny</span> Morning Brief Template
               </button>
             </div>
           </div>
-          <div class="view-loading" id="cron-loading" style="display:none">Loading automations…</div>
+          <div class="view-loading" id="cron-loading" style="display: none">
+            Loading automations…
+          </div>
           <!-- Add/Edit Automation Modal -->
-          <div class="modal-overlay" id="cron-modal" style="display:none">
+          <div class="modal-overlay" id="cron-modal" style="display: none">
             <div class="modal-card">
               <div class="modal-header">
                 <h2 class="modal-title" id="cron-modal-title">New Automation</h2>
@@ -976,7 +1196,12 @@
               <div class="modal-body">
                 <div class="form-group">
                   <label class="form-label">Name</label>
-                  <input type="text" class="form-input" id="cron-form-label" placeholder="My automation" />
+                  <input
+                    type="text"
+                    class="form-input"
+                    id="cron-form-label"
+                    placeholder="My automation"
+                  />
                 </div>
                 <div class="form-group">
                   <label class="form-label">Schedule</label>
@@ -991,15 +1216,36 @@
                     <option value="daily 12:00">Daily at noon</option>
                     <option value="daily 18:00">Daily at 6 PM</option>
                   </select>
-                  <input type="text" class="form-input" id="cron-form-schedule" placeholder="every 5m, every 1h, daily 09:00" style="margin-top:8px" />
+                  <input
+                    type="text"
+                    class="form-input"
+                    id="cron-form-schedule"
+                    placeholder="every 5m, every 1h, daily 09:00"
+                    style="margin-top: 8px"
+                  />
                 </div>
                 <div class="form-group">
                   <label class="form-label">Task prompt</label>
-                  <textarea class="form-input" id="cron-form-prompt" rows="3" placeholder="What should the agent do?"></textarea>
+                  <textarea
+                    class="form-input"
+                    id="cron-form-prompt"
+                    rows="3"
+                    placeholder="What should the agent do?"
+                  ></textarea>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Agent ID <span style="color:var(--text-muted);font-weight:normal">(optional)</span></label>
-                  <input type="text" class="form-input" id="cron-form-agent" placeholder="default" />
+                  <label class="form-label"
+                    >Agent ID
+                    <span style="color: var(--text-muted); font-weight: normal"
+                      >(optional)</span
+                    ></label
+                  >
+                  <input
+                    type="text"
+                    class="form-input"
+                    id="cron-form-agent"
+                    placeholder="default"
+                  />
                 </div>
               </div>
               <div class="modal-footer">
@@ -1014,7 +1260,7 @@
         <div class="view list-view" id="channels-view">
           <div class="view-header">
             <h1 class="view-title">Channels</h1>
-            <div style="display:flex;gap:8px">
+            <div style="display: flex; gap: 8px">
               <button class="btn btn-primary btn-sm" id="add-channel-btn">
                 <span class="ms ms-sm">add</span>
                 Add Channel
@@ -1028,42 +1274,101 @@
           <div class="channel-grid" id="channels-list"></div>
 
           <!-- Direct Send Message (channel send) -->
-          <div class="channel-send-section" id="channel-send-section" style="display:none;margin-top:20px;border-top:1px solid var(--border-light);padding-top:16px">
-            <h3 style="font-size:14px;font-weight:600;margin-bottom:8px">Send Direct Message</h3>
-            <div style="display:flex;gap:8px;align-items:flex-end">
-              <div style="flex:1">
-                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Channel</label>
-                <select id="channel-send-target" class="settings-input" style="width:100%"></select>
+          <div
+            class="channel-send-section"
+            id="channel-send-section"
+            style="
+              display: none;
+              margin-top: 20px;
+              border-top: 1px solid var(--border-light);
+              padding-top: 16px;
+            "
+          >
+            <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 8px">
+              Send Direct Message
+            </h3>
+            <div style="display: flex; gap: 8px; align-items: flex-end">
+              <div style="flex: 1">
+                <label
+                  style="
+                    font-size: 12px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Channel</label
+                >
+                <select
+                  id="channel-send-target"
+                  class="settings-input"
+                  style="width: 100%"
+                ></select>
               </div>
-              <div style="flex:2">
-                <label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">Message</label>
-                <input type="text" id="channel-send-message" class="settings-input" placeholder="Type a message…" style="width:100%" />
+              <div style="flex: 2">
+                <label
+                  style="
+                    font-size: 12px;
+                    color: var(--text-muted);
+                    display: block;
+                    margin-bottom: 4px;
+                  "
+                  >Message</label
+                >
+                <input
+                  type="text"
+                  id="channel-send-message"
+                  class="settings-input"
+                  placeholder="Type a message…"
+                  style="width: 100%"
+                />
               </div>
               <button class="btn btn-primary btn-sm" id="channel-send-btn">Send</button>
             </div>
           </div>
 
           <div class="empty-state" id="channels-empty">
-            <div class="empty-icon"><span class="ms" style="font-size:48px">videocam</span></div>
+            <div class="empty-icon"><span class="ms" style="font-size: 48px">videocam</span></div>
             <div class="empty-title">No channels configured</div>
-            <div class="empty-subtitle">Connect your agent to messaging platforms — chat with Paw from anywhere</div>
+            <div class="empty-subtitle">
+              Connect your agent to messaging platforms — chat with Paw from anywhere
+            </div>
             <div class="channel-picker-grid" id="channels-picker-empty">
-              <button class="channel-pick-btn" data-ch-type="telegram"><span class="channel-pick-icon telegram">TG</span><span>Telegram</span></button>
-              <button class="channel-pick-btn" data-ch-type="discord"><span class="channel-pick-icon discord">DC</span><span>Discord</span></button>
-              <button class="channel-pick-btn" data-ch-type="slack"><span class="channel-pick-icon slack">SL</span><span>Slack</span></button>
-              <button class="channel-pick-btn" data-ch-type="matrix"><span class="channel-pick-icon matrix">MX</span><span>Matrix</span></button>
-              <button class="channel-pick-btn" data-ch-type="irc"><span class="channel-pick-icon irc">IRC</span><span>IRC</span></button>
-              <button class="channel-pick-btn" data-ch-type="mattermost"><span class="channel-pick-icon mattermost">MM</span><span>Mattermost</span></button>
-              <button class="channel-pick-btn" data-ch-type="nextcloud"><span class="channel-pick-icon nextcloud">NC</span><span>Nextcloud</span></button>
-              <button class="channel-pick-btn" data-ch-type="nostr"><span class="channel-pick-icon nostr">NS</span><span>Nostr</span></button>
-              <button class="channel-pick-btn" data-ch-type="twitch"><span class="channel-pick-icon twitch">TW</span><span>Twitch</span></button>
+              <button class="channel-pick-btn" data-ch-type="telegram">
+                <span class="channel-pick-icon telegram">TG</span><span>Telegram</span>
+              </button>
+              <button class="channel-pick-btn" data-ch-type="discord">
+                <span class="channel-pick-icon discord">DC</span><span>Discord</span>
+              </button>
+              <button class="channel-pick-btn" data-ch-type="slack">
+                <span class="channel-pick-icon slack">SL</span><span>Slack</span>
+              </button>
+              <button class="channel-pick-btn" data-ch-type="matrix">
+                <span class="channel-pick-icon matrix">MX</span><span>Matrix</span>
+              </button>
+              <button class="channel-pick-btn" data-ch-type="irc">
+                <span class="channel-pick-icon irc">IRC</span><span>IRC</span>
+              </button>
+              <button class="channel-pick-btn" data-ch-type="mattermost">
+                <span class="channel-pick-icon mattermost">MM</span><span>Mattermost</span>
+              </button>
+              <button class="channel-pick-btn" data-ch-type="nextcloud">
+                <span class="channel-pick-icon nextcloud">NC</span><span>Nextcloud</span>
+              </button>
+              <button class="channel-pick-btn" data-ch-type="nostr">
+                <span class="channel-pick-icon nostr">NS</span><span>Nostr</span>
+              </button>
+              <button class="channel-pick-btn" data-ch-type="twitch">
+                <span class="channel-pick-icon twitch">TW</span><span>Twitch</span>
+              </button>
             </div>
           </div>
-          <div class="view-loading" id="channels-loading" style="display:none">Loading channels…</div>
+          <div class="view-loading" id="channels-loading" style="display: none">
+            Loading channels…
+          </div>
         </div>
 
         <!-- Channel / Mail Setup Modal (global — not inside any view) -->
-        <div class="modal-overlay" id="channel-setup-modal" style="display:none">
+        <div class="modal-overlay" id="channel-setup-modal" style="display: none">
           <div class="modal-card channel-setup-modal-inner">
             <div class="modal-header">
               <h2 id="channel-setup-title">Set Up Channel</h2>
@@ -1092,14 +1397,16 @@
             <div id="nodes-pairing-requests"></div>
           </div>
           <div class="nodes-main">
-            <div class="nodes-toast" id="nodes-toast" style="display:none"></div>
-            <div class="view-loading" id="nodes-loading" style="display:none">Loading nodes…</div>
-            <div class="empty-state" id="nodes-empty" style="display:flex">
-              <div class="empty-icon"><span class="ms" style="font-size:48px">dns</span></div>
+            <div class="nodes-toast" id="nodes-toast" style="display: none"></div>
+            <div class="view-loading" id="nodes-loading" style="display: none">Loading nodes…</div>
+            <div class="empty-state" id="nodes-empty" style="display: flex">
+              <div class="empty-icon"><span class="ms" style="font-size: 48px">dns</span></div>
               <div class="empty-title">No nodes connected</div>
-              <div class="empty-subtitle">Pair a device (iOS, Android, Mac) to use camera, location, clipboard, and more</div>
+              <div class="empty-subtitle">
+                Pair a device (iOS, Android, Mac) to use camera, location, clipboard, and more
+              </div>
             </div>
-            <div id="nodes-detail" style="display:none"></div>
+            <div id="nodes-detail" style="display: none"></div>
           </div>
         </div>
 
@@ -1112,12 +1419,16 @@
               Refresh
             </button>
           </div>
-          <div class="trading-toast" id="trading-toast" style="display:none"></div>
+          <div class="trading-toast" id="trading-toast" style="display: none"></div>
           <div id="trading-content">
             <div class="empty-state">
-              <div class="empty-icon"><span class="ms" style="font-size:48px">trending_up</span></div>
+              <div class="empty-icon">
+                <span class="ms" style="font-size: 48px">trending_up</span>
+              </div>
               <div class="empty-title">Trading Dashboard</div>
-              <div class="empty-subtitle">Enable the Coinbase skill and let your agents trade. Activity will appear here.</div>
+              <div class="empty-subtitle">
+                Enable the Coinbase skill and let your agents trade. Activity will appear here.
+              </div>
             </div>
           </div>
         </div>
@@ -1132,91 +1443,117 @@
                 <span class="ms ms-sm">add</span>
               </button>
             </div>
-            
+
             <div class="research-sidebar-section">
               <div class="research-sidebar-label">Projects</div>
               <div class="research-project-list" id="research-project-list"></div>
             </div>
-            
+
             <div class="research-sidebar-section">
               <div class="research-sidebar-label">Recent Queries</div>
               <div class="research-recent-list" id="research-recent-queries"></div>
             </div>
-            
+
             <div class="research-sidebar-footer">
-              <button class="btn btn-ghost btn-sm" id="research-open-workspace" title="Open in Finder">
+              <button
+                class="btn btn-ghost btn-sm"
+                id="research-open-workspace"
+                title="Open in Finder"
+              >
                 <span class="ms ms-sm">folder_open</span>
                 Open Folder
               </button>
             </div>
           </div>
-          
+
           <!-- Main content area -->
           <div class="research-main">
             <!-- Empty state -->
             <div class="research-empty-state" id="research-empty">
               <div class="research-empty-icon">
-                <span class="ms" style="font-size:64px">search</span>
+                <span class="ms" style="font-size: 64px">search</span>
               </div>
               <h2 class="research-empty-title">Research Assistant</h2>
-              <p class="research-empty-desc">Create a project, ask questions, and your AI agent will research the web — gathering sources, extracting insights, and building a knowledge base you can explore.</p>
+              <p class="research-empty-desc">
+                Create a project, ask questions, and your AI agent will research the web — gathering
+                sources, extracting insights, and building a knowledge base you can explore.
+              </p>
               <button class="btn btn-primary btn-lg" id="research-create-first">
                 <span class="ms ms-sm">add</span>
                 New Research Project
               </button>
-              <p class="research-empty-hint">Your findings are saved as markdown files in ~/Documents/Paw</p>
+              <p class="research-empty-hint">
+                Your findings are saved as markdown files in ~/Documents/Paw
+              </p>
             </div>
-            
+
             <!-- Active project workspace -->
-            <div class="research-workspace" id="research-workspace" style="display:none">
+            <div class="research-workspace" id="research-workspace" style="display: none">
               <!-- Project header -->
               <div class="research-project-header" id="research-project-header"></div>
-              
+
               <!-- Search bar with mode toggle -->
               <div class="research-search-bar">
                 <div class="research-mode-toggle">
-                  <button class="research-mode-btn active" id="research-mode-quick" title="Fast research (2-3 sources)">
+                  <button
+                    class="research-mode-btn active"
+                    id="research-mode-quick"
+                    title="Fast research (2-3 sources)"
+                  >
                     <span class="ms ms-sm">bolt</span>
                     Quick
                   </button>
-                  <button class="research-mode-btn" id="research-mode-deep" title="Deep research (10+ sources)">
+                  <button
+                    class="research-mode-btn"
+                    id="research-mode-deep"
+                    title="Deep research (10+ sources)"
+                  >
                     <span class="ms ms-sm">info</span>
                     Deep
                   </button>
                 </div>
                 <div class="research-input-wrapper">
-                  <input type="text" class="research-topic-input" id="research-topic-input"
-                         placeholder="What do you want to research?" autocomplete="off" />
+                  <input
+                    type="text"
+                    class="research-topic-input"
+                    id="research-topic-input"
+                    placeholder="What do you want to research?"
+                    autocomplete="off"
+                  />
                   <button class="btn btn-primary research-run-btn" id="research-run-btn">
                     <span class="ms ms-sm">search</span>
                     Research
                   </button>
-                  <button class="btn btn-error research-stop-btn" id="research-stop-btn" style="display:none">
+                  <button
+                    class="btn btn-error research-stop-btn"
+                    id="research-stop-btn"
+                    style="display: none"
+                  >
                     <span class="ms ms-sm">stop</span>
                     Stop
                   </button>
                 </div>
               </div>
-              
+
               <!-- Live research panel (shown during research) -->
-              <div class="research-live-panel" id="research-live-panel" style="display:none">
+              <div class="research-live-panel" id="research-live-panel" style="display: none">
                 <div class="research-live-header">
                   <div class="research-live-title">
                     <div class="research-live-spinner"></div>
                     <span>Researching...</span>
                   </div>
                 </div>
-                
+
                 <div class="research-live-body">
                   <!-- Progress steps -->
                   <div class="research-progress-steps" id="research-progress-steps"></div>
-                  
+
                   <!-- Live source feed -->
                   <div class="research-live-sources">
                     <div class="research-live-sources-label">Sources being checked:</div>
                     <div class="research-source-feed" id="research-source-feed"></div>
                   </div>
-                  
+
                   <!-- Live output stream -->
                   <div class="research-live-output">
                     <div class="research-live-output-label">Live output:</div>
@@ -1224,7 +1561,7 @@
                   </div>
                 </div>
               </div>
-              
+
               <!-- Findings + Sources layout -->
               <div class="research-content-layout" id="research-findings-area">
                 <!-- Findings grid -->
@@ -1238,7 +1575,7 @@
                   </div>
                   <div class="research-findings-grid" id="research-findings-grid"></div>
                 </div>
-                
+
                 <!-- Sources panel -->
                 <div class="research-sources-section">
                   <div class="research-sources-title">All Sources</div>
@@ -1247,9 +1584,9 @@
               </div>
             </div>
           </div>
-          
+
           <!-- Finding detail modal -->
-          <div class="research-modal" id="research-detail-modal" style="display:none">
+          <div class="research-modal" id="research-detail-modal" style="display: none">
             <div class="research-modal-content research-modal-lg">
               <div class="research-modal-header">
                 <h2>Finding Details</h2>
@@ -1260,9 +1597,9 @@
               <div class="research-modal-body" id="research-detail-content"></div>
             </div>
           </div>
-          
+
           <!-- Report modal -->
-          <div class="research-modal" id="research-report-modal" style="display:none">
+          <div class="research-modal" id="research-report-modal" style="display: none">
             <div class="research-modal-content research-modal-lg">
               <div class="research-modal-header">
                 <h2>Research Report</h2>
@@ -1278,10 +1615,10 @@
         <!-- ═══ Memory View — Knowledge Base ═══ -->
         <div class="view palace-view" id="memory-view">
           <!-- Memory setup banner (shown when plugin not configured) -->
-          <div class="palace-install-banner" id="palace-install-banner" style="display:none">
+          <div class="palace-install-banner" id="palace-install-banner" style="display: none">
             <div class="palace-install-card">
               <div class="palace-install-icon">
-                <span class="ms" style="font-size:48px">lightbulb</span>
+                <span class="ms" style="font-size: 48px">lightbulb</span>
               </div>
               <h2 class="palace-install-title">Enable Long-Term Memory</h2>
               <p class="palace-install-desc">
@@ -1299,39 +1636,78 @@
                 <label class="palace-api-label" for="palace-api-key">
                   API Key <span class="palace-api-required">*</span>
                 </label>
-                <input class="palace-api-input" id="palace-api-key" type="password"
-                  placeholder="sk-..." autocomplete="off" spellcheck="false" />
-                <div id="palace-azure-fields" style="display:none">
+                <input
+                  class="palace-api-input"
+                  id="palace-api-key"
+                  type="password"
+                  placeholder="sk-..."
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <div id="palace-azure-fields" style="display: none">
                   <label class="palace-api-label" for="palace-base-url">
                     Azure Endpoint <span class="palace-api-required">*</span>
                   </label>
-                  <input class="palace-api-input" id="palace-base-url" type="text"
-                    placeholder="https://your-resource.openai.azure.com" autocomplete="off" spellcheck="false" />
-                  <p class="palace-api-hint" style="font-size:11px;margin:-6px 0 8px 0;opacity:0.6;">
+                  <input
+                    class="palace-api-input"
+                    id="palace-base-url"
+                    type="text"
+                    placeholder="https://your-resource.openai.azure.com"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                  <p
+                    class="palace-api-hint"
+                    style="font-size: 11px; margin: -6px 0 8px 0; opacity: 0.6"
+                  >
                     Your Azure resource endpoint (e.g. https://myresource.openai.azure.com).
                   </p>
                 </div>
                 <div id="palace-openai-endpoint-field">
                   <label class="palace-api-label" for="palace-base-url-openai">
-                    Custom Endpoint <span class="palace-api-hint">(optional — leave blank for api.openai.com)</span>
+                    Custom Endpoint
+                    <span class="palace-api-hint">(optional — leave blank for api.openai.com)</span>
                   </label>
-                  <input class="palace-api-input" id="palace-base-url-openai" type="text"
-                    placeholder="https://api.openai.com" autocomplete="off" spellcheck="false" />
+                  <input
+                    class="palace-api-input"
+                    id="palace-base-url-openai"
+                    type="text"
+                    placeholder="https://api.openai.com"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
                 </div>
                 <label class="palace-api-label" for="palace-model-name" id="palace-model-label">
                   Model <span class="palace-api-hint">(defaults to text-embedding-3-small)</span>
                 </label>
-                <input class="palace-api-input" id="palace-model-name" type="text"
-                  placeholder="text-embedding-3-small" autocomplete="off" spellcheck="false" />
-                <div id="palace-api-version-field" style="display:none">
+                <input
+                  class="palace-api-input"
+                  id="palace-model-name"
+                  type="text"
+                  placeholder="text-embedding-3-small"
+                  autocomplete="off"
+                  spellcheck="false"
+                />
+                <div id="palace-api-version-field" style="display: none">
                   <label class="palace-api-label" for="palace-api-version">
-                    API Version <span class="palace-api-hint">(defaults to 2024-08-01-preview)</span>
+                    API Version
+                    <span class="palace-api-hint">(defaults to 2024-08-01-preview)</span>
                   </label>
-                  <input class="palace-api-input" id="palace-api-version" type="text"
-                    placeholder="2024-08-01-preview" autocomplete="off" spellcheck="false" />
+                  <input
+                    class="palace-api-input"
+                    id="palace-api-version"
+                    type="text"
+                    placeholder="2024-08-01-preview"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
                 </div>
               </div>
-              <div class="palace-install-progress" id="palace-install-progress" style="display:none">
+              <div
+                class="palace-install-progress"
+                id="palace-install-progress"
+                style="display: none"
+              >
                 <p class="progress-text" id="palace-progress-text">Saving configuration…</p>
               </div>
               <div class="palace-install-actions">
@@ -1339,7 +1715,9 @@
                   <button class="btn btn-outline" id="palace-test-btn">Test Connection</button>
                   <button class="btn btn-primary" id="palace-install-btn">Enable Memory</button>
                 </div>
-                <button class="btn btn-ghost btn-sm" id="palace-skip-btn">Skip — use file editor only</button>
+                <button class="btn btn-ghost btn-sm" id="palace-skip-btn">
+                  Skip — use file editor only
+                </button>
               </div>
             </div>
           </div>
@@ -1347,7 +1725,12 @@
           <div class="palace-sidebar">
             <div class="palace-sidebar-header">
               <span class="palace-sidebar-title">Memory</span>
-              <button class="btn-icon" id="palace-settings" title="Memory settings" style="display:none">
+              <button
+                class="btn-icon"
+                id="palace-settings"
+                title="Memory settings"
+                style="display: none"
+              >
                 <span class="ms ms-sm">settings</span>
               </button>
               <button class="btn-icon" id="palace-export" title="Export all memories">
@@ -1374,7 +1757,11 @@
             </div>
             <!-- Filters -->
             <div class="palace-filters">
-              <input class="palace-search-input" id="palace-search" placeholder="Search memories…" />
+              <input
+                class="palace-search-input"
+                id="palace-search"
+                placeholder="Search memories…"
+              />
               <select class="palace-filter-select" id="palace-type-filter">
                 <option value="">All types</option>
                 <option value="fact">Facts</option>
@@ -1392,7 +1779,12 @@
             </div>
             <!-- Memory list -->
             <div class="palace-memory-list" id="palace-memory-list">
-              <div class="palace-list-empty" style="padding:12px;color:var(--text-muted);font-size:0.85rem">Loading…</div>
+              <div
+                class="palace-list-empty"
+                style="padding: 12px; color: var(--text-muted); font-size: 0.85rem"
+              >
+                Loading…
+              </div>
             </div>
             <!-- Agent file fallback section -->
             <div class="palace-section-divider" id="palace-files-divider">
@@ -1427,14 +1819,23 @@
             <!-- Recall Panel -->
             <div class="palace-panel active" id="palace-recall-panel">
               <div class="palace-recall-input-area">
-                <textarea class="palace-recall-input" id="palace-recall-input" placeholder="Search by meaning… e.g. 'How does authentication work?'" rows="2"></textarea>
+                <textarea
+                  class="palace-recall-input"
+                  id="palace-recall-input"
+                  placeholder="Search by meaning… e.g. 'How does authentication work?'"
+                  rows="2"
+                ></textarea>
                 <button class="btn btn-primary btn-sm" id="palace-recall-btn">Recall</button>
               </div>
               <div class="palace-recall-results" id="palace-recall-results">
                 <div class="empty-state" id="palace-recall-empty">
-                  <div class="empty-icon"><span class="ms" style="font-size:48px">search</span></div>
+                  <div class="empty-icon">
+                    <span class="ms" style="font-size: 48px">search</span>
+                  </div>
                   <div class="empty-title">Semantic search</div>
-                  <div class="empty-subtitle">Search your agent's memories by meaning — not just keywords</div>
+                  <div class="empty-subtitle">
+                    Search your agent's memories by meaning — not just keywords
+                  </div>
                 </div>
               </div>
             </div>
@@ -1442,11 +1843,18 @@
             <div class="palace-panel" id="palace-graph-panel">
               <div class="palace-graph-container" id="palace-graph-canvas">
                 <div class="empty-state" id="palace-graph-empty">
-                  <div class="empty-icon"><span class="ms" style="font-size:48px">hub</span></div>
+                  <div class="empty-icon"><span class="ms" style="font-size: 48px">hub</span></div>
                   <div class="empty-title">Knowledge graph</div>
-                  <div class="empty-subtitle">Visual map of how your agent's memories connect to each other</div>
+                  <div class="empty-subtitle">
+                    Visual map of how your agent's memories connect to each other
+                  </div>
                 </div>
-                <canvas id="palace-graph-render" width="800" height="600" style="display:none"></canvas>
+                <canvas
+                  id="palace-graph-render"
+                  width="800"
+                  height="600"
+                  style="display: none"
+                ></canvas>
               </div>
             </div>
             <!-- Remember Panel -->
@@ -1468,7 +1876,12 @@
                 </div>
                 <div class="form-group">
                   <label class="form-label">Content</label>
-                  <textarea class="form-input" id="palace-remember-content" rows="5" placeholder="What should the agent remember?"></textarea>
+                  <textarea
+                    class="form-input"
+                    id="palace-remember-content"
+                    rows="5"
+                    placeholder="What should the agent remember?"
+                  ></textarea>
                 </div>
                 <div class="form-group">
                   <label class="form-label">Importance (1–10)</label>
@@ -1479,19 +1892,26 @@
                     <option value="10">10 – Critical</option>
                   </select>
                 </div>
-                <button class="btn btn-primary" id="palace-remember-save" style="align-self:flex-start">
-                  <span class="ms ms-sm" style="margin-right:4px">add</span>
+                <button
+                  class="btn btn-primary"
+                  id="palace-remember-save"
+                  style="align-self: flex-start"
+                >
+                  <span class="ms ms-sm" style="margin-right: 4px">add</span>
                   Store Memory
                 </button>
               </div>
             </div>
             <!-- Files Panel (legacy agent files) -->
             <div class="palace-panel" id="palace-files-panel">
-              <div class="memory-editor-panel" style="flex:1;display:flex;flex-direction:column">
-                <div class="memory-editor" id="memory-editor" style="display:none">
+              <div
+                class="memory-editor-panel"
+                style="flex: 1; display: flex; flex-direction: column"
+              >
+                <div class="memory-editor" id="memory-editor" style="display: none">
                   <div class="memory-editor-header">
                     <span class="memory-editor-path" id="memory-editor-path"></span>
-                    <div style="display:flex;gap:6px">
+                    <div style="display: flex; gap: 6px">
                       <button class="btn btn-ghost btn-sm" id="memory-editor-close">Close</button>
                       <button class="btn btn-primary btn-sm" id="memory-editor-save">Save</button>
                     </div>
@@ -1499,41 +1919,70 @@
                   <textarea class="memory-editor-content" id="memory-editor-content"></textarea>
                 </div>
                 <div class="empty-state" id="memory-empty">
-                  <div class="empty-icon"><span class="ms" style="font-size:48px">description</span></div>
+                  <div class="empty-icon">
+                    <span class="ms" style="font-size: 48px">description</span>
+                  </div>
                   <div class="empty-title">Agent files</div>
-                  <div class="empty-subtitle">Raw filesystem used by your agent for persistent storage</div>
+                  <div class="empty-subtitle">
+                    Raw filesystem used by your agent for persistent storage
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-          <div class="view-loading" id="memory-loading" style="display:none">Loading memory…</div>
+          <div class="view-loading" id="memory-loading" style="display: none">Loading memory…</div>
         </div>
 
         <!-- ═══ Skills View — Skill Vault ═══ -->
         <div class="view list-view" id="skills-view">
           <div class="view-header">
             <h1 class="view-title">
-              <span class="ms ms-sm" style="display:inline; vertical-align:middle; margin-right:6px">lock</span>
+              <span
+                class="ms ms-sm"
+                style="display: inline; vertical-align: middle; margin-right: 6px"
+                >lock</span
+              >
               Skills
             </h1>
-            <div style="display:flex;gap:6px">
+            <div style="display: flex; gap: 6px">
               <button class="btn btn-ghost btn-sm" id="refresh-skills-btn">
                 <span class="ms ms-sm">sync</span>
                 Refresh
               </button>
             </div>
           </div>
-          <p style="color:var(--text-secondary); font-size:13px; margin-bottom:16px; padding: 0 4px;">
-            Give your agent superpowers — email, Slack, GitHub, REST APIs, webhooks. Credentials are encrypted and stored in your OS keychain. The agent never sees raw keys.
+          <p
+            style="
+              color: var(--text-secondary);
+              font-size: 13px;
+              margin-bottom: 16px;
+              padding: 0 4px;
+            "
+          >
+            Give your agent superpowers — email, Slack, GitHub, REST APIs, webhooks. Credentials are
+            encrypted and stored in your OS keychain. The agent never sees raw keys.
           </p>
           <!-- Status toast -->
-          <div class="skills-toast" id="skills-toast" style="display:none"></div>
+          <div class="skills-toast" id="skills-toast" style="display: none"></div>
           <!-- Vault content -->
-          <div id="skills-vault-loading" style="color:var(--text-muted); font-size:13px; padding:12px 0;">Loading skills...</div>
+          <div
+            id="skills-vault-loading"
+            style="color: var(--text-muted); font-size: 13px; padding: 12px 0"
+          >
+            Loading skills...
+          </div>
           <div id="skills-vault-list"></div>
-          <div id="skills-vault-toast" style="display:none; margin-top:12px; padding:8px 14px; border-radius:8px; font-size:13px;"></div>
+          <div
+            id="skills-vault-toast"
+            style="
+              display: none;
+              margin-top: 12px;
+              padding: 8px 14px;
+              border-radius: 8px;
+              font-size: 13px;
+            "
+          ></div>
         </div>
-
 
         <!-- ═══ Foundry View — Models & Modes ═══ -->
         <div class="view list-view" id="foundry-view">
@@ -1552,29 +2001,38 @@
           <div class="foundry-panel" id="foundry-models-panel">
             <div class="models-grid" id="models-list"></div>
             <div class="empty-state" id="models-empty">
-              <div class="empty-icon"><span class="ms" style="font-size:48px">view_in_ar</span></div>
+              <div class="empty-icon">
+                <span class="ms" style="font-size: 48px">view_in_ar</span>
+              </div>
               <div class="empty-title">No models available</div>
-              <div class="empty-subtitle">Configure your AI provider in Settings to see available models</div>
+              <div class="empty-subtitle">
+                Configure your AI provider in Settings to see available models
+              </div>
             </div>
-            <div class="view-loading" id="models-loading" style="display:none">Loading models…</div>
+            <div class="view-loading" id="models-loading" style="display: none">
+              Loading models…
+            </div>
           </div>
           <!-- Agent Modes Tab -->
-          <div class="foundry-panel" id="foundry-modes-panel" style="display:none">
+          <div class="foundry-panel" id="foundry-modes-panel" style="display: none">
             <div class="modes-header">
-              <p class="modes-description">Agent modes are named configurations — each with its own model, system prompt, and skill set.</p>
+              <p class="modes-description">
+                Agent modes are named configurations — each with its own model, system prompt, and
+                skill set.
+              </p>
               <button class="btn btn-primary btn-sm" id="modes-add-btn">
                 <span class="ms ms-sm">add</span>
                 New Mode
               </button>
             </div>
             <div class="modes-list" id="modes-list"></div>
-            <div class="empty-state" id="modes-empty" style="display:none">
+            <div class="empty-state" id="modes-empty" style="display: none">
               <div class="empty-title">No modes yet</div>
               <div class="empty-subtitle">Create modes to quickly switch your agent's behavior</div>
             </div>
           </div>
           <!-- Mode Editor Modal -->
-          <div class="modal-overlay" id="mode-modal" style="display:none">
+          <div class="modal-overlay" id="mode-modal" style="display: none">
             <div class="modal-card modal-lg">
               <div class="modal-header">
                 <h2 class="modal-title" id="mode-modal-title">New Agent Mode</h2>
@@ -1582,17 +2040,33 @@
               </div>
               <div class="modal-body">
                 <div class="form-row">
-                  <div class="form-group" style="flex:0 0 60px">
+                  <div class="form-group" style="flex: 0 0 60px">
                     <label class="form-label">Icon</label>
-                    <input type="text" class="form-input form-input-icon" id="mode-form-icon" value="" maxlength="2" />
+                    <input
+                      type="text"
+                      class="form-input form-input-icon"
+                      id="mode-form-icon"
+                      value=""
+                      maxlength="2"
+                    />
                   </div>
-                  <div class="form-group" style="flex:1">
+                  <div class="form-group" style="flex: 1">
                     <label class="form-label">Name</label>
-                    <input type="text" class="form-input" id="mode-form-name" placeholder="Code Review" />
+                    <input
+                      type="text"
+                      class="form-input"
+                      id="mode-form-name"
+                      placeholder="Code Review"
+                    />
                   </div>
-                  <div class="form-group" style="flex:0 0 100px">
+                  <div class="form-group" style="flex: 0 0 100px">
                     <label class="form-label">Color</label>
-                    <input type="color" class="form-input form-input-color" id="mode-form-color" value="#0073EA" />
+                    <input
+                      type="color"
+                      class="form-input form-input-color"
+                      id="mode-form-color"
+                      value="#0073EA"
+                    />
                   </div>
                 </div>
                 <div class="form-group">
@@ -1603,10 +2077,15 @@
                 </div>
                 <div class="form-group">
                   <label class="form-label">System Prompt</label>
-                  <textarea class="form-input" id="mode-form-prompt" rows="4" placeholder="You are a careful code reviewer..."></textarea>
+                  <textarea
+                    class="form-input"
+                    id="mode-form-prompt"
+                    rows="4"
+                    placeholder="You are a careful code reviewer..."
+                  ></textarea>
                 </div>
                 <div class="form-row">
-                  <div class="form-group" style="flex:1">
+                  <div class="form-group" style="flex: 1">
                     <label class="form-label">Thinking Level</label>
                     <select class="form-input" id="mode-form-thinking">
                       <option value="none">None</option>
@@ -1615,27 +2094,45 @@
                       <option value="high">High</option>
                     </select>
                   </div>
-                  <div class="form-group" style="flex:1">
+                  <div class="form-group" style="flex: 1">
                     <label class="form-label">Temperature</label>
-                    <input type="range" class="form-range" id="mode-form-temp" min="0" max="2" step="0.1" value="1" />
+                    <input
+                      type="range"
+                      class="form-range"
+                      id="mode-form-temp"
+                      min="0"
+                      max="2"
+                      step="0.1"
+                      value="1"
+                    />
                     <span class="form-range-value" id="mode-form-temp-value">1.0</span>
                   </div>
                 </div>
                 <!-- Phase A: Auto-approve toggle -->
                 <div class="form-group" id="mode-form-autoapprove-group">
-                  <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                  <label
+                    class="form-label"
+                    style="display: flex; align-items: center; gap: 8px; cursor: pointer"
+                  >
                     <input type="checkbox" id="mode-form-autoapprove" />
                     <span>Auto-Approve All Tools</span>
-                    <span class="badge badge-warning" style="font-size:0.7rem">⚡ Autonomous</span>
+                    <span class="badge badge-warning" style="font-size: 0.7rem">⚡ Autonomous</span>
                   </label>
-                  <p class="form-hint" id="mode-form-autoapprove-warning" style="display:none;color:var(--warning);margin-top:4px;font-size:0.8rem">
-                    ⚠️ This agent will execute <strong>all</strong> tools without asking — including file writes, shell commands, and API calls. Use with container sandbox enabled.
+                  <p
+                    class="form-hint"
+                    id="mode-form-autoapprove-warning"
+                    style="display: none; color: var(--warning); margin-top: 4px; font-size: 0.8rem"
+                  >
+                    ⚠️ This agent will execute <strong>all</strong> tools without asking — including
+                    file writes, shell commands, and API calls. Use with container sandbox enabled.
                   </p>
                 </div>
               </div>
               <div class="modal-footer">
                 <button class="btn btn-secondary" id="mode-modal-cancel">Cancel</button>
-                <button class="btn btn-error btn-sm" id="mode-modal-delete" style="display:none">Delete</button>
+                <button class="btn btn-error btn-sm" id="mode-modal-delete" style="display: none">
+                  Delete
+                </button>
                 <button class="btn btn-primary" id="mode-modal-save">Save Mode</button>
               </div>
             </div>
@@ -1644,78 +2141,125 @@
 
         <!-- ═══ Settings View ═══ -->
         <div class="view settings-view" id="settings-view">
-          <h1 class="view-title" style="margin-bottom: 12px;">Settings</h1>
+          <h1 class="view-title" style="margin-bottom: 12px">Settings</h1>
 
           <!-- Settings Tab Navigation -->
-          <div class="settings-tab-bar" id="settings-tab-bar" style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:8px">
-            <button class="btn btn-ghost btn-sm settings-tab active" data-settings-tab="general">General</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="models">Providers</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="agent-defaults">Agent Defaults</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="sessions">Sessions</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="voice">Voice & TTS</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="browser">Browser & Sandbox</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="tailscale">Tailscale</button>
-            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="security">Security</button>
+          <div
+            class="settings-tab-bar"
+            id="settings-tab-bar"
+            style="
+              display: flex;
+              gap: 4px;
+              flex-wrap: wrap;
+              margin-bottom: 20px;
+              border-bottom: 1px solid var(--border-color);
+              padding-bottom: 8px;
+            "
+          >
+            <button class="btn btn-ghost btn-sm settings-tab active" data-settings-tab="general">
+              General
+            </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="models">
+              Providers
+            </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="agent-defaults">
+              Agent Defaults
+            </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="sessions">
+              Sessions
+            </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="voice">
+              Voice & TTS
+            </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="browser">
+              Browser & Sandbox
+            </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="tailscale">
+              Tailscale
+            </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="webhook">
+              Webhook
+            </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="security">
+              Security
+            </button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="logs">Logs</button>
           </div>
 
           <!-- ── Tab: General ── -->
           <div class="settings-tab-panel" id="settings-panel-general">
+            <!-- Hidden select kept for compatibility -->
+            <select class="form-input" id="settings-engine-mode" style="display: none">
+              <option value="engine" selected>Built-in Paw Engine</option>
+            </select>
+            <div id="engine-config-panel" style="display: none"></div>
 
-          <!-- Hidden select kept for compatibility -->
-          <select class="form-input" id="settings-engine-mode" style="display:none">
-            <option value="engine" selected>Built-in Paw Engine</option>
-          </select>
-          <div id="engine-config-panel" style="display:none"></div>
-          
-          <!-- Appearance — Theme Toggle -->
-          <div class="settings-section" id="settings-appearance-section">
-            <h2 class="settings-section-title">Appearance</h2>
-            <p class="settings-section-desc" style="margin-bottom:12px">Customize the look and feel of Pawz.</p>
-            <div class="form-group" style="display:flex; align-items:center; gap:16px;">
-              <label class="form-label" style="margin-bottom:0; min-width:80px;">Theme</label>
-              <div id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">
-                <div class="theme-toggle-track">
-                  <span class="theme-toggle-icon theme-toggle-dark"><span class="ms ms-sm">dark_mode</span></span>
-                  <span class="theme-toggle-icon theme-toggle-light"><span class="ms ms-sm">light_mode</span></span>
-                  <div class="theme-toggle-thumb"></div>
+            <!-- Appearance — Theme Toggle -->
+            <div class="settings-section" id="settings-appearance-section">
+              <h2 class="settings-section-title">Appearance</h2>
+              <p class="settings-section-desc" style="margin-bottom: 12px">
+                Customize the look and feel of Pawz.
+              </p>
+              <div class="form-group" style="display: flex; align-items: center; gap: 16px">
+                <label class="form-label" style="margin-bottom: 0; min-width: 80px">Theme</label>
+                <div id="theme-toggle" class="theme-toggle" title="Toggle light/dark mode">
+                  <div class="theme-toggle-track">
+                    <span class="theme-toggle-icon theme-toggle-dark"
+                      ><span class="ms ms-sm">dark_mode</span></span
+                    >
+                    <span class="theme-toggle-icon theme-toggle-light"
+                      ><span class="ms ms-sm">light_mode</span></span
+                    >
+                    <div class="theme-toggle-thumb"></div>
+                  </div>
                 </div>
+                <span id="theme-label" style="color: var(--text-secondary); font-size: 13px"
+                  >Dark</span
+                >
               </div>
-              <span id="theme-label" style="color:var(--text-secondary); font-size:13px;">Dark</span>
+            </div>
+
+            <div class="settings-section">
+              <h2 class="settings-section-title">About</h2>
+              <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.8">
+                <strong>Pawz</strong> v0.1.0 — Your AI command center<br />
+                Pawz are safer than Claws<br />
+                <a
+                  href="https://github.com/elisplash/paw"
+                  target="_blank"
+                  style="color: var(--accent)"
+                  >View source on GitHub</a
+                >
+              </p>
             </div>
           </div>
-
-          <div class="settings-section">
-            <h2 class="settings-section-title">About</h2>
-            <p style="color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-              <strong>Pawz</strong> v0.1.0 — Your AI command center<br>
-              Pawz are safer than Claws<br>
-              <a href="https://github.com/elisplash/paw" target="_blank" style="color: var(--accent);">View source on GitHub</a>
-            </p>
-          </div>
-
-          </div><!-- end settings-panel-general -->
+          <!-- end settings-panel-general -->
 
           <!-- ── Tab: Providers ── -->
-          <div class="settings-tab-panel" id="settings-panel-models" style="display:none">
+          <div class="settings-tab-panel" id="settings-panel-models" style="display: none">
             <div class="settings-section" id="settings-models-section">
               <h2 class="settings-section-title">Providers &amp; Models</h2>
-              <p class="settings-section-desc">Add AI providers, manage API keys, and configure model routing. Pawz calls APIs directly from your machine.</p>
+              <p class="settings-section-desc">
+                Add AI providers, manage API keys, and configure model routing. Pawz calls APIs
+                directly from your machine.
+              </p>
               <div id="settings-models-content"></div>
             </div>
           </div>
 
           <!-- ── Tab: Agent Defaults ── -->
-          <div class="settings-tab-panel" id="settings-panel-agent-defaults" style="display:none">
+          <div class="settings-tab-panel" id="settings-panel-agent-defaults" style="display: none">
             <div class="settings-section" id="settings-agent-defaults-section">
               <h2 class="settings-section-title">Agent Defaults</h2>
-              <p class="settings-section-desc">Default model, tool execution limits, system prompt, and memory settings.</p>
+              <p class="settings-section-desc">
+                Default model, tool execution limits, system prompt, and memory settings.
+              </p>
               <div id="settings-agent-defaults-content"></div>
             </div>
           </div>
 
           <!-- ── Tab: Sessions ── -->
-          <div class="settings-tab-panel" id="settings-panel-sessions" style="display:none">
+          <div class="settings-tab-panel" id="settings-panel-sessions" style="display: none">
             <div class="settings-section" id="settings-sessions-section">
               <h2 class="settings-section-title">Sessions</h2>
               <p class="settings-section-desc">View, rename, and manage chat sessions.</p>
@@ -1724,288 +2268,368 @@
           </div>
 
           <!-- ── Tab: Voice & TTS ── -->
-          <div class="settings-tab-panel" id="settings-panel-voice" style="display:none">
+          <div class="settings-tab-panel" id="settings-panel-voice" style="display: none">
             <div class="settings-section" id="settings-voice-section">
               <h2 class="settings-section-title">Voice &amp; TTS</h2>
-              <p class="settings-section-desc">Text-to-speech, talk mode, and voice wake triggers.</p>
+              <p class="settings-section-desc">
+                Text-to-speech, talk mode, and voice wake triggers.
+              </p>
               <div id="settings-voice-content"></div>
             </div>
           </div>
 
-
-
           <!-- ── Tab: Browser & Sandbox ── -->
-          <div class="settings-tab-panel" id="settings-panel-browser" style="display:none">
+          <div class="settings-tab-panel" id="settings-panel-browser" style="display: none">
             <div class="settings-section">
               <h2 class="settings-section-title">
                 <span class="ms ms-sm">language</span>
                 Browser &amp; Sandbox
               </h2>
-              <p class="settings-section-desc">Managed Chrome profiles, agent screenshots, per-agent workspaces, and outbound network policy.</p>
+              <p class="settings-section-desc">
+                Managed Chrome profiles, agent screenshots, per-agent workspaces, and outbound
+                network policy.
+              </p>
               <div id="settings-browser-sandbox-content"></div>
             </div>
           </div>
 
           <!-- ── Tab: Tailscale ── -->
-          <div class="settings-tab-panel" id="settings-panel-tailscale" style="display:none">
+          <div class="settings-tab-panel" id="settings-panel-tailscale" style="display: none">
             <div class="settings-section">
               <h2 class="settings-section-title">
                 <span class="ms ms-sm">cloud</span>
                 Tailscale Remote Access
               </h2>
-              <p class="settings-section-desc">Expose Pawz to your Tailscale network (Serve) or the internet (Funnel). Requires Tailscale installed on this machine.</p>
+              <p class="settings-section-desc">
+                Expose Pawz to your Tailscale network (Serve) or the internet (Funnel). Requires
+                Tailscale installed on this machine.
+              </p>
               <div id="settings-tailscale-content"></div>
             </div>
           </div>
 
+          <!-- ── Tab: Webhook ── -->
+          <div class="settings-tab-panel" id="settings-panel-webhook" style="display: none">
+            <div class="settings-section">
+              <h2 class="settings-section-title">
+                <span class="ms ms-sm">webhook</span>
+                Inbound Webhook Server
+              </h2>
+              <p class="settings-section-desc">
+                Let external systems (Zapier, n8n, GitHub Actions, cron, curl) POST to a local HTTP
+                endpoint to trigger agent runs.
+              </p>
+              <div id="settings-webhook-content"></div>
+            </div>
+          </div>
+
           <!-- ── Tab: Security ── -->
-          <div class="settings-tab-panel" id="settings-panel-security" style="display:none">
+          <div class="settings-tab-panel" id="settings-panel-security" style="display: none">
+            <!-- Exec Approvals Config -->
+            <div class="settings-section" id="settings-approvals-section" style="display: none">
+              <h2 class="settings-section-title">Tool Approval Rules</h2>
+              <p class="settings-section-desc">
+                Choose which tools your agent can use automatically and which need your permission.
+              </p>
 
-          <!-- Exec Approvals Config -->
-          <div class="settings-section" id="settings-approvals-section" style="display:none">
-            <h2 class="settings-section-title">Tool Approval Rules</h2>
-            <p class="settings-section-desc">Choose which tools your agent can use automatically and which need your permission.</p>
-            
-            <!-- Default behaviour radio group -->
-            <div class="approvals-default-policy">
-              <div class="approvals-policy-label">When a tool isn't listed below:</div>
-              <div class="approvals-policy-options" id="approvals-ask-policy">
-                <label class="approvals-policy-option">
-                  <input type="radio" name="approvals-policy" value="ask" checked />
-                  <div class="approvals-policy-card">
-                    <span class="ms ms-sm">info</span>
-                    <span>Ask me</span>
+              <!-- Default behaviour radio group -->
+              <div class="approvals-default-policy">
+                <div class="approvals-policy-label">When a tool isn't listed below:</div>
+                <div class="approvals-policy-options" id="approvals-ask-policy">
+                  <label class="approvals-policy-option">
+                    <input type="radio" name="approvals-policy" value="ask" checked />
+                    <div class="approvals-policy-card">
+                      <span class="ms ms-sm">info</span>
+                      <span>Ask me</span>
+                    </div>
+                  </label>
+                  <label class="approvals-policy-option">
+                    <input type="radio" name="approvals-policy" value="allow" />
+                    <div class="approvals-policy-card">
+                      <span class="ms ms-sm">check_circle</span>
+                      <span>Allow</span>
+                    </div>
+                  </label>
+                  <label class="approvals-policy-option">
+                    <input type="radio" name="approvals-policy" value="deny" />
+                    <div class="approvals-policy-card">
+                      <span class="ms ms-sm">block</span>
+                      <span>Block</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Tool rules list (rendered dynamically) -->
+              <div class="approvals-tool-list" id="approvals-tool-list">
+                <!-- Each tool rendered as a row with a 3-way toggle -->
+              </div>
+
+              <button class="btn btn-ghost btn-sm" id="approvals-add-tool" style="margin-top: 8px">
+                <span class="ms ms-sm">add</span>
+                Add rule
+              </button>
+
+              <div style="display: flex; gap: 8px; margin-top: 16px">
+                <button class="btn btn-primary" id="settings-save-approvals">Save Rules</button>
+                <button class="btn btn-ghost btn-sm" id="settings-refresh-approvals">Reload</button>
+              </div>
+            </div>
+
+            <!-- Security Audit Dashboard -->
+            <div class="settings-section" id="settings-audit-section">
+              <h2 class="settings-section-title">
+                <span class="ms ms-sm">description</span>
+                Security Audit Log
+              </h2>
+              <p class="settings-section-desc">
+                All security-relevant events — exec approvals, auto-denies, auto-allows, and policy
+                changes.
+              </p>
+
+              <!-- Encryption status indicator (C2) -->
+              <div class="encryption-status-bar" id="encryption-status-bar">
+                <span class="encryption-status-dot" id="encryption-status-dot"></span>
+                <span id="encryption-status-text">Checking encryption...</span>
+              </div>
+
+              <!-- Keychain health indicator (Phase 3B) -->
+              <div class="keychain-health-bar" id="keychain-health-bar" style="display: none">
+                <span class="keychain-health-dot" id="keychain-health-dot"></span>
+                <span id="keychain-health-text">Checking keychain...</span>
+                <span id="keychain-health-detail" class="keychain-health-detail"></span>
+              </div>
+
+              <div class="audit-controls">
+                <select class="form-input audit-filter-select" id="audit-filter-type">
+                  <option value="">All events</option>
+                  <option value="exec_approval">Exec approvals</option>
+                  <option value="auto_deny">Auto-denied</option>
+                  <option value="auto_allow">Auto-allowed</option>
+                  <option value="credential_access">Credential access</option>
+                  <option value="security_policy">Policy changes</option>
+                  <option value="network_request">Network requests</option>
+                  <option value="engine_crash">Engine crashes</option>
+                  <option value="scope_violation">Scope violations</option>
+                </select>
+                <select class="form-input audit-filter-select" id="audit-filter-risk">
+                  <option value="">All risk levels</option>
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                  <option value="safe">Safe</option>
+                </select>
+                <select class="form-input audit-filter-select" id="audit-filter-limit">
+                  <option value="50">Last 50</option>
+                  <option value="100" selected>Last 100</option>
+                  <option value="250">Last 250</option>
+                  <option value="500">Last 500</option>
+                </select>
+                <button class="btn btn-ghost btn-sm" id="audit-refresh">Refresh</button>
+                <button class="btn btn-ghost btn-sm" id="audit-export-json" title="Export as JSON">
+                  Export JSON
+                </button>
+                <button class="btn btn-ghost btn-sm" id="audit-export-csv" title="Export as CSV">
+                  Export CSV
+                </button>
+              </div>
+
+              <!-- Security score card -->
+              <div class="audit-score-card" id="audit-score-card">
+                <div class="audit-score-item" id="audit-score-csp">
+                  <span class="audit-score-icon"><span class="ms ms-sm">verified</span></span>
+                  <span class="audit-score-label">CSP Active</span>
+                </div>
+                <div class="audit-score-item" id="audit-score-denied">
+                  <span class="audit-score-icon"><span class="ms ms-sm">shield</span></span>
+                  <span class="audit-score-label" id="audit-score-denied-label">0 blocked</span>
+                </div>
+                <div class="audit-score-item" id="audit-score-allowed">
+                  <span class="audit-score-icon"><span class="ms ms-sm">check</span></span>
+                  <span class="audit-score-label" id="audit-score-allowed-label">0 allowed</span>
+                </div>
+                <div class="audit-score-item" id="audit-score-critical">
+                  <span class="audit-score-icon"><span class="ms ms-sm">warning</span></span>
+                  <span class="audit-score-label" id="audit-score-critical-label">0 critical</span>
+                </div>
+              </div>
+
+              <div class="audit-table-wrapper" id="audit-table-wrapper">
+                <table class="audit-table" id="audit-log-table">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Event</th>
+                      <th>Risk</th>
+                      <th>Tool</th>
+                      <th>Detail</th>
+                      <th>Result</th>
+                    </tr>
+                  </thead>
+                  <tbody id="audit-log-body"></tbody>
+                </table>
+              </div>
+              <div class="audit-empty" id="audit-empty" style="display: none">
+                No security events recorded yet.
+              </div>
+            </div>
+
+            <!-- Security Policies -->
+            <div class="settings-section" id="settings-security-section">
+              <h2 class="settings-section-title">
+                <span class="ms ms-sm">shield</span>
+                Security Policies
+              </h2>
+              <p class="settings-section-desc">
+                Controls how Paw handles dangerous commands from the agent.
+              </p>
+
+              <!-- Session override banner -->
+              <div
+                class="session-override-banner"
+                id="session-override-banner"
+                style="display: none"
+              >
+                <div class="session-override-banner-text">
+                  <span class="session-override-banner-icon">⏱</span>
+                  <span id="session-override-banner-label">Session override active</span>
+                </div>
+                <button class="btn btn-ghost btn-sm" id="session-override-cancel">
+                  Cancel Override
+                </button>
+              </div>
+
+              <div class="security-toggles">
+                <label class="security-toggle-row">
+                  <input type="checkbox" id="sec-auto-deny-priv" />
+                  <div class="security-toggle-info">
+                    <div class="security-toggle-label">Auto-deny privilege escalation</div>
+                    <div class="security-toggle-desc">
+                      Automatically block sudo, su, doas, pkexec, and runas commands without asking
+                    </div>
                   </div>
                 </label>
-                <label class="approvals-policy-option">
-                  <input type="radio" name="approvals-policy" value="allow" />
-                  <div class="approvals-policy-card">
-                    <span class="ms ms-sm">check_circle</span>
-                    <span>Allow</span>
+                <label class="security-toggle-row">
+                  <input type="checkbox" id="sec-auto-deny-critical" />
+                  <div class="security-toggle-info">
+                    <div class="security-toggle-label">Auto-deny all critical-risk commands</div>
+                    <div class="security-toggle-desc">
+                      Automatically block fork bombs, remote code execution, disk destruction, etc.
+                    </div>
                   </div>
                 </label>
-                <label class="approvals-policy-option">
-                  <input type="radio" name="approvals-policy" value="deny" />
-                  <div class="approvals-policy-card">
-                    <span class="ms ms-sm">block</span>
-                    <span>Block</span>
+                <label class="security-toggle-row">
+                  <input type="checkbox" id="sec-require-type" checked />
+                  <div class="security-toggle-info">
+                    <div class="security-toggle-label">
+                      Require typing "ALLOW" for critical commands
+                    </div>
+                    <div class="security-toggle-desc">
+                      Instead of clicking a button, you must type ALLOW to approve dangerous
+                      commands
+                    </div>
+                  </div>
+                </label>
+                <label class="security-toggle-row">
+                  <input type="checkbox" id="sec-read-only-projects" />
+                  <div class="security-toggle-info">
+                    <div class="security-toggle-label">Read-only project mode</div>
+                    <div class="security-toggle-desc">
+                      Block agent filesystem write tools (create, edit, delete, move) — the agent
+                      can only read files
+                    </div>
                   </div>
                 </label>
               </div>
-            </div>
 
-            <!-- Tool rules list (rendered dynamically) -->
-            <div class="approvals-tool-list" id="approvals-tool-list">
-              <!-- Each tool rendered as a row with a 3-way toggle -->
-            </div>
+              <h3 class="settings-subsection-title" style="margin-top: 20px">
+                Token Auto-Rotation
+              </h3>
+              <p class="settings-section-desc">
+                Automatically rotate device tokens after a set number of days. Set to 0 to disable.
+              </p>
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px">
+                <select class="form-input" id="sec-token-rotation-interval" style="width: 200px">
+                  <option value="0">Disabled</option>
+                  <option value="7">Every 7 days</option>
+                  <option value="14">Every 14 days</option>
+                  <option value="30">Every 30 days</option>
+                  <option value="60">Every 60 days</option>
+                  <option value="90">Every 90 days</option>
+                </select>
+                <span
+                  class="settings-section-desc"
+                  id="sec-token-rotation-status"
+                  style="margin: 0"
+                ></span>
+              </div>
 
-            <button class="btn btn-ghost btn-sm" id="approvals-add-tool" style="margin-top:8px">
-              <span class="ms ms-sm">add</span>
-              Add rule
-            </button>
+              <h3 class="settings-subsection-title" style="margin-top: 20px">Command Allowlist</h3>
+              <p class="settings-section-desc">
+                Regex patterns for commands that are always auto-approved (bypasses the approval
+                modal). One pattern per line.
+              </p>
+              <textarea
+                class="form-input security-patterns-input"
+                id="sec-allowlist"
+                rows="6"
+                placeholder="^git\b&#10;^npm\b&#10;^ls\b"
+              ></textarea>
 
-            <div style="display:flex;gap:8px;margin-top:16px">
-              <button class="btn btn-primary" id="settings-save-approvals">Save Rules</button>
-              <button class="btn btn-ghost btn-sm" id="settings-refresh-approvals">Reload</button>
+              <h3 class="settings-subsection-title" style="margin-top: 16px">Command Denylist</h3>
+              <p class="settings-section-desc">
+                Regex patterns for commands that are always auto-denied. One pattern per line.
+              </p>
+              <textarea
+                class="form-input security-patterns-input"
+                id="sec-denylist"
+                rows="6"
+                placeholder="\bsudo\b&#10;\brm\s+-rf\s+/"
+              ></textarea>
+
+              <div style="display: flex; gap: 8px; margin-top: 16px">
+                <button class="btn btn-primary" id="settings-save-security">
+                  Save Security Policies
+                </button>
+                <button class="btn btn-ghost btn-sm" id="settings-reset-security">
+                  Reset to Defaults
+                </button>
+              </div>
             </div>
           </div>
-
-          <!-- Security Audit Dashboard -->
-          <div class="settings-section" id="settings-audit-section">
-            <h2 class="settings-section-title">
-              <span class="ms ms-sm">description</span>
-              Security Audit Log
-            </h2>
-            <p class="settings-section-desc">All security-relevant events — exec approvals, auto-denies, auto-allows, and policy changes.</p>
-
-            <!-- Encryption status indicator (C2) -->
-            <div class="encryption-status-bar" id="encryption-status-bar">
-              <span class="encryption-status-dot" id="encryption-status-dot"></span>
-              <span id="encryption-status-text">Checking encryption...</span>
-            </div>
-
-            <!-- Keychain health indicator (Phase 3B) -->
-            <div class="keychain-health-bar" id="keychain-health-bar" style="display:none">
-              <span class="keychain-health-dot" id="keychain-health-dot"></span>
-              <span id="keychain-health-text">Checking keychain...</span>
-              <span id="keychain-health-detail" class="keychain-health-detail"></span>
-            </div>
-
-            <div class="audit-controls">
-              <select class="form-input audit-filter-select" id="audit-filter-type">
-                <option value="">All events</option>
-                <option value="exec_approval">Exec approvals</option>
-                <option value="auto_deny">Auto-denied</option>
-                <option value="auto_allow">Auto-allowed</option>
-                <option value="credential_access">Credential access</option>
-                <option value="security_policy">Policy changes</option>
-                <option value="network_request">Network requests</option>
-                <option value="engine_crash">Engine crashes</option>
-                <option value="scope_violation">Scope violations</option>
-              </select>
-              <select class="form-input audit-filter-select" id="audit-filter-risk">
-                <option value="">All risk levels</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-                <option value="safe">Safe</option>
-              </select>
-              <select class="form-input audit-filter-select" id="audit-filter-limit">
-                <option value="50">Last 50</option>
-                <option value="100" selected>Last 100</option>
-                <option value="250">Last 250</option>
-                <option value="500">Last 500</option>
-              </select>
-              <button class="btn btn-ghost btn-sm" id="audit-refresh">Refresh</button>
-              <button class="btn btn-ghost btn-sm" id="audit-export-json" title="Export as JSON">Export JSON</button>
-              <button class="btn btn-ghost btn-sm" id="audit-export-csv" title="Export as CSV">Export CSV</button>
-            </div>
-
-            <!-- Security score card -->
-            <div class="audit-score-card" id="audit-score-card">
-              <div class="audit-score-item" id="audit-score-csp">
-                <span class="audit-score-icon"><span class="ms ms-sm">verified</span></span>
-                <span class="audit-score-label">CSP Active</span>
-              </div>
-              <div class="audit-score-item" id="audit-score-denied">
-                <span class="audit-score-icon"><span class="ms ms-sm">shield</span></span>
-                <span class="audit-score-label" id="audit-score-denied-label">0 blocked</span>
-              </div>
-              <div class="audit-score-item" id="audit-score-allowed">
-                <span class="audit-score-icon"><span class="ms ms-sm">check</span></span>
-                <span class="audit-score-label" id="audit-score-allowed-label">0 allowed</span>
-              </div>
-              <div class="audit-score-item" id="audit-score-critical">
-                <span class="audit-score-icon"><span class="ms ms-sm">warning</span></span>
-                <span class="audit-score-label" id="audit-score-critical-label">0 critical</span>
-              </div>
-            </div>
-
-            <div class="audit-table-wrapper" id="audit-table-wrapper">
-              <table class="audit-table" id="audit-log-table">
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>Event</th>
-                    <th>Risk</th>
-                    <th>Tool</th>
-                    <th>Detail</th>
-                    <th>Result</th>
-                  </tr>
-                </thead>
-                <tbody id="audit-log-body"></tbody>
-              </table>
-            </div>
-            <div class="audit-empty" id="audit-empty" style="display:none">No security events recorded yet.</div>
-          </div>
-
-          <!-- Security Policies -->
-          <div class="settings-section" id="settings-security-section">
-            <h2 class="settings-section-title">
-              <span class="ms ms-sm">shield</span>
-              Security Policies
-            </h2>
-            <p class="settings-section-desc">Controls how Paw handles dangerous commands from the agent.</p>
-
-            <!-- Session override banner -->
-            <div class="session-override-banner" id="session-override-banner" style="display:none">
-              <div class="session-override-banner-text">
-                <span class="session-override-banner-icon">⏱</span>
-                <span id="session-override-banner-label">Session override active</span>
-              </div>
-              <button class="btn btn-ghost btn-sm" id="session-override-cancel">Cancel Override</button>
-            </div>
-
-            <div class="security-toggles">
-              <label class="security-toggle-row">
-                <input type="checkbox" id="sec-auto-deny-priv" />
-                <div class="security-toggle-info">
-                  <div class="security-toggle-label">Auto-deny privilege escalation</div>
-                  <div class="security-toggle-desc">Automatically block sudo, su, doas, pkexec, and runas commands without asking</div>
-                </div>
-              </label>
-              <label class="security-toggle-row">
-                <input type="checkbox" id="sec-auto-deny-critical" />
-                <div class="security-toggle-info">
-                  <div class="security-toggle-label">Auto-deny all critical-risk commands</div>
-                  <div class="security-toggle-desc">Automatically block fork bombs, remote code execution, disk destruction, etc.</div>
-                </div>
-              </label>
-              <label class="security-toggle-row">
-                <input type="checkbox" id="sec-require-type" checked />
-                <div class="security-toggle-info">
-                  <div class="security-toggle-label">Require typing "ALLOW" for critical commands</div>
-                  <div class="security-toggle-desc">Instead of clicking a button, you must type ALLOW to approve dangerous commands</div>
-                </div>
-              </label>
-              <label class="security-toggle-row">
-                <input type="checkbox" id="sec-read-only-projects" />
-                <div class="security-toggle-info">
-                  <div class="security-toggle-label">Read-only project mode</div>
-                  <div class="security-toggle-desc">Block agent filesystem write tools (create, edit, delete, move) — the agent can only read files</div>
-                </div>
-              </label>
-            </div>
-
-            <h3 class="settings-subsection-title" style="margin-top:20px">Token Auto-Rotation</h3>
-            <p class="settings-section-desc">Automatically rotate device tokens after a set number of days. Set to 0 to disable.</p>
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-              <select class="form-input" id="sec-token-rotation-interval" style="width:200px">
-                <option value="0">Disabled</option>
-                <option value="7">Every 7 days</option>
-                <option value="14">Every 14 days</option>
-                <option value="30">Every 30 days</option>
-                <option value="60">Every 60 days</option>
-                <option value="90">Every 90 days</option>
-              </select>
-              <span class="settings-section-desc" id="sec-token-rotation-status" style="margin:0"></span>
-            </div>
-
-            <h3 class="settings-subsection-title" style="margin-top:20px">Command Allowlist</h3>
-            <p class="settings-section-desc">Regex patterns for commands that are always auto-approved (bypasses the approval modal). One pattern per line.</p>
-            <textarea class="form-input security-patterns-input" id="sec-allowlist" rows="6" placeholder="^git\b&#10;^npm\b&#10;^ls\b"></textarea>
-
-            <h3 class="settings-subsection-title" style="margin-top:16px">Command Denylist</h3>
-            <p class="settings-section-desc">Regex patterns for commands that are always auto-denied. One pattern per line.</p>
-            <textarea class="form-input security-patterns-input" id="sec-denylist" rows="6" placeholder="\bsudo\b&#10;\brm\s+-rf\s+/"></textarea>
-
-            <div style="display:flex;gap:8px;margin-top:16px">
-              <button class="btn btn-primary" id="settings-save-security">Save Security Policies</button>
-              <button class="btn btn-ghost btn-sm" id="settings-reset-security">Reset to Defaults</button>
-            </div>
-          </div>
-
-          </div><!-- end settings-panel-security -->
+          <!-- end settings-panel-security -->
 
           <!-- ── Tab: Logs ── -->
-          <div class="settings-tab-panel" id="settings-panel-logs" style="display:none">
+          <div class="settings-tab-panel" id="settings-panel-logs" style="display: none">
             <div class="settings-section">
               <h2 class="settings-section-title">
                 <span class="ms ms-sm">description</span>
                 Application Logs
               </h2>
-              <p class="settings-section-desc">View live logs or browse historical log files. Logs are stored in ~/Documents/Paw/logs/ with 7-day retention.</p>
+              <p class="settings-section-desc">
+                View live logs or browse historical log files. Logs are stored in
+                ~/Documents/Paw/logs/ with 7-day retention.
+              </p>
               <div id="settings-logs-content"></div>
             </div>
           </div>
-
         </div>
       </main>
     </div>
 
     <!-- Global Toast -->
-    <div class="global-toast" id="global-toast" style="display:none"></div>
+    <div class="global-toast" id="global-toast" style="display: none"></div>
 
     <!-- Exec Approval Modal -->
-    <div class="modal-overlay" id="approval-modal" style="display:none">
-      <div class="modal-card" id="approval-modal-card" style="width:480px">
+    <div class="modal-overlay" id="approval-modal" style="display: none">
+      <div class="modal-card" id="approval-modal-card" style="width: 480px">
         <div class="modal-header" id="approval-modal-header">
           <h2 class="modal-title" id="approval-modal-title">Tool Approval Required</h2>
           <button class="btn-icon" id="approval-modal-close">✕</button>
         </div>
         <!-- Risk badge (hidden by default, shown for dangerous commands) -->
-        <div class="approval-risk-banner" id="approval-risk-banner" style="display:none">
+        <div class="approval-risk-banner" id="approval-risk-banner" style="display: none">
           <div class="approval-risk-icon" id="approval-risk-icon">⚠</div>
           <div class="approval-risk-info">
             <div class="approval-risk-label" id="approval-risk-label">DANGER</div>
@@ -2013,16 +2637,22 @@
           </div>
         </div>
         <!-- Network request audit banner (C5) -->
-        <div id="approval-network-banner" class="network-banner" style="display:none"></div>
+        <div id="approval-network-banner" class="network-banner" style="display: none"></div>
         <div class="modal-body">
-          <p id="approval-modal-desc" style="color:var(--text-secondary);margin-bottom:12px"></p>
+          <p id="approval-modal-desc" style="color: var(--text-secondary); margin-bottom: 12px"></p>
           <div id="approval-modal-details" class="approval-details"></div>
         </div>
         <div class="modal-footer" id="approval-modal-footer">
           <!-- Session override dropdown -->
           <div class="session-override-group" id="session-override-group">
-            <button class="btn btn-ghost btn-sm" id="session-override-btn" title="Approve all requests for a limited time">⏱ Allow all…</button>
-            <div class="session-override-menu" id="session-override-menu" style="display:none">
+            <button
+              class="btn btn-ghost btn-sm"
+              id="session-override-btn"
+              title="Approve all requests for a limited time"
+            >
+              ⏱ Allow all…
+            </button>
+            <div class="session-override-menu" id="session-override-menu" style="display: none">
               <button class="session-override-opt" data-minutes="30">30 minutes</button>
               <button class="session-override-opt" data-minutes="60">1 hour</button>
               <button class="session-override-opt" data-minutes="120">2 hours</button>
@@ -2030,9 +2660,16 @@
           </div>
           <button class="btn btn-secondary" id="approval-deny-btn">Deny</button>
           <!-- Type-to-confirm container (hidden by default, shown for critical commands) -->
-          <div class="approval-type-confirm" id="approval-type-confirm" style="display:none">
+          <div class="approval-type-confirm" id="approval-type-confirm" style="display: none">
             <label class="approval-type-label">Type <strong>ALLOW</strong> to approve:</label>
-            <input type="text" class="form-input approval-type-input" id="approval-type-input" placeholder="Type ALLOW" autocomplete="off" spellcheck="false" />
+            <input
+              type="text"
+              class="form-input approval-type-input"
+              id="approval-type-input"
+              placeholder="Type ALLOW"
+              autocomplete="off"
+              spellcheck="false"
+            />
           </div>
           <button class="btn btn-primary" id="approval-allow-btn">Allow</button>
         </div>
@@ -2040,14 +2677,14 @@
     </div>
 
     <!-- Generic Confirm Modal (replaces window.confirm which doesn't work in Tauri webview) -->
-    <div class="modal-overlay" id="confirm-modal" style="display:none">
-      <div class="modal-card" style="width:420px">
+    <div class="modal-overlay" id="confirm-modal" style="display: none">
+      <div class="modal-card" style="width: 420px">
         <div class="modal-header">
           <h2 class="modal-title" id="confirm-modal-title">Confirm</h2>
           <button class="btn-icon" id="confirm-modal-close">✕</button>
         </div>
         <div class="modal-body">
-          <p id="confirm-modal-message" style="margin:0;white-space:pre-wrap"></p>
+          <p id="confirm-modal-message" style="margin: 0; white-space: pre-wrap"></p>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" id="confirm-modal-cancel">Cancel</button>
@@ -2057,14 +2694,20 @@
     </div>
 
     <!-- Generic Prompt Modal (replaces window.prompt which doesn't work in Tauri webview) -->
-    <div class="modal-overlay" id="prompt-modal" style="display:none">
-      <div class="modal-card" style="width:420px">
+    <div class="modal-overlay" id="prompt-modal" style="display: none">
+      <div class="modal-card" style="width: 420px">
         <div class="modal-header">
           <h2 class="modal-title" id="prompt-modal-title">Input</h2>
           <button class="btn-icon" id="prompt-modal-close">✕</button>
         </div>
         <div class="modal-body">
-          <input type="text" class="form-input" id="prompt-modal-input" placeholder="" autocomplete="off" />
+          <input
+            type="text"
+            class="form-input"
+            id="prompt-modal-input"
+            placeholder=""
+            autocomplete="off"
+          />
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" id="prompt-modal-cancel">Cancel</button>

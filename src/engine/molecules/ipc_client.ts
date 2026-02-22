@@ -52,6 +52,7 @@ import type {
   NetworkPolicy,
   TailscaleStatus,
   TailscaleConfig,
+  WebhookConfig,
 } from '../atoms/types';
 
 export class PawEngineClient {
@@ -884,6 +885,32 @@ export class PawEngineClient {
 
   async tailscaleDisconnect(): Promise<void> {
     return invoke('engine_tailscale_disconnect');
+  }
+
+  // ── Webhook Server (Phase D) ───────────────────────────────────────
+
+  async webhookStart(): Promise<void> {
+    return invoke('engine_webhook_start');
+  }
+
+  async webhookStop(): Promise<void> {
+    return invoke('engine_webhook_stop');
+  }
+
+  async webhookStatus(): Promise<ChannelStatus> {
+    return invoke<ChannelStatus>('engine_webhook_status');
+  }
+
+  async webhookGetConfig(): Promise<WebhookConfig> {
+    return invoke<WebhookConfig>('engine_webhook_get_config');
+  }
+
+  async webhookSetConfig(config: WebhookConfig): Promise<void> {
+    return invoke('engine_webhook_set_config', { config });
+  }
+
+  async webhookRegenerateToken(): Promise<string> {
+    return invoke<string>('engine_webhook_regenerate_token');
   }
 
   // ── Mail (Himalaya) ────────────────────────────────────────────────

@@ -284,6 +284,13 @@ pub fn run() {
             commands::tailscale::engine_tailscale_funnel_stop,
             commands::tailscale::engine_tailscale_connect,
             commands::tailscale::engine_tailscale_disconnect,
+            // ── Webhook Server (Phase D) ──
+            commands::webhook::engine_webhook_start,
+            commands::webhook::engine_webhook_stop,
+            commands::webhook::engine_webhook_status,
+            commands::webhook::engine_webhook_get_config,
+            commands::webhook::engine_webhook_set_config,
+            commands::webhook::engine_webhook_regenerate_token,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

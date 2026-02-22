@@ -31,7 +31,7 @@ with optional security layers instead of none. The user chooses their risk level
 - [x] **Phase A** — Auto-approve mode per agent *(small, high impact)* ✅
 - [x] **Phase B** — Session-level approval *(small, good UX middle ground)* ✅ (already existed via session override in hil_modal.ts)
 - [x] **Phase C** — Per-channel dangerous tool policy *(small)* ✅
-- [ ] **Phase D** — Generic inbound webhook endpoint *(medium)*
+- [x] **Phase D** — Generic inbound webhook endpoint *(medium)* ✅
 - [ ] **Phase E** — MCP client + dynamic tool registry *(large, highest strategic value)*
 - [ ] **Phase F** — PawzHub marketplace *(large, builds on all previous phases)*
 
@@ -149,33 +149,46 @@ with optional security layers instead of none. The user chooses their risk level
 ### What to build
 
 **Rust backend:**
-- [ ] New `webhook_server` module — lightweight HTTP listener (use `axum` or extend existing `hyper` usage)
-- [ ] Configurable port, optional TLS, optional auth token
-- [ ] `POST /webhook/:agent_id` — accepts JSON body, triggers agent turn with body as user message
-- [ ] `POST /webhook/:agent_id/tool/:tool_name` — triggers specific tool execution
-- [ ] Rate limiting per IP / per agent
-- [ ] Response: returns agent's text response (synchronous) or job ID (async)
-- [ ] Tauri command to start/stop webhook server
+- [x] New `webhook` module — lightweight HTTP listener (raw `tokio::net::TcpListener`, same pattern as webchat/whatsapp)
+- [x] Configurable port (default 3940), bind address, auto-generated UUID auth token
+- [x] `POST /webhook/:agent_id` — accepts JSON body, triggers agent turn with body as user message
+- [x] `POST /webhook/:agent_id/tool/:tool_name` — route reserved (501 Not Implemented, future)
+- [x] Rate limiting per IP (token-bucket, 60 req/min default, configurable)
+- [x] Response: returns agent's text response synchronously in JSON body
+- [x] 6 Tauri commands: start, stop, status, get_config, set_config, regenerate_token
+- [x] `GET /webhook/health` — unauthenticated liveness probe
+- [x] CORS preflight (OPTIONS) support
+- [x] `webhook-status` and `webhook-activity` event emission
+- [x] 7 unit tests (config default, rate limiter, request/response serialization)
 
 **TypeScript frontend:**
-- [ ] Webhook settings panel — enable/disable, port, auth token display
-- [ ] Show URL + curl example for each agent
-- [ ] Activity log of incoming webhook hits
+- [x] Webhook settings panel in Settings → Webhook tab (between Tailscale and Security)
+- [x] Status card (running/stopped indicator + start/stop button)
+- [x] Config form: bind address, port, auth token (show/hide, copy, regenerate), default agent ID, rate limit, allow_dangerous_tools toggle
+- [x] curl example box with copy button
+- [x] `WebhookConfig` interface in `engine/atoms/types.ts`
+- [x] 6 IPC methods in `PawEngineClient`
 
 **Tests:**
-- [ ] Rust: test webhook receives POST, routes to correct agent
-- [ ] Rust: test auth token validation (reject unauthorized)
-- [ ] Rust: test rate limiting
-- [ ] Rust: test agent response returned correctly
+- [x] Rust: 7 unit tests (config default, rate limiter within/unlimited/separate IPs, request deserialization full/minimal, response serialization)
+- [ ] Rust: integration test — full HTTP request → agent response (needs mock agent)
+- [ ] TypeScript: test settings UI renders correctly
 
-**Files to create:**
-- `src-tauri/src/engine/webhook_server.rs` — new module
-- `src-tauri/src/commands/webhook.rs` — Tauri IPC commands
+**Files created:**
+- `src-tauri/src/engine/webhook.rs` — webhook server module (~375 lines, 7 tests)
+- `src-tauri/src/commands/webhook.rs` — 6 Tauri IPC commands
+- `src/views/settings-webhook/index.ts` — public API
+- `src/views/settings-webhook/molecules.ts` — DOM rendering + IPC
+- `src/views/settings-webhook/atoms.ts` — pure helpers
 
-**Files to modify:**
-- `src-tauri/src/lib.rs` — register commands, start server
-- `src-tauri/src/engine/mod.rs` — module declaration
-- `src/views/settings.ts` or new `src/views/webhooks.ts` — UI
+**Files modified:**
+- `src-tauri/src/lib.rs` — register 6 webhook commands in `generate_handler![]`
+- `src-tauri/src/engine/mod.rs` — `pub mod webhook`
+- `src-tauri/src/commands/mod.rs` — `pub mod webhook`
+- `src/engine/atoms/types.ts` — `WebhookConfig` interface
+- `src/engine/molecules/ipc_client.ts` — 6 webhook IPC methods
+- `src/views/settings-tabs.ts` — webhook case in `loadActiveSettingsTab()`
+- `index.html` — webhook tab button + panel
 
 ---
 
