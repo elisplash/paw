@@ -97,6 +97,7 @@ pub(crate) async fn run_sub_agent(
 
     let mut sys_parts: Vec<String> = Vec::new();
     if let Some(sp) = &base_system_prompt { sys_parts.push(sp.clone()); }
+    sys_parts.push(crate::engine::chat::build_platform_awareness());
     if let Some(soul) = agent_soul { sys_parts.push(soul); }
     if !skill_instructions.is_empty() { sys_parts.push(skill_instructions); }
 
