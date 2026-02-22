@@ -455,7 +455,7 @@ pub async fn run_agent_turn(
                 keep_from = i + 1;
             }
             if keep_from > 0 {
-                messages = messages.split_off(keep_from);
+                *messages = messages.split_off(keep_from);
                 if let Some(sys) = sys_msg {
                     messages.insert(0, sys);
                 }
