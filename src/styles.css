@@ -12042,3 +12042,59 @@ details[open] > .skill-advanced-summary::before {
 .wizard-step-content {
   min-height: 200px;
 }
+
+/* ── Extension Views (Phase F.6) ──────────────────────────────────────────── */
+.extensions-section {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+.extension-tabs-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.extension-view-page {
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 20px;
+  background: var(--surface-secondary, #1a1a2e);
+}
+.extension-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.extension-widget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+.extension-storage-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.extension-storage-table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--surface-tertiary, #13132b);
+  border-bottom: 1px solid var(--border-subtle);
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+.extension-storage-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-subtle, #ffffff10);
+}
+.extension-storage-table tr:hover td {
+  background: var(--surface-tertiary, #ffffff06);
+}

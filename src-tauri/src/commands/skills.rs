@@ -342,3 +342,12 @@ pub fn engine_list_skill_outputs(
         )
         .map_err(|e| e.to_string())
 }
+
+/// List all key-value pairs in a skill's persistent storage.
+#[tauri::command]
+pub fn engine_skill_store_list(
+    state: State<'_, EngineState>,
+    skill_id: String,
+) -> Result<Vec<crate::engine::sessions::SkillStorageItem>, String> {
+    state.store.skill_store_list(&skill_id).map_err(|e| e.to_string())
+}

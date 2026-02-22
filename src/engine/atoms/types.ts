@@ -245,6 +245,9 @@ export interface TomlSkillEntry {
   author: string;
   has_mcp: boolean;
   has_widget: boolean;
+  has_view: boolean;
+  view_label: string;
+  view_icon: string;
 }
 
 // ── Skill Outputs (Phase F.2 — Dashboard Widgets) ────────────────────
@@ -353,6 +356,16 @@ export interface WizardFormData {
   credentials: WizardCredential[];
   widget: WizardWidget | null;
   mcp: WizardMcp | null;
+}
+
+// ── Skill Storage (Phase F.6) ────────────────────────────────────────
+
+/** A key-value entry from a skill's persistent storage. */
+export interface SkillStorageItem {
+  skill_id: string;
+  key: string;
+  value: string;
+  updated_at: string;
 }
 
 // ── Trading ──────────────────────────────────────────────────────────

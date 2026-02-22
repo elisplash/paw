@@ -235,6 +235,18 @@ pub(crate) fn run_migrations(conn: &Connection) -> EngineResult<()> {
         CREATE INDEX IF NOT EXISTS idx_skill_outputs_skill ON skill_outputs(skill_id);
     ").ok();
 
+    // ── Phase F.6: Skill Storage (Extension KV Store) ───────────────
+    conn.execute_batch("
+        CREATE TABLE IF NOT EXISTS skill_storage (
+            skill_id TEXT NOT NULL,
+            key TEXT NOT NULL,
+            value TEXT NOT NULL DEFAULT '',
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (skill_id, key)
+        );
+        CREATE INDEX IF NOT EXISTS idx_skill_storage_skill ON skill_storage(skill_id);
+    ").ok();
+
     // ── Phase 2: Memory Intelligence migrations ──────────────────────
     // Add agent_id column to memories (for per-agent memory scope)
     conn.execute("ALTER TABLE memories ADD COLUMN agent_id TEXT NOT NULL DEFAULT ''", []).ok();

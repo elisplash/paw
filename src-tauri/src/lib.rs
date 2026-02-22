@@ -136,6 +136,8 @@ pub fn run() {
             // ── Skill Wizard (Phase F.5) ──
             commands::skill_wizard::engine_wizard_generate_toml,
             commands::skill_wizard::engine_wizard_publish_url,
+            // ── Skill Storage (Phase F.6) ──
+            commands::skills::engine_skill_store_list,
             // ── Trading ──
             commands::trade::engine_trading_history,
             commands::trade::engine_trading_summary,

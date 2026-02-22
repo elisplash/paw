@@ -20,6 +20,7 @@ pub struct SkillManifest {
     pub instructions: Option<ManifestInstructions>,
     pub widget: Option<ManifestWidget>,
     pub mcp: Option<ManifestMcp>,
+    pub view: Option<ManifestView>,
 }
 
 /// `[skill]` — required metadata section.
@@ -100,6 +101,27 @@ fn default_transport() -> String {
     "stdio".to_string()
 }
 
+/// `[view]` — custom sidebar tab declaration (F.6 Extensions).
+#[derive(Debug, Clone, Deserialize)]
+pub struct ManifestView {
+    /// Display label for the sidebar tab.
+    pub label: String,
+    /// Material Symbol icon name for the tab.
+    #[serde(default = "default_view_icon")]
+    pub icon: String,
+    /// Layout mode: "widget" (render skill_output as full tab) or "storage" (show KV table).
+    #[serde(default = "default_view_layout")]
+    pub layout: String,
+}
+
+fn default_view_icon() -> String {
+    "extension".to_string()
+}
+
+fn default_view_layout() -> String {
+    "widget".to_string()
+}
+
 // ── Parsing ────────────────────────────────────────────────────────────────
 
 /// Parse a `pawz-skill.toml` string into a `SkillManifest`.
@@ -130,7 +152,9 @@ pub fn parse_category(s: &str) -> SkillCategory {
 ///
 /// Extension tier requires `[view]` or `[storage]` — not yet implemented.
 fn infer_tier(manifest: &SkillManifest) -> SkillTier {
-    if manifest.credentials.is_empty() {
+    if manifest.view.is_some() {
+        SkillTier::Extension
+    } else if manifest.credentials.is_empty() {
         SkillTier::Skill
     } else {
         SkillTier::Integration
@@ -258,6 +282,15 @@ pub struct TomlSkillEntry {
     pub has_mcp: bool,
     /// Whether the manifest has a `[widget]` section.
     pub has_widget: bool,
+    /// Whether the manifest has a `[view]` section (Extension tier).
+    #[serde(default)]
+    pub has_view: bool,
+    /// View label for sidebar tab (if has_view is true).
+    #[serde(default)]
+    pub view_label: String,
+    /// View icon for sidebar tab (if has_view is true).
+    #[serde(default)]
+    pub view_icon: String,
 }
 
 /// Scan `~/.paw/skills/*/pawz-skill.toml` and return all valid skill definitions.
@@ -342,6 +375,9 @@ pub fn load_manifest_from_path(path: &Path) -> Result<TomlSkillEntry, String> {
         author: manifest.skill.author,
         has_mcp: manifest.mcp.is_some(),
         has_widget: manifest.widget.is_some(),
+        has_view: manifest.view.is_some(),
+        view_label: manifest.view.as_ref().map(|v| v.label.clone()).unwrap_or_default(),
+        view_icon: manifest.view.as_ref().map(|v| v.icon.clone()).unwrap_or_default(),
     })
 }
 

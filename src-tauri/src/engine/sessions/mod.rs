@@ -34,11 +34,13 @@ mod projects;
 mod schema;
 pub(crate) mod embedding;
 mod skill_outputs;
+mod skill_storage;
 
 // ── Re-exports (preserve crate::engine::sessions::* API) ─────────────────────
 
 pub use embedding::f32_vec_to_bytes;
 pub use skill_outputs::SkillOutput;
+pub use skill_storage::SkillStorageItem;
 
 /// Get the path to the engine's SQLite database.
 pub fn engine_db_path() -> PathBuf {
