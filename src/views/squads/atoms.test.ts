@@ -5,6 +5,7 @@ import {
   buildAgentOptions,
   filterHandoffs,
   renderHandoffCard,
+  renderSquadMessageCard,
 } from './atoms';
 import type { EngineSquad, EngineSquadMember, EngineAgentMessage } from '../../engine/atoms/types';
 
@@ -266,5 +267,38 @@ describe('renderHandoffCard', () => {
       makeMsg({ channel: 'handoff', content: '<script>evil</script>' }),
     );
     expect(html).not.toContain('<script>');
+  });
+});
+
+// ── renderSquadMessageCard ────────────────────────────────────────────────
+
+describe('renderSquadMessageCard', () => {
+  it('renders author and content', () => {
+    const html = renderSquadMessageCard(
+      makeMsg({ from_agent: 'DocsWriter', content: 'README drafted' }),
+    );
+    expect(html).toContain('DocsWriter');
+    expect(html).toContain('README drafted');
+  });
+
+  it('shows channel badge', () => {
+    const html = renderSquadMessageCard(makeMsg({ channel: 'LaunchOps' }));
+    expect(html).toContain('#LaunchOps');
+  });
+
+  it('applies unread class for unread messages', () => {
+    const html = renderSquadMessageCard(makeMsg({ read: false }));
+    expect(html).toContain('unread');
+  });
+
+  it('does not apply unread class for read messages', () => {
+    const html = renderSquadMessageCard(makeMsg({ read: true }));
+    expect(html).not.toContain('unread');
+  });
+
+  it('escapes HTML in content', () => {
+    const html = renderSquadMessageCard(makeMsg({ content: '<img onerror=alert(1)>' }));
+    expect(html).not.toContain('<img');
+    expect(html).toContain('&lt;img');
   });
 });

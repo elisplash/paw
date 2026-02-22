@@ -247,8 +247,32 @@ fn exec_broadcast(
             created_at: chrono::Utc::now().to_rfc3339(),
         };
         state.store.send_agent_message(&msg).map_err(|e| e.to_string())?;
+
+        // Emit frontend event so UI can update in real time
+        app_handle.emit("agent-message", serde_json::json!({
+            "from": agent_id,
+            "to": m.agent_id,
+            "channel": channel,
+            "squad_id": squad_id,
+        })).ok();
+
+        // Fire event-driven triggers (same as agent_send_message)
+        let event = crate::engine::events::EngineEvent::AgentMessage {
+            from_agent: agent_id.to_string(),
+            to_agent: m.agent_id.clone(),
+            channel: channel.to_string(),
+            content: content.to_string(),
+        };
+        let app_clone = app_handle.clone();
+        tauri::async_runtime::spawn(async move {
+            crate::engine::events::dispatch_event(&app_clone, &event).await;
+        });
+
         sent += 1;
     }
+
+    // Emit squad-updated so the squad detail view refreshes messages
+    app_handle.emit("squad-updated", serde_json::json!({ "squad_id": squad_id })).ok();
 
     info!("[engine] squad_broadcast: {} → {} members of '{}'", agent_id, sent, squad.name);
     Ok(format!("Broadcast sent to {} members of squad '{}'", sent, squad.name))

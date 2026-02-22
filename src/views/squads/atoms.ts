@@ -82,6 +82,19 @@ export function filterHandoffs(messages: EngineAgentMessage[]): EngineAgentMessa
   return messages.filter((m) => m.channel === 'handoff');
 }
 
+/** Render a single squad message card (broadcast or direct). */
+export function renderSquadMessageCard(msg: EngineAgentMessage): string {
+  const time = msg.created_at ? new Date(msg.created_at).toLocaleTimeString() : '';
+  return `<div class="squad-msg-card${msg.read ? '' : ' unread'}">
+    <div class="squad-msg-header">
+      <span class="squad-msg-author">${escHtml(msg.from_agent)}</span>
+      <span class="squad-msg-channel">#${escHtml(msg.channel)}</span>
+      <span class="squad-msg-time">${escHtml(time)}</span>
+    </div>
+    <div class="squad-msg-body">${escHtml(msg.content)}</div>
+  </div>`;
+}
+
 /** Render a single handoff message card. */
 export function renderHandoffCard(msg: EngineAgentMessage): string {
   const meta = msg.metadata ? tryParseJson(msg.metadata) : null;

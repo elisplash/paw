@@ -3,7 +3,13 @@
 import { pawEngine } from '../../engine';
 import { showToast } from '../../components/toast';
 import type { EngineSquad } from '../../engine/atoms/types';
-import { renderSquadCard, renderSquadDetail, filterHandoffs, renderHandoffCard } from './atoms';
+import {
+  renderSquadCard,
+  renderSquadDetail,
+  filterHandoffs,
+  renderHandoffCard,
+  renderSquadMessageCard,
+} from './atoms';
 import { openEditModal, openAddMemberModal } from './modals';
 
 let squads: EngineSquad[] = [];
@@ -95,6 +101,8 @@ function renderDetail(squad: EngineSquad): void {
 
   // Load handoffs for squad members
   loadHandoffs(squad);
+  // Load all squad messages (broadcasts + direct)
+  loadSquadMessages(squad);
 }
 
 function clearDetail(): void {
@@ -124,6 +132,36 @@ async function loadHandoffs(squad: EngineSquad): Promise<void> {
   } catch {
     // IPC may not exist yet — backend command not added
     feed.innerHTML = `<div class="squad-messages-empty">Handoff log unavailable — backend command pending.</div>`;
+  }
+}
+
+/** Load all messages for a squad (all channels except handoff). */
+async function loadSquadMessages(squad: EngineSquad): Promise<void> {
+  const feed = $('squad-message-feed');
+  if (!feed) return;
+  try {
+    // Fetch messages for every member on any channel, then deduplicate by id
+    const results = await Promise.all(
+      squad.members.map((m) => pawEngine.agentMessages(m.agent_id, undefined, 50).catch(() => [])),
+    );
+    const seen = new Set<string>();
+    const allMsgs = results
+      .flat()
+      .filter((m) => m.channel !== 'handoff')
+      .filter((m) => {
+        if (seen.has(m.id)) return false;
+        seen.add(m.id);
+        return true;
+      });
+    allMsgs.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    if (allMsgs.length === 0) {
+      feed.innerHTML = `<div class="squad-messages-empty">No messages yet. Squad members can broadcast messages using the squad_broadcast tool.</div>`;
+      return;
+    }
+    feed.innerHTML = allMsgs.slice(-50).map(renderSquadMessageCard).join('');
+    feed.scrollTop = feed.scrollHeight;
+  } catch {
+    feed.innerHTML = `<div class="squad-messages-empty">Message feed unavailable.</div>`;
   }
 }
 

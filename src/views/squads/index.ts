@@ -9,6 +9,7 @@ export {
   closeMemberModal,
 } from './modals';
 
+import { loadSquads } from './molecules';
 import {
   openCreateModal,
   handleSaveSquad,
@@ -18,6 +19,34 @@ import {
 } from './modals';
 
 const $ = (id: string) => document.getElementById(id);
+
+// ── Tauri event listeners for real-time squad updates ──────────────────
+
+interface TauriWindow {
+  __TAURI__?: {
+    event: {
+      listen: <T>(event: string, handler: (event: { payload: T }) => void) => Promise<() => void>;
+    };
+  };
+}
+
+function bindTauriEvents(): void {
+  const tw = window as unknown as TauriWindow;
+  const listen = tw.__TAURI__?.event?.listen;
+  if (!listen) return;
+
+  // Refresh squad view when agents send messages
+  listen('agent-message', () => {
+    const squadView = $('squads-view');
+    if (squadView && squadView.classList.contains('active')) loadSquads();
+  });
+
+  // Refresh when squads are created/updated/disbanded
+  listen('squad-updated', () => {
+    const squadView = $('squads-view');
+    if (squadView && squadView.classList.contains('active')) loadSquads();
+  });
+}
 
 /** Wire DOM events once on module load. */
 function bindEvents(): void {
@@ -33,3 +62,4 @@ function bindEvents(): void {
 
 // Auto-bind on import
 bindEvents();
+bindTauriEvents();

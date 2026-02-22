@@ -11983,6 +11983,49 @@ details[open] > .skill-advanced-summary::before {
   padding: 24px 12px;
 }
 
+/* ── Squad Message Cards ─────────────────────────────────────── */
+.squad-msg-card {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.squad-msg-card:last-child {
+  border-bottom: none;
+}
+.squad-msg-card.unread {
+  background: var(--accent-subtle, rgba(99, 102, 241, 0.06));
+  border-radius: var(--radius-sm);
+}
+.squad-msg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.squad-msg-author {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.squad-msg-channel {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.05));
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+.squad-msg-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+.squad-msg-body {
+  font-size: 13px;
+  color: var(--text-primary);
+  word-break: break-word;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
 /* ── Handoff Cards ───────────────────────────────────────────── */
 .squad-detail-handoffs {
   margin-top: 16px;
