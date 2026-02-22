@@ -9,7 +9,7 @@ const pillars = [
   {
     icon: 'lock',
     title: 'Private by default',
-    desc: 'Runs fully offline with Ollama. No cloud required, no telemetry, no open ports. Credentials encrypted with AES-256-GCM in your OS keychain. Your data never leaves your machine.',
+    desc: 'No telemetry, no open ports, no data leaving your machine. Credentials encrypted with AES-256-GCM in your OS keychain. Go fully offline with Ollama — or connect to cloud providers on your terms.',
   },
   {
     icon: 'bolt',
@@ -62,11 +62,12 @@ function HeroSection() {
           </div>
           <div className="hero-badge">Open Source &middot; MIT License &middot; Free Forever</div>
           <h1 className="hero-title">
-            Your AI, your rules.
+            Pawz are safer<br />than claws.
           </h1>
           <p className="hero-tagline">
-            OpenPawz is a native desktop AI platform that runs fully offline, connects to any provider,
-            and puts you in control of every tool call, every message, and every byte of data.
+            A native desktop AI platform that connects to any provider, keeps your data on your machine,
+            and puts you in control of every tool call. Go fully offline with Ollama — or connect to
+            OpenAI, Anthropic, Google, and more.
           </p>
           <div className="hero-buttons">
             <Link className="hero-btn hero-btn-primary" to="/docs/start/installation">
