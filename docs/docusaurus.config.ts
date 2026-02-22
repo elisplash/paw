@@ -44,7 +44,7 @@ const config: Config = {
 
   themeConfig: {
     navbar: {
-      title: 'OpenPawz',
+      title: 'Pawz',
       logo: {
         alt: 'OpenPawz Logo',
         src: 'img/pawz-logo.png',

@@ -95,8 +95,23 @@ html {
   color: var(--paw-neon);
 }
 
+.navbar__title::before {
+  content: 'Open';
+  font-family: var(--ifm-font-family-base);
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.02em;
+  color: var(--ifm-font-color-base);
+  margin-right: 2px;
+}
+
 [data-theme='dark'] .navbar__title {
   text-shadow: 0 0 8px rgba(255, 0, 255, 0.5);
+}
+
+[data-theme='dark'] .navbar__title::before {
+  color: #ffffff;
+  text-shadow: none;
 }
 
 .navbar__logo img {
@@ -147,6 +162,10 @@ html {
 
 .hero-logo-row {
   margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .hero-logo {
@@ -155,6 +174,35 @@ html {
   filter: drop-shadow(0 0 12px rgba(255, 0, 255, 0.5));
   animation: logoPulse 3s ease-in-out infinite;
   image-rendering: pixelated;
+}
+
+.hero-wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+}
+
+.hero-wordmark-open {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--ifm-font-color-base);
+}
+
+[data-theme='dark'] .hero-wordmark-open {
+  color: #ffffff;
+}
+
+.hero-wordmark-pawz {
+  font-family: var(--paw-pixel);
+  font-size: 1.1rem;
+  color: var(--paw-neon);
+  letter-spacing: 0.03em;
+  margin-left: 4px;
+}
+
+[data-theme='dark'] .hero-wordmark-pawz {
+  text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
 }
 
 @keyframes logoPulse {

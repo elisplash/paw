@@ -55,6 +55,10 @@ function HeroSection() {
         <div className="hero-content">
           <div className="hero-logo-row">
             <img src="/paw/img/pawz-logo.png" alt="OpenPawz" className="hero-logo" />
+            <div className="hero-wordmark">
+              <span className="hero-wordmark-open">Open</span>
+              <span className="hero-wordmark-pawz">Pawz</span>
+            </div>
           </div>
           <div className="hero-badge">Open Source &middot; MIT License &middot; Free Forever</div>
           <h1 className="hero-title">
