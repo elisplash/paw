@@ -11,7 +11,7 @@
 ## Will this match OpenClaw?
 
 Yes — and exceed it. OpenClaw is a server-side gateway that gives agents unrestricted tool access.
-These 5 features give OpenPawz the same agent freedom, but delivered through a native desktop app
+These 6 phases give OpenPawz the same agent freedom, but delivered through a native desktop app
 with optional security layers instead of none. The user chooses their risk level.
 
 | Capability | OpenClaw | OpenPawz today | OpenPawz after roadmap |
@@ -21,6 +21,7 @@ with optional security layers instead of none. The user chooses their risk level
 | Dynamic tool discovery (MCP) | ✅ Plugin servers | ❌ Zero code | ✅ MCP client |
 | External systems trigger agents | ✅ API endpoints | ⚠️ WhatsApp only | ✅ Generic webhook |
 | Remote channel code execution | ✅ No restrictions | ❌ Auto-denied | ✅ Configurable per-channel |
+| Community marketplace | ⚠️ ClawHub (48% junk) | ⚠️ skills.sh (Tier 1 only) | ✅ PawzHub (3 tiers, CI-validated, MCP servers) |
 | Security layers | ❌ None | ✅ 7 layers | ✅ 7 layers (opt-out per agent) |
 
 ---
@@ -32,6 +33,7 @@ with optional security layers instead of none. The user chooses their risk level
 - [ ] **Phase C** — Per-channel dangerous tool policy *(small)*
 - [ ] **Phase D** — Generic inbound webhook endpoint *(medium)*
 - [ ] **Phase E** — MCP client + dynamic tool registry *(large, highest strategic value)*
+- [ ] **Phase F** — PawzHub marketplace *(large, builds on all previous phases)*
 
 ---
 
@@ -231,6 +233,155 @@ available tools at runtime. No Rust code changes needed to add new capabilities.
 
 ---
 
+## Phase F — PawzHub Marketplace
+
+**Goal:** Turn the documented-but-unimplemented PawzHub vision into a working marketplace where users create, share, and install Skills, Integrations, Extensions, and MCP server configs.
+
+> PawzHub is already fully designed in `docs/docs/guides/pawzhub.md`. This phase implements it.
+> Each sub-phase is independently shippable — start with the TOML loader, end with one-click publish.
+
+### Why it depends on earlier phases
+
+| Phase | What it gives PawzHub |
+|---|---|
+| A — Auto-approve | Community skills that call APIs or run CLI actually work without 30 approval clicks |
+| B — Session approve | Users can try a new skill with one "Approve All" instead of per-call |
+| C — Channel policy | Shareable "channel recipes" (e.g., Slack deployment bot that uses `exec`) |
+| D — Webhooks | Shareable "webhook workflows" — skill installs a webhook endpoint + agent instructions |
+| E — MCP client | **The big unlock.** PawzHub goes from sharing prompt snippets to sharing real MCP server configs with typed tools |
+
+### F.1 — TOML Manifest Loader *(prerequisite for everything else)*
+
+**What exists:** 40+ built-in skills compiled into Rust binary. Community skills are `SKILL.md` prompt files only.
+
+**What to build:**
+- [ ] Scan `~/.paw/skills/*/pawz-skill.toml` on startup
+- [ ] Parse TOML into `SkillDefinition` (reuse existing struct + new fields)
+- [ ] Hot-reload: watch directory for changes, re-parse without restart
+- [ ] Credential fields from TOML → vault UI (same AES-GCM flow as built-ins)
+- [ ] `[instructions]` text injected into agent prompt (same as built-ins)
+- [ ] `[binary]` detection — check `$PATH` for required CLI tools
+- [ ] Per-agent skill scoping (assign TOML skills to specific agents)
+
+**Files to create:**
+- `src-tauri/src/engine/skills/toml_loader.rs` — manifest parser + directory scanner
+
+**Files to modify:**
+- `src-tauri/src/engine/skills/mod.rs` — merge TOML skills with builtins
+- `src-tauri/src/engine/skills/prompt.rs` — include TOML skills in prompt building
+
+### F.2 — Dashboard Widgets
+
+**What exists:** Nothing — the `[widget]` section in TOML manifests is documented but not rendered.
+
+**What to build:**
+- [ ] `skill_output` tool — agent persists structured JSON to `skill_outputs` table
+- [ ] Widget renderer — 5 types: status, metric, table, log, kv (as documented in pawzhub.md)
+- [ ] Today/Dashboard view shows widget cards from enabled skills
+- [ ] Auto-refresh: `refresh` interval from manifest triggers periodic agent re-run
+- [ ] Widget field types: text, number, badge, datetime, percentage, currency
+
+**Files to create:**
+- `src-tauri/src/engine/tools/skill_output.rs` — the `skill_output` tool function
+- `src/components/molecules/skill-widget.ts` — widget card renderer
+
+**Files to modify:**
+- `src/views/today.ts` — render skill widgets on dashboard
+- `src-tauri/src/engine/tools/mod.rs` — register `skill_output` tool
+
+### F.3 — MCP Server Sharing *(requires Phase E)*
+
+**What exists:** After Phase E, agents can connect to MCP servers. But users configure them manually.
+
+**What to build:**
+- [ ] New `[mcp]` section in `pawz-skill.toml` — declares an MCP server config
+- [ ] Fields: `command`, `args`, `env`, `transport` (stdio/sse), `url`
+- [ ] On skill install, auto-register the MCP server with the Phase E registry
+- [ ] On skill uninstall, remove the MCP server
+- [ ] Credentials from `[[credentials]]` injected as MCP server env vars
+
+```toml
+# Example: a PawzHub skill that bundles an MCP server
+[skill]
+id = "github-mcp"
+name = "GitHub (MCP)"
+version = "1.0.0"
+author = "openpawz"
+category = "development"
+description = "Full GitHub API via MCP — issues, PRs, repos, actions"
+
+[[credentials]]
+key = "GITHUB_TOKEN"
+label = "Personal Access Token"
+required = true
+
+[mcp]
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-github"]
+transport = "stdio"
+
+[instructions]
+text = "GitHub tools are available via MCP. Use them directly."
+```
+
+**Files to modify:**
+- `src-tauri/src/engine/skills/toml_loader.rs` — parse `[mcp]` section
+- `src-tauri/src/engine/mcp/registry.rs` — auto-register from skill install
+
+### F.4 — PawzHub Registry + In-App Browser
+
+**What exists:** Search uses external `skills.sh` API. Install fetches `SKILL.md` from GitHub.
+
+**What to build:**
+- [ ] Create `elisplash/pawzhub` GitHub repo with `registry.json`
+- [ ] `registry.json` schema: array of `{id, name, description, author, category, version, tier, source_repo, mcp}`
+- [ ] GitHub Action: validate PRs (TOML syntax, unique ID, safe format, semver)
+- [ ] GitHub Action: rebuild `registry.json` on merge to main
+- [ ] In-app browser fetches `registry.json` (replaces/supplements skills.sh)
+- [ ] Tier badges: 🔵 Skill, 🟣 Integration, 🟡 Extension, 🔴 MCP Server
+- [ ] One-click install: download `pawz-skill.toml` → `~/.paw/skills/{id}/`
+- [ ] "Verified" badge for skills tested with the in-app wizard
+
+**Files to create:**
+- `src-tauri/src/engine/skills/community/pawzhub.rs` — registry client
+
+**Files to modify:**
+- `src-tauri/src/engine/skills/community/search.rs` — add PawzHub as search source
+- `src/views/settings-skills/community.ts` — tier badges, MCP indicator
+
+### F.5 — In-App Creation Wizard + One-Click Publish
+
+**What exists:** Nothing — skill creation is manual TOML editing.
+
+**What to build:**
+- [ ] Step-by-step wizard: Basic Info → Credentials → Instructions → Widget → MCP → Test → Publish
+- [ ] Template starters: REST API, CLI Tool, Web Scraper, MCP Server
+- [ ] AI-assisted creation: user says "Create a skill for Notion" → agent generates TOML
+- [ ] Live test: enable skill, run agent, verify it works
+- [ ] Export: save `pawz-skill.toml` locally
+- [ ] Publish: open pre-filled GitHub PR on `elisplash/pawzhub`
+
+**Files to create:**
+- `src/views/skill-wizard.ts` — creation wizard UI
+- `src-tauri/src/commands/skill_wizard.rs` — TOML generation + GitHub PR
+
+### F.6 — Extensions (Tier 3) — Custom Views + Storage
+
+**What exists:** Nothing — Extension tier is documented but unimplemented.
+
+**What to build:**
+- [ ] `[view]` section in TOML — declares a custom sidebar tab
+- [ ] `[storage]` section — persistent key-value store per skill
+- [ ] View renderer: skill output rendered as a full sidebar tab (not just a widget card)
+- [ ] Storage API: `skill_store_set`, `skill_store_get`, `skill_store_list` tools
+- [ ] Extension isolation: each extension's storage is namespaced
+
+**Files to create:**
+- `src-tauri/src/engine/tools/skill_storage.rs` — persistent KV store tools
+- `src/views/extension-view.ts` — custom sidebar tab renderer
+
+---
+
 ## Implementation Rules
 
 1. **All 530 existing tests must pass at every commit.** No exceptions.
@@ -252,6 +403,13 @@ available tools at runtime. No Rust code changes needed to add new capabilities.
 | C — Per-channel tool policy | 1 day | Phase A (uses same flag) |
 | D — Inbound webhooks | 3-5 days | None |
 | E — MCP client | 1-2 weeks | None (but most valuable after A) |
+| F.1 — TOML manifest loader | 3-5 days | None |
+| F.2 — Dashboard widgets | 3-5 days | F.1 |
+| F.3 — MCP server sharing | 2-3 days | E + F.1 |
+| F.4 — Registry + in-app browser | 3-5 days | F.1 |
+| F.5 — Creation wizard + publish | 3-5 days | F.1 + F.4 |
+| F.6 — Extensions (Tier 3) | 1-2 weeks | F.1 + F.2 |
 
 Phases A, B, and C combined unlock the "agent writes its own scripts" vision.
 Phase E is the strategic moat — it turns OpenPawz into a platform, not just an app.
+Phase F is the ecosystem play — it turns OpenPawz users into OpenPawz contributors.
