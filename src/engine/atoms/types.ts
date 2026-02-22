@@ -305,6 +305,56 @@ export interface PawzHubEntry {
   installed: boolean;
 }
 
+// ── Skill Wizard (Phase F.5) ─────────────────────────────────────────
+
+/** A credential field in the wizard form. */
+export interface WizardCredential {
+  key: string;
+  label: string;
+  description: string;
+  required: boolean;
+  placeholder: string;
+}
+
+/** A widget field in the wizard form. */
+export interface WizardWidgetField {
+  key: string;
+  label: string;
+  field_type: string;
+}
+
+/** Widget configuration in the wizard form. */
+export interface WizardWidget {
+  widget_type: string;
+  title: string;
+  refresh: string;
+  fields: WizardWidgetField[];
+}
+
+/** MCP server configuration in the wizard form. */
+export interface WizardMcp {
+  command: string;
+  args: string[];
+  transport: string;
+  url: string;
+}
+
+/** Complete wizard form data for TOML generation. */
+export interface WizardFormData {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  category: string;
+  icon: string;
+  description: string;
+  install_hint: string;
+  instructions: string;
+  credentials: WizardCredential[];
+  widget: WizardWidget | null;
+  mcp: WizardMcp | null;
+}
+
 // ── Trading ──────────────────────────────────────────────────────────
 
 export interface TradeRecord {

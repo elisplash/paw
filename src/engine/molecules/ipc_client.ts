@@ -22,6 +22,7 @@ import type {
   DiscoveredSkill,
   TomlSkillEntry,
   PawzHubEntry,
+  WizardFormData,
   TradeRecord,
   TradingSummary,
   TradingPolicy,
@@ -410,6 +411,16 @@ export class PawEngineClient {
 
   async pawzhubInstall(skillId: string, sourceRepo: string): Promise<string> {
     return invoke<string>('engine_pawzhub_install', { skillId, sourceRepo });
+  }
+
+  // ── Skill Wizard (Phase F.5) ─────────────────────────────────────────
+
+  async wizardGenerateToml(form: WizardFormData): Promise<string> {
+    return invoke<string>('engine_wizard_generate_toml', { form });
+  }
+
+  async wizardPublishUrl(skillId: string, tomlContent: string): Promise<string> {
+    return invoke<string>('engine_wizard_publish_url', { skillId, tomlContent });
   }
 
   // ── Trading ──────────────────────────────────────────────────────────

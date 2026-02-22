@@ -133,6 +133,9 @@ pub fn run() {
             commands::skills::engine_pawzhub_install,
             // ── Skill Outputs (Phase F.2) ──
             commands::skills::engine_list_skill_outputs,
+            // ── Skill Wizard (Phase F.5) ──
+            commands::skill_wizard::engine_wizard_generate_toml,
+            commands::skill_wizard::engine_wizard_publish_url,
             // ── Trading ──
             commands::trade::engine_trading_history,
             commands::trade::engine_trading_summary,

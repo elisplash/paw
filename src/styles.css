@@ -12021,3 +12021,24 @@ details[open] > .skill-advanced-summary::before {
 .pawzhub-card-meta .ms {
   font-size: 13px;
 }
+
+/* ── Skill Wizard (Phase F.5) ──────────────────────────── */
+
+.wizard-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.wizard-field span {
+  font-weight: 600;
+  color: var(--text-secondary, #aaa);
+}
+.wizard-field input,
+.wizard-field select,
+.wizard-field textarea {
+  font-size: 13px;
+}
+.wizard-step-content {
+  min-height: 200px;
+}

@@ -16,6 +16,7 @@ import {
   bindPawzHubEvents,
   setCommunityReload,
 } from './community';
+import { renderWizardSection, bindWizardEvents, setWizardReload } from './wizard';
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ export async function loadSkillsSettings(): Promise<void> {
   // Wire reload callbacks
   setMoleculesState({ currentFilter: _currentFilter, reloadFn: loadSkillsSettings });
   setCommunityReload(loadSkillsSettings);
+  setWizardReload(loadSkillsSettings);
 
   try {
     if (loading) loading.style.display = '';
@@ -57,11 +59,15 @@ export async function loadSkillsSettings(): Promise<void> {
 
     if (list)
       list.innerHTML =
-        renderPawzHubSection() + renderCommunitySection(communitySkills) + renderSkillsPage(skills);
+        renderWizardSection() +
+        renderPawzHubSection() +
+        renderCommunitySection(communitySkills) +
+        renderSkillsPage(skills);
     bindFilterEvents(skills, setFilter);
     bindSkillEvents();
     bindCommunityEvents();
     bindPawzHubEvents();
+    bindWizardEvents();
   } catch (e) {
     console.error('[skills-settings] Load failed:', e);
     if (loading) loading.textContent = `Failed to load skills: ${e}`;
