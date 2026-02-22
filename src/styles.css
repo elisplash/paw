@@ -12026,6 +12026,38 @@ details[open] > .skill-advanced-summary::before {
   line-height: 1.5;
 }
 
+/* ── Swarm Activity Indicator ────────────────────────────────── */
+.squad-swarm-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--accent-primary);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.swarm-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  animation: swarm-blink 1.2s ease-in-out infinite;
+}
+@keyframes swarm-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.swarm-label {
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+.swarm-detail {
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
 /* ── Handoff Cards ───────────────────────────────────────────── */
 .squad-detail-handoffs {
   margin-top: 16px;

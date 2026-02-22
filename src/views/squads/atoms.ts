@@ -49,6 +49,11 @@ export function renderSquadDetail(squad: EngineSquad): string {
       ${memberRows || '<div class="squad-members-empty">No members yet</div>'}
     </div>
   </div>
+  <div class="squad-swarm-status" id="squad-swarm-status" style="display:none">
+    <span class="swarm-pulse"></span>
+    <span class="swarm-label">Swarm active</span>
+    <span class="swarm-detail" id="squad-swarm-detail"></span>
+  </div>
   <div class="squad-detail-messages">
     <h3>Squad Messages</h3>
     <div class="squad-message-feed" id="squad-message-feed">

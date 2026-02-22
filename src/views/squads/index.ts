@@ -46,6 +46,35 @@ function bindTauriEvents(): void {
     const squadView = $('squads-view');
     if (squadView && squadView.classList.contains('active')) loadSquads();
   });
+
+  // Show swarm activity status in real time
+  listen<{ agent_id: string; squad_id: string; status: string; summary?: string; error?: string }>(
+    'swarm-activity',
+    (event) => {
+      const statusEl = $('squad-swarm-status');
+      const detailEl = $('squad-swarm-detail');
+      if (!statusEl || !detailEl) return;
+      const { agent_id, status } = event.payload;
+      if (status === 'waking') {
+        statusEl.style.display = 'flex';
+        detailEl.textContent = `${agent_id} is thinking...`;
+      } else if (status === 'completed') {
+        detailEl.textContent = `${agent_id} responded`;
+        // Refresh messages to show the new response
+        const squadView = $('squads-view');
+        if (squadView && squadView.classList.contains('active')) loadSquads();
+        // Hide status after a brief delay
+        setTimeout(() => {
+          statusEl.style.display = 'none';
+        }, 3000);
+      } else if (status === 'error') {
+        detailEl.textContent = `${agent_id} failed`;
+        setTimeout(() => {
+          statusEl.style.display = 'none';
+        }, 5000);
+      }
+    },
+  );
 }
 
 /** Wire DOM events once on module load. */

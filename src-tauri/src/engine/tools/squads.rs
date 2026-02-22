@@ -275,5 +275,28 @@ fn exec_broadcast(
     app_handle.emit("squad-updated", serde_json::json!({ "squad_id": squad_id })).ok();
 
     info!("[engine] squad_broadcast: {} → {} members of '{}'", agent_id, sent, squad.name);
+
+    // ── Swarm auto-wake: spawn agent turns for recipients ──────────────
+    // Each recipient agent wakes up, reads the broadcast, thinks, and responds.
+    // Depth-limited by the swarm counter to prevent infinite loops.
+    if sent > 0 {
+        let squad_name_owned = squad.name.clone();
+        let squad_goal_owned = squad.goal.clone();
+        for m in &squad.members {
+            if m.agent_id == agent_id { continue; }
+            if let Err(e) = crate::engine::swarm::spawn_swarm_reply(
+                app_handle,
+                squad_id,
+                &squad_name_owned,
+                &squad_goal_owned,
+                agent_id,
+                &m.agent_id,
+                content,
+            ) {
+                info!("[engine] Swarm auto-wake skipped for {}: {}", m.agent_id, e);
+            }
+        }
+    }
+
     Ok(format!("Broadcast sent to {} members of squad '{}'", sent, squad.name))
 }
