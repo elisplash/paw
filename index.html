@@ -15,6 +15,21 @@
             <div class="sidebar-logo"></div>
             <span class="sidebar-title">Pawz</span>
           </div>
+          <button class="sidebar-notification-btn" id="notification-bell" title="Notifications">
+            <span class="ms ms-sm">notifications</span>
+            <span class="notification-badge" id="notification-badge" style="display: none">0</span>
+          </button>
+        </div>
+
+        <!-- Notification Drawer -->
+        <div class="notification-drawer" id="notification-drawer" style="display: none">
+          <div class="notification-drawer-header">
+            <span class="notification-drawer-title">Notifications</span>
+            <button class="btn btn-ghost btn-sm" id="notification-clear-btn" title="Clear all">Clear</button>
+          </div>
+          <div class="notification-drawer-list" id="notification-drawer-list">
+            <div class="notification-empty">No notifications</div>
+          </div>
         </div>
 
         <nav class="sidebar-nav">
