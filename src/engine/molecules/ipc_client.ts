@@ -60,6 +60,8 @@ import type {
   McpServerConfig,
   McpServerStatus,
   SkillOutput,
+  EngineSquad,
+  EngineSquadMember,
 } from '../atoms/types';
 
 export class PawEngineClient {
@@ -1058,6 +1060,32 @@ export class PawEngineClient {
 
   async mailDelete(account: string | undefined, id: string): Promise<void> {
     return invoke('delete_email', { account: account ?? null, id });
+  }
+
+  // ── Squads ────────────────────────────────────────────────────────────
+
+  async squadsList(): Promise<EngineSquad[]> {
+    return invoke<EngineSquad[]>('engine_squads_list');
+  }
+
+  async squadCreate(squad: EngineSquad): Promise<void> {
+    return invoke('engine_squad_create', { squad });
+  }
+
+  async squadUpdate(squad: EngineSquad): Promise<void> {
+    return invoke('engine_squad_update', { squad });
+  }
+
+  async squadDelete(squadId: string): Promise<void> {
+    return invoke('engine_squad_delete', { squadId });
+  }
+
+  async squadAddMember(squadId: string, member: EngineSquadMember): Promise<void> {
+    return invoke('engine_squad_add_member', { squadId, member });
+  }
+
+  async squadRemoveMember(squadId: string, agentId: string): Promise<void> {
+    return invoke('engine_squad_remove_member', { squadId, agentId });
   }
 }
 

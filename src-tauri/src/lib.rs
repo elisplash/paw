@@ -315,6 +315,13 @@ pub fn run() {
             commands::mcp::engine_mcp_status,
             commands::mcp::engine_mcp_refresh_tools,
             commands::mcp::engine_mcp_connect_all,
+            // ── Squads ──
+            commands::squad::engine_squads_list,
+            commands::squad::engine_squad_create,
+            commands::squad::engine_squad_update,
+            commands::squad::engine_squad_delete,
+            commands::squad::engine_squad_add_member,
+            commands::squad::engine_squad_remove_member,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

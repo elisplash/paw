@@ -4,7 +4,6 @@
 import { appState } from '../state/index';
 import { loadDashboardCron, loadChannels, loadSpaceCron, loadMemory } from './channels';
 import { loadSessions, populateAgentSelect } from '../engine/organisms/chat_controller';
-import { loadContentDocs } from './content';
 import { loadActiveSettingsTab } from './settings-tabs';
 import * as AgentsModule from './agents';
 import * as AutomationsModule from './automations';
@@ -20,6 +19,7 @@ import * as ResearchModule from './research';
 import * as MailModule from './mail';
 import * as TodayModule from './today';
 import * as ProjectsModule from './projects';
+import * as SquadsModule from './squads';
 
 export const allViewIds = [
   'dashboard-view',
@@ -43,6 +43,7 @@ export const allViewIds = [
   'today-view',
   'orchestrator-view',
   'trading-view',
+  'squads-view',
 ];
 
 const viewMap: Record<string, string> = {
@@ -64,6 +65,7 @@ const viewMap: Record<string, string> = {
   today: 'today-view',
   orchestrator: 'orchestrator-view',
   trading: 'trading-view',
+  squads: 'squads-view',
 };
 
 /** Read configured state from localStorage without holding a shared pointer. */
@@ -154,16 +156,15 @@ export function switchView(viewName: string) {
   if (viewName !== 'settings') SettingsModule.stopOverrideBannerInterval();
   if (viewName !== 'orchestrator') OrchestratorModule.stopMessagePoll();
   switch (viewName) {
-    case 'content':
-      loadContentDocs();
-      if (appState.wsConnected) loadSpaceCron('content');
-      break;
     case 'research':
       ResearchModule.loadResearchProjects();
       if (appState.wsConnected) loadSpaceCron('research');
       break;
     case 'code':
       ProjectsModule.loadProjects();
+      break;
+    case 'squads':
+      SquadsModule.loadSquads();
       break;
     default:
       break;

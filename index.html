@@ -19,10 +19,7 @@
 
         <nav class="sidebar-nav">
           <div class="nav-section">
-            <div class="nav-item active" data-view="dashboard">
-              <span>Home</span>
-            </div>
-            <div class="nav-item" data-view="today">
+            <div class="nav-item active" data-view="today">
               <span>Today</span>
             </div>
             <div class="nav-item" data-view="chat">
@@ -30,44 +27,33 @@
             </div>
             <div class="nav-item" data-view="agents">
               <span>Agents</span>
-              <span class="nav-badge">New</span>
             </div>
           </div>
 
           <div class="nav-section">
-            <div class="nav-section-label">Create</div>
+            <div class="nav-section-label">Work</div>
             <div class="nav-item" data-view="tasks">
               <span>Tasks</span>
-              <span class="nav-badge">New</span>
             </div>
-            <div class="nav-item" data-view="orchestrator">
-              <span>Orchestrator</span>
+            <div class="nav-item" data-view="squads">
+              <span>Squads</span>
               <span class="nav-badge">New</span>
             </div>
             <div class="nav-item" data-view="code">
-              <span>Projects</span>
-            </div>
-            <div class="nav-item" data-view="content">
-              <span>Create</span>
+              <span>Files</span>
             </div>
           </div>
 
           <div class="nav-section">
-            <div class="nav-section-label">Automate</div>
+            <div class="nav-section-label">Connect</div>
             <div class="nav-item" data-view="mail">
               <span>Mail</span>
-            </div>
-            <div class="nav-item" data-view="automations">
-              <span>Automate</span>
             </div>
             <div class="nav-item" data-view="channels">
               <span>Channels</span>
             </div>
             <div class="nav-item" data-view="research">
               <span>Research</span>
-            </div>
-            <div class="nav-item" data-view="nodes">
-              <span>Nodes</span>
             </div>
             <div class="nav-item" data-view="trading">
               <span>Trading</span>
@@ -79,11 +65,11 @@
             <div class="nav-item" data-view="memory">
               <span>Memory</span>
             </div>
-            <div class="nav-item" data-view="skills">
-              <span>Skills</span>
-            </div>
             <div class="nav-item" data-view="foundry">
               <span>Foundry</span>
+            </div>
+            <div class="nav-item" data-view="nodes">
+              <span>Engine</span>
             </div>
             <div class="nav-item" data-view="settings">
               <span>Settings</span>
@@ -202,7 +188,7 @@
                 <span class="feature-card-tag new">New</span>
               </button>
 
-              <button class="feature-card" data-view="automations">
+              <button class="feature-card" data-view="tasks">
                 <div class="feature-card-icon yellow">
                   <span class="ms ms-lg">auto_fix_high</span>
                 </div>
@@ -223,14 +209,15 @@
                 <span class="feature-card-tag beta">Beta</span>
               </button>
 
-              <button class="feature-card" data-view="content">
+              <button class="feature-card" data-view="squads">
                 <div class="feature-card-icon green">
-                  <span class="ms ms-lg">edit_note</span>
+                  <span class="ms ms-lg">groups</span>
                 </div>
-                <div class="feature-card-title">Create</div>
+                <div class="feature-card-title">Squads</div>
                 <div class="feature-card-desc">
-                  Blog posts, social content, marketing copy, and more
+                  Create agent teams for collaborative work
                 </div>
+                <span class="feature-card-tag new">New</span>
               </button>
             </div>
           </div>
@@ -253,14 +240,6 @@
                 </div>
                 <div class="feature-card-title">Memory</div>
                 <div class="feature-card-desc">Persistent knowledge that grows over time</div>
-              </button>
-
-              <button class="feature-card" data-view="skills">
-                <div class="feature-card-icon cyan">
-                  <span class="ms ms-lg">extension</span>
-                </div>
-                <div class="feature-card-title">Skills</div>
-                <div class="feature-card-desc">Install and manage agent abilities</div>
               </button>
 
               <button class="feature-card" data-view="foundry">
@@ -287,7 +266,7 @@
             <div class="dash-cron-grid" id="dashboard-cron-list"></div>
             <div class="dash-cron-empty" id="dashboard-cron-empty" style="display: none">
               <span>No scheduled tasks running.</span>
-              <button class="btn btn-ghost btn-sm" data-view="automations">
+              <button class="btn btn-ghost btn-sm" data-view="tasks">
                 Set up automations →
               </button>
             </div>
@@ -906,6 +885,98 @@
               <div class="modal-footer">
                 <button class="btn btn-ghost" id="orch-agent-modal-cancel">Cancel</button>
                 <button class="btn btn-primary" id="orch-agent-modal-save">Add Agent</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ Squads View — Agent Teams ═══ -->
+        <div class="view squads-layout" id="squads-view">
+          <div class="squads-sidebar">
+            <div class="squads-sidebar-header">
+              <span class="squads-sidebar-title">Squads</span>
+              <button class="btn btn-primary btn-sm" id="squads-create-btn">
+                <span class="ms ms-sm">add</span>
+                New
+              </button>
+            </div>
+            <div class="squads-list" id="squads-list"></div>
+          </div>
+          <div class="squads-main">
+            <div class="empty-state" id="squads-empty" style="display: flex">
+              <div class="empty-icon">
+                <span class="ms" style="font-size: 48px">groups</span>
+              </div>
+              <div class="empty-title">No squads yet</div>
+              <div class="empty-subtitle">
+                Create a squad to coordinate teams of agents on a shared goal
+              </div>
+              <button class="btn btn-primary" id="squads-empty-create" style="margin-top: 16px">
+                Create Squad
+              </button>
+            </div>
+            <div id="squads-detail" style="display: none"></div>
+          </div>
+
+          <!-- Create/Edit Squad Modal -->
+          <div class="modal-overlay" id="squad-modal" style="display: none">
+            <div class="modal" style="max-width: 480px">
+              <div class="modal-header">
+                <h3 id="squad-modal-title">New Squad</h3>
+                <button class="modal-close" id="squad-modal-close">×</button>
+              </div>
+              <div class="modal-body">
+                <div class="form-group">
+                  <label>Squad Name</label>
+                  <input
+                    type="text"
+                    class="form-input"
+                    id="squad-form-name"
+                    placeholder="e.g. Research Team"
+                  />
+                </div>
+                <div class="form-group">
+                  <label>Goal</label>
+                  <textarea
+                    class="form-input"
+                    id="squad-form-goal"
+                    rows="3"
+                    placeholder="What should this squad accomplish?"
+                  ></textarea>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-ghost" id="squad-modal-cancel">Cancel</button>
+                <button class="btn btn-primary" id="squad-modal-save">Create</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add Member Modal -->
+          <div class="modal-overlay" id="squad-member-modal" style="display: none">
+            <div class="modal" style="max-width: 400px">
+              <div class="modal-header">
+                <h3>Add Member</h3>
+                <button class="modal-close" id="squad-member-close">×</button>
+              </div>
+              <div class="modal-body">
+                <div class="form-group">
+                  <label>Agent</label>
+                  <select class="form-input" id="squad-member-agent">
+                    <option value="">Select agent...</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Role</label>
+                  <select class="form-input" id="squad-member-role">
+                    <option value="member">Member</option>
+                    <option value="coordinator">Coordinator</option>
+                  </select>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-ghost" id="squad-member-cancel">Cancel</button>
+                <button class="btn btn-primary" id="squad-member-save">Add</button>
               </div>
             </div>
           </div>

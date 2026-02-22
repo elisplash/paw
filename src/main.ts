@@ -41,7 +41,6 @@ import {
   autoStartConfiguredChannels,
   closeChannelSetup,
 } from './views/channels';
-import { initContent } from './views/content';
 import { switchView, showView } from './views/router';
 import { initSettingsTabs } from './views/settings-tabs';
 import * as SettingsModule from './views/settings-main';
@@ -381,12 +380,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     TasksModule.bindTaskEvents();
     OrchestratorModule.initOrchestrator();
     initChannels();
-    initContent();
     initChatListeners();
     initHILModal();
 
     console.debug('[main] Pawz engine mode — starting...');
-    switchView('dashboard');
+    switchView('today');
     await connectEngine();
 
     autoStartConfiguredChannels().catch((e) =>

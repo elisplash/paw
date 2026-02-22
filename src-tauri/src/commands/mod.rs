@@ -22,3 +22,4 @@ pub mod tailscale;
 pub mod webhook;
 pub mod mcp;
 pub mod skill_wizard;
+pub mod squad;

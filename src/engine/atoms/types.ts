@@ -806,3 +806,20 @@ export interface McpServerStatus {
   error: string | null;
   tool_count: number;
 }
+
+// ── Squads ──────────────────────────────────────────────────────────
+
+export interface EngineSquad {
+  id: string;
+  name: string;
+  goal: string;
+  status: string; // active, paused, disbanded
+  members: EngineSquadMember[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EngineSquadMember {
+  agent_id: string;
+  role: string; // coordinator, member
+}
