@@ -486,6 +486,19 @@ pub async fn run_agent_turn(
                 }
                 keep_from += 1;
             }
+            // Ensure the first non-system message is a User message.
+            // Gemini (and other providers) require the conversation to
+            // start with a user turn — starting with an assistant turn
+            // containing functionCall causes 400 errors.
+            while keep_from < messages.len()
+                && keep_from < last_user_idx
+                && messages[keep_from].role != Role::User
+            {
+                if keep_from < msg_tokens.len() {
+                    running -= msg_tokens[keep_from];
+                }
+                keep_from += 1;
+            }
             if keep_from > 0 {
                 *messages = messages.split_off(keep_from);
                 if let Some(sys) = sys_msg {
