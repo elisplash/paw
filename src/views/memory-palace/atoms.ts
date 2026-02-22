@@ -29,6 +29,7 @@ export interface RecallCardData {
   category?: string;
   importance?: number;
   score?: number;
+  agent_id?: string;
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -85,4 +86,18 @@ export function validateMemoryForm(inputs: MemoryFormInputs): FormValidationResu
   }
 
   return { ok: true, data: { apiKey, baseUrl, modelName, apiVersion, provider } };
+}
+
+// ── Agent label ────────────────────────────────────────────────────────────
+
+/** Format an agent_id for display — 'system' for empty/undefined, otherwise the agent name. */
+export function agentLabel(agentId?: string): string {
+  if (!agentId || agentId === '') return 'system';
+  return agentId;
+}
+
+/** Build agent filter options HTML from a list of known agent ids. */
+export function buildAgentFilterOptions(agentIds: string[]): string {
+  const unique = [...new Set(agentIds.filter((id) => id && id.length > 0))];
+  return unique.map((id) => `<option value="${id}">${id}</option>`).join('');
 }

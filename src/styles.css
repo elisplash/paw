@@ -7458,6 +7458,61 @@ details[open] > .skill-advanced-summary::before {
   font-size: 10px;
   color: var(--text-muted);
 }
+
+/* ── Memory card top row (category + agent + delete) ────────────────── */
+.palace-memory-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+.palace-memory-card-top .palace-memory-type {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+.palace-memory-agent {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.06));
+  color: var(--text-muted);
+}
+.palace-memory-agent.system {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.palace-sidebar-delete {
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.palace-memory-card:hover .palace-sidebar-delete {
+  opacity: 0.6;
+}
+.palace-sidebar-delete:hover {
+  opacity: 1 !important;
+  color: var(--danger);
+}
+
+/* ── Recall card agent tag + delete ─────────────────────────────────── */
+.palace-result-agent {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.06));
+  color: var(--text-muted);
+}
+.palace-delete-memory {
+  opacity: 0.4;
+  transition: opacity var(--transition-fast);
+}
+.palace-delete-memory:hover {
+  opacity: 1;
+  color: var(--danger);
+}
 .palace-list-empty {
   padding: 24px;
   text-align: center;

@@ -121,7 +121,6 @@ export function switchView(viewName: string) {
         break;
       case 'nodes':
         NodesModule.loadNodes();
-        NodesModule.loadPairingRequests();
         break;
       case 'memory':
         MemoryPalaceModule.loadMemoryPalace();

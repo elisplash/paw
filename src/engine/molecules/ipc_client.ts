@@ -231,12 +231,17 @@ export class PawEngineClient {
 
   // ── Memory ───────────────────────────────────────────────────────────
 
-  async memoryStore(content: string, category?: string, importance?: number): Promise<string> {
-    return invoke<string>('engine_memory_store', { content, category, importance });
+  async memoryStore(
+    content: string,
+    category?: string,
+    importance?: number,
+    agentId?: string,
+  ): Promise<string> {
+    return invoke<string>('engine_memory_store', { content, category, importance, agentId });
   }
 
-  async memorySearch(query: string, limit?: number): Promise<EngineMemory[]> {
-    return invoke<EngineMemory[]>('engine_memory_search', { query, limit });
+  async memorySearch(query: string, limit?: number, agentId?: string): Promise<EngineMemory[]> {
+    return invoke<EngineMemory[]>('engine_memory_search', { query, limit, agentId });
   }
 
   async memoryStats(): Promise<EngineMemoryStats> {

@@ -322,4 +322,9 @@ export function initPalaceEvents(): void {
       (card as HTMLElement).style.display = text.includes(query) ? '' : 'none';
     });
   });
+
+  // Agent filter dropdown
+  $('palace-agent-filter')?.addEventListener('change', async () => {
+    await loadPalaceSidebar((id) => palaceRecallById(id));
+  });
 }

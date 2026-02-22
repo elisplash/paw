@@ -160,6 +160,7 @@ export interface EngineMemory {
   importance: number;
   created_at: string;
   score?: number;
+  agent_id?: string;
 }
 
 export interface EngineMemoryConfig {

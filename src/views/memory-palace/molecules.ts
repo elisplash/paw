@@ -3,7 +3,12 @@
 import { pawEngine } from '../../engine';
 import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
-import { type RecallCardData, type MemoryFormInputs, validateMemoryForm } from './atoms';
+import {
+  type RecallCardData,
+  type MemoryFormInputs,
+  validateMemoryForm,
+  agentLabel,
+} from './atoms';
 
 // ── Provider fields toggle ─────────────────────────────────────────────────
 
@@ -281,24 +286,73 @@ export async function loadPalaceSidebar(onRecall?: (id: string) => void): Promis
 
   list.innerHTML = '';
 
+  // Read agent filter
+  const agentFilter = ($('palace-agent-filter') as HTMLSelectElement)?.value ?? '';
+
   try {
-    const memories = await pawEngine.memoryList(20);
-    if (!memories.length) {
+    const memories = await pawEngine.memoryList(50);
+    // Apply client-side agent filter
+    const filtered = agentFilter
+      ? memories.filter((m) => (m.agent_id || '') === agentFilter)
+      : memories;
+
+    // Populate agent filter dropdown with known agents
+    const agentFilterEl = $('palace-agent-filter') as HTMLSelectElement | null;
+    if (agentFilterEl && agentFilterEl.options.length <= 2) {
+      const agentIds = [
+        ...new Set(memories.map((m) => m.agent_id || '').filter((id) => id.length > 0)),
+      ];
+      for (const id of agentIds) {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = id;
+        agentFilterEl.appendChild(opt);
+      }
+      // Restore selection
+      if (agentFilter) agentFilterEl.value = agentFilter;
+    }
+
+    if (!filtered.length) {
       list.innerHTML = '<div class="palace-list-empty">No memories yet</div>';
       return;
     }
-    for (const mem of memories) {
+    for (const mem of filtered) {
       const card = document.createElement('div');
       card.className = 'palace-memory-card';
+      const agentTag = mem.agent_id
+        ? `<span class="palace-memory-agent">${escHtml(mem.agent_id)}</span>`
+        : '<span class="palace-memory-agent system">system</span>';
       card.innerHTML = `
-        <span class="palace-memory-type">${escHtml(mem.category)}</span>
+        <div class="palace-memory-card-top">
+          <span class="palace-memory-type">${escHtml(mem.category)}</span>
+          ${agentTag}
+          <button class="btn-icon palace-sidebar-delete" data-memory-id="${escHtml(mem.id)}" title="Delete"><span class="ms ms-sm">close</span></button>
+        </div>
         <div class="palace-memory-subject">${escHtml(mem.content.slice(0, 60))}${mem.content.length > 60 ? '…' : ''}</div>
         <div class="palace-memory-preview">${mem.score != null ? `${(mem.score * 100).toFixed(0)}% match` : `importance: ${mem.importance}`}</div>
       `;
-      card.addEventListener('click', () => {
+      // Click card = recall
+      card.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement).closest('.palace-sidebar-delete')) return;
         if (onRecall) onRecall(mem.id);
         else palaceRecallById(mem.id);
       });
+      // Delete button on sidebar card
+      const delBtn = card.querySelector('.palace-sidebar-delete');
+      if (delBtn) {
+        delBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          if (!confirm('Delete this memory?')) return;
+          try {
+            await pawEngine.memoryDelete(mem.id);
+            showToast('Memory deleted', 'success');
+            card.remove();
+            await loadPalaceStats();
+          } catch (err) {
+            showToast(`Failed to delete: ${err}`, 'error');
+          }
+        });
+      }
       list.appendChild(card);
     }
   } catch (e) {
@@ -337,6 +391,7 @@ export async function palaceRecallById(memoryId: string): Promise<void> {
           category: memories[0].category,
           importance: memories[0].importance,
           score: memories[0].score,
+          agent_id: memories[0].agent_id,
         }),
       );
     } else {
@@ -362,17 +417,44 @@ export function renderRecallCard(mem: RecallCardData): HTMLElement {
     mem.importance != null
       ? `<span class="palace-result-tag">importance: ${mem.importance}</span>`
       : '';
+  const agent = `<span class="palace-result-tag palace-result-agent">${escHtml(agentLabel(mem.agent_id))}</span>`;
+  const deleteBtn = mem.id
+    ? `<button class="btn-icon palace-delete-memory" data-memory-id="${escHtml(mem.id)}" title="Delete memory"><span class="ms ms-sm">delete</span></button>`
+    : '';
 
   card.innerHTML = `
     <div class="palace-result-header">
       <span class="palace-result-type">${escHtml(mem.category ?? 'other')}</span>
       ${score}
+      ${deleteBtn}
     </div>
     <div class="palace-result-content">${escHtml(mem.text ?? '')}</div>
     <div class="palace-result-meta">
       ${importance}
+      ${agent}
     </div>
   `;
+
+  // Wire delete button
+  const delEl = card.querySelector('.palace-delete-memory');
+  if (delEl && mem.id) {
+    delEl.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const memId = (delEl as HTMLElement).dataset.memoryId;
+      if (!memId) return;
+      if (!confirm('Delete this memory?')) return;
+      try {
+        await pawEngine.memoryDelete(memId);
+        showToast('Memory deleted', 'success');
+        card.remove();
+        await loadPalaceStats();
+        await loadPalaceSidebar();
+      } catch (err) {
+        showToast(`Failed to delete: ${err}`, 'error');
+      }
+    });
+  }
+
   return card;
 }
 
@@ -445,6 +527,7 @@ async function palaceRecallSearch(): Promise<void> {
           category: mem.category,
           importance: mem.importance,
           score: mem.score,
+          agent_id: mem.agent_id,
         }),
       );
     }

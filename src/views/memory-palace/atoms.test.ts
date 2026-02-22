@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { validateMemoryForm, CATEGORY_COLORS } from './atoms';
+import { validateMemoryForm, CATEGORY_COLORS, agentLabel, buildAgentFilterOptions } from './atoms';
 import type { MemoryFormInputs } from './atoms';
 
 // ── validateMemoryForm ─────────────────────────────────────────────────
@@ -69,5 +69,51 @@ describe('CATEGORY_COLORS', () => {
     for (const color of Object.values(CATEGORY_COLORS)) {
       expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/);
     }
+  });
+});
+
+// ── agentLabel ─────────────────────────────────────────────────────────
+
+describe('agentLabel', () => {
+  it('returns "system" for undefined', () => {
+    expect(agentLabel(undefined)).toBe('system');
+  });
+
+  it('returns "system" for empty string', () => {
+    expect(agentLabel('')).toBe('system');
+  });
+
+  it('returns the agent id when present', () => {
+    expect(agentLabel('alice')).toBe('alice');
+  });
+
+  it('preserves agent id casing', () => {
+    expect(agentLabel('ResearchBot')).toBe('ResearchBot');
+  });
+});
+
+// ── buildAgentFilterOptions ────────────────────────────────────────────
+
+describe('buildAgentFilterOptions', () => {
+  it('returns empty string for empty list', () => {
+    expect(buildAgentFilterOptions([])).toBe('');
+  });
+
+  it('builds options from agent ids', () => {
+    const html = buildAgentFilterOptions(['alice', 'bob']);
+    expect(html).toContain('value="alice"');
+    expect(html).toContain('value="bob"');
+  });
+
+  it('deduplicates agent ids', () => {
+    const html = buildAgentFilterOptions(['alice', 'alice', 'bob']);
+    const matches = html.match(/value="alice"/g);
+    expect(matches).toHaveLength(1);
+  });
+
+  it('filters out empty strings', () => {
+    const html = buildAgentFilterOptions(['', 'alice', '']);
+    expect(html).not.toContain('value=""');
+    expect(html).toContain('value="alice"');
   });
 });
