@@ -35,6 +35,8 @@ mod schema;
 pub(crate) mod embedding;
 mod skill_outputs;
 mod skill_storage;
+mod agent_messages;
+mod squads;
 
 // ── Re-exports (preserve crate::engine::sessions::* API) ─────────────────────
 

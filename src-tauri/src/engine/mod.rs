@@ -36,3 +36,4 @@ pub mod webchat;
 pub mod whatsapp;
 pub mod webhook;
 pub mod mcp;
+pub mod events;

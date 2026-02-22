@@ -6,7 +6,7 @@ use crate::atoms::error::EngineResult;
 impl Task {
     /// Map a row with columns (id, title, description, status, priority, assigned_agent,
     /// session_id, cron_schedule, cron_enabled, last_run_at, next_run_at, created_at,
-    /// updated_at, model) → Task (assigned_agents populated separately).
+    /// updated_at, model, event_trigger, persistent) → Task (assigned_agents populated separately).
     fn from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
         Ok(Task {
             id: row.get(0)?,
@@ -24,6 +24,8 @@ impl Task {
             next_run_at: row.get(10)?,
             created_at: row.get(11)?,
             updated_at: row.get(12)?,
+            event_trigger: row.get(14).unwrap_or(None),
+            persistent: row.get::<_, i32>(15).unwrap_or(0) != 0,
         })
     }
 }
@@ -56,7 +58,8 @@ impl SessionStore {
 
         let mut stmt = conn.prepare(
             "SELECT id, title, description, status, priority, assigned_agent, session_id,
-                    cron_schedule, cron_enabled, last_run_at, next_run_at, created_at, updated_at, model
+                    cron_schedule, cron_enabled, last_run_at, next_run_at, created_at, updated_at, model,
+                    event_trigger, persistent
              FROM tasks ORDER BY updated_at DESC"
         )?;
 
@@ -74,12 +77,14 @@ impl SessionStore {
         let conn = self.conn.lock();
         conn.execute(
             "INSERT INTO tasks (id, title, description, status, priority, assigned_agent, session_id,
-                               model, cron_schedule, cron_enabled, last_run_at, next_run_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                               model, cron_schedule, cron_enabled, last_run_at, next_run_at,
+                               event_trigger, persistent)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 task.id, task.title, task.description, task.status, task.priority,
                 task.assigned_agent, task.session_id, task.model, task.cron_schedule,
                 task.cron_enabled as i32, task.last_run_at, task.next_run_at,
+                task.event_trigger, task.persistent as i32,
             ],
         )?;
         Ok(())
@@ -91,12 +96,14 @@ impl SessionStore {
         conn.execute(
             "UPDATE tasks SET title=?2, description=?3, status=?4, priority=?5,
                     assigned_agent=?6, session_id=?7, model=?8, cron_schedule=?9, cron_enabled=?10,
-                    last_run_at=?11, next_run_at=?12, updated_at=datetime('now')
+                    last_run_at=?11, next_run_at=?12, event_trigger=?13, persistent=?14,
+                    updated_at=datetime('now')
              WHERE id=?1",
             params![
                 task.id, task.title, task.description, task.status, task.priority,
                 task.assigned_agent, task.session_id, task.model, task.cron_schedule,
                 task.cron_enabled as i32, task.last_run_at, task.next_run_at,
+                task.event_trigger, task.persistent as i32,
             ],
         )?;
         Ok(())
@@ -176,7 +183,8 @@ impl SessionStore {
         let now = chrono::Utc::now().to_rfc3339();
         let mut stmt = conn.prepare(
             "SELECT id, title, description, status, priority, assigned_agent, session_id,
-                    cron_schedule, cron_enabled, last_run_at, next_run_at, created_at, updated_at, model
+                    cron_schedule, cron_enabled, last_run_at, next_run_at, created_at, updated_at, model,
+                    event_trigger, persistent
              FROM tasks WHERE cron_enabled = 1 AND next_run_at IS NOT NULL AND next_run_at <= ?1"
         )?;
 

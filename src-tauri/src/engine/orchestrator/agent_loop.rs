@@ -46,6 +46,12 @@ const SAFE_TOOLS: &[&str] = &[
     // but listed here so they're skipped if interception is bypassed.
     "delegate_task", "check_agent_status", "send_agent_message",
     "project_complete", "create_sub_agent", "report_progress",
+    // Inter-agent comms (safe: only sends/reads messages between agents)
+    "agent_send_message", "agent_read_messages",
+    // Squads (safe: team management)
+    "create_squad", "list_squads", "manage_squad", "squad_broadcast",
+    // Task management (read/create — not destructive)
+    "create_task", "list_tasks",
 ];
 
 // ── Unified loop ───────────────────────────────────────────────────────

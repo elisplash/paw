@@ -237,6 +237,8 @@ pub async fn execute_task(
     let sem = state.run_semaphore.clone();
     let inflight = state.inflight_tasks.clone();
 
+    let is_persistent = task.persistent;
+
     let task_daily_budget = {
         let cfg = state.config.lock();
         cfg.daily_budget_usd
@@ -463,7 +465,7 @@ pub async fn execute_task(
         inflight_clone.lock().remove(&task_id_for_cleanup);
 
         if let Ok(conn) = rusqlite::Connection::open(store_path) {
-            let new_status = if is_recurring {
+            let new_status = if is_recurring || is_persistent {
                 "in_progress"
             } else if any_ok {
                 "review"
@@ -475,8 +477,23 @@ pub async fn execute_task(
                 rusqlite::params![task_id_for_spawn, new_status],
             ).ok();
 
+            // Persistent tasks re-queue immediately with a short cooldown
+            if is_persistent && !is_recurring {
+                let next = chrono::Utc::now() + chrono::Duration::seconds(30);
+                conn.execute(
+                    "UPDATE tasks SET next_run_at = ?2, cron_enabled = 1, last_run_at = ?3 WHERE id = ?1",
+                    rusqlite::params![task_id_for_spawn, next.to_rfc3339(), chrono::Utc::now().to_rfc3339()],
+                ).ok();
+            }
+
             let aid = uuid::Uuid::new_v4().to_string();
-            let summary = if is_recurring {
+            let summary = if is_persistent {
+                if agent_count > 1 {
+                    format!("All {} agents finished (persistent). Re-queuing in 30s.", agent_count)
+                } else {
+                    "Persistent task cycle completed. Re-queuing in 30s.".to_string()
+                }
+            } else if is_recurring {
                 if agent_count > 1 {
                     format!("All {} agents finished (recurring). Staying in_progress for next run.", agent_count)
                 } else {
@@ -495,7 +512,7 @@ pub async fn execute_task(
 
         app_handle_final.emit("task-updated", serde_json::json!({
             "task_id": task_id_for_spawn,
-            "status": if is_recurring { "in_progress" } else if any_ok { "review" } else { "blocked" },
+            "status": if is_recurring || is_persistent { "in_progress" } else if any_ok { "review" } else { "blocked" },
         })).ok();
     });
 

@@ -495,6 +495,14 @@ pub struct Task {
     pub next_run_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+    /// Event trigger condition (JSON). When set, the task fires on matching events
+    /// instead of (or in addition to) a cron schedule.
+    /// Example: `{"type":"webhook","path":"/deploy"}` or `{"type":"file_change","pattern":"*.md"}`
+    #[serde(default)]
+    pub event_trigger: Option<String>,
+    /// If true, the task re-queues itself immediately after each run (always-on monitoring).
+    #[serde(default)]
+    pub persistent: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -556,3 +564,41 @@ pub struct ProjectMessage {
     pub created_at: String,
 }
 
+// ── Inter-Agent Communication ──────────────────────────────────────────────
+
+/// A direct message between agents, independent of any project context.
+/// Stored in the `agent_messages` table and accessible via agent comm tools.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentMessage {
+    pub id: String,
+    pub from_agent: String,
+    pub to_agent: String,           // target agent_id, or "broadcast" for all
+    pub channel: String,            // topic/channel name for filtering (e.g. "general", "alerts")
+    pub content: String,
+    pub metadata: Option<String>,   // JSON blob for structured payloads
+    pub read: bool,
+    pub created_at: String,
+}
+
+// ── Agent Squads ───────────────────────────────────────────────────────────
+
+/// A named group of agents that can be assigned goals collectively.
+/// Squads enable peer-to-peer collaboration without the boss/worker hierarchy.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Squad {
+    pub id: String,
+    pub name: String,
+    pub goal: String,
+    pub status: String,             // active, paused, disbanded
+    #[serde(default)]
+    pub members: Vec<SquadMember>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// A member of a squad with a defined role.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SquadMember {
+    pub agent_id: String,
+    pub role: String,               // coordinator, member
+}

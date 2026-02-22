@@ -270,6 +270,46 @@ pub(crate) fn run_migrations(conn: &Connection) -> EngineResult<()> {
         WHERE id NOT IN (SELECT id FROM memories_fts);
     ").ok();
 
+    // ── Event-Driven Triggers & Persistent Tasks ──────────────────
+    conn.execute("ALTER TABLE tasks ADD COLUMN event_trigger TEXT", []).ok();
+    conn.execute("ALTER TABLE tasks ADD COLUMN persistent INTEGER NOT NULL DEFAULT 0", []).ok();
+
+    // ── Inter-Agent Communication ───────────────────────────────────
+    conn.execute_batch("
+        CREATE TABLE IF NOT EXISTS agent_messages (
+            id TEXT PRIMARY KEY,
+            from_agent TEXT NOT NULL,
+            to_agent TEXT NOT NULL,
+            channel TEXT NOT NULL DEFAULT 'general',
+            content TEXT NOT NULL DEFAULT '',
+            metadata TEXT,
+            read INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_agent_messages_to ON agent_messages(to_agent, read, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_agent_messages_channel ON agent_messages(channel, created_at DESC);
+    ").ok();
+
+    // ── Agent Squads ────────────────────────────────────────────────
+    conn.execute_batch("
+        CREATE TABLE IF NOT EXISTS squads (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            goal TEXT NOT NULL DEFAULT '',
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS squad_members (
+            squad_id TEXT NOT NULL,
+            agent_id TEXT NOT NULL,
+            role TEXT NOT NULL DEFAULT 'member',
+            added_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (squad_id, agent_id),
+            FOREIGN KEY (squad_id) REFERENCES squads(id) ON DELETE CASCADE
+        );
+    ").ok();
+
     // ── Seed _standalone sentinel project ───────────────────────────
     // Ensures user-created agents (via create_agent tool) satisfy the FK constraint.
     conn.execute(

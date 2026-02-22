@@ -13,7 +13,7 @@ pub fn definitions() -> Vec<ToolDefinition> {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "create_task".into(),
-                description: "Create a new task or scheduled automation for an agent. Tasks appear on the Tasks board. Add a cron_schedule (cron syntax) to make it run automatically.".into(),
+                description: "Create a new task or scheduled automation for an agent. Tasks appear on the Tasks board. Add a cron_schedule to make it run automatically, an event_trigger for event-driven execution, or set persistent=true for always-on monitoring.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
@@ -21,7 +21,9 @@ pub fn definitions() -> Vec<ToolDefinition> {
                         "description": { "type": "string", "description": "Detailed task instructions for the agent" },
                         "priority": { "type": "string", "enum": ["low", "medium", "high", "urgent"], "description": "Task priority (default: medium)" },
                         "agent_id": { "type": "string", "description": "Agent to assign the task to (default: 'default')" },
-                        "cron_schedule": { "type": "string", "description": "Cron schedule for recurring tasks (e.g. '0 9 * * 1-5' for weekdays at 9am). Omit for one-shot tasks." }
+                        "cron_schedule": { "type": "string", "description": "Schedule for recurring tasks: 'every 5m', 'every 1h', 'daily 09:00'. Omit for one-shot tasks." },
+                        "event_trigger": { "type": "string", "description": "JSON event trigger condition. Examples: {\"type\":\"webhook\"} (fires on any inbound webhook), {\"type\":\"webhook\",\"path\":\"/deploy\"} (specific path), {\"type\":\"agent_message\",\"channel\":\"alerts\"} (fires when a message arrives on the alerts channel)" },
+                        "persistent": { "type": "boolean", "description": "If true, the task re-runs continuously after each completion (always-on monitoring mode)" }
                     },
                     "required": ["title", "description"]
                 }),
@@ -88,13 +90,15 @@ async fn execute_create_task(
     let priority = args["priority"].as_str().unwrap_or("medium").to_string();
     let agent_id = args["agent_id"].as_str().unwrap_or("default").to_string();
     let cron_schedule = args["cron_schedule"].as_str().map(String::from);
+    let event_trigger = args["event_trigger"].as_str().map(String::from);
+    let persistent = args["persistent"].as_bool().unwrap_or(false);
 
     let state = app_handle.try_state::<EngineState>()
         .ok_or("Engine state not available")?;
 
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().to_rfc3339();
-    let cron_enabled = cron_schedule.is_some();
+    let cron_enabled = cron_schedule.is_some() || persistent;
     let next_run_at = if cron_enabled { Some(now.clone()) } else { None };
 
     let task = crate::engine::types::Task {
@@ -116,6 +120,8 @@ async fn execute_create_task(
         created_at: now.clone(),
         updated_at: now,
         model: None,
+        event_trigger: event_trigger.clone(),
+        persistent,
     };
 
     state.store.create_task(&task)?;
@@ -124,14 +130,23 @@ async fn execute_create_task(
     state.store.add_task_activity(&aid, &id, "created", None,
         &format!("Task created via chat: {}", title)).ok();
 
-    info!("[engine] create_task tool: '{}' agent={} cron={:?}", title, agent_id, cron_schedule);
+    info!("[engine] create_task tool: '{}' agent={} cron={:?} event={:?} persistent={}",
+        title, agent_id, cron_schedule, event_trigger, persistent);
     app_handle.emit("task-updated", serde_json::json!({ "task_id": id })).ok();
 
-    let schedule_info = if let Some(ref s) = cron_schedule {
-        format!("\n- **Schedule**: {} (will run automatically via heartbeat)", s)
-    } else {
-        "\n- **Type**: One-shot task (run manually from Tasks board)".into()
-    };
+    let mut schedule_info = String::new();
+    if let Some(ref s) = cron_schedule {
+        schedule_info.push_str(&format!("\n- **Schedule**: {} (runs automatically)", s));
+    }
+    if let Some(ref e) = event_trigger {
+        schedule_info.push_str(&format!("\n- **Event trigger**: {} (fires on matching events)", e));
+    }
+    if persistent {
+        schedule_info.push_str("\n- **Mode**: Persistent (re-runs continuously after each completion)");
+    }
+    if schedule_info.is_empty() {
+        schedule_info = "\n- **Type**: One-shot task (run manually from Tasks board)".into();
+    }
 
     Ok(format!(
         "Task created successfully!\n\n\
@@ -175,9 +190,11 @@ async fn execute_list_tasks(
         let enabled = if t.cron_enabled { "enabled" } else { "paused" };
         let agent = t.assigned_agent.as_deref().unwrap_or("unassigned");
         let next = t.next_run_at.as_deref().unwrap_or("-");
+        let trigger = t.event_trigger.as_deref().unwrap_or("none");
+        let mode = if t.persistent { "persistent" } else { "standard" };
         output.push_str(&format!(
-            "---\n**{}** (ID: `{}`)\n- Status: {} | Priority: {}\n- Agent: {} | Schedule: {} ({})\n- Next run: {}\n- Description: {}\n\n",
-            t.title, t.id, t.status, t.priority, agent, schedule, enabled, next,
+            "---\n**{}** (ID: `{}`)\n- Status: {} | Priority: {} | Mode: {}\n- Agent: {} | Schedule: {} ({})\n- Event trigger: {} | Next run: {}\n- Description: {}\n\n",
+            t.title, t.id, t.status, t.priority, mode, agent, schedule, enabled, trigger, next,
             if t.description.len() > 150 { format!("{}...", &t.description[..150]) } else { t.description.clone() }
         ));
     }
