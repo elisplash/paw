@@ -556,6 +556,9 @@ body {
 .nav-item[data-view='trading']::after {
   content: 'trending_up';
 }
+.nav-item[data-view='squads']::after {
+  content: 'groups';
+}
 
 .sidebar-footer {
   padding: 10px;
