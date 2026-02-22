@@ -4,7 +4,7 @@
 
 use crate::engine::sessions::SessionStore;
 use super::builtins::builtin_skills;
-use super::toml_loader::scan_toml_skills;
+use super::toml::scan_toml_skills;
 use super::types::CredentialField;
 use super::status::get_skill_credentials;
 use super::community::get_community_skill_instructions;

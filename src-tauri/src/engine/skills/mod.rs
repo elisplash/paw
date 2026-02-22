@@ -9,7 +9,7 @@
 //   status     — get_all_skill_status, get_skill_credentials
 //   prompt     — get_enabled_skill_instructions, inject_credentials_into_instructions
 //   community  — SKILL.md parser, GitHub fetcher, skills.sh search, DB CRUD
-//   toml_loader — pawz-skill.toml manifest parser, directory scanner (Phase F.1)
+//   toml       — pawz-skill.toml manifest subsystem (types, parser, scanner, installer)
 
 pub(crate) mod types;
 mod builtins;
@@ -18,7 +18,7 @@ pub(crate) mod crypto;
 mod status;
 mod prompt;
 pub mod community;
-pub mod toml_loader;
+pub mod toml;
 
 // ── Re-exports (keep crate::engine::skills::* API stable) ────────────────────
 
@@ -34,7 +34,7 @@ pub use community::{
     parse_skill_md,
     PawzHubEntry, search_pawzhub, browse_pawzhub_category, fetch_pawzhub_toml,
 };
-pub use toml_loader::{
+pub use toml::{
     scan_toml_skills, install_toml_skill, uninstall_toml_skill,
     TomlSkillEntry, SkillManifest, parse_manifest,
 };

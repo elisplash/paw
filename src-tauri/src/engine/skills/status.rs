@@ -5,7 +5,7 @@
 use log::{info, warn};
 use crate::engine::sessions::SessionStore;
 use super::builtins::builtin_skills;
-use super::toml_loader::scan_toml_skills;
+use super::toml::scan_toml_skills;
 use super::types::{SkillSource, SkillStatus};
 use super::crypto::{decrypt_credential, encrypt_credential, get_vault_key, is_legacy_encrypted};
 use crate::atoms::error::EngineResult;
