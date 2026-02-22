@@ -17,7 +17,7 @@ pub async fn execute_dex_wallet_create(
         let addr = creds.get("DEX_WALLET_ADDRESS")
             .ok_or(EngineError::Other("DEX_WALLET_ADDRESS not found in credentials".into()))?;
         return Ok(format!(
-            "Wallet already exists!\n\nAddress: {}\n\nTo create a new wallet, first remove the existing credentials in Settings → Skills → DEX Trading.",
+            "Wallet already exists!\n\nAddress: {}\n\nTo create a new wallet, first remove the existing credentials in Skills → DEX Trading.",
             addr
         ));
     }

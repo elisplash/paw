@@ -13,7 +13,7 @@ pub async fn execute_sol_balance(
     creds: &HashMap<String, String>,
 ) -> EngineResult<String> {
     let rpc_url = creds.get("SOLANA_RPC_URL")
-        .ok_or("Missing SOLANA_RPC_URL. Configure your Solana RPC endpoint in Settings → Skills → Solana DEX Trading.")?;
+        .ok_or("Missing SOLANA_RPC_URL. Configure your Solana RPC endpoint in Skills → Solana DEX Trading.")?;
     let wallet = creds.get("SOLANA_WALLET_ADDRESS")
         .ok_or("No Solana wallet found. Use sol_wallet_create first.")?;
 

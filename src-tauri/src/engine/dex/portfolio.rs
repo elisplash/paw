@@ -13,7 +13,7 @@ pub async fn execute_dex_balance(
     args: &serde_json::Value,
     creds: &HashMap<String, String>,
 ) -> EngineResult<String> {
-    let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL. Configure your RPC endpoint (Infura/Alchemy) in Settings → Skills → DEX Trading.")?;
+    let rpc_url = creds.get("DEX_RPC_URL").ok_or("Missing DEX_RPC_URL. Configure your RPC endpoint (Infura/Alchemy) in Skills → DEX Trading.")?;
     let wallet_address = creds.get("DEX_WALLET_ADDRESS").ok_or("No wallet found. Use dex_wallet_create first.")?;
 
     // Optional: specific token to check

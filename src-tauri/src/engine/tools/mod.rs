@@ -190,7 +190,7 @@ pub fn get_skill_creds(
         .ok_or("Engine state not available")?;
 
     if !state.store.is_skill_enabled(skill_id)? {
-        return Err(format!("Skill '{}' is not enabled. Ask the user to enable it in Settings → Skills.", skill_id).into());
+        return Err(format!("Skill '{}' is not enabled. Ask the user to enable it in Skills.", skill_id).into());
     }
 
     let creds = skills::get_skill_credentials(&state.store, skill_id)?;
@@ -203,7 +203,7 @@ pub fn get_skill_creds(
             .collect();
         if !missing.is_empty() {
             return Err(format!(
-                "Skill '{}' is missing required credentials: {}. Ask the user to configure them in Settings → Skills.",
+                "Skill '{}' is missing required credentials: {}. Ask the user to configure them in Skills.",
                 skill_id, missing.join(", ")
             ).into());
         }

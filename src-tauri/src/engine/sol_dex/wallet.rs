@@ -27,7 +27,7 @@ pub async fn execute_sol_wallet_create(
     if creds.contains_key("SOLANA_PRIVATE_KEY") && creds.contains_key("SOLANA_WALLET_ADDRESS") {
         let addr = creds.get("SOLANA_WALLET_ADDRESS").unwrap();
         return Ok(format!(
-            "Solana wallet already exists!\n\nAddress: {}\n\nTo create a new wallet, first remove the existing credentials in Settings → Skills → Solana DEX Trading.",
+            "Solana wallet already exists!\n\nAddress: {}\n\nTo create a new wallet, first remove the existing credentials in Skills → Solana DEX Trading.",
             addr
         ));
     }
