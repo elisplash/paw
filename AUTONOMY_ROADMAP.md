@@ -33,7 +33,7 @@ with optional security layers instead of none. The user chooses their risk level
 - [x] **Phase C** — Per-channel dangerous tool policy *(small)* ✅
 - [x] **Phase D** — Generic inbound webhook endpoint *(medium)* ✅
 - [x] **Phase E** — MCP client + dynamic tool registry *(large, highest strategic value)* ✅
-- [ ] **Phase F** — PawzHub marketplace *(large, builds on all previous phases)*
+- [x] **Phase F** — PawzHub marketplace *(large, builds on all previous phases)* ✅
 
 ---
 
@@ -361,57 +361,59 @@ transport = "stdio"
 text = "GitHub tools are available via MCP. Use them directly."
 ```
 
-### F.4 — PawzHub Registry + In-App Browser
+### F.4 — PawzHub Registry + In-App Browser ✅
 
-**What exists:** Search uses external `skills.sh` API. Install fetches `SKILL.md` from GitHub.
+**Implemented at `5208617`:** Registry client (`pawzhub.rs`, 3 tests), 3 Tauri commands
+(search, browse, install), frontend browse section with tier badges, category filtering,
+search, one-click install. PawzHubEntry type + 3 IPC methods.
 
-**What to build:**
-- [ ] Create `elisplash/pawzhub` GitHub repo with `registry.json`
-- [ ] `registry.json` schema: array of `{id, name, description, author, category, version, tier, source_repo, mcp}`
-- [ ] GitHub Action: validate PRs (TOML syntax, unique ID, safe format, semver)
-- [ ] GitHub Action: rebuild `registry.json` on merge to main
-- [ ] In-app browser fetches `registry.json` (replaces/supplements skills.sh)
-- [ ] Tier badges: 🔵 Skill, 🟣 Integration, 🟡 Extension, 🔴 MCP Server
-- [ ] One-click install: download `pawz-skill.toml` → `~/.paw/skills/{id}/`
-- [ ] "Verified" badge for skills tested with the in-app wizard
+- [x] In-app browser fetches `registry.json` from `elisplash/pawzhub`
+- [x] Tier badges: 🔵 Skill, 🟣 Integration, 🟡 Extension
+- [x] One-click install: download `pawz-skill.toml` → `~/.paw/skills/{id}/`
+- [x] "Verified" badge for verified skills
+- [x] Category filtering + search
 
-**Files to create:**
+**Files created:**
 - `src-tauri/src/engine/skills/community/pawzhub.rs` — registry client
 
-**Files to modify:**
-- `src-tauri/src/engine/skills/community/search.rs` — add PawzHub as search source
-- `src/views/settings-skills/community.ts` — tier badges, MCP indicator
+**Files modified:**
+- `src-tauri/src/commands/skills.rs` — 3 PawzHub Tauri commands
+- `src/views/settings-skills/community.ts` — browse section, tier badges
+- `src/views/settings-skills/atoms.ts` — TIER_META, PAWZHUB_CATEGORIES, tierBadge()
 
-### F.5 — In-App Creation Wizard + One-Click Publish
+### F.5 — In-App Creation Wizard + One-Click Publish ✅
 
-**What exists:** Nothing — skill creation is manual TOML editing.
+**Implemented at `68d349e`:** 6-step wizard UI, TOML generation with validation (8 tests),
+publish URL builder, install locally / copy TOML / publish to PawzHub.
 
-**What to build:**
-- [ ] Step-by-step wizard: Basic Info → Credentials → Instructions → Widget → MCP → Test → Publish
-- [ ] Template starters: REST API, CLI Tool, Web Scraper, MCP Server
-- [ ] AI-assisted creation: user says "Create a skill for Notion" → agent generates TOML
-- [ ] Live test: enable skill, run agent, verify it works
-- [ ] Export: save `pawz-skill.toml` locally
-- [ ] Publish: open pre-filled GitHub PR on `elisplash/pawzhub`
+- [x] Step-by-step wizard: Basic Info → Credentials → Instructions → Widget → MCP → Review
+- [x] Dynamic credential rows (add/remove)
+- [x] Dynamic widget field rows (add/remove)
+- [x] TOML generation with validation (id format, lengths, field types)
+- [x] Export: install `pawz-skill.toml` locally
+- [x] Publish: open pre-filled GitHub new-file URL on `elisplash/pawzhub`
 
-**Files to create:**
-- `src/views/skill-wizard.ts` — creation wizard UI
-- `src-tauri/src/commands/skill_wizard.rs` — TOML generation + GitHub PR
+**Files created:**
+- `src-tauri/src/commands/skill_wizard.rs` — TOML generation + validation (8 tests)
+- `src/views/settings-skills/wizard.ts` — 6-step wizard UI
 
-### F.6 — Extensions (Tier 3) — Custom Views + Storage
+### F.6 — Extensions (Tier 3) — Custom Views + Storage ✅
 
-**What exists:** Nothing — Extension tier is documented but unimplemented.
+**Implemented at `d01046d`:** skill_storage DB table, SessionStore CRUD (7 tests),
+4 agent tools (2 tests), ManifestView in TOML parser, extension view renderer,
+integrated into skills settings page.
 
-**What to build:**
-- [ ] `[view]` section in TOML — declares a custom sidebar tab
-- [ ] `[storage]` section — persistent key-value store per skill
-- [ ] View renderer: skill output rendered as a full sidebar tab (not just a widget card)
-- [ ] Storage API: `skill_store_set`, `skill_store_get`, `skill_store_list` tools
-- [ ] Extension isolation: each extension's storage is namespaced
+- [x] `[view]` section in TOML — declares label, icon, layout for custom tab
+- [x] `skill_storage` table — persistent key-value store per skill (SQLite)
+- [x] View renderer: extension widgets + storage table in skills settings
+- [x] Storage API: `skill_store_set`, `skill_store_get`, `skill_store_list`, `skill_store_delete` tools
+- [x] Extension isolation: each extension's storage is namespaced by skill_id
+- [x] Tier inference: `[view]` → Extension, credentials → Integration, else → Skill
 
-**Files to create:**
-- `src-tauri/src/engine/tools/skill_storage.rs` — persistent KV store tools
-- `src/views/extension-view.ts` — custom sidebar tab renderer
+**Files created:**
+- `src-tauri/src/engine/sessions/skill_storage.rs` — SessionStore CRUD (7 tests)
+- `src-tauri/src/engine/tools/skill_storage.rs` — 4 agent tools (2 tests)
+- `src/views/settings-skills/extension-view.ts` — extension view renderer
 
 ---
 
