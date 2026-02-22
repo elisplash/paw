@@ -12114,6 +12114,64 @@ details[open] > .skill-advanced-summary::before {
   padding: 24px 12px;
 }
 
+/* ── Handoff Cards ───────────────────────────────────────────── */
+.squad-detail-handoffs {
+  margin-top: 16px;
+}
+.squad-handoff-feed {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--bg-secondary);
+}
+.handoff-card {
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.handoff-card:last-child {
+  border-bottom: none;
+}
+.handoff-card.unread {
+  background: var(--accent-subtle, rgba(99, 102, 241, 0.06));
+  border-radius: var(--radius-sm);
+}
+.handoff-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.handoff-from,
+.handoff-to {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+}
+.handoff-arrow {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.handoff-content {
+  font-size: 13px;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+.handoff-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.handoff-file {
+  font-size: 11px;
+  background: var(--bg-tertiary, rgba(255, 255, 255, 0.05));
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
 /* ── Command Palette ─────────────────────────────────────────── */
 .command-palette-overlay {
   position: fixed;

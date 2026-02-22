@@ -808,6 +808,19 @@ export interface McpServerStatus {
   tool_count: number;
 }
 
+// ── Agent Messages ──────────────────────────────────────────────────────
+
+export interface EngineAgentMessage {
+  id: string;
+  from_agent: string;
+  to_agent: string;
+  channel: string;
+  content: string;
+  metadata?: string;
+  read: boolean;
+  created_at: string;
+}
+
 // ── Squads ──────────────────────────────────────────────────────────
 
 export interface EngineSquad {
