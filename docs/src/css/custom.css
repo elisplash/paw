@@ -97,10 +97,10 @@ html {
 
 .navbar__title::before {
   content: 'Open';
-  font-family: var(--ifm-font-family-base);
-  font-weight: 700;
-  font-size: 14px;
-  letter-spacing: -0.02em;
+  font-family: var(--paw-pixel);
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: 0.03em;
   color: var(--ifm-font-color-base);
   margin-right: 2px;
 }
@@ -111,7 +111,6 @@ html {
 
 [data-theme='dark'] .navbar__title::before {
   color: #ffffff;
-  text-shadow: none;
 }
 
 .navbar__logo img {
@@ -183,9 +182,9 @@ html {
 }
 
 .hero-wordmark-open {
-  font-size: 2rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
+  font-family: var(--paw-pixel);
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
   color: var(--ifm-font-color-base);
 }
 
@@ -198,7 +197,6 @@ html {
   font-size: 1.1rem;
   color: var(--paw-neon);
   letter-spacing: 0.03em;
-  margin-left: 4px;
 }
 
 [data-theme='dark'] .hero-wordmark-pawz {
