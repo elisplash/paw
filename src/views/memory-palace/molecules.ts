@@ -9,6 +9,7 @@ import {
   validateMemoryForm,
   agentLabel,
 } from './atoms';
+import { renderPalaceGraph } from './graph';
 
 // ── Provider fields toggle ─────────────────────────────────────────────────
 
@@ -468,17 +469,31 @@ export function initPalaceTabs(): void {
     tab.addEventListener('click', () => {
       const target = (tab as HTMLElement).dataset.palaceTab;
       if (!target) return;
-
-      document.querySelectorAll('.palace-tab').forEach((t) => t.classList.remove('active'));
-      tab.classList.add('active');
-
-      document
-        .querySelectorAll('.palace-panel')
-        .forEach((p) => ((p as HTMLElement).style.display = 'none'));
-      const panel = $(`palace-${target}-panel`);
-      if (panel) panel.style.display = 'flex';
+      activatePalaceTab(target);
     });
   });
+}
+
+/** Programmatically switch to a palace tab (recall, graph, remember, files). */
+export function activatePalaceTab(target: string): void {
+  document.querySelectorAll('.palace-tab').forEach((t) => t.classList.remove('active'));
+  document.querySelector(`.palace-tab[data-palace-tab="${target}"]`)?.classList.add('active');
+
+  document
+    .querySelectorAll('.palace-panel')
+    .forEach((p) => ((p as HTMLElement).style.display = 'none'));
+  const panel = $(`palace-${target}-panel`);
+  if (panel) panel.style.display = 'flex';
+
+  // Auto-render graph when Map tab is activated
+  if (target === 'graph') {
+    renderPalaceGraph();
+  }
+}
+
+/** Reset tabs to the default Recall tab. Called on view load. */
+export function resetPalaceTabs(): void {
+  activatePalaceTab('recall');
 }
 
 // ── Recall search ──────────────────────────────────────────────────────────

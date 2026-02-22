@@ -26,6 +26,7 @@ const VIEW_ENTRIES: { key: string; label: string; icon: string }[] = [
   { key: 'research', label: 'Research', icon: '🔍' },
   { key: 'trading', label: 'Trading', icon: '📊' },
   { key: 'memory', label: 'Memory Palace', icon: '🧠' },
+  { key: 'skills', label: 'Skills', icon: '🔌' },
   { key: 'foundry', label: 'Foundry', icon: '🔧' },
   { key: 'nodes', label: 'Engine', icon: '⚙️' },
   { key: 'settings', label: 'Settings', icon: '⚙️' },

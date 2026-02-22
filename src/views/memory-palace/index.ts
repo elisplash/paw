@@ -9,6 +9,7 @@ import {
   initPalaceTabs,
   initPalaceRecall,
   initPalaceRemember,
+  resetPalaceTabs,
   loadPalaceStats,
   loadPalaceSidebar,
   palaceRecallById,
@@ -68,6 +69,7 @@ export async function loadMemoryPalace(): Promise<void> {
   }
 
   initPalaceTabs();
+  resetPalaceTabs();
   initPalaceRecall();
   initPalaceRemember(async () => {
     await loadPalaceSidebar((id) => palaceRecallById(id));

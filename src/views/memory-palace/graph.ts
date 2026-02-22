@@ -6,20 +6,15 @@ import { CATEGORY_COLORS, type RecallCardData } from './atoms';
 
 // ── Graph init ─────────────────────────────────────────────────────────────
 
-let _graphBound = false;
+/** No-op kept for backward compat; graph auto-renders on tab click. */
 export function initPalaceGraph(): void {
-  if (_graphBound) return;
-  _graphBound = true;
-  const renderBtn = $('palace-graph-render');
-  if (!renderBtn) return;
-
-  renderBtn.addEventListener('click', () => renderPalaceGraph());
+  // intentionally empty — rendering triggered by tab switch
 }
 
 // ── Canvas knowledge graph ─────────────────────────────────────────────────
 
 export async function renderPalaceGraph(): Promise<void> {
-  const canvas = $('palace-graph-canvas') as HTMLCanvasElement | null;
+  const canvas = $('palace-graph-render') as HTMLCanvasElement | null;
   const emptyEl = $('palace-graph-empty');
   if (!canvas) return;
 
@@ -57,6 +52,7 @@ export async function renderPalaceGraph(): Promise<void> {
   }
 
   if (emptyEl) emptyEl.style.display = 'none';
+  canvas.style.display = '';
 
   // Render bubble chart grouped by category
   const ctx = canvas.getContext('2d');
