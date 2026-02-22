@@ -48,6 +48,21 @@ impl ToolDefinition {
         tools
     }
 
+    /// Return tools exposed by all connected MCP servers.
+    /// Call this after builtins + skill_tools to merge dynamic tools.
+    pub fn mcp_tools(app_handle: &tauri::AppHandle) -> Vec<Self> {
+        if let Some(state) = app_handle.try_state::<EngineState>() {
+            // Use try_lock to avoid blocking — if locked, return empty
+            // (tools will be available on next request)
+            match state.mcp_registry.try_lock() {
+                Ok(reg) => reg.all_tool_definitions(),
+                Err(_) => vec![],
+            }
+        } else {
+            vec![]
+        }
+    }
+
     /// Return tools for enabled skills.
     pub fn skill_tools(enabled_skill_ids: &[String]) -> Vec<Self> {
         let mut tools = Vec::new();
@@ -99,8 +114,27 @@ pub async fn execute_tool(tool_call: &crate::engine::types::ToolCall, app_handle
         .or(integrations::execute(name, &args, app_handle).await)
         .or(coinbase::execute(name, &args, app_handle).await)
         .or(dex::execute(name, &args, app_handle).await)
-        .or(solana::execute(name, &args, app_handle).await)
-        .unwrap_or_else(|| Err(format!("Unknown tool: {}", name)));
+        .or(solana::execute(name, &args, app_handle).await);
+
+    // Try MCP tools (prefixed with `mcp_`) if no built-in handled it
+    // NOTE: holds the tokio::sync::Mutex for the duration of the tool call.
+    // This is safe (tokio mutex is await-safe) but limits concurrency.
+    // TODO(perf): extract client Arc and drop lock before awaiting call_tool.
+    let result = match result {
+        Some(r) => r,
+        None if name.starts_with("mcp_") => {
+            if let Some(state) = app_handle.try_state::<EngineState>() {
+                let reg = state.mcp_registry.lock().await;
+                match reg.execute_tool(name, &args).await {
+                    Some(r) => r,
+                    None => Err(format!("Unknown tool: {}", name)),
+                }
+            } else {
+                Err(format!("Unknown tool: {}", name))
+            }
+        }
+        None => Err(format!("Unknown tool: {}", name)),
+    };
 
     match result {
         Ok(output) => ToolResult {

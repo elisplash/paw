@@ -63,6 +63,13 @@ pub fn build_chat_tools(
         }
     }
 
+    // Add tools from connected MCP servers
+    let mcp_tools = ToolDefinition::mcp_tools(app_handle);
+    if !mcp_tools.is_empty() {
+        info!("[engine] Adding {} MCP tools", mcp_tools.len());
+        t.extend(mcp_tools);
+    }
+
     // Apply per-request tool allow-list (frontend agent policy)
     if let Some(filter) = tool_filter {
         let before = t.len();

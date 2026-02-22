@@ -663,3 +663,26 @@ export interface WebhookConfig {
   rate_limit_per_minute: number;
   allow_dangerous_tools: boolean;
 }
+
+// ── MCP Servers (Phase E) ────────────────────────────────────────────
+
+export type McpTransport = 'stdio' | 'sse';
+
+export interface McpServerConfig {
+  id: string;
+  name: string;
+  transport: McpTransport;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  url: string;
+  enabled: boolean;
+}
+
+export interface McpServerStatus {
+  id: string;
+  name: string;
+  connected: boolean;
+  error: string | null;
+  tool_count: number;
+}

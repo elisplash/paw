@@ -53,6 +53,8 @@ import type {
   TailscaleStatus,
   TailscaleConfig,
   WebhookConfig,
+  McpServerConfig,
+  McpServerStatus,
 } from '../atoms/types';
 
 export class PawEngineClient {
@@ -911,6 +913,40 @@ export class PawEngineClient {
 
   async webhookRegenerateToken(): Promise<string> {
     return invoke<string>('engine_webhook_regenerate_token');
+  }
+
+  // ── MCP Servers (Phase E) ──────────────────────────────────────────
+
+  async mcpListServers(): Promise<McpServerConfig[]> {
+    return invoke<McpServerConfig[]>('engine_mcp_list_servers');
+  }
+
+  async mcpSaveServer(server: McpServerConfig): Promise<void> {
+    return invoke('engine_mcp_save_server', { server });
+  }
+
+  async mcpRemoveServer(id: string): Promise<void> {
+    return invoke('engine_mcp_remove_server', { id });
+  }
+
+  async mcpConnect(id: string): Promise<void> {
+    return invoke('engine_mcp_connect', { id });
+  }
+
+  async mcpDisconnect(id: string): Promise<void> {
+    return invoke('engine_mcp_disconnect', { id });
+  }
+
+  async mcpStatus(): Promise<McpServerStatus[]> {
+    return invoke<McpServerStatus[]>('engine_mcp_status');
+  }
+
+  async mcpRefreshTools(id: string): Promise<void> {
+    return invoke('engine_mcp_refresh_tools', { id });
+  }
+
+  async mcpConnectAll(): Promise<void> {
+    return invoke<void>('engine_mcp_connect_all');
   }
 
   // ── Mail (Himalaya) ────────────────────────────────────────────────

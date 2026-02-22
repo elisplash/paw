@@ -6,6 +6,8 @@ use crate::engine::types::*;
 use crate::engine::sessions::SessionStore;
 use crate::engine::memory::EmbeddingClient;
 
+use crate::engine::mcp::McpRegistry;
+
 use log::info;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -187,6 +189,8 @@ pub struct EngineState {
     /// Abort handles for active agent runs, keyed by session_id.
     /// Used by engine_chat_abort to cancel in-flight agent loops.
     pub active_runs: Arc<Mutex<HashMap<String, tokio::task::AbortHandle>>>,
+    /// MCP server registry — manages connected MCP servers and their tools.
+    pub mcp_registry: Arc<tokio::sync::Mutex<McpRegistry>>,
 }
 
 impl EngineState {
@@ -247,6 +251,7 @@ impl EngineState {
             inflight_tasks: Arc::new(Mutex::new(HashSet::new())),
             daily_tokens: Arc::new(DailyTokenTracker::new()),
             active_runs: Arc::new(Mutex::new(HashMap::new())),
+            mcp_registry: Arc::new(tokio::sync::Mutex::new(McpRegistry::new())),
         })
     }
 

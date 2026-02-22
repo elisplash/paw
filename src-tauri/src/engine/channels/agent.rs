@@ -187,6 +187,8 @@ pub async fn run_channel_agent(
         if !enabled_ids.is_empty() {
             t.extend(ToolDefinition::skill_tools(&enabled_ids));
         }
+        // Add tools from connected MCP servers
+        t.extend(ToolDefinition::mcp_tools(app_handle));
         t
     };
 

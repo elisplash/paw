@@ -164,6 +164,8 @@ You are the **Boss Agent** orchestrating project "{}".
         all_tools.extend(ToolDefinition::skill_tools(&enabled_ids));
     }
     all_tools.extend(boss_tools());
+    // Add tools from connected MCP servers
+    all_tools.extend(ToolDefinition::mcp_tools(app_handle));
 
     // Create boss session
     let session_id = format!("eng-project-{}-boss", project_id);

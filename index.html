@@ -2180,6 +2180,9 @@
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="webhook">
               Webhook
             </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="mcp">
+              MCP Servers
+            </button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="security">
               Security
             </button>
@@ -2320,6 +2323,21 @@
                 endpoint to trigger agent runs.
               </p>
               <div id="settings-webhook-content"></div>
+            </div>
+          </div>
+
+          <!-- ── Tab: MCP Servers ── -->
+          <div class="settings-tab-panel" id="settings-panel-mcp" style="display: none">
+            <div class="settings-section">
+              <h2 class="settings-section-title">
+                <span class="ms ms-sm">hub</span>
+                MCP Servers
+              </h2>
+              <p class="settings-section-desc">
+                Connect to Model Context Protocol (MCP) servers to extend your agents with external
+                tools, data sources, and integrations.
+              </p>
+              <div id="settings-mcp-content"></div>
             </div>
           </div>
 

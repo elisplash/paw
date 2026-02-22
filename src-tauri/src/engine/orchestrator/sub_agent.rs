@@ -133,6 +133,8 @@ Your boss agent has delegated this task to you.
         all_tools.extend(ToolDefinition::skill_tools(&enabled_ids));
     }
     all_tools.extend(worker_tools());
+    // Add tools from connected MCP servers
+    all_tools.extend(ToolDefinition::mcp_tools(app_handle));
 
     // Apply per-agent tool capabilities filter
     if !agent_capabilities.is_empty() {

@@ -291,6 +291,15 @@ pub fn run() {
             commands::webhook::engine_webhook_get_config,
             commands::webhook::engine_webhook_set_config,
             commands::webhook::engine_webhook_regenerate_token,
+            // ── MCP Servers (Phase E) ──
+            commands::mcp::engine_mcp_list_servers,
+            commands::mcp::engine_mcp_save_server,
+            commands::mcp::engine_mcp_remove_server,
+            commands::mcp::engine_mcp_connect,
+            commands::mcp::engine_mcp_disconnect,
+            commands::mcp::engine_mcp_status,
+            commands::mcp::engine_mcp_refresh_tools,
+            commands::mcp::engine_mcp_connect_all,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

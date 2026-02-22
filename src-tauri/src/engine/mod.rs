@@ -35,3 +35,4 @@ pub mod twitch;
 pub mod webchat;
 pub mod whatsapp;
 pub mod webhook;
+pub mod mcp;

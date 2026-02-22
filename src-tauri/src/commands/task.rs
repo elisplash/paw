@@ -222,6 +222,13 @@ pub async fn execute_task(
         }
     }
 
+    // Add tools from connected MCP servers
+    let mcp_tools = ToolDefinition::mcp_tools(app_handle);
+    if !mcp_tools.is_empty() {
+        info!("[engine] Adding {} MCP tools for task", mcp_tools.len());
+        all_tools.extend(mcp_tools);
+    }
+
     let pending = state.pending_approvals.clone();
     let store_path = sessions::engine_db_path();
     let task_id_for_spawn = task_id.to_string();
