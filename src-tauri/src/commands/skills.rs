@@ -1,9 +1,11 @@
 // commands/skills.rs — Thin wrappers for skill vault commands.
 // Credential encryption lives in engine/skills.rs.
-// TOML manifest commands (Phase F.1) are at the bottom.
+// TOML manifest commands (Phase F.1) + MCP server sharing (Phase F.3).
 
 use crate::commands::state::EngineState;
 use crate::engine::skills;
+use crate::engine::channels;
+use crate::engine::mcp::types::{McpServerConfig, McpTransport};
 use log::info;
 use tauri::State;
 
@@ -157,7 +159,7 @@ pub fn engine_community_skill_set_agents(
     state.store.set_community_skill_agents(&skill_id, &agent_ids).map_err(|e| e.to_string())
 }
 
-// ── TOML Manifest Skills (Phase F.1) ───────────────────────────────────
+// ── TOML Manifest Skills (Phase F.1) + MCP Sharing (Phase F.3) ─────
 
 /// Scan `~/.paw/skills/*/pawz-skill.toml` and return all valid entries.
 #[tauri::command]
@@ -165,23 +167,105 @@ pub fn engine_toml_skills_scan() -> Result<Vec<skills::TomlSkillEntry>, String> 
     Ok(skills::scan_toml_skills())
 }
 
-/// Install a TOML skill by writing a manifest to `~/.paw/skills/{id}/pawz-skill.toml`.
+/// MCP server config key — shared with commands/mcp.rs.
+const MCP_CONFIG_KEY: &str = "mcp_servers";
+
+/// Install a TOML skill and auto-register its MCP server if declared.
 #[tauri::command]
-pub fn engine_toml_skill_install(
+pub async fn engine_toml_skill_install(
+    app_handle: tauri::AppHandle,
+    state: State<'_, EngineState>,
     skill_id: String,
     toml_content: String,
 ) -> Result<String, String> {
     info!("[engine] Installing TOML skill '{}'", skill_id);
+
+    // 1. Write files to disk
     let path = skills::install_toml_skill(&skill_id, &toml_content)?;
+
+    // 2. If manifest has [mcp], auto-register the MCP server
+    if let Ok(manifest) = skills::parse_manifest(&toml_content) {
+        if let Some(mcp) = &manifest.mcp {
+            info!("[engine] Skill '{}' declares MCP server — auto-registering", skill_id);
+
+            // Build env: manifest env + decrypted credentials
+            let mut env = mcp.env.clone();
+            if let Ok(creds) = skills::get_skill_credentials(&state.store, &skill_id) {
+                for (k, v) in creds {
+                    env.insert(k, v);
+                }
+            }
+
+            let transport = match mcp.transport.as_str() {
+                "sse" => McpTransport::Sse,
+                _ => McpTransport::Stdio,
+            };
+
+            let config = McpServerConfig {
+                id: format!("skill-{}", skill_id),
+                name: manifest.skill.name.clone(),
+                transport,
+                command: mcp.command.clone(),
+                args: mcp.args.clone(),
+                env,
+                url: mcp.url.clone(),
+                enabled: true,
+            };
+
+            // Persist to MCP server list
+            let mut servers: Vec<McpServerConfig> =
+                channels::load_channel_config(&app_handle, MCP_CONFIG_KEY).unwrap_or_default();
+            if let Some(pos) = servers.iter().position(|s| s.id == config.id) {
+                servers[pos] = config.clone();
+            } else {
+                servers.push(config.clone());
+            }
+            if let Err(e) = channels::save_channel_config(&app_handle, MCP_CONFIG_KEY, &servers) {
+                log::warn!("[engine] Failed to persist MCP config for skill '{}': {}", skill_id, e);
+            }
+
+            // Connect the MCP server
+            let mut reg = state.mcp_registry.lock().await;
+            if let Err(e) = reg.connect(config).await {
+                // Non-fatal: skill is installed, MCP connection can be retried
+                log::warn!("[engine] MCP server for skill '{}' failed to connect: {}", skill_id, e);
+            }
+        }
+    }
+
     Ok(path.to_string_lossy().to_string())
 }
 
-/// Uninstall a TOML skill by removing its directory.
+/// Uninstall a TOML skill and disconnect its MCP server if one was registered.
 #[tauri::command]
-pub fn engine_toml_skill_uninstall(
+pub async fn engine_toml_skill_uninstall(
+    app_handle: tauri::AppHandle,
+    state: State<'_, EngineState>,
     skill_id: String,
 ) -> Result<(), String> {
     info!("[engine] Uninstalling TOML skill '{}'", skill_id);
+
+    let mcp_id = format!("skill-{}", skill_id);
+
+    // 1. Disconnect MCP server if running
+    {
+        let mut reg = state.mcp_registry.lock().await;
+        reg.disconnect(&mcp_id).await;
+    }
+
+    // 2. Remove from persisted MCP config
+    let mut servers: Vec<McpServerConfig> =
+        channels::load_channel_config(&app_handle, MCP_CONFIG_KEY).unwrap_or_default();
+    let before = servers.len();
+    servers.retain(|s| s.id != mcp_id);
+    if servers.len() < before {
+        info!("[engine] Removed MCP server '{}' for skill '{}'", mcp_id, skill_id);
+        if let Err(e) = channels::save_channel_config(&app_handle, MCP_CONFIG_KEY, &servers) {
+            log::warn!("[engine] Failed to update MCP config after uninstall: {}", e);
+        }
+    }
+
+    // 3. Remove skill files from disk
     skills::uninstall_toml_skill(&skill_id)
 }
 

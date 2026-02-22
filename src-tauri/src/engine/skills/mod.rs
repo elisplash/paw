@@ -35,7 +35,7 @@ pub use community::{
 };
 pub use toml_loader::{
     scan_toml_skills, install_toml_skill, uninstall_toml_skill,
-    TomlSkillEntry, SkillManifest,
+    TomlSkillEntry, SkillManifest, parse_manifest,
 };
 
 // SkillTier is now defined in types.rs and re-exported above.

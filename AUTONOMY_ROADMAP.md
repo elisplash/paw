@@ -322,16 +322,20 @@ available tools at runtime. No Rust code changes needed to add new capabilities.
 - `src/engine/molecules/ipc_client.ts` — `listSkillOutputs` IPC method
 - `src/styles.css` — widget card CSS (status, metric, table, log, kv)
 
-### F.3 — MCP Server Sharing *(requires Phase E)*
+### F.3 — MCP Server Sharing *(requires Phase E)* ✅
 
-**What exists:** After Phase E, agents can connect to MCP servers. But users configure them manually.
+**What exists:** Fully implemented — TOML skills with `[mcp]` sections auto-register MCP servers on install and disconnect on uninstall.
 
-**What to build:**
-- [ ] New `[mcp]` section in `pawz-skill.toml` — declares an MCP server config
-- [ ] Fields: `command`, `args`, `env`, `transport` (stdio/sse), `url`
-- [ ] On skill install, auto-register the MCP server with the Phase E registry
-- [ ] On skill uninstall, remove the MCP server
-- [ ] Credentials from `[[credentials]]` injected as MCP server env vars
+**What was built:**
+- [x] `[mcp]` section in `pawz-skill.toml` — already parsed in F.1, now wired to registry
+- [x] Fields: `command`, `args`, `env`, `transport` (stdio/sse), `url`
+- [x] On skill install, auto-register the MCP server with the Phase E registry
+- [x] On skill uninstall, disconnect + remove the MCP server from persisted config
+- [x] Credentials from `[[credentials]]` injected as MCP server env vars
+
+**Files modified:**
+- `src-tauri/src/commands/skills.rs` — upgraded install/uninstall to async with MCP wiring
+- `src-tauri/src/engine/skills/mod.rs` — re-exported `parse_manifest`
 
 ```toml
 # Example: a PawzHub skill that bundles an MCP server
@@ -356,10 +360,6 @@ transport = "stdio"
 [instructions]
 text = "GitHub tools are available via MCP. Use them directly."
 ```
-
-**Files to modify:**
-- `src-tauri/src/engine/skills/toml_loader.rs` — parse `[mcp]` section
-- `src-tauri/src/engine/mcp/registry.rs` — auto-register from skill install
 
 ### F.4 — PawzHub Registry + In-App Browser
 
