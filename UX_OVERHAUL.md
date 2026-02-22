@@ -258,7 +258,7 @@ These are capabilities a platform like Pawz should have but currently doesn't:
 - [ ] 2.2 Merge Orchestrator into Tasks (Projects tab)
 
 ### Sprint 3: Fix Existing
-- [ ] 3.1 Today: use real Kanban tasks
+- [x] 3.1 Today: use real Kanban tasks
 - [ ] 3.2 Memory: per-agent scoping
 - [ ] 3.3 Memory: add delete
 - [ ] 3.4 Engine: clean up and improve

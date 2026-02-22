@@ -1,11 +1,32 @@
 // Today View — Pure helpers (no DOM, no IPC)
 
+import type { EngineTask, TaskStatus } from '../../engine/atoms/types';
+
 export interface Task {
   id: string;
   text: string;
   done: boolean;
-  dueDate?: string;
   createdAt: string;
+}
+
+/** Convert an EngineTask to the lighter Today Task for display. */
+export function engineTaskToToday(et: EngineTask): Task {
+  return {
+    id: et.id,
+    text: et.title,
+    done: et.status === 'done',
+    createdAt: et.created_at,
+  };
+}
+
+/** Filter engine tasks relevant to the Today view (not cron, not done-old). */
+export function filterTodayTasks(tasks: EngineTask[]): EngineTask[] {
+  return tasks.filter((t) => !t.cron_schedule);
+}
+
+/** The status to set when toggling a task's done state. */
+export function toggledStatus(current: TaskStatus): TaskStatus {
+  return current === 'done' ? 'inbox' : 'done';
 }
 
 /** Map WMO weather code to Material Symbol icon */

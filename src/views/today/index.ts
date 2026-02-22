@@ -7,6 +7,7 @@ import {
   fetchUnreadEmails,
   fetchSkillOutputs,
   renderToday,
+  reloadTodayTasks,
 } from './molecules';
 
 // ── State ─────────────────────────────────────────────────────────────
@@ -32,25 +33,13 @@ export function configure(_opts: Record<string, unknown>) {
 
 export async function loadToday() {
   console.debug('[today] loadToday called');
-  loadTasks();
   renderToday();
 
-  await Promise.all([fetchWeather(), fetchUnreadEmails(), fetchSkillOutputs()]);
+  await Promise.all([reloadTodayTasks(), fetchWeather(), fetchUnreadEmails(), fetchSkillOutputs()]);
 }
 
 export function initToday() {
   // Called on app startup
-}
-
-// ── Private ───────────────────────────────────────────────────────────
-
-function loadTasks() {
-  try {
-    const stored = localStorage.getItem('paw-tasks');
-    _tasks = stored ? JSON.parse(stored) : [];
-  } catch {
-    _tasks = [];
-  }
 }
 
 // ── Re-exports ────────────────────────────────────────────────────────
