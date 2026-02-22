@@ -9,6 +9,7 @@ import {
   renderToday,
   reloadTodayTasks,
 } from './molecules';
+import { fetchAndRenderActivity } from './activity';
 
 // ── State ─────────────────────────────────────────────────────────────
 
@@ -35,7 +36,13 @@ export async function loadToday() {
   console.debug('[today] loadToday called');
   renderToday();
 
-  await Promise.all([reloadTodayTasks(), fetchWeather(), fetchUnreadEmails(), fetchSkillOutputs()]);
+  await Promise.all([
+    reloadTodayTasks(),
+    fetchWeather(),
+    fetchUnreadEmails(),
+    fetchSkillOutputs(),
+    fetchAndRenderActivity(),
+  ]);
 }
 
 export function initToday() {

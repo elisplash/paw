@@ -363,6 +363,17 @@ export function renderToday() {
             </button>
           </div>
         </div>
+        
+        <!-- Activity Feed -->
+        <div class="today-card">
+          <div class="today-card-header">
+            <span class="today-card-icon"><span class="ms">timeline</span></span>
+            <span class="today-card-title">Activity</span>
+          </div>
+          <div class="today-card-body" id="today-activity">
+            <span class="today-loading">Loading…</span>
+          </div>
+        </div>
       </div>
     </div>
   `;

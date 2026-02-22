@@ -7,6 +7,9 @@ import {
   engineTaskToToday,
   filterTodayTasks,
   toggledStatus,
+  activityIcon,
+  relativeTime,
+  truncateContent,
 } from './atoms';
 import type { EngineTask } from '../../engine/atoms/types';
 
@@ -179,5 +182,64 @@ describe('toggledStatus', () => {
 
   it('toggles assigned → done', () => {
     expect(toggledStatus('assigned')).toBe('done');
+  });
+});
+
+// ── activityIcon ──────────────────────────────────────────────────────
+
+describe('activityIcon', () => {
+  it('returns add_circle for created', () => {
+    expect(activityIcon('created')).toBe('add_circle');
+  });
+
+  it('returns check_circle for completed', () => {
+    expect(activityIcon('completed')).toBe('check_circle');
+  });
+
+  it('returns build for tool_call', () => {
+    expect(activityIcon('tool_call')).toBe('build');
+  });
+
+  it('returns info for unknown kind', () => {
+    expect(activityIcon('something_unknown')).toBe('info');
+  });
+});
+
+// ── relativeTime ──────────────────────────────────────────────────────
+
+describe('relativeTime', () => {
+  it('returns "just now" for recent timestamps', () => {
+    expect(relativeTime(new Date().toISOString())).toBe('just now');
+  });
+
+  it('returns minutes ago', () => {
+    const fiveMinAgo = new Date(Date.now() - 5 * 60000).toISOString();
+    expect(relativeTime(fiveMinAgo)).toBe('5m ago');
+  });
+
+  it('returns hours ago', () => {
+    const twoHoursAgo = new Date(Date.now() - 2 * 3600000).toISOString();
+    expect(relativeTime(twoHoursAgo)).toBe('2h ago');
+  });
+
+  it('returns days ago', () => {
+    const threeDaysAgo = new Date(Date.now() - 3 * 86400000).toISOString();
+    expect(relativeTime(threeDaysAgo)).toBe('3d ago');
+  });
+});
+
+// ── truncateContent ──────────────────────────────────────────────────
+
+describe('truncateContent', () => {
+  it('returns content unchanged when under limit', () => {
+    expect(truncateContent('hello', 10)).toBe('hello');
+  });
+
+  it('truncates and adds ellipsis', () => {
+    expect(truncateContent('hello world', 5)).toBe('hello…');
+  });
+
+  it('returns content at exact limit without ellipsis', () => {
+    expect(truncateContent('hello', 5)).toBe('hello');
   });
 });

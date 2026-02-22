@@ -89,3 +89,46 @@ export function isToday(dateStr: string): boolean {
   const today = new Date();
   return date.toDateString() === today.toDateString();
 }
+
+// ── Activity Feed Helpers ─────────────────────────────────────────────
+
+export interface ActivityDisplayItem {
+  id: string;
+  icon: string;
+  label: string;
+  time: string;
+  agent?: string;
+}
+
+/** Map activity kind to a Material Symbol icon name. */
+export function activityIcon(kind: string): string {
+  const map: Record<string, string> = {
+    created: 'add_circle',
+    status_change: 'swap_horiz',
+    comment: 'chat_bubble',
+    tool_call: 'build',
+    message: 'forum',
+    completed: 'check_circle',
+    failed: 'error',
+    started: 'play_arrow',
+  };
+  return map[kind] ?? 'info';
+}
+
+/** Format an ISO timestamp to a short relative string (e.g. "3m ago", "2h ago"). */
+export function relativeTime(isoStr: string): string {
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+/** Truncate content to maxLen characters, adding ellipsis. */
+export function truncateContent(content: string, maxLen: number): string {
+  if (content.length <= maxLen) return content;
+  return `${content.slice(0, maxLen)}…`;
+}
