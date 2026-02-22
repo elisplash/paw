@@ -247,24 +247,24 @@ These are capabilities a platform like Pawz should have but currently doesn't:
 ## Implementation Priority
 
 ### Sprint 1: Cleanup (no new code, just removals + renames)
-- [ ] 1.1 Remove dead `skills.ts` stub
-- [ ] 1.2 Rename Nodes → Engine
-- [ ] 1.3 Rename Projects → Files
-- [ ] 1.4 Remove Content view
-- [ ] 1.5 Merge Dashboard into Today
+- [x] 1.1 Remove dead `skills.ts` stub
+- [x] 1.2 Rename Nodes → Engine
+- [x] 1.3 Rename Projects → Files
+- [x] 1.4 Remove Content view
+- [x] 1.5 Merge Dashboard into Today
 
 ### Sprint 2: Merge Overlap
-- [ ] 2.1 Merge Automations into Tasks (Scheduled tab)
-- [ ] 2.2 Merge Orchestrator into Tasks (Projects tab)
+- [x] 2.1 Merge Automations into Tasks (Scheduled tab)
+- [x] 2.2 Merge Orchestrator into Tasks (Projects tab)
 
 ### Sprint 3: Fix Existing
 - [x] 3.1 Today: use real Kanban tasks
-- [ ] 3.2 Memory: per-agent scoping
-- [ ] 3.3 Memory: add delete
-- [ ] 3.4 Engine: clean up and improve
+- [x] 3.2 Memory: per-agent scoping
+- [x] 3.3 Memory: add delete
+- [x] 3.4 Engine: clean up and improve
 
 ### Sprint 4: New Features
-- [ ] 4.1 Squads view (real-time agent team workspace)
+- [x] 4.1 Squads view (real-time agent team workspace)
 - [ ] 5.1 Activity timeline
 - [ ] 5.2 Notifications center
 
@@ -279,7 +279,7 @@ These are capabilities a platform like Pawz should have but currently doesn't:
 
 - [ ] Sidebar has ≤15 items (down from 18)
 - [ ] No dead/stub views in navigation
-- [ ] No duplicate data stores (Today tasks = Kanban tasks)
-- [ ] Memory supports per-agent filtering
+- [x] No duplicate data stores (Today tasks = Kanban tasks)
+- [x] Memory supports per-agent filtering
 - [ ] Squads have a real UI workspace
 - [ ] Every backend feature has a corresponding frontend surface

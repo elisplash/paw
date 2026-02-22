@@ -649,245 +649,6 @@ body {
   }
 }
 
-/* ─── Dashboard View ─── */
-.dashboard-view {
-  overflow-y: auto;
-  padding: 28px;
-}
-
-.dashboard-view > * {
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
-  width: 100%;
-}
-
-.dashboard-greeting {
-  margin-bottom: 28px;
-  position: relative;
-  padding-left: 64px;
-  min-height: 56px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-/* Pixel art mascot next to greeting */
-.dashboard-greeting::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 52px;
-  height: 52px;
-  background: url('/src/assets/avatars/5.png') center/contain no-repeat;
-  filter: drop-shadow(0 0 8px rgba(255, 0, 255, 0.4));
-}
-
-.dashboard-greeting h1 {
-  font-family: var(--font-pixel);
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--cyan);
-  margin-bottom: 4px;
-  text-shadow: 0 0 10px rgba(0, 255, 255, 0.4);
-}
-
-.dashboard-greeting p {
-  color: var(--text-secondary);
-  font-size: 12px;
-}
-
-/* Quick Actions Bar */
-.quick-actions {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 32px;
-}
-
-.quick-action {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 400;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  font-family: inherit;
-  box-shadow: none;
-}
-
-.quick-action:hover {
-  background: var(--bg-hover);
-  color: var(--cyan);
-  border-color: var(--cyan-subtle);
-  box-shadow: 0 0 8px rgba(0, 255, 255, 0.2);
-}
-
-.quick-action svg {
-  width: 15px;
-  height: 15px;
-  stroke-width: 2;
-}
-
-/* Feature Cards Grid */
-.feature-section {
-  margin-bottom: 32px;
-}
-
-.feature-section-title {
-  font-family: var(--font-pixel);
-  font-size: 8px;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  margin-bottom: 12px;
-  padding-left: 2px;
-}
-
-.feature-grid {
-  display: grid;
-  gap: 12px;
-}
-
-.feature-grid.primary {
-  grid-template-columns: repeat(3, 1fr);
-}
-
-.feature-grid.secondary {
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.feature-grid.system {
-  grid-template-columns: repeat(4, 1fr);
-}
-
-.feature-card {
-  position: relative;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 20px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-  overflow: hidden;
-  font-family: inherit;
-  text-align: left;
-  width: 100%;
-  box-shadow: none;
-}
-
-.feature-card:hover {
-  border-color: var(--accent-muted);
-  box-shadow: 0 0 12px rgba(255, 0, 255, 0.15);
-}
-
-.feature-card:hover .feature-card-icon {
-  filter: drop-shadow(0 0 6px rgba(255, 0, 255, 0.4));
-}
-
-.feature-card:active {
-  transform: scale(0.99);
-}
-
-.feature-card-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 14px;
-  transition: transform var(--transition-fast);
-}
-
-.feature-card-icon .ms {
-  font-size: 22px;
-}
-
-.feature-card-icon.orange {
-  background: rgba(255, 140, 0, 0.18);
-  color: var(--orange);
-}
-.feature-card-icon.blue {
-  background: rgba(0, 204, 255, 0.18);
-  color: var(--blue);
-}
-.feature-card-icon.green {
-  background: rgba(57, 255, 20, 0.18);
-  color: var(--green);
-}
-.feature-card-icon.purple {
-  background: rgba(168, 85, 247, 0.18);
-  color: var(--purple);
-}
-.feature-card-icon.pink {
-  background: rgba(255, 105, 180, 0.18);
-  color: var(--pink);
-}
-.feature-card-icon.cyan {
-  background: rgba(0, 255, 255, 0.18);
-  color: var(--cyan);
-}
-.feature-card-icon.yellow {
-  background: rgba(255, 221, 0, 0.18);
-  color: var(--yellow);
-}
-.feature-card-icon.red {
-  background: rgba(255, 34, 68, 0.18);
-  color: var(--red);
-}
-
-.feature-card-title {
-  font-family: var(--font-pixel);
-  font-size: 9px;
-  font-weight: 400;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-}
-
-.feature-card-desc {
-  font-size: 11px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-}
-
-.feature-card-tag {
-  display: inline-block;
-  margin-top: 8px;
-  font-family: var(--font-pixel);
-  font-size: 7px;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  background: var(--accent-muted);
-  color: var(--accent);
-  border: 1px solid var(--accent);
-}
-
-.feature-card-tag.new {
-  background: var(--success-subtle);
-  color: var(--success);
-}
-
-.feature-card-tag.pro {
-  background: var(--purple-subtle);
-  color: var(--purple);
-}
-
-.feature-card-tag.beta {
-  background: var(--blue-subtle);
-  color: var(--blue);
-}
-
 /* ─── Setup Views ─── */
 .setup-view {
   align-items: center;
@@ -2331,18 +2092,6 @@ button:focus:not(:focus-visible) {
 }
 
 /* ─── Responsive ─── */
-@media (max-width: 900px) {
-  .feature-grid.primary {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .feature-grid.secondary {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .feature-grid.system {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
 @media (max-width: 600px) {
   .sidebar {
     width: 60px;
@@ -2356,14 +2105,6 @@ button:focus:not(:focus-visible) {
   .sidebar .nav-item {
     justify-content: center;
     padding: 10px;
-  }
-  .feature-grid.primary,
-  .feature-grid.secondary,
-  .feature-grid.system {
-    grid-template-columns: 1fr;
-  }
-  .dashboard-view {
-    padding: 20px;
   }
 }
 
@@ -2510,6 +2251,37 @@ button:focus:not(:focus-visible) {
 }
 .tasks-header-left .view-title {
   margin: 0;
+}
+.tasks-tabs {
+  display: flex;
+  gap: 2px;
+  margin-top: 8px;
+}
+.tasks-tab {
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.tasks-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+.tasks-tab.active {
+  color: var(--cyan);
+  border-color: var(--cyan-subtle);
+  background: var(--bg-secondary);
+}
+.tasks-tab-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .tasks-header-left .view-subtitle {
   color: var(--text-muted);
@@ -7701,65 +7473,6 @@ details[open] > .skill-advanced-summary::before {
   flex: 1;
 }
 
-/* ═══ Dashboard Cron Widget ═══ */
-.dash-cron-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 10px;
-}
-.dash-cron-card {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-.dash-cron-card:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-.dash-cron-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.dash-cron-dot.active {
-  background: var(--success);
-}
-.dash-cron-dot.paused {
-  background: var(--warning);
-}
-.dash-cron-info {
-  flex: 1;
-  min-width: 0;
-}
-.dash-cron-name {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.dash-cron-schedule {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-}
-.dash-cron-empty {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: var(--text-muted);
-  font-size: 13px;
-  padding: 8px 0;
-}
-
 /* ═══ Space Cron Mini-Widgets ═══ */
 .space-cron-widget {
   border-top: 1px solid var(--border);
@@ -10810,13 +10523,6 @@ details[open] > .skill-advanced-summary::before {
 }
 
 /* ═══ Orchestrator — Multi-Agent Projects ═══ */
-
-.orchestrator-view.active {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
 
 .orchestrator-header {
   display: flex;

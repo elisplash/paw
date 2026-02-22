@@ -110,169 +110,6 @@
           </button>
         </div>
 
-        <!-- ═══ Dashboard ═══ -->
-        <div class="view dashboard-view" id="dashboard-view">
-          <div class="dashboard-greeting">
-            <h1>Welcome to Pawz</h1>
-            <p>Your AI command center — Pawz are safer than Claws</p>
-          </div>
-
-          <div class="quick-actions">
-            <button class="quick-action" data-view="chat">
-              <span class="ms">chat</span>
-              New Chat
-            </button>
-            <button class="quick-action" data-view="tasks">
-              <span class="ms">task</span>
-              Tasks
-            </button>
-            <button class="quick-action" data-view="mail">
-              <span class="ms">mail</span>
-              Check Mail
-            </button>
-            <button class="quick-action" id="wake-agent-btn">
-              <span class="ms">notifications_active</span>
-              Wake Agent
-            </button>
-          </div>
-
-          <!-- Primary Features -->
-          <div class="feature-section">
-            <div class="feature-section-title">Start here</div>
-            <div class="feature-grid primary">
-              <button class="feature-card" data-view="chat">
-                <div class="feature-card-icon orange">
-                  <span class="ms ms-lg">chat</span>
-                </div>
-                <div class="feature-card-title">Chat</div>
-                <div class="feature-card-desc">
-                  Talk to your agent — ask anything, get answers, run tasks
-                </div>
-              </button>
-
-              <button class="feature-card" data-view="tasks">
-                <div class="feature-card-icon blue">
-                  <span class="ms ms-lg">task</span>
-                </div>
-                <div class="feature-card-title">Tasks</div>
-                <div class="feature-card-desc">
-                  Kanban board — assign tasks to agents and watch them work
-                </div>
-                <span class="feature-card-tag new">New</span>
-              </button>
-
-              <button class="feature-card" data-view="code">
-                <div class="feature-card-icon purple">
-                  <span class="ms ms-lg">code</span>
-                </div>
-                <div class="feature-card-title">Code</div>
-                <div class="feature-card-desc">
-                  Git repos, branches, PRs, code review — managed by your agent
-                </div>
-              </button>
-            </div>
-          </div>
-
-          <!-- Productivity -->
-          <div class="feature-section">
-            <div class="feature-section-title">Productivity</div>
-            <div class="feature-grid secondary">
-              <button class="feature-card" data-view="mail">
-                <div class="feature-card-icon pink">
-                  <span class="ms ms-lg">mail</span>
-                </div>
-                <div class="feature-card-title">Mail</div>
-                <div class="feature-card-desc">
-                  Read, draft and send emails with approval guardrails
-                </div>
-                <span class="feature-card-tag new">New</span>
-              </button>
-
-              <button class="feature-card" data-view="tasks">
-                <div class="feature-card-icon yellow">
-                  <span class="ms ms-lg">auto_fix_high</span>
-                </div>
-                <div class="feature-card-title">Automate</div>
-                <div class="feature-card-desc">
-                  Scheduled tasks, triggers, and recurring workflows
-                </div>
-              </button>
-
-              <button class="feature-card" data-view="research">
-                <div class="feature-card-icon cyan">
-                  <span class="ms ms-lg">science</span>
-                </div>
-                <div class="feature-card-title">Research</div>
-                <div class="feature-card-desc">
-                  Browse the web, find data, compile reports automatically
-                </div>
-                <span class="feature-card-tag beta">Beta</span>
-              </button>
-
-              <button class="feature-card" data-view="squads">
-                <div class="feature-card-icon green">
-                  <span class="ms ms-lg">groups</span>
-                </div>
-                <div class="feature-card-title">Squads</div>
-                <div class="feature-card-desc">
-                  Create agent teams for collaborative work
-                </div>
-                <span class="feature-card-tag new">New</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Connect & System -->
-          <div class="feature-section">
-            <div class="feature-section-title">Connect & Configure</div>
-            <div class="feature-grid system">
-              <button class="feature-card" data-view="channels">
-                <div class="feature-card-icon orange">
-                  <span class="ms ms-lg">forum</span>
-                </div>
-                <div class="feature-card-title">Channels</div>
-                <div class="feature-card-desc">Telegram, Discord, WhatsApp, Signal</div>
-              </button>
-
-              <button class="feature-card" data-view="memory">
-                <div class="feature-card-icon purple">
-                  <span class="ms ms-lg">psychology</span>
-                </div>
-                <div class="feature-card-title">Memory</div>
-                <div class="feature-card-desc">Persistent knowledge that grows over time</div>
-              </button>
-
-              <button class="feature-card" data-view="foundry">
-                <div class="feature-card-icon yellow">
-                  <span class="ms ms-lg">factory</span>
-                </div>
-                <div class="feature-card-title">Foundry</div>
-                <div class="feature-card-desc">Choose models and manage your subscription</div>
-                <span class="feature-card-tag pro">Pro</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Scheduled Tasks Widget -->
-          <div class="feature-section" id="dashboard-cron-section" style="display: none">
-            <div class="feature-section-title">
-              <span
-                class="ms ms-sm"
-                style="display: inline; vertical-align: -2px; margin-right: 4px"
-                >auto_fix_high</span
-              >
-              Scheduled Tasks
-            </div>
-            <div class="dash-cron-grid" id="dashboard-cron-list"></div>
-            <div class="dash-cron-empty" id="dashboard-cron-empty" style="display: none">
-              <span>No scheduled tasks running.</span>
-              <button class="btn btn-ghost btn-sm" data-view="tasks">
-                Set up automations →
-              </button>
-            </div>
-          </div>
-        </div>
-
         <!-- ═══ Onboarding ═══ -->
         <div class="view setup-view" id="setup-view">
           <div class="setup-card">
@@ -520,7 +357,11 @@
           <div class="tasks-header">
             <div class="tasks-header-left">
               <h1 class="view-title">Tasks</h1>
-              <p class="view-subtitle">Manage tasks across your agent workforce</p>
+              <div class="tasks-tabs" id="tasks-tabs">
+                <button class="tasks-tab active" data-tasks-tab="board">Board</button>
+                <button class="tasks-tab" data-tasks-tab="scheduled">Scheduled</button>
+                <button class="tasks-tab" data-tasks-tab="projects">Projects</button>
+              </div>
             </div>
             <div class="tasks-header-right">
               <div class="tasks-stats">
@@ -536,6 +377,9 @@
               </button>
             </div>
           </div>
+
+          <!-- Tab: Board (Kanban) -->
+          <div class="tasks-tab-panel active" id="tasks-tab-board">
 
           <div class="tasks-body">
             <!-- Kanban columns -->
@@ -723,171 +567,225 @@
               </div>
             </div>
           </div>
-        </div>
+          </div><!-- /tasks-tab-board -->
 
-        <!-- ═══ Orchestrator — Multi-Agent Projects ═══ -->
-        <div class="view orchestrator-view" id="orchestrator-view">
-          <div class="orchestrator-header">
-            <div class="orchestrator-header-left">
-              <h1 class="view-title">Orchestrator</h1>
-              <p class="view-subtitle">Multi-agent project coordination</p>
-            </div>
-            <div class="orchestrator-header-right">
-              <div class="orchestrator-stats">
-                <span class="orchestrator-stat" id="orch-stat-total">0 projects</span>
-                <span class="tasks-stat-sep">·</span>
-                <span class="orchestrator-stat" id="orch-stat-running">0 running</span>
-              </div>
-              <button class="btn btn-primary" id="orch-create-btn">
+          <!-- Tab: Scheduled (Automations) -->
+          <div class="tasks-tab-panel" id="tasks-tab-scheduled" style="display:none">
+            <div class="auto-board-header" style="display:flex;gap:6px;align-items:center;margin-bottom:12px">
+              <span class="cron-service-status" id="cron-service-status" title="Cron service status"></span>
+              <button class="btn btn-primary btn-sm" id="add-cron-btn">
                 <span class="ms ms-sm">add</span>
-                New Project
+                New Automation
+              </button>
+              <button class="btn btn-ghost btn-sm" id="add-morning-brief-btn" title="Quick-add a Morning Brief automation">
+                <span class="ms ms-sm">wb_sunny</span>
+                Morning Brief
               </button>
             </div>
-          </div>
+            <div class="auto-board">
+              <div class="auto-column">
+                <div class="auto-column-header">
+                  <span class="auto-column-dot active"></span>
+                  <span>Active</span>
+                  <span class="auto-column-count" id="cron-active-count">0</span>
+                </div>
+                <div class="auto-column-cards" id="cron-active-cards"></div>
+              </div>
+              <div class="auto-column">
+                <div class="auto-column-header">
+                  <span class="auto-column-dot paused"></span>
+                  <span>Paused</span>
+                  <span class="auto-column-count" id="cron-paused-count">0</span>
+                </div>
+                <div class="auto-column-cards" id="cron-paused-cards"></div>
+              </div>
+              <div class="auto-column">
+                <div class="auto-column-header">
+                  <span class="auto-column-dot history"></span>
+                  <span>Run History</span>
+                </div>
+                <div class="auto-column-cards" id="cron-history-cards"></div>
+              </div>
+            </div>
+            <div class="empty-state" id="cron-empty">
+              <div class="empty-icon"><span class="ms" style="font-size:48px">bolt</span></div>
+              <div class="empty-title">No automations yet</div>
+              <div class="empty-subtitle">Create scheduled tasks, triggers, and recurring workflows</div>
+              <div style="display:flex;gap:12px;margin-top:16px;flex-wrap:wrap;justify-content:center">
+                <button class="btn btn-primary" id="cron-empty-add">Create Automation</button>
+                <button class="btn btn-ghost" id="cron-empty-morning-brief">
+                  <span class="ms">wb_sunny</span> Morning Brief Template
+                </button>
+              </div>
+            </div>
+            <div class="view-loading" id="cron-loading" style="display:none">Loading automations…</div>
+            <!-- Add/Edit Automation Modal -->
+            <div class="modal-overlay" id="cron-modal" style="display:none">
+              <div class="modal-card">
+                <div class="modal-header">
+                  <h2 class="modal-title" id="cron-modal-title">New Automation</h2>
+                  <button class="btn-icon" id="cron-modal-close">✕</button>
+                </div>
+                <div class="modal-body">
+                  <div class="form-group">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-input" id="cron-form-label" placeholder="My automation" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Schedule</label>
+                    <select class="form-input" id="cron-form-schedule-preset">
+                      <option value="">Custom schedule...</option>
+                      <option value="every 5m">Every 5 minutes</option>
+                      <option value="every 15m">Every 15 minutes</option>
+                      <option value="every 30m">Every 30 minutes</option>
+                      <option value="every 1h">Every hour</option>
+                      <option value="every 6h">Every 6 hours</option>
+                      <option value="daily 09:00">Daily at 9 AM</option>
+                      <option value="daily 12:00">Daily at noon</option>
+                      <option value="daily 18:00">Daily at 6 PM</option>
+                    </select>
+                    <input type="text" class="form-input" id="cron-form-schedule" placeholder="every 5m, every 1h, daily 09:00" style="margin-top:8px" />
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Task prompt</label>
+                    <textarea class="form-input" id="cron-form-prompt" rows="3" placeholder="What should the agent do?"></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Agent ID <span style="color:var(--text-muted);font-weight:normal">(optional)</span></label>
+                    <input type="text" class="form-input" id="cron-form-agent" placeholder="default" />
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button class="btn btn-secondary" id="cron-modal-cancel">Cancel</button>
+                  <button class="btn btn-primary" id="cron-modal-save">Create</button>
+                </div>
+              </div>
+            </div>
+          </div><!-- /tasks-tab-scheduled -->
 
-          <!-- Project list -->
-          <div class="orchestrator-content">
-            <div class="orch-project-list" id="orch-project-list">
-              <div class="empty-state">
-                <span class="ms" style="font-size: 48px">account_tree</span>
-                <h3>No projects yet</h3>
-                <p>
-                  Create a project to orchestrate multiple agents working together on a shared goal.
-                </p>
+          <!-- Tab: Projects (Orchestrator) -->
+          <div class="tasks-tab-panel" id="tasks-tab-projects" style="display:none">
+            <div class="orchestrator-header" style="padding:0 0 12px">
+              <div class="orchestrator-header-right">
+                <div class="orchestrator-stats">
+                  <span class="orchestrator-stat" id="orch-stat-total">0 projects</span>
+                  <span class="tasks-stat-sep">·</span>
+                  <span class="orchestrator-stat" id="orch-stat-running">0 running</span>
+                </div>
+                <button class="btn btn-primary btn-sm" id="orch-create-btn">
+                  <span class="ms ms-sm">add</span>
+                  New Project
+                </button>
               </div>
             </div>
 
-            <!-- Project detail (hidden by default) -->
-            <div class="orch-project-detail" id="orch-project-detail" style="display: none">
-              <div class="orch-detail-header">
-                <button class="btn btn-ghost btn-sm" id="orch-back-btn">← Back</button>
-                <div class="orch-detail-title">
-                  <h2 id="orch-detail-name">Project Name</h2>
-                  <span class="orch-status-badge" id="orch-detail-status">planning</span>
-                </div>
-                <div class="orch-detail-actions">
-                  <button class="btn btn-primary btn-sm" id="orch-run-btn">▶ Run</button>
-                  <button class="btn btn-ghost btn-sm" id="orch-edit-btn">Edit</button>
-                  <button class="btn btn-danger btn-sm" id="orch-delete-btn">Delete</button>
+            <div class="orchestrator-content">
+              <div class="orch-project-list" id="orch-project-list">
+                <div class="empty-state">
+                  <span class="ms" style="font-size:48px">account_tree</span>
+                  <h3>No projects yet</h3>
+                  <p>Create a project to orchestrate multiple agents working together on a shared goal.</p>
                 </div>
               </div>
-              <div class="orch-detail-goal" id="orch-detail-goal"></div>
 
-              <!-- Agent roster -->
-              <div class="orch-section">
-                <div class="orch-section-header">
-                  <h3>Agent Team</h3>
-                  <button class="btn btn-ghost btn-sm" id="orch-add-agent-btn">+ Add Agent</button>
+              <div class="orch-project-detail" id="orch-project-detail" style="display:none">
+                <div class="orch-detail-header">
+                  <button class="btn btn-ghost btn-sm" id="orch-back-btn">← Back</button>
+                  <div class="orch-detail-title">
+                    <h2 id="orch-detail-name">Project Name</h2>
+                    <span class="orch-status-badge" id="orch-detail-status">planning</span>
+                  </div>
+                  <div class="orch-detail-actions">
+                    <button class="btn btn-primary btn-sm" id="orch-run-btn">▶ Run</button>
+                    <button class="btn btn-ghost btn-sm" id="orch-edit-btn">Edit</button>
+                    <button class="btn btn-danger btn-sm" id="orch-delete-btn">Delete</button>
+                  </div>
                 </div>
-                <div class="orch-agent-roster" id="orch-agent-roster"></div>
-              </div>
+                <div class="orch-detail-goal" id="orch-detail-goal"></div>
 
-              <!-- Message bus -->
-              <div class="orch-section">
-                <h3>Message Bus</h3>
-                <div class="orch-message-bus" id="orch-message-bus">
-                  <div class="empty-state-sm">
-                    No messages yet. Run the project to see agent communication.
+                <div class="orch-section">
+                  <div class="orch-section-header">
+                    <h3>Agent Team</h3>
+                    <button class="btn btn-ghost btn-sm" id="orch-add-agent-btn">+ Add Agent</button>
+                  </div>
+                  <div class="orch-agent-roster" id="orch-agent-roster"></div>
+                </div>
+
+                <div class="orch-section">
+                  <h3>Message Bus</h3>
+                  <div class="orch-message-bus" id="orch-message-bus">
+                    <div class="empty-state-sm">No messages yet. Run the project to see agent communication.</div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Create/Edit Project Modal -->
-          <div class="modal-overlay" id="orch-modal" style="display: none">
-            <div class="modal" style="max-width: 560px">
-              <div class="modal-header">
-                <h3 id="orch-modal-title">New Project</h3>
-                <button class="modal-close" id="orch-modal-close">×</button>
-              </div>
-              <div class="modal-body">
-                <div class="form-group">
-                  <label>Project Title</label>
-                  <input
-                    type="text"
-                    class="form-input"
-                    id="orch-form-title"
-                    placeholder="e.g. Build Landing Page"
-                  />
+            <!-- Create/Edit Project Modal -->
+            <div class="modal-overlay" id="orch-modal" style="display:none">
+              <div class="modal" style="max-width:560px">
+                <div class="modal-header">
+                  <h3 id="orch-modal-title">New Project</h3>
+                  <button class="modal-close" id="orch-modal-close">×</button>
                 </div>
-                <div class="form-group">
-                  <label>Goal</label>
-                  <textarea
-                    class="form-input"
-                    id="orch-form-goal"
-                    rows="4"
-                    placeholder="Describe what this project should achieve..."
-                  ></textarea>
+                <div class="modal-body">
+                  <div class="form-group">
+                    <label>Project Title</label>
+                    <input type="text" class="form-input" id="orch-form-title" placeholder="e.g. Build Landing Page" />
+                  </div>
+                  <div class="form-group">
+                    <label>Goal</label>
+                    <textarea class="form-input" id="orch-form-goal" rows="4" placeholder="Describe what this project should achieve..."></textarea>
+                  </div>
+                  <div class="form-group">
+                    <label>Boss Agent ID</label>
+                    <input type="text" class="form-input" id="orch-form-boss" placeholder="default" value="default" />
+                    <small class="form-hint">The agent that orchestrates the project. Must have a soul file in the Foundry.</small>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label>Boss Agent ID</label>
-                  <input
-                    type="text"
-                    class="form-input"
-                    id="orch-form-boss"
-                    placeholder="default"
-                    value="default"
-                  />
-                  <small class="form-hint"
-                    >The agent that orchestrates the project. Must have a soul file in the
-                    Foundry.</small
-                  >
+                <div class="modal-footer">
+                  <button class="btn btn-ghost" id="orch-modal-cancel">Cancel</button>
+                  <button class="btn btn-primary" id="orch-modal-save">Create Project</button>
                 </div>
-              </div>
-              <div class="modal-footer">
-                <button class="btn btn-ghost" id="orch-modal-cancel">Cancel</button>
-                <button class="btn btn-primary" id="orch-modal-save">Create Project</button>
               </div>
             </div>
-          </div>
 
-          <!-- Add Agent Modal -->
-          <div class="modal-overlay" id="orch-agent-modal" style="display: none">
-            <div class="modal" style="max-width: 480px">
-              <div class="modal-header">
-                <h3>Add Agent to Project</h3>
-                <button class="modal-close" id="orch-agent-modal-close">×</button>
-              </div>
-              <div class="modal-body">
-                <div class="form-group">
-                  <label>Agent ID</label>
-                  <input
-                    type="text"
-                    class="form-input"
-                    id="orch-agent-form-id"
-                    placeholder="e.g. coder-1"
-                  />
+            <!-- Add Agent Modal -->
+            <div class="modal-overlay" id="orch-agent-modal" style="display:none">
+              <div class="modal" style="max-width:480px">
+                <div class="modal-header">
+                  <h3>Add Agent to Project</h3>
+                  <button class="modal-close" id="orch-agent-modal-close">×</button>
                 </div>
-                <div class="form-group">
-                  <label>Specialty</label>
-                  <select class="form-input" id="orch-agent-form-specialty">
-                    <option value="general">General</option>
-                    <option value="coder">Coder</option>
-                    <option value="researcher">Researcher</option>
-                    <option value="designer">Designer</option>
-                    <option value="communicator">Communicator</option>
-                    <option value="security">Security</option>
-                  </select>
+                <div class="modal-body">
+                  <div class="form-group">
+                    <label>Agent ID</label>
+                    <input type="text" class="form-input" id="orch-agent-form-id" placeholder="e.g. coder-1" />
+                  </div>
+                  <div class="form-group">
+                    <label>Specialty</label>
+                    <select class="form-input" id="orch-agent-form-specialty">
+                      <option value="general">General</option>
+                      <option value="coder">Coder</option>
+                      <option value="researcher">Researcher</option>
+                      <option value="designer">Designer</option>
+                      <option value="communicator">Communicator</option>
+                      <option value="security">Security</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Model <span style="font-weight:normal;color:var(--text-muted)">(optional — uses routing config if blank)</span></label>
+                    <select class="form-input" id="orch-agent-form-model">
+                      <option value="">(use routing default)</option>
+                    </select>
+                  </div>
                 </div>
-                <div class="form-group">
-                  <label
-                    >Model
-                    <span style="font-weight: normal; color: var(--text-muted)"
-                      >(optional — uses routing config if blank)</span
-                    ></label
-                  >
-                  <select class="form-input" id="orch-agent-form-model">
-                    <option value="">(use routing default)</option>
-                  </select>
+                <div class="modal-footer">
+                  <button class="btn btn-ghost" id="orch-agent-modal-cancel">Cancel</button>
+                  <button class="btn btn-primary" id="orch-agent-modal-save">Add Agent</button>
                 </div>
-              </div>
-              <div class="modal-footer">
-                <button class="btn btn-ghost" id="orch-agent-modal-cancel">Cancel</button>
-                <button class="btn btn-primary" id="orch-agent-modal-save">Add Agent</button>
               </div>
             </div>
-          </div>
+          </div><!-- /tasks-tab-projects -->
         </div>
 
         <!-- ═══ Squads View — Agent Teams ═══ -->
@@ -1178,152 +1076,6 @@
           </div>
           <div class="mail-preview" id="mail-preview">
             <div class="mail-preview-empty">Select an email to read</div>
-          </div>
-        </div>
-
-        <!-- ═══ Automations View — Card Board ═══ -->
-        <div class="view auto-view" id="automations-view">
-          <div class="view-header">
-            <h1 class="view-title">Automations</h1>
-            <div style="display: flex; gap: 6px; align-items: center">
-              <span
-                class="cron-service-status"
-                id="cron-service-status"
-                title="Cron service status"
-              ></span>
-              <button class="btn btn-ghost btn-sm" id="cron-view-toggle" title="Toggle view">
-                <span class="ms ms-sm">grid_view</span>
-              </button>
-              <button class="btn btn-primary btn-sm" id="add-cron-btn">
-                <span class="ms ms-sm">add</span>
-                New Automation
-              </button>
-              <button
-                class="btn btn-ghost btn-sm"
-                id="add-morning-brief-btn"
-                title="Quick-add a Morning Brief automation"
-              >
-                <span class="ms ms-sm">wb_sunny</span>
-                Morning Brief
-              </button>
-            </div>
-          </div>
-          <div class="auto-board">
-            <div class="auto-column">
-              <div class="auto-column-header">
-                <span class="auto-column-dot active"></span>
-                <span>Active</span>
-                <span class="auto-column-count" id="cron-active-count">0</span>
-              </div>
-              <div class="auto-column-cards" id="cron-active-cards"></div>
-            </div>
-            <div class="auto-column">
-              <div class="auto-column-header">
-                <span class="auto-column-dot paused"></span>
-                <span>Paused</span>
-                <span class="auto-column-count" id="cron-paused-count">0</span>
-              </div>
-              <div class="auto-column-cards" id="cron-paused-cards"></div>
-            </div>
-            <div class="auto-column">
-              <div class="auto-column-header">
-                <span class="auto-column-dot history"></span>
-                <span>Run History</span>
-              </div>
-              <div class="auto-column-cards" id="cron-history-cards"></div>
-            </div>
-          </div>
-          <div class="empty-state" id="cron-empty">
-            <div class="empty-icon"><span class="ms" style="font-size: 48px">bolt</span></div>
-            <div class="empty-title">No automations yet</div>
-            <div class="empty-subtitle">
-              Create scheduled tasks, triggers, and recurring workflows
-            </div>
-            <div
-              style="
-                display: flex;
-                gap: 12px;
-                margin-top: 16px;
-                flex-wrap: wrap;
-                justify-content: center;
-              "
-            >
-              <button class="btn btn-primary" id="cron-empty-add">Create Automation</button>
-              <button class="btn btn-ghost" id="cron-empty-morning-brief">
-                <span class="ms">wb_sunny</span> Morning Brief Template
-              </button>
-            </div>
-          </div>
-          <div class="view-loading" id="cron-loading" style="display: none">
-            Loading automations…
-          </div>
-          <!-- Add/Edit Automation Modal -->
-          <div class="modal-overlay" id="cron-modal" style="display: none">
-            <div class="modal-card">
-              <div class="modal-header">
-                <h2 class="modal-title" id="cron-modal-title">New Automation</h2>
-                <button class="btn-icon" id="cron-modal-close">✕</button>
-              </div>
-              <div class="modal-body">
-                <div class="form-group">
-                  <label class="form-label">Name</label>
-                  <input
-                    type="text"
-                    class="form-input"
-                    id="cron-form-label"
-                    placeholder="My automation"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Schedule</label>
-                  <select class="form-input" id="cron-form-schedule-preset">
-                    <option value="">Custom schedule...</option>
-                    <option value="every 5m">Every 5 minutes</option>
-                    <option value="every 15m">Every 15 minutes</option>
-                    <option value="every 30m">Every 30 minutes</option>
-                    <option value="every 1h">Every hour</option>
-                    <option value="every 6h">Every 6 hours</option>
-                    <option value="daily 09:00">Daily at 9 AM</option>
-                    <option value="daily 12:00">Daily at noon</option>
-                    <option value="daily 18:00">Daily at 6 PM</option>
-                  </select>
-                  <input
-                    type="text"
-                    class="form-input"
-                    id="cron-form-schedule"
-                    placeholder="every 5m, every 1h, daily 09:00"
-                    style="margin-top: 8px"
-                  />
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Task prompt</label>
-                  <textarea
-                    class="form-input"
-                    id="cron-form-prompt"
-                    rows="3"
-                    placeholder="What should the agent do?"
-                  ></textarea>
-                </div>
-                <div class="form-group">
-                  <label class="form-label"
-                    >Agent ID
-                    <span style="color: var(--text-muted); font-weight: normal"
-                      >(optional)</span
-                    ></label
-                  >
-                  <input
-                    type="text"
-                    class="form-input"
-                    id="cron-form-agent"
-                    placeholder="default"
-                  />
-                </div>
-              </div>
-              <div class="modal-footer">
-                <button class="btn btn-secondary" id="cron-modal-cancel">Cancel</button>
-                <button class="btn btn-primary" id="cron-modal-save">Create</button>
-              </div>
-            </div>
           </div>
         </div>
 

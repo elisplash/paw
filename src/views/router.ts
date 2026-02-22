@@ -2,7 +2,7 @@
 // View routing — switchView and showView — extracted from main.ts.
 
 import { appState } from '../state/index';
-import { loadDashboardCron, loadChannels, loadSpaceCron, loadMemory } from './channels';
+import { loadChannels, loadSpaceCron, loadMemory } from './channels';
 import { loadSessions, populateAgentSelect } from '../engine/organisms/chat_controller';
 import { loadActiveSettingsTab } from './settings-tabs';
 import * as AgentsModule from './agents';
@@ -22,7 +22,6 @@ import * as ProjectsModule from './projects';
 import * as SquadsModule from './squads';
 
 export const allViewIds = [
-  'dashboard-view',
   'setup-view',
   'manual-setup-view',
   'install-view',
@@ -31,7 +30,6 @@ export const allViewIds = [
   'code-view',
   'content-view',
   'mail-view',
-  'automations-view',
   'channels-view',
   'research-view',
   'memory-view',
@@ -41,19 +39,18 @@ export const allViewIds = [
   'nodes-view',
   'agents-view',
   'today-view',
-  'orchestrator-view',
   'trading-view',
   'squads-view',
 ];
 
 const viewMap: Record<string, string> = {
-  dashboard: 'dashboard-view',
+  dashboard: 'today-view',
   chat: 'chat-view',
   tasks: 'tasks-view',
   code: 'code-view',
   content: 'content-view',
   mail: 'mail-view',
-  automations: 'automations-view',
+  automations: 'tasks-view',
   channels: 'channels-view',
   research: 'research-view',
   memory: 'memory-view',
@@ -63,7 +60,7 @@ const viewMap: Record<string, string> = {
   nodes: 'nodes-view',
   agents: 'agents-view',
   today: 'today-view',
-  orchestrator: 'orchestrator-view',
+  orchestrator: 'tasks-view',
   trading: 'trading-view',
   squads: 'squads-view',
 };
@@ -91,7 +88,7 @@ export function switchView(viewName: string) {
   if (appState.wsConnected) {
     switch (viewName) {
       case 'dashboard':
-        loadDashboardCron();
+        TodayModule.loadToday();
         break;
       case 'chat':
         loadSessions();
@@ -101,9 +98,13 @@ export function switchView(viewName: string) {
         loadChannels();
         break;
       case 'automations': {
+        // Redirect: automations is now the Scheduled tab inside Tasks
         const al = AgentsModule.getAgents();
+        TasksModule.setAgents(al.map((a) => ({ id: a.id, name: a.name, avatar: a.avatar })));
         AutomationsModule.setAgents(al.map((a) => ({ id: a.id, name: a.name, avatar: a.avatar })));
+        TasksModule.loadTasks();
         AutomationsModule.loadCron();
+        TasksModule.switchTab('scheduled');
         break;
       }
       case 'agents':
@@ -129,11 +130,14 @@ export function switchView(viewName: string) {
       case 'tasks': {
         const al = AgentsModule.getAgents();
         TasksModule.setAgents(al.map((a) => ({ id: a.id, name: a.name, avatar: a.avatar })));
+        AutomationsModule.setAgents(al.map((a) => ({ id: a.id, name: a.name, avatar: a.avatar })));
         TasksModule.loadTasks();
+        AutomationsModule.loadCron();
         break;
       }
       case 'orchestrator':
         OrchestratorModule.loadProjects();
+        TasksModule.switchTab('projects');
         break;
       case 'trading':
         TradingModule.loadTrading();

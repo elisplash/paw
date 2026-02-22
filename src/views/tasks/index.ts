@@ -165,4 +165,24 @@ export function bindTaskEvents() {
 
   // Drag & drop
   setupDragAndDrop();
+
+  // Tab switching (Board | Scheduled)
+  document.querySelectorAll<HTMLElement>('[data-tasks-tab]').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      switchTab(tab.dataset.tasksTab ?? 'board');
+    });
+  });
+}
+
+// ── Tab Panel Switching ────────────────────────────────────────────────────
+
+export function switchTab(tabName: string) {
+  document.querySelectorAll<HTMLElement>('[data-tasks-tab]').forEach((t) => {
+    t.classList.toggle('active', t.dataset.tasksTab === tabName);
+  });
+  const panels = ['board', 'scheduled', 'projects'];
+  for (const panel of panels) {
+    const el = $(`tasks-tab-${panel}`);
+    if (el) el.style.display = panel === tabName ? '' : 'none';
+  }
 }

@@ -56,12 +56,7 @@ export async function openMemoryFile(filePath: string) {
   console.debug('[main] openMemoryFile:', filePath);
 }
 
-// ── Dashboard / Space cron stubs ───────────────────────────────────────────
-
-export async function loadDashboardCron() {
-  const section = $('dashboard-cron-section');
-  if (section) section.style.display = 'none';
-}
+// ── Space cron stub ────────────────────────────────────────────────────────
 
 export async function loadSpaceCron(_space: string) {
   // TODO: engine-native cron
