@@ -19,10 +19,10 @@ use log::{info, warn, error};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
@@ -102,7 +102,7 @@ struct WebhookResponse {
 // ── Global State ───────────────────────────────────────────────────────
 
 static BRIDGE_RUNNING: AtomicBool = AtomicBool::new(false);
-static REQUEST_COUNT: AtomicI64 = AtomicI64::new(0);
+static REQUEST_COUNT: AtomicU64 = AtomicU64::new(0);
 static STOP_SIGNAL: std::sync::OnceLock<Arc<AtomicBool>> = std::sync::OnceLock::new();
 
 fn get_stop_signal() -> Arc<AtomicBool> {
@@ -188,8 +188,13 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> channels::ChannelStatus {
         .unwrap_or_default();
     channels::ChannelStatus {
         running: BRIDGE_RUNNING.load(Ordering::Relaxed),
+        connected: BRIDGE_RUNNING.load(Ordering::Relaxed) && config.enabled,
+        bot_name: Some("Webhook Server".into()),
+        bot_id: None,
         message_count: REQUEST_COUNT.load(Ordering::Relaxed),
-        config_present: config.enabled,
+        allowed_users: vec![],
+        pending_users: vec![],
+        dm_policy: String::new(),
     }
 }
 

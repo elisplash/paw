@@ -1,7 +1,5 @@
 // commands/webhook.rs — Tauri IPC commands for the generic webhook server (Phase D)
 
-use tauri::State;
-use crate::commands::state::EngineState;
 use crate::engine::webhook::{self, WebhookConfig};
 use crate::engine::channels;
 
