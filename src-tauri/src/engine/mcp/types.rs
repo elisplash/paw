@@ -39,17 +39,12 @@ fn default_true() -> bool {
     true
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum McpTransport {
+    #[default]
     Stdio,
     Sse,
-}
-
-impl Default for McpTransport {
-    fn default() -> Self {
-        McpTransport::Stdio
-    }
 }
 
 // ── JSON-RPC 2.0 Framing ──────────────────────────────────────────────
@@ -95,21 +90,12 @@ pub struct JsonRpcError {
 // ── MCP Protocol Messages ──────────────────────────────────────────────
 
 /// Client capabilities sent during `initialize`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct McpClientCapabilities {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub roots: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sampling: Option<serde_json::Value>,
-}
-
-impl Default for McpClientCapabilities {
-    fn default() -> Self {
-        McpClientCapabilities {
-            roots: None,
-            sampling: None,
-        }
-    }
 }
 
 /// Parameters for the `initialize` request.

@@ -159,7 +159,7 @@ fn find_server_and_tool<'a>(
 ) -> Option<(&'a str, &'a str)> {
     // Try matching against known server IDs (longest match first for safety)
     let mut ids: Vec<&String> = clients.keys().collect();
-    ids.sort_by(|a, b| b.len().cmp(&a.len())); // longest first
+    ids.sort_by_key(|b| std::cmp::Reverse(b.len())); // longest first
 
     for id in ids {
         if let Some(rest) = stripped.strip_prefix(id.as_str()) {
