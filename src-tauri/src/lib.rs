@@ -23,6 +23,10 @@ pub fn run() {
                 tauri_plugin_log::TargetKind::LogDir { file_name: Some("openpawz".into()) },
             ))
             .max_file_size(5_000_000)
+            // Global default: only Info+ from third-party crates
+            .level(log::LevelFilter::Info)
+            // App crate: keep Debug for engine diagnostics
+            .level_for("paw_temp", log::LevelFilter::Debug)
             .build())
         .plugin(tauri_plugin_sql::Builder::default().build())
         .plugin(tauri_plugin_opener::init())
