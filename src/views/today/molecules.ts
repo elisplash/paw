@@ -5,7 +5,16 @@ import { getCurrentAgent, spriteAvatar } from '../agents';
 import { switchView } from '../router';
 import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
-import { type Task, getWeatherIcon, getGreeting, getPawzMessage, isToday } from './atoms';
+import {
+  type Task,
+  getWeatherIcon,
+  getGreeting,
+  getPawzMessage,
+  isToday,
+  engineTaskToToday,
+  filterTodayTasks,
+  toggledStatus,
+} from './atoms';
 import { renderSkillWidgets } from '../../components/molecules/skill-widget';
 import type { SkillOutput } from '../../engine/atoms/types';
 
@@ -436,43 +445,64 @@ function openAddTaskModal() {
   });
 }
 
-// ── Task CRUD ─────────────────────────────────────────────────────────
+// ── Task CRUD (engine-backed) ─────────────────────────────────────────
 
-function addTask(text: string) {
-  const tasks = _state.getTasks();
-  const task: Task = {
-    id: `task-${Date.now()}`,
-    text,
-    done: false,
-    createdAt: new Date().toISOString(),
-  };
-  tasks.unshift(task);
-  _state.setTasks(tasks);
-  saveTasks();
-  renderToday();
-  showToast('Task added');
-}
-
-function toggleTask(taskId: string) {
-  const tasks = _state.getTasks();
-  const task = tasks.find((t) => t.id === taskId);
-  if (task) {
-    task.done = !task.done;
-    _state.setTasks(tasks);
-    saveTasks();
-    renderToday();
+async function addTask(text: string) {
+  try {
+    await pawEngine.taskCreate({
+      id: '',
+      title: text,
+      description: '',
+      status: 'inbox',
+      priority: 'medium',
+      assigned_agents: [],
+      cron_enabled: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+    await reloadTodayTasks();
+    showToast('Task added');
+  } catch (e) {
+    console.error('[today] addTask failed:', e);
+    showToast('Failed to add task', 'error');
   }
 }
 
-function deleteTask(taskId: string) {
-  const tasks = _state.getTasks().filter((t) => t.id !== taskId);
-  _state.setTasks(tasks);
-  saveTasks();
-  renderToday();
+async function toggleTask(taskId: string) {
+  try {
+    const tasks = await pawEngine.tasksList();
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    const newStatus = toggledStatus(task.status);
+    await pawEngine.taskMove(taskId, newStatus);
+    await reloadTodayTasks();
+  } catch (e) {
+    console.error('[today] toggleTask failed:', e);
+    showToast('Failed to update task', 'error');
+  }
 }
 
-function saveTasks() {
-  localStorage.setItem('paw-tasks', JSON.stringify(_state.getTasks()));
+async function deleteTask(taskId: string) {
+  try {
+    await pawEngine.taskDelete(taskId);
+    await reloadTodayTasks();
+  } catch (e) {
+    console.error('[today] deleteTask failed:', e);
+    showToast('Failed to delete task', 'error');
+  }
+}
+
+/** Reload tasks from engine and re-render. */
+export async function reloadTodayTasks() {
+  try {
+    const all = await pawEngine.tasksList();
+    const filtered = filterTodayTasks(all);
+    const mapped = filtered.map(engineTaskToToday);
+    _state.setTasks(mapped);
+    renderToday();
+  } catch (e) {
+    console.error('[today] reloadTodayTasks failed:', e);
+  }
 }
 
 // ── Quick Actions ─────────────────────────────────────────────────────
