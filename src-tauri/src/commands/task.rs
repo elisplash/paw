@@ -409,6 +409,7 @@ pub async fn execute_task(
                 task_daily_budget_clone,
                 Some(&task_daily_tokens_clone),
                 None, // thinking_level
+                false, // auto_approve_all — tasks use safe default; opt-in is per-chat
             ).await;
 
             if let Ok(conn) = rusqlite::Connection::open(&store_path_clone) {

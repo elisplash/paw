@@ -41,6 +41,9 @@ pub struct MattermostConfig {
     /// Whether to respond when @mentioned in channels (not just DMs)
     #[serde(default = "default_true")]
     pub respond_to_mentions: bool,
+    /// Phase C: allow dangerous/side-effect tools for messages from this channel
+    #[serde(default)]
+    pub allow_dangerous_tools: bool,
 }
 
 fn default_true() -> bool { true }
@@ -56,6 +59,7 @@ impl Default for MattermostConfig {
             pending_users: vec![],
             agent_id: None,
             respond_to_mentions: true,
+            allow_dangerous_tools: false,
         }
     }
 }
@@ -333,6 +337,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
 
             let response = channels::run_channel_agent(
                 app_handle, "mattermost", ctx, &content, sender_id, agent_id,
+                current_config.allow_dangerous_tools,
             ).await;
 
             match response {

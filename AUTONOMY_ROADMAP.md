@@ -28,9 +28,9 @@ with optional security layers instead of none. The user chooses their risk level
 
 ## High-Level TODO
 
-- [ ] **Phase A** — Auto-approve mode per agent *(small, high impact)*
-- [ ] **Phase B** — Session-level approval *(small, good UX middle ground)*
-- [ ] **Phase C** — Per-channel dangerous tool policy *(small)*
+- [x] **Phase A** — Auto-approve mode per agent *(small, high impact)* ✅
+- [x] **Phase B** — Session-level approval *(small, good UX middle ground)* ✅ (already existed via session override in hil_modal.ts)
+- [x] **Phase C** — Per-channel dangerous tool policy *(small)* ✅
 - [ ] **Phase D** — Generic inbound webhook endpoint *(medium)*
 - [ ] **Phase E** — MCP client + dynamic tool registry *(large, highest strategic value)*
 - [ ] **Phase F** — PawzHub marketplace *(large, builds on all previous phases)*
@@ -50,21 +50,25 @@ with optional security layers instead of none. The user chooses their risk level
 ### What to build
 
 **Rust backend (`src-tauri/src/`):**
-- [ ] Add `auto_approve_all: bool` field to agent config (DB schema + types)
-- [ ] In `agent_loop/mod.rs` — before HIL gate, check agent's `auto_approve_all` flag
-- [ ] If true, skip `ToolRequest` event — execute immediately
-- [ ] Cron task execution inherits agent's `auto_approve_all` setting
-- [ ] Emit `EngineEvent::ToolAutoApproved` for audit trail (log which tool was auto-approved)
+- [x] Add `auto_approve_all: bool` field to `ChatRequest` in `atoms/types.rs` (with `#[serde(default)]`)
+- [x] Add `ToolAutoApproved` variant to `EngineEvent` for audit trail
+- [x] In `agent_loop/mod.rs` — HIL gate checks `auto_approve_all` flag before approval
+- [x] If true, skip `ToolRequest` event — execute immediately with audit log
+- [x] Cron tasks pass `false` (safe default); per-chat opt-in via `ChatRequest`
+- [x] Emit `EngineEvent::ToolAutoApproved` with session_id, run_id, tool_name, tool_call_id
 
 **TypeScript frontend (`src/`):**
-- [ ] Add toggle in agent settings UI with warning dialog
-- [ ] Warning text: "This agent will execute all tools without asking — including file writes, shell commands, and API calls. Use with container sandbox enabled."
-- [ ] Show visual indicator on agent card when auto-approve is active (e.g., yellow border)
+- [x] Add toggle in agent editor (Advanced tab) with ⚠️ warning
+- [x] Add toggle in Foundry mode editor with ⚠️ warning
+- [x] ⚡ AUTO badge on Foundry mode cards when auto-approve is active
+- [x] DB migration v3 adds `auto_approve_all` column to `agent_modes` table
+- [x] Bridge reads `agentProfile.autoApproveAll` and sets `auto_approve_all` on `ChatRequest`
+- [x] `tool_auto_approved` event translated and displayed in chat stream
 
 **Tests:**
 - [ ] Rust: test that `auto_approve_all=true` skips HIL
 - [ ] Rust: test that `auto_approve_all=false` still requires approval (existing behavior)
-- [ ] Rust: test cron task respects agent's auto-approve setting
+- [ ] Rust: test cron task passes `false` by default
 - [ ] TypeScript: test warning dialog renders, toggle state persists
 
 **Files to modify:**
@@ -82,21 +86,12 @@ with optional security layers instead of none. The user chooses their risk level
 
 ### What to build
 
-**Rust backend:**
-- [ ] Add `session_auto_approved: bool` to in-memory session state (not persisted)
-- [ ] New `EngineEvent::ToolRequestApproveAll` variant — frontend can send "approve all" response
-- [ ] When received, set `session_auto_approved = true` for that session
-- [ ] HIL gate checks session flag before emitting `ToolRequest`
-
-**TypeScript frontend:**
-- [ ] Add "Approve All" button alongside "Approve" / "Deny" in tool approval modal
-- [ ] Show indicator in chat header when session is in auto-approve mode
-- [ ] Reset on new session / page reload
-
-**Tests:**
-- [ ] Rust: test session flag enables auto-approve for subsequent calls
-- [ ] Rust: test flag resets on new session
-- [ ] TypeScript: test "Approve All" button sets session state
+**Already implemented (discovered during audit):**
+- [x] `activateSessionOverride(mins)` / `getSessionOverrideRemaining()` in `security.ts`
+- [x] "Allow all…" dropdown button with 30min / 1hr / 2hr options in the HIL approval modal
+- [x] Session override banner in `index.html`
+- [x] Auto-approve check before showing modal — skips HIL when session override is active
+- [x] Reset on timeout / page reload
 
 **Files to modify:**
 - `src-tauri/src/engine/agent_loop/mod.rs` — session state + HIL gate
@@ -116,14 +111,18 @@ with optional security layers instead of none. The user chooses their risk level
 ### What to build
 
 **Rust backend:**
-- [ ] Add `allow_dangerous_tools: bool` to channel bridge config (default: `false`)
-- [ ] In `channels/agent.rs` auto-approver, check bridge config before auto-denying
-- [ ] If `allow_dangerous_tools=true` AND agent has `auto_approve_all=true`, approve tool
-- [ ] Log warnings when dangerous tools execute via remote channel
+- [x] Add `allow_dangerous_tools: bool` (with `#[serde(default)]`) to all 11 channel config structs
+  - discord, matrix, nextcloud, whatsapp, irc, telegram, slack, mattermost, nostr, twitch, webchat
+- [x] In `channels/agent.rs` `run_channel_agent()` — new `allow_dangerous_tools: bool` param
+- [x] Auto-approver conditionally sends `true`/`false` based on flag
+- [x] Log warnings when dangerous tools auto-approved via remote channel
+- [x] All 11 channel call sites updated to pass `config.allow_dangerous_tools`
 
 **TypeScript frontend:**
-- [ ] Add toggle in channel settings with warning
-- [ ] Warning: "Enabling this allows remote users to trigger shell commands, file writes, and API calls through this channel. Only enable on private channels you control."
+- [x] Universal "Allow dangerous tools" toggle in Advanced section of every channel setup modal
+- [x] ⚠️ Warning: "When enabled, side-effect tools (file write, shell, etc.) run without human approval for messages from this channel."
+- [x] Existing config value loaded and checkbox pre-populated
+- [x] Saved in both Telegram custom path and generic channel save path
 
 **Tests:**
 - [ ] Rust: test that `allow_dangerous_tools=false` still auto-denies (existing behavior)

@@ -125,10 +125,13 @@ export async function loadModes() {
       const card = document.createElement('div');
       card.className = 'mode-card';
       card.style.borderLeftColor = mode.color || 'var(--accent)';
+      const autoApproveIndicator = mode.auto_approve_all
+        ? '<span class="badge badge-warning" style="font-size:0.65rem;margin-left:6px" title="Auto-approve all tools">⚡ AUTO</span>'
+        : '';
       card.innerHTML = `
         <div class="mode-card-icon" style="background:${mode.color}22">${mode.icon || mode.name?.charAt(0) || 'M'}</div>
         <div class="mode-card-info">
-          <div class="mode-card-name">${escHtml(mode.name)}</div>
+          <div class="mode-card-name">${escHtml(mode.name)}${autoApproveIndicator}</div>
           <div class="mode-card-detail">${mode.model ? escHtml(mode.model) : 'Default model'} · ${mode.thinking_level || 'normal'} thinking</div>
         </div>
         ${mode.is_default ? '<span class="mode-card-default">Default</span>' : ''}
@@ -171,6 +174,16 @@ export function editMode(mode?: AgentMode) {
   ($('mode-form-temp') as HTMLInputElement).value = String(mode?.temperature ?? 1);
   const tempVal = $('mode-form-temp-value');
   if (tempVal) tempVal.textContent = String(mode?.temperature ?? 1.0);
+
+  // Phase A: auto-approve toggle
+  const autoApproveCheckbox = $('mode-form-autoapprove') as HTMLInputElement;
+  const autoApproveWarning = $('mode-form-autoapprove-warning');
+  if (autoApproveCheckbox) {
+    autoApproveCheckbox.checked = !!(mode?.auto_approve_all);
+    if (autoApproveWarning) {
+      autoApproveWarning.style.display = autoApproveCheckbox.checked ? '' : 'none';
+    }
+  }
 }
 
 export function hideModeModal() {

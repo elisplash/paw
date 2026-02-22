@@ -70,6 +70,8 @@ export interface EngineChatRequest {
   attachments?: Array<{ mimeType: string; content: string; name?: string }>;
   /** Thinking/reasoning level: "none", "low", "medium", "high" */
   thinking_level?: string;
+  /** Phase A: If true, all tool calls auto-approved (no HIL popups). */
+  auto_approve_all?: boolean;
 }
 
 export interface EngineChatResponse {
@@ -104,7 +106,14 @@ export interface EngineStoredMessage {
 // ── Events ───────────────────────────────────────────────────────────
 
 export interface EngineEvent {
-  kind: 'delta' | 'tool_request' | 'tool_result' | 'complete' | 'error' | 'thinking_delta';
+  kind:
+    | 'delta'
+    | 'tool_request'
+    | 'tool_result'
+    | 'complete'
+    | 'error'
+    | 'thinking_delta'
+    | 'tool_auto_approved';
   session_id: string;
   run_id: string;
   // delta + thinking_delta
@@ -121,6 +130,8 @@ export interface EngineEvent {
   model?: string;
   // error
   message?: string;
+  // tool_auto_approved
+  tool_name?: string;
 }
 
 export interface EngineStatus {

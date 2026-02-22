@@ -43,6 +43,9 @@ pub struct IrcConfig {
     /// Whether to respond to messages in channels (not just DMs)
     #[serde(default)]
     pub respond_in_channels: bool,
+    /// Phase C: allow dangerous/side-effect tools for messages from this channel
+    #[serde(default)]
+    pub allow_dangerous_tools: bool,
 }
 
 impl Default for IrcConfig {
@@ -60,6 +63,7 @@ impl Default for IrcConfig {
             pending_users: vec![],
             agent_id: None,
             respond_in_channels: false,
+            allow_dangerous_tools: false,
         }
     }
 }
@@ -305,6 +309,7 @@ async fn run_irc_loop(app_handle: tauri::AppHandle, config: IrcConfig) -> Engine
 
             let response = channels::run_channel_agent(
                 &app_handle, "irc", ctx, &content, &sender_nick, agent_id,
+                current_config.allow_dangerous_tools,
             ).await;
 
             let reply_target = if is_dm { sender_nick.as_str() } else { target };

@@ -42,6 +42,9 @@ pub struct TwitchConfig {
     /// Only respond when directly addressed (e.g. "@botname hello")
     #[serde(default)]
     pub require_mention: bool,
+    /// Phase C: allow dangerous/side-effect tools for messages from this channel
+    #[serde(default)]
+    pub allow_dangerous_tools: bool,
 }
 
 impl Default for TwitchConfig {
@@ -56,6 +59,7 @@ impl Default for TwitchConfig {
             pending_users: vec![],
             agent_id: None,
             require_mention: true,
+            allow_dangerous_tools: false,
         }
     }
 }
@@ -327,6 +331,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
 
             let response = channels::run_channel_agent(
                 app_handle, "twitch", ctx, &content, &sender_lower, agent_id,
+                current_config.allow_dangerous_tools,
             ).await;
 
             match response {

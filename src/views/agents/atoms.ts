@@ -21,6 +21,8 @@ export interface Agent {
   lastUsed?: string;
   source?: 'local' | 'backend'; // Where this agent comes from
   projectId?: string; // If backend-created, which project
+  /** Phase A: auto-approve all tool calls (no HIL popups) */
+  autoApproveAll?: boolean;
 }
 
 // Tool groups for the per-agent tool assignment UI

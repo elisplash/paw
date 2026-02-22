@@ -163,6 +163,7 @@ pub(crate) async fn run_relay_loop(
 
                 let response = channels::run_channel_agent(
                     app_handle, "nostr", ctx, &content, &sender_pk, agent_id,
+                    current_config.allow_dangerous_tools,
                 ).await;
 
                 match response {

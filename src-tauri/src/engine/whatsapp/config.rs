@@ -45,6 +45,9 @@ pub struct WhatsAppConfig {
     /// QR code data (base64) for the frontend to display
     #[serde(default)]
     pub qr_code: Option<String>,
+    /// Phase C: allow dangerous/side-effect tools for messages from this channel
+    #[serde(default)]
+    pub allow_dangerous_tools: bool,
 }
 
 impl Default for WhatsAppConfig {
@@ -66,6 +69,7 @@ impl Default for WhatsAppConfig {
             container_id: None,
             session_connected: false,
             qr_code: None,
+            allow_dangerous_tools: false,
         }
     }
 }

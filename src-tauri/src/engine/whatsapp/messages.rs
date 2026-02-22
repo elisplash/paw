@@ -86,6 +86,7 @@ pub(crate) async fn handle_inbound_message(app_handle: tauri::AppHandle, payload
 
         let response = channels::run_channel_agent(
             &app_handle, "whatsapp", ctx, text, &sender_id, agent_id,
+            config.allow_dangerous_tools,
         ).await;
 
         match response {

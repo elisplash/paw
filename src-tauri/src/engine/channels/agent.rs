@@ -30,6 +30,7 @@ pub async fn run_channel_agent(
     message: &str,
     user_id: &str,
     agent_id: &str,
+    allow_dangerous_tools: bool,
 ) -> EngineResult<String> {
     let engine_state = app_handle.try_state::<EngineState>()
         .ok_or("Engine not initialized")?;
@@ -207,8 +208,13 @@ pub async fn run_channel_agent(
             let keys: Vec<String> = map.keys().cloned().collect();
             for key in keys {
                 if let Some(sender) = map.remove(&key) {
-                    warn!("[{}] Denying side-effect tool call from remote channel: {}", channel_prefix_owned, key);
-                    let _ = sender.send(false);
+                    if allow_dangerous_tools {
+                        warn!("[{}] Auto-APPROVING dangerous tool (allow_dangerous_tools=true): {}", channel_prefix_owned, key);
+                        let _ = sender.send(true);
+                    } else {
+                        warn!("[{}] Denying side-effect tool call from remote channel: {}", channel_prefix_owned, key);
+                        let _ = sender.send(false);
+                    }
                 }
             }
         }
@@ -241,6 +247,7 @@ pub async fn run_channel_agent(
             daily_budget,
             Some(&daily_tokens_tracker),
             None, // thinking_level
+            false, // auto_approve_all — channels use safe default; Phase C adds per-channel policy
         ).await;
 
         // If the primary provider failed with a billing/auth/rate error, try fallback providers
@@ -282,6 +289,7 @@ pub async fn run_channel_agent(
                         daily_budget,
                         Some(&daily_tokens_tracker),
                         None, // thinking_level
+                        false, // auto_approve_all — channels: safe default
                     ).await {
                         Ok(text) => {
                             info!("[{}] Fallback {:?} succeeded", channel_prefix, fb_provider_cfg.kind);
@@ -374,6 +382,7 @@ pub async fn run_routed_channel_agent(
     message: &str,
     user_id: &str,
     channel_id: Option<&str>,
+    allow_dangerous_tools: bool,
 ) -> EngineResult<String> {
     // Load routing config and resolve agent
     let _engine_state = app_handle.try_state::<EngineState>()
@@ -405,5 +414,6 @@ pub async fn run_routed_channel_agent(
         message,
         user_id,
         &route.agent_id,
+        allow_dangerous_tools,
     ).await
 }

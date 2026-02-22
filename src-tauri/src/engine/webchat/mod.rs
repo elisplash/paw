@@ -59,6 +59,9 @@ pub struct WebChatConfig {
     /// Path to TLS private key PEM file
     #[serde(default)]
     pub tls_key_path: Option<String>,
+    /// Phase C: allow dangerous/side-effect tools for messages from this channel
+    #[serde(default)]
+    pub allow_dangerous_tools: bool,
 }
 
 impl Default for WebChatConfig {
@@ -77,6 +80,7 @@ impl Default for WebChatConfig {
             page_title: "Paw Chat".into(),
             tls_cert_path: None,
             tls_key_path: None,
+            allow_dangerous_tools: false,
         }
     }
 }
@@ -254,6 +258,7 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                     &user_text,
                     &username,
                     &agent_id,
+                    config.allow_dangerous_tools,
                 ).await;
 
                 let response = match reply {

@@ -105,6 +105,17 @@ export async function openChannelSetup(channelType: string) {
     /* no existing config */
   }
 
+  // Phase C: load allow_dangerous_tools from any channel's existing config
+  try {
+    let rawCfg: Record<string, unknown> | null = null;
+    if (channelType === 'telegram') {
+      rawCfg = (await pawEngine.telegramGetConfig()) as unknown as Record<string, unknown>;
+    } else {
+      rawCfg = await getChannelConfig(channelType);
+    }
+    if (rawCfg?.allow_dangerous_tools) existingValues['allowDangerousTools'] = 'true';
+  } catch { /* ignore */ }
+
   let html = def.descriptionHtml
     ? `<div class="channel-setup-desc">${def.descriptionHtml}</div>`
     : `<p class="channel-setup-desc">${escHtml(def.description)}</p>`;
@@ -150,13 +161,21 @@ export async function openChannelSetup(channelType: string) {
     html += renderField(field);
   }
 
+  // Phase C: common dangerous-tools toggle (always in Advanced section)
+  const dangerChecked = existingValues['allowDangerousTools'] ? ' checked' : '';
+  const dangerToggleHtml = `<div class="form-group">
+    <label class="toggle-label"><input type="checkbox" id="ch-field-allowDangerousTools"${dangerChecked}> Allow dangerous tools</label>
+    <div class="form-hint">⚠️ When enabled, side-effect tools (file write, shell, etc.) run without human approval for messages from this channel.</div>
+  </div>`;
+
+  html += `<details class="advanced-toggle"><summary>Advanced settings</summary>`;
   if (advancedFields.length > 0) {
-    html += `<details class="advanced-toggle"><summary>Advanced settings</summary>`;
     for (const field of advancedFields) {
       html += renderField(field);
     }
-    html += `</details>`;
   }
+  html += dangerToggleHtml;
+  html += `</details>`;
 
   body.innerHTML = html;
   modal.style.display = '';
@@ -226,16 +245,18 @@ export async function saveChannelSetup() {
             .filter((n) => !isNaN(n))
         : (existing?.allowed_users ?? []);
 
-      const config = {
+      const config: Record<string, unknown> = {
         bot_token: botToken,
         enabled: true,
         dm_policy: dmPolicy,
         allowed_users: allowedUsers,
         pending_users: existing?.pending_users ?? [],
         agent_id: agentId || undefined,
+        // Phase C: dangerous tools policy
+        allow_dangerous_tools: ($('ch-field-allowDangerousTools') as HTMLInputElement)?.checked ?? false,
       };
 
-      await pawEngine.telegramSetConfig(config);
+      await pawEngine.telegramSetConfig(config as never);
       showToast('Telegram configured!', 'success');
       closeChannelSetup();
 
@@ -322,6 +343,8 @@ export async function saveChannelSetup() {
         pending_users: (existingConfig as Record<string, unknown> | null)?.pending_users ?? [],
       };
       if (values['agentId']) finalConfig.agent_id = values['agentId'] as string;
+      // Phase C: dangerous tools policy
+      finalConfig.allow_dangerous_tools = ($('ch-field-allowDangerousTools') as HTMLInputElement)?.checked ?? false;
 
       await setChannelConfig(channelType, finalConfig);
       showToast(`${_chDef.name} configured!`, 'success');

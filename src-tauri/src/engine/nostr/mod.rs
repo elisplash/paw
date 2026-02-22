@@ -52,6 +52,9 @@ pub struct NostrConfig {
     #[serde(default)]
     pub pending_users: Vec<PendingUser>,
     pub agent_id: Option<String>,
+    /// Phase C: allow dangerous/side-effect tools for messages from this channel
+    #[serde(default)]
+    pub allow_dangerous_tools: bool,
 }
 
 impl Default for NostrConfig {
@@ -64,6 +67,7 @@ impl Default for NostrConfig {
             allowed_users: vec![],
             pending_users: vec![],
             agent_id: None,
+            allow_dangerous_tools: false,
         }
     }
 }

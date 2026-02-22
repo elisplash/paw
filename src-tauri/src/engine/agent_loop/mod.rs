@@ -35,6 +35,7 @@ pub async fn run_agent_turn(
     daily_budget_usd: f64,
     daily_tokens: Option<&DailyTokenTracker>,
     thinking_level: Option<&str>,
+    auto_approve_all: bool,
 ) -> EngineResult<String> {
     let mut round = 0;
     let mut final_text = String::new();
@@ -330,7 +331,9 @@ pub async fn run_agent_turn(
                 "coinbase_trade", "coinbase_transfer", "coinbase_wallet_create",
             ];
 
-            let skip_hil = if auto_approved_tools.contains(&tc.function.name.as_str()) {
+            let skip_hil = if auto_approve_all {
+                true
+            } else if auto_approved_tools.contains(&tc.function.name.as_str()) {
                 true
             } else if trading_write_tools.contains(&tc.function.name.as_str()) {
                 check_trading_auto_approve(&tc.function.name, &tc.function.arguments, app_handle)
@@ -339,7 +342,19 @@ pub async fn run_agent_turn(
             };
 
             let approved = if skip_hil {
-                info!("[engine] Auto-approved safe tool: {}", tc.function.name);
+                // Distinguish agent-level auto-approve from safe-tool auto-approve in logs
+                if auto_approve_all && !auto_approved_tools.contains(&tc.function.name.as_str()) {
+                    info!("[engine] Tool auto-approved (agent policy): {}", tc.function.name);
+                    // Emit audit event so frontend can track agent-policy approvals
+                    let _ = app_handle.emit("engine-event", EngineEvent::ToolAutoApproved {
+                        session_id: session_id.to_string(),
+                        run_id: run_id.to_string(),
+                        tool_name: tc.function.name.clone(),
+                        tool_call_id: tc.id.clone(),
+                    });
+                } else {
+                    info!("[engine] Auto-approved safe tool: {}", tc.function.name);
+                }
                 true
             } else {
                 info!("[engine] Tool requires user approval: {}", tc.function.name);
