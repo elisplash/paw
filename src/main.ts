@@ -59,6 +59,7 @@ import * as ProjectsModule from './views/projects';
 import * as AgentsModule from './views/agents';
 import * as TasksModule from './views/tasks';
 import * as OrchestratorModule from './views/orchestrator';
+import { initCommandPalette } from './components/command-palette';
 
 // ── Tauri bridge ─────────────────────────────────────────────────────────
 interface TauriWindow {
@@ -382,6 +383,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     initChannels();
     initChatListeners();
     initHILModal();
+    initCommandPalette({
+      getAgents: AgentsModule.getAgents,
+      switchView,
+      switchAgent: switchToAgent,
+    });
 
     console.debug('[main] Pawz engine mode — starting...');
     switchView('today');
