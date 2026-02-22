@@ -472,17 +472,13 @@ impl GoogleProvider {
                                     }
 
                                     if let Some(parts) = content["parts"].as_array() {
-                                        // Debug: log raw part keys to diagnose thinking
-                                        for (pi, part) in parts.iter().enumerate() {
-                                            let keys: Vec<&str> = part.as_object()
-                                                .map(|o| o.keys().map(|k| k.as_str()).collect())
-                                                .unwrap_or_default();
-                                            info!("[engine] Google SSE part[{}] keys={:?} thought={:?}", pi, keys, part.get("thought"));
-                                        }
-                                        // First pass: collect thought parts (they accompany function calls)
+                                        // First pass: collect thought parts (identified by "thought": true OR thoughtSignature)
                                         let mut collected_thoughts: Vec<ThoughtPart> = Vec::new();
                                         for part in parts {
-                                            if part.get("thought").and_then(|v| v.as_bool()).unwrap_or(false) {
+                                            let is_thought = part.get("thought").and_then(|v| v.as_bool()).unwrap_or(false)
+                                                || part.get("thoughtSignature").is_some()
+                                                || part.get("thought_signature").is_some();
+                                            if is_thought {
                                                 if let Some(text) = part["text"].as_str() {
                                                     let sig = part.get("thoughtSignature")
                                                         .or_else(|| part.get("thought_signature"))
@@ -497,9 +493,9 @@ impl GoogleProvider {
                                                         thought_parts: vec![],
                                                         thinking_text: Some(text.to_string()),
                                                     });
+                                                    info!("[engine] Google: thought part detected (len={}, has_sig={})", text.len(), sig.is_some());
                                                     // Also collect for round-tripping if signature present
                                                     if let Some(s) = sig {
-                                                        info!("[engine] Google: captured thought part with signature (len={})", text.len());
                                                         collected_thoughts.push(ThoughtPart {
                                                             text: text.to_string(),
                                                             thought_signature: s.to_string(),
@@ -511,8 +507,11 @@ impl GoogleProvider {
 
                                         // Second pass: process text and functionCall parts
                                         for part in parts {
-                                            // Skip thought parts (already collected)
-                                            if part.get("thought").and_then(|v| v.as_bool()).unwrap_or(false) {
+                                            // Skip thought parts (already collected above)
+                                            let is_thought = part.get("thought").and_then(|v| v.as_bool()).unwrap_or(false)
+                                                || part.get("thoughtSignature").is_some()
+                                                || part.get("thought_signature").is_some();
+                                            if is_thought && part.get("functionCall").is_none() {
                                                 continue;
                                             }
                                             if let Some(text) = part["text"].as_str() {
