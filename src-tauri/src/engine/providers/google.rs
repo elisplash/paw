@@ -320,7 +320,9 @@ impl GoogleProvider {
             body["generationConfig"] = json!({"maxOutputTokens": 8192});
         }
 
-        // Gemini thinking models support thinkingConfig with a budget
+        // Gemini thinking models support thinkingConfig as a top-level field.
+        // For 2.5 models that think by default, we always allow thinking so the
+        // thought parts appear in the response for display.
         if let Some(level) = thinking_level {
             if level != "none" {
                 let budget = match level {
@@ -328,7 +330,7 @@ impl GoogleProvider {
                     "high" => 32768,
                     _ => 16384, // medium
                 };
-                body["generationConfig"]["thinkingConfig"] = json!({
+                body["thinkingConfig"] = json!({
                     "thinkingBudget": budget,
                 });
                 info!("[engine] Google: thinking config enabled (budget={})", budget);
