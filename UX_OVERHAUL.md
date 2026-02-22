@@ -265,13 +265,13 @@ These are capabilities a platform like Pawz should have but currently doesn't:
 
 ### Sprint 4: New Features
 - [x] 4.1 Squads view (real-time agent team workspace)
-- [ ] 5.1 Activity timeline
-- [ ] 5.2 Notifications center
+- [x] 5.1 Activity timeline
+- [x] 5.2 Notifications center
 
 ### Sprint 5: Polish
 - [ ] 5.3 Agent handoff protocol
 - [ ] 5.4 Webhook event log
-- [ ] 5.5 Quick agent switcher
+- [x] 5.5 Quick agent switcher
 
 ---
 

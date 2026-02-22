@@ -61,6 +61,7 @@ import * as TasksModule from './views/tasks';
 import * as OrchestratorModule from './views/orchestrator';
 import { initCommandPalette } from './components/command-palette';
 import { initNotifications } from './components/notifications';
+import { initWebhookLog } from './components/webhook-log';
 
 // ── Tauri bridge ─────────────────────────────────────────────────────────
 interface TauriWindow {
@@ -390,6 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       switchAgent: switchToAgent,
     });
     initNotifications();
+    initWebhookLog();
 
     console.debug('[main] Pawz engine mode — starting...');
     switchView('today');
