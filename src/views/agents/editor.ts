@@ -156,6 +156,18 @@ function buildEditorHtml(agent: Agent, availableModels: { id: string; name: stri
         
         <!-- Advanced Tab -->
         <div class="agent-tab-content" id="tab-advanced">
+          <!-- Phase A: Auto-Approve All Tools -->
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" id="agent-edit-autoapprove" ${agent.autoApproveAll ? 'checked' : ''}>
+              <span>Auto-Approve All Tools</span>
+              <span class="badge badge-warning" style="font-size:0.7rem">⚡ Autonomous</span>
+            </label>
+            <p class="form-hint agent-autoapprove-warning" style="${agent.autoApproveAll ? '' : 'display:none;'}color:var(--warning);margin-top:4px;font-size:0.8rem">
+              ⚠️ This agent will execute <strong>all</strong> tools without asking — including file writes, shell commands, and API calls. Use with container sandbox enabled.
+            </p>
+          </div>
+
           <div class="form-group">
             <label class="form-label">Custom Instructions</label>
             <textarea class="form-input agent-system-prompt" id="agent-edit-prompt" placeholder="Add custom instructions for this agent...">${escHtml(agent.systemPrompt || '')}</textarea>
@@ -327,6 +339,7 @@ function saveAgentEdits(
   agent.skills = selectedTools;
   agent.boundaries = boundaries.filter((b) => b.trim());
   agent.systemPrompt = systemPrompt;
+  agent.autoApproveAll = (modal.querySelector('#agent-edit-autoapprove') as HTMLInputElement)?.checked ?? false;
 
   setAgentPolicy(agent.id, newPolicy);
   cbs.onUpdated();
@@ -445,6 +458,15 @@ export function openAgentEditor(agentId: string, cbs: EditorCallbacks) {
 
   // Boundaries
   wireEditorBoundaries(modal, boundaries);
+
+  // Phase A: auto-approve checkbox toggle warning
+  const autoApproveCheckbox = modal.querySelector('#agent-edit-autoapprove') as HTMLInputElement;
+  const autoApproveWarning = modal.querySelector('.agent-autoapprove-warning') as HTMLElement;
+  if (autoApproveCheckbox && autoApproveWarning) {
+    autoApproveCheckbox.addEventListener('change', () => {
+      autoApproveWarning.style.display = autoApproveCheckbox.checked ? '' : 'none';
+    });
+  }
 
   // Delete
   modal.querySelector('.agent-delete-btn')?.addEventListener('click', async () => {

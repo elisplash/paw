@@ -40,6 +40,9 @@ pub struct SlackConfig {
     /// Whether to respond when @mentioned in channels
     #[serde(default = "default_true")]
     pub respond_to_mentions: bool,
+    /// Phase C: allow dangerous/side-effect tools for messages from this channel
+    #[serde(default)]
+    pub allow_dangerous_tools: bool,
 }
 
 fn default_true() -> bool { true }
@@ -55,6 +58,7 @@ impl Default for SlackConfig {
             pending_users: vec![],
             agent_id: None,
             respond_to_mentions: true,
+            allow_dangerous_tools: false,
         }
     }
 }
@@ -276,6 +280,7 @@ async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> E
 
                 let response = channels::run_channel_agent(
                     &app_handle, "slack", ctx, &content, &user_id, agent_id,
+                    current_config.allow_dangerous_tools,
                 ).await;
 
                 match response {

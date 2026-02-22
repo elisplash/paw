@@ -287,6 +287,13 @@ const MIGRATIONS: Migration[] = [
       )`,
     ],
   },
+  {
+    version: 3,
+    description: 'Add auto_approve_all to agent_modes for Phase A autonomy',
+    statements: [
+      `ALTER TABLE agent_modes ADD COLUMN auto_approve_all INTEGER DEFAULT 0`,
+    ],
+  },
 ];
 
 /** Seed default agent modes if the table is empty */
@@ -376,6 +383,8 @@ export interface AgentMode {
   icon: string;
   color: string;
   is_default: number;
+  /** Phase A: auto-approve all tool calls for this agent (0=off, 1=on) */
+  auto_approve_all: number;
   created_at: string;
   updated_at: string;
 }
@@ -396,19 +405,20 @@ export async function saveMode(
 ): Promise<void> {
   if (!db) return;
   await db.execute(
-    `INSERT INTO agent_modes (id, name, model, system_prompt, skills, thinking_level, temperature, icon, color, is_default, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+    `INSERT INTO agent_modes (id, name, model, system_prompt, skills, thinking_level, temperature, icon, color, is_default, auto_approve_all, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
      ON CONFLICT(id) DO UPDATE SET
-       name            = excluded.name,
-       model           = excluded.model,
-       system_prompt   = excluded.system_prompt,
-       skills          = excluded.skills,
-       thinking_level  = excluded.thinking_level,
-       temperature     = excluded.temperature,
-       icon            = excluded.icon,
-       color           = excluded.color,
-       is_default      = excluded.is_default,
-       updated_at      = datetime('now')`,
+       name              = excluded.name,
+       model             = excluded.model,
+       system_prompt     = excluded.system_prompt,
+       skills            = excluded.skills,
+       thinking_level    = excluded.thinking_level,
+       temperature       = excluded.temperature,
+       icon              = excluded.icon,
+       color             = excluded.color,
+       is_default        = excluded.is_default,
+       auto_approve_all  = excluded.auto_approve_all,
+       updated_at        = datetime('now')`,
     [
       mode.id,
       mode.name,
@@ -420,6 +430,7 @@ export async function saveMode(
       mode.icon ?? '',
       mode.color ?? '#0073EA',
       mode.is_default ?? 0,
+      mode.auto_approve_all ?? 0,
     ],
   );
 }

@@ -1621,6 +1621,17 @@
                     <span class="form-range-value" id="mode-form-temp-value">1.0</span>
                   </div>
                 </div>
+                <!-- Phase A: Auto-approve toggle -->
+                <div class="form-group" id="mode-form-autoapprove-group">
+                  <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                    <input type="checkbox" id="mode-form-autoapprove" />
+                    <span>Auto-Approve All Tools</span>
+                    <span class="badge badge-warning" style="font-size:0.7rem">⚡ Autonomous</span>
+                  </label>
+                  <p class="form-hint" id="mode-form-autoapprove-warning" style="display:none;color:var(--warning);margin-top:4px;font-size:0.8rem">
+                    ⚠️ This agent will execute <strong>all</strong> tools without asking — including file writes, shell commands, and API calls. Use with container sandbox enabled.
+                  </p>
+                </div>
               </div>
               <div class="modal-footer">
                 <button class="btn btn-secondary" id="mode-modal-cancel">Cancel</button>

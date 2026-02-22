@@ -178,6 +178,14 @@ pub enum EngineEvent {
         run_id: String,
         text: String,
     },
+    /// A tool was auto-approved by agent policy (audit trail for auto-approve mode)
+    #[serde(rename = "tool_auto_approved")]
+    ToolAutoApproved {
+        session_id: String,
+        run_id: String,
+        tool_name: String,
+        tool_call_id: String,
+    },
     /// An error occurred during the run
     #[serde(rename = "error")]
     Error {
@@ -231,6 +239,10 @@ pub struct ChatRequest {
     /// Thinking/reasoning level: "none", "low", "medium", "high"
     #[serde(default)]
     pub thinking_level: Option<String>,
+    /// Phase A: If true, all tool calls auto-approved (no HIL popups).
+    /// Set by frontend based on agent mode's `auto_approve_all` setting.
+    #[serde(default)]
+    pub auto_approve_all: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

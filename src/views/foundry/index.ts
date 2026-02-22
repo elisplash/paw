@@ -64,6 +64,13 @@ export function initFoundryEvents() {
     if (display) display.textContent = parseFloat(val).toFixed(1);
   });
 
+  // Phase A: toggle warning visibility when auto-approve checkbox changes
+  $('mode-form-autoapprove')?.addEventListener('change', () => {
+    const checked = ($('mode-form-autoapprove') as HTMLInputElement).checked;
+    const warning = $('mode-form-autoapprove-warning');
+    if (warning) warning.style.display = checked ? '' : 'none';
+  });
+
   $('mode-modal-save')?.addEventListener('click', async () => {
     const name = ($('mode-form-name') as HTMLInputElement).value.trim();
     if (!name) {
@@ -85,6 +92,7 @@ export function initFoundryEvents() {
       system_prompt: ($('mode-form-prompt') as HTMLTextAreaElement).value,
       thinking_level: ($('mode-form-thinking') as HTMLSelectElement).value,
       temperature: parseFloat(($('mode-form-temp') as HTMLInputElement).value),
+      auto_approve_all: ($('mode-form-autoapprove') as HTMLInputElement)?.checked ? 1 : 0,
     });
     hideModeModal();
     loadModes();

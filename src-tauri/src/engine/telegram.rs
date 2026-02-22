@@ -84,6 +84,9 @@ pub struct TelegramConfig {
     /// Known users: maps username (lowercase, no @) → chat_id for proactive messaging
     #[serde(default)]
     pub known_users: std::collections::HashMap<String, i64>,
+    /// Phase C: allow dangerous/side-effect tools for messages from this channel
+    #[serde(default)]
+    pub allow_dangerous_tools: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -105,6 +108,7 @@ impl Default for TelegramConfig {
             agent_id: None,
             context_window: Some(50),
             known_users: std::collections::HashMap::new(),
+            allow_dangerous_tools: false,
         }
     }
 }
@@ -450,6 +454,7 @@ async fn run_polling_loop(app_handle: tauri::AppHandle, config: TelegramConfig) 
                             &text,
                             &user_id.to_string(),
                             agent_id_str,
+                            current_config.allow_dangerous_tools,
                         ).await;
 
                         match response {

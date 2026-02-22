@@ -62,6 +62,9 @@ pub struct MatrixConfig {
     /// Whether to respond in group rooms (not just DMs)
     #[serde(default)]
     pub respond_in_rooms: bool,
+    /// Phase C: allow dangerous/side-effect tools for messages from this channel
+    #[serde(default)]
+    pub allow_dangerous_tools: bool,
     /// Device ID persisted from previous session (for E2EE continuity)
     #[serde(default)]
     pub device_id: Option<String>,
@@ -380,6 +383,7 @@ async fn handle_room_message(
 
     let response = channels::run_channel_agent(
         &app_handle, "matrix", ctx, &content, &sender, agent_id,
+        current_config.allow_dangerous_tools,
     ).await;
 
     match response {

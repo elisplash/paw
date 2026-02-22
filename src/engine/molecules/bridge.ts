@@ -97,6 +97,7 @@ export async function engineChatSend(
       model?: string;
       personality?: { tone?: string; initiative?: string; detail?: string };
       boundaries?: string[];
+      autoApproveAll?: boolean;
     };
     attachments?: Array<{
       type?: string;
@@ -157,6 +158,7 @@ export async function engineChatSend(
     tool_filter: toolFilter,
     agent_id: agentId !== 'default' ? agentId : undefined,
     thinking_level: opts.thinkingLevel,
+    auto_approve_all: !!opts.agentProfile?.autoApproveAll,
     attachments: opts.attachments?.map((a) => ({
       mimeType: a.mimeType,
       content: a.content,
@@ -237,6 +239,19 @@ function translateEngineEvent(event: EngineEvent): Record<string, unknown> | nul
       return {
         stream: 'thinking',
         data: { delta: event.text },
+        runId: event.run_id,
+        sessionKey: event.session_id,
+      };
+
+    case 'tool_auto_approved':
+      return {
+        stream: 'tool',
+        data: {
+          phase: 'auto_approved',
+          name: event.tool_name,
+          tool: event.tool_name,
+          tool_call_id: event.tool_call_id,
+        },
         runId: event.run_id,
         sessionKey: event.session_id,
       };

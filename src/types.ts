@@ -465,4 +465,6 @@ export interface Agent {
   systemPrompt?: string; // Custom instructions
   createdAt: string;
   lastUsed?: string;
+  /** Phase A: auto-approve all tool calls (no HIL popups) */
+  autoApproveAll?: boolean;
 }

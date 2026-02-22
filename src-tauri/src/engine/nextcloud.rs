@@ -42,6 +42,9 @@ pub struct NextcloudConfig {
     /// Whether to respond in group conversations (not just 1-on-1)
     #[serde(default)]
     pub respond_in_groups: bool,
+    /// Phase C: allow dangerous/side-effect tools for messages from this channel
+    #[serde(default)]
+    pub allow_dangerous_tools: bool,
 }
 
 impl Default for NextcloudConfig {
@@ -56,6 +59,7 @@ impl Default for NextcloudConfig {
             pending_users: vec![],
             agent_id: None,
             respond_in_groups: false,
+            allow_dangerous_tools: false,
         }
     }
 }
@@ -326,6 +330,7 @@ async fn run_poll_loop(app_handle: tauri::AppHandle, config: NextcloudConfig) ->
 
                 let response = channels::run_channel_agent(
                     &app_handle, "nextcloud", ctx, &text, actor_id, agent_id,
+                    current_config.allow_dangerous_tools,
                 ).await;
 
                 match response {
