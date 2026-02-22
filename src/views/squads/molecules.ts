@@ -3,7 +3,7 @@
 import { pawEngine } from '../../engine';
 import { showToast } from '../../components/toast';
 import type { EngineSquad } from '../../engine/atoms/types';
-import { renderSquadCard, renderSquadDetail } from './atoms';
+import { renderSquadCard, renderSquadDetail, filterHandoffs, renderHandoffCard } from './atoms';
 import { openEditModal, openAddMemberModal } from './modals';
 
 let squads: EngineSquad[] = [];
@@ -92,6 +92,9 @@ function renderDetail(squad: EngineSquad): void {
       }
     });
   });
+
+  // Load handoffs for squad members
+  loadHandoffs(squad);
 }
 
 function clearDetail(): void {
@@ -99,6 +102,28 @@ function clearDetail(): void {
   if (detailEl) {
     detailEl.style.display = 'none';
     detailEl.innerHTML = '';
+  }
+}
+
+async function loadHandoffs(squad: EngineSquad): Promise<void> {
+  const feed = $('squad-handoff-feed');
+  if (!feed) return;
+  try {
+    // Fetch handoff messages for each member and merge
+    const results = await Promise.all(
+      squad.members.map((m) => pawEngine.agentMessages(m.agent_id, 'handoff', 20).catch(() => [])),
+    );
+    const allMsgs = results.flat();
+    const handoffs = filterHandoffs(allMsgs);
+    handoffs.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    if (handoffs.length === 0) {
+      feed.innerHTML = `<div class="squad-messages-empty">No handoffs yet. Agents use the handoff channel to pass work to each other.</div>`;
+      return;
+    }
+    feed.innerHTML = handoffs.slice(0, 20).map(renderHandoffCard).join('');
+  } catch {
+    // IPC may not exist yet — backend command not added
+    feed.innerHTML = `<div class="squad-messages-empty">Handoff log unavailable — backend command pending.</div>`;
   }
 }
 

@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { renderSquadCard, renderSquadDetail, buildAgentOptions } from './atoms';
-import type { EngineSquad, EngineSquadMember } from '../../engine/atoms/types';
+import {
+  renderSquadCard,
+  renderSquadDetail,
+  buildAgentOptions,
+  filterHandoffs,
+  renderHandoffCard,
+} from './atoms';
+import type { EngineSquad, EngineSquadMember, EngineAgentMessage } from '../../engine/atoms/types';
 
 // ── helpers ────────────────────────────────────────────────────────────
 
@@ -185,5 +191,80 @@ describe('buildAgentOptions', () => {
     const html = buildAgentOptions([{ id: 'x', name: '<b>Bad</b>' }], []);
     expect(html).not.toContain('<b>');
     expect(html).toContain('&lt;b&gt;');
+  });
+});
+
+// ── filterHandoffs ─────────────────────────────────────────────────────
+
+function makeMsg(overrides: Partial<EngineAgentMessage> = {}): EngineAgentMessage {
+  return {
+    id: 'msg-1',
+    from_agent: 'alice',
+    to_agent: 'bob',
+    channel: 'general',
+    content: 'hello',
+    read: false,
+    created_at: '2025-01-01T00:00:00Z',
+    ...overrides,
+  };
+}
+
+describe('filterHandoffs', () => {
+  it('returns only handoff channel messages', () => {
+    const msgs = [
+      makeMsg({ id: '1', channel: 'general' }),
+      makeMsg({ id: '2', channel: 'handoff' }),
+      makeMsg({ id: '3', channel: 'alerts' }),
+      makeMsg({ id: '4', channel: 'handoff' }),
+    ];
+    const result = filterHandoffs(msgs);
+    expect(result).toHaveLength(2);
+    expect(result.every((m) => m.channel === 'handoff')).toBe(true);
+  });
+
+  it('returns empty array when no handoffs', () => {
+    const msgs = [makeMsg({ channel: 'general' })];
+    expect(filterHandoffs(msgs)).toHaveLength(0);
+  });
+});
+
+// ── renderHandoffCard ──────────────────────────────────────────────────
+
+describe('renderHandoffCard', () => {
+  it('renders from → to agents', () => {
+    const html = renderHandoffCard(
+      makeMsg({ channel: 'handoff', from_agent: 'Alice', to_agent: 'Bob' }),
+    );
+    expect(html).toContain('Alice');
+    expect(html).toContain('Bob');
+    expect(html).toContain('→');
+  });
+
+  it('applies unread class for unread messages', () => {
+    const html = renderHandoffCard(makeMsg({ channel: 'handoff', read: false }));
+    expect(html).toContain('unread');
+  });
+
+  it('does not apply unread class for read messages', () => {
+    const html = renderHandoffCard(makeMsg({ channel: 'handoff', read: true }));
+    expect(html).not.toContain('unread');
+  });
+
+  it('renders metadata files if present', () => {
+    const html = renderHandoffCard(
+      makeMsg({
+        channel: 'handoff',
+        metadata: JSON.stringify({ files: ['main.rs', 'lib.rs'] }),
+      }),
+    );
+    expect(html).toContain('main.rs');
+    expect(html).toContain('lib.rs');
+  });
+
+  it('escapes HTML in content', () => {
+    const html = renderHandoffCard(
+      makeMsg({ channel: 'handoff', content: '<script>evil</script>' }),
+    );
+    expect(html).not.toContain('<script>');
   });
 });

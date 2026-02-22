@@ -62,6 +62,7 @@ import type {
   SkillOutput,
   EngineSquad,
   EngineSquadMember,
+  EngineAgentMessage,
 } from '../atoms/types';
 
 export class PawEngineClient {
@@ -1065,6 +1066,21 @@ export class PawEngineClient {
 
   async mailDelete(account: string | undefined, id: string): Promise<void> {
     return invoke('delete_email', { account: account ?? null, id });
+  }
+
+  // ── Agent Messages ────────────────────────────────────────────────────
+
+  /** Fetch agent-to-agent messages, optionally filtered by channel. */
+  async agentMessages(
+    agentId: string,
+    channel?: string,
+    limit?: number,
+  ): Promise<EngineAgentMessage[]> {
+    return invoke<EngineAgentMessage[]>('engine_agent_messages', {
+      agentId,
+      channel: channel ?? null,
+      limit: limit ?? 50,
+    });
   }
 
   // ── Squads ────────────────────────────────────────────────────────────

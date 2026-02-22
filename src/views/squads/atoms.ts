@@ -1,6 +1,6 @@
 // src/views/squads/atoms.ts — Squads view rendering helpers
 
-import type { EngineSquad, EngineSquadMember } from '../../engine/atoms/types';
+import type { EngineSquad, EngineSquadMember, EngineAgentMessage } from '../../engine/atoms/types';
 import { escHtml } from '../../components/helpers';
 
 /** Render a single squad card for the list sidebar. */
@@ -54,6 +54,12 @@ export function renderSquadDetail(squad: EngineSquad): string {
     <div class="squad-message-feed" id="squad-message-feed">
       <div class="squad-messages-empty">No messages yet. Squad members can broadcast messages using the squad_broadcast tool.</div>
     </div>
+  </div>
+  <div class="squad-detail-handoffs">
+    <h3>Handoffs</h3>
+    <div class="squad-handoff-feed" id="squad-handoff-feed">
+      <div class="squad-messages-empty">No handoffs yet. Agents use the handoff channel to pass work to each other.</div>
+    </div>
   </div>`;
 }
 
@@ -67,4 +73,36 @@ export function buildAgentOptions(
     .filter((a) => !memberIds.has(a.id))
     .map((a) => `<option value="${escHtml(a.id)}">${escHtml(a.name)}</option>`)
     .join('');
+}
+
+// ── Agent Handoff Helpers ─────────────────────────────────────────────
+
+/** Filter messages to only handoff-channel messages. */
+export function filterHandoffs(messages: EngineAgentMessage[]): EngineAgentMessage[] {
+  return messages.filter((m) => m.channel === 'handoff');
+}
+
+/** Render a single handoff message card. */
+export function renderHandoffCard(msg: EngineAgentMessage): string {
+  const meta = msg.metadata ? tryParseJson(msg.metadata) : null;
+  const filesHtml = meta?.files
+    ? `<div class="handoff-files">${(meta.files as string[]).map((f: string) => `<span class="handoff-file">${escHtml(f)}</span>`).join('')}</div>`
+    : '';
+  return `<div class="handoff-card${msg.read ? '' : ' unread'}">
+    <div class="handoff-header">
+      <span class="handoff-from">${escHtml(msg.from_agent)}</span>
+      <span class="handoff-arrow">→</span>
+      <span class="handoff-to">${escHtml(msg.to_agent)}</span>
+    </div>
+    <div class="handoff-content">${escHtml(msg.content)}</div>
+    ${filesHtml}
+  </div>`;
+}
+
+function tryParseJson(s: string): Record<string, unknown> | null {
+  try {
+    return JSON.parse(s) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
 }
