@@ -9,7 +9,13 @@ import {
   bindSkillEvents,
   setMoleculesState,
 } from './molecules';
-import { renderCommunitySection, bindCommunityEvents, setCommunityReload } from './community';
+import {
+  renderCommunitySection,
+  renderPawzHubSection,
+  bindCommunityEvents,
+  bindPawzHubEvents,
+  setCommunityReload,
+} from './community';
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
 
@@ -49,10 +55,13 @@ export async function loadSkillsSettings(): Promise<void> {
     // Update molecules state with current filter
     setMoleculesState({ currentFilter: _currentFilter, reloadFn: loadSkillsSettings });
 
-    if (list) list.innerHTML = renderCommunitySection(communitySkills) + renderSkillsPage(skills);
+    if (list)
+      list.innerHTML =
+        renderPawzHubSection() + renderCommunitySection(communitySkills) + renderSkillsPage(skills);
     bindFilterEvents(skills, setFilter);
     bindSkillEvents();
     bindCommunityEvents();
+    bindPawzHubEvents();
   } catch (e) {
     console.error('[skills-settings] Load failed:', e);
     if (loading) loading.textContent = `Failed to load skills: ${e}`;

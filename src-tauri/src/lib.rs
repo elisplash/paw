@@ -127,6 +127,10 @@ pub fn run() {
             commands::skills::engine_toml_skills_scan,
             commands::skills::engine_toml_skill_install,
             commands::skills::engine_toml_skill_uninstall,
+            // ── PawzHub Registry (Phase F.4) ──
+            commands::skills::engine_pawzhub_search,
+            commands::skills::engine_pawzhub_browse,
+            commands::skills::engine_pawzhub_install,
             // ── Skill Outputs (Phase F.2) ──
             commands::skills::engine_list_skill_outputs,
             // ── Trading ──

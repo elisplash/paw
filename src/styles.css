@@ -11961,3 +11961,63 @@ details[open] > .skill-advanced-summary::before {
   font-size: 12px;
   padding: 12px 0;
 }
+
+/* ── PawzHub tier badges (Phase F.4) ───────────────────── */
+
+.pawzhub-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tier-color, #3b82f6) 15%, transparent);
+  color: var(--tier-color, #3b82f6);
+  border: 1px solid color-mix(in srgb, var(--tier-color, #3b82f6) 30%, transparent);
+}
+
+.pawzhub-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #22c55e;
+}
+.pawzhub-verified-badge .ms {
+  font-size: 14px;
+  color: #22c55e;
+}
+
+.pawzhub-feature-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+.pawzhub-feature-badge .ms {
+  font-size: 12px;
+}
+
+.pawzhub-entry-card.pawzhub-installed {
+  opacity: 0.6;
+}
+
+.pawzhub-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.pawzhub-card-meta .ms {
+  font-size: 13px;
+}

@@ -81,6 +81,33 @@ export const POPULAR_TAGS = [
   'research',
 ];
 
+// ── PawzHub tier metadata ──────────────────────────────────────────────────
+
+export const TIER_META: Record<string, { label: string; emoji: string; color: string }> = {
+  skill: { label: 'Skill', emoji: '🔵', color: '#3b82f6' },
+  integration: { label: 'Integration', emoji: '🟣', color: '#a855f7' },
+  extension: { label: 'Extension', emoji: '🟡', color: '#eab308' },
+  mcp: { label: 'MCP Server', emoji: '🔴', color: '#ef4444' },
+};
+
+export const PAWZHUB_CATEGORIES = [
+  'all',
+  'development',
+  'productivity',
+  'communication',
+  'data',
+  'devops',
+  'finance',
+  'marketing',
+  'media',
+  'research',
+];
+
+export function tierBadge(tier: string): string {
+  const meta = TIER_META[tier] || TIER_META.skill;
+  return `<span class="pawzhub-tier-badge" style="--tier-color:${meta.color}">${meta.emoji} ${meta.label}</span>`;
+}
+
 // ── Number formatting ──────────────────────────────────────────────────────
 
 export function formatInstalls(n: number): string {

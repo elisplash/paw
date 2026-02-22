@@ -1,9 +1,21 @@
 // Settings Skills — Community (community skills browser, search, browse, install)
 
-import { pawEngine, type CommunitySkill, type DiscoveredSkill } from '../../engine';
+import {
+  pawEngine,
+  type CommunitySkill,
+  type DiscoveredSkill,
+  type PawzHubEntry,
+} from '../../engine';
 import { $, escHtml, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
-import { POPULAR_REPOS, POPULAR_TAGS, msIcon, formatInstalls } from './atoms';
+import {
+  POPULAR_REPOS,
+  POPULAR_TAGS,
+  PAWZHUB_CATEGORIES,
+  msIcon,
+  formatInstalls,
+  tierBadge,
+} from './atoms';
 
 // ── State ref ──────────────────────────────────────────────────────────────
 
@@ -175,6 +187,210 @@ function renderDiscoveredCard(skill: DiscoveredSkill): string {
       <span style="margin-left:8px">${escHtml(skill.source)}</span>
     </div>
   </div>`;
+}
+
+// ── PawzHub Registry section ───────────────────────────────────────────────
+
+export function renderPawzHubSection(): string {
+  const categoryButtons = PAWZHUB_CATEGORIES.map(
+    (c) =>
+      `<button class="btn btn-ghost btn-sm pawzhub-category-btn${c === 'all' ? ' btn-primary' : ''}" data-category="${escHtml(c)}" style="border-radius:20px;padding:4px 14px;font-size:12px;border:1px solid var(--border-subtle);text-transform:capitalize">${escHtml(c === 'all' ? 'All' : c)}</button>`,
+  ).join('');
+
+  return `
+  <div class="pawzhub-hero" style="background:linear-gradient(135deg, var(--bg-surface) 0%, color-mix(in srgb, var(--accent) 8%, var(--bg-surface)) 50%, color-mix(in srgb, #a855f7 6%, var(--bg-surface)) 100%);border:1px solid var(--border-subtle);border-radius:12px;padding:24px 28px;margin-bottom:24px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+      <span style="font-size:28px">${msIcon('storefront', 'ms-lg')}</span>
+      <h2 style="margin:0;font-size:20px;font-weight:700;letter-spacing:-0.02em">PawzHub</h2>
+      <span style="font-size:11px;color:var(--accent);padding:2px 8px;border:1px solid var(--accent);border-radius:12px">Registry</span>
+    </div>
+    <p style="color:var(--text-muted);font-size:13px;margin:0 0 16px;max-width:600px">
+      Discover and install verified skills, integrations and MCP servers from the PawzHub registry.
+      One-click install with automatic MCP server wiring.
+    </p>
+
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
+      <div style="flex:1;position:relative">
+        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none">${msIcon('search')}</span>
+        <input type="text" class="form-input" id="pawzhub-search-input"
+          placeholder="Search PawzHub — try github, notion, slack..."
+          style="width:100%;font-size:14px;padding:10px 12px 10px 36px;border-radius:10px" />
+      </div>
+      <button class="btn btn-primary" id="pawzhub-search-btn" style="padding:10px 20px;border-radius:10px;font-size:14px">
+        Search
+      </button>
+    </div>
+
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+      ${categoryButtons}
+    </div>
+
+    <div id="pawzhub-results" style="display:none;margin-top:16px"></div>
+  </div>`;
+}
+
+function renderPawzHubCard(entry: PawzHubEntry): string {
+  const verifiedBadge = entry.verified
+    ? `<span class="pawzhub-verified-badge">${msIcon('verified')} Verified</span>`
+    : '';
+  const mcpBadge = entry.has_mcp
+    ? `<span class="pawzhub-feature-badge">${msIcon('dns')} MCP</span>`
+    : '';
+  const widgetBadge = entry.has_widget
+    ? `<span class="pawzhub-feature-badge">${msIcon('dashboard')} Widget</span>`
+    : '';
+
+  return `
+  <div class="skill-vault-card pawzhub-entry-card${entry.installed ? ' pawzhub-installed' : ''}" data-pawzhub-id="${escHtml(entry.id)}">
+    <div class="skill-card-header">
+      <div class="skill-card-identity">
+        <span class="skill-card-icon">${msIcon('extension')}</span>
+        <div>
+          <strong class="skill-card-name">${escHtml(entry.name)}</strong>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:6px">v${escHtml(entry.version)}</span>
+          <div style="display:flex;align-items:center;gap:6px;margin-top:2px">
+            ${tierBadge(entry.tier)}
+            ${verifiedBadge}
+          </div>
+        </div>
+      </div>
+      <div class="skill-card-actions" style="display:flex;align-items:center;gap:10px">
+        ${
+          entry.installed
+            ? `<span style="font-size:12px;color:var(--accent);display:flex;align-items:center;gap:4px">${msIcon('check_circle')} Installed</span>`
+            : `<button class="btn btn-primary btn-sm pawzhub-install-btn" data-skill-id="${escHtml(entry.id)}" data-source-repo="${escHtml(entry.source_repo)}" data-name="${escHtml(entry.name)}">
+              ${msIcon('download')} Install
+            </button>`
+        }
+      </div>
+    </div>
+    <p class="skill-card-desc">${escHtml(entry.description)}</p>
+    <div class="pawzhub-card-meta">
+      <span>${msIcon('person')} ${escHtml(entry.author)}</span>
+      <span>${msIcon('category')} ${escHtml(entry.category)}</span>
+      ${mcpBadge}
+      ${widgetBadge}
+      <a href="https://github.com/${escHtml(entry.source_repo)}" target="_blank" style="color:var(--accent);text-decoration:none;font-size:11px">
+        ${msIcon('open_in_new')} Source
+      </a>
+    </div>
+  </div>`;
+}
+
+// ── PawzHub Browse & Search ────────────────────────────────────────────────
+
+async function pawzhubSearch(query: string): Promise<void> {
+  const results = $('pawzhub-results');
+  if (!results) return;
+
+  results.style.display = 'block';
+  results.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:12px;color:var(--text-muted)">
+    <span class="wa-spinner"></span> Searching PawzHub for "${escHtml(query)}"...
+  </div>`;
+
+  try {
+    const entries = await pawEngine.pawzhubSearch(query);
+    if (entries.length === 0) {
+      results.innerHTML = `<div style="padding:16px;text-align:center">
+        <p style="color:var(--text-muted);margin:0 0 8px">${msIcon('search_off')} No results for "${escHtml(query)}"</p>
+        <p style="color:var(--text-muted);font-size:12px;margin:0">Try different keywords or browse by category.</p>
+      </div>`;
+      return;
+    }
+    const header = `<div style="font-weight:600;font-size:13px;margin-bottom:8px">${entries.length} result${entries.length !== 1 ? 's' : ''} for "${escHtml(query)}"</div>`;
+    results.innerHTML = `${header}${entries.map((e) => renderPawzHubCard(e)).join('')}`;
+    wirePawzHubInstallButtons(results);
+  } catch (err) {
+    results.innerHTML = `<p style="color:var(--accent-danger);padding:12px">${msIcon('error')} ${escHtml(String(err))}</p>`;
+  }
+}
+
+async function pawzhubBrowse(category: string): Promise<void> {
+  const results = $('pawzhub-results');
+  if (!results) return;
+
+  results.style.display = 'block';
+  const label = category === 'all' ? 'all categories' : category;
+  results.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:12px;color:var(--text-muted)">
+    <span class="wa-spinner"></span> Browsing ${escHtml(label)}...
+  </div>`;
+
+  try {
+    const entries =
+      category === 'all'
+        ? await pawEngine.pawzhubSearch('')
+        : await pawEngine.pawzhubBrowse(category);
+
+    if (entries.length === 0) {
+      results.innerHTML = `<div style="padding:16px;text-align:center">
+        <p style="color:var(--text-muted);margin:0">${msIcon('inventory_2')} No skills in "${escHtml(label)}" yet.</p>
+      </div>`;
+      return;
+    }
+    const header = `<div style="font-weight:600;font-size:13px;margin-bottom:8px">${entries.length} skill${entries.length !== 1 ? 's' : ''} in ${escHtml(label)}</div>`;
+    results.innerHTML = `${header}${entries.map((e) => renderPawzHubCard(e)).join('')}`;
+    wirePawzHubInstallButtons(results);
+  } catch (err) {
+    results.innerHTML = `<p style="color:var(--accent-danger);padding:12px">${msIcon('error')} ${escHtml(String(err))}</p>`;
+  }
+}
+
+// ── PawzHub install wiring ─────────────────────────────────────────────────
+
+function wirePawzHubInstallButtons(container: HTMLElement): void {
+  const reload = () => (_reloadFn ? _reloadFn() : Promise.resolve());
+
+  container.querySelectorAll('.pawzhub-install-btn').forEach((el) => {
+    el.addEventListener('click', async () => {
+      const btn = el as HTMLButtonElement;
+      const skillId = btn.dataset.skillId!;
+      const sourceRepo = btn.dataset.sourceRepo!;
+      const name = btn.dataset.name!;
+
+      btn.disabled = true;
+      btn.innerHTML = `<span class="wa-spinner" style="width:12px;height:12px"></span> Installing...`;
+
+      try {
+        await pawEngine.pawzhubInstall(skillId, sourceRepo);
+        showToast(`${name} installed from PawzHub!`, 'success');
+        await reload();
+      } catch (err) {
+        showToast(`Install failed: ${err}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = `${msIcon('download')} Install`;
+      }
+    });
+  });
+}
+
+// ── PawzHub event binding ──────────────────────────────────────────────────
+
+export function bindPawzHubEvents(): void {
+  const searchInput = $('pawzhub-search-input') as HTMLInputElement | null;
+
+  $('pawzhub-search-btn')?.addEventListener('click', () => {
+    if (searchInput?.value.trim()) pawzhubSearch(searchInput.value.trim());
+  });
+
+  searchInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && searchInput.value.trim()) {
+      pawzhubSearch(searchInput.value.trim());
+    }
+  });
+
+  // Category buttons
+  document.querySelectorAll('.pawzhub-category-btn').forEach((el) => {
+    el.addEventListener('click', () => {
+      // Update active state
+      document
+        .querySelectorAll('.pawzhub-category-btn')
+        .forEach((b) => b.classList.remove('btn-primary'));
+      el.classList.add('btn-primary');
+
+      const category = (el as HTMLElement).dataset.category!;
+      pawzhubBrowse(category);
+    });
+  });
 }
 
 // ── Browse & Search ────────────────────────────────────────────────────────

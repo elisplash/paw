@@ -269,6 +269,62 @@ pub async fn engine_toml_skill_uninstall(
     skills::uninstall_toml_skill(&skill_id)
 }
 
+// ── PawzHub Registry (Phase F.4) ───────────────────────────────────
+
+/// Search the PawzHub registry by query. Returns all entries if query is empty.
+#[tauri::command]
+pub async fn engine_pawzhub_search(
+    query: String,
+) -> Result<Vec<skills::PawzHubEntry>, String> {
+    info!("[engine] PawzHub search: '{}'", query);
+    let mut entries = skills::search_pawzhub(&query).await.map_err(|e| e.to_string())?;
+
+    // Mark installed entries
+    let installed_ids: std::collections::HashSet<String> =
+        skills::scan_toml_skills().into_iter().map(|s| s.definition.id).collect();
+    for entry in &mut entries {
+        entry.installed = installed_ids.contains(&entry.id);
+    }
+
+    Ok(entries)
+}
+
+/// Browse PawzHub by category.
+#[tauri::command]
+pub async fn engine_pawzhub_browse(
+    category: String,
+) -> Result<Vec<skills::PawzHubEntry>, String> {
+    info!("[engine] PawzHub browse category: '{}'", category);
+    let mut entries = skills::browse_pawzhub_category(&category).await.map_err(|e| e.to_string())?;
+
+    let installed_ids: std::collections::HashSet<String> =
+        skills::scan_toml_skills().into_iter().map(|s| s.definition.id).collect();
+    for entry in &mut entries {
+        entry.installed = installed_ids.contains(&entry.id);
+    }
+
+    Ok(entries)
+}
+
+/// Fetch a pawz-skill.toml from PawzHub and install it.
+#[tauri::command]
+pub async fn engine_pawzhub_install(
+    app_handle: tauri::AppHandle,
+    state: State<'_, EngineState>,
+    skill_id: String,
+    source_repo: String,
+) -> Result<String, String> {
+    info!("[engine] PawzHub install: '{}' from {}", skill_id, source_repo);
+
+    // Fetch the TOML manifest from GitHub
+    let toml_content = skills::fetch_pawzhub_toml(&source_repo, &skill_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    // Delegate to the existing TOML install (which handles MCP wiring via F.3)
+    engine_toml_skill_install(app_handle, state, skill_id, toml_content).await
+}
+
 // ── Skill Outputs (Phase F.2 — Dashboard Widgets) ──────────────────
 
 /// List all skill outputs for dashboard widget rendering.

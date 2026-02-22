@@ -21,6 +21,7 @@ import type {
   CommunitySkill,
   DiscoveredSkill,
   TomlSkillEntry,
+  PawzHubEntry,
   TradeRecord,
   TradingSummary,
   TradingPolicy,
@@ -395,6 +396,20 @@ export class PawEngineClient {
 
   async listSkillOutputs(skillId?: string, agentId?: string): Promise<SkillOutput[]> {
     return invoke<SkillOutput[]>('engine_list_skill_outputs', { skillId, agentId });
+  }
+
+  // ── PawzHub Registry (Phase F.4) ─────────────────────────────────────
+
+  async pawzhubSearch(query: string): Promise<PawzHubEntry[]> {
+    return invoke<PawzHubEntry[]>('engine_pawzhub_search', { query });
+  }
+
+  async pawzhubBrowse(category: string): Promise<PawzHubEntry[]> {
+    return invoke<PawzHubEntry[]>('engine_pawzhub_browse', { category });
+  }
+
+  async pawzhubInstall(skillId: string, sourceRepo: string): Promise<string> {
+    return invoke<string>('engine_pawzhub_install', { skillId, sourceRepo });
   }
 
   // ── Trading ──────────────────────────────────────────────────────────

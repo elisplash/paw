@@ -32,6 +32,7 @@ pub use community::{
     fetch_repo_skills, install_community_skill,
     search_community_skills, get_community_skill_instructions,
     parse_skill_md,
+    PawzHubEntry, search_pawzhub, browse_pawzhub_category, fetch_pawzhub_toml,
 };
 pub use toml_loader::{
     scan_toml_skills, install_toml_skill, uninstall_toml_skill,

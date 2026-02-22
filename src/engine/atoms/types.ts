@@ -286,6 +286,25 @@ export interface DiscoveredSkill {
   installs: number;
 }
 
+// ── PawzHub Registry (Phase F.4) ─────────────────────────────────────
+
+/** A skill entry from the PawzHub registry. */
+export interface PawzHubEntry {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  category: string;
+  version: string;
+  /** "skill" | "integration" | "extension" | "mcp" */
+  tier: string;
+  source_repo: string;
+  has_mcp: boolean;
+  has_widget: boolean;
+  verified: boolean;
+  installed: boolean;
+}
+
 // ── Trading ──────────────────────────────────────────────────────────
 
 export interface TradeRecord {
