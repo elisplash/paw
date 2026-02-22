@@ -213,6 +213,21 @@ impl GoogleProvider {
             }
         }
 
+        // ── Safety: ensure conversation starts with a user turn ───────
+        // After context truncation the first content entry may be a model
+        // turn with functionCall parts, which Gemini rejects (400).
+        // Inject a synthetic user context message if needed.
+        if !merged.is_empty() {
+            let first_role = merged[0]["role"].as_str().unwrap_or("");
+            if first_role != "user" {
+                log::warn!("[engine] Google: first content role is '{}', injecting synthetic user context", first_role);
+                merged.insert(0, json!({
+                    "role": "user",
+                    "parts": [{"text": "[Conversation context was truncated. Continue from where we left off.]"}]
+                }));
+            }
+        }
+
         (system_instruction, merged)
     }
 
