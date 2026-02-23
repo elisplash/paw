@@ -351,6 +351,7 @@ impl SessionStore {
     /// The user's follow-up request ("try again") then faces a clean slate.
     fn neutralize_give_up_responses(messages: &mut [Message]) {
         let give_up_patterns: &[&str] = &[
+            // Give-up / wall patterns
             "hitting a wall",
             "hitting a brick wall",
             "continue to struggle",
@@ -372,10 +373,22 @@ impl SessionStore {
             "keeps failing",
             "this approach isn't working",
             "this approach is not working",
-            "apologize for the difficulty",
-            "apologize for the inconvenience",
             "i've tried multiple",
             "i have tried multiple",
+            // Apology spiral patterns
+            "apologize for the difficulty",
+            "apologize for the inconvenience",
+            "my apologies, i tried",
+            "my apologies, it seems",
+            "my apologies, i should",
+            "my mistake, let me",
+            "my mistake. let me",
+            "i'm making this more complicated",
+            "i am making this more complicated",
+            "let me correct that",
+            "should have checked that first",
+            "i apologize, it seems i'm having trouble",
+            "i apologize, it seems i don't have",
         ];
 
         let mut neutralized = 0;
