@@ -23,6 +23,12 @@
     "default": "dark"
   },
   "navbar": {
+    "links": [
+      {
+        "type": "github",
+        "href": "https://github.com/elisplash/paw"
+      }
+    ],
     "primary": {
       "type": "button",
       "label": "Download",
@@ -45,11 +51,26 @@
             ]
           },
           {
-            "group": "First Steps",
+            "group": "",
+            "pages": [
+              "start/overview",
+              "start/showcase"
+            ]
+          },
+          {
+            "group": "Core concepts",
+            "pages": [
+              "start/features"
+            ]
+          },
+          {
+            "group": "First steps",
             "pages": [
               "start/installation",
               "start/first-agent",
-              "start/first-provider"
+              "start/first-provider",
+              "start/configuration",
+              "start/dashboard"
             ]
           }
         ]

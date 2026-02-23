@@ -1,0 +1,102 @@
+---
+title: "Configuration"
+icon: "settings"
+description: "Optional configuration for providers, workspace, environment, and agent defaults."
+sidebarTitle: "Configuration"
+---
+
+## Configuration overview
+
+OpenPawz works out of the box with sensible defaults. This page covers the optional settings you can tune after installation.
+
+---
+
+## Provider setup
+
+Each AI provider needs an API key (cloud) or a running instance (local). Configure providers in **Settings → Models**.
+
+<Steps>
+  <Step title="Open Settings">
+    Click the gear icon in the bottom-left of the sidebar, then select **Models**.
+  </Step>
+  <Step title="Add a provider">
+    Click **Add Provider** and choose from the list: Ollama, OpenAI, Anthropic, Google, DeepSeek, Grok, Mistral, OpenRouter, Moonshot, or Custom.
+  </Step>
+  <Step title="Enter credentials">
+    For cloud providers, paste your API key. For Ollama, enter the host URL (default: `http://localhost:11434`).
+  </Step>
+  <Step title="Select default model">
+    Pick a default model for new agents. You can override this per agent later.
+  </Step>
+</Steps>
+
+→ Full provider guides: [Providers](/providers/overview)
+
+---
+
+## Workspace profiles
+
+OpenPawz has a modular sidebar. Choose a workspace profile to show only the views you need.
+
+| Profile | Visible views |
+|---|---|
+| **All** | Everything — agents, channels, tasks, trading, research, content, mail |
+| **Developer** | Agents, tasks, browser, orchestrator, extensions |
+| **Trader** | Agents, trading, tasks, automations |
+| **Writer** | Agents, content studio, research, mail |
+| **Minimal** | Agents only |
+
+Change profiles in **Settings → Workspace** or create custom combinations.
+
+→ Deep dive: [Modular workspace](/guides/modular-workspace)
+
+---
+
+## Environment variables
+
+Some features require environment variables set in **Settings → Environment**:
+
+| Variable | Purpose |
+|---|---|
+| `OPENAI_API_KEY` | OpenAI provider access |
+| `ANTHROPIC_API_KEY` | Anthropic provider access |
+| `SMTP_HOST` / `IMAP_HOST` | Email tool configuration |
+| `GITHUB_TOKEN` | GitHub tool access |
+| `TAILSCALE_AUTH_KEY` | Tailscale mesh networking |
+
+Environment variables are stored locally and never transmitted.
+
+---
+
+## Agent defaults
+
+Set default values for new agents in **Settings → Agent Defaults**:
+
+- **Default provider & model** — which AI backs new agents
+- **Default system prompt** — baseline instructions
+- **Temperature & token limits** — generation parameters
+- **Tool access** — which tools are enabled by default
+- **Memory settings** — auto-capture and auto-recall toggles
+
+Individual agents can override any default.
+
+→ Deep dive: [Agents guide](/guides/agents)
+
+---
+
+## Advanced settings
+
+<AccordionGroup>
+  <Accordion title="Session compaction">
+    Configure when and how sessions are compacted to manage context window limits. Set token thresholds, summary depth, and archive behavior.
+  </Accordion>
+  <Accordion title="Voice & TTS">
+    Configure text-to-speech providers and voice settings for agents that speak their responses.
+  </Accordion>
+  <Accordion title="Browser sandbox">
+    Set Chromium path, viewport size, proxy, and timeout settings for web automation.
+  </Accordion>
+  <Accordion title="Container sandbox">
+    Configure Docker socket path, default image, resource limits, and network policies for isolated execution.
+  </Accordion>
+</AccordionGroup>

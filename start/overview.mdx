@@ -1,0 +1,76 @@
+---
+title: "Overview"
+icon: "list"
+description: "A high-level look at what OpenPawz is and how the pieces fit together."
+sidebarTitle: "Overview"
+---
+
+## What is OpenPawz?
+
+OpenPawz is a **native desktop AI agent platform** built on [Tauri v2](https://v2.tauri.app/). It runs entirely on your machine — no cloud, no open ports, no Node.js backend. You own the agents, the data, and the infrastructure.
+
+It gives you:
+
+- A **multi-channel gateway** — connect Telegram, Discord, Slack, WhatsApp, Matrix, IRC, and more from a single app
+- A **multi-agent orchestrator** — create autonomous agents with distinct personalities, tools, and memory
+- A **local-first architecture** — SQLite storage, OS keychain for secrets, Tauri IPC for internal comms
+- A **plugin ecosystem** — 75+ built-in tools, MCP extensions, and a marketplace (PawzHub)
+
+---
+
+## Who is it for?
+
+<Columns cols={2}>
+  <Card title="Developers" icon="square-terminal">
+    Build, extend, and self-host AI agents with full source access. Rust + TypeScript stack, MIT licensed.
+  </Card>
+  <Card title="Power users" icon="sparkles">
+    Run personal AI assistants across every chat platform you use — no coding required after initial setup.
+  </Card>
+</Columns>
+
+---
+
+## How it compares
+
+| Feature | OpenPawz | Cloud AI platforms | Other self-hosted |
+|---|---|---|---|
+| **Runs locally** | Yes | No | Sometimes |
+| **Multi-channel** | 11 platforms | Usually 1 | Varies |
+| **Multi-agent** | Yes, with orchestrator | Limited | Rare |
+| **Memory system** | Built-in semantic recall | Per-session | Varies |
+| **Tool ecosystem** | 75+ built-in + MCP | API-dependent | Limited |
+| **Cost** | Free + your API keys | Subscription | Free |
+| **Data ownership** | 100% local | Cloud-stored | Self-hosted |
+
+---
+
+## Core philosophy
+
+<AccordionGroup>
+  <Accordion title="Privacy first">
+    All data stays on your machine. Credentials live in the OS keychain. No telemetry, no analytics, no phone-home. The only network traffic is to the AI providers you explicitly configure.
+  </Accordion>
+  <Accordion title="Agent-native">
+    Not a chatbot wrapper — a full agent runtime with tool use, memory, task management, session compaction, and multi-agent delegation built in from day one.
+  </Accordion>
+  <Accordion title="Open and extensible">
+    MIT licensed. Three tiers of extensibility: Skills (prompt-only), Integrations (tools + commands), and Extensions (full sidebar views with storage). Plus MCP support for connecting to any external tool server.
+  </Accordion>
+  <Accordion title="Desktop-grade">
+    Built with Tauri v2 for native performance. No Electron bloat. Rust backend, TypeScript frontend, SQLite storage. Runs on macOS, Linux, and Windows.
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next steps
+
+<Columns cols={2}>
+  <Card title="See it in action" icon="layers" href="/start/showcase">
+    Screenshots and feature highlights.
+  </Card>
+  <Card title="Install it" icon="download" href="/start/installation">
+    Get OpenPawz running in 5 minutes.
+  </Card>
+</Columns>

@@ -1,0 +1,131 @@
+---
+title: "Features"
+icon: "sparkles"
+description: "Core features and capabilities of the OpenPawz platform."
+sidebarTitle: "Features"
+---
+
+## Platform features
+
+OpenPawz ships with everything you need to run autonomous AI agents locally. No plugins required for the basics — install, configure, and go.
+
+---
+
+## Agents
+
+<Columns cols={2}>
+  <Card title="Custom personalities" icon="sparkles">
+    Each agent has a name, bio, system prompt, and personality. Agents can be formal assistants, creative writers, code reviewers — whatever you need.
+  </Card>
+  <Card title="Tool use" icon="hammer">
+    Agents call tools autonomously — send emails, search the web, execute shell commands, interact with APIs. 75+ tools built in.
+  </Card>
+  <Card title="Memory" icon="database">
+    Semantic long-term memory with auto-capture and auto-recall. Agents remember facts, preferences, and context across sessions.
+  </Card>
+  <Card title="Session management" icon="layers">
+    Automatic session compaction keeps context windows efficient. Old sessions archive, new ones start with memory context.
+  </Card>
+</Columns>
+
+→ Deep dive: [Agents guide](/guides/agents)
+
+---
+
+## Channels
+
+Connect your agents to the platforms you already use. One agent can serve multiple channels simultaneously.
+
+| Channel | Type | Status |
+|---|---|---|
+| Telegram | Bot API | Stable |
+| Discord | Bot | Stable |
+| Slack | Bot | Stable |
+| Matrix | Client | Stable |
+| IRC | Client | Stable |
+| WhatsApp | Web bridge | Stable |
+| Twitch | Chat | Stable |
+| Mattermost | Bot | Stable |
+| Nextcloud Talk | Bot | Stable |
+| Nostr | Relay | Stable |
+| Webchat | Built-in | Stable |
+
+→ Deep dive: [Channels overview](/channels/overview)
+
+---
+
+## AI providers
+
+Bring your own model. OpenPawz supports local and cloud providers — switch between them per agent.
+
+| Provider | Type | Models |
+|---|---|---|
+| Ollama | Local | Llama, Mistral, Gemma, etc. |
+| OpenAI | Cloud | GPT-4o, o1, o3 |
+| Anthropic | Cloud | Claude 4, Sonnet |
+| Google | Cloud | Gemini 2.x |
+| DeepSeek | Cloud | DeepSeek V3, R1 |
+| Grok | Cloud | Grok 3 |
+| Mistral | Cloud | Mistral Large, Codestral |
+| OpenRouter | Cloud | Multi-model gateway |
+| Moonshot | Cloud | Kimi |
+| Custom | Any | Any OpenAI-compatible endpoint |
+
+→ Deep dive: [Providers overview](/providers/overview)
+
+---
+
+## Tools & extensions
+
+<AccordionGroup>
+  <Accordion title="75+ built-in tools">
+    Email (IMAP/SMTP), GitHub, web search, file operations, shell commands, trading (candles, orders), TTS, browser automation, inter-agent messaging, calendar, weather, and more.
+  </Accordion>
+  <Accordion title="Skills (prompt-only)">
+    Drop a SKILL.md file to inject expert knowledge into any agent's system prompt. No code, no API — just markdown.
+  </Accordion>
+  <Accordion title="Integrations (tools + commands)">
+    Add custom tools with slash commands and dedicated UI panels. Full Tauri API access.
+  </Accordion>
+  <Accordion title="Extensions (full sidebar views)">
+    Build complete sidebar views with persistent storage. The most powerful extensibility tier.
+  </Accordion>
+  <Accordion title="MCP (Model Context Protocol)">
+    Connect to any MCP server for unlimited external tools — databases, APIs, file systems, and more.
+  </Accordion>
+</AccordionGroup>
+
+→ Deep dive: [Skills](/guides/skills) · [Integrations](/guides/integrations) · [Extensions](/guides/extensions)
+
+---
+
+## Orchestration & workflows
+
+<Columns cols={2}>
+  <Card title="Multi-agent projects" icon="git-branch">
+    Boss agent delegates tasks to specialist workers. Parallel execution with result aggregation.
+  </Card>
+  <Card title="Task management" icon="check-square">
+    Kanban board with cron scheduling, event triggers, and automatic agent assignment.
+  </Card>
+  <Card title="Automations" icon="zap">
+    Time-based and event-driven triggers that run agent actions without manual input.
+  </Card>
+  <Card title="Research flows" icon="globe">
+    Multi-step web research with browser sandbox, extraction, and summarization pipelines.
+  </Card>
+</Columns>
+
+→ Deep dive: [Orchestrator](/guides/orchestrator) · [Automations](/guides/automations)
+
+---
+
+## Security
+
+- **Local-only**: no cloud, no open ports, no external data storage
+- **OS keychain**: credentials stored in macOS Keychain / Windows Credential Manager / Linux Secret Service
+- **Command risk classification**: commands rated 1–5 for risk, with confirmation prompts for dangerous operations
+- **Container sandbox**: isolate agent shell access in Docker containers
+- **Agent policies**: per-agent permission controls for tools, channels, and actions
+
+→ Deep dive: [Security reference](/reference/security)
