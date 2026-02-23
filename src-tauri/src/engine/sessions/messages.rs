@@ -175,6 +175,13 @@ impl SessionStore {
         // freeing context space and removing the "learned helplessness."
         Self::compact_failed_tool_runs(&mut messages);
 
+        // ── Neutralize "give up" assistant responses ───────────────────
+        // After tool failures, the model often writes "I apologize, I'm hitting
+        // a wall..." — this text persists and anchors future refusals.
+        // Replace it with a neutral note so the model doesn't reinforce its own
+        // learned helplessness on reload.
+        Self::neutralize_give_up_responses(&mut messages);
+
         // ── Sanitize tool_use / tool_result pairing ────────────────────
         // After truncation (or corruption from previous crashes), ensure every
         // assistant message with tool_calls has matching tool_result messages.
@@ -325,6 +332,77 @@ impl SessionStore {
             "[engine] Compacted {} failed tool messages from conversation history",
             indices_to_remove.len()
         );
+    }
+
+    /// Detect and neutralize assistant responses where the model "gives up"
+    /// after tool failures.
+    ///
+    /// When tools fail repeatedly, the model writes responses like:
+    ///   "I apologize, it seems I'm hitting a wall with the Google API today..."
+    ///   "Rather than continue to struggle with this specific tool..."
+    ///
+    /// These responses are persisted to DB and on reload the model sees its
+    /// own prior refusal, anchors on it, and refuses again — even when the
+    /// user explicitly asks it to "try again" and the tools may have been
+    /// fixed.  This creates a self-reinforcing "learned helplessness" loop.
+    ///
+    /// Strategy: detect assistant messages (without tool_calls) that match
+    /// "give up" patterns and replace their content with a neutral note.
+    /// The user's follow-up request ("try again") then faces a clean slate.
+    fn neutralize_give_up_responses(messages: &mut Vec<Message>) {
+        let give_up_patterns: &[&str] = &[
+            "hitting a wall",
+            "hitting a brick wall",
+            "continue to struggle",
+            "continue struggling",
+            "rather than continue",
+            "rather than keep trying",
+            "keep running into errors",
+            "keep encountering errors",
+            "running into errors with the api",
+            "i'm unable to",
+            "i am unable to",
+            "i cannot seem to",
+            "tool is broken",
+            "tool isn't working",
+            "tool is not working",
+            "doesn't seem to be working",
+            "does not seem to work",
+            "consistently failing",
+            "keeps failing",
+            "this approach isn't working",
+            "this approach is not working",
+            "apologize for the difficulty",
+            "apologize for the inconvenience",
+            "i've tried multiple",
+            "i have tried multiple",
+        ];
+
+        let mut neutralized = 0;
+        for msg in messages.iter_mut() {
+            // Only target assistant messages without tool_calls (i.e. final text responses)
+            if msg.role != Role::Assistant { continue; }
+            if msg.tool_calls.as_ref().map(|tc| !tc.is_empty()).unwrap_or(false) { continue; }
+
+            let text = msg.content.as_text().to_lowercase();
+            let is_give_up = give_up_patterns.iter().any(|p| text.contains(p));
+            if !is_give_up { continue; }
+
+            // Replace the content with a neutral note
+            msg.content = MessageContent::Text(
+                "[A previous attempt at this task encountered errors. \
+                The tools may have been updated since then. \
+                Ready to try again with a fresh approach.]".to_string()
+            );
+            neutralized += 1;
+        }
+
+        if neutralized > 0 {
+            log::info!(
+                "[engine] Neutralized {} 'give up' assistant responses in conversation history",
+                neutralized
+            );
+        }
     }
 
     /// Ensure every assistant message with tool_calls has matching tool_result
