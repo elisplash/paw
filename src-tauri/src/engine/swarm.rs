@@ -169,18 +169,27 @@ async fn run_swarm_turn(
     // Session per agent per squad — persistent across swarm rounds
     let session_id = format!("eng-swarm-{}-{}", squad_id, recipient_id);
 
-    // Resolve model/provider for this agent
+    // Resolve model/provider for this agent.
+    // Priority: agent's own stored model → model_routing → default_model → "gpt-4o"
     let (provider_config, model) = {
+        let agent_model = state.store.get_agent_model(recipient_id);
         let cfg = state.config.lock();
         let default_model = cfg
             .default_model
             .clone()
             .unwrap_or_else(|| "gpt-4o".into());
-        let model = normalize_model_name(
-            &cfg.model_routing
-                .resolve(recipient_id, "worker", "", &default_model),
-        )
-        .to_string();
+        let model = if let Some(ref am) = agent_model {
+            // Agent has an explicit model override in the DB — honour it
+            normalize_model_name(am).to_string()
+        } else {
+            normalize_model_name(
+                &cfg.model_routing
+                    .resolve(recipient_id, "worker", "", &default_model),
+            )
+            .to_string()
+        };
+        info!("[swarm] Resolved model for '{}': {} (agent_override={})",
+            recipient_id, model, agent_model.is_some());
         let provider = resolve_provider_for_model(&model, &cfg.providers)
             .or_else(|| {
                 cfg.default_provider

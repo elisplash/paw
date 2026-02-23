@@ -46,6 +46,23 @@ pub async fn run_agent_turn(
         round += 1;
         if round > max_rounds {
             warn!("[engine] Max tool rounds ({}) reached, stopping", max_rounds);
+            if final_text.is_empty() {
+                final_text = format!(
+                    "I completed {} tool-call rounds but ran out of steps before I could \
+                    write a final summary.  You can continue the conversation or increase \
+                    the max tool rounds in Settings → Engine (currently {}).",
+                    max_rounds, max_rounds
+                );
+                // Emit the fallback text so the frontend shows *something*
+                let _ = app_handle.emit("engine-event", EngineEvent::Complete {
+                    session_id: session_id.to_string(),
+                    run_id: run_id.to_string(),
+                    text: final_text.clone(),
+                    tool_calls_count: 0,
+                    usage: None,
+                    model: None,
+                });
+            }
             return Ok(final_text);
         }
 
@@ -322,6 +339,10 @@ pub async fn run_agent_turn(
                 "agent_list", "agent_skills", "agent_skill_assign",
                 // ── Community Skills (safe: only fetch/install/list) ──
                 "skill_search", "skill_install", "skill_list",
+                // ── Inter-agent comms (safe: only sends/reads msgs between agents) ──
+                "agent_send_message", "agent_read_messages",
+                // ── Squads (safe: team management) ──
+                "create_squad", "list_squads", "manage_squad", "squad_broadcast",
             ];
 
             // Trading write tools check the policy-based approval function

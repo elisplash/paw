@@ -615,10 +615,13 @@ pub fn engine_approve_tool(
         let _ = sender.send(approved);
         Ok(())
     } else {
-        warn!(
-            "[engine] No pending approval found for tool_call_id={}",
+        // Stale approval — the backend already timed out or the tool call
+        // completed before the frontend resolved it.  This is normal when
+        // session overrides fire after a timeout.  Silently accept it.
+        info!(
+            "[engine] Stale approval (already resolved/timed-out): tool_call_id={}",
             tool_call_id
         );
-        Err(format!("No pending approval for {}", tool_call_id))
+        Ok(())
     }
 }

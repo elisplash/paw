@@ -4432,6 +4432,7 @@ dependencies = [
  "tokio-rustls 0.26.4",
  "tokio-stream",
  "tokio-tungstenite",
+ "toml 0.8.2",
  "url",
  "uuid",
  "webpki-roots 1.0.6",

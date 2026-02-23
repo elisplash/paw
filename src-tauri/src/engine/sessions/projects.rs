@@ -129,6 +129,17 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Look up a single agent's stored model override (from any project).
+    /// Returns `None` if the agent doesn't exist or has no model set.
+    pub fn get_agent_model(&self, agent_id: &str) -> Option<String> {
+        let conn = self.conn.lock();
+        conn.query_row(
+            "SELECT model FROM project_agents WHERE agent_id = ?1 AND model IS NOT NULL AND model != '' LIMIT 1",
+            params![agent_id],
+            |row| row.get::<_, String>(0),
+        ).ok()
+    }
+
     /// Delete an agent from a specific project.
     pub fn delete_agent(&self, project_id: &str, agent_id: &str) -> EngineResult<()> {
         let conn = self.conn.lock();
