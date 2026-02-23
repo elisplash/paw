@@ -8,14 +8,13 @@ description: "Skills are the foundation of the Pawz extensibility system — the
 
 Skills are the foundation of the Pawz extensibility system — the first of three tiers that make Pawz infinitely customizable.
 
-```
-┌────────────────────────────────────────────────────┐
-│              Pawz Extensibility                    │
-│                                                    │
-│  🔵 Skill        Prompt-only  (SKILL.md)      ◀── │
-│  🟣 Integration  Credentials + Tools  (TOML)      │
-│  🟡 Extension    Custom Views + Storage  (TOML)   │
-└────────────────────────────────────────────────────┘
+```mermaid
+graph LR
+    S["Skill\nPrompt-only\nSKILL.md"]:::blue --> I["Integration\nCredentials + Tools\nTOML"]:::purple --> E["Extension\nCustom Views + Storage\nTOML"]:::gold
+    classDef blue fill:#3b82f6,color:#fff,stroke:#3b82f6
+    classDef purple fill:#a855f7,color:#fff,stroke:#a855f7
+    classDef gold fill:#eab308,color:#000,stroke:#eab308
+    style S stroke-width:3px
 ```
 
 **Skills** (this page) are prompt-only — they inject expert knowledge into your agent's system prompt with zero configuration. For credential-based API/CLI connections, see [Integrations](/docs/guides/integrations). For custom sidebar views and persistent data, see [Extensions](/docs/guides/extensions).

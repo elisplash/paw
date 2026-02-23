@@ -64,18 +64,14 @@ Long conversations consume large context windows, which increases cost and can h
 
 ### How it works
 
-```
-Messages pile up in session
-        ↓
-Auto-trigger check before each turn
-        ↓
-≥20 messages AND >60,000 estimated tokens?
-        ↓  YES
-AI generates summary of older messages
-        ↓
-Older messages replaced with single summary message
-        ↓
-Recent messages preserved intact
+```mermaid
+graph TD
+    A["Messages pile up in session"] --> B["Auto-trigger check\nbefore each turn"]
+    B --> C{"≥20 messages AND\n>60k tokens?"}
+    C -->|YES| D["AI generates summary\nof older messages"]
+    C -->|NO| E["Continue normally"]
+    D --> F["Older messages replaced\nwith single summary"]
+    F --> G["Recent messages\npreserved intact"]
 ```
 
 ### Compaction configuration

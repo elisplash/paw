@@ -86,17 +86,15 @@ Deep research uses more tokens and takes longer. Start with Quick mode to valida
 
 All research data is saved to your local workspace at `~/Documents/Paw/Research/`:
 
-```
-~/Documents/Paw/Research/
-├── <project-id>/
-│   ├── project.json        # Project metadata and query history
-│   ├── README.md            # Human-readable project summary
-│   ├── findings/
-│   │   ├── <finding-id>.json  # Structured finding with sources
-│   │   └── ...
-│   └── reports/
-│       ├── <report-id>.json   # Generated research reports
-│       └── ...
+```mermaid
+graph TD
+    ROOT["~/Documents/Paw/Research/"] --> PROJ["project-id/"]
+    PROJ --> PJ["project.json\nMetadata & query history"]
+    PROJ --> RM["README.md\nHuman-readable summary"]
+    PROJ --> FIND["findings/"]
+    PROJ --> REP["reports/"]
+    FIND --> F1["finding-id.json\nStructured finding with sources"]
+    REP --> R1["report-id.json\nGenerated research reports"]
 ```
 
 Each project maintains:

@@ -7,14 +7,13 @@ icon: "square-terminal"
 
 Integrations are the second tier of the Pawz extensibility system. They connect your agents to third-party APIs and CLI tools with full credential management, binary detection, and optional dashboard widgets. The 40 built-in integrations are compiled into the Rust binary. Community integrations can be installed via TOML manifests from PawzHub or manually from `~/.paw/skills/`.
 
-```
-┌────────────────────────────────────────────────────┐
-│              Pawz Extensibility                    │
-│                                                    │
-│  🔵 Skill        Prompt-only  (SKILL.md)          │
-│  🟣 Integration  Credentials + Tools  (TOML)  ◀── │
-│  🟡 Extension    Custom Views + Storage  (TOML)   │
-└────────────────────────────────────────────────────┘
+```mermaid
+graph LR
+    S["Skill\nPrompt-only\nSKILL.md"]:::blue --> I["Integration\nCredentials + Tools\nTOML"]:::purple --> E["Extension\nCustom Views + Storage\nTOML"]:::gold
+    classDef blue fill:#3b82f6,color:#fff,stroke:#3b82f6
+    classDef purple fill:#a855f7,color:#fff,stroke:#a855f7
+    classDef gold fill:#eab308,color:#000,stroke:#eab308
+    style I stroke-width:3px
 ```
 
 **Integrations vs. Skills**: A [Skill](/docs/guides/skills) is a SKILL.md file that injects instructions into an agent's prompt — zero config. An Integration is a `pawz-skill.toml` file that additionally declares **credentials** (encrypted in the vault), **required binaries** (auto-detected), and optional **dashboard widgets**.
@@ -29,27 +28,14 @@ Integrations are the second tier of the Pawz extensibility system. They connect 
 4. **Assign to agents** — open the **Agents** tab, select an agent, and enable the integration in their Skills sub-tab
 5. **Use** — the agent receives decrypted credentials and instructions in its system prompt, then calls APIs via `fetch` or CLI tools via `exec`
 
-```
-User enters API key in Skills tab
-       │
-       ▼
-XOR-encrypted (32-byte key in OS keychain)
-       │
-       ▼
-Stored in SQLite (encrypted blob)
-       │
-       ▼
-On prompt build: decrypted in memory
-       │
-       ▼
-Injected into system prompt:
-"Credentials: NOTION_API_KEY = secret_abc..."
-       │
-       ▼
-Agent calls fetch with Authorization header
-       │
-       ▼
-Domain allowlist/blocklist enforced
+```mermaid
+graph TD
+    A["User enters API key\nin Skills tab"] --> B["XOR-encrypted\n32-byte key in OS keychain"]
+    B --> C["Stored in SQLite\nEncrypted blob"]
+    C --> D["On prompt build:\ndecrypted in memory"]
+    D --> E["Injected into system prompt\nNOTION_API_KEY = secret_abc..."]
+    E --> F["Agent calls fetch\nwith Authorization header"]
+    F --> G["Domain allowlist\nenforced"]
 ```
 
 ---

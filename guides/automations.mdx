@@ -27,14 +27,9 @@ Automations are recurring tasks that run on a schedule using cron expressions.
 
 Standard 5-field cron expressions:
 
-```
-┌───────── minute (0-59)
-│ ┌─────── hour (0-23)
-│ │ ┌───── day of month (1-31)
-│ │ │ ┌─── month (1-12)
-│ │ │ │ ┌─ day of week (0-6, Sun=0)
-│ │ │ │ │
-* * * * *
+```mermaid
+graph LR
+    A["* minute\n0-59"] --- B["* hour\n0-23"] --- C["* day\n1-31"] --- D["* month\n1-12"] --- E["* weekday\n0-6"]
 ```
 
 ### Common schedules

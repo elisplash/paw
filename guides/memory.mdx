@@ -10,16 +10,13 @@ Pawz has a built-in memory system that lets agents remember facts, preferences, 
 
 ## How it works
 
-```
-User message → auto-recall (retrieve relevant memories)
-                    ↓
-            inject into context
-                    ↓
-            agent responds
-                    ↓
-            auto-capture (extract memorable facts)
-                    ↓
-            embed + store
+```mermaid
+graph TD
+    A["User message"] --> B["Auto-recall\nRetrieve relevant memories"]
+    B --> C["Inject into context"]
+    C --> D["Agent responds"]
+    D --> E["Auto-capture\nExtract memorable facts"]
+    E --> F["Embed + store"]
 ```
 
 ## Configuration

@@ -73,21 +73,12 @@ Enable **log requests** to see all network requests the browser makes. Recent re
 
 The browser sandbox uses **headless Chromium** via the `headless_chrome` Rust crate (Chrome DevTools Protocol):
 
-```
-┌─────────────────────────────────────────┐
-│            Rust Engine                  │
-│  ┌───────────────────────────────────┐  │
-│  │  web.rs (tool executor)           │  │
-│  │  web_search · web_read ·          │  │
-│  │  web_screenshot · web_browse      │  │
-│  └──────────┬────────────────────────┘  │
-│             │ Chrome DevTools Protocol   │
-│  ┌──────────┴────────────────────────┐  │
-│  │  Headless Chromium (lazy init)    │  │
-│  │  Isolated profile directory       │  │
-│  │  Sandboxed (--no-sandbox in CI)   │  │
-│  └───────────────────────────────────┘  │
-└─────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph Engine["Rust Engine"]
+        WEB["web.rs — Tool Executor\nweb_search · web_read\nweb_screenshot · web_browse"]
+        WEB -->|Chrome DevTools Protocol| CHROME["Headless Chromium\nLazy init · Isolated profile\nSandboxed in CI"]
+    end
 ```
 
 - **Lazy initialization** — Chrome is only launched when an agent first calls `web_screenshot` or `web_browse`

@@ -63,34 +63,30 @@ Pawz has a three-tier extensibility architecture. Each tier adds more power over
 
 ### Skill loading pipeline
 
-```
-Startup
-  │
-  ├─ Load built-in skills (40 Rust SkillDefinitions)
-  │
-  ├─ Load community SKILL.md (per-agent, from DB)
-  │
-  ├─ Load TOML integrations (~/.paw/skills/*/pawz-skill.toml)
-  │   ├─ Parse credentials → generate UI forms
-  │   ├─ Check binaries → readiness status
-  │   └─ Register widgets → dashboard renderer
-  │
-  └─ Load extensions (TOML + [view] + [storage])
-      ├─ Register sidebar views
-      ├─ Initialize storage namespaces
-      └─ Bind view data to storage
+```mermaid
+graph TD
+    START["Startup"] --> BUILTIN["Load built-in skills\n40 Rust SkillDefinitions"]
+    START --> COMMUNITY["Load community SKILL.md\nPer-agent, from DB"]
+    START --> TOML["Load TOML integrations\n~/.paw/skills/*/pawz-skill.toml"]
+    START --> EXT["Load extensions\nTOML + view + storage"]
+    TOML --> T1["Parse credentials\nGenerate UI forms"]
+    TOML --> T2["Check binaries\nReadiness status"]
+    TOML --> T3["Register widgets\nDashboard renderer"]
+    EXT --> E1["Register sidebar views"]
+    EXT --> E2["Initialize storage namespaces"]
+    EXT --> E3["Bind view data to storage"]
 ```
 
 ### Agent prompt assembly
 
-```
-System prompt
-  ├─ Core personality (SOUL.md / agent instructions)
-  ├─ Enabled built-in skill instructions
-  ├─ Community Skill instructions (Tier 1, per-agent)
-  ├─ Integration instructions + credentials (Tier 2, per-agent)
-  ├─ Extension instructions + credentials (Tier 3, per-agent)
-  └─ Context truncation (preserves last user message)
+```mermaid
+graph TD
+    SP["System Prompt"] --> P["Core personality\nSOUL.md / agent instructions"]
+    SP --> BI["Built-in skill instructions"]
+    SP --> CS["Community Skills\nTier 1, per-agent"]
+    SP --> INT["Integration instructions + credentials\nTier 2, per-agent"]
+    SP --> EXT["Extension instructions + credentials\nTier 3, per-agent"]
+    SP --> CT["Context truncation\nPreserves last user message"]
 ```
 
 For full details: [Skills](/docs/guides/skills) · [Integrations](/docs/guides/integrations) · [Extensions](/docs/guides/extensions) · [PawzHub](/docs/guides/pawzhub)
@@ -290,16 +286,19 @@ The `engine-event` payload contains a `kind` field that determines the event typ
 
 ### Event flow
 
-```
-User sends message
-  → engine_chat_send (invoke)
-  → Backend starts agent loop
-  → engine-event { kind: "delta", text: "..." }     (streamed)
-  → engine-event { kind: "tool_request", ... }       (if tool needed)
-  → engine_approve_tool (invoke, if HIL required)
-  → engine-event { kind: "tool_result", ... }        (tool output)
-  → engine-event { kind: "delta", text: "..." }     (continued response)
-  → engine-event { kind: "complete", usage: {...} }  (done)
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant FE as Frontend
+    participant BE as Rust Backend
+    U->>FE: Send message
+    FE->>BE: engine_chat_send (invoke)
+    BE-->>FE: engine-event { delta }
+    BE-->>FE: engine-event { tool_request }
+    FE->>BE: engine_approve_tool (if HIL)
+    BE-->>FE: engine-event { tool_result }
+    BE-->>FE: engine-event { delta }
+    BE-->>FE: engine-event { complete }
 ```
 
 ## Build pipeline

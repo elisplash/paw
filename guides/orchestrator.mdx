@@ -62,18 +62,15 @@ Specialty models can be configured in **Settings → Engine** under Model Routin
 
 ## How it works
 
-```
-Boss agent gets goal + team roster
-        ↓
-Boss plans and calls delegate_task(agent, task)
-        ↓
-Worker spawns async (tokio::spawn)
-        ↓
-Worker executes with worker_model
-        ↓
-Worker calls report_progress(status, result)
-        ↓
-Boss reviews and delegates more or calls project_complete
+```mermaid
+graph TD
+    A["Boss agent gets\ngoal + team roster"] --> B["Boss plans and calls\ndelegate_task(agent, task)"]
+    B --> C["Worker spawns async\ntokio::spawn"]
+    C --> D["Worker executes\nwith worker_model"]
+    D --> E["Worker calls\nreport_progress(status, result)"]
+    E --> F{"Boss reviews"}
+    F -->|More work| B
+    F -->|Done| G["project_complete"]
 ```
 
 ## Boss tools

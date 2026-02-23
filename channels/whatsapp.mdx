@@ -42,16 +42,12 @@ Other options:
 
 ## What happens when someone messages
 
-```
-Someone messages the agent's number
-        ↓
-Pawz receives it (via local webhook)
-        ↓
-Access control checks (pairing / allowlist / open)
-        ↓
-Your agent processes the message
-        ↓
-Reply sent back to WhatsApp
+```mermaid
+graph TD
+    A["Someone messages\nthe agent's number"] --> B["Pawz receives it\nvia local webhook"]
+    B --> C["Access control checks\nPairing / Allowlist / Open"]
+    C --> D["Agent processes\nthe message"]
+    D --> E["Reply sent back\nto WhatsApp"]
 ```
 
 All traffic stays on your machine. Nothing is exposed to the internet.

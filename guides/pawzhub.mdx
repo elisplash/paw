@@ -9,19 +9,14 @@ PawzHub is the community-driven marketplace for Pawz. It hosts all three tiers o
 
 ## Three Tiers, One Marketplace
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                      PawzHub                            │
-│                                                         │
-│  🔵 Skills         Prompt-only (SKILL.md)              │
-│     Zero config · Installs in 1 click · skills.sh      │
-│                                                         │
-│  🟣 Integrations   Credentials + Tools (pawz-skill.toml)│
-│     API keys · CLI binaries · Dashboard widgets        │
-│                                                         │
-│  🟡 Extensions     Custom Views + Storage (pawz-skill.toml)│
-│     Sidebar tabs · Persistent data · Full-power        │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TD
+    HUB["PawzHub Marketplace"] --> S["Skills\nPrompt-only · SKILL.md\nZero config · 1-click install"]:::blue
+    HUB --> I["Integrations\nCredentials + Tools · TOML\nAPI keys · CLI binaries · Widgets"]:::purple
+    HUB --> E["Extensions\nCustom Views + Storage · TOML\nSidebar tabs · Persistent data"]:::gold
+    classDef blue fill:#3b82f6,color:#fff,stroke:#3b82f6
+    classDef purple fill:#a855f7,color:#fff,stroke:#a855f7
+    classDef gold fill:#eab308,color:#000,stroke:#eab308
 ```
 
 | Tier | Badge | Format | Install Source |
@@ -32,28 +27,15 @@ PawzHub is the community-driven marketplace for Pawz. It hosts all three tiers o
 
 ## How It Works
 
-```
-┌───────────────────────────────────────────────────────┐
-│                     Your Pawz App                     │
-│                                                       │
-│  ┌───────────┐  ┌─────────────┐  ┌─────────────────┐ │
-│  │  Skill    │  │  Credential │  │   Dashboard     │ │
-│  │  Loader   │  │  Vault      │  │   Widgets       │ │
-│  └─────┬─────┘  └──────┬──────┘  └────────┬────────┘ │
-│        │               │                  │          │
-│   ┌────┴────┐     AES-GCM +          Skill output   │
-│   │         │     OS keychain         store (DB)     │
-│   ▼         ▼                                        │
-│ builtin   ~/.paw/skills/                             │
-│ (30+)     (community TOML)                           │
-└───────────────────────────────────────────────────────┘
-                      │
-                      ▼
-           ┌────────────────────┐
-           │      PawzHub       │
-           │  (GitHub registry) │
-           │  registry.json     │
-           └────────────────────┘
+```mermaid
+graph TD
+    subgraph App["Your Pawz App"]
+        SL["Skill Loader"] --> BUILTIN["Built-in Skills\n30+"]
+        SL --> COMMUNITY["~/.paw/skills/\nCommunity TOML"]
+        CV["Credential Vault\nAES-GCM + OS Keychain"]
+        DW["Dashboard Widgets\nSkill output store"]
+    end
+    App --> HUB["PawzHub\nGitHub Registry\nregistry.json"]
 ```
 
 Every skill — whether built-in or community — follows the same architecture:
@@ -465,31 +447,15 @@ Skills are accepted based on quality, not quantity. We learned from OpenClaw's C
 
 ### How Credentials Flow
 
-```
-User enters API key in Skills tab
-         │
-         ▼
-Encrypted with AES-GCM (256-bit key from OS keychain)
-         │
-         ▼
-Stored in SQLite (encrypted blob)
-         │
-         ▼
-On agent prompt build: decrypted in memory
-         │
-         ▼
-Injected into system prompt:
-"Credentials (use these values directly):
- - NOTION_API_KEY = secret_abc123..."
-         │
-         ▼
-Agent uses `fetch` with Authorization header
-         │
-         ▼
-Engine enforces domain allowlist/blocklist
-         │
-         ▼
-API response returned to agent
+```mermaid
+graph TD
+    A["User enters API key\nin Skills tab"] --> B["AES-GCM encryption\n256-bit key from OS keychain"]
+    B --> C["Stored in SQLite\nEncrypted blob"]
+    C --> D["On prompt build:\ndecrypted in memory"]
+    D --> E["Injected into prompt\nNOTION_API_KEY = secret_abc123..."]
+    E --> F["Agent calls fetch\nwith Authorization header"]
+    F --> G["Domain allowlist\nenforced"]
+    G --> H["API response\nreturned to agent"]
 ```
 
 ### How Instructions Work

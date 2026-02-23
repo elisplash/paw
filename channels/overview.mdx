@@ -57,26 +57,17 @@ All incoming messages are scanned for **prompt injection** — messages with cri
 
 ## How channels work
 
-```
-External message arrives
-        ↓
-Prompt injection scan (block critical threats)
-        ↓
-Access control check (open / allowlist / pairing)
-        ↓
-Route to agent (first-match routing rules)
-        ↓
-Create per-user, per-agent session
-        ↓
-Auto-recall memories for this user
-        ↓
-Agent responds via worker_model
-        ↓
-Auto-capture memorable facts
-        ↓
-Provider fallback on errors
-        ↓
-Split response for platform limits
+```mermaid
+graph TD
+    A["External message arrives"] --> B["Prompt injection scan\nBlock critical threats"]
+    B --> C["Access control check\nOpen / Allowlist / Pairing"]
+    C --> D["Route to agent\nFirst-match routing rules"]
+    D --> E["Create per-user\nper-agent session"]
+    E --> F["Auto-recall memories\nfor this user"]
+    F --> G["Agent responds\nvia worker_model"]
+    G --> H["Auto-capture\nmemorable facts"]
+    H --> I["Provider fallback\non errors"]
+    I --> J["Split response\nfor platform limits"]
 ```
 
 ## DM policies

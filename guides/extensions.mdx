@@ -7,14 +7,13 @@ icon: "layers"
 
 Extensions are the most powerful tier of the Pawz extensibility system. They have everything an [Integration](/docs/guides/integrations) has — credentials, instructions, widgets — plus **custom sidebar views** and **persistent data storage**.
 
-```
-┌────────────────────────────────────────────────────┐
-│              Pawz Extensibility                    │
-│                                                    │
-│  🔵 Skill        Prompt-only  (SKILL.md)          │
-│  🟣 Integration  Credentials + Tools  (TOML)      │
-│  🟡 Extension    Custom Views + Storage  (TOML) ◀─│
-└────────────────────────────────────────────────────┘
+```mermaid
+graph LR
+    S["Skill\nPrompt-only\nSKILL.md"]:::blue --> I["Integration\nCredentials + Tools\nTOML"]:::purple --> E["Extension\nCustom Views + Storage\nTOML"]:::gold
+    classDef blue fill:#3b82f6,color:#fff,stroke:#3b82f6
+    classDef purple fill:#a855f7,color:#fff,stroke:#a855f7
+    classDef gold fill:#eab308,color:#000,stroke:#eab308
+    style E stroke-width:3px
 ```
 
 **Extensions vs. Integrations**: An [Integration](/docs/guides/integrations) connects your agent to an API or CLI tool with encrypted credentials and optional dashboard widgets. An Extension does all of that **plus** registers a custom sidebar view and can persist structured data across sessions.
@@ -43,24 +42,23 @@ Extensions are the most powerful tier of the Pawz extensibility system. They hav
 4. **Data-bound rendering** — The custom view reads from the extension's storage and renders live data (tables, charts, pipelines, feeds)
 5. **Widget** — An optional dashboard card shows a summary on the Today page
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    Pawz App                         │
-│                                                     │
-│  ┌─────────┐  ┌──────────────────────────────────┐  │
-│  │ Sidebar │  │ Extension View (CRM Pipeline)    │  │
-│  │         │  │                                  │  │
-│  │ Today   │  │  ┌─────┐ ┌─────┐ ┌─────┐       │  │
-│  │ Chat    │  │  │ New │→│ Qual│→│Close│       │  │
-│  │ Agents  │  │  │  3  │ │  7  │ │  2  │       │  │
-│  │ Tasks   │  │  └─────┘ └─────┘ └─────┘       │  │
-│  │ Skills  │  │                                  │  │
-│  │ ──────  │  │  Contacts: 142                   │  │
-│  │ 🟡 CRM  │  │  Revenue: $45,200                │  │
-│  │ 🟡 Home │  │  Next follow-up: 2h ago          │  │
-│  │         │  │                                  │  │
-│  └─────────┘  └──────────────────────────────────┘  │
-└─────────────────────────────────────────────────────┘
+```mermaid
+graph LR
+    subgraph App["Pawz App"]
+        subgraph Sidebar
+            T["Today"]
+            CH["Chat"]
+            AG["Agents"]
+            TA["Tasks"]
+            SK["Skills"]
+            CRM["CRM"]:::gold
+            HM["Home"]:::gold
+        end
+        subgraph View["Extension View — CRM Pipeline"]
+            NEW["New\n3 deals"] --> QUAL["Qualified\n7 deals"] --> CLOSE["Closed\n2 deals"]
+        end
+    end
+    classDef gold fill:#eab308,color:#000,stroke:#eab308
 ```
 
 ---
@@ -277,12 +275,13 @@ Extensions are created the same way as integrations, with the addition of `[view
 
 You can upgrade a Skill to an Integration to an Extension incrementally:
 
-```
-SKILL.md                    → Tier 1 (Skill)
-  ↓ add credentials/TOML
-pawz-skill.toml             → Tier 2 (Integration)
-  ↓ add [view] + [storage]
-pawz-skill.toml + view      → Tier 3 (Extension)
+```mermaid
+graph TD
+    A["SKILL.md\nTier 1 — Skill"]:::blue -->|add credentials + TOML| B["pawz-skill.toml\nTier 2 — Integration"]:::purple
+    B -->|"add [view] + [storage]"| C["pawz-skill.toml + view\nTier 3 — Extension"]:::gold
+    classDef blue fill:#3b82f6,color:#fff,stroke:#3b82f6
+    classDef purple fill:#a855f7,color:#fff,stroke:#a855f7
+    classDef gold fill:#eab308,color:#000,stroke:#eab308
 ```
 
 Each step is additive. You never need to rewrite — you just add more sections to the manifest.

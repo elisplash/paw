@@ -9,20 +9,16 @@ The Container Sandbox runs agent `exec` commands inside ephemeral Docker contain
 
 ## How it works
 
-```
-Agent calls `exec` tool
-        ↓
-Sandbox enabled?
-  ├── NO → Run directly on host
-  └── YES → Create ephemeral Docker container
-                ↓
-        Run command inside container
-                ↓
-        Capture stdout/stderr
-                ↓
-        Destroy container
-                ↓
-        Return output to agent
+```mermaid
+graph TD
+    A["Agent calls exec tool"] --> B{"Sandbox enabled?"}
+    B -->|NO| C["Run directly on host"]
+    B -->|YES| D["Create ephemeral\nDocker container"]
+    D --> E["Run command\ninside container"]
+    E --> F["Capture stdout/stderr"]
+    F --> G["Destroy container"]
+    G --> H["Return output to agent"]
+    C --> H
 ```
 
 The sandbox uses the [bollard](https://crates.io/crates/bollard) Rust crate to communicate with the Docker daemon.
