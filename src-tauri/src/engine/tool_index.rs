@@ -20,7 +20,7 @@ use crate::atoms::types::ToolDefinition;
 use crate::engine::memory::EmbeddingClient;
 use crate::atoms::error::EngineResult;
 use log::{info, warn};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// A tool definition paired with its embedding vector.
 struct IndexedTool {
@@ -104,13 +104,13 @@ fn tool_domain(name: &str) -> &'static str {
 
         // Trading — Coinbase
         "coinbase_prices" | "coinbase_balance" | "coinbase_wallet_create"
-        | "coinbase_trade" | "coinbase_transfer" => "trading",
+        | "coinbase_trade" | "coinbase_transfer" => "coinbase",
 
         // Trading — DEX
-        n if n.starts_with("dex_") => "trading",
+        n if n.starts_with("dex_") => "dex",
 
         // Trading — Solana
-        n if n.starts_with("sol_") => "trading",
+        n if n.starts_with("sol_") => "solana",
 
         // MCP tools
         n if n.starts_with("mcp_") => "mcp",
@@ -143,7 +143,9 @@ pub fn domain_summaries() -> Vec<(&'static str, &'static str, &'static str)> {
         ("messaging",     "forum",        "Slack and Telegram messaging"),
         ("github",        "code",         "GitHub API calls (issues, PRs, repos)"),
         ("integrations",  "api",          "REST APIs, webhooks, image generation"),
-        ("trading",       "trending_up",  "Crypto trading — Coinbase, DEX/Uniswap, Solana/Jupiter"),
+        ("coinbase",      "trending_up",  "Coinbase exchange — prices, balances, trades, transfers"),
+        ("dex",           "trending_up",  "DEX/Uniswap — swaps, quotes, whale tracking, trending tokens"),
+        ("solana",        "trending_up",  "Solana/Jupiter — swaps, quotes, token info, portfolio"),
     ]
 }
 
@@ -238,8 +240,16 @@ impl ToolIndex {
             return Ok(Vec::new());
         }
 
-        // Collect the matching domains to include sibling tools
+        // Collect the matching domains — gated by quality thresholds.
+        // A domain gets expanded (all sibling tools included) only when:
+        //   a) The best match from that domain scores >= DOMAIN_EXPAND_STRONG (one strong hit), OR
+        //   b) 2+ tools from that domain appear in top-K above MIN_RELEVANCE.
+        const MIN_RELEVANCE: f64 = 0.55;
+        const DOMAIN_EXPAND_STRONG: f64 = 0.70;
+
         let mut matched_domains: HashSet<String> = HashSet::new();
+        let mut domain_best_score: HashMap<String, f64> = HashMap::new();
+        let mut domain_hit_count: HashMap<String, u32> = HashMap::new();
         let mut result_names: HashSet<String> = HashSet::new();
         let mut results: Vec<ToolDefinition> = Vec::new();
 
@@ -249,12 +259,27 @@ impl ToolIndex {
                 "[tool-index] Match: {} (domain={}, score={:.3})",
                 tool.definition.function.name, tool.domain, score
             );
-            // Only include tools above a minimum relevance threshold
-            if *score > 0.25 {
-                matched_domains.insert(tool.domain.clone());
+            // Always include direct hits above minimum relevance
+            if *score >= MIN_RELEVANCE {
                 if result_names.insert(tool.definition.function.name.clone()) {
                     results.push(tool.definition.clone());
                 }
+                // Track per-domain stats for expansion decision
+                let best = domain_best_score.entry(tool.domain.clone()).or_insert(0.0);
+                if *score > *best { *best = *score; }
+                *domain_hit_count.entry(tool.domain.clone()).or_insert(0) += 1;
+            }
+        }
+
+        // Decide which domains deserve full expansion
+        for (domain, best_score) in &domain_best_score {
+            let hits = domain_hit_count.get(domain).copied().unwrap_or(0);
+            if *best_score >= DOMAIN_EXPAND_STRONG || hits >= 2 {
+                matched_domains.insert(domain.clone());
+                info!(
+                    "[tool-index] Expanding domain '{}' (best={:.3}, hits={})",
+                    domain, best_score, hits
+                );
             }
         }
 
