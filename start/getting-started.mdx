@@ -91,14 +91,75 @@ The desktop app is the single source of truth for agents, sessions, routing, and
   <Card title="75+ built-in tools">
     Email, GitHub, trading, TTS, browser automation, inter-agent comms, and more.
   </Card>
-  <Card title="Semantic memory">
-    Long-term memory with vector search and auto-recall — your agents never forget.
-  </Card>
   <Card title="MCP extensions">
     Connect to any Model Context Protocol server for unlimited additional tools.
   </Card>
   <Card title="Task management">
     Kanban board with agent assignment, cron scheduling, and event triggers.
+  </Card>
+  <Card title="10 AI providers">
+    Ollama (local & free), OpenAI, Anthropic, Google, DeepSeek, Grok, Mistral, OpenRouter, and any custom OpenAI-compatible endpoint.
+  </Card>
+</Columns>
+
+---
+
+## Memory that never forgets
+
+Most AI tools forget everything between conversations. OpenPawz doesn't.
+
+<Columns cols={2}>
+  <Card title="Semantic long-term memory">
+    Every important fact, preference, and detail is automatically captured and stored with vector embeddings. When context is relevant, it's auto-recalled into the conversation — no manual prompting needed.
+  </Card>
+  <Card title="Memory Palace">
+    A dedicated interface to browse, search, edit, and manage everything your agents have learned. Full visibility into what your AI knows about you.
+  </Card>
+</Columns>
+
+<Tip>Agents share a memory namespace by default, so knowledge captured by one agent is available to all. You can also isolate memory per agent or per workspace.</Tip>
+
+---
+
+## Token savings with session compaction
+
+Long conversations burn tokens fast. OpenPawz has a built-in solution: **automatic session compaction**.
+
+When a conversation approaches the model's context window limit, OpenPawz:
+1. **Summarizes** the older parts of the conversation into a compact digest
+2. **Preserves** key facts and decisions in memory
+3. **Archives** the full session for later reference
+4. **Continues** the conversation seamlessly with the summary + memory context
+
+<Note>This means your agents can run **indefinitely long conversations** without hitting context limits or losing important context — and you pay for fewer tokens in the process.</Note>
+
+---
+
+## Security you can actually trust
+
+OpenPawz was designed from the ground up with a **zero-trust, local-first security model**.
+
+<Columns cols={2}>
+  <Card title="100% local — no data leaves your machine">
+    All conversations, memories, agent configs, and files stay on your hardware. No cloud sync, no telemetry, no analytics. The only outbound traffic is to AI providers you explicitly configure.
+  </Card>
+  <Card title="OS-level credential storage">
+    API keys and secrets are stored in your operating system's native keychain — macOS Keychain, Windows Credential Manager, or Linux Secret Service. Never in plain text. Never in a config file.
+  </Card>
+  <Card title="Command risk classification">
+    Every tool and shell command is rated on a 1–5 risk scale. High-risk operations (file deletion, system commands, network access) require explicit user confirmation before execution.
+  </Card>
+  <Card title="Sandboxed execution">
+    Run agent shell commands in isolated Docker containers with configurable resource limits, network policies, and filesystem restrictions. Agents can't touch your host system.
+  </Card>
+</Columns>
+
+<Columns cols={2}>
+  <Card title="Per-agent policies">
+    Control exactly what each agent can do — which tools it can access, which channels it can use, what risk level it's allowed to execute at. Full granular permission control.
+  </Card>
+  <Card title="Prompt injection defense">
+    Built-in prompt injection detection analyzes incoming messages for manipulation attempts and flags suspicious content before it reaches your agents.
   </Card>
 </Columns>
 

@@ -18,6 +18,9 @@ While other tools give you a text box and an API bill, OpenPawz gives you:
 - **Three-tier extensibility** — Skills (prompt injection), Integrations (custom tools), Extensions (full sidebar apps) — plus MCP for unlimited external tool servers
 - **PawzHub marketplace** — discover and share community-built extensions
 - **Native Rust performance** — not Electron, not a web app. Fast, lean, secure.
+- **Intelligent memory** — semantic long-term memory with auto-capture, auto-recall, and a Memory Palace for full visibility
+- **Token-saving session compaction** — automatic summarization keeps conversations running indefinitely without hitting context limits
+- **Enterprise-grade security** — OS keychain for secrets, command risk classification, sandboxed execution, prompt injection defense, per-agent policies
 
 ---
 
@@ -50,6 +53,47 @@ While other tools give you a text box and an API bill, OpenPawz gives you:
 | **Cost** | Free forever + your API keys | $20–200/mo subscription | Free |
 | **Data ownership** | 100% local, OS keychain for secrets | Company-owned | Self-hosted |
 | **Performance** | Native Tauri/Rust | Web app | Usually Electron |
+| **Token efficiency** | Session compaction saves 40–60% on long chats | No optimization | None |
+| **Security model** | Risk classification + sandboxing + prompt defense | Trust the provider | Basic |
+
+---
+
+## Memory, tokens & security
+
+Three features that set OpenPawz apart from everything else:
+
+<Tabs>
+  <Tab title="Semantic memory">
+    Your agents **never forget**. Every important fact, preference, and detail is automatically captured with vector embeddings and recalled when relevant.
+
+    - **Auto-capture** — agents extract and store key information from every conversation
+    - **Auto-recall** — relevant memories are injected into context before the agent responds
+    - **Memory Palace** — browse, search, edit, and manage everything your agents know
+    - **Shared or isolated** — agents share memory by default, or you can isolate per agent/workspace
+
+    Unlike ChatGPT or Claude, your agents build up knowledge over weeks and months — and you can see and control every piece of it.
+  </Tab>
+  <Tab title="Token savings">
+    Long conversations burn tokens. OpenPawz solves this with **automatic session compaction**:
+
+    1. When a conversation nears the context limit, older parts are **summarized** into a compact digest
+    2. Key facts and decisions are **preserved in memory** — nothing important is lost
+    3. The full session is **archived** for later reference
+    4. The conversation **continues seamlessly** with summary + memory context
+
+    The result: agents can run **indefinitely long conversations** without hitting context limits, and you pay for significantly fewer tokens. Typical savings: **40–60% on long-running sessions**.
+  </Tab>
+  <Tab title="Security">
+    OpenPawz was designed with a **zero-trust, local-first security model**:
+
+    - **100% local** — no data leaves your machine. No cloud sync, no telemetry, no analytics
+    - **OS keychain** — API keys stored in macOS Keychain / Windows Credential Manager / Linux Secret Service. Never plain text.
+    - **Risk classification** — every tool rated 1–5 for risk. Dangerous operations require user confirmation.
+    - **Container sandbox** — run agent shell commands in isolated Docker containers with resource limits
+    - **Per-agent policies** — granular control over tools, channels, and risk levels per agent
+    - **Prompt injection defense** — built-in detection flags manipulation attempts before they reach agents
+  </Tab>
+</Tabs>
 
 ---
 

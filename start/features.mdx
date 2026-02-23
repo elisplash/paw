@@ -119,12 +119,48 @@ Bring your own model. OpenPawz supports local and cloud providers — switch bet
 
 ---
 
+## Memory & intelligence
+
+<Columns cols={2}>
+  <Card title="Semantic long-term memory">
+    Agents auto-capture facts, preferences, and context from every conversation. Vector embeddings power instant recall — relevant memories are injected before the agent responds. Your agents build knowledge over weeks and months.
+  </Card>
+  <Card title="Memory Palace">
+    A dedicated interface to browse, search, edit, and delete stored memories. Full transparency into what your AI knows. Filter by agent, topic, date, or relevance score.
+  </Card>
+  <Card title="Session compaction">
+    When conversations approach context limits, OpenPawz automatically summarizes older messages, preserves key facts in memory, and continues seamlessly. Agents run indefinitely without losing context — and you save 40–60% on tokens.
+  </Card>
+  <Card title="Shared & isolated memory">
+    By default, all agents share a memory namespace — knowledge captured by one is available to all. Isolate per agent or per workspace when you need boundaries.
+  </Card>
+</Columns>
+
+→ Deep dive: [Memory guide](/guides/memory) · [Session management](/guides/sessions)
+
+---
+
 ## Security
 
-- **Local-only**: no cloud, no open ports, no external data storage
-- **OS keychain**: credentials stored in macOS Keychain / Windows Credential Manager / Linux Secret Service
-- **Command risk classification**: commands rated 1–5 for risk, with confirmation prompts for dangerous operations
-- **Container sandbox**: isolate agent shell access in Docker containers
-- **Agent policies**: per-agent permission controls for tools, channels, and actions
+<Columns cols={2}>
+  <Card title="100% local — zero cloud">
+    All data stays on your hardware. No cloud sync, no telemetry, no analytics, no phone-home. The only network traffic is to AI providers you explicitly configure.
+  </Card>
+  <Card title="OS keychain credentials">
+    API keys and secrets stored in macOS Keychain, Windows Credential Manager, or Linux Secret Service. Never in plain text. Never in a config file.
+  </Card>
+  <Card title="Command risk classification">
+    Every tool and shell command rated 1–5 for risk. High-risk operations require explicit user confirmation. Configurable thresholds per agent.
+  </Card>
+  <Card title="Container sandbox">
+    Isolate agent shell access in Docker containers with configurable CPU, memory, network, and filesystem restrictions.
+  </Card>
+  <Card title="Per-agent policies">
+    Granular control over what each agent can access — tools, channels, risk levels, and actions. Lock down sensitive agents or give trusted ones free rein.
+  </Card>
+  <Card title="Prompt injection defense">
+    Built-in detection analyzes incoming messages for manipulation attempts and flags suspicious content before it reaches your agents.
+  </Card>
+</Columns>
 
 → Deep dive: [Security reference](/reference/security)
