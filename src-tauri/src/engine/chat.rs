@@ -83,7 +83,7 @@ pub fn build_chat_tools(
     // If the agent policy explicitly lists skill tools, auto-include them
     // so users don't have to rely on request_tools for tools they manually enabled.
     let is_policy_allowed = |name: &str| {
-        tool_filter.map_or(false, |f| f.iter().any(|n| n == name))
+        tool_filter.is_some_and(|f| f.iter().any(|n| n == name))
     };
 
     let mut t: Vec<ToolDefinition> = all_tools.into_iter()
