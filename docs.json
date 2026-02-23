@@ -12,11 +12,7 @@
   "colors": {
     "primary": "#ff00ff",
     "light": "#ff33ff",
-    "dark": "#cc00cc",
-    "background": {
-      "dark": "#0a0a0f",
-      "light": "#faf5ff"
-    }
+    "dark": "#cc00cc"
   },
   "background": {
     "decoration": "grid"
