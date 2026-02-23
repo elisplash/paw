@@ -39,6 +39,9 @@
     "content": "**OpenPawz** is open source — [Star us on GitHub](https://github.com/elisplash/paw) and join the community!",
     "dismissible": true
   },
+  "interaction": {
+    "drilldown": true
+  },
   "navigation": {
     "tabs": [
       {
