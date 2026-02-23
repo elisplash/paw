@@ -4,9 +4,8 @@
   "name": "OpenPawz",
   "description": "Your AI, your rules. A native desktop AI agent platform — private, powerful, extensible.",
   "logo": {
-    "dark": "/images/pawz-logo.png",
-    "light": "/images/pawz-logo.png",
-    "href": "https://github.com/elisplash/paw"
+    "dark": "/images/pawz-logo-text-dark.png",
+    "light": "/images/pawz-logo-text-light.png"
   },
   "favicon": "/images/pawz-favicon.png",
   "colors": {
@@ -24,12 +23,6 @@
     "default": "dark"
   },
   "navbar": {
-    "links": [
-      {
-        "type": "github",
-        "href": "https://github.com/elisplash/paw"
-      }
-    ],
     "primary": {
       "type": "button",
       "label": "Download",
@@ -191,6 +184,6 @@
     "indexHiddenPages": false
   },
   "contextual": {
-    "options": ["chatgpt", "claude"]
+    "options": ["claude"]
   }
 }

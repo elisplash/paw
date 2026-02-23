@@ -9,7 +9,7 @@ The Container Sandbox runs agent `exec` commands inside ephemeral Docker contain
 
 ## How it works
 
-```mermaid
+```mermaid actions={false}
 graph TD
     A["Agent calls exec tool"] --> B{"Sandbox enabled?"}
     B -->|NO| C["Run directly on host"]

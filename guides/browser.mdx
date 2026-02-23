@@ -73,7 +73,7 @@ Enable **log requests** to see all network requests the browser makes. Recent re
 
 The browser sandbox uses **headless Chromium** via the `headless_chrome` Rust crate (Chrome DevTools Protocol):
 
-```mermaid
+```mermaid actions={false}
 graph TB
     subgraph Engine["Rust Engine"]
         WEB["web.rs — Tool Executor\nweb_search · web_read\nweb_screenshot · web_browse"]

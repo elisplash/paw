@@ -63,7 +63,7 @@ Pawz has a three-tier extensibility architecture. Each tier adds more power over
 
 ### Skill loading pipeline
 
-```mermaid
+```mermaid actions={false}
 graph TD
     START["Startup"] --> BUILTIN["Load built-in skills\n40 Rust SkillDefinitions"]
     START --> COMMUNITY["Load community SKILL.md\nPer-agent, from DB"]
@@ -79,7 +79,7 @@ graph TD
 
 ### Agent prompt assembly
 
-```mermaid
+```mermaid actions={false}
 graph TD
     SP["System Prompt"] --> P["Core personality\nSOUL.md / agent instructions"]
     SP --> BI["Built-in skill instructions"]
@@ -286,7 +286,7 @@ The `engine-event` payload contains a `kind` field that determines the event typ
 
 ### Event flow
 
-```mermaid
+```mermaid actions={false}
 sequenceDiagram
     participant U as User
     participant FE as Frontend
