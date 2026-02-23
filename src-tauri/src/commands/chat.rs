@@ -225,12 +225,18 @@ pub async fn engine_chat_send(
     // ── Process attachments into multi-modal blocks (organism) ────────────
     chat_org::process_attachments(&request.message, &request.attachments, &mut messages);
 
-    // ── Build tool list (organism) ─────────────────────────────────────────
-    let tools = chat_org::build_chat_tools(
+    // ── Clear loaded tools for this new chat turn ─────────────────────────
+    // Tool RAG: reset the set of dynamically-loaded tools so each turn starts fresh.
+    state.loaded_tools.lock().clear();
+
+    // ── Build tool list (organism) — Tool RAG: core tools + previously loaded ─
+    let loaded_tools = state.loaded_tools.lock().clone();
+    let mut tools = chat_org::build_chat_tools(
         &state.store,
         request.tools_enabled.unwrap_or(true),
         request.tool_filter.as_deref(),
         &app_handle,
+        &loaded_tools,
     );
 
     // ── Detect response loops (organism) ──────────────────────────────────
@@ -290,7 +296,7 @@ pub async fn engine_chat_send(
             &provider,
             &model,
             &mut messages,
-            &tools,
+            &mut tools,
             &session_id_clone,
             &run_id_clone,
             max_rounds,

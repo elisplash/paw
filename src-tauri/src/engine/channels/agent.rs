@@ -183,7 +183,7 @@ pub async fn run_channel_agent(
 
     // Build tools — read-only tools are auto-approved by agent_loop;
     // side-effect tools (exec, write_file, etc.) will be denied for remote channels.
-    let tools = {
+    let mut tools = {
         let mut t = ToolDefinition::builtins();
         let enabled_ids: Vec<String> = skills::builtin_skills().iter()
             .filter(|s| engine_state.store.is_skill_enabled(&s.id).unwrap_or(false))
@@ -243,7 +243,7 @@ pub async fn run_channel_agent(
             &provider,
             &model,
             &mut messages,
-            &tools,
+            &mut tools,
             &session_id,
             &run_id,
             max_rounds,
@@ -285,7 +285,7 @@ pub async fn run_channel_agent(
                         &fb_provider,
                         &fb_model,
                         &mut messages,
-                        &tools,
+                        &mut tools,
                         &session_id,
                         &fb_run_id,
                         max_rounds,

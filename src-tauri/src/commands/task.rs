@@ -390,7 +390,7 @@ pub async fn execute_task(
         let store_path_clone = store_path.clone();
         let run_id_clone = run_id.clone();
         let app_handle_clone = app_handle.clone();
-        let all_tools_clone = all_tools.clone();
+        let mut all_tools_clone = all_tools.clone();
         let model_clone = model.clone();
         let sem_clone = sem.clone();
         let task_daily_tokens_clone = task_daily_tokens.clone();
@@ -411,7 +411,7 @@ pub async fn execute_task(
                 &provider,
                 &model_clone,
                 &mut messages,
-                &all_tools_clone,
+                &mut all_tools_clone,
                 &session_id,
                 &run_id_clone,
                 effective_max_rounds,

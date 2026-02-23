@@ -24,7 +24,7 @@ pub async fn run_agent_turn(
     provider: &AnyProvider,
     model: &str,
     messages: &mut Vec<Message>,
-    tools: &[ToolDefinition],
+    tools: &mut Vec<ToolDefinition>,
     session_id: &str,
     run_id: &str,
     max_rounds: u32,
@@ -343,6 +343,8 @@ pub async fn run_agent_turn(
                 "agent_send_message", "agent_read_messages",
                 // ── Squads (safe: team management) ──
                 "create_squad", "list_squads", "manage_squad", "squad_broadcast",
+                // ── Tool RAG (safe: only searches tool index, loads tools) ──
+                "request_tools",
             ];
 
             // Trading write tools check the policy-based approval function
@@ -457,7 +459,44 @@ pub async fn run_agent_turn(
             });
         }
 
-        // ── 6. Mid-loop context truncation ─────────────────────────────
+        // ── 6. Tool RAG: refresh tools if request_tools was called ─────
+        // When the agent calls request_tools, new tool names are added to
+        // state.loaded_tools. We need to inject those new ToolDefinitions
+        // into the active tool list so the agent can use them in the next round.
+        if let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() {
+            let loaded = state.loaded_tools.lock().clone();
+            let current_names: std::collections::HashSet<String> = tools.iter()
+                .map(|t| t.function.name.clone())
+                .collect();
+            let new_names: Vec<String> = loaded.difference(&current_names)
+                .cloned()
+                .collect();
+            if !new_names.is_empty() {
+                // Build the full tool registry to find the definitions
+                let mut all_defs = ToolDefinition::builtins();
+                let enabled_ids: Vec<String> = crate::engine::skills::builtin_skills()
+                    .iter()
+                    .filter(|s| state.store.is_skill_enabled(&s.id).unwrap_or(false))
+                    .map(|s| s.id.clone())
+                    .collect();
+                all_defs.extend(ToolDefinition::skill_tools(&enabled_ids));
+
+                let mut added = 0;
+                for def in all_defs {
+                    if new_names.contains(&def.function.name) {
+                        info!("[tool-rag] Hot-loading tool '{}' into active round", def.function.name);
+                        tools.push(def);
+                        added += 1;
+                    }
+                }
+                if added > 0 {
+                    info!("[tool-rag] Injected {} new tools into active tool list (now {} total)",
+                        added, tools.len());
+                }
+            }
+        }
+
+        // ── 7. Mid-loop context truncation ─────────────────────────────
         // The messages Vec grows each round (assistant + tool results).
         // Without trimming, later rounds can send 50k+ tokens to the API.
         // Uses the same context_window_tokens from Settings → Engine as
@@ -540,7 +579,7 @@ pub async fn run_agent_turn(
             }
         }
 
-        // ── 7. Loop: send tool results back to model ──────────────────
+        // ── 8. Loop: send tool results back to model ──────────────────
         info!("[engine] {} tool calls executed, feeding results back to model", tc_count);
 
         // NOTE: Do NOT emit Complete here — only emit Complete when the model

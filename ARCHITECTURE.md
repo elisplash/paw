@@ -84,7 +84,7 @@ src-tauri/                    # Rust backend
 │   └── engine/               # Core engine modules
 │       ├── mod.rs            # Module exports
 │       ├── commands.rs       # 134 Tauri IPC commands
-│       ├── tools/            # Tool executor — 21 focused modules
+│       ├── tools/            # Tool executor — 22 focused modules
 │       │   ├── mod.rs        # Definitions, routing, HIL approval
 │       │   ├── agents.rs     # Agent management tools
 │       │   ├── agent_comms.rs # Inter-agent messaging tools
@@ -104,6 +104,7 @@ src-tauri/                    # Rust backend
 │       │   ├── solana.rs     # Solana tools
 │       │   ├── soul.rs       # Soul/personality tools
 │       │   ├── squads.rs     # Agent squad management tools
+│       │   ├── request_tools.rs # Tool RAG: semantic tool discovery meta-tool
 │       │   ├── tasks.rs      # Task management
 │       │   ├── telegram.rs   # Telegram tools
 │       │   └── web.rs        # Browser automation tools
@@ -179,6 +180,7 @@ src-tauri/                    # Rust backend
 │       │   ├── mod.rs        # Store/search/merge/decay/MMR/facts
 │       │   ├── ollama.rs     # Ollama readiness, startup, model pull
 │       │   └── embedding.rs  # EmbeddingClient (vector operations)
+│       ├── tool_index.rs     # Tool RAG: semantic tool discovery index
 │       ├── orchestrator/     # Boss/worker multi-agent orchestration — 5 modules
 │       │   ├── mod.rs        # AgentRole enum, orchestration entry points
 │       │   ├── tools.rs      # Orchestrator tool definitions
@@ -275,7 +277,7 @@ Tool flow:
 5. `engine_approve_tool` resolves the pending approval
 6. Execute or deny the tool
 
-Tool modules: `agents`, `agent_comms`, `coinbase`, `dex`, `email`, `exec`, `fetch`, `filesystem`, `github`, `integrations`, `memory`, `skill_output`, `skill_storage`, `skills_tools`, `slack`, `solana`, `soul`, `squads`, `tasks`, `telegram`, `web`.
+Tool modules: `agents`, `agent_comms`, `coinbase`, `dex`, `email`, `exec`, `fetch`, `filesystem`, `github`, `integrations`, `memory`, `request_tools`, `skill_output`, `skill_storage`, `skills_tools`, `slack`, `solana`, `soul`, `squads`, `tasks`, `telegram`, `web`.
 
 Tool categories: `exec`, `web_search`, `web_fetch`, `file_read`, `file_write`, `memory`, `agent`, `agent_comms`, `squads`, `trading`.
 
@@ -307,6 +309,81 @@ Hybrid retrieval system:
 5. **Temporal decay** — Exponential decay with 30-day half-life
 
 Auto-recall injects relevant memories into agent context. Auto-capture extracts key facts from conversations.
+
+### Tool RAG — Intent-Stated Retrieval (`tool_index.rs`)
+
+Pawz uses **Tool RAG** (Retrieval-Augmented Generation for tools) to solve the "tool bloat" problem. Instead of dumping all 75+ tool definitions into every LLM request (~7,500 tokens), the agent discovers tools on demand via semantic search — like a library patron asking a librarian for the right book.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  PATRON  (Cloud LLM — Gemini / Claude / GPT)                   │
+│                                                                  │
+│  System prompt:                                                  │
+│  "You have 17 skill domains. To use one, call request_tools."   │
+│                                                                  │
+│  Always loaded: memory_store, memory_search, soul_read,         │
+│    soul_write, soul_list, self_info, read_file, write_file,     │
+│    list_directory, request_tools                                 │
+│                                                                  │
+│  Token cost: ~800 (vs ~7,500 with all tools)                    │
+└──────────────────────┬──────────────────────────────────────────┘
+                       │  request_tools("send email to john")
+                       ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  LIBRARIAN  (Ollama local — nomic-embed-text, free, ~50ms)      │
+│                                                                  │
+│  1. Embed the query → 768-dim vector                            │
+│  2. Cosine similarity against tool index                         │
+│  3. Domain expansion (email_send → also email_read)             │
+│  4. Return matching tool schemas                                 │
+│                                                                  │
+│  Fallbacks: exact name match, domain request                     │
+└──────────────────────┬──────────────────────────────────────────┘
+                       │  tools injected into next agent round
+                       ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  LIBRARY  (ToolIndex — in-memory, ~230KB)                       │
+│                                                                  │
+│  75+ tool definitions stored as embedding vectors                │
+│  Grouped into 17 skill domains:                                  │
+│    system, filesystem, web, identity, memory, agents,           │
+│    communication, squads, tasks, skills, dashboard, storage,    │
+│    email, messaging, github, integrations, trading              │
+│                                                                  │
+│  Built once on first request_tools call, persists in memory     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**How it works — round by round:**
+
+```
+Round 1: User says "Email john about the quarterly report"
+  Agent has: 10 core tools (including request_tools)
+  Agent calls: request_tools({"query": "email sending capabilities"})
+  Librarian: embeds query → cosine search → returns email_send, email_read
+
+Round 2: Tools hot-loaded into active round
+  Agent now has: 10 core + email_send + email_read
+  Agent calls: email_send({to: "john@...", subject: "Q4 Report"})
+
+Round 3: Done ✅  (used 12 tools total, not 75)
+```
+
+**Architecture decisions:**
+- **Agent-driven discovery**: The LLM forms the search query (it has intent), not a pre-filter guessing from the raw user message
+- **Domain expansion**: Matching `email_send` also returns `email_read` — siblings come together
+- **Round carryover**: Tools loaded in round N stay available in round N+1 (cleared per chat turn)
+- **Swarm bypass**: Swarm/orchestrated agents get all tools (they're autonomous, no time for discovery)
+- **Zero-cost search**: Uses the existing Ollama embedding pipeline — no API calls, no cloud costs
+
+**Token savings:** ~5,000–8,500 tokens per request, freeing ~25% of a 32K context window for actual conversation.
+
+**Files:**
+- `engine/tool_index.rs` — `ToolIndex` struct, embedding, cosine similarity, domain mapping
+- `engine/tools/request_tools.rs` — `request_tools` meta-tool (the librarian call)
+- `engine/chat.rs` — `build_chat_tools()` filters to core + loaded tools
+- `engine/agent_loop/mod.rs` — hot-loads newly discovered tools between rounds
+- `engine/state.rs` — `tool_index` + `loaded_tools` on `EngineState`
 
 ### Extensibility Tiers
 

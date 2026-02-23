@@ -123,6 +123,23 @@ export const ALL_TOOLS = [
   'dex_top_traders',
   'dex_trending',
   'dex_transfer',
+  // Tool RAG
+  'request_tools',
+  // Inter-agent comms
+  'agent_send_message',
+  'agent_read_messages',
+  // Squads
+  'create_squad',
+  'list_squads',
+  'manage_squad',
+  'squad_broadcast',
+  // Dashboard & storage
+  'skill_output',
+  'delete_skill_output',
+  'skill_store_set',
+  'skill_store_get',
+  'skill_store_list',
+  'skill_store_delete',
 ] as const;
 
 /** Read-only tools that are generally safe. */
@@ -152,6 +169,11 @@ export const SAFE_TOOLS: readonly string[] = [
   'telegram_read',
   'slack_read',
   'email_read',
+  'request_tools',
+  'list_tasks',
+  'agent_read_messages',
+  'list_squads',
+  'skill_search',
 ];
 
 /** High-risk tools that modify the system or send data externally. */

@@ -290,8 +290,25 @@ async fn run_swarm_turn(
         .store
         .load_conversation(&session_id, full_system_prompt.as_deref(), Some(context_window))?;
 
-    // Build tools — full tool set so agents can broadcast, read messages, etc.
-    let tools = chat_org::build_chat_tools(&state.store, true, None, app_handle);
+    // Build tools — swarm agents get the full tool set (no Tool RAG gating)
+    // because they're operating autonomously toward a specific goal.
+    let loaded_tools = {
+        let mut all_names = std::collections::HashSet::new();
+        // Pre-load ALL tool names so swarm agents skip the librarian step
+        for t in crate::atoms::types::ToolDefinition::builtins() {
+            all_names.insert(t.function.name);
+        }
+        let enabled_ids: Vec<String> = crate::engine::skills::builtin_skills()
+            .iter()
+            .filter(|s| state.store.is_skill_enabled(&s.id).unwrap_or(false))
+            .map(|s| s.id.clone())
+            .collect();
+        for t in crate::atoms::types::ToolDefinition::skill_tools(&enabled_ids) {
+            all_names.insert(t.function.name);
+        }
+        all_names
+    };
+    let mut tools = chat_org::build_chat_tools(&state.store, true, None, app_handle, &loaded_tools);
 
     let provider = AnyProvider::from_config(&provider_config);
     let run_id = uuid::Uuid::new_v4().to_string();
@@ -320,7 +337,7 @@ async fn run_swarm_turn(
         &provider,
         &model,
         &mut messages,
-        &tools,
+        &mut tools,
         &session_id,
         &run_id,
         max_rounds,

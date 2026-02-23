@@ -5,6 +5,7 @@
 use crate::engine::types::*;
 use crate::engine::sessions::SessionStore;
 use crate::engine::memory::EmbeddingClient;
+use crate::engine::tool_index::ToolIndex;
 
 use crate::engine::mcp::McpRegistry;
 
@@ -191,6 +192,11 @@ pub struct EngineState {
     pub active_runs: Arc<Mutex<HashMap<String, tokio::task::AbortHandle>>>,
     /// MCP server registry — manages connected MCP servers and their tools.
     pub mcp_registry: Arc<tokio::sync::Mutex<McpRegistry>>,
+    /// Tool RAG index — semantic search over tool definitions ("the librarian").
+    pub tool_index: Arc<tokio::sync::Mutex<ToolIndex>>,
+    /// Tools loaded via request_tools in the current chat turn.
+    /// Cleared at the start of each new chat message.
+    pub loaded_tools: Arc<Mutex<std::collections::HashSet<String>>>,
 }
 
 impl EngineState {
@@ -252,6 +258,8 @@ impl EngineState {
             daily_tokens: Arc::new(DailyTokenTracker::new()),
             active_runs: Arc::new(Mutex::new(HashMap::new())),
             mcp_registry: Arc::new(tokio::sync::Mutex::new(McpRegistry::new())),
+            tool_index: Arc::new(tokio::sync::Mutex::new(ToolIndex::new())),
+            loaded_tools: Arc::new(Mutex::new(HashSet::new())),
         })
     }
 

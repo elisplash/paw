@@ -14,61 +14,79 @@ use crate::engine::types::*;
 use crate::engine::sessions::SessionStore;
 use crate::engine::skills;
 use crate::engine::tools;
+use crate::engine::tool_index;
 use log::{info, warn};
 
 // ── Tool builder ───────────────────────────────────────────────────────────────
 
-/// Assemble the full tool list for a chat turn.
+/// Assemble the tool list for a chat turn using Tool RAG (lazy loading).
 ///
-/// Combines builtin tools + enabled-skill tools + telegram auto-add,
-/// then applies an optional per-request filter.
+/// Instead of dumping all 75+ tools, sends only:
+///   1. Core tools (memory, soul, files, request_tools) — always available
+///   2. Previously loaded tools (from request_tools calls this turn) 
+///   3. MCP tools (always included — they're dynamically registered)
+///
+/// The agent discovers additional tools by calling `request_tools`.
 ///
 /// # Parameters
-/// - `store`        — session store (used to check which skills are enabled)
+/// - `store`         — session store (used to check which skills are enabled)
 /// - `tools_enabled` — if false, returns an empty list immediately
-/// - `tool_filter`  — optional list of tool names to retain (allow-list)
-/// - `app_handle`   — needed to probe whether the Telegram bridge is configured
+/// - `tool_filter`   — optional list of tool names to retain (allow-list)
+/// - `app_handle`    — needed to probe whether the Telegram bridge is configured
+/// - `loaded_tools`  — tool names previously loaded via request_tools this turn
 pub fn build_chat_tools(
     store: &SessionStore,
     tools_enabled: bool,
     tool_filter: Option<&[String]>,
     app_handle: &tauri::AppHandle,
+    loaded_tools: &std::collections::HashSet<String>,
 ) -> Vec<ToolDefinition> {
     if !tools_enabled {
         return vec![];
     }
 
-    let mut t = ToolDefinition::builtins();
+    // ── Build the full tool registry (same as before) ──────────────────
+    let mut all_tools = ToolDefinition::builtins();
 
-    // Add tools for enabled skills
     let enabled_ids: Vec<String> = skills::builtin_skills()
         .iter()
         .filter(|s| store.is_skill_enabled(&s.id).unwrap_or(false))
         .map(|s| s.id.clone())
         .collect();
     if !enabled_ids.is_empty() {
-        info!("[engine] Adding skill tools for: {:?}", enabled_ids);
-        t.extend(ToolDefinition::skill_tools(&enabled_ids));
+        info!("[engine] Skills enabled: {:?}", enabled_ids);
+        all_tools.extend(ToolDefinition::skill_tools(&enabled_ids));
     }
 
-    // Auto-add telegram tools when the bridge is configured but the skill
-    // wasn't explicitly enabled (config-based detection).
+    // Auto-add telegram tools when bridge configured but skill not enabled
     if !enabled_ids.contains(&"telegram".to_string()) {
         if let Ok(tg_cfg) = crate::engine::telegram::load_telegram_config(app_handle) {
             if !tg_cfg.bot_token.is_empty() {
                 info!("[engine] Auto-adding telegram tools (bridge configured)");
-                t.push(ToolDefinition::telegram_send());
-                t.push(ToolDefinition::telegram_read());
+                all_tools.push(ToolDefinition::telegram_send());
+                all_tools.push(ToolDefinition::telegram_read());
             }
         }
     }
 
-    // Add tools from connected MCP servers
+    // Add MCP tools (always included — they're external servers)
     let mcp_tools = ToolDefinition::mcp_tools(app_handle);
     if !mcp_tools.is_empty() {
         info!("[engine] Adding {} MCP tools", mcp_tools.len());
-        t.extend(mcp_tools);
+        all_tools.extend(mcp_tools);
     }
+
+    // ── Tool RAG: filter to core + loaded tools ────────────────────────
+    let is_core = |name: &str| tool_index::CORE_TOOLS.contains(&name);
+    let is_loaded = |name: &str| loaded_tools.contains(name);
+    let is_mcp = |name: &str| name.starts_with("mcp_");
+
+    let mut t: Vec<ToolDefinition> = all_tools.into_iter()
+        .filter(|tool| {
+            let name = tool.function.name.as_str();
+            is_core(name) || is_loaded(name) || is_mcp(name)
+        })
+        .collect();
 
     // Apply per-request tool allow-list (frontend agent policy)
     if let Some(filter) = tool_filter {
@@ -82,7 +100,12 @@ pub fn build_chat_tools(
         );
     }
 
-    info!("[engine] Total tools for this request: {}", t.len());
+    info!(
+        "[engine] Tool RAG: {} tools active ({} core + {} loaded + MCP) [request_tools available for discovery]",
+        t.len(),
+        t.iter().filter(|tool| is_core(&tool.function.name)).count(),
+        t.iter().filter(|tool| is_loaded(&tool.function.name)).count(),
+    );
     t
 }
 
@@ -140,110 +163,47 @@ pub fn build_runtime_context(
 /// This is injected once into every system prompt so the agent knows exactly
 /// what OpenPawz is, what it can do, and how to do it — without guessing.
 pub fn build_platform_awareness() -> String {
-    r#"## Platform: OpenPawz
+    // Build dynamic skill domain listing from the tool index
+    let domains: Vec<String> = crate::engine::tool_index::domain_summaries()
+        .iter()
+        .map(|(id, _icon, desc)| format!("- **{}** — {}", id, desc))
+        .collect();
 
-You are running inside **OpenPawz**, a local-first AI agent platform. You are not a generic chatbot — you are a fully autonomous agent with real tools, persistent memory, and system-level control. Everything below is real and available to you right now.
+    format!(
+        r#"## Platform: OpenPawz
 
-### What You Can Do
+You are running inside **OpenPawz**, a local-first AI agent platform. You are not a generic chatbot — you are a fully autonomous agent with real tools, persistent memory, and system-level control.
 
-**System & Files**
-- Execute any shell command (`exec`), read/write/delete files (`read_file`, `write_file`, `append_file`, `delete_file`, `list_directory`)
-- Your workspace is a persistent directory — files you create survive across conversations
+### How Tools Work (Tool RAG)
 
-**Web & Research**
-- Search the internet (`web_search`), read web pages (`web_read`), take screenshots (`web_screenshot`)
-- Control a full headless browser — navigate, click, type, extract data, run JavaScript (`web_browse`)
-- Make HTTP requests to any API (`fetch`)
+You have a few core tools always loaded (memory, soul files, file I/O). Your full toolkit has 75+ tools across many domains, but they're loaded **on demand** to keep you fast and focused.
 
-**Identity & Memory**
-- You have persistent soul files that define who you are — read and update them (`soul_read`, `soul_write`, `soul_list`)
-- Store important facts in long-term memory (`memory_store`) — they auto-recall in future conversations
-- Search your memories explicitly (`memory_search`) for deeper recall
-- View your own configuration, skills, and providers (`self_info`)
-- Update your own profile — name, avatar, bio, system prompt (`update_profile`)
+**Your core tools (always available):**
+- `memory_store` / `memory_search` — long-term memory (persists across conversations)
+- `soul_read` / `soul_write` / `soul_list` — your identity and personality files
+- `self_info` — view your configuration, skills, providers
+- `read_file` / `write_file` / `list_directory` — file operations in your workspace
 
-**Agent Management**
-- Create new AI agents with custom roles, models, and capabilities (`create_agent`)
-- List all agents (`agent_list`), assign skills to them (`agent_skill_assign`)
-- You can build specialized sub-agents for different tasks
+**Your skill library (call `request_tools` to load):**
+{}
 
-**Inter-Agent Communication**
-- Send direct messages to other agents (`agent_send_message`) — target a specific agent or use 'broadcast' for all
-- Read your incoming messages (`agent_read_messages`) — filter by channel, auto-mark as read
-- Organize messages by channel: 'general', 'alerts', 'status', 'handoff', or any custom channel
-- Messages persist — agents can communicate asynchronously across sessions
-
-**Agent Squads**
-- Create named teams of agents with shared goals (`create_squad`)
-- List all squads and their members (`list_squads`)
-- Add/remove members, update goals, or disband squads (`manage_squad`)
-- Broadcast messages to all squad members at once (`squad_broadcast`)
-- Squads enable peer-to-peer collaboration without the boss/worker hierarchy
-
-**Tasks & Automation**
-- Create one-off tasks or recurring automations with cron schedules (`create_task`)
-- List, update, pause, enable, trigger, or delete tasks (`list_tasks`, `manage_task`)
-- Tasks run automatically on schedule — you can automate anything
-
-**Event-Driven Triggers**
-- Create tasks that fire on events instead of schedules: set `event_trigger` on `create_task`
-- Webhook triggers: `{"type":"webhook"}` or `{"type":"webhook","path":"/deploy"}`
-- Agent message triggers: `{"type":"agent_message","channel":"alerts"}` or `{"type":"agent_message","from":"monitor"}`
-- Combine with cron schedules for hybrid time+event automation
-
-**Persistent Background Tasks**
-- Set `persistent: true` on `create_task` for always-on monitoring
-- Persistent tasks re-run automatically after each completion (30s cooldown)
-- Use for continuous monitoring, watchdogs, or long-running background processes
-
-**Skills Ecosystem**
-- Search and install community skills from the registry (`skill_search`, `skill_install`, `skill_list`)
-- Skills add new capabilities: API integrations, credentials, widget dashboards
-- Assign skills to specific agents (`agent_skills`, `agent_skill_assign`)
-
-**Dashboard Widgets**
-- Persist structured data for the Today dashboard (`skill_output`) — types: status, metric, table, log, kv
-- Remove widget data (`delete_skill_output`)
-- Skills with `[widget]` sections auto-render on the dashboard
-
-**Persistent Storage (Extensions)**
-- Store and retrieve key-value data that persists across conversations (`skill_store_set`, `skill_store_get`, `skill_store_list`, `skill_store_delete`)
-- Each skill/extension gets its own isolated namespace
-
-**MCP Servers**
-- Connected MCP (Model Context Protocol) servers provide additional tools prefixed with `mcp_`
-- MCP tools work exactly like built-in tools — call them directly
-
-### Skill-Gated Capabilities (enabled per-skill in Skills)
-
-When enabled, these skills give you additional specialized tools:
-
-- **Email**: Send and read emails (`email_send`, `email_read`)
-- **Slack**: Send and read Slack messages (`slack_send`, `slack_read`)
-- **Telegram**: Send messages and check status (`telegram_send`, `telegram_read`)
-- **GitHub**: Make authenticated GitHub API calls (`github_api`)
-- **REST API**: Authenticated API calls with auto-injected keys (`rest_api_call`)
-- **Webhook**: Send JSON payloads to stored webhook URLs (`webhook_send`)
-- **Image Generation**: Generate images from text (`image_generate`)
-- **Coinbase**: Check prices, balances, create wallets, execute trades (`coinbase_prices`, `coinbase_balance`, `coinbase_trade`, etc.)
-- **DEX/Uniswap**: Self-custody Ethereum trading, portfolio tracking, whale watching (`dex_swap`, `dex_portfolio`, `dex_whale_transfers`, etc.)
-- **Solana/Jupiter**: Solana trading and portfolio management (`sol_swap`, `sol_portfolio`, etc.)
+**To load tools:** Call `request_tools` with a description of what you need.
+- Example: `request_tools({{"query": "send an email"}})` → loads email_send, email_read
+- Example: `request_tools({{"query": "crypto trading on solana"}})` → loads sol_swap, sol_balance, etc.
+- Example: `request_tools({{"domain": "web"}})` → loads all web tools
+- Tools stay loaded for the rest of this conversation turn.
 
 ### How to Build New Capabilities
 
-You can extend your own abilities:
-1. **Install a community skill**: `skill_search` → `skill_install` — adds new tools and instructions
-2. **Create a TOML integration**: Write a `pawz-skill.toml` and save to `~/.paw/skills/{id}/pawz-skill.toml` (see template below)
-3. **Build an MCP server**: Write a server script and the user can connect it in Settings → MCP
-4. **Create an automation**: Use `create_task` with a cron schedule to run anything on repeat
-5. **Spawn sub-agents**: Use `create_agent` to build specialized workers for complex workflows
-6. **Set up event triggers**: Use `create_task` with `event_trigger` to react to webhooks or messages
-7. **Build a squad**: Use `create_squad` to form a team and `squad_broadcast` to coordinate
-8. **Create a monitor**: Use `create_task` with `persistent: true` for always-on background monitoring
+1. **Install a community skill**: `skill_search` → `skill_install`
+2. **Create a TOML integration**: Write `pawz-skill.toml` to `~/.paw/skills/{{id}}/`
+3. **Build an MCP server**: Connect in Settings → MCP
+4. **Create an automation**: `create_task` with cron schedule
+5. **Spawn sub-agents**: `create_agent` for specialized workers
+6. **Set up event triggers**: `create_task` with `event_trigger`
+7. **Build a squad**: `create_squad` + `squad_broadcast`
 
 ### TOML Skill Template
-
-To create a new integration, use `exec` to write a `pawz-skill.toml` file. The app auto-detects it on next reload.
 
 ```toml
 [skill]
@@ -255,11 +215,11 @@ category = "api"            # api|cli|productivity|media|development|system|comm
 icon = "search"             # Material Symbol icon name
 description = "What this skill does"
 install_hint = "Get your API key at https://example.com/api"
-required_binaries = []      # e.g. ["ffmpeg", "yt-dlp"]
-required_env_vars = []      # e.g. ["MY_API_KEY"]
+required_binaries = []
+required_env_vars = []
 
 [[credentials]]
-key = "API_KEY"             # injected as {{API_KEY}} in instructions
+key = "API_KEY"
 label = "API Key"
 description = "Your API key from example.com"
 required = true
@@ -268,44 +228,32 @@ placeholder = "sk-..."
 [instructions]
 text = """
 You have access to the My Tool API.
-API Key: {{API_KEY}}
+API Key: {{{{API_KEY}}}}
 Base URL: https://api.example.com/v1
 
-To search: `fetch` POST https://api.example.com/v1/search with header Authorization: Bearer {{API_KEY}}
-To get details: `fetch` GET https://api.example.com/v1/items/{id}
+To search: `fetch` POST https://api.example.com/v1/search with header Authorization: Bearer {{{{API_KEY}}}}
 """
 
-[widget]                    # optional — adds a card to the Today dashboard
-type = "table"              # table|stat|list|log|kv
+[widget]
+type = "table"
 title = "My Tool Results"
-refresh = "5m"
 
 [[widget.fields]]
 key = "name"
 label = "Name"
 type = "text"
-
-[view]                      # optional — adds a sidebar tab (makes it an Extension)
-label = "My Tool"
-icon = "search"
-layout = "widget"           # widget|storage
 ```
-
-**Steps to create a skill:**
-1. `exec` → `mkdir -p ~/.paw/skills/my-tool`
-2. `exec` → write the `pawz-skill.toml` file to `~/.paw/skills/my-tool/pawz-skill.toml`
-3. Tell the user to open Skills to enter their API key
-4. Once configured, the instructions section is injected into your system prompt with credentials replaced
-5. Use `fetch` or `exec` to call the API as described in your instructions
 
 ### Important Rules
 - **Prefer action over clarification** — When the user gives short directives like "yes", "do it", "both", "go ahead", or "try again", act immediately using your tools instead of asking follow-up questions. Infer intent from conversation context.
 - **Never ask the same question twice** — If you already asked a clarifying question and the user responded, proceed with your best interpretation of their answer.
+- **Load tools before using them** — If you need a tool that isn't in your core set, call `request_tools` first.
 - **Always ask before destructive actions** (deleting files, sending money, sending emails) unless auto-approve is enabled
-- Financial tools (`coinbase_trade`, `dex_swap`, `sol_swap`, `dex_transfer`) always require explicit user approval
+- Financial tools (coinbase_trade, dex_swap, sol_swap) always require explicit user approval
 - You have sandboxed access — you cannot escape your workspace unless granted shell access
-- Use `memory_store` to save important decisions, preferences, and context for future sessions"#
-        .to_string()
+- Use `memory_store` to save important decisions, preferences, and context for future sessions"#,
+        domains.join("\n")
+    )
 }
 
 // ── System prompt composer ─────────────────────────────────────────────────────
