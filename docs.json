@@ -23,12 +23,6 @@
     "default": "dark"
   },
   "navbar": {
-    "links": [
-      {
-        "type": "github",
-        "href": "https://github.com/elisplash/paw"
-      }
-    ],
     "primary": {
       "type": "button",
       "label": "Download",
@@ -39,9 +33,6 @@
     "content": "**OpenPawz** is open source — [Star us on GitHub](https://github.com/elisplash/paw) and join the community!",
     "dismissible": true
   },
-  "interaction": {
-    "drilldown": true
-  },
   "navigation": {
     "tabs": [
       {
@@ -50,12 +41,7 @@
           {
             "group": "Home",
             "pages": [
-              "start/getting-started"
-            ]
-          },
-          {
-            "group": "",
-            "pages": [
+              "start/getting-started",
               "start/overview",
               "start/showcase"
             ]
