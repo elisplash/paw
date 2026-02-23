@@ -159,6 +159,58 @@ pub fn definitions() -> Vec<ToolDefinition> {
                 }),
             },
         },
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "google_drive_upload".into(),
+                description: "Upload content to Google Drive as a Google Doc, Sheet, or plain file. Can create new files or update existing ones with text content.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string", "description": "File name/title" },
+                        "content": { "type": "string", "description": "The text content to upload (Markdown, plain text, CSV, etc.)" },
+                        "mime_type": { "type": "string", "description": "Target Google type: 'document' (Google Doc), 'spreadsheet' (Google Sheet), or a MIME type like 'text/plain'. Default: 'document'" },
+                        "folder_id": { "type": "string", "description": "Optional Drive folder ID to place the file in" },
+                        "file_id": { "type": "string", "description": "If provided, updates this existing file's content instead of creating a new one" }
+                    },
+                    "required": ["title", "content"]
+                }),
+            },
+        },
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "google_drive_share".into(),
+                description: "Share a Google Drive file with another user or make it public. Sets permissions on an existing file.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "file_id": { "type": "string", "description": "The Drive file ID to share" },
+                        "email": { "type": "string", "description": "Email address to share with (omit for public link)" },
+                        "role": { "type": "string", "enum": ["reader", "writer", "commenter"], "description": "Permission role (default: 'reader')" },
+                        "public": { "type": "boolean", "description": "If true, creates a public 'anyone with link' permission instead of sharing with a specific email" }
+                    },
+                    "required": ["file_id"]
+                }),
+            },
+        },
+
+        // ── Docs ─────────────────────────────────────────────────
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "google_docs_create".into(),
+                description: "Create a Google Doc with a title and optional text content. Returns the document ID and URL.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "title": { "type": "string", "description": "Document title" },
+                        "content": { "type": "string", "description": "Initial text content to insert into the doc (plain text or markdown-like). Leave empty for a blank doc." }
+                    },
+                    "required": ["title"]
+                }),
+            },
+        },
 
         // ── Sheets ───────────────────────────────────────────────
         ToolDefinition {
@@ -233,6 +285,9 @@ pub async fn execute(
         "google_calendar_create"  => exec_calendar_create(args, &creds).await.map_err(|e| e.to_string()),
         "google_drive_list"       => exec_drive_list(args, &creds).await.map_err(|e| e.to_string()),
         "google_drive_read"       => exec_drive_read(args, &creds).await.map_err(|e| e.to_string()),
+        "google_drive_upload"     => exec_drive_upload(args, &creds).await.map_err(|e| e.to_string()),
+        "google_drive_share"      => exec_drive_share(args, &creds).await.map_err(|e| e.to_string()),
+        "google_docs_create"      => exec_docs_create(args, &creds).await.map_err(|e| e.to_string()),
         "google_sheets_read"      => exec_sheets_read(args, &creds).await.map_err(|e| e.to_string()),
         "google_sheets_append"    => exec_sheets_append(args, &creds).await.map_err(|e| e.to_string()),
         "google_api"              => exec_google_api(args, &creds).await.map_err(|e| e.to_string()),
@@ -925,6 +980,218 @@ async fn exec_drive_read(args: &serde_json::Value, creds: &HashMap<String, Strin
     Ok(format!("# {} ({})\n\n{}", name, mime, truncated))
 }
 
+// ── Drive upload implementation ────────────────────────────────────────────
+
+async fn exec_drive_upload(args: &serde_json::Value, creds: &HashMap<String, String>) -> EngineResult<String> {
+    let token = get_access_token(creds).await?;
+    let title = args["title"].as_str().ok_or("Missing 'title'")?;
+    let content = args["content"].as_str().ok_or("Missing 'content'")?;
+    let mime_type_hint = args["mime_type"].as_str().unwrap_or("document");
+    let folder_id = args["folder_id"].as_str();
+    let file_id = args["file_id"].as_str();
+
+    // Map friendly names to Google MIME types for conversion
+    let google_mime = match mime_type_hint {
+        "document" | "doc" | "docs" => "application/vnd.google-apps.document",
+        "spreadsheet" | "sheet" | "sheets" => "application/vnd.google-apps.spreadsheet",
+        "presentation" | "slides" => "application/vnd.google-apps.presentation",
+        other if other.contains('/') => other, // Already a MIME type
+        _ => "application/vnd.google-apps.document",
+    };
+
+    let client = reqwest::Client::new();
+
+    if let Some(fid) = file_id {
+        // ── Update existing file content ──────────────────────────
+        let url = format!(
+            "https://www.googleapis.com/upload/drive/v3/files/{}?uploadType=media",
+            fid
+        );
+        let resp = client.patch(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .header("Content-Type", "text/plain; charset=UTF-8")
+            .body(content.to_string())
+            .timeout(Duration::from_secs(60))
+            .send()
+            .await
+            .map_err(|e| format!("Drive upload failed: {}", e))?;
+
+        let status = resp.status();
+        let body: serde_json::Value = resp.json().await.unwrap_or(serde_json::json!({}));
+        if !status.is_success() {
+            let msg = body["error"]["message"].as_str().unwrap_or("Unknown error");
+            return Err(format!("Drive update error ({}): {}", status, msg).into());
+        }
+
+        let id = body["id"].as_str().unwrap_or(fid);
+        Ok(format!(
+            "✅ Updated file '{}' (id: {})\nURL: https://docs.google.com/document/d/{}/edit",
+            title, id, id
+        ))
+    } else {
+        // ── Create new file with content via multipart upload ─────
+        // Step 1: Build multipart body (metadata + content)
+        let boundary = "paw_upload_boundary_2026";
+
+        let mut parents = serde_json::json!({});
+        parents["name"] = serde_json::json!(title);
+        parents["mimeType"] = serde_json::json!(google_mime);
+        if let Some(fid) = folder_id {
+            parents["parents"] = serde_json::json!([fid]);
+        }
+        let metadata_json = serde_json::to_string(&parents).unwrap_or_default();
+
+        let body = format!(
+            "--{boundary}\r\n\
+            Content-Type: application/json; charset=UTF-8\r\n\r\n\
+            {metadata_json}\r\n\
+            --{boundary}\r\n\
+            Content-Type: text/plain; charset=UTF-8\r\n\r\n\
+            {content}\r\n\
+            --{boundary}--",
+            boundary = boundary,
+            metadata_json = metadata_json,
+            content = content,
+        );
+
+        let url = "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,webViewLink";
+
+        let resp = client.post(url)
+            .header("Authorization", format!("Bearer {}", token))
+            .header("Content-Type", format!("multipart/related; boundary={}", boundary))
+            .body(body)
+            .timeout(Duration::from_secs(60))
+            .send()
+            .await
+            .map_err(|e| format!("Drive upload failed: {}", e))?;
+
+        let status = resp.status();
+        let resp_body: serde_json::Value = resp.json().await.unwrap_or(serde_json::json!({}));
+        if !status.is_success() {
+            let msg = resp_body["error"]["message"].as_str().unwrap_or("Unknown error");
+            return Err(format!("Drive upload error ({}): {}", status, msg).into());
+        }
+
+        let id = resp_body["id"].as_str().unwrap_or("unknown");
+        let web_link = resp_body["webViewLink"].as_str().unwrap_or("");
+        let actual_mime = resp_body["mimeType"].as_str().unwrap_or(google_mime);
+
+        let link = if web_link.is_empty() {
+            if actual_mime.contains("document") {
+                format!("https://docs.google.com/document/d/{}/edit", id)
+            } else if actual_mime.contains("spreadsheet") {
+                format!("https://docs.google.com/spreadsheets/d/{}/edit", id)
+            } else {
+                format!("https://drive.google.com/file/d/{}/view", id)
+            }
+        } else {
+            web_link.to_string()
+        };
+
+        Ok(format!(
+            "✅ Created '{}' (id: {}, type: {})\nURL: {}",
+            title, id, actual_mime, link
+        ))
+    }
+}
+
+// ── Drive share implementation ─────────────────────────────────────────────
+
+async fn exec_drive_share(args: &serde_json::Value, creds: &HashMap<String, String>) -> EngineResult<String> {
+    let token = get_access_token(creds).await?;
+    let file_id = args["file_id"].as_str().ok_or("Missing 'file_id'")?;
+    let email = args["email"].as_str();
+    let role = args["role"].as_str().unwrap_or("reader");
+    let public = args["public"].as_bool().unwrap_or(false);
+
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files/{}/permissions?sendNotificationEmail=false",
+        file_id
+    );
+
+    let permission = if public {
+        serde_json::json!({
+            "type": "anyone",
+            "role": role
+        })
+    } else if let Some(addr) = email {
+        serde_json::json!({
+            "type": "user",
+            "role": role,
+            "emailAddress": addr
+        })
+    } else {
+        return Err("Must provide either 'email' or set 'public: true'".into());
+    };
+
+    let (status, resp) = google_request("POST", &url, &token, Some(&permission)).await?;
+
+    let perm_id = resp["id"].as_str().unwrap_or("unknown");
+    let target = if public {
+        "anyone with the link".to_string()
+    } else {
+        email.unwrap_or("unknown").to_string()
+    };
+
+    Ok(format!(
+        "✅ Shared file {} with {} as {} (permission id: {}, status: {})\n\
+        Link: https://drive.google.com/file/d/{}/view",
+        file_id, target, role, perm_id, status, file_id
+    ))
+}
+
+// ── Docs create implementation ─────────────────────────────────────────────
+
+async fn exec_docs_create(args: &serde_json::Value, creds: &HashMap<String, String>) -> EngineResult<String> {
+    let token = get_access_token(creds).await?;
+    let title = args["title"].as_str().ok_or("Missing 'title'")?;
+    let content = args["content"].as_str().unwrap_or("");
+
+    // Step 1: Create the doc via Docs API
+    let create_body = serde_json::json!({ "title": title });
+    let (_, doc_resp) = google_request(
+        "POST",
+        "https://docs.googleapis.com/v1/documents",
+        &token,
+        Some(&create_body),
+    ).await?;
+
+    let doc_id = doc_resp["documentId"].as_str()
+        .ok_or("Failed to create Google Doc — no documentId in response")?;
+
+    // Step 2: Insert content if provided
+    if !content.is_empty() {
+        let update_body = serde_json::json!({
+            "requests": [{
+                "insertText": {
+                    "location": { "index": 1 },
+                    "text": content
+                }
+            }]
+        });
+
+        match google_request(
+            "POST",
+            &format!("https://docs.googleapis.com/v1/documents/{}:batchUpdate", doc_id),
+            &token,
+            Some(&update_body),
+        ).await {
+            Ok(_) => info!("[google] Inserted {} chars into doc {}", content.len(), doc_id),
+            Err(e) => warn!("[google] Failed to insert content into doc {}: {} — doc was created but is empty", doc_id, e),
+        }
+    }
+
+    let content_len_str = content.len().to_string();
+    Ok(format!(
+        "✅ Created Google Doc '{}'\n\
+        Document ID: {}\n\
+        URL: https://docs.google.com/document/d/{}/edit\n\
+        Content: {} characters inserted",
+        title, doc_id, doc_id,
+        if content.is_empty() { "0 (blank doc)" } else { &content_len_str }
+    ))
+}
+
 // ── Sheets implementations ─────────────────────────────────────────────────
 
 async fn exec_sheets_read(args: &serde_json::Value, creds: &HashMap<String, String>) -> EngineResult<String> {
@@ -1150,7 +1417,30 @@ async fn exec_google_api(args: &serde_json::Value, creds: &HashMap<String, Strin
     let token = get_access_token(creds).await?;
     let url = args["url"].as_str().ok_or("Missing 'url'")?;
     let method = args["method"].as_str().unwrap_or("GET");
-    let body = args.get("body").filter(|b| !b.is_null());
+
+    // Handle body: LLMs sometimes send `body` as a JSON string instead of an object.
+    // e.g. body: "{ \"name\": \"foo\" }" instead of body: { "name": "foo" }
+    // We need to parse it if it's a string so google_request gets a proper JSON object.
+    let raw_body = args.get("body").filter(|b| !b.is_null());
+    #[allow(unused_assignments)]
+    let mut parsed_body: Option<serde_json::Value> = None;
+    let body: Option<&serde_json::Value> = match raw_body {
+        Some(b) if b.is_string() => {
+            // Body is a JSON string — parse it into an object
+            let s = b.as_str().unwrap_or("{}");
+            match serde_json::from_str(s) {
+                Ok(parsed) => {
+                    parsed_body = Some(parsed);
+                    parsed_body.as_ref()
+                }
+                Err(e) => {
+                    warn!("[google] Failed to parse body string as JSON: {}. Sending as-is.", e);
+                    raw_body
+                }
+            }
+        }
+        other => other,
+    };
 
     info!("[google] API call: {} {}", method, url);
 

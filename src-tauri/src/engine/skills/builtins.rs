@@ -588,6 +588,9 @@ First run requires Spotify OAuth login."#.into(),
                 "google_calendar_create".into(),
                 "google_drive_list".into(),
                 "google_drive_read".into(),
+                "google_drive_upload".into(),
+                "google_drive_share".into(),
+                "google_docs_create".into(),
                 "google_sheets_read".into(),
                 "google_sheets_append".into(),
                 "google_api".into(),
@@ -602,9 +605,18 @@ First run requires Spotify OAuth login."#.into(),
 - google_calendar_create: Schedule events with attendees, location, description.
 - google_drive_list: Browse and search Drive files.
 - google_drive_read: Read document contents (exports Google Docs/Sheets as text).
+- google_drive_upload: Upload content to Drive as a Google Doc, Sheet, or file. Supports creating new files with content and updating existing files.
+- google_drive_share: Share a Drive file with a specific user (by email) or make it public with a link.
+- google_docs_create: Create a new Google Doc with optional initial text content. Returns the doc URL.
 - google_sheets_read: Read spreadsheet data as markdown tables.
 - google_sheets_append: Add rows to a spreadsheet.
-- google_api: Generic authenticated call to any Google REST API endpoint.
+- google_api: Generic authenticated call to any Google REST API endpoint (for anything not covered above).
+
+IMPORTANT — Use the dedicated tools instead of google_api whenever possible:
+- To create a doc with content: use google_docs_create (NOT google_api to docs.googleapis.com)
+- To upload a file to Drive: use google_drive_upload (NOT google_api with multipart)
+- To share a file: use google_drive_share (NOT google_api to /permissions)
+- google_api is for edge cases only (Admin API, Contacts, etc.)
 
 Tips:
 - Gmail message IDs come from google_gmail_list results.

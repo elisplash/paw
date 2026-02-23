@@ -333,6 +333,15 @@ pub async fn run_agent_turn(
                 "soul_write", "memory_store", "update_profile",
                 // ── Task management ──
                 "create_task", "manage_task",
+                // ── Google Workspace: read-only (list, read, search) ──
+                "google_gmail_list", "google_gmail_read",
+                "google_calendar_list",
+                "google_drive_list", "google_drive_read",
+                "google_sheets_read",
+                // ── Google Workspace: write (create docs, upload, share, send) ──
+                "google_docs_create", "google_drive_upload", "google_drive_share",
+                "google_gmail_send", "google_calendar_create",
+                "google_sheets_append", "google_api",
                 // ── Trading: read-only (balances, quotes, portfolio, info) ──
                 "sol_balance", "sol_quote", "sol_portfolio", "sol_token_info",
                 "dex_balance", "dex_quote", "dex_portfolio", "dex_token_info",
