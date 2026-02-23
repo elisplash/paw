@@ -66,6 +66,40 @@ impl SessionStore {
         Ok(result)
     }
 
+    /// Read ALL messages on a given channel (for squad message boards).
+    /// Not filtered by recipient — shows the full channel conversation.
+    pub fn get_channel_messages(
+        &self,
+        channel: &str,
+        limit: i64,
+    ) -> EngineResult<Vec<AgentMessage>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, from_agent, to_agent, channel, content, metadata, read, created_at
+             FROM agent_messages
+             WHERE channel = ?1
+             ORDER BY created_at DESC LIMIT ?2",
+        )?;
+        let msgs = stmt.query_map(params![channel, limit], |row| {
+            Ok(AgentMessage {
+                id: row.get(0)?,
+                from_agent: row.get(1)?,
+                to_agent: row.get(2)?,
+                channel: row.get(3)?,
+                content: row.get(4)?,
+                metadata: row.get(5)?,
+                read: row.get::<_, i64>(6)? != 0,
+                created_at: row.get(7)?,
+            })
+        })?
+        .filter_map(|r| r.ok())
+        .collect::<Vec<_>>();
+
+        let mut result = msgs;
+        result.reverse();
+        Ok(result)
+    }
+
     /// Mark all messages for an agent as read.
     pub fn mark_agent_messages_read(&self, agent_id: &str) -> EngineResult<u64> {
         let conn = self.conn.lock();

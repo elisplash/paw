@@ -1,7 +1,7 @@
-// commands/squad.rs — Squad CRUD Tauri commands.
+// commands/squad.rs — Squad CRUD + agent message Tauri commands.
 
 use crate::commands::state::EngineState;
-use crate::engine::types::{Squad, SquadMember};
+use crate::engine::types::{AgentMessage, Squad, SquadMember};
 use log::info;
 use tauri::State;
 
@@ -57,6 +57,26 @@ pub fn engine_squad_remove_member(
 ) -> Result<(), String> {
     info!("[engine] Removing {} from squad {}", agent_id, squad_id);
     state.store.remove_squad_member(&squad_id, &agent_id).map_err(|e| e.to_string())
+}
+
+/// Fetch agent-to-agent messages, optionally filtered by channel.
+/// Used by the squad message board UI.
+#[tauri::command]
+pub fn engine_agent_messages(
+    state: State<'_, EngineState>,
+    agent_id: String,
+    channel: Option<String>,
+    limit: Option<i64>,
+) -> Result<Vec<AgentMessage>, String> {
+    let lim = limit.unwrap_or(50);
+    // If channel is provided, return all messages on that channel (board view).
+    // Otherwise return messages TO this agent (inbox view).
+    if let Some(ref ch) = channel {
+        let clean = ch.strip_prefix('#').unwrap_or(ch);
+        state.store.get_channel_messages(clean, lim).map_err(|e| e.to_string())
+    } else {
+        state.store.get_agent_messages(&agent_id, None, lim).map_err(|e| e.to_string())
+    }
 }
 
 #[cfg(test)]

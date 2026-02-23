@@ -322,6 +322,7 @@ pub fn run() {
             commands::squad::engine_squad_delete,
             commands::squad::engine_squad_add_member,
             commands::squad::engine_squad_remove_member,
+            commands::squad::engine_agent_messages,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -2,7 +2,7 @@
 
 import { pawEngine } from '../../engine';
 import { showToast } from '../../components/toast';
-import type { EngineSquad } from '../../engine/atoms/types';
+import type { EngineSquad, EngineAgentMessage } from '../../engine/atoms/types';
 import {
   renderSquadCard,
   renderSquadDetail,
@@ -140,13 +140,16 @@ async function loadSquadMessages(squad: EngineSquad): Promise<void> {
   const feed = $('squad-message-feed');
   if (!feed) return;
   try {
-    // Fetch messages for every member on any channel, then deduplicate by id
-    const results = await Promise.all(
+    // Fetch messages by channel (squad name) — this shows the full conversation,
+    // not just messages TO each member. Also fetch per-member inbox as fallback.
+    const channelMsgs = await pawEngine
+      .agentMessages('_', squad.name, 50)
+      .catch(() => [] as EngineAgentMessage[]);
+    const memberResults = await Promise.all(
       squad.members.map((m) => pawEngine.agentMessages(m.agent_id, undefined, 50).catch(() => [])),
     );
     const seen = new Set<string>();
-    const allMsgs = results
-      .flat()
+    const allMsgs = [...channelMsgs, ...memberResults.flat()]
       .filter((m) => m.channel !== 'handoff')
       .filter((m) => {
         if (seen.has(m.id)) return false;

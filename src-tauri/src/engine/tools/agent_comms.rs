@@ -32,11 +32,12 @@ pub fn definitions() -> Vec<ToolDefinition> {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "agent_read_messages".into(),
-                description: "Read your incoming messages from other agents. Returns unread messages first. Optionally filter by channel.".into(),
+                description: "Read messages. If channel is specified, shows ALL messages on that channel (like a message board). Otherwise shows your inbox. Optionally filter by sender.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
-                        "channel": { "type": "string", "description": "Filter by channel (e.g. 'alerts'). Omit to see all channels." },
+                        "channel": { "type": "string", "description": "Channel name (e.g. 'LaunchOps', 'alerts'). Shows all messages on this channel. Do NOT prefix with #." },
+                        "from_agent": { "type": "string", "description": "Filter to show only messages from this agent ID" },
                         "limit": { "type": "integer", "description": "Max messages to return (default: 20)" },
                         "mark_read": { "type": "boolean", "description": "Mark messages as read after retrieval (default: true)" }
                     }
@@ -116,14 +117,28 @@ fn execute_read(
     app_handle: &tauri::AppHandle,
     agent_id: &str,
 ) -> Result<String, String> {
-    let channel = args["channel"].as_str();
+    // Strip leading '#' — models often write "#LaunchOps" but we store "LaunchOps"
+    let raw_channel = args["channel"].as_str().map(|c| c.strip_prefix('#').unwrap_or(c));
+    let channel: Option<&str> = raw_channel;
+    let from_agent = args["from_agent"].as_str();
     let limit = args["limit"].as_i64().unwrap_or(20);
     let mark_read = args["mark_read"].as_bool().unwrap_or(true);
 
     let state = app_handle.try_state::<EngineState>()
         .ok_or_else(|| "Engine state not available".to_string())?;
 
-    let msgs = state.store.get_agent_messages(agent_id, channel, limit).map_err(|e| e.to_string())?;
+    // If a channel is specified, show ALL messages on that channel (squad board style)
+    // Otherwise, show messages addressed to this agent (inbox style)
+    let mut msgs = if let Some(ch) = channel {
+        state.store.get_channel_messages(ch, limit).map_err(|e| e.to_string())?
+    } else {
+        state.store.get_agent_messages(agent_id, None, limit).map_err(|e| e.to_string())?
+    };
+
+    // Apply optional from_agent filter
+    if let Some(from) = from_agent {
+        msgs.retain(|m| m.from_agent == from);
+    }
 
     if mark_read {
         state.store.mark_agent_messages_read(agent_id).map_err(|e| e.to_string())?;
