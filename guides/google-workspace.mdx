@@ -1,0 +1,157 @@
+---
+title: "Google Workspace"
+description: "Give your Pawz agent full access to Gmail, Calendar, Drive, Sheets, and Docs using a Google service account."
+---
+
+# Google Workspace
+
+Pawz can read/send Gmail, manage Calendar events, browse Drive, read/write Sheets, and call any Google API — all through a service account with domain-wide delegation.
+
+## How It Works
+
+Pawz uses a **Google service account** to authenticate server-to-server with Google APIs. No browser OAuth flow is needed — the agent authenticates silently using a JSON key file you paste into the skill credentials.
+
+The service account impersonates a real Google Workspace user (e.g. `pawz@yourdomain.com`) via **domain-wide delegation**, giving it access to that user's Gmail, Calendar, Drive, etc.
+
+## Setup
+
+### 1. Create a Google Cloud Project
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Click **Select a project** → **New Project**
+3. Name it (e.g. "Pawz Agent") and click **Create**
+4. Make sure the new project is selected
+
+### 2. Enable APIs
+
+In your project, go to **APIs & Services → Library** and enable these APIs:
+
+- **Gmail API**
+- **Google Calendar API**
+- **Google Drive API**
+- **Google Sheets API**
+- **Google Docs API**
+
+Search for each one and click **Enable**.
+
+### 3. Create a Service Account
+
+1. Go to **APIs & Services → Credentials**
+2. Click **+ Create Credentials → Service Account**
+3. Name: `pawz-agent` (or whatever you like)
+4. Click **Create and Continue**
+5. Skip the optional role/access steps, click **Done**
+
+### 4. Create a JSON Key
+
+1. Click on the service account you just created
+2. Go to the **Keys** tab
+3. Click **Add Key → Create new key → JSON**
+4. A `.json` file will download — this is your service account key
+5. **Keep this file safe** — it contains a private key
+
+### 5. Set Up Domain-Wide Delegation
+
+This step allows the service account to impersonate users in your Google Workspace domain.
+
+1. On the service account details page, note the **Client ID** (a long number like `118234567890123456789`)
+2. Go to [Google Workspace Admin Console](https://admin.google.com/)
+3. Navigate to **Security → Access and Data Control → API Controls → Domain-wide Delegation**
+4. Click **Add new**
+5. Paste the **Client ID** from step 1
+6. In **OAuth Scopes**, paste this entire list (comma-separated):
+
+```
+https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/documents
+```
+
+7. Click **Authorize**
+
+### 6. Create a Workspace User (Optional)
+
+If you want Pawz to have its own email identity:
+
+1. In Google Workspace Admin, go to **Directory → Users**
+2. Click **Add new user**
+3. Create an account like `pawz@yourdomain.com`
+4. This will be the email Pawz sends from and the mailbox it reads
+
+### 7. Configure in Pawz
+
+1. Open Pawz → **Skills** → **Google Workspace**
+2. Click **Enable**, then **Configure**
+3. **Service Account JSON**: Open the downloaded `.json` key file in a text editor, copy the entire contents, and paste it into this field
+4. **Delegated User Email**: Enter the email of the user the agent should act as (e.g. `pawz@yourdomain.com`)
+5. Save
+
+## Available Tools
+
+Once configured, your agents get these tools:
+
+| Tool | Description |
+|------|-------------|
+| `google_gmail_list` | List/search emails using Gmail search operators |
+| `google_gmail_read` | Read the full content of an email by ID |
+| `google_gmail_send` | Send emails (plain text or HTML, with CC) |
+| `google_calendar_list` | List upcoming events with date range filtering |
+| `google_calendar_create` | Create events with attendees, location, description |
+| `google_drive_list` | Browse and search Drive files |
+| `google_drive_read` | Read document contents (exports Docs/Sheets as text) |
+| `google_sheets_read` | Read spreadsheet data as formatted tables |
+| `google_sheets_append` | Append rows to a spreadsheet |
+| `google_api` | Generic authenticated call to any Google REST API |
+
+## Usage Examples
+
+Ask your agent:
+
+- *"Check my inbox for unread emails"*
+- *"Send an email to alice@example.com about the project update"*
+- *"What meetings do I have this week?"*
+- *"Schedule a team standup for tomorrow at 10am with bob@company.com"*
+- *"List the files in my Drive"*
+- *"Read the Q4 Report spreadsheet"*
+- *"Add a row to the expenses spreadsheet"*
+
+## Gmail Search Operators
+
+The `google_gmail_list` tool supports Gmail search syntax:
+
+| Operator | Example | Description |
+|----------|---------|-------------|
+| `from:` | `from:alice@example.com` | Emails from a sender |
+| `to:` | `to:bob@example.com` | Emails to a recipient |
+| `subject:` | `subject:invoice` | Emails with subject containing word |
+| `is:unread` | `is:unread` | Unread emails only |
+| `is:starred` | `is:starred` | Starred emails |
+| `has:attachment` | `has:attachment` | Emails with attachments |
+| `after:` | `after:2025/01/01` | Emails after a date |
+| `before:` | `before:2025/06/01` | Emails before a date |
+| `label:` | `label:important` | Emails with a label |
+
+Combine operators: `from:alice@example.com is:unread has:attachment`
+
+## Security Notes
+
+- The service account JSON key contains a **private RSA key** — treat it like a password
+- Credentials are encrypted at rest in Pawz's skill vault (AES-256-GCM)
+- The service account can only access the delegated user's data — not other users in the domain
+- Access tokens are cached in-memory for 1 hour and never written to disk
+- You can revoke access at any time by deleting the service account key in Google Cloud Console
+
+## Troubleshooting
+
+**"Missing SERVICE_ACCOUNT_JSON credential"**
+→ Enable the Google Workspace skill and paste the JSON key in Skills → Configure
+
+**"Google token exchange failed (401)"**
+→ The service account key may be invalid or expired. Generate a new JSON key in Google Cloud Console.
+
+**"Google API error (403): Insufficient Permission"**
+→ Domain-wide delegation scopes may not be configured. Check step 5 — make sure all scopes are authorized in Google Workspace Admin.
+
+**"Google API error (400): Bad Request"**
+→ For calendar events, make sure dates are in RFC3339 format: `2026-02-24T10:00:00-05:00`
+
+**"Token response missing 'access_token'"**
+→ The Gmail/Calendar/Drive APIs may not be enabled. Check step 2 in Google Cloud Console.

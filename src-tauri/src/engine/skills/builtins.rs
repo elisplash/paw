@@ -572,20 +572,57 @@ First run requires Spotify OAuth login."#.into(),
         SkillDefinition {
             id: "google_workspace".into(),
             name: "Google Workspace".into(),
-            description: "Gmail, Calendar, Drive, Contacts, Sheets, and Docs via CLI".into(),
-            icon: "🎮".into(),
+            description: "Gmail, Calendar, Drive, Sheets, and Docs via Google service account".into(),
+            icon: "📧".into(),
             category: SkillCategory::Api,
             tier: SkillTier::Skill,
-            required_credentials: vec![],
-            tool_names: vec![],
-            required_binaries: vec!["gog".into()],
-            required_env_vars: vec![], install_hint: "brew install gog".into(),
-            agent_instructions: r#"You can interact with Google Workspace via the `gog` CLI.
-Services: gmail, calendar, drive, contacts, sheets, docs.
-Commands: gog gmail list, gog gmail read <id>, gog gmail send <to> <subject> <body>,
-gog calendar list, gog calendar add <title> <start> <end>,
-gog drive list, gog drive upload <file>, gog drive download <id>.
-First run requires Google OAuth consent."#.into(),
+            required_credentials: vec![
+                CredentialField {
+                    key: "SERVICE_ACCOUNT_JSON".into(),
+                    label: "Service Account JSON".into(),
+                    description: "Paste the entire contents of your Google service account JSON key file".into(),
+                    required: true,
+                    placeholder: r#"{"type":"service_account","project_id":"...","private_key":"...","client_email":"...@...iam.gserviceaccount.com",...}"#.into(),
+                },
+                CredentialField {
+                    key: "DELEGATE_EMAIL".into(),
+                    label: "Delegated User Email".into(),
+                    description: "The Google Workspace user email to impersonate (e.g. pawz@yourdomain.com). Required for domain-wide delegation.".into(),
+                    required: true,
+                    placeholder: "pawz@yourdomain.com".into(),
+                },
+            ],
+            tool_names: vec![
+                "google_gmail_list".into(),
+                "google_gmail_read".into(),
+                "google_gmail_send".into(),
+                "google_calendar_list".into(),
+                "google_calendar_create".into(),
+                "google_drive_list".into(),
+                "google_drive_read".into(),
+                "google_sheets_read".into(),
+                "google_sheets_append".into(),
+                "google_api".into(),
+            ],
+            required_binaries: vec![],
+            required_env_vars: vec![], install_hint: "Go to Skills → Google Workspace → Configure. Paste your service account JSON key and delegated email.".into(),
+            agent_instructions: r#"You have full Google Workspace access via service account. Available tools:
+- google_gmail_list: List/search emails. Use Gmail search operators (from:, to:, subject:, is:unread, etc).
+- google_gmail_read: Read full email by message ID (from list results).
+- google_gmail_send: Send emails. Supports plain text and HTML. Can CC recipients.
+- google_calendar_list: List upcoming events with time range filtering.
+- google_calendar_create: Schedule events with attendees, location, description.
+- google_drive_list: Browse and search Drive files.
+- google_drive_read: Read document contents (exports Google Docs/Sheets as text).
+- google_sheets_read: Read spreadsheet data as markdown tables.
+- google_sheets_append: Add rows to a spreadsheet.
+- google_api: Generic authenticated call to any Google REST API endpoint.
+
+Tips:
+- Gmail message IDs come from google_gmail_list results.
+- Drive file IDs come from google_drive_list results.
+- For Sheets, the spreadsheet_id is the long string in the Google Sheets URL.
+- Calendar times must be RFC3339 format like 2026-02-24T10:00:00-05:00."#.into(),
         },
         SkillDefinition {
             id: "google_places".into(),

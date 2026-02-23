@@ -34,6 +34,7 @@ pub mod skill_storage;
 pub mod agent_comms;
 pub mod squads;
 pub mod request_tools;
+pub mod google;
 
 // ── ToolDefinition helpers (keep backward-compatible API for all callers) ───
 
@@ -85,9 +86,10 @@ impl ToolDefinition {
                 "rest_api"   => tools.extend(integrations::definitions_for("rest_api")),
                 "webhook"    => tools.extend(integrations::definitions_for("webhook")),
                 "image_gen"  => tools.extend(integrations::definitions_for("image_gen")),
-                "coinbase"   => tools.extend(coinbase::definitions()),
-                "dex"        => tools.extend(dex::definitions()),
-                "solana_dex" => tools.extend(solana::definitions()),
+                "coinbase"         => tools.extend(coinbase::definitions()),
+                "dex"              => tools.extend(dex::definitions()),
+                "solana_dex"       => tools.extend(solana::definitions()),
+                "google_workspace" => tools.extend(google::definitions()),
                 _ => {}
             }
         }
@@ -129,7 +131,8 @@ pub async fn execute_tool(tool_call: &crate::engine::types::ToolCall, app_handle
         .or(integrations::execute(name, &args, app_handle).await)
         .or(coinbase::execute(name, &args, app_handle).await)
         .or(dex::execute(name, &args, app_handle).await)
-        .or(solana::execute(name, &args, app_handle).await);
+        .or(solana::execute(name, &args, app_handle).await)
+        .or(google::execute(name, &args, app_handle).await);
 
     // Try MCP tools (prefixed with `mcp_`) if no built-in handled it
     // NOTE: holds the tokio::sync::Mutex for the duration of the tool call.
