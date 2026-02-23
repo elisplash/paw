@@ -572,24 +572,24 @@ First run requires Spotify OAuth login."#.into(),
         SkillDefinition {
             id: "google_workspace".into(),
             name: "Google Workspace".into(),
-            description: "Gmail, Calendar, Drive, Sheets, and Docs via Google service account".into(),
+            description: "Gmail, Calendar, Drive, Sheets, and Docs — connect with your Google account".into(),
             icon: "📧".into(),
             category: SkillCategory::Api,
             tier: SkillTier::Skill,
             required_credentials: vec![
                 CredentialField {
-                    key: "SERVICE_ACCOUNT_JSON".into(),
-                    label: "Service Account JSON".into(),
-                    description: "Paste the entire contents of your Google service account JSON key file".into(),
+                    key: "GOOGLE_CLIENT_ID".into(),
+                    label: "OAuth Client ID".into(),
+                    description: "OAuth 2.0 Client ID from Google Cloud Console (Desktop app type)".into(),
                     required: true,
-                    placeholder: r#"{"type":"service_account","project_id":"...","private_key":"...","client_email":"...@...iam.gserviceaccount.com",...}"#.into(),
+                    placeholder: "your-id.apps.googleusercontent.com".into(),
                 },
                 CredentialField {
-                    key: "DELEGATE_EMAIL".into(),
-                    label: "Delegated User Email".into(),
-                    description: "The Google Workspace user email to impersonate (e.g. pawz@yourdomain.com). Required for domain-wide delegation.".into(),
+                    key: "GOOGLE_CLIENT_SECRET".into(),
+                    label: "OAuth Client Secret".into(),
+                    description: "Client secret from the same OAuth credential".into(),
                     required: true,
-                    placeholder: "pawz@yourdomain.com".into(),
+                    placeholder: "GOCSPX-...".into(),
                 },
             ],
             tool_names: vec![
@@ -605,8 +605,8 @@ First run requires Spotify OAuth login."#.into(),
                 "google_api".into(),
             ],
             required_binaries: vec![],
-            required_env_vars: vec![], install_hint: "Go to Skills → Google Workspace → Configure. Paste your service account JSON key and delegated email.".into(),
-            agent_instructions: r#"You have full Google Workspace access via service account. Available tools:
+            required_env_vars: vec![], install_hint: "Go to Skills → Google Workspace → Configure. Click 'Connect with Google' to sign in. Enterprise users can use a service account instead.".into(),
+            agent_instructions: r#"You have full Google Workspace access. Available tools:
 - google_gmail_list: List/search emails. Use Gmail search operators (from:, to:, subject:, is:unread, etc).
 - google_gmail_read: Read full email by message ID (from list results).
 - google_gmail_send: Send emails. Supports plain text and HTML. Can CC recipients.

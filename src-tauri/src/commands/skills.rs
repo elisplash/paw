@@ -351,3 +351,34 @@ pub fn engine_skill_store_list(
 ) -> Result<Vec<crate::engine::sessions::SkillStorageItem>, String> {
     state.store.skill_store_list(&skill_id).map_err(|e| e.to_string())
 }
+
+// ── Google OAuth2 ──────────────────────────────────────────────────────
+
+/// Start Google OAuth2 flow: opens browser, waits for consent, stores tokens.
+/// Returns the connected email address.
+#[tauri::command]
+pub async fn engine_google_oauth_connect(
+    app_handle: tauri::AppHandle,
+) -> Result<String, String> {
+    info!("[engine] Starting Google OAuth2 connect flow");
+    crate::engine::tools::google_oauth::run_oauth_flow(&app_handle)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Check if Google OAuth2 is connected. Returns email or null.
+#[tauri::command]
+pub fn engine_google_oauth_status(
+    app_handle: tauri::AppHandle,
+) -> Result<Option<String>, String> {
+    Ok(crate::engine::tools::google_oauth::get_connection_status(&app_handle))
+}
+
+/// Disconnect Google OAuth2 — remove stored tokens.
+#[tauri::command]
+pub fn engine_google_oauth_disconnect(
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    crate::engine::tools::google_oauth::disconnect(&app_handle)
+        .map_err(|e| e.to_string())
+}

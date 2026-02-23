@@ -350,6 +350,19 @@ export class PawEngineClient {
     return invoke('engine_skill_revoke_all', { skillId });
   }
 
+  // ── Google OAuth2 ──
+  async googleOAuthConnect(): Promise<string> {
+    return invoke<string>('engine_google_oauth_connect');
+  }
+
+  async googleOAuthStatus(): Promise<string | null> {
+    return invoke<string | null>('engine_google_oauth_status');
+  }
+
+  async googleOAuthDisconnect(): Promise<void> {
+    return invoke('engine_google_oauth_disconnect');
+  }
+
   async skillGetInstructions(skillId: string): Promise<string | null> {
     return invoke<string | null>('engine_skill_get_instructions', { skillId });
   }
