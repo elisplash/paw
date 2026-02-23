@@ -13,7 +13,12 @@ let _reloadFn: (() => Promise<void>) | null = null;
 
 // Whether the build ships with bundled Google OAuth credentials (queried once).
 let _googleBundled = false;
-pawEngine.googleOAuthHasBundled().then((v) => { _googleBundled = v; }).catch(() => {});
+pawEngine
+  .googleOAuthHasBundled()
+  .then((v) => {
+    _googleBundled = v;
+  })
+  .catch(() => {});
 
 export function setMoleculesState(opts: {
   currentFilter: string;
@@ -337,19 +342,43 @@ function renderGoogleOAuthSection(skill: EngineSkillStatus): string {
         <p class="skill-google-hint" style="margin: 0.5rem 0;">
           For Google Workspace domains only. Requires a service account with domain-wide delegation.
         </p>
-        ${renderSingleCredRow(skill, 'SERVICE_ACCOUNT_JSON', 'Service Account JSON',
-          'Full JSON key file contents', hasServiceAccount, '{"type":"service_account",...}')}
-        ${renderSingleCredRow(skill, 'DELEGATE_EMAIL', 'Delegated User Email',
-          'Workspace user to impersonate', skill.configured_credentials.includes('DELEGATE_EMAIL'), 'pawz@yourdomain.com')}
+        ${renderSingleCredRow(
+          skill,
+          'SERVICE_ACCOUNT_JSON',
+          'Service Account JSON',
+          'Full JSON key file contents',
+          hasServiceAccount,
+          '{"type":"service_account",...}',
+        )}
+        ${renderSingleCredRow(
+          skill,
+          'DELEGATE_EMAIL',
+          'Delegated User Email',
+          'Workspace user to impersonate',
+          skill.configured_credentials.includes('DELEGATE_EMAIL'),
+          'pawz@yourdomain.com',
+        )}
       </details>
     </div>`;
   }
 
   // --- No bundled creds: user needs to provide their own OAuth Client ID ---
-  const clientIdRow = renderSingleCredRow(skill, 'GOOGLE_CLIENT_ID', 'OAuth Client ID',
-    'From Google Cloud Console → Credentials → OAuth 2.0 Client ID', hasClientId, 'your-client-id.apps.googleusercontent.com');
-  const clientSecretRow = renderSingleCredRow(skill, 'GOOGLE_CLIENT_SECRET', 'OAuth Client Secret',
-    'The client secret from the same OAuth credential', hasClientSecret, 'GOCSPX-...');
+  const clientIdRow = renderSingleCredRow(
+    skill,
+    'GOOGLE_CLIENT_ID',
+    'OAuth Client ID',
+    'From Google Cloud Console → Credentials → OAuth 2.0 Client ID',
+    hasClientId,
+    'your-client-id.apps.googleusercontent.com',
+  );
+  const clientSecretRow = renderSingleCredRow(
+    skill,
+    'GOOGLE_CLIENT_SECRET',
+    'OAuth Client Secret',
+    'The client secret from the same OAuth credential',
+    hasClientSecret,
+    'GOCSPX-...',
+  );
 
   return `<div class="skill-cred-section">
     <div class="skill-section-title">${msIcon('cloud')} Connect Google Account</div>
@@ -376,10 +405,22 @@ function renderGoogleOAuthSection(skill: EngineSkillStatus): string {
       <p class="skill-google-hint" style="margin: 0.5rem 0;">
         For Google Workspace domains only. Requires a service account with domain-wide delegation.
       </p>
-      ${renderSingleCredRow(skill, 'SERVICE_ACCOUNT_JSON', 'Service Account JSON',
-        'Full JSON key file contents', hasServiceAccount, '{"type":"service_account",...}')}
-      ${renderSingleCredRow(skill, 'DELEGATE_EMAIL', 'Delegated User Email',
-        'Workspace user to impersonate', skill.configured_credentials.includes('DELEGATE_EMAIL'), 'pawz@yourdomain.com')}
+      ${renderSingleCredRow(
+        skill,
+        'SERVICE_ACCOUNT_JSON',
+        'Service Account JSON',
+        'Full JSON key file contents',
+        hasServiceAccount,
+        '{"type":"service_account",...}',
+      )}
+      ${renderSingleCredRow(
+        skill,
+        'DELEGATE_EMAIL',
+        'Delegated User Email',
+        'Workspace user to impersonate',
+        skill.configured_credentials.includes('DELEGATE_EMAIL'),
+        'pawz@yourdomain.com',
+      )}
     </details>
   </div>`;
 }
@@ -711,7 +752,12 @@ export function bindSkillEvents(): void {
   const googleDisconnectBtn = document.getElementById('google-disconnect-btn');
   if (googleDisconnectBtn) {
     googleDisconnectBtn.addEventListener('click', async () => {
-      if (!(await confirmModal('Disconnect Google account? Pawz will lose access to Gmail, Calendar, Drive, etc.'))) return;
+      if (
+        !(await confirmModal(
+          'Disconnect Google account? Pawz will lose access to Gmail, Calendar, Drive, etc.',
+        ))
+      )
+        return;
       try {
         await pawEngine.googleOAuthDisconnect();
         showToast('Google account disconnected', 'success');
@@ -725,7 +771,12 @@ export function bindSkillEvents(): void {
   const googleSaRevokeBtn = document.getElementById('google-sa-revoke-btn');
   if (googleSaRevokeBtn) {
     googleSaRevokeBtn.addEventListener('click', async () => {
-      if (!(await confirmModal('Remove service account credentials? You can reconnect via OAuth instead.'))) return;
+      if (
+        !(await confirmModal(
+          'Remove service account credentials? You can reconnect via OAuth instead.',
+        ))
+      )
+        return;
       try {
         await pawEngine.skillRevokeAll('google_workspace');
         showToast('Service account removed', 'success');
@@ -739,10 +790,13 @@ export function bindSkillEvents(): void {
   // Load connected Google email on render
   const emailEl = document.getElementById('google-connected-email');
   if (emailEl) {
-    pawEngine.googleOAuthStatus().then((email) => {
-      emailEl.textContent = email ? `Connected as ${email}` : 'Connected';
-    }).catch(() => {
-      emailEl.textContent = 'Connected (unable to fetch email)';
-    });
+    pawEngine
+      .googleOAuthStatus()
+      .then((email) => {
+        emailEl.textContent = email ? `Connected as ${email}` : 'Connected';
+      })
+      .catch(() => {
+        emailEl.textContent = 'Connected (unable to fetch email)';
+      });
   }
 }

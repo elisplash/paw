@@ -349,7 +349,7 @@ impl SessionStore {
     /// Strategy: detect assistant messages (without tool_calls) that match
     /// "give up" patterns and replace their content with a neutral note.
     /// The user's follow-up request ("try again") then faces a clean slate.
-    fn neutralize_give_up_responses(messages: &mut Vec<Message>) {
+    fn neutralize_give_up_responses(messages: &mut [Message]) {
         let give_up_patterns: &[&str] = &[
             "hitting a wall",
             "hitting a brick wall",

@@ -100,8 +100,16 @@ export const TOOL_GROUPS: {
       { id: 'google_calendar_create', name: 'Calendar Create', desc: 'Create calendar events' },
       { id: 'google_drive_list', name: 'Drive List', desc: 'List Drive files' },
       { id: 'google_drive_read', name: 'Drive Read', desc: 'Read Drive file content' },
-      { id: 'google_drive_upload', name: 'Drive Upload', desc: 'Upload content to Drive as Doc/Sheet/file' },
-      { id: 'google_drive_share', name: 'Drive Share', desc: 'Share Drive files with users or make public' },
+      {
+        id: 'google_drive_upload',
+        name: 'Drive Upload',
+        desc: 'Upload content to Drive as Doc/Sheet/file',
+      },
+      {
+        id: 'google_drive_share',
+        name: 'Drive Share',
+        desc: 'Share Drive files with users or make public',
+      },
       { id: 'google_docs_create', name: 'Docs Create', desc: 'Create Google Doc with content' },
       { id: 'google_sheets_read', name: 'Sheets Read', desc: 'Read spreadsheet data' },
       { id: 'google_sheets_append', name: 'Sheets Append', desc: 'Add rows to spreadsheets' },

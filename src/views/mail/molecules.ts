@@ -153,13 +153,22 @@ export async function renderMailAccounts(
           const updated: MailPermissions = {
             read: (gItem.querySelector('[data-perm="read"]') as HTMLInputElement)?.checked ?? true,
             send: (gItem.querySelector('[data-perm="send"]') as HTMLInputElement)?.checked ?? true,
-            delete: (gItem.querySelector('[data-perm="delete"]') as HTMLInputElement)?.checked ?? false,
-            manage: (gItem.querySelector('[data-perm="manage"]') as HTMLInputElement)?.checked ?? false,
+            delete:
+              (gItem.querySelector('[data-perm="delete"]') as HTMLInputElement)?.checked ?? false,
+            manage:
+              (gItem.querySelector('[data-perm="manage"]') as HTMLInputElement)?.checked ?? false,
           };
           saveMailPermissions('__google__', updated);
-          const count = [updated.read, updated.send, updated.delete, updated.manage].filter(Boolean).length;
+          const count = [updated.read, updated.send, updated.delete, updated.manage].filter(
+            Boolean,
+          ).length;
           const summary =
-            [updated.read && 'Read', updated.send && 'Send', updated.delete && 'Delete', updated.manage && 'Manage']
+            [
+              updated.read && 'Read',
+              updated.send && 'Send',
+              updated.delete && 'Delete',
+              updated.manage && 'Manage',
+            ]
               .filter(Boolean)
               .join(' · ') || 'No permissions';
           const statusEl = gItem.querySelector('.mail-account-status');
@@ -171,7 +180,11 @@ export async function renderMailAccounts(
       });
 
       gItem.querySelector('.mail-google-disconnect')?.addEventListener('click', async () => {
-        if (!(await confirmModal(`Disconnect ${googleEmail} from Google?\n\nThis removes stored OAuth tokens. Your Google account is not affected.`)))
+        if (
+          !(await confirmModal(
+            `Disconnect ${googleEmail} from Google?\n\nThis removes stored OAuth tokens. Your Google account is not affected.`,
+          ))
+        )
           return;
         try {
           await pawEngine.googleOAuthDisconnect();

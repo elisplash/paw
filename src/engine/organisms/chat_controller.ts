@@ -180,15 +180,16 @@ export function renderSessionSelect(): void {
 
   // Sort newest first and limit
   const MAX_SESSIONS = 25;
-  const sorted = [...agentSessions].sort(
-    (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0),
-  );
+  const sorted = [...agentSessions].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
   const limited = sorted.slice(0, MAX_SESSIONS);
 
   // Group by time bucket
-  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-  const yesterdayStart = new Date(todayStart); yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-  const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - 7);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const yesterdayStart = new Date(todayStart);
+  yesterdayStart.setDate(yesterdayStart.getDate() - 1);
+  const weekStart = new Date(todayStart);
+  weekStart.setDate(weekStart.getDate() - 7);
 
   const groups: { label: string; sessions: typeof limited }[] = [
     { label: 'Today', sessions: [] },
