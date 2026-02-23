@@ -200,6 +200,6 @@
     "indexHiddenPages": false
   },
   "contextual": {
-    "options": ["copy", "view", "chatgpt", "claude"]
+    "options": ["view", "chatgpt", "claude"]
   }
 }
