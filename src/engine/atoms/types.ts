@@ -34,6 +34,8 @@ export interface EngineConfig {
   max_concurrent_runs?: number;
   /** Daily budget in USD. When estimated spend exceeds this, new API calls are blocked. 0 = disabled. Default: 10 */
   daily_budget_usd?: number;
+  /** Context window size in tokens. Controls how much conversation history the agent sees. Default: 32000 */
+  context_window_tokens?: number;
 }
 
 /** Model routing for multi-agent orchestration.
