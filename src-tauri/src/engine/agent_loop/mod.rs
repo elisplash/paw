@@ -46,7 +46,7 @@ pub async fn run_agent_turn(
     // After 2 consecutive failures of the same tool, inject a system nudge
     // telling the model to stop retrying and use a different approach.
     let mut tool_fail_counter: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
-    const MAX_CONSECUTIVE_TOOL_FAILS: u32 = 2;
+    const MAX_CONSECUTIVE_TOOL_FAILS: u32 = 3;
 
     loop {
         round += 1;
@@ -485,12 +485,12 @@ pub async fn run_agent_turn(
                     messages.push(Message {
                         role: Role::System,
                         content: MessageContent::Text(format!(
-                            "[SYSTEM] The tool '{}' has failed {} times consecutively with the same error. \
-                            Do NOT call this tool again. Instead: explain the error to the user, \
-                            suggest alternatives, or try a completely different approach. \
-                            If you were asked to delegate to another agent, use `request_tools` to load \
-                            `agent_send_message` and delegate the task instead.",
-                            tc.function.name, count
+                            "[SYSTEM] The tool '{}' has failed {} times in a row. \
+                            Stop calling '{}' with the same arguments — try a DIFFERENT tool or approach instead. \
+                            Use `request_tools` to discover alternative tools that might work better. \
+                            For example, if google_api failed, try dedicated tools like google_docs_create, \
+                            google_drive_upload, or google_drive_share instead.",
+                            tc.function.name, count, tc.function.name
                         )),
                         tool_calls: None,
                         tool_call_id: None,
