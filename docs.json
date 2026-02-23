@@ -10,11 +10,7 @@
   "colors": {
     "primary": "#cc00cc",
     "light": "#ff00ff",
-    "dark": "#880088",
-    "anchors": {
-      "from": "#ff00ff",
-      "to": "#00ccff"
-    }
+    "dark": "#880088"
   },
   "topbarLinks": [
     {
@@ -26,100 +22,109 @@
     "name": "Download",
     "url": "https://github.com/elisplash/paw/releases"
   },
-  "anchors": [
-    {
-      "name": "GitHub",
-      "icon": "github",
-      "url": "https://github.com/elisplash/paw"
-    },
-    {
-      "name": "Community",
-      "icon": "comments",
-      "url": "https://github.com/elisplash/paw/discussions"
-    }
-  ],
-  "navigation": [
-    {
-      "group": "Getting Started",
-      "pages": [
-        "start/getting-started",
-        "start/installation",
-        "start/first-agent",
-        "start/first-provider"
+  "navigation": {
+    "global": {
+      "anchors": [
+        {
+          "anchor": "GitHub",
+          "icon": "github",
+          "href": "https://github.com/elisplash/paw"
+        },
+        {
+          "anchor": "Community",
+          "icon": "comments",
+          "href": "https://github.com/elisplash/paw/discussions"
+        }
       ]
     },
-    {
-      "group": "Guides",
-      "pages": [
-        "guides/agents",
-        "guides/memory",
-        "guides/tasks",
-        "guides/skills",
-        "guides/integrations",
-        "guides/extensions",
-        "guides/voice",
-        "guides/research",
-        "guides/orchestrator",
-        "guides/email",
-        "guides/trading",
-        "guides/slash-commands",
-        "guides/automations",
-        "guides/browser",
-        "guides/tailscale",
-        "guides/sessions",
-        "guides/foundry",
-        "guides/dashboard",
-        "guides/projects",
-        "guides/content-studio",
-        "guides/container-sandbox",
-        "guides/modular-workspace",
-        "guides/pawzhub",
-        "guides/pricing"
-      ]
-    },
-    {
-      "group": "Channels",
-      "pages": [
-        "channels/overview",
-        "channels/telegram",
-        "channels/discord",
-        "channels/slack",
-        "channels/matrix",
-        "channels/irc",
-        "channels/mattermost",
-        "channels/nextcloud",
-        "channels/nostr",
-        "channels/twitch",
-        "channels/webchat",
-        "channels/whatsapp"
-      ]
-    },
-    {
-      "group": "Providers",
-      "pages": [
-        "providers/overview",
-        "providers/ollama",
-        "providers/openai",
-        "providers/anthropic",
-        "providers/google",
-        "providers/openrouter",
-        "providers/deepseek",
-        "providers/grok",
-        "providers/mistral",
-        "providers/moonshot",
-        "providers/custom"
-      ]
-    },
-    {
-      "group": "Reference",
-      "pages": [
-        "reference/architecture",
-        "reference/security",
-        "reference/quality",
-        "reference/troubleshooting"
-      ]
-    }
-  ],
+    "groups": [
+      {
+        "group": "Getting Started",
+        "icon": "rocket",
+        "pages": [
+          "start/getting-started",
+          "start/installation",
+          "start/first-agent",
+          "start/first-provider"
+        ]
+      },
+      {
+        "group": "Guides",
+        "icon": "book-open",
+        "pages": [
+          "guides/agents",
+          "guides/memory",
+          "guides/tasks",
+          "guides/skills",
+          "guides/integrations",
+          "guides/extensions",
+          "guides/voice",
+          "guides/research",
+          "guides/orchestrator",
+          "guides/email",
+          "guides/trading",
+          "guides/slash-commands",
+          "guides/automations",
+          "guides/browser",
+          "guides/tailscale",
+          "guides/sessions",
+          "guides/foundry",
+          "guides/dashboard",
+          "guides/projects",
+          "guides/content-studio",
+          "guides/container-sandbox",
+          "guides/modular-workspace",
+          "guides/pawzhub",
+          "guides/pricing"
+        ]
+      },
+      {
+        "group": "Channels",
+        "icon": "comments",
+        "pages": [
+          "channels/overview",
+          "channels/telegram",
+          "channels/discord",
+          "channels/slack",
+          "channels/matrix",
+          "channels/irc",
+          "channels/mattermost",
+          "channels/nextcloud",
+          "channels/nostr",
+          "channels/twitch",
+          "channels/webchat",
+          "channels/whatsapp"
+        ]
+      },
+      {
+        "group": "Providers",
+        "icon": "plug",
+        "pages": [
+          "providers/overview",
+          "providers/ollama",
+          "providers/openai",
+          "providers/anthropic",
+          "providers/google",
+          "providers/openrouter",
+          "providers/deepseek",
+          "providers/grok",
+          "providers/mistral",
+          "providers/moonshot",
+          "providers/custom"
+        ]
+      },
+      {
+        "group": "Reference",
+        "icon": "code",
+        "pages": [
+          "reference/architecture",
+          "reference/security",
+          "reference/quality",
+          "reference/troubleshooting"
+        ]
+      }
+    ]
+  },
   "footerSocials": {
     "github": "https://github.com/elisplash/paw"
   },
