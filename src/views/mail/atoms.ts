@@ -19,6 +19,8 @@ export interface MailMessage {
   body?: string;
   sessionKey?: string;
   read?: boolean;
+  /** 'himalaya' (IMAP) or 'google' (Gmail API) */
+  source?: 'himalaya' | 'google';
 }
 
 export interface MailAccount {

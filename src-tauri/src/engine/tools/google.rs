@@ -1000,6 +1000,150 @@ async fn exec_sheets_append(args: &serde_json::Value, creds: &HashMap<String, St
     ))
 }
 
+// ── Public Gmail API for mail UI ────────────────────────────────────────────
+
+/// Structured Gmail message for the mail UI (not agent output).
+#[derive(Debug, Serialize)]
+pub struct GmailMessage {
+    pub id: String,
+    pub from: String,
+    pub subject: String,
+    pub snippet: String,
+    pub date: String,
+    pub read: bool,
+    pub labels: Vec<String>,
+}
+
+/// List Gmail messages — returns structured JSON for the mail UI.
+pub async fn gmail_list_json(
+    app_handle: &tauri::AppHandle,
+    query: Option<&str>,
+    max_results: u32,
+) -> EngineResult<Vec<GmailMessage>> {
+    let creds = super::get_skill_creds("google_workspace", app_handle)?;
+    let token = get_access_token(&creds).await?;
+    let q = query.unwrap_or("");
+
+    let mut url = format!(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults={}",
+        max_results.min(50)
+    );
+    if !q.is_empty() {
+        url.push_str(&format!("&q={}", url_encode(q)));
+    }
+
+    let (_, list_resp) = google_request("GET", &url, &token, None).await?;
+
+    let msg_ids: Vec<String> = list_resp["messages"]
+        .as_array()
+        .map(|arr| arr.iter().filter_map(|m| m["id"].as_str().map(|s| s.to_string())).collect())
+        .unwrap_or_default();
+
+    if msg_ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let mut messages = Vec::with_capacity(msg_ids.len());
+
+    for msg_id in &msg_ids {
+        let msg_url = format!(
+            "https://gmail.googleapis.com/gmail/v1/users/me/messages/{}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date",
+            msg_id
+        );
+        if let Ok((_, msg)) = google_request("GET", &msg_url, &token, None).await {
+            let headers = msg["payload"]["headers"].as_array();
+            let get_hdr = |name: &str| -> String {
+                headers.and_then(|h| h.iter()
+                    .find(|hdr| hdr["name"].as_str() == Some(name))
+                    .and_then(|hdr| hdr["value"].as_str())
+                    .map(|s| s.to_string()))
+                .unwrap_or_default()
+            };
+
+            let label_ids: Vec<String> = msg["labelIds"].as_array()
+                .map(|l| l.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+                .unwrap_or_default();
+
+            let is_read = !label_ids.iter().any(|l| l == "UNREAD");
+
+            messages.push(GmailMessage {
+                id: msg_id.clone(),
+                from: get_hdr("From"),
+                subject: get_hdr("Subject"),
+                snippet: msg["snippet"].as_str().unwrap_or("").to_string(),
+                date: get_hdr("Date"),
+                read: is_read,
+                labels: label_ids,
+            });
+        }
+    }
+
+    Ok(messages)
+}
+
+/// Read a single Gmail message — returns structured content for the mail UI.
+pub async fn gmail_read_json(
+    app_handle: &tauri::AppHandle,
+    message_id: &str,
+) -> EngineResult<serde_json::Value> {
+    let creds = super::get_skill_creds("google_workspace", app_handle)?;
+    let token = get_access_token(&creds).await?;
+
+    let url = format!(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/{}?format=full",
+        message_id
+    );
+
+    let (_, msg) = google_request("GET", &url, &token, None).await?;
+
+    let headers = msg["payload"]["headers"].as_array();
+    let get_hdr = |name: &str| -> String {
+        headers.and_then(|h| h.iter()
+            .find(|hdr| hdr["name"].as_str() == Some(name))
+            .and_then(|hdr| hdr["value"].as_str())
+            .map(|s| s.to_string()))
+        .unwrap_or_default()
+    };
+
+    let body = extract_message_body(&msg["payload"]);
+
+    Ok(serde_json::json!({
+        "id": message_id,
+        "from": get_hdr("From"),
+        "to": get_hdr("To"),
+        "subject": get_hdr("Subject"),
+        "date": get_hdr("Date"),
+        "body": body,
+        "snippet": msg["snippet"].as_str().unwrap_or(""),
+        "labels": msg["labelIds"],
+    }))
+}
+
+/// Send a Gmail message — used by the mail UI compose.
+pub async fn gmail_send_json(
+    app_handle: &tauri::AppHandle,
+    to: &str,
+    subject: &str,
+    body: &str,
+) -> EngineResult<String> {
+    let creds = super::get_skill_creds("google_workspace", app_handle)?;
+    let token = get_access_token(&creds).await?;
+
+    let raw_msg = format!(
+        "To: {}\r\nSubject: {}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{}",
+        to, subject, body
+    );
+
+    let encoded = base64_url_encode(raw_msg.as_bytes());
+    let url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
+    let send_body = serde_json::json!({ "raw": encoded });
+    let (_, resp) = google_request("POST", url, &token, Some(&send_body)).await?;
+
+    let msg_id = resp["id"].as_str().unwrap_or("unknown").to_string();
+    info!("[google] Gmail sent via UI → {} (msg_id={})", to, msg_id);
+    Ok(msg_id)
+}
+
 // ── Generic Google API ─────────────────────────────────────────────────────
 
 async fn exec_google_api(args: &serde_json::Value, creds: &HashMap<String, String>) -> EngineResult<String> {

@@ -36,6 +36,7 @@ const _mailHimalayaReady = false;
 let _mailMessages: MailMessage[] = [];
 let _mailSelectedId: string | null = null;
 let _mailAccounts: MailAccount[] = [];
+let _googleEmail: string | null = null;
 
 let onSwitchView: ((view: string) => void) | null = null;
 let onSetCurrentSession: ((key: string | null) => void) | null = null;
@@ -73,6 +74,127 @@ export async function renderMailAccounts(
   if (!list) return;
   list.innerHTML = '';
   _mailAccounts = [];
+
+  // ── Check Google OAuth connection ────────────────────────────────────
+  try {
+    const googleEmail = await pawEngine.googleOAuthStatus();
+    _googleEmail = googleEmail;
+    if (googleEmail) {
+      _mailAccounts.push({ name: '__google__', email: googleEmail });
+      const gItem = document.createElement('div');
+      gItem.className = 'mail-vault-account';
+
+      const perms = loadMailPermissions('__google__');
+      const permCount = [perms.read, perms.send, perms.delete, perms.manage].filter(Boolean).length;
+      const permSummary =
+        [
+          perms.read && 'Read',
+          perms.send && 'Send',
+          perms.delete && 'Delete',
+          perms.manage && 'Manage',
+        ]
+          .filter(Boolean)
+          .join(' · ') || 'No permissions';
+
+      gItem.innerHTML = `
+        <div class="mail-vault-header">
+          <div class="mail-account-icon" style="background:linear-gradient(135deg,#4285F4,#34A853,#FBBC05,#EA4335);color:#fff">G</div>
+          <div class="mail-account-info">
+            <div class="mail-account-name">${escHtml(googleEmail)}</div>
+            <div class="mail-account-status connected">${permCount}/4 permissions · Google OAuth</div>
+          </div>
+          <button class="btn-icon mail-vault-expand" title="Manage permissions">▾</button>
+        </div>
+        <div class="mail-vault-details" style="display:none">
+          <div class="mail-vault-perms">
+            <label class="mail-vault-perm-row">
+              <input type="checkbox" class="mail-vault-cb" data-perm="read" ${perms.read ? 'checked' : ''}>
+              <span class="mail-vault-perm-icon">R</span>
+              <span class="mail-vault-perm-name">Read emails</span>
+            </label>
+            <label class="mail-vault-perm-row">
+              <input type="checkbox" class="mail-vault-cb" data-perm="send" ${perms.send ? 'checked' : ''}>
+              <span class="mail-vault-perm-icon">S</span>
+              <span class="mail-vault-perm-name">Send emails</span>
+            </label>
+            <label class="mail-vault-perm-row">
+              <input type="checkbox" class="mail-vault-cb" data-perm="delete" ${perms.delete ? 'checked' : ''}>
+              <span class="mail-vault-perm-icon">D</span>
+              <span class="mail-vault-perm-name">Delete emails</span>
+            </label>
+            <label class="mail-vault-perm-row">
+              <input type="checkbox" class="mail-vault-cb" data-perm="manage" ${perms.manage ? 'checked' : ''}>
+              <span class="mail-vault-perm-icon">F</span>
+              <span class="mail-vault-perm-name">Manage folders</span>
+            </label>
+          </div>
+          <div class="mail-vault-perm-summary">${permSummary}</div>
+          <div class="mail-vault-meta">
+            <span class="mail-vault-meta-item">Connected via Google OAuth2 &mdash; tokens encrypted in local vault</span>
+            <span class="mail-vault-meta-item">All actions logged in Chat</span>
+          </div>
+          <div class="mail-vault-actions">
+            <button class="btn btn-ghost btn-sm mail-google-disconnect">Disconnect Google</button>
+          </div>
+        </div>
+      `;
+      list.appendChild(gItem);
+
+      const gExpand = gItem.querySelector('.mail-vault-expand');
+      const gDetails = gItem.querySelector('.mail-vault-details') as HTMLElement;
+      gExpand?.addEventListener('click', () => {
+        const open = gDetails.style.display !== 'none';
+        gDetails.style.display = open ? 'none' : '';
+        gExpand.textContent = open ? '▾' : '▴';
+      });
+
+      gItem.querySelectorAll('.mail-vault-cb').forEach((cb) => {
+        cb.addEventListener('change', () => {
+          const updated: MailPermissions = {
+            read: (gItem.querySelector('[data-perm="read"]') as HTMLInputElement)?.checked ?? true,
+            send: (gItem.querySelector('[data-perm="send"]') as HTMLInputElement)?.checked ?? true,
+            delete: (gItem.querySelector('[data-perm="delete"]') as HTMLInputElement)?.checked ?? false,
+            manage: (gItem.querySelector('[data-perm="manage"]') as HTMLInputElement)?.checked ?? false,
+          };
+          saveMailPermissions('__google__', updated);
+          const count = [updated.read, updated.send, updated.delete, updated.manage].filter(Boolean).length;
+          const summary =
+            [updated.read && 'Read', updated.send && 'Send', updated.delete && 'Delete', updated.manage && 'Manage']
+              .filter(Boolean)
+              .join(' · ') || 'No permissions';
+          const statusEl = gItem.querySelector('.mail-account-status');
+          const summaryEl = gItem.querySelector('.mail-vault-perm-summary');
+          if (statusEl) statusEl.textContent = `${count}/4 permissions · Google OAuth`;
+          if (summaryEl) summaryEl.textContent = summary;
+          showToast(`Permissions updated for ${googleEmail}`, 'info');
+        });
+      });
+
+      gItem.querySelector('.mail-google-disconnect')?.addEventListener('click', async () => {
+        if (!(await confirmModal(`Disconnect ${googleEmail} from Google?\n\nThis removes stored OAuth tokens. Your Google account is not affected.`)))
+          return;
+        try {
+          await pawEngine.googleOAuthDisconnect();
+          removeMailPermissions('__google__');
+          logCredentialActivity({
+            accountName: '__google__',
+            action: 'denied',
+            detail: `Google account disconnected: ${googleEmail}`,
+          });
+          _googleEmail = null;
+          showToast(`${googleEmail} disconnected`, 'success');
+          _loadMail();
+        } catch (err) {
+          showToast(`Disconnect failed: ${err instanceof Error ? err.message : err}`, 'error');
+        }
+      });
+    }
+  } catch {
+    _googleEmail = null;
+    /* Google OAuth not available or not connected */
+  }
+
+  // ── Himalaya IMAP accounts ───────────────────────────────────────────
 
   try {
     const toml = await pawEngine.mailReadConfig();
@@ -360,52 +482,77 @@ export async function renderCredentialActivityLog() {
 // ── Inbox loading ──────────────────────────────────────────────────────────
 
 export async function loadMailInbox() {
-  const accountName = _mailAccounts.length > 0 ? _mailAccounts[0].name : undefined;
+  _mailMessages = [];
 
-  try {
-    const jsonResult = await pawEngine.mailFetchEmails(
-      accountName,
-      _mailFolder === 'inbox' ? 'INBOX' : _mailFolder,
-      50,
-    );
-
-    interface HimalayaEnvelope {
-      id: string;
-      flags: string[];
-      subject: string;
-      from: { name?: string; addr: string };
-      date: string;
-    }
-
-    let envelopes: HimalayaEnvelope[] = [];
+  // ── Load Gmail messages (Google OAuth) ───────────────────────────────
+  if (_googleEmail) {
     try {
-      envelopes = JSON.parse(jsonResult);
-    } catch {
-      /* ignore */
+      const gmailMsgs = await pawEngine.googleGmailList(undefined, 30);
+      for (const gm of gmailMsgs) {
+        _mailMessages.push({
+          id: gm.id,
+          from: gm.from || 'Unknown',
+          subject: gm.subject || '(No subject)',
+          snippet: gm.snippet || '',
+          date: gm.date ? new Date(gm.date) : new Date(),
+          read: gm.read,
+          source: 'google',
+        });
+      }
+    } catch (e) {
+      console.warn('[mail] Gmail load failed:', e);
     }
-
-    _mailMessages = envelopes
-      .map((env) => ({
-        id: String(env.id),
-        from: env.from?.name || env.from?.addr || 'Unknown',
-        subject: env.subject || '(No subject)',
-        snippet: '',
-        date: env.date ? new Date(env.date) : new Date(),
-        read: env.flags?.includes('Seen') ?? false,
-      }))
-      .sort((a, b) => b.date.getTime() - a.date.getTime());
-
-    renderMailList();
-    showMailEmpty(_mailMessages.length === 0);
-
-    const countEl = $('mail-inbox-count');
-    if (countEl) countEl.textContent = String(_mailMessages.length);
-  } catch (e) {
-    console.warn('[mail] Inbox load failed:', e);
-    _mailMessages = [];
-    renderMailList();
-    showMailEmpty(true);
   }
+
+  // ── Load Himalaya IMAP messages ──────────────────────────────────────
+  const himalayaAccount = _mailAccounts.find((a) => a.name !== '__google__');
+  if (himalayaAccount) {
+    try {
+      const jsonResult = await pawEngine.mailFetchEmails(
+        himalayaAccount.name,
+        _mailFolder === 'inbox' ? 'INBOX' : _mailFolder,
+        50,
+      );
+
+      interface HimalayaEnvelope {
+        id: string;
+        flags: string[];
+        subject: string;
+        from: { name?: string; addr: string };
+        date: string;
+      }
+
+      let envelopes: HimalayaEnvelope[] = [];
+      try {
+        envelopes = JSON.parse(jsonResult);
+      } catch {
+        /* ignore */
+      }
+
+      for (const env of envelopes) {
+        _mailMessages.push({
+          id: String(env.id),
+          from: env.from?.name || env.from?.addr || 'Unknown',
+          subject: env.subject || '(No subject)',
+          snippet: '',
+          date: env.date ? new Date(env.date) : new Date(),
+          read: env.flags?.includes('Seen') ?? false,
+          source: 'himalaya',
+        });
+      }
+    } catch (e) {
+      console.warn('[mail] Himalaya inbox load failed:', e);
+    }
+  }
+
+  // Sort all messages by date (newest first)
+  _mailMessages.sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  renderMailList();
+  showMailEmpty(_mailMessages.length === 0);
+
+  const countEl = $('mail-inbox-count');
+  if (countEl) countEl.textContent = String(_mailMessages.length);
 }
 
 // ── Mail list ──────────────────────────────────────────────────────────────
@@ -452,9 +599,10 @@ export function showMailEmpty(show: boolean) {
     empty.style.display = show ? 'flex' : 'none';
     if (show) {
       const hasAccounts = _mailAccounts.length > 0;
+      const hasGoogle = _googleEmail !== null;
       const mailIcon = `<div class="empty-icon"><span class="ms" style="font-size:48px">mail</span></div>`;
 
-      if (hasAccounts && _mailHimalayaReady) {
+      if (hasAccounts && (hasGoogle || _mailHimalayaReady)) {
         empty.innerHTML = `
           ${mailIcon}
           <div class="empty-title">Inbox is empty</div>
@@ -466,11 +614,11 @@ export function showMailEmpty(show: boolean) {
           onSwitchView?.('chat');
           if (chatInput) {
             chatInput.value =
-              'I want to compose a new email. Please help me draft it and use himalaya to send it when ready.';
+              'I want to compose a new email. Please help me draft it and send it when ready.';
             chatInput.focus();
           }
         });
-      } else if (hasAccounts && !_mailHimalayaReady) {
+      } else if (hasAccounts && !hasGoogle && !_mailHimalayaReady) {
         empty.innerHTML = `
           ${mailIcon}
           <div class="empty-title">Enable the Himalaya skill</div>
@@ -515,13 +663,19 @@ export async function openMailMessage(msgId: string) {
     <div class="mail-preview-body" style="opacity:0.5">Loading...</div>
   `;
 
-  // Fetch full content via himalaya
+  // Fetch full content — route to Gmail API or Himalaya depending on source
   let body = msg.body || '';
   if (!msg.body) {
     try {
-      const accountName = _mailAccounts.length > 0 ? _mailAccounts[0].name : undefined;
-      body = await pawEngine.mailFetchContent(accountName, 'INBOX', msgId);
-      msg.body = body;
+      if (msg.source === 'google') {
+        const gmailMsg = await pawEngine.googleGmailRead(msgId);
+        body = gmailMsg.body || gmailMsg.snippet || '';
+        msg.body = body;
+      } else {
+        const himalayaAccount = _mailAccounts.find((a) => a.name !== '__google__');
+        body = await pawEngine.mailFetchContent(himalayaAccount?.name, 'INBOX', msgId);
+        msg.body = body;
+      }
     } catch (e) {
       console.warn('[mail] Failed to fetch content:', e);
       body = '(Failed to load email content)';
@@ -577,7 +731,7 @@ export async function openMailMessage(msgId: string) {
 
 export function openComposeModal(
   mode: 'reply' | 'forward',
-  msg: { from: string; subject: string; body?: string },
+  msg: { from: string; subject: string; body?: string; source?: 'himalaya' | 'google' },
 ) {
   const modal = document.createElement('div');
   modal.className = 'mail-compose-modal';
@@ -617,8 +771,13 @@ export function openComposeModal(
     }
 
     try {
-      const accountName = _mailAccounts.length > 0 ? _mailAccounts[0].name : undefined;
-      await pawEngine.mailSend(accountName, to, subject, body);
+      // Use Gmail API if this is a Google message, otherwise Himalaya
+      if (msg.source === 'google' || (!msg.source && _googleEmail)) {
+        await pawEngine.googleGmailSend(to, subject, body);
+      } else {
+        const himalayaAccount = _mailAccounts.find((a) => a.name !== '__google__');
+        await pawEngine.mailSend(himalayaAccount?.name, to, subject, body);
+      }
       showToast('Email sent!', 'success');
       close();
     } catch (e) {
@@ -629,10 +788,15 @@ export function openComposeModal(
 
 // ── Email actions ──────────────────────────────────────────────────────────
 
-async function archiveEmail(msg: { id: string }) {
+async function archiveEmail(msg: { id: string; source?: 'himalaya' | 'google' }) {
   try {
-    const accountName = _mailAccounts.length > 0 ? _mailAccounts[0].name : undefined;
-    await pawEngine.mailMove(accountName, msg.id, '[Gmail]/All Mail');
+    if (msg.source === 'google') {
+      // Archive via Gmail API (remove INBOX label)
+      showToast('Gmail archive — coming soon', 'info');
+    } else {
+      const himalayaAccount = _mailAccounts.find((a) => a.name !== '__google__');
+      await pawEngine.mailMove(himalayaAccount?.name, msg.id, '[Gmail]/All Mail');
+    }
     showToast('Archived', 'success');
     _mailMessages = _mailMessages.filter((m) => m.id !== msg.id);
     renderMailList();
@@ -644,11 +808,15 @@ async function archiveEmail(msg: { id: string }) {
   }
 }
 
-async function deleteEmail(msg: { id: string; subject: string }) {
+async function deleteEmail(msg: { id: string; subject: string; source?: 'himalaya' | 'google' }) {
   if (!(await confirmModal(`Delete "${msg.subject}"?`))) return;
   try {
-    const accountName = _mailAccounts.length > 0 ? _mailAccounts[0].name : undefined;
-    await pawEngine.mailDelete(accountName, msg.id);
+    if (msg.source === 'google') {
+      showToast('Gmail delete — coming soon', 'info');
+    } else {
+      const himalayaAccount = _mailAccounts.find((a) => a.name !== '__google__');
+      await pawEngine.mailDelete(himalayaAccount?.name, msg.id);
+    }
     showToast('Deleted', 'success');
     _mailMessages = _mailMessages.filter((m) => m.id !== msg.id);
     renderMailList();

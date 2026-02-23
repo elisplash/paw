@@ -389,3 +389,45 @@ pub fn engine_google_oauth_disconnect(
 pub fn engine_google_oauth_has_bundled() -> bool {
     crate::engine::tools::google_oauth::has_bundled_credentials()
 }
+
+// ── Google Gmail (Mail UI) ─────────────────────────────────────────────
+
+/// List Gmail messages for the mail UI. Returns structured JSON.
+#[tauri::command]
+pub async fn engine_google_gmail_list(
+    app_handle: tauri::AppHandle,
+    query: Option<String>,
+    max_results: Option<u32>,
+) -> Result<Vec<crate::engine::tools::google::GmailMessage>, String> {
+    crate::engine::tools::google::gmail_list_json(
+        &app_handle,
+        query.as_deref(),
+        max_results.unwrap_or(25),
+    )
+    .await
+    .map_err(|e| e.to_string())
+}
+
+/// Read a single Gmail message. Returns full content.
+#[tauri::command]
+pub async fn engine_google_gmail_read(
+    app_handle: tauri::AppHandle,
+    message_id: String,
+) -> Result<serde_json::Value, String> {
+    crate::engine::tools::google::gmail_read_json(&app_handle, &message_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Send a Gmail message via the mail UI compose.
+#[tauri::command]
+pub async fn engine_google_gmail_send(
+    app_handle: tauri::AppHandle,
+    to: String,
+    subject: String,
+    body: String,
+) -> Result<String, String> {
+    crate::engine::tools::google::gmail_send_json(&app_handle, &to, &subject, &body)
+        .await
+        .map_err(|e| e.to_string())
+}

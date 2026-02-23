@@ -367,6 +367,45 @@ export class PawEngineClient {
     return invoke<boolean>('engine_google_oauth_has_bundled');
   }
 
+  // ── Google Gmail (Mail UI) ──────────────────────────────────────────
+
+  async googleGmailList(
+    query?: string,
+    maxResults?: number,
+  ): Promise<
+    {
+      id: string;
+      from: string;
+      subject: string;
+      snippet: string;
+      date: string;
+      read: boolean;
+      labels: string[];
+    }[]
+  > {
+    return invoke('engine_google_gmail_list', {
+      query: query ?? null,
+      maxResults: maxResults ?? null,
+    });
+  }
+
+  async googleGmailRead(messageId: string): Promise<{
+    id: string;
+    from: string;
+    to: string;
+    subject: string;
+    date: string;
+    body: string;
+    snippet: string;
+    labels: string[];
+  }> {
+    return invoke('engine_google_gmail_read', { messageId });
+  }
+
+  async googleGmailSend(to: string, subject: string, body: string): Promise<string> {
+    return invoke<string>('engine_google_gmail_send', { to, subject, body });
+  }
+
   async skillGetInstructions(skillId: string): Promise<string | null> {
     return invoke<string | null>('engine_skill_get_instructions', { skillId });
   }
