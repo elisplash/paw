@@ -90,9 +90,12 @@ pub fn get_enabled_skill_instructions(store: &SessionStore, agent_id: &str) -> E
         result.push_str(&community_instructions);
     }
 
-    // Guard: cap total skill instructions to ~8000 tokens (~32K chars).
-    // Beyond this, skills eat too much context window and degrade conversation quality.
-    const MAX_SKILL_CHARS: usize = 32_000;
+    // Guard: cap total skill instructions to ~3000 tokens (~12K chars).
+    // Beyond this, skills eat too much context window and degrade conversation
+    // quality — the agent loses track of recent messages and gets stuck in loops.
+    // At 12K chars the system prompt stays under ~8K tokens, leaving room for
+    // ~8K tokens of actual conversation history (enough for ~10 exchanges).
+    const MAX_SKILL_CHARS: usize = 12_000;
     if result.len() > MAX_SKILL_CHARS {
         log::warn!(
             "[skills] Skill instructions too large ({} chars, ~{} tokens). Truncating to {} chars. \

@@ -374,9 +374,14 @@ pub fn compose_chat_system_prompt(
 
 /// Detect stuck response loops and inject a system nudge to break the cycle.
 ///
-/// Uses Jaccard word-similarity on the last two assistant messages.
-/// If similarity > 80% (model asking the same thing repeatedly), injects a
-/// redirect system message.
+/// Checks:
+/// 1. **Repetition**: Jaccard word-similarity > 55% between last two assistant
+///    messages — the model is repeating itself with minor rewording.
+/// 2. **Topic-ignoring**: The last user message shares < 25% keywords with the
+///    model's response — the model is ignoring what the user asked about.
+///
+/// In both cases, a system-role redirect is injected telling the model to
+/// stop repeating itself and respond to the user's actual request.
 pub fn detect_response_loop(messages: &mut Vec<Message>) {
     let assistant_msgs: Vec<&str> = messages
         .iter()
@@ -403,25 +408,99 @@ pub fn detect_response_loop(messages: &mut Vec<Message>) {
         0.0
     };
 
-    if similarity > 0.8 {
+    // ── Check 1: assistant repeating itself (> 55% overlap) ────────────
+    if similarity > 0.55 {
         warn!(
             "[engine] Response loop detected (similarity={:.0}%) — injecting redirect",
             similarity * 100.0
         );
-        messages.push(Message {
-            role: Role::System,
-            content: MessageContent::Text(
-                "IMPORTANT: You have asked the user the same question multiple times and they \
-                have confirmed. Stop asking for confirmation. Take action immediately using your \
-                tools. If you need to create a file, use soul_write or file_write. If you don't \
-                remember what to do, use memory_search to find the context."
-                    .to_string(),
-            ),
-            tool_calls: None,
-            tool_call_id: None,
-            name: None,
-        });
+        inject_loop_break(messages);
+        return;
     }
+
+    // ── Check 2: assistant ignoring the user's topic ───────────────────
+    // Find last user message and check if assistant response addresses it.
+    let last_user = messages
+        .iter()
+        .rev()
+        .find(|m| m.role == Role::User)
+        .map(|m| m.content.as_text_ref().to_lowercase());
+
+    if let Some(user_text) = last_user {
+        let stop_words: std::collections::HashSet<&str> = [
+            "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+            "have", "has", "had", "do", "does", "did", "will", "would", "could",
+            "should", "may", "might", "can", "shall", "to", "of", "in", "for",
+            "on", "with", "at", "by", "from", "as", "into", "about", "like",
+            "through", "after", "over", "between", "out", "against", "during",
+            "i", "you", "he", "she", "it", "we", "they", "me", "him", "her",
+            "us", "them", "my", "your", "his", "its", "our", "their", "this",
+            "that", "these", "those", "and", "but", "or", "nor", "not", "so",
+            "if", "then", "than", "too", "very", "just", "don't", "im",
+            "i'd", "i'm", "i'll", "i've", "you're", "it's", "what", "how",
+            "all", "each", "which", "who", "when", "where", "why",
+        ].into_iter().collect();
+
+        let user_keywords: std::collections::HashSet<&str> = user_text
+            .split_whitespace()
+            .filter(|w| w.len() > 2 && !stop_words.contains(w))
+            .collect();
+        let asst_keywords: std::collections::HashSet<&str> = a
+            .split_whitespace()
+            .filter(|w| w.len() > 2 && !stop_words.contains(w))
+            .collect();
+
+        if user_keywords.len() >= 3 && !asst_keywords.is_empty() {
+            let topic_overlap = user_keywords.intersection(&asst_keywords).count();
+            let topic_ratio = topic_overlap as f64 / user_keywords.len() as f64;
+
+            // Also check: are the two assistant messages MORE similar to each
+            // other than the assistant is to the user? That's a strong loop signal.
+            if topic_ratio < 0.15 && similarity > 0.40 {
+                warn!(
+                    "[engine] Topic-ignoring loop: user keywords overlap={:.0}%, \
+                    inter-response similarity={:.0}% — injecting redirect",
+                    topic_ratio * 100.0, similarity * 100.0
+                );
+                inject_loop_break(messages);
+            }
+        }
+    }
+}
+
+/// Inject a system message that breaks the agent out of a response loop.
+fn inject_loop_break(messages: &mut Vec<Message>) {
+    // Find the last user message to echo it back
+    let last_user_text = messages
+        .iter()
+        .rev()
+        .find(|m| m.role == Role::User)
+        .map(|m| m.content.as_text_ref().to_string())
+        .unwrap_or_default();
+
+    let redirect = if last_user_text.is_empty() {
+        "IMPORTANT: You are stuck in a response loop — repeating the same topic despite the \
+        user's request. Read the user's MOST RECENT message carefully and respond ONLY to \
+        what they actually asked. Do NOT continue the previous topic unless they asked for it."
+            .to_string()
+    } else {
+        format!(
+            "CRITICAL: You are repeating yourself and ignoring the user. STOP. \
+            The user's actual request is: \"{}\"\n\n\
+            Respond ONLY to this request. Do NOT mention your previous topic. \
+            If they asked you to use tools (e.g. squad_broadcast, create_task), use them now. \
+            If you don't have enough context, use memory_search or agent_read_messages.",
+            &last_user_text[..last_user_text.len().min(300)]
+        )
+    };
+
+    messages.push(Message {
+        role: Role::System,
+        content: MessageContent::Text(redirect),
+        tool_calls: None,
+        tool_call_id: None,
+        name: None,
+    });
 }
 
 // ── Attachment processor ───────────────────────────────────────────────────────
