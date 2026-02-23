@@ -190,6 +190,7 @@ fn build_all_tools_for_index(state: &EngineState) -> Vec<ToolDefinition> {
         "coinbase".to_string(),
         "dex".to_string(),
         "solana_dex".to_string(),
+        "google_workspace".to_string(),
     ];
     tools.extend(ToolDefinition::skill_tools(&all_skill_ids));
 

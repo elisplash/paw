@@ -99,6 +99,9 @@ fn tool_domain(name: &str) -> &'static str {
         // GitHub
         "github_api" => "github",
 
+        // Google Workspace
+        n if n.starts_with("google_") => "google",
+
         // Integrations
         "rest_api_call" | "webhook_send" | "image_generate" => "integrations",
 
@@ -139,7 +142,8 @@ pub fn domain_summaries() -> Vec<(&'static str, &'static str, &'static str)> {
         ("skills",        "extension",    "Search, install, and list community skills"),
         ("dashboard",     "dashboard",    "Push data to the Today dashboard widgets"),
         ("storage",       "storage",      "Persistent key-value storage for extensions"),
-        ("email",         "mail",         "Send and read emails"),
+        ("email",         "mail",         "Send and read emails via IMAP/SMTP"),
+        ("google",        "mail",         "Google Workspace — Gmail, Calendar, Drive, Sheets, Docs"),
         ("messaging",     "forum",        "Slack and Telegram messaging"),
         ("github",        "code",         "GitHub API calls (issues, PRs, repos)"),
         ("integrations",  "api",          "REST APIs, webhooks, image generation"),
