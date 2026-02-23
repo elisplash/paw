@@ -1,12 +1,14 @@
 ---
 title: "Features"
-description: "Core features and capabilities of the OpenPawz platform."
+description: "The most comprehensive AI agent platform ever built — 200+ capabilities across agents, channels, tools, memory, security, trading, voice, and extensibility."
 sidebarTitle: "Features"
 ---
 
 ## Platform features
 
-OpenPawz ships with everything you need to run autonomous AI agents locally. No plugins required for the basics — install, configure, and go.
+OpenPawz ships with **more capabilities than any other AI agent platform** — open source or commercial. No other tool combines multi-agent orchestration, 11 simultaneous chat channels, multi-chain DeFi trading, semantic memory with hybrid retrieval, voice, a visual node editor, and a three-tier extension marketplace — all running locally on your desktop with zero cloud dependency.
+
+This is the complete feature inventory.
 
 ---
 
@@ -14,16 +16,28 @@ OpenPawz ships with everything you need to run autonomous AI agents locally. No 
 
 <Columns cols={2}>
   <Card title="Custom personalities">
-    Each agent has a name, bio, system prompt, and personality. Agents can be formal assistants, creative writers, code reviewers — whatever you need.
+    Each agent has a name, bio, system prompt, emoji, and avatar. Three personality axes — **tone** (casual → formal), **initiative** (reactive → proactive), and **detail** (brief → thorough) — let you fine-tune behavior without prompt engineering.
   </Card>
-  <Card title="Tool use">
-    Agents call tools autonomously — send emails, search the web, execute shell commands, interact with APIs. 75+ tools built in.
+  <Card title="Agent templates">
+    Pre-built archetypes — General, Research, Creative, Technical, Custom — so you're productive in seconds. Templates set personality, system prompt, and tool access automatically.
   </Card>
-  <Card title="Memory">
-    Semantic long-term memory with auto-capture and auto-recall. Agents remember facts, preferences, and context across sessions.
+  <Card title="75+ built-in tools">
+    Agents call tools autonomously — send emails, search the web, execute shell commands, browse pages, trade crypto, talk to other agents. All built in, not plugins.
   </Card>
-  <Card title="Session management">
-    Automatic session compaction keeps context windows efficient. Old sessions archive, new ones start with memory context.
+  <Card title="Soul files">
+    Persistent identity documents for each agent. Soul files store personality notes, custom instructions, and identity data that persist across sessions. Your agent evolves over time.
+  </Card>
+  <Card title="Per-agent workspaces">
+    Every agent gets an isolated filesystem workspace with file listing, browsing, and cleanup. Agents can't accidentally interfere with each other's files.
+  </Card>
+  <Card title="Agent boundaries">
+    Define what each agent should and shouldn't do. Boundary rules constrain behavior without complex prompt engineering — just plain language rules.
+  </Card>
+  <Card title="Per-agent model override">
+    Each agent can use a different AI model, overriding the global default. Run your research agent on Claude, your coder on GPT-4o, and your assistant on a local Ollama model — simultaneously.
+  </Card>
+  <Card title="Auto-approve mode">
+    Trusted agents can skip human-in-the-loop approval prompts entirely. Toggle per agent — full autonomy for agents you trust, strict oversight for new ones.
   </Card>
 </Columns>
 
@@ -31,23 +45,38 @@ OpenPawz ships with everything you need to run autonomous AI agents locally. No 
 
 ---
 
-## Channels
+## 11 simultaneous channels
 
-Connect your agents to the platforms you already use. One agent can serve multiple channels simultaneously.
+**No other AI agent platform connects to this many platforms at once.** One app, one set of agents, eleven live bridges — running simultaneously. A user messages you on Telegram, another on Discord, a third on Slack — the same agent (or different agents) respond instantly on each platform.
 
-| Channel | Type | Status |
+| Channel | Type | Key capabilities |
 |---|---|---|
-| Telegram | Bot API | Stable |
-| Discord | Bot | Stable |
-| Slack | Bot | Stable |
-| Matrix | Client | Stable |
-| IRC | Client | Stable |
-| WhatsApp | Web bridge | Stable |
-| Twitch | Chat | Stable |
-| Mattermost | Bot | Stable |
-| Nextcloud Talk | Bot | Stable |
-| Nostr | Relay | Stable |
-| Webchat | Built-in | Stable |
+| Telegram | Bot API | DM policy, user allowlists, pairing approval |
+| Discord | Bot | Mention-response mode, DM policy, user approval |
+| Slack | Socket Mode | App + bot tokens, mention-response, DM policy |
+| Matrix | Client | Homeserver auth, room response, DM policy |
+| IRC | TLS Client | Multi-channel join, channel response toggle |
+| WhatsApp | Web bridge | Evolution API, Docker management, QR pairing, group response |
+| Twitch | Chat | OAuth bot, multi-channel, mention-require toggle |
+| Mattermost | Bot | Server + token auth, mention-response, DM policy |
+| Nextcloud Talk | Bot | Username/password auth, group response toggle |
+| Nostr | Relay | NIP-04 encrypted DMs, Ed25519 signing, multi-relay WebSocket |
+| Webchat | Built-in | TLS WebSocket, cookie auth, inline HTML/JS/CSS, session management |
+
+<Columns cols={2}>
+  <Card title="Uniform access control">
+    Every channel has the same interface: start/stop, config get/set, status, approve/deny/remove users. Consistent behavior across all 11 platforms.
+  </Card>
+  <Card title="Per-channel agent routing">
+    Assign a specific agent to each channel. Your support bot handles Discord, your research agent handles Slack, your personal assistant handles Telegram — all from one app.
+  </Card>
+  <Card title="Channel routing rules">
+    Rule-based routing engine with first-match logic. Route messages to specific agents based on channel, user, keywords, or custom conditions.
+  </Card>
+  <Card title="Smart message splitting">
+    Long responses automatically split at platform-appropriate boundaries. Discord's 2000-char limit, Telegram's 4096-char limit — handled transparently.
+  </Card>
+</Columns>
 
 → Deep dive: [Channels overview](/channels/overview)
 
@@ -55,13 +84,13 @@ Connect your agents to the platforms you already use. One agent can serve multip
 
 ## AI providers
 
-Bring your own model. OpenPawz supports local and cloud providers — switch between them per agent.
+Bring your own model. OpenPawz supports **10 providers** — local and cloud — and you can switch between them per agent, per task, or per conversation.
 
 | Provider | Type | Models |
 |---|---|---|
-| Ollama | Local | Llama, Mistral, Gemma, etc. |
-| OpenAI | Cloud | GPT-4o, o1, o3 |
-| Anthropic | Cloud | Claude 4, Sonnet |
+| Ollama | Local | Llama, Mistral, Gemma, Phi, Qwen, and hundreds more |
+| OpenAI | Cloud | GPT-4o, o1, o3, GPT-4.1 |
+| Anthropic | Cloud | Claude 4, Sonnet, Haiku |
 | Google | Cloud | Gemini 2.x |
 | DeepSeek | Cloud | DeepSeek V3, R1 |
 | Grok | Cloud | Grok 3 |
@@ -70,48 +99,144 @@ Bring your own model. OpenPawz supports local and cloud providers — switch bet
 | Moonshot | Cloud | Kimi |
 | Custom | Any | Any OpenAI-compatible endpoint |
 
+<Columns cols={2}>
+  <Card title="Model routing">
+    Boss model vs worker model assignment. OpenPawz automatically routes simple queries to cheaper models and complex tasks to powerful ones — **saving you money without sacrificing quality**.
+  </Card>
+  <Card title="SSE streaming">
+    All providers stream responses via Server-Sent Events with real-time deltas. You see tokens appear as the model thinks — no waiting for the full response.
+  </Card>
+  <Card title="Thinking & reasoning blocks">
+    Full support for Anthropic thinking blocks and Google thought handling. See the model's reasoning process in real time.
+  </Card>
+  <Card title="Daily budget enforcement">
+    Set a hard USD spending cap per day. When the budget is reached, API calls are blocked. Never get surprised by a bill again. **No other platform has this.**
+  </Card>
+</Columns>
+
 → Deep dive: [Providers overview](/providers/overview)
 
 ---
 
-## Tools & extensions
+## Tools — 75+ built-in
+
+Not plugins. Not add-ons. **Built directly into the platform.** Agents can use any combination of these tools autonomously.
 
 <Tabs>
-  <Tab title="Built-in tools">
-    **75+ tools out of the box** — Email (IMAP/SMTP), GitHub, web search, file operations, shell commands, trading (candles, orders), TTS, browser automation, inter-agent messaging, calendar, weather, and more.
+  <Tab title="Core tools">
+    | Tool | What it does |
+    |---|---|
+    | Shell execution | Run arbitrary commands with risk classification |
+    | File operations | Read, write, append, delete, list files in agent workspaces |
+    | Web fetch | HTTP fetch with configurable domain allowlists/blocklists |
+    | Browser automation | Headless Chrome — navigate, screenshot, extract, click, fill forms |
+    | Email | Full IMAP/SMTP: read, send, search, folder management, AI draft generation |
+    | GitHub | Repo operations, issues, PRs, code search |
+    | Memory | Store, search, list, delete semantic memories |
+    | Tasks | Create, update, move tasks on the Kanban board |
   </Tab>
-  <Tab title="Skills">
-    **Prompt-only extensibility.** Drop a `SKILL.md` file to inject expert knowledge into any agent's system prompt. No code, no API — just markdown.
+  <Tab title="Agent tools">
+    | Tool | What it does |
+    |---|---|
+    | Inter-agent messaging | Direct messages and broadcasts between agents |
+    | Agent management | Agents can create, configure, and manage other agents programmatically |
+    | Agent squads | Create and manage persistent groups of agents with coordinator/member roles |
+    | Soul/persona files | Read and write persistent personality and identity data |
+    | Skill output | Persist structured JSON data for dashboard widgets |
+    | Skill storage | Persistent key-value store for extensions — get, set, query, delete |
   </Tab>
-  <Tab title="Integrations">
-    **Custom tools + commands.** Add custom tools with slash commands and dedicated UI panels. Full Tauri API access.
+  <Tab title="Trading tools">
+    | Tool | What it does |
+    |---|---|
+    | Coinbase | Exchange trading: orders, balances, candle data |
+    | Solana DEX | Jupiter aggregator swaps, Pump.fun, SOL/token transfers, portfolio tracking |
+    | Ethereum DEX | Uniswap V2/V3 swaps, ERC-20 ops, HD wallet (BIP-39/44), token discovery |
+    | Position monitoring | Open positions with stop-loss, take-profit, last price tracking |
+    | Price feeds | Real-time token price data across chains |
   </Tab>
-  <Tab title="Extensions">
-    **Full sidebar apps.** Build complete sidebar views with persistent storage. The most powerful extensibility tier.
+  <Tab title="Voice tools">
+    | Tool | What it does |
+    |---|---|
+    | Text-to-speech | Three providers: Google, OpenAI, ElevenLabs. Configurable voice, speed, language |
+    | Speech-to-text | Audio transcription via whisper-compatible engines |
+    | Auto-speak | Automatically voice all new agent responses. Toggle per session |
   </Tab>
-  <Tab title="MCP">
-    **Model Context Protocol.** Connect to any MCP server for unlimited external tools — databases, APIs, file systems, and more.
+  <Tab title="Community tools">
+    | Tool | What it does |
+    |---|---|
+    | Skill search | Agents search the PawzHub marketplace for new capabilities |
+    | Skill install | Agents install skills for themselves — at runtime, conversationally |
+    | Skill list | List all installed skills with status and capabilities |
+    | Image generation | Create images via AI with auto-approval |
   </Tab>
 </Tabs>
+
+---
+
+## Extensibility — three tiers + marketplace
+
+OpenPawz has the most sophisticated extension system of any agent platform. **Three tiers** let you start simple and graduate to full apps — plus a community marketplace.
+
+<Tabs>
+  <Tab title="Skills (Tier 1)">
+    **Drop a markdown file.** That's it. A `SKILL.md` file injects expert knowledge into an agent's system prompt. No code, no config, no API — just markdown. Hot-reloaded from `~/.paw/skills/` with no restart needed.
+  </Tab>
+  <Tab title="Integrations (Tier 2)">
+    **Custom tools + commands.** A `pawz-skill.toml` manifest adds credentials, binary detection, agent tools, and dashboard widgets. Full Tauri API access.
+  </Tab>
+  <Tab title="Extensions (Tier 3)">
+    **Full sidebar applications.** Build complete sidebar views with persistent key-value storage, custom UI panels, and dashboard widgets. The most powerful tier.
+  </Tab>
+  <Tab title="MCP">
+    **Model Context Protocol.** Connect to any MCP server — stdio or SSE transport — for unlimited external tools. Databases, APIs, file systems, and more.
+  </Tab>
+  <Tab title="PawzHub marketplace">
+    **Discover and share.** Browse community-built skills, integrations, and extensions. Search by keyword, filter by tier. Visual badge system: Blue (Skill), Purple (Integration), Gold (Extension), plus Verified, Official, and Popular tags.
+  </Tab>
+</Tabs>
+
+<Columns cols={2}>
+  <Card title="Agent-installable skills">
+    **No other platform has this.** Agents can conversationally search PawzHub, discover new capabilities, and install skills for themselves — at runtime. Your AI agent literally improves itself.
+  </Card>
+  <Card title="Skill Wizard">
+    AI-assisted TOML manifest generation. Paste an API's documentation and the wizard generates a complete integration manifest automatically.
+  </Card>
+  <Card title="TOML hot reload">
+    Drop a new `.toml` file into `~/.paw/skills/` and it's instantly available. No restart, no rebuild, no deployment. The filesystem is your package manager.
+  </Card>
+  <Card title="Per-agent skill scoping">
+    Skills, integrations, and extensions can be enabled for specific agents only. Your research agent gets web tools, your support agent gets email tools — no overlap.
+  </Card>
+</Columns>
 
 → Deep dive: [Skills](/guides/skills) · [Integrations](/guides/integrations) · [Extensions](/guides/extensions)
 
 ---
 
-## Orchestration & workflows
+## Multi-agent orchestration
 
 <Columns cols={2}>
-  <Card title="Multi-agent projects">
-    Boss agent delegates tasks to specialist workers. Parallel execution with result aggregation.
+  <Card title="Boss/worker delegation">
+    A boss agent plans a project and delegates tasks to specialist workers. Workers run in parallel, report results, and the boss synthesizes the output. Full lifecycle: planning → running → paused → completed → failed.
   </Card>
+  <Card title="Agent squads">
+    **Unique to OpenPawz.** Persistent groups of agents with coordinator and member roles. Create a "Research Squad" or "Content Team" and reuse them across projects. Squads coordinate automatically.
+  </Card>
+  <Card title="Agent specialties">
+    Assign workers a specialty — coder, researcher, designer, communicator, security, general. Each worker can have its own model and system prompt within a project.
+  </Card>
+  <Card title="Inter-agent messaging">
+    Agents send direct messages to specific agents or broadcast to all. Full delegation, progress, result, and error message streams between boss and workers.
+  </Card>
+</Columns>
+
+<Columns cols={2}>
   <Card title="Task management">
-    Kanban board with cron scheduling, event triggers, and automatic agent assignment.
+    Full Kanban board with columns: inbox, assigned, in progress, review, blocked, done. Tasks have priorities (low → urgent), multi-agent assignment with lead/collaborator roles, and per-task model overrides.
   </Card>
   <Card title="Automations">
-    Time-based and event-driven triggers that run agent actions without manual input.
-  </Card>
-  <Card title="Research flows">
-    Multi-step web research with browser sandbox, extraction, and summarization pipelines.
+    Cron scheduling with 60-second heartbeat, event-driven triggers, persistent execution mode, and a full cron run log with audit trail. Schedule agents to run research at 2 AM, post updates at 9 AM, clean up at midnight.
   </Card>
 </Columns>
 
@@ -119,48 +244,289 @@ Bring your own model. OpenPawz supports local and cloud providers — switch bet
 
 ---
 
-## Memory & intelligence
+## Memory — the most advanced retrieval system in any agent platform
+
+Most AI tools forget everything between conversations. OpenPawz has the most sophisticated memory system available — **four retrieval strategies combined**.
 
 <Columns cols={2}>
-  <Card title="Semantic long-term memory">
-    Agents auto-capture facts, preferences, and context from every conversation. Vector embeddings power instant recall — relevant memories are injected before the agent responds. Your agents build knowledge over weeks and months.
+  <Card title="Hybrid retrieval">
+    **No other platform does this.** BM25 full-text search + vector similarity (cosine) combined with weighted merging. You get the precision of keyword search and the flexibility of semantic search — together.
   </Card>
-  <Card title="Memory Palace">
-    A dedicated interface to browse, search, edit, and delete stored memories. Full transparency into what your AI knows. Filter by agent, topic, date, or relevance score.
+  <Card title="MMR re-ranking">
+    Maximal Marginal Relevance with Jaccard-based diversity ensures recalled memories are both relevant AND diverse. No more getting five copies of the same memory.
   </Card>
-  <Card title="Session compaction">
-    When conversations approach context limits, OpenPawz automatically summarizes older messages, preserves key facts in memory, and continues seamlessly. Agents run indefinitely without losing context — and you save 40–60% on tokens.
+  <Card title="Temporal decay">
+    Exponential decay with a 30-day half-life. Recent memories rank higher than old ones. Your agent prioritizes what's current without losing long-term knowledge.
   </Card>
-  <Card title="Shared & isolated memory">
-    By default, all agents share a memory namespace — knowledge captured by one is available to all. Isolate per agent or per workspace when you need boundaries.
+  <Card title="Auto-capture & auto-recall">
+    Key facts are automatically extracted from every conversation and stored with vector embeddings. When context is relevant, memories are injected before the agent responds — zero manual effort.
   </Card>
 </Columns>
 
-→ Deep dive: [Memory guide](/guides/memory) · [Session management](/guides/sessions)
+<Columns cols={2}>
+  <Card title="Memory Palace">
+    A dedicated interface to browse, search, edit, and delete memories. Filter by agent, topic, date, category, or relevance score. Full transparency into what your AI knows.
+  </Card>
+  <Card title="Importance scoring">
+    Each memory receives an importance score (0–1). Critical facts rank higher than casual observations. The system learns what matters.
+  </Card>
+  <Card title="Memory backfill">
+    Retroactively generate vector embeddings for existing memories. Upgrade your memory system without starting over.
+  </Card>
+  <Card title="Shared & isolated namespaces">
+    All agents share memory by default — knowledge captured by one is available to all. Isolate per agent or per workspace when you need boundaries.
+  </Card>
+</Columns>
+
+→ Deep dive: [Memory guide](/guides/memory)
 
 ---
 
-## Security
+## Session management & token savings
+
+<Columns cols={2}>
+  <Card title="Automatic session compaction">
+    When conversations approach the context limit, OpenPawz summarizes older messages, preserves key facts in memory, archives the full session, and continues seamlessly. Agents run **indefinitely long conversations** — and you pay for 40–60% fewer tokens.
+  </Card>
+  <Card title="Thinking level control">
+    **Unique to OpenPawz.** Adjust reasoning depth per session — none, low, medium, high. Need a quick answer? Use low. Complex analysis? Crank it up. You control the compute.
+  </Card>
+  <Card title="Configurable context windows">
+    Set the context window size in tokens (default 32,000). Larger windows for complex tasks, smaller ones for cost savings. Per-session control.
+  </Card>
+  <Card title="Max concurrent runs">
+    Limit simultaneous agent runs across chat, cron, and tasks. Chat always gets priority. Prevent runaway costs from parallel automations.
+  </Card>
+</Columns>
+
+→ Deep dive: [Sessions guide](/guides/sessions)
+
+---
+
+## DeFi trading — multi-chain, built-in
+
+**No other AI agent platform has built-in, multi-chain cryptocurrency trading.** OpenPawz agents can trade on Coinbase, Solana (via Jupiter/Pump.fun), and Ethereum (via Uniswap) — autonomously, with configurable safety guardrails.
+
+<Columns cols={2}>
+  <Card title="Coinbase exchange">
+    Full exchange trading via Coinbase API: limit/market orders, account balances, candle data, trade history.
+  </Card>
+  <Card title="Solana DEX">
+    Jupiter aggregator for best-price swaps, Pump.fun integration for memecoins, Ed25519 wallet management, SOL/SPL token transfers, portfolio tracking.
+  </Card>
+  <Card title="Ethereum DEX">
+    Uniswap V2/V3 swaps, full ABI/RLP encoding, HD wallet (BIP-39/44), ERC-20 operations, token discovery, liquidity analysis.
+  </Card>
+  <Card title="Position monitoring">
+    Track open positions with stop-loss and take-profit targets. Real-time price feeds across chains. Aggregate portfolio view.
+  </Card>
+</Columns>
+
+<Columns cols={2}>
+  <Card title="Trading policy engine">
+    **Unique to OpenPawz.** Configurable auto-approve rules with max trade size (USD), daily loss limits, allowed pairs whitelist, and transfer caps. Agents trade autonomously within guardrails you set.
+  </Card>
+  <Card title="Trade audit trail">
+    Every trade logged: type, side, amount, USD value, reason, agent, session, timestamp. Full accountability for autonomous trading decisions.
+  </Card>
+</Columns>
+
+→ Deep dive: [Trading guide](/guides/trading)
+
+---
+
+## Voice — text-to-speech & speech-to-text
+
+<Columns cols={2}>
+  <Card title="Three TTS providers">
+    Choose between Google TTS, OpenAI TTS, or ElevenLabs. Configurable voice selection, speed, and language per agent.
+  </Card>
+  <Card title="Speech-to-text">
+    Audio transcription via Whisper-compatible engines. Speak to your agents and they understand.
+  </Card>
+  <Card title="ElevenLabs integration">
+    Advanced voice controls: model selection, stability sliders, similarity boost. Professional-grade voice output.
+  </Card>
+  <Card title="Auto-speak">
+    Toggle automatic voicing of all new agent responses. Your agents become voice assistants — read responses aloud as they arrive.
+  </Card>
+</Columns>
+
+→ Deep dive: [Voice guide](/guides/voice)
+
+---
+
+## Security — zero-trust, local-first
+
+OpenPawz was designed from the ground up with a **zero-trust, local-first security model**. This isn't an afterthought bolted on — it's in the architecture.
 
 <Columns cols={2}>
   <Card title="100% local — zero cloud">
-    All data stays on your hardware. No cloud sync, no telemetry, no analytics, no phone-home. The only network traffic is to AI providers you explicitly configure.
+    All data stays on your hardware. No cloud sync, no telemetry, no analytics, no phone-home. The only outbound traffic is to AI providers you explicitly configure.
   </Card>
   <Card title="OS keychain credentials">
-    API keys and secrets stored in macOS Keychain, Windows Credential Manager, or Linux Secret Service. Never in plain text. Never in a config file.
+    API keys stored in macOS Keychain, Windows Credential Manager, or Linux Secret Service. Never in plain text. Never in a config file.
+  </Card>
+  <Card title="AES-256-GCM encryption">
+    Database fields encrypted with AES-256-GCM using 12-byte random nonces. Auto-migration from legacy encryption. Your data is encrypted at rest.
   </Card>
   <Card title="Command risk classification">
-    Every tool and shell command rated 1–5 for risk. High-risk operations require explicit user confirmation. Configurable thresholds per agent.
+    Every tool and shell command rated 1–5 for risk. 30+ danger pattern detections: privilege escalation, destructive deletion, remote code execution, network exfiltration.
   </Card>
+  <Card title="Human-in-the-loop">
+    Modal-based approval for all side-effect tools. Color-coded risk levels. Nothing dangerous happens without your explicit confirmation.
+  </Card>
+  <Card title="Timed session override">
+    **Unique to OpenPawz.** "Allow All" mode for trusted sessions (30m/1h/2h) with auto-expire. Privilege escalation is still blocked — even in override mode.
+  </Card>
+</Columns>
+
+<Columns cols={2}>
   <Card title="Container sandbox">
-    Isolate agent shell access in Docker containers with configurable CPU, memory, network, and filesystem restrictions.
+    Run agent shell commands in Docker containers — cap_drop ALL, memory/CPU limits, configurable network isolation. Agents can't touch your host system.
   </Card>
   <Card title="Per-agent policies">
-    Granular control over what each agent can access — tools, channels, risk levels, and actions. Lock down sensitive agents or give trusted ones free rein.
+    Granular control over which tools, channels, and risk levels each agent can access.
   </Card>
   <Card title="Prompt injection defense">
-    Built-in detection analyzes incoming messages for manipulation attempts and flags suspicious content before it reaches your agents.
+    Dual implementation (TypeScript + Rust), 30+ detection patterns, 4 severity levels. Incoming messages are analyzed before they reach agents.
+  </Card>
+  <Card title="Filesystem sandboxing">
+    Tauri scope enforcement with 20+ sensitive path blocks — `~/.ssh`, `~/.aws`, `~/.gnupg`, and more. Optional global read-only mode blocks all agent writes.
+  </Card>
+  <Card title="Outbound domain control">
+    Configurable domain allowlists and blocklists with wildcard subdomain matching. Test URL button to verify rules. Outbound requests inspected for exfiltration patterns.
+  </Card>
+  <Card title="Credential audit trail">
+    **Unique to OpenPawz.** Every credential access logged: action, tool, allowed/denied, timestamp. Full security audit dashboard with JSON/CSV export.
+  </Card>
+</Columns>
+
+<Columns cols={2}>
+  <Card title="Skill vetting pipeline">
+    **Unique to OpenPawz.** Community skills go through a safety modal, known-safe list check, npm registry risk intelligence scan, and post-install sandbox verification.
+  </Card>
+  <Card title="CSP enforcement">
+    Content Security Policy: `default-src 'self'`, `script-src 'self'`, `object-src 'none'`, `frame-ancestors 'none'`. XSS and injection prevention at the platform level.
   </Card>
 </Columns>
 
 → Deep dive: [Security reference](/reference/security)
+
+---
+
+## Visual node editor
+
+**Unique to OpenPawz.** A visual, drag-and-drop workflow editor for building agent pipelines without writing code. Connect nodes — triggers, agents, tools, conditions, outputs — to create complex automation flows visually.
+
+→ Deep dive: [Projects guide](/guides/projects)
+
+---
+
+## Foundry — skill creation workshop
+
+The Foundry is a dedicated workspace for creating and testing skills, integrations, and extensions. AI-assisted manifest generation, live preview, and one-click publishing to PawzHub.
+
+→ Deep dive: [Foundry guide](/guides/foundry)
+
+---
+
+## Today View — your AI dashboard
+
+A daily activity dashboard that shows everything your agents have been doing. Activity feed, quick actions, inbox, and status across all agents, channels, and automations — at a glance.
+
+→ Deep dive: [Dashboard guide](/guides/dashboard)
+
+---
+
+## Email — full IMAP/SMTP client
+
+Not a toy integration — a complete email client. IMAP/SMTP via himalaya bridge: read, send, search, folder management, AI-powered draft generation. Multiple accounts, folder operations, and a dedicated Mail view in the app.
+
+→ Deep dive: [Email guide](/guides/email)
+
+---
+
+## Remote access
+
+<Columns cols={2}>
+  <Card title="Tailscale integration">
+    **Unique to OpenPawz.** Expose your agents remotely via Tailscale mesh VPN. Serve and Funnel support for secure remote access — no port forwarding, no cloud relay. Connect from anywhere.
+  </Card>
+  <Card title="Webhook server">
+    Built-in HTTP webhook endpoint with auth token, rate limiting, and configurable agent routing. Trigger agents from GitHub Actions, Zapier, IFTTT, or any HTTP client.
+  </Card>
+</Columns>
+
+→ Deep dive: [Tailscale guide](/guides/tailscale)
+
+---
+
+## Developer experience
+
+<Columns cols={2}>
+  <Card title="20 slash commands">
+    Built-in slash commands with real-time autocomplete. Quick access to common operations without leaving the chat.
+  </Card>
+  <Card title="Modular workspace">
+    Toggle grid for showing/hiding UI views. Community extensions add to this grid. Customize the interface for your workflow.
+  </Card>
+  <Card title="15 settings tabs">
+    Agent defaults, models, sessions, skills, MCP, browser, engine, environment, logs, advanced, voice, webhook, Tailscale, and more. Everything is configurable.
+  </Card>
+  <Card title="Persistent structured logging">
+    Daily log rotation with 7-day pruning and an in-app log viewer with filtering. Debug anything without digging through files.
+  </Card>
+</Columns>
+
+---
+
+## Architecture & quality
+
+<Columns cols={2}>
+  <Card title="Native Tauri v2">
+    Rust backend + TypeScript frontend. Not Electron — fast, lean, native. 158 IPC commands covering every engine operation.
+  </Card>
+  <Card title="Zero-framework frontend">
+    Vanilla TypeScript with atomic design (atoms → molecules → organisms). No React, no Vue, no Angular. Minimal bundle, maximum performance.
+  </Card>
+  <Card title="530 automated tests">
+    164 Rust + 366 TypeScript tests covering all critical paths. 3-job CI pipeline (Rust + TypeScript + Security Audit) on every push.
+  </Card>
+  <Card title="Zero known CVEs">
+    `cargo audit` + `npm audit` enforced in CI. Zero Clippy warnings. Dependabot for automated dependency updates.
+  </Card>
+  <Card title="21 SQLite tables">
+    Full relational schema for agents, sessions, memories, tasks, trades, skills, channels, and more. All local, all fast.
+  </Card>
+  <Card title="Retry with circuit breakers">
+    Exponential backoff (1s → 30s, 3 retries), `Retry-After` header support, 5-failure circuit breaker with 60-second cooldown. Resilient by default.
+  </Card>
+</Columns>
+
+→ Deep dive: [Architecture reference](/reference/architecture) · [Quality reference](/reference/quality)
+
+---
+
+## What exists like this? Nothing.
+
+| Capability | **OpenPawz** | **OpenClaw** | **AutoGPT** | **CrewAI** | **LangChain** |
+|---|---|---|---|---|---|
+| **Desktop native app** | Tauri/Rust | Electron | No — CLI/web | No — Python lib | No — Python lib |
+| **Chat channels** | 11 simultaneous | 1–2 | 0 | 0 | 0 |
+| **Multi-agent orchestration** | Boss/worker + squads | Basic | Single agent | Yes | Yes (framework) |
+| **Semantic memory** | Hybrid BM25+vector+MMR+decay | Basic | Basic | None built-in | Framework only |
+| **Built-in tools** | 75+ | ~20 | ~15 | Code-defined | Framework only |
+| **DeFi trading** | 3 chains built-in | None | None | None | None |
+| **Voice (TTS/STT)** | 3 providers | None | None | None | None |
+| **Extension marketplace** | 3 tiers + PawzHub | None | Plugin store | None | LangSmith |
+| **Self-installing skills** | Agents install their own | No | No | No | No |
+| **Visual node editor** | Built-in | No | No | No | LangGraph Studio |
+| **Session compaction** | Automatic, 40–60% savings | No | No | No | No |
+| **Daily budget caps** | Built-in USD cap | No | No | No | No |
+| **Security audit trail** | Full + export | Basic | None | None | None |
+| **Webhooks + Tailscale** | Built-in | None | None | None | None |
+| **Credential security** | OS keychain + AES-256 | Config files | Config files | Env vars | Env vars |
+| **Open source** | MIT | Proprietary | MIT | MIT | MIT |
+
+**OpenPawz is the first AI agent operating system** that combines all of these capabilities in a single, native, open-source desktop application. Nothing else comes close.

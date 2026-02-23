@@ -33,22 +33,27 @@ A native desktop AI agent platform built on [Tauri v2](https://v2.tauri.app/). C
 
 OpenPawz is the **open-source AI agent operating system** for your desktop. It's not a chatbot. It's not a wrapper around an API. It's a full-blown, multi-agent platform that runs natively on your machine — with zero cloud dependency.
 
-**Imagine this:** You have autonomous AI agents with unique personalities, long-term memory, and access to 75+ tools — managing your emails, monitoring markets, researching the web, writing content, running shell commands, and responding to messages across **11 chat platforms simultaneously**. All from one app. All on your hardware. All under your control.
+**Imagine this:** You have autonomous AI agents with unique personalities, long-term memory, and access to 75+ tools — managing your emails, trading crypto on three chains, voicing responses aloud, monitoring markets, researching the web, writing content, running shell commands, and responding to messages across **11 chat platforms simultaneously**. They install new skills for themselves. They coordinate in squads. They route complex tasks to powerful models and simple queries to cheap ones. All from one app. All on your hardware. All under your control.
 
 <Tabs>
   <Tab title="Who is it for?">
     **Everyone who's tired of walled-garden AI.** Developers who want to build and extend. Power users who want a personal AI army across every platform they use. Teams who need private, auditable AI that never phones home. If you've ever wished your AI could actually *do things* — not just talk — OpenPawz is what you've been waiting for.
   </Tab>
   <Tab title="What's different?">
-    Most AI tools give you a chat window. OpenPawz gives you an **agent runtime**:
+    Most AI tools give you a chat window. OpenPawz gives you an **agent operating system**:
     - **11 channels at once** — Telegram, Discord, Slack, WhatsApp, Matrix, IRC, Twitch, and more
-    - **Multi-agent orchestration** — Boss agents delegate to specialists, run parallel research
-    - **Semantic memory** — Auto-capture, auto-recall, vector search across all conversations
-    - **75+ built-in tools** — Email, GitHub, trading, browser, shell, TTS — not plugins, *built in*
-    - **MCP extensions** — Connect to any Model Context Protocol server
+    - **Multi-agent orchestration** — Boss/worker delegation, agent squads, inter-agent messaging
+    - **Multi-chain DeFi trading** — Coinbase + Solana (Jupiter/Pump.fun) + Ethereum (Uniswap) with configurable policy guardrails
+    - **Hybrid semantic memory** — BM25 + vector + MMR + temporal decay. The most advanced retrieval in any agent platform
+    - **Voice** — Three TTS providers (Google, OpenAI, ElevenLabs) + speech-to-text
+    - **Visual node editor** — Drag-and-drop workflow builder for agent pipelines
+    - **75+ built-in tools** — Email, GitHub, trading, browser, shell, TTS, crypto — not plugins, *built in*
+    - **Model routing** — Auto complexity-based routing + daily budget caps + thinking level control
+    - **Self-improving agents** — Agents search PawzHub and install skills for themselves at runtime
+    - **Remote access** — Tailscale mesh VPN + webhook server for triggering agents from anywhere
     - **10 AI providers** — Ollama (local), OpenAI, Anthropic, Google, DeepSeek, and more
-    - **Zero cloud** — SQLite, OS keychain, Tauri IPC. No servers, no ports, no subscriptions
-    - **Native performance** — Tauri v2 + Rust backend. Not Electron.
+    - **Zero cloud** — SQLite, OS keychain, AES-256-GCM encryption. No servers, no ports, no subscriptions
+    - **Native performance** — Tauri v2 + Rust backend. Not Electron. 530 tests. Zero CVEs.
   </Tab>
   <Tab title="Why open source?">
     Because your AI shouldn't have a landlord. OpenPawz is **MIT licensed** — fork it, extend it, deploy it however you want. The codebase is transparent, auditable, and community-driven. No vendor lock-in. No surprise pricing changes. No "we updated our privacy policy" emails.
@@ -83,19 +88,25 @@ The desktop app is the single source of truth for agents, sessions, routing, and
 
 <Columns cols={2}>
   <Card title="Multi-channel gateway">
-    Telegram, Discord, Slack, Matrix, IRC, WhatsApp, Twitch, and 4 more with a single app.
+    Telegram, Discord, Slack, Matrix, IRC, WhatsApp, Twitch, and 4 more with a single app. Per-channel agent routing and smart message splitting.
   </Card>
   <Card title="Multi-agent orchestration">
-    Boss/worker pattern with task delegation, agent squads, and workspace isolation.
+    Boss/worker delegation, persistent agent squads, inter-agent messaging, and workspace isolation. Full project lifecycle management.
   </Card>
   <Card title="75+ built-in tools">
-    Email, GitHub, trading, TTS, browser automation, inter-agent comms, and more.
+    Email, GitHub, trading, TTS, browser automation, inter-agent comms, and more. Not plugins — built directly into the platform.
   </Card>
-  <Card title="MCP extensions">
-    Connect to any Model Context Protocol server for unlimited additional tools.
+  <Card title="Multi-chain DeFi trading">
+    Coinbase + Solana (Jupiter/Pump.fun) + Ethereum (Uniswap). Trading policy engine with daily loss limits. Full trade audit trail.
   </Card>
-  <Card title="Task management">
-    Kanban board with agent assignment, cron scheduling, and event triggers.
+  <Card title="Voice (TTS/STT)">
+    Three TTS providers (Google, OpenAI, ElevenLabs) + speech-to-text. Auto-speak mode reads responses aloud as they arrive.
+  </Card>
+  <Card title="Visual node editor">
+    Drag-and-drop workflow builder. Connect triggers, agents, tools, conditions, and outputs visually — no code required.
+  </Card>
+  <Card title="Model routing">
+    Automatic complexity-based routing. Simple queries go to cheap models, complex tasks to powerful ones. Daily USD budget caps.
   </Card>
   <Card title="10 AI providers">
     Ollama (local & free), OpenAI, Anthropic, Google, DeepSeek, Grok, Mistral, OpenRouter, and any custom OpenAI-compatible endpoint.

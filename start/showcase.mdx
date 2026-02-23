@@ -1,18 +1,18 @@
 ---
 title: "Showcase"
-description: "Feature highlights and what you can do with OpenPawz."
+description: "Feature highlights, use cases, and what you can build with OpenPawz."
 sidebarTitle: "Showcase"
 ---
 
 ## What you can build
 
-OpenPawz isn't just a chat app — it's an agent platform. Here's what people use it for.
+OpenPawz isn't just a chat app — it's an agent operating system. Here's what people build with it.
 
 ---
 
 ### Personal AI assistant
 
-Run an agent on Telegram or WhatsApp that knows your preferences, remembers past conversations, and can execute tasks — send emails, check weather, manage your calendar, browse the web.
+Run an agent on Telegram or WhatsApp that knows your preferences, remembers past conversations, and can execute tasks — send emails, check weather, manage your calendar, browse the web. It speaks responses aloud via TTS and listens via speech-to-text.
 
 <Card title="Get started" href="/start/first-agent">
   Create your first agent in under 5 minutes.
@@ -22,7 +22,7 @@ Run an agent on Telegram or WhatsApp that knows your preferences, remembers past
 
 ### Multi-platform support bot
 
-Connect a single agent to Discord, Slack, and Matrix simultaneously. Same personality, same memory, different platforms. Replies go back to the channel they came from.
+Connect a single agent to Discord, Slack, and Matrix simultaneously. Same personality, same memory, different platforms. Replies go back to the channel they came from. Smart message splitting handles each platform's limits automatically.
 
 <Card title="Connect channels" href="/channels/overview">
   Set up multi-channel routing.
@@ -30,29 +30,29 @@ Connect a single agent to Discord, Slack, and Matrix simultaneously. Same person
 
 ---
 
-### Research assistant
+### Autonomous trading desk
 
-Use the browser sandbox to have agents crawl, extract, and summarize web content. Combine with the orchestrator to run parallel research tasks across multiple agents.
-
-<Card title="Browser sandbox" href="/guides/browser">
-  Headless browser automation for agents.
-</Card>
-
----
-
-### Trading copilot
-
-Connect to market data feeds, run technical analysis, and get real-time alerts through your preferred chat platform. Built-in trading tools provide candle data, order book access, and position tracking.
+Agents trade crypto autonomously across **three chains** — Coinbase exchange, Solana (Jupiter/Pump.fun), and Ethereum (Uniswap). Set policy guardrails: max trade size, daily loss limits, allowed pairs. The trading policy engine ensures agents stay within bounds while you sleep. Full audit trail for every trade.
 
 <Card title="Trading guide" href="/guides/trading">
-  Set up trading tools and market analysis.
+  Set up multi-chain DeFi trading.
 </Card>
 
 ---
 
-### DevOps & automation
+### Research squad
 
-Schedule cron tasks, trigger agents on events, run shell commands in sandboxed containers, and pipe results through multi-agent workflows. All from your desktop.
+Create a squad of specialist agents — a coordinator, a web researcher, a data analyst, and a writer. The coordinator delegates, workers run in parallel with headless Chrome, and the squad produces a synthesis. Agent squads persist and can be reused across projects.
+
+<Card title="Orchestrator" href="/guides/orchestrator">
+  Multi-agent delegation and squads.
+</Card>
+
+---
+
+### DevOps & automation pipeline
+
+Schedule cron tasks, trigger agents on events, run shell commands in sandboxed containers. Use the visual node editor to wire up triggers → agents → tools → outputs without writing code. Pipe results through webhooks to GitHub Actions, Zapier, or any HTTP client.
 
 <Card title="Automations" href="/guides/automations">
   Cron jobs, triggers, and scheduled agent tasks.
@@ -62,10 +62,30 @@ Schedule cron tasks, trigger agents on events, run shell commands in sandboxed c
 
 ### Content creation pipeline
 
-Use the Content Studio to draft documents with AI assistance, then have agents publish or distribute through connected channels.
+Use the Content Studio to draft documents with AI assistance. Agents research, write, and publish through connected channels. Route different content types to specialized agents — one for blog posts, another for social media, a third for technical docs.
 
 <Card title="Content Studio" href="/guides/content-studio">
   Built-in editor with AI writing assistance.
+</Card>
+
+---
+
+### Voice assistant
+
+Turn any agent into a voice assistant. Three TTS providers (Google, OpenAI, ElevenLabs) with configurable voice, speed, and language. Auto-speak mode reads all responses aloud. Combine with Telegram or Webchat for a full voice-driven experience.
+
+<Card title="Voice guide" href="/guides/voice">
+  Text-to-speech and speech-to-text setup.
+</Card>
+
+---
+
+### Self-improving agent network
+
+Agents that discover and install their own capabilities. An agent encounters a new task type, searches PawzHub for a relevant skill, installs it, and immediately uses it — all conversationally, at runtime. No restarts, no manual configuration.
+
+<Card title="Skills" href="/guides/skills">
+  Skills, integrations, and the PawzHub marketplace.
 </Card>
 
 ---
@@ -80,27 +100,33 @@ Use the Content Studio to draft documents with AI assistance, then have agents p
     Ollama, OpenAI, Anthropic, Google, DeepSeek, Grok, Mistral, OpenRouter, Moonshot, and custom endpoints.
   </Card>
   <Card title="75+ built-in tools">
-    Email, GitHub, web search, TTS, trading, file ops, shell, inter-agent messaging, and more.
+    Email, GitHub, web search, TTS/STT, trading, file ops, shell, inter-agent messaging, and more.
   </Card>
-  <Card title="MCP extensions">
-    Connect to any Model Context Protocol server for unlimited additional capabilities.
+  <Card title="Multi-chain DeFi">
+    Coinbase + Solana (Jupiter/Pump.fun) + Ethereum (Uniswap). Trading policy engine with guardrails.
   </Card>
-  <Card title="Semantic memory">
-    Auto-capture and auto-recall with vector search. Agents remember across sessions.
+  <Card title="Hybrid semantic memory">
+    BM25 + vector search + MMR re-ranking + temporal decay. The most advanced retrieval in any agent platform.
   </Card>
-  <Card title="Multi-agent orchestration">
-    Boss/worker delegation, agent squads, parallel task execution, workspace isolation.
+  <Card title="Agent squads">
+    Persistent groups with coordinator/member roles. Reusable across projects. Inter-agent messaging.
   </Card>
-  <Card title="Task management">
-    Kanban board, cron scheduling, event triggers, agent assignment.
+  <Card title="Visual node editor">
+    Drag-and-drop workflow builder. Connect triggers, agents, tools, and outputs visually.
   </Card>
-  <Card title="Browser automation">
-    Headless browser sandbox for web research, scraping, and interaction.
+  <Card title="Model routing">
+    Auto complexity-based routing. Daily budget caps. Thinking level control per session.
   </Card>
-  <Card title="Container sandbox">
-    Isolated Docker containers for safe code execution and shell commands.
+  <Card title="Voice (TTS/STT)">
+    Three TTS providers + speech-to-text. Auto-speak mode. ElevenLabs advanced controls.
   </Card>
-  <Card title="Workspace profiles">
-    Customize the sidebar. Show only what you need: Developer, Trader, Writer, or All.
+  <Card title="Self-installing skills">
+    Agents search PawzHub and install capabilities at runtime. No restarts needed.
+  </Card>
+  <Card title="Remote access">
+    Tailscale mesh VPN + webhook server. Trigger agents from anywhere.
+  </Card>
+  <Card title="Security audit trail">
+    Credential access logging, trade audit trail, cron run logs. Export to JSON/CSV.
   </Card>
 </Columns>
