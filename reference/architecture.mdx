@@ -10,47 +10,50 @@ OpenPawz is a Tauri v2 desktop application with a Rust backend and TypeScript fr
 
 ## System overview
 
-```
-┌─────────────────────────────────────────────────┐
-│                  Tauri Shell                     │
-│  ┌───────────────────────────────────────────┐  │
-│  │            TypeScript Frontend             │  │
-│  │  Views · Feature Modules · IPC Bridge      │  │
-│  └──────────────────┬────────────────────────┘  │
-│                     │ IPC (invoke/events)        │
-│  ┌──────────────────┴────────────────────────┐  │
-│  │              Rust Engine                   │  │
-│  │  Agent Loop · Providers · Channels         │  │
-│  │  Memory · Skills · Orchestrator · Sandbox  │  │
-│  └──────────────────┬────────────────────────┘  │
-│                     │                            │
-│  ┌──────────────────┴────────────────────────┐  │
-│  │           SQLite Database                  │  │
-│  │  sessions · messages · memories · tasks    │  │
-│  │  skills · agents · projects · trades       │  │
-│  └───────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────┘
-```
+<Columns cols={1}>
+  <Card title="Tauri Shell" icon="box">
+    <Columns cols={1}>
+      <Card title="TypeScript Frontend" icon="monitor" horizontal>
+        Views · Feature Modules · IPC Bridge
+      </Card>
+    </Columns>
+    <p style={{ textAlign: 'center', margin: '4px 0', opacity: 0.5 }}>↕ IPC (invoke / events)</p>
+    <Columns cols={1}>
+      <Card title="Rust Engine" icon="cpu" horizontal>
+        Agent Loop · Providers · Channels · Memory · Skills · Orchestrator · Sandbox
+      </Card>
+    </Columns>
+    <p style={{ textAlign: 'center', margin: '4px 0', opacity: 0.5 }}>↕</p>
+    <Columns cols={1}>
+      <Card title="SQLite Database" icon="database" horizontal>
+        sessions · messages · memories · tasks · skills · agents · projects · trades
+      </Card>
+    </Columns>
+  </Card>
+</Columns>
 
 ## Extensibility — Three-Tier System
 
 Pawz has a three-tier extensibility architecture. Each tier adds more power over the previous.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Tier 3 — EXTENSIONS                       🟡 Gold badge       │
-│  Custom sidebar views · Dashboard widgets · Persistent data    │
-│  pawz-skill.toml + [view] + [storage]                          │
-├─────────────────────────────────────────────────────────────────┤
-│  Tier 2 — INTEGRATIONS                     🟣 Purple badge     │
-│  Credential vault · API access · CLI binaries · Widgets        │
-│  pawz-skill.toml + [[credentials]] + [instructions]            │
-├─────────────────────────────────────────────────────────────────┤
-│  Tier 1 — SKILLS                           🔵 Blue badge       │
-│  Prompt injection only · Zero config · SKILL.md format         │
-│  skills.sh ecosystem · Agent-installable                       │
-└─────────────────────────────────────────────────────────────────┘
-```
+<Columns cols={1}>
+  <Card title="Tier 3 — Extensions" icon="sparkles" color="#EAB308">
+    Custom sidebar views · Dashboard widgets · Persistent data<br />
+    `pawz-skill.toml` + `[view]` + `[storage]`
+  </Card>
+</Columns>
+<Columns cols={1}>
+  <Card title="Tier 2 — Integrations" icon="puzzle" color="#A855F7">
+    Credential vault · API access · CLI binaries · Widgets<br />
+    `pawz-skill.toml` + `[[credentials]]` + `[instructions]`
+  </Card>
+</Columns>
+<Columns cols={1}>
+  <Card title="Tier 1 — Skills" icon="file-text" color="#3B82F6">
+    Prompt injection only · Zero config · `SKILL.md` format<br />
+    skills.sh ecosystem · Agent-installable
+  </Card>
+</Columns>
 
 | Tier | Format | Capabilities |
 |------|--------|-------------|

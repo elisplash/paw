@@ -65,15 +65,24 @@ Everything runs through Tauri IPC — **no open ports, no cloud dependency, no N
 
 ## Architecture
 
-```
-┌──────────────────────────┐          ┌──────────────────────────────┐
-│   Pawz Desktop UI        │          │   Rust Backend Engine         │
-│   (TypeScript)           │◄── IPC ──►   Agent loop + tool executor  │
-│                          │          │   11 channel bridges          │
-│   20+ views              │          │   10 AI providers             │
-│   Material Symbols       │          │   SQLite + OS keychain        │
-└──────────────────────────┘          └──────────────────────────────┘
-```
+<Columns cols={2}>
+  <Card title="Frontend — TypeScript" icon="monitor">
+    - **20+ views** — chat, agents, tasks, orchestrator, settings, and more
+    - **Material Symbols** icon system
+    - **Vanilla TS** — no framework, fast and lightweight
+    - **Tauri IPC** — all data stays local via `invoke()` calls
+  </Card>
+  <Card title="Backend — Rust" icon="server">
+    - **Agent loop** with tool executor and streaming
+    - **11 channel bridges** — Telegram, Discord, Slack, Matrix, IRC...
+    - **10 AI providers** — Ollama, OpenAI, Anthropic, Google...
+    - **SQLite + OS keychain** — encrypted local storage
+  </Card>
+</Columns>
+
+<Note>
+Everything communicates through **Tauri IPC** — no open ports, no HTTP servers, no cloud dependency. Your data never leaves your machine.
+</Note>
 
 <Columns cols={3}>
   <Card title="Guides" icon="book-open" href="/guides/agents">
