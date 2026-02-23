@@ -90,6 +90,22 @@ export const TOOL_GROUPS: {
     ],
   },
   {
+    label: 'Google Workspace',
+    icon: 'mail',
+    tools: [
+      { id: 'google_gmail_list', name: 'Gmail List', desc: 'List Gmail messages' },
+      { id: 'google_gmail_read', name: 'Gmail Read', desc: 'Read Gmail messages' },
+      { id: 'google_gmail_send', name: 'Gmail Send', desc: 'Send emails via Gmail' },
+      { id: 'google_calendar_list', name: 'Calendar List', desc: 'List calendar events' },
+      { id: 'google_calendar_create', name: 'Calendar Create', desc: 'Create calendar events' },
+      { id: 'google_drive_list', name: 'Drive List', desc: 'List Drive files' },
+      { id: 'google_drive_read', name: 'Drive Read', desc: 'Read Drive file content' },
+      { id: 'google_sheets_read', name: 'Sheets Read', desc: 'Read spreadsheet data' },
+      { id: 'google_sheets_append', name: 'Sheets Append', desc: 'Add rows to spreadsheets' },
+      { id: 'google_api', name: 'Google API', desc: 'Any Google REST API call' },
+    ],
+  },
+  {
     label: 'Communication',
     icon: 'chat',
     tools: [
