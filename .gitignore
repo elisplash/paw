@@ -30,3 +30,8 @@ resources/node/*.tar.gz
 *.db-wal
 *.db-shm
 *.pdf
+
+# Local secrets (never commit)
+.env
+.env.local
+src-tauri/.env
