@@ -5,153 +5,232 @@ description: "Give your Pawz agent full access to Gmail, Calendar, Drive, Sheets
 
 # Google Workspace
 
-Pawz can read/send Gmail, manage Calendar events, browse Drive, read/write Sheets, and call any Google API — all through a service account with domain-wide delegation.
+Connect Pawz to Gmail, Calendar, Drive, Sheets, and Docs. He can read your inbox, send emails, schedule meetings, browse files, and read/write spreadsheets — all hands-free.
 
-## How It Works
+## What Pawz Can Do With Google
 
-Pawz uses a **Google service account** to authenticate server-to-server with Google APIs. No browser OAuth flow is needed — the agent authenticates silently using a JSON key file you paste into the skill credentials.
+Once connected, Pawz gets 10 Google tools:
 
-The service account impersonates a real Google Workspace user (e.g. `pawz@yourdomain.com`) via **domain-wide delegation**, giving it access to that user's Gmail, Calendar, Drive, etc.
+**Email (Gmail)**
+- Read your inbox, search for specific emails ("find all unread emails from Sarah")
+- Read full email contents
+- Send emails as your Pawz account (to anyone, with CC, plain text or HTML)
 
-## Setup
+**Calendar**
+- See your upcoming schedule ("what meetings do I have this week?")
+- Create events with attendees, location, and description
 
-### 1. Create a Google Cloud Project
+**Drive**
+- Browse and search your Google Drive files
+- Read the contents of Docs, Sheets, PDFs, and text files
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Click **Select a project** → **New Project**
-3. Name it (e.g. "Pawz Agent") and click **Create**
-4. Make sure the new project is selected
+**Sheets**
+- Read spreadsheet data (shows as formatted tables)
+- Add new rows to spreadsheets (great for logging, tracking, data entry)
 
-### 2. Enable APIs
+**Any Google API**
+- A generic tool that can hit any Google REST API endpoint for anything not covered above
 
-In your project, go to **APIs & Services → Library** and enable these APIs:
+---
 
-- **Gmail API**
-- **Google Calendar API**
-- **Google Drive API**
-- **Google Sheets API**
-- **Google Docs API**
+## Requirements
 
-Search for each one and click **Enable**.
+<Callout type="warn">
+This setup requires **Google Workspace** (the paid Google business plan — starts at $7/mo per user). If you're using a free `@gmail.com` account, this method won't work — service accounts can't impersonate personal Gmail users. OAuth2 support for personal Gmail is planned for a future release.
+</Callout>
 
-### 3. Create a Service Account
+You need:
+- A **Google Workspace** domain (e.g. `yourdomain.com` managed through Google)
+- **Admin access** to that Google Workspace account
+- About **15 minutes** for first-time setup
 
-1. Go to **APIs & Services → Credentials**
-2. Click **+ Create Credentials → Service Account**
-3. Name: `pawz-agent` (or whatever you like)
-4. Click **Create and Continue**
-5. Skip the optional role/access steps, click **Done**
+---
 
-### 4. Create a JSON Key
+## Step-by-Step Setup
 
-1. Click on the service account you just created
-2. Go to the **Keys** tab
-3. Click **Add Key → Create new key → JSON**
-4. A `.json` file will download — this is your service account key
-5. **Keep this file safe** — it contains a private key
+### Step 1: Create a Google Cloud Project
 
-### 5. Set Up Domain-Wide Delegation
+This is where Google tracks which APIs your service account can use.
 
-This step allows the service account to impersonate users in your Google Workspace domain.
+1. Open this link: **[console.cloud.google.com/projectcreate](https://console.cloud.google.com/projectcreate)**
+2. You'll see a "New Project" form:
+   - **Project name**: Type `Pawz` (or anything you want)
+   - **Organization**: Leave as your domain (it may auto-select)
+3. Click the blue **Create** button
+4. Wait a few seconds — a notification will pop up saying "Create Project: Pawz". Click **SELECT PROJECT** in that notification.
 
-1. On the service account details page, note the **Client ID** (a long number like `118234567890123456789`)
-2. Go to [Google Workspace Admin Console](https://admin.google.com/)
-3. Navigate to **Security → Access and Data Control → API Controls → Domain-wide Delegation**
-4. Click **Add new**
-5. Paste the **Client ID** from step 1
-6. In **OAuth Scopes**, paste this entire list (comma-separated):
+You should now see "Pawz" in the top-left dropdown next to the Google Cloud logo.
+
+### Step 2: Turn On the APIs
+
+You need to flip the switch on for each Google service Pawz will use. This is just clicking "Enable" 5 times.
+
+Click each of these links (they'll open the right page for your new project). On each page, click the blue **Enable** button:
+
+1. **[Enable Gmail API](https://console.cloud.google.com/apis/library/gmail.googleapis.com)**
+2. **[Enable Calendar API](https://console.cloud.google.com/apis/library/calendar-json.googleapis.com)**
+3. **[Enable Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com)**
+4. **[Enable Sheets API](https://console.cloud.google.com/apis/library/sheets.googleapis.com)**
+5. **[Enable Docs API](https://console.cloud.google.com/apis/library/docs.googleapis.com)**
+
+If any of them say "API Enabled" already, you're good — just move on.
+
+<Callout type="info">
+Make sure "Pawz" is still selected as your project in the top-left dropdown before clicking Enable. If it switched, click the dropdown and select Pawz.
+</Callout>
+
+### Step 3: Create the Service Account
+
+A service account is like a robot user — it's what Pawz uses to log in to Google without needing a browser.
+
+1. Open: **[console.cloud.google.com/iam-admin/serviceaccounts/create](https://console.cloud.google.com/iam-admin/serviceaccounts/create)**
+2. Fill in:
+   - **Service account name**: `pawz-agent`
+   - **Service account ID**: This auto-fills to `pawz-agent` (leave it)
+   - **Description**: `Pawz AI agent access` (optional)
+3. Click **Create and Continue**
+4. On the "Grant this service account access" step — **skip it**. Just click **Continue**.
+5. On the "Grant users access" step — **skip it**. Click **Done**.
+
+You'll be taken to a list of service accounts. You should see `pawz-agent@pawz-XXXXX.iam.gserviceaccount.com` in the list.
+
+### Step 4: Download the JSON Key
+
+This is the credential file that Pawz needs. It contains a private key that lets Pawz authenticate.
+
+1. You should be on the Service Accounts list page. If not, open: **[console.cloud.google.com/iam-admin/serviceaccounts](https://console.cloud.google.com/iam-admin/serviceaccounts)**
+2. Click on **pawz-agent** (the email link in the table)
+3. Click the **Keys** tab at the top
+4. Click **Add Key** → **Create new key**
+5. Select **JSON** (it's the default)
+6. Click **Create**
+7. A `.json` file will automatically download to your computer (something like `pawz-XXXXX-abc123.json`)
+
+**Keep this file!** You'll paste its contents into Pawz in the last step.
+
+### Step 5: Enable Domain-Wide Delegation
+
+This is the step that gives the service account permission to act as a real user in your Google Workspace domain. Without this, the service account can't access Gmail, Calendar, etc.
+
+**Part A — Get the Client ID:**
+
+1. Go back to: **[console.cloud.google.com/iam-admin/serviceaccounts](https://console.cloud.google.com/iam-admin/serviceaccounts)**
+2. In the service accounts table, find `pawz-agent`
+3. Look at the **OAuth 2 Client ID** column — it's a long number like `118234567890123456789`
+4. **Copy that number** (click the copy icon or select and Ctrl+C)
+
+If you don't see the OAuth 2 Client ID column:
+- Click on `pawz-agent` → **Details** tab → look for **Unique ID** — that's the same number
+
+**Part B — Authorize in Google Workspace Admin:**
+
+1. Open: **[admin.google.com/ac/owl/domainwidedelegation](https://admin.google.com/ac/owl/domainwidedelegation)**
+   - You need to be logged in as a Google Workspace admin for your domain
+2. Click **Add new**
+3. **Client ID**: Paste the number you copied in Part A
+4. **OAuth scopes**: Copy and paste this entire line:
 
 ```
 https://www.googleapis.com/auth/gmail.modify,https://www.googleapis.com/auth/gmail.send,https://www.googleapis.com/auth/calendar,https://www.googleapis.com/auth/drive,https://www.googleapis.com/auth/spreadsheets,https://www.googleapis.com/auth/documents
 ```
 
-7. Click **Authorize**
+5. Click **Authorize**
 
-### 6. Create a Workspace User (Optional)
+You should see `pawz-agent` appear in the domain-wide delegation list with "6 scopes".
 
-If you want Pawz to have its own email identity:
+### Step 6: Create Pawz's Email Account (Optional but Recommended)
 
-1. In Google Workspace Admin, go to **Directory → Users**
+If you want Pawz to have his **own** email address (like `pawz@yourdomain.com`) instead of acting as your personal account:
+
+1. Open: **[admin.google.com/ac/users](https://admin.google.com/ac/users)**
 2. Click **Add new user**
-3. Create an account like `pawz@yourdomain.com`
-4. This will be the email Pawz sends from and the mailbox it reads
+3. Fill in:
+   - **First name**: `Pawz`
+   - **Last name**: `Agent` (or your pick)
+   - **Primary email**: `pawz@yourdomain.com`
+4. Set a password (you won't need it — Pawz uses the service account to log in)
+5. Click **Add new user**
 
-### 7. Configure in Pawz
+This gives Pawz his own Gmail inbox, Calendar, and Drive.
 
-1. Open Pawz → **Skills** → **Google Workspace**
-2. Click **Enable**, then **Configure**
-3. **Service Account JSON**: Open the downloaded `.json` key file in a text editor, copy the entire contents, and paste it into this field
-4. **Delegated User Email**: Enter the email of the user the agent should act as (e.g. `pawz@yourdomain.com`)
-5. Save
+### Step 7: Connect in Pawz
 
-## Available Tools
+Almost done — now just paste the credentials into Pawz.
 
-Once configured, your agents get these tools:
+1. Open **Pawz** on your desktop
+2. Go to **Skills** (in the sidebar)
+3. Find **Google Workspace** and click **Enable**
+4. Click **Configure**
+5. You'll see two fields:
 
-| Tool | Description |
-|------|-------------|
-| `google_gmail_list` | List/search emails using Gmail search operators |
-| `google_gmail_read` | Read the full content of an email by ID |
-| `google_gmail_send` | Send emails (plain text or HTML, with CC) |
-| `google_calendar_list` | List upcoming events with date range filtering |
-| `google_calendar_create` | Create events with attendees, location, description |
-| `google_drive_list` | Browse and search Drive files |
-| `google_drive_read` | Read document contents (exports Docs/Sheets as text) |
-| `google_sheets_read` | Read spreadsheet data as formatted tables |
-| `google_sheets_append` | Append rows to a spreadsheet |
-| `google_api` | Generic authenticated call to any Google REST API |
+**Service Account JSON:**
+- Open the `.json` file you downloaded in Step 4 with any text editor (TextEdit, Notepad, VS Code — anything)
+- Select **all** the text (Ctrl+A / Cmd+A) and **copy** it (Ctrl+C / Cmd+C)
+- Paste it into this field
+- It should start with `{"type": "service_account"` and contain a long `private_key` section
 
-## Usage Examples
+**Delegated User Email:**
+- If you created `pawz@yourdomain.com` in Step 6, enter: `pawz@yourdomain.com`
+- Otherwise, enter your own Google Workspace email (e.g. `you@yourdomain.com`)
+- This is the account Pawz will "act as" — reading that inbox, sending from that address, etc.
 
-Ask your agent:
+6. Click **Save**
 
-- *"Check my inbox for unread emails"*
-- *"Send an email to alice@example.com about the project update"*
-- *"What meetings do I have this week?"*
-- *"Schedule a team standup for tomorrow at 10am with bob@company.com"*
-- *"List the files in my Drive"*
-- *"Read the Q4 Report spreadsheet"*
-- *"Add a row to the expenses spreadsheet"*
+### Done!
 
-## Gmail Search Operators
+Try it out — tell Pawz:
+- *"Check my inbox"*
+- *"What's on my calendar this week?"*
+- *"Send an email to hello@example.com saying hi from Pawz"*
+- *"What files are in my Google Drive?"*
 
-The `google_gmail_list` tool supports Gmail search syntax:
+---
 
-| Operator | Example | Description |
-|----------|---------|-------------|
-| `from:` | `from:alice@example.com` | Emails from a sender |
-| `to:` | `to:bob@example.com` | Emails to a recipient |
-| `subject:` | `subject:invoice` | Emails with subject containing word |
-| `is:unread` | `is:unread` | Unread emails only |
-| `is:starred` | `is:starred` | Starred emails |
-| `has:attachment` | `has:attachment` | Emails with attachments |
-| `after:` | `after:2025/01/01` | Emails after a date |
-| `before:` | `before:2025/06/01` | Emails before a date |
-| `label:` | `label:important` | Emails with a label |
+## Gmail Search Tips
 
-Combine operators: `from:alice@example.com is:unread has:attachment`
+When asking Pawz to find specific emails, he uses Gmail's search syntax under the hood. You can be natural about it:
 
-## Security Notes
+| What you say | What Pawz searches |
+|---|---|
+| "Find unread emails" | `is:unread` |
+| "Emails from Sarah" | `from:sarah@...` |
+| "Emails about invoices" | `subject:invoice` |
+| "Emails with attachments from last week" | `has:attachment after:2026/02/16` |
+| "Starred emails" | `is:starred` |
 
-- The service account JSON key contains a **private RSA key** — treat it like a password
-- Credentials are encrypted at rest in Pawz's skill vault (AES-256-GCM)
-- The service account can only access the delegated user's data — not other users in the domain
-- Access tokens are cached in-memory for 1 hour and never written to disk
-- You can revoke access at any time by deleting the service account key in Google Cloud Console
+---
+
+## Security
+
+- The JSON key is **encrypted** in Pawz's credential vault (AES-256-GCM) — it's not stored in plain text
+- Access tokens live in memory only, never written to disk, and expire after 1 hour
+- The service account can **only** access the one delegated user's data — it can't snoop on other people in your org
+- To revoke access: delete the key in Google Cloud Console, or remove the delegation in Workspace Admin
+
+---
 
 ## Troubleshooting
 
 **"Missing SERVICE_ACCOUNT_JSON credential"**
-→ Enable the Google Workspace skill and paste the JSON key in Skills → Configure
+You haven't pasted the JSON key yet. Go to Skills → Google Workspace → Configure and paste the full contents of the `.json` file.
+
+**"Failed to parse service account private key"**
+The JSON got corrupted during copy-paste. Open the `.json` file again, make sure you're copying the **entire** file (including the curly braces at the start and end), and try again.
 
 **"Google token exchange failed (401)"**
-→ The service account key may be invalid or expired. Generate a new JSON key in Google Cloud Console.
+The service account key might be expired or revoked. Go to Google Cloud Console → Service Accounts → Keys and create a new JSON key.
 
 **"Google API error (403): Insufficient Permission"**
-→ Domain-wide delegation scopes may not be configured. Check step 5 — make sure all scopes are authorized in Google Workspace Admin.
+Domain-wide delegation isn't set up correctly. Go back to Step 5 and make sure:
+- The Client ID matches exactly
+- All 6 OAuth scopes are pasted (no extra spaces or line breaks)
+- You clicked Authorize
 
-**"Google API error (400): Bad Request"**
-→ For calendar events, make sure dates are in RFC3339 format: `2026-02-24T10:00:00-05:00`
+**"Google API error (403)" on Gmail specifically**
+The Gmail API might not be enabled. Go to Step 2 and click the Gmail API link to verify it says "API Enabled".
+
+**"Google API error (400): Bad Request" on calendar events**
+Calendar times need to be in a specific format. Tell Pawz to use times like "tomorrow at 2pm" and he'll handle the formatting.
 
 **"Token response missing 'access_token'"**
-→ The Gmail/Calendar/Drive APIs may not be enabled. Check step 2 in Google Cloud Console.
+One or more APIs aren't enabled. Revisit Step 2 and click through all 5 links to make sure each says "API Enabled".
