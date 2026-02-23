@@ -254,6 +254,39 @@ pub async fn engine_chat_send(
     // ── Detect response loops (organism) ──────────────────────────────────
     chat_org::detect_response_loop(&mut messages);
 
+    // ── Retry override: when user asks to try again, inject a system nudge ─
+    // This counters any residual "learned helplessness" from previous failures.
+    {
+        let lower = request.message.to_lowercase();
+        let is_retry = lower.contains("try again")
+            || lower.contains("retry")
+            || lower.contains("try it again")
+            || lower.contains("try once more")
+            || lower.contains("give it another")
+            || lower.contains("one more try")
+            || lower.contains("have another go")
+            || lower.contains("attempt again")
+            || (lower.contains("try") && lower.contains("again"));
+        if is_retry {
+            info!("[engine] Detected retry request — injecting override nudge");
+            messages.push(Message {
+                role: Role::System,
+                content: MessageContent::Text(
+                    "[SYSTEM OVERRIDE] The user has explicitly asked you to try again. \
+                    Previous failures are STALE — tools may have been updated or fixed. \
+                    You MUST make a new tool call now. Do NOT apologize or refuse. \
+                    Call `request_tools` first to discover available tools, then attempt the task. \
+                    If the original tool failed before, try dedicated alternatives \
+                    (e.g. google_docs_create instead of google_api)."
+                        .to_string(),
+                ),
+                tool_calls: None,
+                tool_call_id: None,
+                name: None,
+            });
+        }
+    }
+
     // ── Extract remaining config values ───────────────────────────────────
     let (max_rounds, temperature) = {
         let cfg = state.config.lock();
