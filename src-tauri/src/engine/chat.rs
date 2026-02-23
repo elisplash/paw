@@ -76,15 +76,20 @@ pub fn build_chat_tools(
         all_tools.extend(mcp_tools);
     }
 
-    // ── Tool RAG: filter to core + loaded tools ────────────────────────
+    // ── Tool RAG: filter to core + loaded + policy-allowed tools ─────
     let is_core = |name: &str| tool_index::CORE_TOOLS.contains(&name);
     let is_loaded = |name: &str| loaded_tools.contains(name);
     let is_mcp = |name: &str| name.starts_with("mcp_");
+    // If the agent policy explicitly lists skill tools, auto-include them
+    // so users don't have to rely on request_tools for tools they manually enabled.
+    let is_policy_allowed = |name: &str| {
+        tool_filter.map_or(false, |f| f.iter().any(|n| n == name))
+    };
 
     let mut t: Vec<ToolDefinition> = all_tools.into_iter()
         .filter(|tool| {
             let name = tool.function.name.as_str();
-            is_core(name) || is_loaded(name) || is_mcp(name)
+            is_core(name) || is_loaded(name) || is_mcp(name) || is_policy_allowed(name)
         })
         .collect();
 

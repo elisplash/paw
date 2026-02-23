@@ -53,7 +53,32 @@ pub async fn execute(
     }
     let creds = match super::get_skill_creds("email", app_handle) {
         Ok(c) => c,
-        Err(e) => return Some(Err(e.to_string())),
+        Err(_) => {
+            // If 'email' (Himalaya) skill is disabled but google_workspace is enabled,
+            // transparently redirect email_send → google_gmail_send and email_read → google_gmail_list.
+            // This handles models that hallucinate `email_send` when they mean Google Gmail.
+            if super::get_skill_creds("google_workspace", app_handle).is_ok() {
+                let google_name = match name {
+                    "email_send" => "google_gmail_send",
+                    "email_read" => "google_gmail_list",
+                    _ => return None,
+                };
+                // Remap args: some models send "recipient" instead of "to"
+                let mut remapped = args.clone();
+                if remapped.get("to").is_none() {
+                    if let Some(recipient) = remapped.get("recipient").cloned() {
+                        remapped["to"] = recipient;
+                    }
+                }
+                info!("[email] Redirecting {} → {} (email skill disabled, google_workspace enabled)", name, google_name);
+                return super::google::execute(google_name, &remapped, app_handle).await;
+            }
+            return Some(Err(
+                "Email skill is not enabled. To send emails, either enable the 'Email' skill (IMAP/SMTP) \
+                 or connect your Google account in Skills → Google Workspace."
+                    .to_string(),
+            ));
+        }
     };
     Some(match name {
         "email_send" => execute_email_send(args, &creds).await.map_err(|e| e.to_string()),
