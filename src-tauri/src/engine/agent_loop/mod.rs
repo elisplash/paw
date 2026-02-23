@@ -439,9 +439,9 @@ pub async fn run_agent_turn(
         // ── 6. Mid-loop context truncation ─────────────────────────────
         // The messages Vec grows each round (assistant + tool results).
         // Without trimming, later rounds can send 50k+ tokens to the API.
-        // Cap at ~16k tokens (same budget as session load), always
+        // Cap at ~32k tokens (same budget as session load), always
         // preserving: system prompt (first msg) and last user message.
-        const MID_LOOP_MAX_TOKENS: usize = 16_000;
+        const MID_LOOP_MAX_TOKENS: usize = 32_000;
         let estimate_msg_tokens = |m: &Message| -> usize {
             let text_len = match &m.content {
                 MessageContent::Text(t) => t.len(),
