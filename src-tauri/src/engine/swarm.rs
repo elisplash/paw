@@ -19,19 +19,41 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, LazyLock};
 use tauri::{Emitter, Manager};
 
-/// Maximum auto-wake spawns per squad before requiring new human input.
-const MAX_SWARM_WAKES: u32 = 6;
+/// Base auto-wake budget per squad member per human turn.
+/// Total limit = members × WAKES_PER_MEMBER (e.g., 3-member squad → 12 wakes).
+const WAKES_PER_MEMBER: u32 = 4;
+
+/// Absolute ceiling regardless of squad size.
+const MAX_SWARM_WAKES_CAP: u32 = 24;
 
 /// Per-squad swarm counters — tracks how many auto-wakes have fired.
 static SWARM_COUNTERS: LazyLock<parking_lot::Mutex<HashMap<String, Arc<AtomicU32>>>> =
     LazyLock::new(|| parking_lot::Mutex::new(HashMap::new()));
 
+/// Per-squad member counts — used to compute dynamic limits.
+static SQUAD_MEMBER_COUNT: LazyLock<parking_lot::Mutex<HashMap<String, u32>>> =
+    LazyLock::new(|| parking_lot::Mutex::new(HashMap::new()));
+
+/// Set the member count for a squad (called when broadcasts happen).
+pub fn set_squad_size(squad_id: &str, member_count: u32) {
+    let mut counts = SQUAD_MEMBER_COUNT.lock();
+    counts.insert(squad_id.to_string(), member_count);
+}
+
+/// Get the dynamic wake limit for a squad based on its member count.
+fn wake_limit(squad_id: &str) -> u32 {
+    let counts = SQUAD_MEMBER_COUNT.lock();
+    let members = counts.get(squad_id).copied().unwrap_or(3);
+    (members * WAKES_PER_MEMBER).min(MAX_SWARM_WAKES_CAP)
+}
+
 /// Check if we can auto-wake more agents for this squad.
 pub fn can_auto_wake(squad_id: &str) -> bool {
+    let limit = wake_limit(squad_id);
     let counters = SWARM_COUNTERS.lock();
     counters
         .get(squad_id)
-        .map(|c| c.load(Ordering::Relaxed) < MAX_SWARM_WAKES)
+        .map(|c| c.load(Ordering::Relaxed) < limit)
         .unwrap_or(true)
 }
 
@@ -44,10 +66,20 @@ fn increment_counter(squad_id: &str) -> u32 {
     counter.fetch_add(1, Ordering::Relaxed) + 1
 }
 
-/// Reset the swarm counter for a squad.
+/// Reset the swarm counter for a squad (called on new human input).
 pub fn reset_counter(squad_id: &str) {
     let mut counters = SWARM_COUNTERS.lock();
     counters.remove(squad_id);
+}
+
+/// Reset ALL swarm counters — called at the start of each human chat turn
+/// so sub-agents can wake up fresh for each new human message.
+pub fn reset_all_counters() {
+    let mut counters = SWARM_COUNTERS.lock();
+    if !counters.is_empty() {
+        info!("[swarm] Resetting swarm counters for {} squads (new human turn)", counters.len());
+        counters.clear();
+    }
 }
 
 /// Spawn an auto-wake agent turn for a squad member.
@@ -76,9 +108,10 @@ pub fn spawn_swarm_reply(
     }
 
     let count = increment_counter(squad_id);
+    let limit = wake_limit(squad_id);
     info!(
         "[swarm] Auto-waking '{}' for squad '{}' (wake {}/{})",
-        recipient_id, squad_name, count, MAX_SWARM_WAKES
+        recipient_id, squad_name, count, limit
     );
 
     // Clone everything we need into the async block

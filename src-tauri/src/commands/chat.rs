@@ -30,6 +30,9 @@ pub async fn engine_chat_send(
 ) -> Result<ChatResponse, String> {
     let run_id = uuid::Uuid::new_v4().to_string();
 
+    // Reset swarm counters so sub-agents can wake fresh for this human turn
+    crate::engine::swarm::reset_all_counters();
+
     // ── Resolve or create session ──────────────────────────────────────────
     let session_id = match &request.session_id {
         Some(id) if !id.is_empty() => id.clone(),

@@ -280,6 +280,10 @@ fn exec_broadcast(
     // Each recipient agent wakes up, reads the broadcast, thinks, and responds.
     // Depth-limited by the swarm counter to prevent infinite loops.
     if sent > 0 {
+        // Tell the swarm counter how many members this squad has
+        // so the wake limit scales (members × 4, capped at 24).
+        crate::engine::swarm::set_squad_size(squad_id, squad.members.len() as u32);
+
         let squad_name_owned = squad.name.clone();
         let squad_goal_owned = squad.goal.clone();
         for m in &squad.members {
