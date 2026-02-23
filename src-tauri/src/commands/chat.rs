@@ -287,6 +287,88 @@ pub async fn engine_chat_send(
         }
     }
 
+    // ── Topic change detection: when the user switches subjects, inject a ──
+    // context-reset nudge so the model doesn't carry forward stale state from
+    // previous tasks/failures.  This is how VS Code handles conversation turns:
+    // each user message gets fresh focus.
+    {
+        let user_lower = request.message.to_lowercase();
+        let stop_words: std::collections::HashSet<&str> = [
+            "the", "a", "an", "is", "are", "was", "were", "be", "been",
+            "have", "has", "had", "do", "does", "did", "will", "would",
+            "could", "should", "may", "might", "can", "to", "of", "in",
+            "for", "on", "with", "at", "by", "from", "as", "into", "about",
+            "like", "through", "after", "over", "between", "out",
+            "i", "you", "he", "she", "it", "we", "they", "me", "my", "your",
+            "and", "but", "or", "not", "so", "if", "then", "than",
+            "too", "very", "just", "don't", "im", "i'm", "it's",
+            "what", "how", "all", "which", "who", "when", "where", "why",
+            "this", "that", "these", "those", "let's", "lets", "now",
+            "ok", "okay", "right", "think", "want", "need", "get",
+        ].into_iter().collect();
+
+        let user_keywords: std::collections::HashSet<String> = user_lower
+            .split_whitespace()
+            .filter(|w| w.len() > 2 && !stop_words.contains(w))
+            .map(|w| w.to_string())
+            .collect();
+
+        // Gather keywords from the last 3 assistant messages
+        let recent_asst_text: String = messages.iter().rev()
+            .filter(|m| m.role == Role::Assistant)
+            .take(3)
+            .map(|m| m.content.as_text().to_lowercase())
+            .collect::<Vec<_>>()
+            .join(" ");
+        let asst_keywords: std::collections::HashSet<String> = recent_asst_text
+            .split_whitespace()
+            .filter(|w| w.len() > 2 && !stop_words.contains(w))
+            .map(|w| w.to_string())
+            .collect();
+
+        // Detect topic change: user keywords have very low overlap with recent assistant context
+        // AND the user message is substantive (not just "yes" or "ok")
+        let has_topic_switch = if user_keywords.len() >= 3 && !asst_keywords.is_empty() {
+            let overlap = user_keywords.intersection(&asst_keywords).count();
+            let ratio = overlap as f64 / user_keywords.len() as f64;
+            ratio < 0.15 // Less than 15% overlap = new topic
+        } else {
+            false
+        };
+
+        // Also detect explicit pivot phrases
+        let explicit_pivot = user_lower.contains("something else")
+            || user_lower.contains("different topic")
+            || user_lower.contains("change of subject")
+            || user_lower.contains("moving on")
+            || user_lower.contains("new question")
+            || user_lower.contains("forget that")
+            || user_lower.contains("forget about")
+            || user_lower.contains("never mind")
+            || user_lower.contains("nevermind")
+            || user_lower.contains("scratch that")
+            || user_lower.starts_with("actually")
+            || (user_lower.contains("instead") && user_lower.contains("let"));
+
+        if has_topic_switch || explicit_pivot {
+            info!("[engine] Topic change detected — injecting fresh-focus nudge");
+            messages.push(Message {
+                role: Role::System,
+                content: MessageContent::Text(
+                    "[CONTEXT SWITCH] The user has changed topics. \
+                    IGNORE all previous tasks, errors, and tool failures from this session. \
+                    Focus ENTIRELY on what the user just asked. Do NOT reference or apologize \
+                    for anything that happened earlier in this conversation. \
+                    Treat this as a fresh request. If you need tools, call `request_tools` first."
+                        .to_string(),
+                ),
+                tool_calls: None,
+                tool_call_id: None,
+                name: None,
+            });
+        }
+    }
+
     // ── Extract remaining config values ───────────────────────────────────
     let (max_rounds, temperature) = {
         let cfg = state.config.lock();
