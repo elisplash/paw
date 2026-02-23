@@ -4,8 +4,8 @@
   "name": "OpenPawz",
   "description": "Your AI, your rules. A native desktop AI agent platform — private, powerful, extensible.",
   "logo": {
-    "dark": "/images/pawz-logo-text-dark.png",
-    "light": "/images/pawz-logo-text-light.png",
+    "dark": "/images/pawz-logo.png",
+    "light": "/images/pawz-logo.png",
     "href": "https://github.com/elisplash/paw"
   },
   "favicon": "/images/pawz-favicon.png",
@@ -26,12 +26,8 @@
   "navbar": {
     "links": [
       {
-        "label": "GitHub",
+        "type": "github",
         "href": "https://github.com/elisplash/paw"
-      },
-      {
-        "label": "Releases",
-        "href": "https://github.com/elisplash/paw/releases"
       }
     ],
     "primary": {
@@ -48,7 +44,6 @@
     "tabs": [
       {
         "tab": "Get Started",
-        "icon": "rocket",
         "groups": [
           {
             "group": "Home",
@@ -68,7 +63,6 @@
       },
       {
         "tab": "Guides",
-        "icon": "book-open",
         "groups": [
           {
             "group": "Core",
@@ -123,7 +117,6 @@
       },
       {
         "tab": "Channels",
-        "icon": "message-square",
         "groups": [
           {
             "group": "Channels",
@@ -146,7 +139,6 @@
       },
       {
         "tab": "Providers",
-        "icon": "server",
         "groups": [
           {
             "group": "AI Providers",
@@ -168,7 +160,6 @@
       },
       {
         "tab": "Reference",
-        "icon": "file-text",
         "groups": [
           {
             "group": "Reference",
@@ -200,6 +191,6 @@
     "indexHiddenPages": false
   },
   "contextual": {
-    "options": ["view", "chatgpt", "claude"]
+    "options": ["chatgpt", "claude"]
   }
 }
