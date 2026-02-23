@@ -184,6 +184,6 @@
     "indexHiddenPages": false
   },
   "contextual": {
-    "options": ["claude"]
+    "options": []
   }
 }
