@@ -10,7 +10,7 @@ use crate::engine::tools;
 use crate::engine::state::{PendingApprovals, DailyTokenTracker};
 use log::{info, warn};
 use std::time::Duration;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use trading::check_trading_auto_approve;
 use crate::atoms::error::EngineResult;
 
