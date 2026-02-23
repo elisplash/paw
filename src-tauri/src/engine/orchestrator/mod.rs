@@ -186,7 +186,7 @@ You are the **Boss Agent** orchestrating project "{}".
     };
     state.store.add_message(&user_msg)?;
 
-    let mut messages = state.store.load_conversation(&session_id, Some(&boss_system_prompt))?;
+    let mut messages = state.store.load_conversation(&session_id, Some(&boss_system_prompt), None)?;
     let provider = AnyProvider::from_config(&provider_config);
     let pending = state.pending_approvals.clone();
     let pid = project_id.to_string();

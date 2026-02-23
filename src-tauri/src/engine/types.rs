@@ -238,7 +238,7 @@ impl ModelRouting {
 // ── Engine State ───────────────────────────────────────────────────────
 
 // serde default helpers for EngineConfig live in crate::atoms::types
-use crate::atoms::types::{default_user_timezone, default_daily_budget_usd, default_max_concurrent_runs};
+use crate::atoms::types::{default_user_timezone, default_daily_budget_usd, default_max_concurrent_runs, default_context_window_tokens};
 
 impl Default for EngineConfig {
     fn default() -> Self {
@@ -272,6 +272,7 @@ Be thorough, resourceful, and action-oriented. When the user asks you to do some
             model_routing: ModelRouting::default(),
             max_concurrent_runs: default_max_concurrent_runs(),
             daily_budget_usd: default_daily_budget_usd(),
+            context_window_tokens: default_context_window_tokens(),
         }
     }
 }

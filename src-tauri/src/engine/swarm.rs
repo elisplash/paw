@@ -273,9 +273,13 @@ async fn run_swarm_turn(
     state.store.add_message(&user_msg)?;
 
     // Load conversation history
+    let context_window = {
+        let cfg = state.config.lock();
+        cfg.context_window_tokens
+    };
     let mut messages = state
         .store
-        .load_conversation(&session_id, full_system_prompt.as_deref())?;
+        .load_conversation(&session_id, full_system_prompt.as_deref(), Some(context_window))?;
 
     // Build tools — full tool set so agents can broadcast, read messages, etc.
     let tools = chat_org::build_chat_tools(&state.store, true, None, app_handle);

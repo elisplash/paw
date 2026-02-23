@@ -439,9 +439,17 @@ pub async fn run_agent_turn(
         // ── 6. Mid-loop context truncation ─────────────────────────────
         // The messages Vec grows each round (assistant + tool results).
         // Without trimming, later rounds can send 50k+ tokens to the API.
-        // Cap at ~32k tokens (same budget as session load), always
-        // preserving: system prompt (first msg) and last user message.
-        const MID_LOOP_MAX_TOKENS: usize = 32_000;
+        // Uses the same context_window_tokens from Settings → Engine as
+        // the initial conversation load (default 32K).
+        // Always preserves: system prompt (first msg) and last user message.
+        let mid_loop_max = {
+            if let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() {
+                let cfg = state.config.lock();
+                cfg.context_window_tokens
+            } else {
+                32_000
+            }
+        };
         let estimate_msg_tokens = |m: &Message| -> usize {
             let text_len = match &m.content {
                 MessageContent::Text(t) => t.len(),
@@ -457,7 +465,7 @@ pub async fn run_agent_turn(
             (text_len + tc_len) / 4 + 4
         };
         let mid_total: usize = messages.iter().map(&estimate_msg_tokens).sum();
-        if mid_total > MID_LOOP_MAX_TOKENS && messages.len() > 3 {
+        if mid_total > mid_loop_max && messages.len() > 3 {
             // Preserve system prompt (index 0)
             let sys_msg = if !messages.is_empty() && messages[0].role == Role::System {
                 Some(messages.remove(0))
@@ -472,7 +480,7 @@ pub async fn run_agent_turn(
                 .unwrap_or(messages.len().saturating_sub(1));
             let mut keep_from = 0;
             for (i, &t) in msg_tokens.iter().enumerate() {
-                if running <= MID_LOOP_MAX_TOKENS { break; }
+                if running <= mid_loop_max { break; }
                 if i >= last_user_idx { break; }
                 running -= t;
                 keep_from = i + 1;

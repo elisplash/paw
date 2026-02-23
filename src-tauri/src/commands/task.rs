@@ -378,7 +378,11 @@ pub async fn execute_task(
         };
         state.store.add_message(&user_msg)?;
 
-        let mut messages = state.store.load_conversation(&session_id, Some(&full_system_prompt))?;
+        let context_window = {
+            let cfg = state.config.lock();
+            cfg.context_window_tokens
+        };
+        let mut messages = state.store.load_conversation(&session_id, Some(&full_system_prompt), Some(context_window))?;
 
         let provider = AnyProvider::from_config(&provider_config);
         let pending_clone = pending.clone();

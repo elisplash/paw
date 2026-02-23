@@ -62,7 +62,10 @@ impl SessionStore {
     }
 
     /// Convert stored messages to engine Message types for sending to AI provider.
-    pub fn load_conversation(&self, session_id: &str, system_prompt: Option<&str>) -> EngineResult<Vec<Message>> {
+    ///
+    /// `max_context_tokens` caps the total conversation size.  Pass `None` to
+    /// use the default (32 000 tokens).
+    pub fn load_conversation(&self, session_id: &str, system_prompt: Option<&str>, max_context_tokens: Option<usize>) -> EngineResult<Vec<Message>> {
         // Load recent messages only — lean sessions rely on memory_search for
         // historical context rather than carrying the full conversation.
         let stored = self.get_messages(session_id, 50)?;
@@ -101,15 +104,11 @@ impl SessionStore {
         }
 
         // ── Context window truncation ──────────────────────────────────
-        // Estimate tokens (~4 chars per token) and keep only the most recent
-        // messages that fit within ~32k tokens to leave room for the response.
-        // With system prompts of ~7-8K tokens (soul context + skills),
-        // 32K total leaves ~24K for conversation (~16-20 exchanges).
-        // This prevents the agent from losing track of topic changes.
-        // Cost: ~$0.04/turn (Gemini) or ~$0.096/turn (Sonnet) — acceptable
-        // for models with 128K-1M context windows.
+        // Configurable via Settings → Engine → Context Window.
+        // Default 32K tokens — leaves ~24K for conversation with a ~8K system prompt.
+        // Users with large budgets can push to 64K-128K for full-session memory.
         // Always keep system prompt (first message).
-        const MAX_CONTEXT_TOKENS: usize = 32_000;
+        let context_limit = max_context_tokens.unwrap_or(32_000);
         let estimate_tokens = |m: &Message| -> usize {
             let text_len = match &m.content {
                 MessageContent::Text(t) => t.len(),
@@ -126,7 +125,7 @@ impl SessionStore {
         };
 
         let total_tokens: usize = messages.iter().map(&estimate_tokens).sum();
-        if total_tokens > MAX_CONTEXT_TOKENS && messages.len() > 2 {
+        if total_tokens > context_limit && messages.len() > 2 {
             // Keep system prompt (index 0) and trim oldest non-system messages
             let system_msg = if !messages.is_empty() && messages[0].role == Role::System {
                 Some(messages.remove(0))
@@ -147,7 +146,7 @@ impl SessionStore {
                 .unwrap_or(messages.len().saturating_sub(1));
 
             for (i, &t) in msg_tokens.iter().enumerate() {
-                if drop_tokens <= MAX_CONTEXT_TOKENS {
+                if drop_tokens <= context_limit {
                     break;
                 }
                 // Never drop past the last user message

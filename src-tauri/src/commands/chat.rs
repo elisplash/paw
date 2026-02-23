@@ -215,8 +215,12 @@ pub async fn engine_chat_send(
     );
 
     // ── Load conversation history ──────────────────────────────────────────
+    let context_window = {
+        let cfg = state.config.lock();
+        cfg.context_window_tokens
+    };
     let mut messages =
-        state.store.load_conversation(&session_id, full_system_prompt.as_deref())?;
+        state.store.load_conversation(&session_id, full_system_prompt.as_deref(), Some(context_window))?;
 
     // ── Process attachments into multi-modal blocks (organism) ────────────
     chat_org::process_attachments(&request.message, &request.attachments, &mut messages);

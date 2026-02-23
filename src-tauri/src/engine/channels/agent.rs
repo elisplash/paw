@@ -171,9 +171,14 @@ pub async fn run_channel_agent(
     };
 
     // Load conversation history
+    let context_window = {
+        let cfg = engine_state.config.lock();
+        cfg.context_window_tokens
+    };
     let mut messages = engine_state.store.load_conversation(
         &session_id,
         full_system_prompt.as_deref(),
+        Some(context_window),
     )?;
 
     // Build tools — read-only tools are auto-approved by agent_loop;

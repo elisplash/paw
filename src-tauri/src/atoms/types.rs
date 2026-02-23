@@ -451,6 +451,7 @@ pub struct ModelRouting {
 pub(crate) fn default_user_timezone() -> String { "America/Chicago".to_string() }
 pub(crate) fn default_daily_budget_usd() -> f64 { 10.0 }
 pub(crate) fn default_max_concurrent_runs() -> u32 { 4 }
+pub(crate) fn default_context_window_tokens() -> usize { 32_000 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EngineConfig {
@@ -473,6 +474,11 @@ pub struct EngineConfig {
     /// are blocked and an error is returned.  Set to 0 to disable.
     #[serde(default = "default_daily_budget_usd")]
     pub daily_budget_usd: f64,
+    /// Context window size in tokens.  Controls how much conversation history
+    /// the agent sees.  Higher = better topic tracking but more cost.
+    /// Default 32K.  Models support 128K-1M, so this is conservative.
+    #[serde(default = "default_context_window_tokens")]
+    pub context_window_tokens: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

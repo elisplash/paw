@@ -374,6 +374,20 @@ export async function loadAdvancedSettings() {
     budgetRow.appendChild(budgetInp);
     engSection.appendChild(budgetRow);
 
+    const contextRow = formRow(
+      'Context Window (tokens)',
+      'How much conversation history the agent sees. Higher = better topic tracking but more cost per turn. Models support 128K-1M, so this is conservative. Default: 32,000.',
+    );
+    const contextInp = numberInput(config.context_window_tokens ?? 32000, {
+      min: 4000,
+      max: 1000000,
+      step: 4000,
+      placeholder: '32000',
+    });
+    contextInp.style.maxWidth = '140px';
+    contextRow.appendChild(contextInp);
+    engSection.appendChild(contextRow);
+
     container.appendChild(engSection);
 
     // ── System Prompt ────────────────────────────────────────────────────
@@ -403,6 +417,7 @@ export async function loadAdvancedSettings() {
             cfg.tool_timeout_secs = parseInt(timeoutInp.value) || 120;
             cfg.max_concurrent_runs = parseInt(concurrencyInp.value) || 4;
             cfg.daily_budget_usd = parseFloat(budgetInp.value) || 0;
+            cfg.context_window_tokens = parseInt(contextInp.value) || 32000;
             cfg.default_system_prompt = promptArea.value.trim() || undefined;
             await pawEngine.setConfig(cfg);
             showToast('Engine settings saved', 'success');
