@@ -57,7 +57,7 @@ All incoming messages are scanned for **prompt injection** — messages with cri
 
 ## How channels work
 
-```mermaid
+```mermaid actions={false}
 graph TD
     A["External message arrives"] --> B["Prompt injection scan\nBlock critical threats"]
     B --> C["Access control check\nOpen / Allowlist / Pairing"]

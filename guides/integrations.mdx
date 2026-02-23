@@ -7,7 +7,7 @@ icon: "square-terminal"
 
 Integrations are the second tier of the Pawz extensibility system. They connect your agents to third-party APIs and CLI tools with full credential management, binary detection, and optional dashboard widgets. The 40 built-in integrations are compiled into the Rust binary. Community integrations can be installed via TOML manifests from PawzHub or manually from `~/.paw/skills/`.
 
-```mermaid
+```mermaid actions={false}
 graph LR
     S["Skill\nPrompt-only\nSKILL.md"]:::blue --> I["Integration\nCredentials + Tools\nTOML"]:::purple --> E["Extension\nCustom Views + Storage\nTOML"]:::gold
     classDef blue fill:#3b82f6,color:#fff,stroke:#3b82f6
@@ -28,7 +28,7 @@ graph LR
 4. **Assign to agents** — open the **Agents** tab, select an agent, and enable the integration in their Skills sub-tab
 5. **Use** — the agent receives decrypted credentials and instructions in its system prompt, then calls APIs via `fetch` or CLI tools via `exec`
 
-```mermaid
+```mermaid actions={false}
 graph TD
     A["User enters API key\nin Skills tab"] --> B["XOR-encrypted\n32-byte key in OS keychain"]
     B --> C["Stored in SQLite\nEncrypted blob"]

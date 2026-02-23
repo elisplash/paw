@@ -62,7 +62,7 @@ Specialty models can be configured in **Settings → Engine** under Model Routin
 
 ## How it works
 
-```mermaid
+```mermaid actions={false}
 graph TD
     A["Boss agent gets\ngoal + team roster"] --> B["Boss plans and calls\ndelegate_task(agent, task)"]
     B --> C["Worker spawns async\ntokio::spawn"]

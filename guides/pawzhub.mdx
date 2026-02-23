@@ -9,7 +9,7 @@ PawzHub is the community-driven marketplace for Pawz. It hosts all three tiers o
 
 ## Three Tiers, One Marketplace
 
-```mermaid
+```mermaid actions={false}
 graph TD
     HUB["PawzHub Marketplace"] --> S["Skills\nPrompt-only · SKILL.md\nZero config · 1-click install"]:::blue
     HUB --> I["Integrations\nCredentials + Tools · TOML\nAPI keys · CLI binaries · Widgets"]:::purple
@@ -27,7 +27,7 @@ graph TD
 
 ## How It Works
 
-```mermaid
+```mermaid actions={false}
 graph TD
     subgraph App["Your Pawz App"]
         SL["Skill Loader"] --> BUILTIN["Built-in Skills\n30+"]
@@ -447,7 +447,7 @@ Skills are accepted based on quality, not quantity. We learned from OpenClaw's C
 
 ### How Credentials Flow
 
-```mermaid
+```mermaid actions={false}
 graph TD
     A["User enters API key\nin Skills tab"] --> B["AES-GCM encryption\n256-bit key from OS keychain"]
     B --> C["Stored in SQLite\nEncrypted blob"]

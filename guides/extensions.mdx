@@ -7,7 +7,7 @@ icon: "layers"
 
 Extensions are the most powerful tier of the Pawz extensibility system. They have everything an [Integration](/docs/guides/integrations) has — credentials, instructions, widgets — plus **custom sidebar views** and **persistent data storage**.
 
-```mermaid
+```mermaid actions={false}
 graph LR
     S["Skill\nPrompt-only\nSKILL.md"]:::blue --> I["Integration\nCredentials + Tools\nTOML"]:::purple --> E["Extension\nCustom Views + Storage\nTOML"]:::gold
     classDef blue fill:#3b82f6,color:#fff,stroke:#3b82f6
@@ -42,7 +42,7 @@ graph LR
 4. **Data-bound rendering** — The custom view reads from the extension's storage and renders live data (tables, charts, pipelines, feeds)
 5. **Widget** — An optional dashboard card shows a summary on the Today page
 
-```mermaid
+```mermaid actions={false}
 graph LR
     subgraph App["Pawz App"]
         subgraph Sidebar
@@ -275,7 +275,7 @@ Extensions are created the same way as integrations, with the addition of `[view
 
 You can upgrade a Skill to an Integration to an Extension incrementally:
 
-```mermaid
+```mermaid actions={false}
 graph TD
     A["SKILL.md\nTier 1 — Skill"]:::blue -->|add credentials + TOML| B["pawz-skill.toml\nTier 2 — Integration"]:::purple
     B -->|"add [view] + [storage]"| C["pawz-skill.toml + view\nTier 3 — Extension"]:::gold

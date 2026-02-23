@@ -64,7 +64,7 @@ Long conversations consume large context windows, which increases cost and can h
 
 ### How it works
 
-```mermaid
+```mermaid actions={false}
 graph TD
     A["Messages pile up in session"] --> B["Auto-trigger check\nbefore each turn"]
     B --> C{"≥20 messages AND\n>60k tokens?"}
