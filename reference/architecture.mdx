@@ -1,6 +1,5 @@
 ---
 title: "Architecture"
-icon: "landmark"
 description: "OpenPawz is a Tauri v2 desktop application with a Rust backend and TypeScript frontend."
 ---
 
@@ -11,21 +10,21 @@ OpenPawz is a Tauri v2 desktop application with a Rust backend and TypeScript fr
 ## System overview
 
 <Columns cols={1}>
-  <Card title="Tauri Shell" icon="box">
+  <Card title="Tauri Shell">
     <Columns cols={1}>
-      <Card title="TypeScript Frontend" icon="monitor" horizontal>
+      <Card title="TypeScript Frontend" horizontal>
         Views · Feature Modules · IPC Bridge
       </Card>
     </Columns>
     <p style={{ textAlign: 'center', margin: '4px 0', opacity: 0.5 }}>↕ IPC (invoke / events)</p>
     <Columns cols={1}>
-      <Card title="Rust Engine" icon="server" horizontal>
+      <Card title="Rust Engine" horizontal>
         Agent Loop · Providers · Channels · Memory · Skills · Orchestrator · Sandbox
       </Card>
     </Columns>
     <p style={{ textAlign: 'center', margin: '4px 0', opacity: 0.5 }}>↕</p>
     <Columns cols={1}>
-      <Card title="SQLite Database" icon="database" horizontal>
+      <Card title="SQLite Database" horizontal>
         sessions · messages · memories · tasks · skills · agents · projects · trades
       </Card>
     </Columns>
@@ -37,19 +36,19 @@ OpenPawz is a Tauri v2 desktop application with a Rust backend and TypeScript fr
 Pawz has a three-tier extensibility architecture. Each tier adds more power over the previous.
 
 <Columns cols={1}>
-  <Card title="Tier 3 — Extensions" icon="sparkles" color="#EAB308">
+  <Card title="Tier 3 — Extensions" color="#EAB308">
     Custom sidebar views · Dashboard widgets · Persistent data<br />
     `pawz-skill.toml` + `[view]` + `[storage]`
   </Card>
 </Columns>
 <Columns cols={1}>
-  <Card title="Tier 2 — Integrations" icon="square-terminal" color="#A855F7">
+  <Card title="Tier 2 — Integrations" color="#A855F7">
     Credential vault · API access · CLI binaries · Widgets<br />
     `pawz-skill.toml` + `[[credentials]]` + `[instructions]`
   </Card>
 </Columns>
 <Columns cols={1}>
-  <Card title="Tier 1 — Skills" icon="file-text" color="#3B82F6">
+  <Card title="Tier 1 — Skills" color="#3B82F6">
     Prompt injection only · Zero config · `SKILL.md` format<br />
     skills.sh ecosystem · Agent-installable
   </Card>

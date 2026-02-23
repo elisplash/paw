@@ -1,6 +1,5 @@
 ---
 title: "Features"
-icon: "sparkles"
 description: "Core features and capabilities of the OpenPawz platform."
 sidebarTitle: "Features"
 ---
@@ -14,16 +13,16 @@ OpenPawz ships with everything you need to run autonomous AI agents locally. No 
 ## Agents
 
 <Columns cols={2}>
-  <Card title="Custom personalities" icon="sparkles">
+  <Card title="Custom personalities">
     Each agent has a name, bio, system prompt, and personality. Agents can be formal assistants, creative writers, code reviewers — whatever you need.
   </Card>
-  <Card title="Tool use" icon="hammer">
+  <Card title="Tool use">
     Agents call tools autonomously — send emails, search the web, execute shell commands, interact with APIs. 75+ tools built in.
   </Card>
-  <Card title="Memory" icon="database">
+  <Card title="Memory">
     Semantic long-term memory with auto-capture and auto-recall. Agents remember facts, preferences, and context across sessions.
   </Card>
-  <Card title="Session management" icon="layers">
+  <Card title="Session management">
     Automatic session compaction keeps context windows efficient. Old sessions archive, new ones start with memory context.
   </Card>
 </Columns>
@@ -77,23 +76,23 @@ Bring your own model. OpenPawz supports local and cloud providers — switch bet
 
 ## Tools & extensions
 
-<AccordionGroup>
-  <Accordion title="75+ built-in tools">
-    Email (IMAP/SMTP), GitHub, web search, file operations, shell commands, trading (candles, orders), TTS, browser automation, inter-agent messaging, calendar, weather, and more.
-  </Accordion>
-  <Accordion title="Skills (prompt-only)">
-    Drop a SKILL.md file to inject expert knowledge into any agent's system prompt. No code, no API — just markdown.
-  </Accordion>
-  <Accordion title="Integrations (tools + commands)">
-    Add custom tools with slash commands and dedicated UI panels. Full Tauri API access.
-  </Accordion>
-  <Accordion title="Extensions (full sidebar views)">
-    Build complete sidebar views with persistent storage. The most powerful extensibility tier.
-  </Accordion>
-  <Accordion title="MCP (Model Context Protocol)">
-    Connect to any MCP server for unlimited external tools — databases, APIs, file systems, and more.
-  </Accordion>
-</AccordionGroup>
+<Tabs>
+  <Tab title="Built-in tools">
+    **75+ tools out of the box** — Email (IMAP/SMTP), GitHub, web search, file operations, shell commands, trading (candles, orders), TTS, browser automation, inter-agent messaging, calendar, weather, and more.
+  </Tab>
+  <Tab title="Skills">
+    **Prompt-only extensibility.** Drop a `SKILL.md` file to inject expert knowledge into any agent's system prompt. No code, no API — just markdown.
+  </Tab>
+  <Tab title="Integrations">
+    **Custom tools + commands.** Add custom tools with slash commands and dedicated UI panels. Full Tauri API access.
+  </Tab>
+  <Tab title="Extensions">
+    **Full sidebar apps.** Build complete sidebar views with persistent storage. The most powerful extensibility tier.
+  </Tab>
+  <Tab title="MCP">
+    **Model Context Protocol.** Connect to any MCP server for unlimited external tools — databases, APIs, file systems, and more.
+  </Tab>
+</Tabs>
 
 → Deep dive: [Skills](/guides/skills) · [Integrations](/guides/integrations) · [Extensions](/guides/extensions)
 
@@ -102,16 +101,16 @@ Bring your own model. OpenPawz supports local and cloud providers — switch bet
 ## Orchestration & workflows
 
 <Columns cols={2}>
-  <Card title="Multi-agent projects" icon="git-branch">
+  <Card title="Multi-agent projects">
     Boss agent delegates tasks to specialist workers. Parallel execution with result aggregation.
   </Card>
-  <Card title="Task management" icon="check-square">
+  <Card title="Task management">
     Kanban board with cron scheduling, event triggers, and automatic agent assignment.
   </Card>
-  <Card title="Automations" icon="zap">
+  <Card title="Automations">
     Time-based and event-driven triggers that run agent actions without manual input.
   </Card>
-  <Card title="Research flows" icon="globe">
+  <Card title="Research flows">
     Multi-step web research with browser sandbox, extraction, and summarization pipelines.
   </Card>
 </Columns>

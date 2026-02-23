@@ -1,6 +1,5 @@
 ---
 title: "Configuration"
-icon: "settings"
 description: "Optional configuration for providers, workspace, environment, and agent defaults."
 sidebarTitle: "Configuration"
 ---
@@ -86,17 +85,17 @@ Individual agents can override any default.
 
 ## Advanced settings
 
-<AccordionGroup>
-  <Accordion title="Session compaction">
+<Columns cols={2}>
+  <Card title="Session compaction">
     Configure when and how sessions are compacted to manage context window limits. Set token thresholds, summary depth, and archive behavior.
-  </Accordion>
-  <Accordion title="Voice & TTS">
+  </Card>
+  <Card title="Voice & TTS">
     Configure text-to-speech providers and voice settings for agents that speak their responses.
-  </Accordion>
-  <Accordion title="Browser sandbox">
+  </Card>
+  <Card title="Browser sandbox">
     Set Chromium path, viewport size, proxy, and timeout settings for web automation.
-  </Accordion>
-  <Accordion title="Container sandbox">
+  </Card>
+  <Card title="Container sandbox">
     Configure Docker socket path, default image, resource limits, and network policies for isolated execution.
-  </Accordion>
-</AccordionGroup>
+  </Card>
+</Columns>
