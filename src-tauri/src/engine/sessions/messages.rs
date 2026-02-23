@@ -102,12 +102,14 @@ impl SessionStore {
 
         // ── Context window truncation ──────────────────────────────────
         // Estimate tokens (~4 chars per token) and keep only the most recent
-        // messages that fit within ~16k tokens to leave room for the response.
-        // With lean session init (core soul files only + today's memories),
-        // 16k tokens is plenty of context. At $3/MTok (Sonnet), 16k = $0.048
-        // per round vs $0.09 at 30k. Agent uses memory_search for deeper context.
+        // messages that fit within ~32k tokens to leave room for the response.
+        // With system prompts of ~7-8K tokens (soul context + skills),
+        // 32K total leaves ~24K for conversation (~16-20 exchanges).
+        // This prevents the agent from losing track of topic changes.
+        // Cost: ~$0.04/turn (Gemini) or ~$0.096/turn (Sonnet) — acceptable
+        // for models with 128K-1M context windows.
         // Always keep system prompt (first message).
-        const MAX_CONTEXT_TOKENS: usize = 16_000;
+        const MAX_CONTEXT_TOKENS: usize = 32_000;
         let estimate_tokens = |m: &Message| -> usize {
             let text_len = match &m.content {
                 MessageContent::Text(t) => t.len(),
