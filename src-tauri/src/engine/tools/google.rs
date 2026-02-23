@@ -33,6 +33,11 @@ struct CachedToken {
 static TOKEN_CACHE: LazyLock<Mutex<Option<CachedToken>>> =
     LazyLock::new(|| Mutex::new(None));
 
+/// Clear the cached access token (used by google_oauth disconnect).
+pub fn clear_token_cache() {
+    *TOKEN_CACHE.lock() = None;
+}
+
 // ── Tool definitions ───────────────────────────────────────────────────────
 
 pub fn definitions() -> Vec<ToolDefinition> {
@@ -249,6 +254,9 @@ struct GoogleJwtClaims {
 }
 
 /// Get a valid access token, using the cache if available.
+/// Supports two auth methods:
+///   1. OAuth2 (preferred) — if GOOGLE_REFRESH_TOKEN is set, use it with auto-refresh
+///   2. Service Account — if SERVICE_ACCOUNT_JSON is set, use JWT flow
 async fn get_access_token(creds: &HashMap<String, String>) -> EngineResult<String> {
     // Check cache first
     {
@@ -261,7 +269,70 @@ async fn get_access_token(creds: &HashMap<String, String>) -> EngineResult<Strin
         }
     }
 
-    // Parse the service account JSON
+    // Route to the right auth method
+    if creds.contains_key("GOOGLE_REFRESH_TOKEN") {
+        get_access_token_oauth2(creds).await
+    } else if creds.contains_key("SERVICE_ACCOUNT_JSON") {
+        get_access_token_service_account(creds).await
+    } else {
+        Err("Google not connected. Click 'Connect with Google' in Skills → Google Workspace, or paste a Service Account JSON for enterprise setup.".into())
+    }
+}
+
+/// OAuth2 flow: refresh the access token using the stored refresh token.
+async fn get_access_token_oauth2(creds: &HashMap<String, String>) -> EngineResult<String> {
+    let refresh_token = creds.get("GOOGLE_REFRESH_TOKEN")
+        .ok_or("Missing GOOGLE_REFRESH_TOKEN")?;
+
+    // Check if we have a non-expired access token stored
+    if let (Some(access_token), Some(expires_at_str)) = (
+        creds.get("GOOGLE_ACCESS_TOKEN"),
+        creds.get("GOOGLE_TOKEN_EXPIRES_AT"),
+    ) {
+        if let Ok(expires_at) = expires_at_str.parse::<u64>() {
+            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+            if now < expires_at.saturating_sub(60) {
+                // Cache it and return
+                let mut cache = TOKEN_CACHE.lock();
+                *cache = Some(CachedToken {
+                    access_token: access_token.clone(),
+                    expires_at,
+                });
+                return Ok(access_token.clone());
+            }
+        }
+    }
+
+    // Need to refresh
+    let client_id = creds.get("GOOGLE_CLIENT_ID")
+        .ok_or("Missing GOOGLE_CLIENT_ID")?;
+    let client_secret = creds.get("GOOGLE_CLIENT_SECRET")
+        .ok_or("Missing GOOGLE_CLIENT_SECRET")?;
+
+    let (access_token, expires_at) = super::google_oauth::refresh_access_token(
+        refresh_token, client_id, client_secret,
+    ).await?;
+
+    info!("[google] Access token refreshed via OAuth2");
+
+    // Cache the new token
+    {
+        let mut cache = TOKEN_CACHE.lock();
+        *cache = Some(CachedToken {
+            access_token: access_token.clone(),
+            expires_at,
+        });
+    }
+
+    // NOTE: We don't write the refreshed token back to the vault here because
+    // we don't have the app_handle. The cache handles it for this session.
+    // The refresh_token is long-lived and doesn't change.
+
+    Ok(access_token)
+}
+
+/// Service account JWT flow (for Google Workspace enterprise users).
+async fn get_access_token_service_account(creds: &HashMap<String, String>) -> EngineResult<String> {
     let sa_json_str = creds.get("SERVICE_ACCOUNT_JSON")
         .ok_or("Missing SERVICE_ACCOUNT_JSON credential. Add your Google service account JSON key in Skills → Google Workspace.")?;
 

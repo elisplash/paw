@@ -138,6 +138,10 @@ pub fn run() {
             commands::skill_wizard::engine_wizard_publish_url,
             // ── Skill Storage (Phase F.6) ──
             commands::skills::engine_skill_store_list,
+            // ── Google OAuth2 ──
+            commands::skills::engine_google_oauth_connect,
+            commands::skills::engine_google_oauth_status,
+            commands::skills::engine_google_oauth_disconnect,
             // ── Trading ──
             commands::trade::engine_trading_history,
             commands::trade::engine_trading_summary,

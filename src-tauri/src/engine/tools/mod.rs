@@ -35,6 +35,7 @@ pub mod agent_comms;
 pub mod squads;
 pub mod request_tools;
 pub mod google;
+pub mod google_oauth;
 
 // ── ToolDefinition helpers (keep backward-compatible API for all callers) ───
 
