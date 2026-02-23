@@ -32,20 +32,34 @@ A native desktop AI agent platform built on [Tauri v2](https://v2.tauri.app/). C
 
 ## What is OpenPawz?
 
-OpenPawz is a self-hosted, native desktop app that gives you a personal AI agent platform — without giving up control of your data or relying on hosted services.
+OpenPawz is the **open-source AI agent operating system** for your desktop. It's not a chatbot. It's not a wrapper around an API. It's a full-blown, multi-agent platform that runs natively on your machine — with zero cloud dependency.
+
+**Imagine this:** You have autonomous AI agents with unique personalities, long-term memory, and access to 75+ tools — managing your emails, monitoring markets, researching the web, writing content, running shell commands, and responding to messages across **11 chat platforms simultaneously**. All from one app. All on your hardware. All under your control.
 
 <AccordionGroup>
   <Accordion title="Who is it for?">
-    Developers and power users who want AI agents they can message from anywhere — Telegram, Discord, Slack, WhatsApp — while keeping full control.
+    **Everyone who's tired of walled-garden AI.** Developers who want to build and extend. Power users who want a personal AI army across every platform they use. Teams who need private, auditable AI that never phones home. If you've ever wished your AI could actually *do things* — not just talk — OpenPawz is what you've been waiting for.
   </Accordion>
   <Accordion title="What makes it different?">
-    - **Self-hosted**: runs on your hardware, your rules
-    - **Multi-channel**: one app serves 11 chat platforms simultaneously
-    - **Agent-native**: built for AI agents with tool use, sessions, memory, and orchestration
-    - **Open source**: MIT licensed, community-driven
+    Most AI tools give you a chat window. OpenPawz gives you an **agent runtime**:
+    - **11 channels at once** — Telegram, Discord, Slack, WhatsApp, Matrix, IRC, Twitch, and more. One agent, every platform.
+    - **Multi-agent orchestration** — Boss agents delegate to specialist workers. Run parallel research. Coordinate across teams.
+    - **Semantic memory** — Agents remember everything. Auto-capture, auto-recall, vector search across all conversations.
+    - **75+ built-in tools** — Email, GitHub, trading, browser automation, shell, TTS, inter-agent comms — not plugins, *built in*.
+    - **MCP extensions** — Connect to any Model Context Protocol server for unlimited capabilities.
+    - **10 AI providers** — Ollama (local), OpenAI, Anthropic, Google, DeepSeek, Grok, Mistral, OpenRouter, and more. Switch per-agent.
+    - **Zero cloud** — SQLite database, OS keychain for secrets, Tauri IPC internally. No servers, no ports, no subscriptions.
+    - **Native performance** — Built on Tauri v2 with a Rust backend. Not Electron. Fast, lean, secure.
   </Accordion>
-  <Accordion title="What do you need?">
-    Rust toolchain, a supported OS (macOS / Linux / Windows), an API key or local model, and 5 minutes.
+  <Accordion title="Why open source?">
+    Because your AI shouldn't have a landlord. OpenPawz is **MIT licensed** — fork it, extend it, deploy it however you want. The codebase is transparent, auditable, and community-driven. No vendor lock-in. No surprise pricing changes. No "we updated our privacy policy" emails.
+  </Accordion>
+  <Accordion title="What do you need to get started?">
+    A computer (macOS, Linux, or Windows), 5 minutes, and one of:
+    - A **local model** via [Ollama](https://ollama.com/) — completely free, completely private
+    - An **API key** from any supported provider — OpenAI, Anthropic, Google, etc.
+
+    That's it. No Docker required. No databases to manage. No infrastructure to maintain.
   </Accordion>
 </AccordionGroup>
 

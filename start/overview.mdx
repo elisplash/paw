@@ -1,47 +1,56 @@
 ---
 title: "Overview"
 icon: "list"
-description: "A high-level look at what OpenPawz is and how the pieces fit together."
+description: "The open-source AI agent OS — multi-agent, multi-channel, fully local, infinitely extensible."
 sidebarTitle: "Overview"
 ---
 
-## What is OpenPawz?
+## The AI agent platform you actually own
 
-OpenPawz is a **native desktop AI agent platform** built on [Tauri v2](https://v2.tauri.app/). It runs entirely on your machine — no cloud, no open ports, no Node.js backend. You own the agents, the data, and the infrastructure.
+OpenPawz is an **open-source AI agent operating system** built on [Tauri v2](https://v2.tauri.app/). It's not another chatbot UI. It's a complete runtime for deploying, managing, and orchestrating autonomous AI agents — entirely on your desktop, with zero cloud dependency.
 
-It gives you:
+While other tools give you a text box and an API bill, OpenPawz gives you:
 
-- A **multi-channel gateway** — connect Telegram, Discord, Slack, WhatsApp, Matrix, IRC, and more from a single app
-- A **multi-agent orchestrator** — create autonomous agents with distinct personalities, tools, and memory
-- A **local-first architecture** — SQLite storage, OS keychain for secrets, Tauri IPC for internal comms
-- A **plugin ecosystem** — 75+ built-in tools, MCP extensions, and a marketplace (PawzHub)
+- **11 chat channels** running simultaneously — Telegram, Discord, Slack, WhatsApp, Matrix, IRC, Twitch, Mattermost, Nextcloud, Nostr, and built-in Webchat
+- **Multi-agent orchestration** — boss agents delegate to specialists, run parallel workflows, and coordinate across workspaces
+- **75+ built-in tools** — email, GitHub, trading, browser automation, shell execution, TTS, file ops, and inter-agent messaging — not plugins, *built in*
+- **Semantic long-term memory** — agents auto-capture and auto-recall facts across every conversation, forever
+- **10 AI providers** — Ollama (free, local), OpenAI, Anthropic, Google, DeepSeek, Grok, Mistral, OpenRouter, Moonshot, plus any custom OpenAI-compatible endpoint
+- **Three-tier extensibility** — Skills (prompt injection), Integrations (custom tools), Extensions (full sidebar apps) — plus MCP for unlimited external tool servers
+- **PawzHub marketplace** — discover and share community-built extensions
+- **Native Rust performance** — not Electron, not a web app. Fast, lean, secure.
 
 ---
 
 ## Who is it for?
 
-<Columns cols={2}>
+<Columns cols={3}>
   <Card title="Developers" icon="square-terminal">
-    Build, extend, and self-host AI agents with full source access. Rust + TypeScript stack, MIT licensed.
+    Full source access, MIT licensed. Build custom tools, integrations, and extensions. Rust + TypeScript stack with Tauri IPC architecture.
   </Card>
   <Card title="Power users" icon="sparkles">
-    Run personal AI assistants across every chat platform you use — no coding required after initial setup.
+    Run a personal AI army across every platform you use. Set up once, message your agents from anywhere. No coding after initial setup.
+  </Card>
+  <Card title="Teams & orgs" icon="git-branch">
+    Private, auditable AI that never phones home. Multi-agent workflows for research, content, support, trading, and DevOps — all on-premise.
   </Card>
 </Columns>
 
 ---
 
-## How it compares
+## How it stacks up
 
-| Feature | OpenPawz | Cloud AI platforms | Other self-hosted |
+| | **OpenPawz** | **ChatGPT / Claude** | **Other self-hosted** |
 |---|---|---|---|
-| **Runs locally** | Yes | No | Sometimes |
-| **Multi-channel** | 11 platforms | Usually 1 | Varies |
-| **Multi-agent** | Yes, with orchestrator | Limited | Rare |
-| **Memory system** | Built-in semantic recall | Per-session | Varies |
-| **Tool ecosystem** | 75+ built-in + MCP | API-dependent | Limited |
-| **Cost** | Free + your API keys | Subscription | Free |
-| **Data ownership** | 100% local | Cloud-stored | Self-hosted |
+| **Runs locally** | 100% — your hardware, your data | No — cloud only | Sometimes |
+| **Multi-channel** | 11 platforms simultaneously | Web/mobile only | 1–2 if any |
+| **Multi-agent** | Full orchestrator with delegation | Single assistant | Rare |
+| **Memory** | Semantic auto-recall across sessions | Per-conversation | Basic or none |
+| **Tools** | 75+ built-in + unlimited via MCP | Limited plugins | Varies |
+| **Extensibility** | 3 tiers + marketplace | None | Plugin-based |
+| **Cost** | Free forever + your API keys | $20–200/mo subscription | Free |
+| **Data ownership** | 100% local, OS keychain for secrets | Company-owned | Self-hosted |
+| **Performance** | Native Tauri/Rust | Web app | Usually Electron |
 
 ---
 
