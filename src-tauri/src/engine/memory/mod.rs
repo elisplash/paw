@@ -77,11 +77,15 @@ pub async fn search_memories(
     embedding_client: Option<&EmbeddingClient>,
     agent_id: Option<&str>,
 ) -> EngineResult<Vec<Memory>> {
-    let query_preview = &query[..query.len().min(80)];
+    // Truncate long queries — embedding models have limited context windows
+    // (nomic-embed-text: 8192 tokens ≈ 6K chars). For search, first 2K chars
+    // is more than enough to capture intent.
+    let truncated_query: &str = if query.len() > 2000 { &query[..2000] } else { query };
+    let query_preview = &truncated_query[..truncated_query.len().min(80)];
     let fetch_limit = limit * 3; // Fetch extra for MMR re-ranking
 
     // ── Step 1: BM25 full-text search ──────────────────────────────
-    let bm25_results = match store.search_memories_bm25(query, fetch_limit, agent_id) {
+    let bm25_results = match store.search_memories_bm25(truncated_query, fetch_limit, agent_id) {
         Ok(r) => {
             info!("[memory] BM25 search: {} results for '{}'", r.len(), query_preview);
             r
@@ -96,7 +100,7 @@ pub async fn search_memories(
     let mut vector_results = Vec::new();
     let mut query_embedding: Option<Vec<f32>> = None;
     if let Some(client) = embedding_client {
-        match client.embed(query).await {
+        match client.embed(truncated_query).await {
             Ok(query_vec) => {
                 info!("[memory] Query embedded ({} dims), searching...", query_vec.len());
                 match store.search_memories_by_embedding(&query_vec, fetch_limit, threshold, agent_id) {
@@ -122,7 +126,7 @@ pub async fn search_memories(
     if merged.is_empty() {
         // Final fallback: keyword LIKE search
         info!("[memory] No BM25/vector results, falling back to keyword search");
-        let results = store.search_memories_keyword(query, limit)?;
+        let results = store.search_memories_keyword(truncated_query, limit)?;
         info!("[memory] Keyword fallback: {} results for '{}'", results.len(), query_preview);
         return Ok(results);
     }

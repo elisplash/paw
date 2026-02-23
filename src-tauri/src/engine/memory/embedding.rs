@@ -33,8 +33,12 @@ impl EmbeddingClient {
     /// Tries Ollama API format first, falls back to OpenAI format.
     /// On first failure, attempts to auto-pull the model from Ollama.
     pub async fn embed(&self, text: &str) -> EngineResult<Vec<f32>> {
+        // Safety truncation: nomic-embed-text context is 8192 tokens (~6K chars).
+        // Truncate rather than fail for oversized inputs.
+        let safe_text: &str = if text.len() > 6000 { &text[..6000] } else { text };
+
         // Try Ollama format first (new /api/embed endpoint, then legacy /api/embeddings)
-        let ollama_result = self.embed_ollama(text).await;
+        let ollama_result = self.embed_ollama(safe_text).await;
         if let Ok(vec) = ollama_result {
             return Ok(vec);
         }
@@ -50,7 +54,7 @@ impl EmbeddingClient {
             match self.pull_model().await {
                 Ok(()) => {
                     info!("[memory] Model '{}' pulled successfully, retrying embed", self.model);
-                    let retry = self.embed_ollama(text).await;
+                    let retry = self.embed_ollama(safe_text).await;
                     if let Ok(vec) = retry {
                         return Ok(vec);
                     }
@@ -62,7 +66,7 @@ impl EmbeddingClient {
         }
 
         // Try OpenAI-compatible format: POST /v1/embeddings
-        let openai_result = self.embed_openai(text).await;
+        let openai_result = self.embed_openai(safe_text).await;
         if let Ok(vec) = openai_result {
             return Ok(vec);
         }
