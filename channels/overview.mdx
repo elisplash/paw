@@ -1,28 +1,59 @@
 ---
-title: "Overview"
-icon: "eye"
-description: "Channels connect your Pawz agents to messaging platforms. Users on those platforms can chat with your agents directly."
+title: "Channels"
+icon: "radio"
+description: "Connect your Pawz agents to 11 messaging platforms. Users chat with your agents directly."
+sidebarTitle: "Overview"
 ---
 
 # Channels
 
-Channels connect your Pawz agents to messaging platforms. Users on those platforms can chat with your agents directly.
+Connect your Pawz agents to messaging platforms. Users on those platforms can chat with your agents directly.
+
+<Note>
+All incoming messages are scanned for **prompt injection** — messages with critical severity are blocked automatically.
+</Note>
+
+---
 
 ## Supported channels
 
-| Channel | Protocol | Use case |
-|---------|----------|----------|
-| [Telegram](/telegram) | Bot API | Public bots, group chats |
-| [Discord](/discord) | Gateway WebSocket | Community servers |
-| [Slack](/slack) | Bot API | Workplace teams |
-| [Matrix](/matrix) | Client-Server API | Decentralized chat |
-| [IRC](/irc) | IRC protocol | Classic chat rooms |
-| [Mattermost](/mattermost) | WebSocket API | Self-hosted teams |
-| [Nextcloud](/nextcloud) | Talk API | Nextcloud users |
-| [Nostr](/nostr) | NIP relay protocol | Decentralized social |
-| [Twitch](/twitch) | IRC + API | Live streaming chat |
-| [Webchat](/webchat) | HTTP/WebSocket | Your own website |
-| [WhatsApp](/whatsapp) | Evolution API (Docker) | Personal & group messaging |
+<Columns cols={3}>
+  <Card title="Telegram" icon="send" href="/channels/telegram">
+    Bot API — public bots, group chats
+  </Card>
+  <Card title="Discord" icon="message-circle" href="/channels/discord">
+    Gateway WebSocket — community servers
+  </Card>
+  <Card title="Slack" icon="hash" href="/channels/slack">
+    Bot API — workplace teams
+  </Card>
+  <Card title="Matrix" icon="grid-3x3" href="/channels/matrix">
+    Client-Server API — decentralized chat
+  </Card>
+  <Card title="IRC" icon="terminal" href="/channels/irc">
+    IRC protocol — classic chat rooms
+  </Card>
+  <Card title="Mattermost" icon="message-square" href="/channels/mattermost">
+    WebSocket API — self-hosted teams
+  </Card>
+  <Card title="Nextcloud" icon="cloud" href="/channels/nextcloud">
+    Talk API — Nextcloud users
+  </Card>
+  <Card title="Nostr" icon="zap" href="/channels/nostr">
+    NIP relay protocol — decentralized social
+  </Card>
+  <Card title="Twitch" icon="tv" href="/channels/twitch">
+    IRC + API — live streaming chat
+  </Card>
+  <Card title="Webchat" icon="globe" href="/channels/webchat">
+    HTTP/WebSocket — your own website
+  </Card>
+  <Card title="WhatsApp" icon="phone" href="/channels/whatsapp">
+    Evolution API — personal & group messaging
+  </Card>
+</Columns>
+
+---
 
 ## How channels work
 

@@ -1,26 +1,52 @@
 {
-  "$schema": "https://mintlify.com/schema.json",
-  "theme": "mint",
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "linden",
   "name": "OpenPawz",
+  "description": "Your AI, your rules. A native desktop AI agent platform — private, powerful, extensible.",
   "logo": {
     "dark": "/images/pawz-logo.png",
-    "light": "/images/pawz-logo.png"
+    "light": "/images/pawz-logo.png",
+    "href": "https://github.com/elisplash/paw"
   },
   "favicon": "/images/pawz-favicon.png",
   "colors": {
-    "primary": "#cc00cc",
-    "light": "#ff00ff",
-    "dark": "#880088"
-  },
-  "topbarLinks": [
-    {
-      "name": "GitHub",
-      "url": "https://github.com/elisplash/paw"
+    "primary": "#ff00ff",
+    "light": "#ff33ff",
+    "dark": "#cc00cc",
+    "background": {
+      "dark": "#0a0a0f",
+      "light": "#faf5ff"
     }
-  ],
-  "topbarCtaButton": {
-    "name": "Download",
-    "url": "https://github.com/elisplash/paw/releases"
+  },
+  "background": {
+    "decoration": "grid"
+  },
+  "styling": {
+    "eyebrows": "breadcrumbs"
+  },
+  "appearance": {
+    "default": "dark"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/elisplash/paw"
+      },
+      {
+        "label": "Discussions",
+        "href": "https://github.com/elisplash/paw/discussions"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Download",
+      "href": "https://github.com/elisplash/paw/releases"
+    }
+  },
+  "banner": {
+    "content": "**OpenPawz** is open source — [Star us on GitHub](https://github.com/elisplash/paw) and join the community!",
+    "dismissible": true
   },
   "navigation": {
     "global": {
@@ -32,7 +58,7 @@
         },
         {
           "anchor": "Community",
-          "icon": "comments",
+          "icon": "message-circle",
           "href": "https://github.com/elisplash/paw/discussions"
         }
       ]
@@ -80,7 +106,7 @@
       },
       {
         "group": "Channels",
-        "icon": "comments",
+        "icon": "radio",
         "pages": [
           "channels/overview",
           "channels/telegram",
@@ -98,7 +124,7 @@
       },
       {
         "group": "Providers",
-        "icon": "plug",
+        "icon": "cpu",
         "pages": [
           "providers/overview",
           "providers/ollama",
@@ -115,7 +141,7 @@
       },
       {
         "group": "Reference",
-        "icon": "code",
+        "icon": "file-code",
         "pages": [
           "reference/architecture",
           "reference/security",
@@ -125,8 +151,10 @@
       }
     ]
   },
-  "footerSocials": {
-    "github": "https://github.com/elisplash/paw"
+  "footer": {
+    "socials": {
+      "github": "https://github.com/elisplash/paw"
+    }
   },
   "feedback": {
     "thumbsRating": true,
@@ -136,7 +164,10 @@
   "search": {
     "prompt": "Search OpenPawz docs..."
   },
-  "modeToggle": {
-    "default": "dark"
+  "seo": {
+    "indexHiddenPages": false
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude"]
   }
 }
