@@ -133,6 +133,12 @@ When the orchestrator creates agents for a project, it assigns each one a specia
 Backend agents appear on the Agents grid with an **"AI-Created"** badge. They are merged into the local agent list on load and receive unique sprite avatars automatically. Their names are derived from the `agent_id` with hyphens replaced by spaces and title-cased.
 :::
 
+## Agent-scoped history
+
+When multiple agents share a session (e.g., during orchestration or inter-agent delegation), each agent only sees messages relevant to its own context. Cross-agent tool results from `agent_send_message` and `agent_read_messages` are filtered out for non-default agents.
+
+This prevents context pollution — one agent's delegation results won't confuse another agent's conversation flow. The orchestrator boss agent sees all messages (unfiltered) to maintain full situational awareness.
+
 ## Agent policies
 
 Agent policies control **which tools** an agent is allowed to use. This lets you create restricted agents that can only read files, or fully-empowered agents that can execute shell commands.

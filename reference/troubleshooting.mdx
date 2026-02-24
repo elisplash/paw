@@ -155,6 +155,23 @@ sudo usermod -aG docker $USER
 3. **Slow model** — switch to a faster model (gpt-4o-mini, gemini-2.0-flash)
 4. **Ollama on CPU** — use a smaller model or get a GPU
 
+## Chat behavior
+
+### Agent keeps repeating the same failed approach
+
+**Symptoms:** The agent tries the same broken tool call over and over.
+
+**What Pawz does:** Failed tool exchanges are automatically deleted from context before each turn, so the agent gets a clean slate on retry. If you're still seeing loops, the agent may be hitting a genuine capability limitation.
+
+**Fix:**
+1. Send a new message with more specific instructions
+2. Try a different model with stronger reasoning (e.g., Claude Sonnet 4, Gemini 2.5 Pro)
+3. Start a new session with `/new` for a completely fresh context
+
+### Can I send messages while the agent is working?
+
+**Yes.** Pawz queues your message automatically. The active agent wraps up at the next tool-call boundary, then processes your queued message. You don't need to wait for a response before typing.
+
 ### High memory usage
 
 **Fix:**

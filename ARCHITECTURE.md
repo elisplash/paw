@@ -207,9 +207,9 @@ src-tauri/                    # Rust backend
 │       ├── sandbox.rs        # Docker container sandboxing
 │       ├── routing.rs        # Channel routing rules
 │       ├── injection.rs      # Prompt injection detection (Rust side)
-│       ├── state.rs          # Engine state management
+│       ├── state.rs          # Engine state (YieldSignal, RequestQueue, YieldSignals)
 │       ├── pricing.rs        # Token pricing
-│       ├── chat.rs           # Chat utilities
+│       ├── chat.rs           # System prompt builder, tool assembly, loop detection
 │       ├── types.rs          # Shared Rust types
 │       ├── telegram.rs       # Telegram bridge
 │       ├── discord.rs        # Discord bridge
@@ -232,9 +232,23 @@ src-tauri/                    # Rust backend
 │       │   ├── parser.rs     # TOML parsing and validation
 │       │   ├── loader.rs     # Filesystem scanning and hot-reload
 │       │   └── types.rs      # TOML manifest types
-│   ├── commands/             # Split Tauri command files
+│   ├── commands/             # Split Tauri command files — 20 modules
 │   │   ├── mod.rs            # Command module declarations
+│   │   ├── chat.rs           # Chat send, request queue, yield signal, session history
+│   │   ├── agent.rs          # Agent CRUD commands
+│   │   ├── config.rs         # Engine configuration commands
+│   │   ├── memory.rs         # Memory CRUD + embedding commands
 │   │   ├── task.rs           # Task/cron command handlers
+│   │   ├── project.rs        # Orchestrator project commands
+│   │   ├── trade.rs          # Trading commands
+│   │   ├── mail.rs           # Email commands
+│   │   ├── channels.rs       # Channel bridge commands
+│   │   ├── browser.rs        # Browser automation commands
+│   │   ├── tts.rs            # Text-to-speech commands
+│   │   ├── state.rs          # Engine state commands
+│   │   ├── squad.rs          # Agent squad commands
+│   │   ├── utility.rs        # Utility commands
+│   │   ├── tailscale.rs      # Tailscale commands
 │   │   ├── webhook.rs        # Generic webhook server commands
 │   │   ├── mcp.rs            # MCP client commands
 │   │   ├── skill_wizard.rs   # Skill creation wizard
@@ -255,12 +269,19 @@ src-tauri/                    # Rust backend
 ### Agent Loop (`agent_loop/`)
 
 The core conversation loop:
-1. Receives user message
+1. Receives user message + optional yield signal
 2. Injects auto-recalled memories into context
 3. Sends to configured AI provider via SSE streaming
 4. Parses tool calls from response
 5. Routes each tool call through the tool executor (with HIL approval)
-6. Loops back with tool results until the agent is done
+6. Checks yield signal — if a new request is queued, wraps up gracefully
+7. Loops back with tool results until the agent is done or yield is requested
+
+**Request queue (VS Code pattern):** When a user sends a new message while the agent is still processing, the request is queued instead of rejected. The active agent receives a yield signal (atomic bool) and wraps up at the next round boundary. The queued request is then processed automatically.
+
+**Delete-on-retry:** Failed tool exchanges (where all tool results are errors) and "give up" responses (apology spirals, refusals) are deleted from history entirely before loading context. The model never sees past failures, preventing learned helplessness.
+
+**Agent-scoped history:** When loading conversation context, each agent only sees messages relevant to its own session. Cross-agent delegation results (from `agent_send_message` / `agent_read_messages`) are filtered out for non-default agents to prevent context pollution.
 
 ### Tools (`tools/`)
 

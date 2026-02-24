@@ -137,15 +137,17 @@ Rust async engine built on Tokio.
 
 | Module | Purpose |
 |--------|---------|
-| `agent_loop.rs` | Main agent conversation loop |
-| `providers.rs` | AI provider factory and routing |
-| `channels.rs` | Channel bridge message handler |
-| `memory.rs` | Hybrid search (BM25 + vector + temporal) |
-| `skills.rs` | Skill catalog and credential vault |
-| `orchestrator.rs` | Multi-agent project execution |
+| `agent_loop/` | Agent conversation loop with yield signal and request queue |
+| `chat.rs` | System prompt builder, tool assembly, loop detection |
+| `state.rs` | Engine state (YieldSignal, RequestQueue, active runs) |
+| `providers/` | AI provider factory and routing |
+| `channels/` | Channel bridge message handler |
+| `memory/` | Hybrid search (BM25 + vector + temporal) |
+| `skills/` | Skill catalog and credential vault |
+| `orchestrator/` | Multi-agent project execution |
 | `sandbox.rs` | Docker container execution |
-| `tool_executor.rs` | Tool dispatch and execution |
-| `sessions.rs` | Session and message persistence |
+| `tools/` | Tool dispatch and execution |
+| `sessions/` | Session and message persistence |
 | `compaction.rs` | Session compaction/summarization |
 | `routing.rs` | Channel-to-agent routing |
 | `injection.rs` | Prompt injection detection |

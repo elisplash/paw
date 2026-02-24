@@ -126,6 +126,33 @@ Navigate to **Settings → Sessions** to manage all your sessions in one place:
 | `/clear` | Clear all messages in the current session |
 | `/compact` | Manually trigger session compaction |
 
+## Message history management
+
+Pawz automatically maintains a clean conversation context before each agent turn.
+
+### Failed message cleanup
+
+When loading conversation history, Pawz deletes failed exchanges entirely from the context window. This includes:
+
+- **Failed tool calls** — assistant + tool message pairs where every tool result was an error
+- **Give-up responses** — assistant messages containing apology spirals or refusal language (e.g. "I keep hitting a wall", "I apologize for the difficulty")
+
+This follows the VS Code pattern: the model never sees past failures, so it can't anchor on them or develop "learned helplessness." Each retry gets a clean slate.
+
+:::tip
+If an agent is struggling with a task, simply send a new message — the failed attempts are automatically removed from context, giving the agent a fresh perspective.
+:::
+
+### Request queueing
+
+When you send a new message while an agent is still processing a previous request, Pawz queues the message instead of rejecting it. The active agent receives a yield signal and wraps up at the next round boundary. The queued message is then processed automatically.
+
+This means you never need to wait for the agent to finish before typing your next message.
+
+### Agent-scoped history
+
+In multi-agent sessions, each agent only sees messages relevant to its own context. Cross-agent delegation results (from tools like `agent_send_message` and `agent_read_messages`) are filtered out for non-default agents, preventing one agent's context from polluting another's conversation.
+
 :::info
 Session data is stored in the engine-side SQLite database, separate from frontend state. This means sessions persist across app restarts and are tied to the backend engine.
 :::
