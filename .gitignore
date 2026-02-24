@@ -38,3 +38,4 @@ src-tauri/.env
 
 # Private planning docs
 LAUNCH_PLAN.md
+launch-content/
