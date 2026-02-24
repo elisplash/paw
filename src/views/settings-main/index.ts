@@ -18,6 +18,7 @@ import {
   startWizard,
   wizardNext,
   cancelWizard,
+  checkForUpdate,
   runUpdate,
   loadSettingsBrowser,
   startBrowser,
@@ -111,7 +112,8 @@ export function initSettings() {
   $('settings-wizard-next')?.addEventListener('click', () => wizardNext());
   $('settings-wizard-cancel')?.addEventListener('click', () => cancelWizard());
   // Update
-  $('settings-update-run')?.addEventListener('click', () => runUpdate());
+  $('settings-update-check')?.addEventListener('click', () => checkForUpdate());
+  $('settings-update-install')?.addEventListener('click', () => runUpdate());
   // Browser
   $('settings-browser-start')?.addEventListener('click', () => startBrowser());
   $('settings-browser-stop')?.addEventListener('click', () => stopBrowser());

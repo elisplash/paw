@@ -2185,6 +2185,25 @@
                 >
               </p>
             </div>
+
+            <!-- ── Software Update ── -->
+            <div class="settings-section">
+              <h2 class="settings-section-title">Software Update</h2>
+              <p class="settings-section-desc" style="margin-bottom: 12px">
+                Check for new versions and update Pawz in-place.
+              </p>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap">
+                <button class="btn btn-primary btn-sm" id="settings-update-check">
+                  <span class="ms ms-sm" style="margin-right: 4px">refresh</span>
+                  Check for Updates
+                </button>
+                <button class="btn btn-accent btn-sm" id="settings-update-install" style="display: none">
+                  <span class="ms ms-sm" style="margin-right: 4px">download</span>
+                  Download &amp; Install
+                </button>
+              </div>
+              <p id="update-status" style="color: var(--text-muted); font-size: 12px; margin-top: 8px"></p>
+            </div>
           </div>
           <!-- end settings-panel-general -->
 

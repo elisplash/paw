@@ -12,6 +12,11 @@ import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { isConnected } from '../../state/connection';
 import { getBudgetLimit, setBudgetLimit, downloadFile, type ToolRule } from './atoms';
+import { check, type Update, type DownloadEvent } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
+
+/** Cached update handle between check → install steps. */
+let _pendingUpdate: Update | null = null;
 
 // ── State accessors (set by index.ts) ──────────────────────────────────────
 
@@ -164,8 +169,85 @@ export async function cancelWizard() {
 
 // ── Self-Update ────────────────────────────────────────────────────────
 
+export async function checkForUpdate() {
+  const statusEl = $('update-status');
+  const checkBtn = $('settings-update-check') as HTMLButtonElement | null;
+  const installBtn = $('settings-update-install') as HTMLButtonElement | null;
+
+  if (statusEl) statusEl.textContent = 'Checking for updates…';
+  if (checkBtn) checkBtn.disabled = true;
+  if (installBtn) { installBtn.style.display = 'none'; installBtn.disabled = true; }
+
+  try {
+    const update = await check();
+
+    if (update) {
+      if (statusEl) statusEl.textContent = `Update available: v${update.version}`;
+      if (installBtn) {
+        installBtn.style.display = '';
+        installBtn.disabled = false;
+        // Store the update handle for install step
+        _pendingUpdate = update;
+      }
+      showToast(`Update v${update.version} available`, 'info');
+    } else {
+      if (statusEl) statusEl.textContent = 'You are on the latest version.';
+      showToast('Already up to date', 'info');
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (statusEl) statusEl.textContent = `Update check failed: ${msg}`;
+    showToast(`Update check failed: ${msg}`, 'error');
+  } finally {
+    if (checkBtn) checkBtn.disabled = false;
+  }
+}
+
 export async function runUpdate() {
-  showToast('Self-update not available in engine mode — use your package manager', 'info');
+  const statusEl = $('update-status');
+  const installBtn = $('settings-update-install') as HTMLButtonElement | null;
+  const update = _pendingUpdate;
+
+  if (!update) {
+    showToast('No update available — check for updates first', 'info');
+    return;
+  }
+
+  if (installBtn) installBtn.disabled = true;
+  if (statusEl) statusEl.textContent = 'Downloading update…';
+
+  try {
+    let downloaded = 0;
+    let contentLength = 0;
+
+    await update.downloadAndInstall((event: DownloadEvent) => {
+      switch (event.event) {
+        case 'Started':
+          contentLength = event.data.contentLength || 0;
+          if (statusEl) statusEl.textContent = `Downloading… 0%`;
+          break;
+        case 'Progress':
+          downloaded += event.data.chunkLength || 0;
+          if (contentLength > 0 && statusEl) {
+            const pct = Math.round((downloaded / contentLength) * 100);
+            statusEl.textContent = `Downloading… ${pct}%`;
+          }
+          break;
+        case 'Finished':
+          if (statusEl) statusEl.textContent = 'Download complete. Restarting…';
+          break;
+      }
+    });
+
+    showToast('Update installed — restarting…', 'info');
+    // Give the toast a moment to display
+    setTimeout(() => relaunch(), 1000);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (statusEl) statusEl.textContent = `Update failed: ${msg}`;
+    if (installBtn) installBtn.disabled = false;
+    showToast(`Update failed: ${msg}`, 'error');
+  }
 }
 
 // ── Browser Control ────────────────────────────────────────────────────
