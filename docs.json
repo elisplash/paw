@@ -26,11 +26,11 @@
     "primary": {
       "type": "button",
       "label": "Download",
-      "href": "https://github.com/elisplash/paw/releases"
+      "href": "https://github.com/OpenPawz/openpawz/releases"
     }
   },
   "banner": {
-    "content": "**OpenPawz** is open source — [Star us on GitHub](https://github.com/elisplash/paw) and join the community!",
+    "content": "**OpenPawz** is open source — [Star us on GitHub](https://github.com/OpenPawz/openpawz) and join the community!",
     "dismissible": true
   },
   "navigation": {
@@ -179,7 +179,7 @@
   },
   "footer": {
     "socials": {
-      "github": "https://github.com/elisplash/paw"
+      "github": "https://github.com/OpenPawz/openpawz"
     }
   },
   "feedback": {

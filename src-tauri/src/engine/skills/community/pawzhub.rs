@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 /// Registry URL: raw JSON from the PawzHub GitHub repo.
 const REGISTRY_URL: &str =
-    "https://raw.githubusercontent.com/elisplash/pawzhub/main/registry.json";
+    "https://raw.githubusercontent.com/OpenPawz/pawzhub/main/registry.json";
 
 /// A single entry in the PawzHub registry.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -148,7 +148,7 @@ mod tests {
             "category": "productivity",
             "version": "1.0.0",
             "tier": "skill",
-            "source_repo": "elisplash/pawzhub",
+            "source_repo": "OpenPawz/pawzhub",
             "has_mcp": false,
             "has_widget": true,
             "verified": true

@@ -4280,6 +4280,61 @@ dependencies = [
 ]
 
 [[package]]
+name = "openpawz"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "aes-gcm",
+ "async-trait",
+ "base64 0.22.1",
+ "bollard",
+ "bs58",
+ "cbc",
+ "chrono",
+ "chrono-tz",
+ "dirs",
+ "ed25519-dalek",
+ "futures",
+ "headless_chrome",
+ "hmac",
+ "jsonwebtoken",
+ "k256",
+ "keyring",
+ "log",
+ "matrix-sdk",
+ "p256",
+ "parking_lot",
+ "paste",
+ "rand 0.8.5",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "rustls 0.23.36",
+ "rustls-pemfile",
+ "scraper",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-fs",
+ "tauri-plugin-log",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-shell",
+ "tauri-plugin-sql",
+ "thiserror 2.0.18",
+ "tiny-keccak",
+ "tokio",
+ "tokio-rustls 0.26.4",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "toml 0.8.2",
+ "url",
+ "uuid",
+ "webpki-roots 1.0.6",
+]
+
+[[package]]
 name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4382,61 +4437,6 @@ name = "pathdiff"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df94ce210e5bc13cb6651479fa48d14f601d9858cfe0467f43ae157023b938d3"
-
-[[package]]
-name = "paw-temp"
-version = "0.1.0"
-dependencies = [
- "aes",
- "aes-gcm",
- "async-trait",
- "base64 0.22.1",
- "bollard",
- "bs58",
- "cbc",
- "chrono",
- "chrono-tz",
- "dirs",
- "ed25519-dalek",
- "futures",
- "headless_chrome",
- "hmac",
- "jsonwebtoken",
- "k256",
- "keyring",
- "log",
- "matrix-sdk",
- "p256",
- "parking_lot",
- "paste",
- "rand 0.8.5",
- "reqwest 0.12.28",
- "rusqlite",
- "rustls 0.23.36",
- "rustls-pemfile",
- "scraper",
- "serde",
- "serde_json",
- "sha2",
- "tauri",
- "tauri-build",
- "tauri-plugin-fs",
- "tauri-plugin-log",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-shell",
- "tauri-plugin-sql",
- "thiserror 2.0.18",
- "tiny-keccak",
- "tokio",
- "tokio-rustls 0.26.4",
- "tokio-stream",
- "tokio-tungstenite",
- "toml 0.8.2",
- "url",
- "uuid",
- "webpki-roots 1.0.6",
-]
 
 [[package]]
 name = "pbkdf2"

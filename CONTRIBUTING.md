@@ -15,7 +15,7 @@ Thanks for your interest in contributing! This guide covers everything you need 
 ### Getting Running
 
 ```bash
-git clone https://github.com/elisplash/paw.git
+git clone https://github.com/OpenPawz/openpawz.git
 cd paw
 npm install
 npm run tauri dev

@@ -6,7 +6,7 @@
 
 A native desktop AI platform that runs fully offline, connects to any provider, and puts you in control.
 
-[![CI](https://github.com/elisplash/paw/actions/workflows/ci.yml/badge.svg)](https://github.com/elisplash/paw/actions/workflows/ci.yml)
+[![CI](https://github.com/OpenPawz/openpawz/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenPawz/openpawz/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 *Private by default. Powerful by design. Extensible by nature.*
@@ -144,7 +144,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full technical breakdown.
 ### Development
 
 ```bash
-git clone https://github.com/elisplash/paw.git
+git clone https://github.com/OpenPawz/openpawz.git
 cd paw
 npm install
 npm run tauri dev
@@ -181,7 +181,7 @@ npm run tauri build
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, code style, testing, PR guidelines |
 | [ENTERPRISE_PLAN.md](ENTERPRISE_PLAN.md) | Enterprise hardening audit — all phases with test counts |
 | [AUTONOMY_ROADMAP.md](AUTONOMY_ROADMAP.md) | Agent autonomy roadmap — auto-approve, webhooks, MCP, PawzHub |
-| [Docs Site](https://elisplash.github.io/paw/) | Full documentation with guides, channel setup, and API reference |
+| [Docs Site](https://openpawz.mintlify.dev) | Full documentation with guides, channel setup, and API reference |
 
 ---
 

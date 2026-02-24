@@ -197,7 +197,7 @@ Additional quality badges:
 | Badge | Meaning |
 |-------|---------|
 | **Verified** ✓ | Tested in a real workspace, CI-validated |
-| **Official** ★ | Published by `elisplash` |
+| **Official** ★ | Published by `OpenPawz` |
 | **Popular** | 50K+ installs on skills.sh or PawzHub |
 
 ---

@@ -21,7 +21,7 @@ Your GCP project "OpenPawz" is currently in **Testing** mode, which means:
 The bundled OAuth credentials are baked into the binary at compile time. Your local `src-tauri/.env` works for dev builds, but CI/release builds need GitHub Actions secrets.
 
 **Steps:**
-1. Go to [Repo Settings → Secrets → Actions](https://github.com/elisplash/paw/settings/secrets/actions)
+1. Go to [Repo Settings → Secrets → Actions](https://github.com/OpenPawz/openpawz/settings/secrets/actions)
 2. Add these two repository secrets:
 
 | Secret Name | Value |

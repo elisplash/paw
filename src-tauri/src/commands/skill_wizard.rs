@@ -271,7 +271,7 @@ pub fn engine_wizard_publish_url(
     }
     let path = format!("skills/{}/pawz-skill.toml", skill_id);
     let url = format!(
-        "https://github.com/elisplash/pawzhub/new/main/?filename={}&value={}",
+        "https://github.com/OpenPawz/pawzhub/new/main/?filename={}&value={}",
         url_encode(&path),
         url_encode(&toml_content)
     );

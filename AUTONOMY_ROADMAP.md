@@ -367,7 +367,7 @@ text = "GitHub tools are available via MCP. Use them directly."
 (search, browse, install), frontend browse section with tier badges, category filtering,
 search, one-click install. PawzHubEntry type + 3 IPC methods.
 
-- [x] In-app browser fetches `registry.json` from `elisplash/pawzhub`
+- [x] In-app browser fetches `registry.json` from `OpenPawz/pawzhub`
 - [x] Tier badges: 🔵 Skill, 🟣 Integration, 🟡 Extension
 - [x] One-click install: download `pawz-skill.toml` → `~/.paw/skills/{id}/`
 - [x] "Verified" badge for verified skills
@@ -391,7 +391,7 @@ publish URL builder, install locally / copy TOML / publish to PawzHub.
 - [x] Dynamic widget field rows (add/remove)
 - [x] TOML generation with validation (id format, lengths, field types)
 - [x] Export: install `pawz-skill.toml` locally
-- [x] Publish: open pre-filled GitHub new-file URL on `elisplash/pawzhub`
+- [x] Publish: open pre-filled GitHub new-file URL on `OpenPawz/pawzhub`
 
 **Files created:**
 - `src-tauri/src/commands/skill_wizard.rs` — TOML generation + validation (8 tests)
