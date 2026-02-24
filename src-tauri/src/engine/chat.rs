@@ -85,11 +85,18 @@ pub fn build_chat_tools(
     let is_policy_allowed = |name: &str| {
         tool_filter.is_some_and(|f| f.iter().any(|n| n == name))
     };
+    // When integration skills are enabled (Discord, Slack, etc.), their agent
+    // instructions reference `fetch` and `exec` for API calls and reading creds.
+    // Auto-include these so the model doesn't try to call tools it can't see.
+    let has_integration_skills = !enabled_ids.is_empty();
+    let is_skill_required = |name: &str| {
+        has_integration_skills && matches!(name, "fetch" | "exec")
+    };
 
     let mut t: Vec<ToolDefinition> = all_tools.into_iter()
         .filter(|tool| {
             let name = tool.function.name.as_str();
-            is_core(name) || is_loaded(name) || is_mcp(name) || is_policy_allowed(name)
+            is_core(name) || is_loaded(name) || is_mcp(name) || is_policy_allowed(name) || is_skill_required(name)
         })
         .collect();
 
