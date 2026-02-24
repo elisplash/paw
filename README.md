@@ -1,6 +1,12 @@
 <div align="center">
 
-# OpenPawz
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/pawz-logo-text.svg">
+  <source media="(prefers-color-scheme: light)" srcset="images/pawz-logo-text-light.svg">
+  <img alt="OpenPawz" src="images/pawz-logo-text.svg" width="360">
+</picture>
+
+<br>
 
 **Your AI, your rules.**
 
