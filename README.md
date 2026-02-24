@@ -147,8 +147,11 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full technical breakdown.
 
 ## Getting Started
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) 18+
+### Prerequisites (build-time only)
+
+> **Note:** Node.js is only needed to build the frontend — the final app is a standalone native binary with no Node.js runtime.
+
+- [Node.js](https://nodejs.org/) 18+ *(build tooling: Vite bundler, TypeScript compiler)*
 - [Rust](https://rustup.rs/) (latest stable)
 - Platform dependencies for Tauri — see [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
 
