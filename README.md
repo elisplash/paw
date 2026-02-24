@@ -70,13 +70,13 @@ See [SECURITY.md](SECURITY.md) for the complete security architecture.
 | Provider | Models |
 |----------|--------|
 | Ollama | Any local model (auto-detected, fully offline) |
-| OpenAI | GPT-4o, o1, o3-mini |
-| Anthropic | Claude Sonnet 4, Opus 4, Haiku |
-| Google Gemini | Gemini 2.5 Pro/Flash |
-| OpenRouter | Meta-provider routing |
+| OpenAI | GPT-4.1, GPT-4.1 mini, GPT-4.1 nano, o3, o4-mini |
+| Anthropic | Claude Opus 4, Sonnet 4, Sonnet 4 Thinking, Haiku 3.5 |
+| Google Gemini | Gemini 3.1 Pro, 3 Deep Think, 3 Flash, 2.5 Pro/Flash/Flash-Lite |
+| OpenRouter | Meta-provider routing (100+ models) |
 | DeepSeek | deepseek-chat, deepseek-reasoner |
 | xAI (Grok) | grok-3, grok-3-mini |
-| Mistral | mistral-large, codestral, pixtral |
+| Mistral | mistral-large, codestral, pixtral-large |
 | Moonshot/Kimi | moonshot-v1 models |
 | Custom | Any OpenAI-compatible endpoint |
 

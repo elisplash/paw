@@ -301,7 +301,11 @@ function buildModelRoutingSection(
   presets.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 16px 0';
   const presetOptions = [
     { label: 'Gemini 3.1 Pro + 3 Flash', boss: 'gemini-3.1-pro', worker: 'gemini-3-flash' },
-    { label: 'Gemini 3 Flash + 2.5 Flash-Lite', boss: 'gemini-3-flash', worker: 'gemini-2.5-flash-lite' },
+    {
+      label: 'Gemini 3 Flash + 2.5 Flash-Lite',
+      boss: 'gemini-3-flash',
+      worker: 'gemini-2.5-flash-lite',
+    },
     {
       label: 'Gemini 2.5 Pro + Flash',
       boss: 'gemini-2.5-pro',
