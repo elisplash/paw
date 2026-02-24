@@ -65,7 +65,17 @@ impl SessionStore {
     ///
     /// `max_context_tokens` caps the total conversation size.  Pass `None` to
     /// use the default (32 000 tokens).
-    pub fn load_conversation(&self, session_id: &str, system_prompt: Option<&str>, max_context_tokens: Option<usize>) -> EngineResult<Vec<Message>> {
+    ///
+    /// `agent_id` enables agent-scoped history filtering (VS Code pattern):
+    /// non-default agents only see messages from their own session.  The
+    /// "default" agent sees everything.  Pass `None` to disable filtering.
+    pub fn load_conversation(
+        &self,
+        session_id: &str,
+        system_prompt: Option<&str>,
+        max_context_tokens: Option<usize>,
+        agent_id: Option<&str>,
+    ) -> EngineResult<Vec<Message>> {
         // Load recent messages only — lean sessions rely on memory_search for
         // historical context rather than carrying the full conversation.
         let stored = self.get_messages(session_id, 50)?;
@@ -101,6 +111,37 @@ impl SessionStore {
                 tool_call_id: sm.tool_call_id.clone(),
                 name: sm.name.clone(),
             });
+        }
+
+        // ── Agent-scoped history filtering (VS Code pattern) ───────────
+        // Non-default agents only see messages relevant to their context.
+        // We skip delegate-agent tool results (messages with name starting
+        // with "agent_send_message") if the current agent is non-default,
+        // to prevent cross-agent context pollution within a session.
+        if let Some(aid) = agent_id {
+            if aid != "default" {
+                let before = messages.len();
+                // Keep: system, user, and assistant messages.
+                // Filter: tool results from other agents' delegated work.
+                messages.retain(|m| {
+                    if m.role == Role::Tool {
+                        // Keep tool results that are part of this agent's work
+                        // Skip results from agent delegation tools unless they match
+                        let name = m.name.as_deref().unwrap_or("");
+                        if name == "agent_send_message" || name == "agent_read_messages" {
+                            return false; // Skip cross-agent delegation results
+                        }
+                    }
+                    true
+                });
+                let after = messages.len();
+                if before != after {
+                    log::info!(
+                        "[engine] Agent-scoped filter: removed {} cross-agent messages for agent '{}'",
+                        before - after, aid
+                    );
+                }
+            }
         }
 
         // ── Context window truncation ──────────────────────────────────
@@ -168,19 +209,12 @@ impl SessionStore {
                 messages.len(), drop_tokens, total_tokens);
         }
 
-        // ── Compact repeated tool failures ─────────────────────────────
-        // If the same tool failed 2+ times in a row, the model sees a wall of
-        // errors and gives up even when the user says "try again."
-        // Collapse these runs into a single summary + the last failure,
-        // freeing context space and removing the "learned helplessness."
-        Self::compact_failed_tool_runs(&mut messages);
-
-        // ── Neutralize "give up" assistant responses ───────────────────
-        // After tool failures, the model often writes "I apologize, I'm hitting
-        // a wall..." — this text persists and anchors future refusals.
-        // Replace it with a neutral note so the model doesn't reinforce its own
-        // learned helplessness on reload.
-        Self::neutralize_give_up_responses(&mut messages);
+        // ── Delete failed exchanges (VS Code pattern) ──────────────────
+        // Instead of neutralizing or compacting failed responses, simply
+        // delete them entirely.  The model never sees its past failures,
+        // so it can't anchor on them or develop "learned helplessness."
+        // This is how VS Code handles retries: removeRequest + resend fresh.
+        Self::delete_failed_exchanges(&mut messages);
 
         // ── Sanitize tool_use / tool_result pairing ────────────────────
         // After truncation (or corruption from previous crashes), ensure every
@@ -192,49 +226,68 @@ impl SessionStore {
         Ok(messages)
     }
 
-    /// Compact consecutive failed tool calls of the same tool.
+    /// Delete failed exchanges entirely from conversation history.
     ///
-    /// When the agent retries a tool 3+ times and fails each time, the
-    /// conversation history fills with repetitive error messages.  The model
-    /// then "learns" the tool is broken and refuses to retry — even when the
-    /// user explicitly asks it to try again (and the tool may have been fixed).
+    /// VS Code pattern: instead of neutralizing or compacting failed responses,
+    /// simply remove them.  The model never sees past failures, so it can't
+    /// anchor on them or develop "learned helplessness."
     ///
-    /// Strategy: detect runs of [assistant(tool_call) → tool(error)] for the
-    /// same tool name. Keep only the **last** failure pair and replace all
-    /// earlier pairs with a single compact user-visible summary.  This frees
-    /// context tokens and prevents the model from anchoring on past failures.
-    fn compact_failed_tool_runs(messages: &mut Vec<Message>) {
-        // Identify tool result messages that are failures (content contains error markers)
-        let is_failed_tool_result = |m: &Message| -> bool {
-            if m.role != Role::Tool { return false; }
-            let text = m.content.as_text();
-            // Heuristic: tool errors contain these patterns
+    /// Removes:
+    /// 1. Assistant messages with tool_calls where ALL tool results are errors
+    ///    (plus the corresponding tool result messages)
+    /// 2. Assistant "give up" text responses (apology spirals, refusals)
+    ///
+    /// Always preserves the last user message and the system prompt.
+    fn delete_failed_exchanges(messages: &mut Vec<Message>) {
+        use std::collections::HashSet;
+
+        let is_error_text = |text: &str| -> bool {
             text.starts_with("Error:")
                 || text.starts_with("Google API error")
                 || text.contains("error (")
                 || text.contains("is not enabled")
                 || text.contains("failed:")
                 || text.starts_with("Tool execution denied")
-                || (text.len() < 200 && text.contains("error"))
+                || (text.len() < 200 && text.to_lowercase().contains("error"))
         };
 
-        // Build a list of (tool_name, assistant_idx, tool_result_idx) for failed calls
-        let mut failed_calls: Vec<(String, usize, usize)> = Vec::new();
+        let give_up_patterns: &[&str] = &[
+            "hitting a wall", "continue to struggle", "rather than continue",
+            "keep running into errors", "i'm unable to", "i am unable to",
+            "tool is broken", "tool isn't working", "consistently failing",
+            "keeps failing", "this approach isn't working",
+            "apologize for the difficulty", "apologize for the inconvenience",
+        ];
+
+        let mut indices_to_remove: HashSet<usize> = HashSet::new();
+
+        // ── Pass 1: find assistant+tool_calls where all results are errors ──
         let mut i = 0;
         while i < messages.len() {
             if messages[i].role == Role::Assistant {
                 if let Some(ref tcs) = messages[i].tool_calls {
-                    if tcs.len() == 1 { // Only compact single-tool calls
-                        let tc = &tcs[0];
-                        // Look for the matching tool result right after
+                    if !tcs.is_empty() {
+                        let tc_ids: HashSet<String> = tcs.iter().map(|tc| tc.id.clone()).collect();
+                        // Scan following tool result messages
                         let mut j = i + 1;
+                        let mut all_failed = true;
+                        let mut result_indices: Vec<usize> = Vec::new();
                         while j < messages.len() && messages[j].role == Role::Tool {
-                            if messages[j].tool_call_id.as_deref() == Some(&tc.id)
-                                && is_failed_tool_result(&messages[j])
-                            {
-                                failed_calls.push((tc.function.name.clone(), i, j));
+                            if let Some(ref tcid) = messages[j].tool_call_id {
+                                if tc_ids.contains(tcid) {
+                                    result_indices.push(j);
+                                    if !is_error_text(&messages[j].content.as_text()) {
+                                        all_failed = false;
+                                    }
+                                }
                             }
                             j += 1;
+                        }
+                        if all_failed && !result_indices.is_empty() {
+                            indices_to_remove.insert(i);
+                            for idx in result_indices {
+                                indices_to_remove.insert(idx);
+                            }
                         }
                     }
                 }
@@ -242,180 +295,31 @@ impl SessionStore {
             i += 1;
         }
 
-        // Find consecutive runs of the same tool failing
-        if failed_calls.len() < 2 { return; }
-
-        let mut indices_to_remove: Vec<usize> = Vec::new();
-        let mut run_start = 0;
-
-        while run_start < failed_calls.len() {
-            let tool_name = &failed_calls[run_start].0;
-            let mut run_end = run_start;
-
-            // Extend the run while same tool name and roughly consecutive in message order
-            while run_end + 1 < failed_calls.len()
-                && failed_calls[run_end + 1].0 == *tool_name
-            {
-                run_end += 1;
+        // ── Pass 2: find assistant give-up text responses ───────────────
+        for (idx, msg) in messages.iter().enumerate() {
+            if msg.role != Role::Assistant { continue; }
+            if msg.tool_calls.as_ref().map(|tc| !tc.is_empty()).unwrap_or(false) { continue; }
+            let text = msg.content.as_text().to_lowercase();
+            if give_up_patterns.iter().any(|p| text.contains(p)) {
+                indices_to_remove.insert(idx);
             }
-
-            let run_len = run_end - run_start + 1;
-            if run_len >= 2 {
-                // Keep the LAST failure, remove all earlier ones in this run
-                for item in failed_calls.iter().take(run_end).skip(run_start) {
-                    let (_, asst_idx, tool_idx) = item;
-                    indices_to_remove.push(*asst_idx);
-                    indices_to_remove.push(*tool_idx);
-                }
-
-                log::info!(
-                    "[engine] Compacting {} consecutive '{}' failures → keeping last failure only",
-                    run_len, tool_name
-                );
-            }
-
-            run_start = run_end + 1;
         }
 
         if indices_to_remove.is_empty() { return; }
 
-        // Collect the summary messages to inject (one per compacted run)
-        let mut summaries: Vec<(usize, Message)> = Vec::new();
-        {
-            let mut run_start = 0;
-            while run_start < failed_calls.len() {
-                let tool_name = &failed_calls[run_start].0;
-                let mut run_end = run_start;
-                while run_end + 1 < failed_calls.len()
-                    && failed_calls[run_end + 1].0 == *tool_name
-                {
-                    run_end += 1;
-                }
-                let run_len = run_end - run_start + 1;
-                if run_len >= 2 {
-                    let (_, last_asst_idx, _) = &failed_calls[run_end];
-                    summaries.push((*last_asst_idx, Message {
-                        role: Role::User,
-                        content: MessageContent::Text(format!(
-                            "[Note: {} earlier attempt(s) to use '{}' failed and were removed. \
-                            The tools may have been updated since. Try `request_tools` to discover alternatives.]",
-                            run_len - 1, tool_name
-                        )),
-                        tool_calls: None,
-                        tool_call_id: None,
-                        name: None,
-                    }));
-                }
-                run_start = run_end + 1;
-            }
-        }
-
-        // Remove indices in reverse order to preserve positions
-        indices_to_remove.sort_unstable();
-        indices_to_remove.dedup();
-        for &idx in indices_to_remove.iter().rev() {
+        // Remove in reverse order to preserve indices
+        let mut sorted: Vec<usize> = indices_to_remove.into_iter().collect();
+        sorted.sort_unstable();
+        for &idx in sorted.iter().rev() {
             if idx < messages.len() {
                 messages.remove(idx);
             }
         }
 
-        // Insert summaries (adjust positions for removed elements)
-        for (target_pos, summary_msg) in summaries {
-            // Find how many removals happened before this position
-            let offset = indices_to_remove.iter().filter(|&&r| r < target_pos).count();
-            let adjusted = target_pos.saturating_sub(offset);
-            let insert_at = adjusted.min(messages.len());
-            messages.insert(insert_at, summary_msg);
-        }
-
         log::info!(
-            "[engine] Compacted {} failed tool messages from conversation history",
-            indices_to_remove.len()
+            "[engine] Deleted {} failed exchange messages from conversation history (VS Code pattern)",
+            sorted.len()
         );
-    }
-
-    /// Detect and neutralize assistant responses where the model "gives up"
-    /// after tool failures.
-    ///
-    /// When tools fail repeatedly, the model writes responses like:
-    ///   "I apologize, it seems I'm hitting a wall with the Google API today..."
-    ///   "Rather than continue to struggle with this specific tool..."
-    ///
-    /// These responses are persisted to DB and on reload the model sees its
-    /// own prior refusal, anchors on it, and refuses again — even when the
-    /// user explicitly asks it to "try again" and the tools may have been
-    /// fixed.  This creates a self-reinforcing "learned helplessness" loop.
-    ///
-    /// Strategy: detect assistant messages (without tool_calls) that match
-    /// "give up" patterns and replace their content with a neutral note.
-    /// The user's follow-up request ("try again") then faces a clean slate.
-    fn neutralize_give_up_responses(messages: &mut [Message]) {
-        let give_up_patterns: &[&str] = &[
-            // Give-up / wall patterns
-            "hitting a wall",
-            "hitting a brick wall",
-            "continue to struggle",
-            "continue struggling",
-            "rather than continue",
-            "rather than keep trying",
-            "keep running into errors",
-            "keep encountering errors",
-            "running into errors with the api",
-            "i'm unable to",
-            "i am unable to",
-            "i cannot seem to",
-            "tool is broken",
-            "tool isn't working",
-            "tool is not working",
-            "doesn't seem to be working",
-            "does not seem to work",
-            "consistently failing",
-            "keeps failing",
-            "this approach isn't working",
-            "this approach is not working",
-            "i've tried multiple",
-            "i have tried multiple",
-            // Apology spiral patterns
-            "apologize for the difficulty",
-            "apologize for the inconvenience",
-            "my apologies, i tried",
-            "my apologies, it seems",
-            "my apologies, i should",
-            "my mistake, let me",
-            "my mistake. let me",
-            "i'm making this more complicated",
-            "i am making this more complicated",
-            "let me correct that",
-            "should have checked that first",
-            "i apologize, it seems i'm having trouble",
-            "i apologize, it seems i don't have",
-        ];
-
-        let mut neutralized = 0;
-        for msg in messages.iter_mut() {
-            // Only target assistant messages without tool_calls (i.e. final text responses)
-            if msg.role != Role::Assistant { continue; }
-            if msg.tool_calls.as_ref().map(|tc| !tc.is_empty()).unwrap_or(false) { continue; }
-
-            let text = msg.content.as_text().to_lowercase();
-            let is_give_up = give_up_patterns.iter().any(|p| text.contains(p));
-            if !is_give_up { continue; }
-
-            // Replace the content with a neutral note
-            msg.content = MessageContent::Text(
-                "[A previous attempt at this task encountered errors. \
-                The tools may have been updated since then. \
-                Ready to try again with a fresh approach.]".to_string()
-            );
-            neutralized += 1;
-        }
-
-        if neutralized > 0 {
-            log::info!(
-                "[engine] Neutralized {} 'give up' assistant responses in conversation history",
-                neutralized
-            );
-        }
     }
 
     /// Ensure every assistant message with tool_calls has matching tool_result

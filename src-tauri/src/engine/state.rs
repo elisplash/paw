@@ -13,7 +13,7 @@ use log::info;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use parking_lot::Mutex;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use crate::atoms::error::EngineResult;
 
 /// Pending tool approvals: maps tool_call_id → oneshot sender.
@@ -126,6 +126,58 @@ impl DailyTokenTracker {
     }
 }
 
+/// Signal that the current agent turn should wrap up gracefully.
+/// VS Code pattern: when a new user message arrives while one is in progress,
+/// the new message is queued and `yield_requested` is set on the active run.
+/// The agent loop checks this flag each round and stops if set.
+#[derive(Clone)]
+pub struct YieldSignal(Arc<AtomicBool>);
+
+impl YieldSignal {
+    pub fn new() -> Self {
+        Self(Arc::new(AtomicBool::new(false)))
+    }
+
+    /// Request the agent to yield (wrap up and stop).
+    pub fn request_yield(&self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+
+    /// Check if yield has been requested.
+    pub fn is_yield_requested(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+
+    /// Reset the yield signal (called when starting a new request).
+    pub fn reset(&self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
+impl Default for YieldSignal {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// A queued chat request waiting to be processed after the current one completes.
+#[derive(Clone)]
+pub struct QueuedRequest {
+    pub request: ChatRequest,
+    pub provider_config: ProviderConfig,
+    pub model: String,
+    pub system_prompt: Option<String>,
+}
+
+/// Per-session request queue.
+/// When a user sends a message while one is in progress, it goes here.
+/// After the current request completes, the next queued request is dequeued and processed.
+pub type RequestQueue = Arc<Mutex<HashMap<String, Vec<QueuedRequest>>>>;
+
+/// Per-session yield signals.
+/// When a steering request is queued, yield is requested on the active run.
+pub type YieldSignals = Arc<Mutex<HashMap<String, YieldSignal>>>;
+
 /// Map retired / renamed model IDs to their current replacements.
 /// This lets old task configs and agent overrides stored in the DB keep working.
 pub fn normalize_model_name(model: &str) -> &str {
@@ -197,6 +249,12 @@ pub struct EngineState {
     /// Tools loaded via request_tools in the current chat turn.
     /// Cleared at the start of each new chat message.
     pub loaded_tools: Arc<Mutex<std::collections::HashSet<String>>>,
+    /// Per-session request queue (VS Code pattern).
+    /// Messages sent while a request is in progress are queued here.
+    pub request_queue: RequestQueue,
+    /// Per-session yield signals (VS Code pattern).
+    /// When a queued request arrives, the active agent is asked to wrap up.
+    pub yield_signals: YieldSignals,
 }
 
 impl EngineState {
@@ -260,6 +318,8 @@ impl EngineState {
             mcp_registry: Arc::new(tokio::sync::Mutex::new(McpRegistry::new())),
             tool_index: Arc::new(tokio::sync::Mutex::new(ToolIndex::new())),
             loaded_tools: Arc::new(Mutex::new(HashSet::new())),
+            request_queue: Arc::new(Mutex::new(HashMap::new())),
+            yield_signals: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 

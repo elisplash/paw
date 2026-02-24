@@ -382,7 +382,7 @@ pub async fn execute_task(
             let cfg = state.config.lock();
             cfg.context_window_tokens
         };
-        let mut messages = state.store.load_conversation(&session_id, Some(&full_system_prompt), Some(context_window))?;
+        let mut messages = state.store.load_conversation(&session_id, Some(&full_system_prompt), Some(context_window), Some(&agent_id))?;
 
         let provider = AnyProvider::from_config(&provider_config);
         let pending_clone = pending.clone();
@@ -423,6 +423,7 @@ pub async fn execute_task(
                 Some(&task_daily_tokens_clone),
                 None, // thinking_level
                 false, // auto_approve_all — tasks use safe default; opt-in is per-chat
+                None, // yield_signal
             ).await;
 
             if let Ok(conn) = rusqlite::Connection::open(&store_path_clone) {

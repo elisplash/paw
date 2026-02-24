@@ -321,7 +321,7 @@ async fn run_swarm_turn(
     };
     let mut messages = state
         .store
-        .load_conversation(&session_id, full_system_prompt.as_deref(), Some(context_window))?;
+        .load_conversation(&session_id, full_system_prompt.as_deref(), Some(context_window), Some(recipient_id))?;
 
     // Build tools — swarm agents get the full tool set (no Tool RAG gating)
     // because they're operating autonomously toward a specific goal.
@@ -382,6 +382,7 @@ async fn run_swarm_turn(
         Some(&daily_tokens),
         None,  // thinking_level
         true,  // auto_approve_all — swarm agents run autonomously
+        None,  // yield_signal
     )
     .await
     .map_err(|e| e.to_string())?;

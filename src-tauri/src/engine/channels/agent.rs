@@ -179,6 +179,7 @@ pub async fn run_channel_agent(
         &session_id,
         full_system_prompt.as_deref(),
         Some(context_window),
+        Some(agent_id),
     )?;
 
     // Build tools — read-only tools are auto-approved by agent_loop;
@@ -255,6 +256,7 @@ pub async fn run_channel_agent(
             Some(&daily_tokens_tracker),
             None, // thinking_level
             false, // auto_approve_all — channels use safe default; Phase C adds per-channel policy
+            None, // yield_signal
         ).await;
 
         // If the primary provider failed with a billing/auth/rate error, try fallback providers
@@ -297,6 +299,7 @@ pub async fn run_channel_agent(
                         Some(&daily_tokens_tracker),
                         None, // thinking_level
                         false, // auto_approve_all — channels: safe default
+                        None, // yield_signal
                     ).await {
                         Ok(text) => {
                             info!("[{}] Fallback {:?} succeeded", channel_prefix, fb_provider_cfg.kind);
