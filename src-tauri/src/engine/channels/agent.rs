@@ -182,8 +182,8 @@ pub async fn run_channel_agent(
         parts.push(
             "## Conversation Discipline\n\
             - **Act immediately.** When the user asks you to do something, start doing it with your tools right now. Don't ask for confirmation.\n\
-            - **One tool call at a time.** Make one fetch call, read the result, then make the next.\n\
-            - **You only have these tools: fetch, memory_store, memory_search, self_info.** Use `fetch` for ALL API calls.\n\
+            - **For creating channels/categories:** Use `discord_setup_channels` — it creates everything in ONE call.\n\
+            - **For individual operations** (sending messages, editing, permissions): Use `fetch`.\n\
             - **Never ask for information you already have.** Your server ID and API reference are above.\n\
             - **If a call fails, try again.** Don't give up or ask the user to do it manually.\n\
             - **Keep responses short.** Brief updates between actions, not essays.".to_string()
@@ -222,12 +222,14 @@ pub async fn run_channel_agent(
     //   - memory_store / memory_search: remember things across conversations
     //   - self_info: introspect own config when asked
     let mut tools: Vec<ToolDefinition> = {
-        let all_builtins = ToolDefinition::builtins();
-        let whitelist = ["fetch", "memory_store", "memory_search", "self_info"];
+        let mut all_builtins = ToolDefinition::builtins();
+        // Add discord_setup_channels tool (not in builtins, channel-bridge only)
+        all_builtins.extend(crate::engine::tools::discord_setup::definitions());
+        let whitelist = ["fetch", "memory_store", "memory_search", "self_info", "discord_setup_channels"];
         let filtered: Vec<ToolDefinition> = all_builtins.into_iter()
             .filter(|t| whitelist.contains(&t.function.name.as_str()))
             .collect();
-        info!("[{}] Channel tool whitelist: {} tools (from {} builtins)", channel_prefix, filtered.len(), whitelist.len());
+        info!("[{}] Channel tool whitelist: {} tools", channel_prefix, filtered.len());
         filtered
     };
 

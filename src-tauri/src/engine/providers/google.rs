@@ -349,12 +349,46 @@ impl GoogleProvider {
             body["generationConfig"] = json!({"maxOutputTokens": 8192});
         }
 
-        // Gemini does not expose internal reasoning in its API responses.
-        // The thinkingConfig only controls Gemini's internal thinking budget,
-        // NOT whether thoughts are surfaced to users. Only send it when the
-        // user explicitly requests it via /think — it may improve response
-        // quality for complex questions even though we can't display the thoughts.
-        if let Some(level) = thinking_level {
+        // ── Thinking config for thinking-capable models ──────────────────
+        // Gemini 2.5+ and 3.x models have built-in "thinking" (chain-of-thought
+        // reasoning). When thinkingConfig is NOT sent, these models default to
+        // their built-in thinking budget — which can consume the entire response
+        // on invisible internal reasoning, producing 0 visible output tokens.
+        //
+        // Fix: always send thinkingConfig for thinking-capable models.
+        // - No thinking requested → thinkingBudget: 0 (disable, produce text/tools only)
+        // - Thinking requested → appropriate budget
+        let is_thinking_model = model.starts_with("gemini-2.5") || model.starts_with("gemini-3");
+        if is_thinking_model {
+            if let Some(level) = thinking_level {
+                if level != "none" {
+                    let budget = match level {
+                        "low" => 4096,
+                        "high" => 32768,
+                        _ => 16384,
+                    };
+                    body["generationConfig"]["responseModalities"] = json!(["TEXT"]);
+                    body["generationConfig"]["thinkingConfig"] = json!({
+                        "thinkingBudget": budget,
+                    });
+                    info!("[engine] Google: thinking enabled (budget={}) for model={}", budget, model);
+                } else {
+                    // Explicit "none" — disable thinking
+                    body["generationConfig"]["thinkingConfig"] = json!({
+                        "thinkingBudget": 0,
+                    });
+                    info!("[engine] Google: thinking explicitly disabled for model={}", model);
+                }
+            } else {
+                // No thinking_level specified — disable thinking to prevent
+                // the model from defaulting to invisible reasoning mode.
+                body["generationConfig"]["thinkingConfig"] = json!({
+                    "thinkingBudget": 0,
+                });
+                info!("[engine] Google: thinking auto-disabled (no thinking_level) for model={}", model);
+            }
+        } else if let Some(level) = thinking_level {
+            // Non-thinking model but user requested thinking — only add if supported
             if level != "none" {
                 let budget = match level {
                     "low" => 4096,
@@ -365,7 +399,7 @@ impl GoogleProvider {
                 body["generationConfig"]["thinkingConfig"] = json!({
                     "thinkingBudget": budget,
                 });
-                info!("[engine] Google: thinking config set (budget={})", budget);
+                info!("[engine] Google: thinking config set (budget={}) for model={}", budget, model);
             }
         }
         info!("[engine] Google request model={}", model);
@@ -447,6 +481,12 @@ impl GoogleProvider {
                     buffer = buffer[line_end + 1..].to_string();
 
                     if let Some(data) = line.strip_prefix("data: ") {
+                        // Log raw SSE data for debugging empty responses
+                        if data.len() < 2000 {
+                            warn!("[engine] Google SSE: {}", data);
+                        } else {
+                            warn!("[engine] Google SSE: {}... ({}b)", &data[..500], data.len());
+                        }
                         if let Ok(v) = serde_json::from_str::<Value>(data) {
                             // Extract actual model version from Google's response
                             let api_model = v["modelVersion"].as_str().map(|s| s.to_string());
@@ -460,7 +500,11 @@ impl GoogleProvider {
                                         .map(|s| s.to_string());
 
                                     // Detect blocked/empty responses (e.g. SAFETY, RECITATION, OTHER)
-                                    if content.is_null() || content["parts"].is_null() {
+                                    // Also check for empty parts array [] — not just null
+                                    let parts_empty = content.is_null()
+                                        || content["parts"].is_null()
+                                        || content["parts"].as_array().map(|a| a.is_empty()).unwrap_or(false);
+                                    if parts_empty {
                                         if let Some(ref reason) = finish_reason {
                                             // Log ALL empty-content responses, including STOP
                                             let safety_info = candidate.get("safetyRatings")

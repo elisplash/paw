@@ -598,58 +598,50 @@ fn build_discord_agent_context(_bot_token: &str, server_id: &str, current_channe
 Use Discord markdown (**bold**, *italic*, `code`, ```code blocks```, ||spoilers||).
 Max message length is 2000 characters.
 
-You have FULL Discord bot access via the Discord REST API v10.
-Use the `fetch` tool for ALL Discord API operations — it is already available in your tools.
+YOUR SERVER: Guild ID = {server_id} | Current Channel = {current_channel_id}
 
-╔══════════════════════════════════════════════════════════════════════════╗
-║  IMPORTANT: Authorization and Content-Type headers are AUTO-INJECTED   ║
-║  for discord.com/api URLs. Do NOT set headers manually.                ║
-║  IMPORTANT: Pass `body` as a JSON OBJECT, not a string.               ║
-║  Use `fetch` directly. Do NOT use request_tools or skill_install.      ║
-║  Make ONE fetch call at a time. Wait for the result before the next.   ║
-╚══════════════════════════════════════════════════════════════════════════╝
+## Tools
 
-YOUR SERVER:
-  Server (Guild) ID: {server_id}
-  Current Channel ID: {current_channel_id}
+You have these tools:
+- **discord_setup_channels** — Create multiple categories and channels in ONE call. USE THIS for setting up servers.
+- **fetch** — Make individual Discord API calls (for single operations, messages, roles, permissions).
+- **memory_store / memory_search** — Remember things across conversations.
+- **self_info** — Check your own configuration.
 
-EXAMPLE — Create a text channel (body is a JSON object, NOT a string):
-  fetch({{
-    "url": "https://discord.com/api/v10/guilds/{server_id}/channels",
-    "method": "POST",
-    "body": {{"name": "general-chat", "type": 0}}
-  }})
+## discord_setup_channels (PREFERRED for channel creation)
 
-EXAMPLE — List all channels:
-  fetch({{
-    "url": "https://discord.com/api/v10/guilds/{server_id}/channels",
-    "method": "GET"
-  }})
+Call this tool ONCE to create all categories and channels:
+discord_setup_channels({{
+  "server_id": "{server_id}",
+  "categories": [
+    {{
+      "name": "General",
+      "channels": [
+        {{"name": "general-chat", "topic": "Hang out and chat"}},
+        {{"name": "off-topic"}},
+        {{"name": "voice-chat", "type": 2}}
+      ]
+    }}
+  ]
+}})
 
-EXAMPLE — Create a category then a channel inside it:
-  Step 1 — Create category (type 4):
-  fetch({{"url":"https://discord.com/api/v10/guilds/{server_id}/channels","method":"POST","body":{{"name":"Community","type":4}}}})
-  Step 2 — Read the "id" from the response, then create a child channel:
-  fetch({{"url":"https://discord.com/api/v10/guilds/{server_id}/channels","method":"POST","body":{{"name":"introductions","type":0,"parent_id":"THE_CATEGORY_ID"}}}})
+Channel types: 0 = text (default), 2 = voice.
+
+## fetch (for individual API calls)
+
+Headers are AUTO-INJECTED for discord.com/api URLs. Pass body as a JSON OBJECT.
+
+fetch({{"url": "https://discord.com/api/v10/guilds/{server_id}/channels", "method": "GET"}})
+fetch({{"url": "https://discord.com/api/v10/channels/CHANNEL_ID/messages", "method": "POST", "body": {{"content": "Hello!"}}}})
 
 Discord REST API v10 — Base URL: https://discord.com/api/v10
+CHANNELS: GET/POST /guilds/{{guild_id}}/channels | PATCH/DELETE /channels/{{id}}
+ROLES: GET/POST /guilds/{{guild_id}}/roles | PATCH/DELETE /guilds/{{guild_id}}/roles/{{id}}
+PERMISSIONS: PUT /channels/{{id}}/permissions/{{overwrite_id}}
+MESSAGES: POST /channels/{{id}}/messages | GET /channels/{{id}}/messages?limit=50
+MEMBERS: GET /guilds/{{guild_id}}/members?limit=100
 
-CHANNELS: GET /guilds/{{guild_id}}/channels (list) | POST /guilds/{{guild_id}}/channels (create) | PATCH /channels/{{id}} (edit) | DELETE /channels/{{id}}
-  Create body: {{"name":"name","type":0,"parent_id":"category_id","topic":"desc"}} — type: 0=text, 2=voice, 4=category, 5=announcement, 13=stage, 15=forum
-CATEGORIES: type=4 channels. Set parent_id on child channels to sort them under that category.
-ROLES: GET /guilds/{{guild_id}}/roles | POST /guilds/{{guild_id}}/roles {{"name":"Mod","color":3447003,"permissions":"0","hoist":true}} | PATCH/DELETE /guilds/{{guild_id}}/roles/{{id}}
-PERMISSIONS: PUT /channels/{{id}}/permissions/{{overwrite_id}} {{"type":0,"allow":"1024","deny":"0"}} — type: 0=role, 1=member
-  Bits: VIEW_CHANNEL=1024, SEND_MESSAGES=2048, MANAGE_MESSAGES=8192, CONNECT=1048576, SPEAK=2097152, MANAGE_CHANNELS=16, ADMINISTRATOR=8
-MEMBERS: GET /guilds/{{guild_id}}/members?limit=100 | PUT/DELETE /guilds/{{guild_id}}/members/{{user_id}}/roles/{{role_id}}
-MESSAGES: POST /channels/{{id}}/messages {{"content":"text"}} | GET /channels/{{id}}/messages?limit=50 | PATCH/DELETE /channels/{{id}}/messages/{{msg_id}}
-EMBEDS: POST /channels/{{id}}/messages {{"embeds":[{{"title":"..","description":"..","color":3447003,"fields":[{{"name":"..","value":"..","inline":true}}]}}]}}
-THREADS: POST /channels/{{id}}/threads {{"name":"..","type":11}} (11=public, 12=private)
-INVITES: POST /channels/{{id}}/invites {{"max_age":86400,"max_uses":0}} | GET /guilds/{{guild_id}}/invites
-
-SERVER BUILD ORDER: 1) Create categories (type=4) 2) Create channels with parent_id 3) Create roles 4) Set permission overwrites 5) Reorder
-When asked to set up channels, IMMEDIATELY start calling fetch — do NOT ask for server ID or token, you already have them.
-
-Rate limits: respect 429 with Retry-After header. Snowflake IDs are strings."#,
+When asked to set up or create channels, use discord_setup_channels. For everything else, use fetch."#,
         server_id = server_id,
         current_channel_id = current_channel_id,
     )

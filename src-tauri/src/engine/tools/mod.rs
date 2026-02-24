@@ -36,6 +36,7 @@ pub mod squads;
 pub mod request_tools;
 pub mod google;
 pub mod google_oauth;
+pub mod discord_setup;
 
 // ── ToolDefinition helpers (keep backward-compatible API for all callers) ───
 
@@ -133,7 +134,8 @@ pub async fn execute_tool(tool_call: &crate::engine::types::ToolCall, app_handle
         .or(coinbase::execute(name, &args, app_handle).await)
         .or(dex::execute(name, &args, app_handle).await)
         .or(solana::execute(name, &args, app_handle).await)
-        .or(google::execute(name, &args, app_handle).await);
+        .or(google::execute(name, &args, app_handle).await)
+        .or(discord_setup::execute(name, &args, app_handle).await);
 
     // Try MCP tools (prefixed with `mcp_`) if no built-in handled it
     // NOTE: holds the tokio::sync::Mutex for the duration of the tool call.
