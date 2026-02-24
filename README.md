@@ -16,6 +16,9 @@ A native desktop AI platform that runs fully offline, connects to any provider, 
 
 [![CI](https://github.com/OpenPawz/openpawz/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenPawz/openpawz/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/wVvmgrMV)
+[![X (Twitter)](https://img.shields.io/badge/Follow-%40openpawzai-000000?logo=x&logoColor=white)](https://x.com/openpawzai)
+[![Instagram](https://img.shields.io/badge/Follow-%40openpawz-E4405F?logo=instagram&logoColor=white)](https://www.instagram.com/openpawz)
 
 *Private by default. Powerful by design. Extensible by nature.*
 
@@ -186,6 +189,9 @@ Join the conversation, share ideas, and follow development:
 
 | Channel | Link |
 |---------|------|
+| Discord | [Join Server](https://discord.gg/wVvmgrMV) |
+| X / Twitter | [@openpawzai](https://x.com/openpawzai) |
+| Instagram | [@openpawz](https://www.instagram.com/openpawz) |
 | Matrix | [#openpawz:matrix.org](https://matrix.to/#/#openpawz:matrix.org) |
 | GitHub Discussions | [OpenPawz/openpawz Discussions](https://github.com/OpenPawz/openpawz/discussions) |
 | Bluesky | [@openpawz.bsky.social](https://bsky.app/profile/openpawz.bsky.social) |
