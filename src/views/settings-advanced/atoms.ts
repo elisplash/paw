@@ -36,7 +36,7 @@ export const POPULAR_MODELS: Record<string, string[]> = {
     'claude-3-haiku-20240307',
     'claude-opus-4-6',
   ],
-  google: ['gemini-3-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
+  google: ['gemini-3-flash-preview', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
   openrouter: ['meta-llama/llama-3.1-405b-instruct', 'anthropic/claude-sonnet-4-6'],
   custom: [],
 };

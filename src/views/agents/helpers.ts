@@ -83,8 +83,8 @@ export async function refreshAvailableModels(): Promise<{ id: string; name: stri
     // Add each provider's default model, plus well-known models per provider kind
     const WELL_KNOWN: Record<string, { id: string; name: string }[]> = {
       google: [
-        { id: 'gemini-3.1-pro', name: 'Gemini 3.1 Pro' },
-        { id: 'gemini-3-flash', name: 'Gemini 3 Flash' },
+        { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview' },
+        { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview' },
         { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro' },
         { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
         { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash' },

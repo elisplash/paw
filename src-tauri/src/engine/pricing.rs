@@ -16,12 +16,10 @@ pub fn model_price(model: &str) -> ModelPrice {
         s if s.starts_with("claude-opus-4") || s.starts_with("claude-3-opus") =>
             ModelPrice { input: 15.00, output: 75.00 },
         // Google
-        s if s.starts_with("gemini-3.1-pro") =>
-            ModelPrice { input: 2.50, output: 15.00 },
-        s if s.starts_with("gemini-3-deep-think") =>
-            ModelPrice { input: 5.00, output: 25.00 },
+        s if s.starts_with("gemini-3.1-pro") || s.starts_with("gemini-3-pro") =>
+            ModelPrice { input: 2.00, output: 12.00 },
         s if s.starts_with("gemini-3-flash") =>
-            ModelPrice { input: 0.20, output: 0.80 },
+            ModelPrice { input: 0.50, output: 3.00 },
         s if s.starts_with("gemini-2.5-flash-lite") =>
             ModelPrice { input: 0.05, output: 0.20 },
         s if s.starts_with("gemini-2.0-flash") || s.starts_with("gemini-2.5-flash") =>

@@ -30,9 +30,9 @@ export const COMPACTION_WARN_THRESHOLD = 0.8;
 
 const DEFAULT_CONTEXT_SIZES: Record<string, number> = {
   // Gemini
-  'gemini-3.1-pro': 2_097_152,
-  'gemini-3-deep-think': 1_048_576,
-  'gemini-3-flash': 1_048_576,
+  'gemini-3.1-pro-preview': 1_048_576,
+  'gemini-3-pro-preview': 1_048_576,
+  'gemini-3-flash-preview': 1_048_576,
   'gemini-2.5-pro': 1_048_576,
   'gemini-2.5-flash': 1_048_576,
   'gemini-2.5-flash-lite': 1_048_576,
