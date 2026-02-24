@@ -55,6 +55,58 @@ pub async fn engine_chat_send(
         }
     };
 
+    // ── Request queue: if a run is already active for this session, queue ──
+    // VS Code pattern: instead of rejecting "Request already in progress",
+    // queue the message and signal the active agent to wrap up.
+    {
+        let has_active_run = state.active_runs.lock().contains_key(&session_id);
+        if has_active_run {
+            info!("[engine] Session {} has active run — queuing request and signaling yield", session_id);
+
+            // Signal the active agent to wrap up
+            if let Some(signal) = state.yield_signals.lock().get(&session_id) {
+                signal.request_yield();
+            }
+
+            // Queue this request for processing after the current one completes
+            // We need the resolved model/provider, so resolve them now
+            let (queued_provider, queued_model) = {
+                let cfg = state.config.lock();
+                let raw = request.model.clone().unwrap_or_default();
+                let m = if raw.is_empty() || raw.eq_ignore_ascii_case("default") {
+                    cfg.default_model.clone().unwrap_or_else(|| "gpt-4o".to_string())
+                } else {
+                    normalize_model_name(&raw).to_string()
+                };
+                let p = resolve_provider_for_model(&m, &cfg.providers)
+                    .or_else(|| cfg.default_provider.as_ref()
+                        .and_then(|dp| cfg.providers.iter().find(|p| p.id == *dp).cloned()))
+                    .or_else(|| cfg.providers.first().cloned());
+                match p {
+                    Some(provider) => (provider, m),
+                    None => return Err("No AI provider configured.".into()),
+                }
+            };
+
+            let queued = crate::engine::state::QueuedRequest {
+                request: request.clone(),
+                provider_config: queued_provider,
+                model: queued_model,
+                system_prompt: request.system_prompt.clone(),
+            };
+            state.request_queue.lock()
+                .entry(session_id.clone())
+                .or_default()
+                .push(queued);
+
+            // Return immediately — the queue processor will handle this request
+            return Ok(ChatResponse {
+                run_id: format!("queued-{}", uuid::Uuid::new_v4()),
+                session_id,
+            });
+        }
+    }
+
     // ── Resolve model and provider ─────────────────────────────────────────
     let (provider_config, model) = {
         let cfg = state.config.lock();
@@ -232,7 +284,7 @@ pub async fn engine_chat_send(
         cfg.context_window_tokens
     };
     let mut messages =
-        state.store.load_conversation(&session_id, full_system_prompt.as_deref(), Some(context_window))?;
+        state.store.load_conversation(&session_id, full_system_prompt.as_deref(), Some(context_window), Some(&agent_id_owned))?;
 
     // ── Process attachments into multi-modal blocks (organism) ────────────
     chat_org::process_attachments(&request.message, &request.attachments, &mut messages);
@@ -254,120 +306,11 @@ pub async fn engine_chat_send(
     // ── Detect response loops (organism) ──────────────────────────────────
     chat_org::detect_response_loop(&mut messages);
 
-    // ── Retry override: when user asks to try again, inject a system nudge ─
-    // This counters any residual "learned helplessness" from previous failures.
-    {
-        let lower = request.message.to_lowercase();
-        let is_retry = lower.contains("try again")
-            || lower.contains("retry")
-            || lower.contains("try it again")
-            || lower.contains("try once more")
-            || lower.contains("give it another")
-            || lower.contains("one more try")
-            || lower.contains("have another go")
-            || lower.contains("attempt again")
-            || (lower.contains("try") && lower.contains("again"));
-        if is_retry {
-            info!("[engine] Detected retry request — injecting override nudge");
-            messages.push(Message {
-                role: Role::System,
-                content: MessageContent::Text(
-                    "[SYSTEM OVERRIDE] The user has explicitly asked you to try again. \
-                    Previous failures are STALE — tools may have been updated or fixed. \
-                    You MUST make a new tool call now. Do NOT apologize or refuse. \
-                    Call `request_tools` first to discover available tools, then attempt the task. \
-                    If the original tool failed before, try dedicated alternatives \
-                    (e.g. google_docs_create instead of google_api)."
-                        .to_string(),
-                ),
-                tool_calls: None,
-                tool_call_id: None,
-                name: None,
-            });
-        }
-    }
-
-    // ── Topic change detection: when the user switches subjects, inject a ──
-    // context-reset nudge so the model doesn't carry forward stale state from
-    // previous tasks/failures.  This is how VS Code handles conversation turns:
-    // each user message gets fresh focus.
-    {
-        let user_lower = request.message.to_lowercase();
-        let stop_words: std::collections::HashSet<&str> = [
-            "the", "a", "an", "is", "are", "was", "were", "be", "been",
-            "have", "has", "had", "do", "does", "did", "will", "would",
-            "could", "should", "may", "might", "can", "to", "of", "in",
-            "for", "on", "with", "at", "by", "from", "as", "into", "about",
-            "like", "through", "after", "over", "between", "out",
-            "i", "you", "he", "she", "it", "we", "they", "me", "my", "your",
-            "and", "but", "or", "not", "so", "if", "then", "than",
-            "too", "very", "just", "don't", "im", "i'm", "it's",
-            "what", "how", "all", "which", "who", "when", "where", "why",
-            "this", "that", "these", "those", "let's", "lets", "now",
-            "ok", "okay", "right", "think", "want", "need", "get",
-        ].into_iter().collect();
-
-        let user_keywords: std::collections::HashSet<String> = user_lower
-            .split_whitespace()
-            .filter(|w| w.len() > 2 && !stop_words.contains(w))
-            .map(|w| w.to_string())
-            .collect();
-
-        // Gather keywords from the last 3 assistant messages
-        let recent_asst_text: String = messages.iter().rev()
-            .filter(|m| m.role == Role::Assistant)
-            .take(3)
-            .map(|m| m.content.as_text().to_lowercase())
-            .collect::<Vec<_>>()
-            .join(" ");
-        let asst_keywords: std::collections::HashSet<String> = recent_asst_text
-            .split_whitespace()
-            .filter(|w| w.len() > 2 && !stop_words.contains(w))
-            .map(|w| w.to_string())
-            .collect();
-
-        // Detect topic change: user keywords have very low overlap with recent assistant context
-        // AND the user message is substantive (not just "yes" or "ok")
-        let has_topic_switch = if user_keywords.len() >= 3 && !asst_keywords.is_empty() {
-            let overlap = user_keywords.intersection(&asst_keywords).count();
-            let ratio = overlap as f64 / user_keywords.len() as f64;
-            ratio < 0.15 // Less than 15% overlap = new topic
-        } else {
-            false
-        };
-
-        // Also detect explicit pivot phrases
-        let explicit_pivot = user_lower.contains("something else")
-            || user_lower.contains("different topic")
-            || user_lower.contains("change of subject")
-            || user_lower.contains("moving on")
-            || user_lower.contains("new question")
-            || user_lower.contains("forget that")
-            || user_lower.contains("forget about")
-            || user_lower.contains("never mind")
-            || user_lower.contains("nevermind")
-            || user_lower.contains("scratch that")
-            || user_lower.starts_with("actually")
-            || (user_lower.contains("instead") && user_lower.contains("let"));
-
-        if has_topic_switch || explicit_pivot {
-            info!("[engine] Topic change detected — injecting fresh-focus nudge");
-            messages.push(Message {
-                role: Role::System,
-                content: MessageContent::Text(
-                    "[CONTEXT SWITCH] The user has changed topics. \
-                    IGNORE all previous tasks, errors, and tool failures from this session. \
-                    Focus ENTIRELY on what the user just asked. Do NOT reference or apologize \
-                    for anything that happened earlier in this conversation. \
-                    Treat this as a fresh request. If you need tools, call `request_tools` first."
-                        .to_string(),
-                ),
-                tool_calls: None,
-                tool_call_id: None,
-                name: None,
-            });
-        }
-    }
+    // Note: Topic detection and retry-override injection have been removed.
+    // VS Code pattern: failed messages are deleted from history entirely
+    // (in load_conversation → delete_failed_exchanges), so the model never
+    // sees past failures and doesn't need prompt-engineering nudges.
+    // Users can start a new session for topic changes (Ctrl+L / New Chat).
 
     // ── Extract remaining config values ───────────────────────────────────
     let (max_rounds, temperature) = {
@@ -399,6 +342,20 @@ pub async fn engine_chat_send(
     let daily_tokens = state.daily_tokens.clone();
     let active_runs = state.active_runs.clone();
     let abort_session_id = session_id.clone();
+
+    // ── Set up yield signal for this session (VS Code pattern) ────────────
+    let yield_signal = {
+        let mut signals = state.yield_signals.lock();
+        let signal = signals
+            .entry(session_id.clone())
+            .or_default()
+            .clone();
+        signal.reset(); // Fresh start for this request
+        signal
+    };
+    let yield_signal_for_spawn = yield_signal.clone();
+    let request_queue = state.request_queue.clone();
+    let yield_signals_cleanup = state.yield_signals.clone();
 
     // ── Spawn agent loop ───────────────────────────────────────────────────
     let handle = tauri::async_runtime::spawn(async move {
@@ -435,6 +392,7 @@ pub async fn engine_chat_send(
             Some(&daily_tokens),
             thinking_level.as_deref(),
             auto_approve_all,
+            Some(&yield_signal_for_spawn),
         )
         .await
         {
@@ -586,13 +544,52 @@ pub async fn engine_chat_send(
     // ── Register abort handle for this session ─────────────────────────────
     active_runs.lock().insert(abort_session_id.clone(), handle.inner().abort_handle());
 
-    // ── Panic safety monitor + abort handle cleanup ────────────────────────
+    // ── Panic safety monitor + abort handle cleanup + queue processing ───
     let cleanup_runs = active_runs.clone();
     let cleanup_session_id = abort_session_id.clone();
+    let queue_session_id = abort_session_id.clone();
+    let queue_ref = request_queue.clone();
+    let queue_app = app_handle.clone();
+    let yield_cleanup_session = abort_session_id.clone();
     tauri::async_runtime::spawn(async move {
         let result = handle.await;
-        // Always clean up the abort handle when the task finishes
+        // Always clean up the abort handle and yield signal when the task finishes
         cleanup_runs.lock().remove(&cleanup_session_id);
+        yield_signals_cleanup.lock().remove(&yield_cleanup_session);
+
+        // ── Process next queued request (VS Code pattern) ─────────────
+        // After the current request completes, check if there are queued
+        // messages and process the next one.
+        {
+            let next = queue_ref.lock().get_mut(&queue_session_id)
+                .and_then(|q| if q.is_empty() { None } else { Some(q.remove(0)) });
+            if let Some(queued) = next {
+                info!("[engine] Processing queued request for session {}", queue_session_id);
+                // Re-send via the Tauri command system
+                if let Some(engine_state) = queue_app.try_state::<EngineState>() {
+                    // Store the queued user message
+                    let user_msg = StoredMessage {
+                        id: uuid::Uuid::new_v4().to_string(),
+                        session_id: queue_session_id.clone(),
+                        role: "user".into(),
+                        content: queued.request.message.clone(),
+                        tool_calls_json: None,
+                        tool_call_id: None,
+                        name: None,
+                        created_at: chrono::Utc::now().to_rfc3339(),
+                    };
+                    let _ = engine_state.store.add_message(&user_msg);
+                    // Emit a queue-processing event so frontend knows
+                    let _ = queue_app.emit("engine-event", EngineEvent::Delta {
+                        session_id: queue_session_id.clone(),
+                        run_id: format!("queue-{}", uuid::Uuid::new_v4()),
+                        text: String::new(),
+                    });
+                    info!("[engine] Queued request stored, frontend should re-send via normal flow");
+                }
+            }
+        }
+
         if let Err(ref err) = result {
             // Check if the error is a JoinError from cancellation
             let is_cancelled = matches!(err, tauri::Error::JoinError(je) if je.is_cancelled());

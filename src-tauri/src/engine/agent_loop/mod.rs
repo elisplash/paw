@@ -36,6 +36,7 @@ pub async fn run_agent_turn(
     daily_tokens: Option<&DailyTokenTracker>,
     thinking_level: Option<&str>,
     auto_approve_all: bool,
+    yield_signal: Option<&crate::engine::state::YieldSignal>,
 ) -> EngineResult<String> {
     let mut round = 0;
     let mut final_text = String::new();
@@ -50,6 +51,31 @@ pub async fn run_agent_turn(
 
     loop {
         round += 1;
+
+        // ── Yield check: if a new user message was queued, wrap up gracefully ─
+        // VS Code pattern: when yield is requested, the agent stops its loop
+        // and returns whatever it has so far.  The queued message will be
+        // processed next by the request queue handler.
+        if let Some(ys) = yield_signal {
+            if ys.is_yield_requested() {
+                warn!("[engine] Yield requested — wrapping up agent turn at round {}", round);
+                if final_text.is_empty() {
+                    final_text = "I was wrapping up to handle your new message. \
+                        My previous work may be incomplete."
+                        .to_string();
+                }
+                let _ = app_handle.emit("engine-event", EngineEvent::Complete {
+                    session_id: session_id.to_string(),
+                    run_id: run_id.to_string(),
+                    text: final_text.clone(),
+                    tool_calls_count: 0,
+                    usage: None,
+                    model: None,
+                });
+                return Ok(final_text);
+            }
+        }
+
         if round > max_rounds {
             warn!("[engine] Max tool rounds ({}) reached, stopping", max_rounds);
             if final_text.is_empty() {
