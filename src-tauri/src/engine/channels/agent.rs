@@ -171,9 +171,14 @@ pub async fn run_channel_agent(
     };
 
     // Load conversation history
+    // Use a smaller context window for channel bridges to avoid poisoning
+    // from long failed tool-call chains in previous rounds. Channel messages
+    // are short and conversational — we don't need the full window.
     let context_window = {
         let cfg = engine_state.config.lock();
-        cfg.context_window_tokens
+        // Cap channel bridge context at 8K tokens (vs the user's full window).
+        // This keeps recent context without dragging in stale failed attempts.
+        std::cmp::min(cfg.context_window_tokens, 8_000)
     };
     let mut messages = engine_state.store.load_conversation(
         &session_id,

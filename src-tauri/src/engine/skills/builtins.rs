@@ -118,16 +118,32 @@ Available gh commands: issue (list/create/view/close), pr (list/create/view/merg
             tool_names: vec![],
             required_binaries: vec![], required_env_vars: vec![], install_hint: "Bot must be invited with Administrator permission (permission value 8) for full server management.".into(),
             agent_instructions: r#"You have full Discord bot access via the Discord REST API v10.
-IMPORTANT: The `fetch` tool is ALREADY available to you — use it directly for all Discord API calls.
-Do NOT search for, install, or use community skills for Discord. Everything you need is the fetch tool + this reference.
+
+╔══════════════════════════════════════════════════════════════════════╗
+║  CRITICAL: Use the `fetch` tool for ALL Discord operations.        ║
+║  Do NOT use request_tools, skill_install, or skill_search.         ║
+║  Do NOT install community skills. fetch is ALREADY in your tools.  ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+EXAMPLE — Create a text channel (copy this pattern for all API calls):
+  Tool: fetch
+  Arguments: {
+    "url": "https://discord.com/api/v10/guilds/<DISCORD_SERVER_ID>/channels",
+    "method": "POST",
+    "headers": {"Authorization": "Bot <DISCORD_BOT_TOKEN>", "Content-Type": "application/json"},
+    "body": "{\"name\":\"general-chat\",\"type\":0}"
+  }
+Replace <DISCORD_BOT_TOKEN> and <DISCORD_SERVER_ID> with the actual values from the Credentials section below.
+
+EXAMPLE — List all channels:
+  Tool: fetch
+  Arguments: {
+    "url": "https://discord.com/api/v10/guilds/<DISCORD_SERVER_ID>/channels",
+    "method": "GET",
+    "headers": {"Authorization": "Bot <DISCORD_BOT_TOKEN>"}
+  }
 
 Base URL: https://discord.com/api/v10
-Required headers on EVERY request (use the DISCORD_BOT_TOKEN from the Credentials section below):
-  Authorization: Bot <your DISCORD_BOT_TOKEN value>
-  Content-Type: application/json
-
-Use DISCORD_SERVER_ID from the Credentials section as your guild_id for server management.
-Use DISCORD_DEFAULT_CHANNEL from the Credentials section as your default channel_id.
 
 ── GUILD (SERVER) INFO ──
 GET /guilds/{guild_id}                                  Get server info
