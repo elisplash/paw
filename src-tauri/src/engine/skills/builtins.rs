@@ -117,10 +117,17 @@ Available gh commands: issue (list/create/view/close), pr (list/create/view/merg
             ],
             tool_names: vec![],
             required_binaries: vec![], required_env_vars: vec![], install_hint: "Bot must be invited with Administrator permission (permission value 8) for full server management.".into(),
-            agent_instructions: r#"You have full Discord bot access via the Discord REST API v10. Use the fetch tool for all calls.
+            agent_instructions: r#"You have full Discord bot access via the Discord REST API v10.
+IMPORTANT: The `fetch` tool is ALREADY available to you — use it directly for all Discord API calls.
+Do NOT search for, install, or use community skills for Discord. Everything you need is the fetch tool + this reference.
+
 Base URL: https://discord.com/api/v10
-Headers for every request: Authorization: Bot {DISCORD_BOT_TOKEN}, Content-Type: application/json
-Use exec to read DISCORD_BOT_TOKEN, DISCORD_DEFAULT_CHANNEL, and DISCORD_SERVER_ID from env.
+Required headers on EVERY request (use the DISCORD_BOT_TOKEN from the Credentials section below):
+  Authorization: Bot <your DISCORD_BOT_TOKEN value>
+  Content-Type: application/json
+
+Use DISCORD_SERVER_ID from the Credentials section as your guild_id for server management.
+Use DISCORD_DEFAULT_CHANNEL from the Credentials section as your default channel_id.
 
 ── GUILD (SERVER) INFO ──
 GET /guilds/{guild_id}                                  Get server info

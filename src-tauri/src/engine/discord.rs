@@ -504,9 +504,12 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
                                     let _ = send_typing(&http, &tok, &cid).await;
 
                                     let agent_id = cfg_agent.as_deref().unwrap_or("default");
-                                    let ctx = "You are chatting via Discord. Keep responses concise. \
+                                    let ctx = "You are chatting via Discord. Keep responses concise and conversational. \
                                                Use Discord markdown (bold, italic, code blocks, spoilers). \
-                                               Max message length is 2000 characters.";
+                                               Max message length is 2000 characters. \
+                                               You have the `fetch` tool available for Discord REST API calls — use it directly. \
+                                               Do NOT install community skills or search for Discord tools. \
+                                               The Discord skill instructions in your system prompt have the full API reference.";
 
                                     info!("[discord] Routing message from {} to agent '{}'", uid, agent_id);
                                     let response = channels::run_channel_agent(
