@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="images/pawz-logo.png" alt="OpenPawz logo" width="80">
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="images/pawz-logo-text.svg">
   <source media="(prefers-color-scheme: light)" srcset="images/pawz-logo-text-light.svg">
