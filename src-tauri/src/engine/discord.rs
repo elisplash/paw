@@ -85,6 +85,9 @@ pub struct DiscordConfig {
     /// Phase C: allow dangerous/side-effect tools for messages from this channel
     #[serde(default)]
     pub allow_dangerous_tools: bool,
+    /// Discord server (guild) ID for API operations
+    #[serde(default)]
+    pub server_id: Option<String>,
 }
 
 fn default_true() -> bool { true }
@@ -100,6 +103,7 @@ impl Default for DiscordConfig {
             agent_id: None,
             respond_to_mentions: true,
             allow_dangerous_tools: false,
+            server_id: None,
         }
     }
 }
@@ -142,9 +146,14 @@ pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
                     info!("[discord] Syncing bot token from skill credentials");
                     config.bot_token = token.clone();
                     config.enabled = true;
-                    let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &config);
                 }
             }
+            if let Some(server_id) = creds.get("DISCORD_SERVER_ID") {
+                if !server_id.is_empty() {
+                    config.server_id = Some(server_id.clone());
+                }
+            }
+            let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &config);
         }
     }
 
@@ -498,22 +507,23 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
                                 let uid = user_id.clone();
                                 let cfg_agent = current_config.agent_id.clone();
                                 let cfg_dangerous = current_config.allow_dangerous_tools;
+                                let cfg_server_id = current_config.server_id.clone().unwrap_or_default();
 
                                 tauri::async_runtime::spawn(async move {
                                     // Send typing indicator
                                     let _ = send_typing(&http, &tok, &cid).await;
 
                                     let agent_id = cfg_agent.as_deref().unwrap_or("default");
-                                    let ctx = "You are chatting via Discord. Keep responses concise and conversational. \
-                                               Use Discord markdown (bold, italic, code blocks, spoilers). \
-                                               Max message length is 2000 characters. \
-                                               You have the `fetch` tool available for Discord REST API calls — use it directly. \
-                                               Do NOT install community skills or search for Discord tools. \
-                                               The Discord skill instructions in your system prompt have the full API reference.";
+
+                                    // Build channel context with FULL Discord API reference
+                                    // and actual credentials baked in. This goes into the
+                                    // base system prompt and bypasses skill compression.
+                                    let server_id = if cfg_server_id.is_empty() { "<unknown — ask user>" } else { &cfg_server_id };
+                                    let ctx = build_discord_agent_context(&tok, server_id, &cid);
 
                                     info!("[discord] Routing message from {} to agent '{}'", uid, agent_id);
                                     let response = channels::run_channel_agent(
-                                        &ah, "discord", ctx, &content, &uid, agent_id,
+                                        &ah, "discord", &ctx, &content, &uid, agent_id,
                                         cfg_dangerous,
                                     ).await;
 
@@ -575,6 +585,68 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
     }));
 
     Ok(())
+}
+
+// ── Discord Agent Context Builder ──────────────────────────────────────
+//
+// Builds the full channel context string with Discord API reference and
+// actual credentials. This goes directly into the base system prompt,
+// bypassing the skill compression system that truncates long instructions.
+
+fn build_discord_agent_context(bot_token: &str, server_id: &str, current_channel_id: &str) -> String {
+    format!(r#"You are chatting via Discord. Keep responses concise and conversational.
+Use Discord markdown (**bold**, *italic*, `code`, ```code blocks```, ||spoilers||).
+Max message length is 2000 characters.
+
+You have FULL Discord bot access via the Discord REST API v10.
+Use the `fetch` tool for ALL Discord API operations — it is already available in your tools.
+
+╔══════════════════════════════════════════════════════════════════╗
+║  CRITICAL: Use `fetch` directly. Do NOT use request_tools,     ║
+║  skill_install, skill_search, or community skills.             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+YOUR CREDENTIALS (use these exact values):
+  Bot Token: {bot_token}
+  Server ID: {server_id}
+  Current Channel ID: {current_channel_id}
+
+EXAMPLE — Create a text channel:
+  fetch({{
+    "url": "https://discord.com/api/v10/guilds/{server_id}/channels",
+    "method": "POST",
+    "headers": {{"Authorization": "Bot {bot_token}", "Content-Type": "application/json"}},
+    "body": "{{\"name\":\"general-chat\",\"type\":0}}"
+  }})
+
+EXAMPLE — List all channels:
+  fetch({{
+    "url": "https://discord.com/api/v10/guilds/{server_id}/channels",
+    "method": "GET",
+    "headers": {{"Authorization": "Bot {bot_token}"}}
+  }})
+
+Discord REST API v10 — Base URL: https://discord.com/api/v10
+
+CHANNELS: GET /guilds/{{guild_id}}/channels (list) | POST /guilds/{{guild_id}}/channels (create) | PATCH /channels/{{id}} (edit) | DELETE /channels/{{id}}
+  Create: {{"name":"name","type":0,"parent_id":"category_id","topic":"desc"}} — type: 0=text, 2=voice, 4=category, 5=announcement, 13=stage, 15=forum
+CATEGORIES: type=4 channels. Set parent_id on child channels.
+ROLES: GET /guilds/{{guild_id}}/roles | POST /guilds/{{guild_id}}/roles {{"name":"Mod","color":3447003,"permissions":"0","hoist":true}} | PATCH/DELETE /guilds/{{guild_id}}/roles/{{id}}
+PERMISSIONS: PUT /channels/{{id}}/permissions/{{overwrite_id}} {{"type":0,"allow":"1024","deny":"0"}} — type: 0=role, 1=member
+  Bits: VIEW_CHANNEL=1024, SEND_MESSAGES=2048, MANAGE_MESSAGES=8192, CONNECT=1048576, SPEAK=2097152, MANAGE_CHANNELS=16, ADMINISTRATOR=8
+MEMBERS: GET /guilds/{{guild_id}}/members?limit=100 | PUT/DELETE /guilds/{{guild_id}}/members/{{user_id}}/roles/{{role_id}}
+MESSAGES: POST /channels/{{id}}/messages {{"content":"text"}} | GET /channels/{{id}}/messages?limit=50 | PATCH/DELETE /channels/{{id}}/messages/{{msg_id}}
+EMBEDS: POST /channels/{{id}}/messages {{"embeds":[{{"title":"..","description":"..","color":3447003,"fields":[{{"name":"..","value":"..","inline":true}}]}}]}}
+THREADS: POST /channels/{{id}}/threads {{"name":"..","type":11}} (11=public, 12=private)
+INVITES: POST /channels/{{id}}/invites {{"max_age":86400,"max_uses":0}} | GET /guilds/{{guild_id}}/invites
+
+SERVER BUILD ORDER: 1) Create categories (type=4) 2) Create channels with parent_id 3) Create roles 4) Set permission overwrites 5) Reorder
+
+Rate limits: respect 429 with Retry-After header. Snowflake IDs are strings."#,
+        bot_token = bot_token,
+        server_id = server_id,
+        current_channel_id = current_channel_id,
+    )
 }
 
 // ── Discord REST API Helpers ───────────────────────────────────────────

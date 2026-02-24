@@ -184,7 +184,9 @@ export const appState = {
     return appState.activeStreams.size > 0;
   },
   /** No-op setter for backward compat — loading state is now derived from activeStreams. */
-  set isLoading(_v: boolean) { /* no-op */ },
+  set isLoading(_v: boolean) {
+    /* no-op */
+  },
   currentSessionKey: null as string | null,
   sessions: [] as Session[],
   wsConnected: false,

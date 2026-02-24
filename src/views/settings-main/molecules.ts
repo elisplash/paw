@@ -176,7 +176,10 @@ export async function checkForUpdate() {
 
   if (statusEl) statusEl.textContent = 'Checking for updates…';
   if (checkBtn) checkBtn.disabled = true;
-  if (installBtn) { installBtn.style.display = 'none'; installBtn.disabled = true; }
+  if (installBtn) {
+    installBtn.style.display = 'none';
+    installBtn.disabled = true;
+  }
 
   try {
     const update = await check();
