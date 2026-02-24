@@ -199,12 +199,12 @@ Join the conversation, share ideas, and follow development:
 
 ## Roadmap
 
-The public roadmap is tracked on [GitHub Projects](https://github.com/orgs/OpenPawz/projects). Key milestones:
+Progress is tracked via [milestones](https://github.com/OpenPawz/openpawz/milestones) and [GitHub Projects](https://github.com/orgs/OpenPawz/projects):
 
-- **v0.2** — Stable release binaries, Homebrew/AUR/Snap/Flatpak packages
-- **v0.3** — Plugin API, PawzHub marketplace launch
-- **v0.4** — Mobile companion (iOS/Android), cloud sync opt-in
-- **v1.0** — Production-ready with full enterprise hardening
+- [**v0.2 — Packaging & Distribution**](https://github.com/OpenPawz/openpawz/milestone/1) — Stable binaries, Homebrew/AUR/Snap/Flatpak, Windows & macOS CI
+- [**v0.3 — Plugin API & PawzHub**](https://github.com/OpenPawz/openpawz/milestone/2) — Community extension API, PawzHub marketplace, i18n
+- [**v0.4 — Mobile & Sync**](https://github.com/OpenPawz/openpawz/milestone/3) — Mobile companion (iOS/Android), encrypted cloud sync
+- [**v1.0 — Production Ready**](https://github.com/OpenPawz/openpawz/milestone/4) — Enterprise hardening, stable API, third-party security audit
 
 See [ENTERPRISE_PLAN.md](ENTERPRISE_PLAN.md) for the hardening audit and [AUTONOMY_ROADMAP.md](AUTONOMY_ROADMAP.md) for the agent autonomy plan.
 
