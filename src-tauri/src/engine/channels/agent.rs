@@ -111,9 +111,8 @@ pub async fn run_channel_agent(
     };
     engine_state.store.add_message(&user_msg)?;
 
-    // Compose system prompt with agent context + memory + skills
+    // Compose system prompt with agent context + memory (skip heavy skill instructions — see below)
     let agent_context = engine_state.store.compose_agent_context(agent_id).unwrap_or(None);
-    let skill_instructions = skills::get_enabled_skill_instructions(&engine_state.store, agent_id).unwrap_or_default();
 
     // Load core soul files (IDENTITY.md, SOUL.md, USER.md) — same as UI chat
     let core_context = engine_state.store.compose_core_context(agent_id).unwrap_or(None);
@@ -121,8 +120,8 @@ pub async fn run_channel_agent(
         info!("[{}] Core soul context loaded ({} chars) for agent '{}'", channel_prefix, cc.len(), agent_id);
     }
 
-    // Load today's memory notes — same as UI chat
-    let todays_memories = engine_state.store.get_todays_memories(agent_id).unwrap_or(None);
+    // Load today's memory notes (unused in lean channel prompt, kept for future use)
+    let _todays_memories = engine_state.store.get_todays_memories(agent_id).unwrap_or(None);
 
     // Auto-recall memories
     let (auto_recall_on, recall_limit, recall_threshold) = {
@@ -145,58 +144,76 @@ pub async fn run_channel_agent(
         None
     };
 
-    // Build full system prompt — use the same rich prompt as the UI chat
-    // so the agent has full awareness of its tools, soul files, and memory.
+    // Build full system prompt — LIGHTWEIGHT version for channel bridges.
+    // Channel bridges need: channel context (Discord/Telegram API ref) + core identity
+    // + minimal runtime info. We deliberately SKIP the heavy platform awareness,
+    // coding guidelines, and 91K skill instructions that bloat the context and
+    // confuse the model when doing simple tasks like creating Discord channels.
     let full_system_prompt = {
-        // Build base prompt with channel-specific context prepended
-        let base_prompt = match &system_prompt {
-            Some(sp) => Some(format!("{}\n\n{}", channel_context, sp)),
-            None => Some(channel_context.to_string()),
-        };
+        let mut parts: Vec<String> = Vec::new();
 
-        // Build runtime context (model, provider, session, agent, time, workspace)
+        // 1. Channel-specific context (Discord API ref, credentials, examples)
+        // This is the MOST important part — it tells the agent how to do its job.
+        parts.push(channel_context.to_string());
+
+        // 2. Core identity from soul files (IDENTITY.md, SOUL.md, USER.md)
+        if let Some(cc) = &core_context {
+            parts.push(cc.to_string());
+        }
+
+        // 3. Base system prompt (user-configured personality/instructions)
+        if let Some(sp) = &system_prompt {
+            parts.push(sp.to_string());
+        }
+
+        // 4. Lightweight runtime context
         let provider_name = format!("{:?}", provider_config.kind);
         let user_tz = {
             let cfg = engine_state.config.lock();
             cfg.user_timezone.clone()
         };
-        let runtime_context = chat_org::build_runtime_context(
+        parts.push(chat_org::build_runtime_context(
             &model, &provider_name, &session_id, agent_id, &user_tz,
+        ));
+
+        // 5. Channel-bridge conversation discipline (replaces heavy platform awareness)
+        parts.push(
+            "## Conversation Discipline\n\
+            - **Act immediately.** When the user says \"yes\", \"go ahead\", \"do it\", execute the action using your tools. Never ask for confirmation you already have.\n\
+            - **One tool call at a time.** Make one fetch call, read the result, then make the next call. Don't try to plan everything in text first.\n\
+            - **Never ask for information you already have.** Your server ID, credentials, and API reference are in your instructions above. Use them.\n\
+            - **If a call fails, try again with different parameters.** Don't give up or ask the user to do it manually.\n\
+            - **Keep responses short.** You're chatting in Discord — brief updates between actions, not essays.\n\
+            - **For multi-step tasks:** Execute each step, confirm it worked, then proceed to the next. Don't list all steps and ask for permission — just do them.".to_string()
         );
 
-        // Compose the full prompt with Soul Files + Memory instructions
-        let mut prompt = chat_org::compose_chat_system_prompt(
-            base_prompt.as_deref(),
-            runtime_context,
-            core_context.as_deref(),
-            todays_memories.as_deref(),
-            &skill_instructions,
-        );
-
-        // Append agent-specific context and auto-recalled memories
-        if let Some(ref mut p) = prompt {
-            if let Some(ac) = &agent_context {
-                p.push_str("\n\n---\n\n");
-                p.push_str(ac);
-            }
-            if let Some(mc) = &memory_context {
-                p.push_str("\n\n---\n\n");
-                p.push_str(mc);
-            }
+        // 6. Agent-specific context
+        if let Some(ac) = &agent_context {
+            parts.push(ac.to_string());
         }
 
-        prompt
+        // 7. Auto-recalled memories (compact)
+        if let Some(mc) = &memory_context {
+            parts.push(mc.to_string());
+        }
+
+        // NOTE: We intentionally skip:
+        // - skill_instructions (91K → 16K compressed; Discord API ref is in channel_context)
+        // - build_platform_awareness() (~3.5K chars of Tool RAG / TOML template)
+        // - build_coding_guidelines() (~5K chars of Rust/TS standards)
+        // These are critical for the UI chat but counterproductive for channel bridges
+        // where the agent needs to focus on one channel-specific task.
+
+        Some(parts.join("\n\n---\n\n"))
     };
 
-    // Load conversation history
-    // Use a smaller context window for channel bridges to avoid poisoning
-    // from long failed tool-call chains in previous rounds. Channel messages
-    // are short and conversational — we don't need the full window.
+    // Load conversation history.
+    // With the lean system prompt (~3K chars vs ~28K), we can afford a larger
+    // context window for channel bridges. This gives multi-step tasks (like
+    // creating 15+ channels) room to remember earlier results.
     let context_window = {
         let cfg = engine_state.config.lock();
-        // Cap channel bridge context at 8K tokens (vs the user's full window).
-        // This keeps recent context without dragging in stale failed attempts.
-        std::cmp::min(cfg.context_window_tokens, 8_000)
+        std::cmp::min(cfg.context_window_tokens, 16_000)
     };
     let mut messages = engine_state.store.load_conversation(
         &session_id,
