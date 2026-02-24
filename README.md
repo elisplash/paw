@@ -180,6 +180,30 @@ npm run tauri build
 
 ---
 
+## Community
+
+Join the conversation, share ideas, and follow development:
+
+| Channel | Link |
+|---------|------|
+| Matrix | [#openpawz:matrix.org](https://matrix.to/#/#openpawz:matrix.org) |
+| GitHub Discussions | [OpenPawz/openpawz Discussions](https://github.com/OpenPawz/openpawz/discussions) |
+| Bluesky | [@openpawz.bsky.social](https://bsky.app/profile/openpawz.bsky.social) |
+| Mastodon | [@openpawz@fosstodon.org](https://fosstodon.org/@openpawz) |
+
+## Roadmap
+
+The public roadmap is tracked on [GitHub Projects](https://github.com/orgs/OpenPawz/projects). Key milestones:
+
+- **v0.2** — Stable release binaries, Homebrew/AUR/Snap/Flatpak packages
+- **v0.3** — Plugin API, PawzHub marketplace launch
+- **v0.4** — Mobile companion (iOS/Android), cloud sync opt-in
+- **v1.0** — Production-ready with full enterprise hardening
+
+See [ENTERPRISE_PLAN.md](ENTERPRISE_PLAN.md) for the hardening audit and [AUTONOMY_ROADMAP.md](AUTONOMY_ROADMAP.md) for the agent autonomy plan.
+
+---
+
 ## Documentation
 
 | Document | Description |
