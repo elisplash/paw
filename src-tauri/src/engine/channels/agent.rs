@@ -230,7 +230,7 @@ pub async fn run_channel_agent(
         all_builtins.extend(crate::engine::tools::discord_setup::definitions());
         let whitelist = [
             "fetch", "memory_store", "memory_search", "self_info",
-            "discord_setup_channels", "discord_list_channels", "discord_send_message",
+            "discord_setup_channels", "discord_list_channels", "discord_send_message", "discord_delete_channels",
         ];
         let filtered: Vec<ToolDefinition> = all_builtins.into_iter()
             .filter(|t| whitelist.contains(&t.function.name.as_str()))

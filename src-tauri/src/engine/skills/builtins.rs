@@ -115,12 +115,20 @@ Available gh commands: issue (list/create/view/close), pr (list/create/view/merg
                 CredentialField { key: "DISCORD_DEFAULT_CHANNEL".into(), label: "Default Channel ID".into(), description: "Default channel to post to".into(), required: false, placeholder: "1234567890".into() },
                 CredentialField { key: "DISCORD_SERVER_ID".into(), label: "Server (Guild) ID".into(), description: "Right-click server → Copy Server ID (enable Developer Mode in Discord settings)".into(), required: false, placeholder: "1234567890".into() },
             ],
-            tool_names: vec!["discord_setup_channels".into(), "discord_list_channels".into(), "discord_send_message".into()],
+            tool_names: vec!["discord_setup_channels".into(), "discord_list_channels".into(), "discord_send_message".into(), "discord_delete_channels".into()],
             required_binaries: vec![], required_env_vars: vec![], install_hint: "Bot must be invited with Administrator permission (permission value 8) for full server management.".into(),
             agent_instructions: r#"You have Discord bot access with these built-in tools:
 - **discord_list_channels**: List all channels/categories in a server (use FIRST to see current state)
-- **discord_setup_channels**: Bulk-create categories and channels in one call
-- **discord_send_message**: Send a message to any channel (supports embeds)
+- **discord_setup_channels**: Create categories and channels. Idempotent — skips what already exists. ONLY for creating server structure.
+- **discord_send_message**: Send a message to any channel. Use this to post welcome messages, announcements, or any content.
+- **discord_delete_channels**: Delete channels/categories by ID. Use discord_list_channels first to get IDs. DESTRUCTIVE.
+
+IMPORTANT tool selection:
+- To CREATE channels/categories → discord_setup_channels
+- To SEND/POST messages into a channel → discord_send_message
+- To SEE what exists → discord_list_channels
+- To DELETE/REMOVE channels → discord_delete_channels
+NEVER use discord_setup_channels to send messages. NEVER use discord_send_message to create channels.
 
 If no server_id is provided, the DISCORD_SERVER_ID from your credentials is used automatically.
 For any other Discord API calls (roles, permissions, members, etc.), use the **fetch** tool — it auto-injects the bot Authorization header for discord.com/api URLs.

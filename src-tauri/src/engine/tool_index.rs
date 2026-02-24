@@ -98,7 +98,7 @@ fn tool_domain(name: &str) -> &'static str {
         "telegram_send" | "telegram_read" => "messaging",
 
         // Discord
-        "discord_setup_channels" | "discord_list_channels" | "discord_send_message" => "discord",
+        "discord_setup_channels" | "discord_list_channels" | "discord_send_message" | "discord_delete_channels" => "discord",
 
         // GitHub
         "github_api" => "github",

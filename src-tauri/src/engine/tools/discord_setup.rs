@@ -26,10 +26,10 @@ pub fn definitions() -> Vec<ToolDefinition> {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "discord_setup_channels".into(),
-                description: "Create multiple Discord categories and channels in one call. \
-                    Pass an array of categories, each with a name and list of channels. \
-                    Channels default to text (type 0). Set type to 2 for voice channels. \
-                    The tool handles all API calls and returns a summary of what was created.".into(),
+                description: "Create categories and channels in a Discord server. \
+                    ONLY for creating/organizing server structure — NOT for sending messages (use discord_send_message for that). \
+                    Idempotent: skips categories/channels that already exist (by name). \
+                    Channels default to text (type 0). Set type to 2 for voice channels.".into(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -143,6 +143,28 @@ pub fn definitions() -> Vec<ToolDefinition> {
                 }),
             },
         },
+        // ── discord_delete_channels ────────────────────────────────────
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "discord_delete_channels".into(),
+                description: "Delete one or more Discord channels or categories by ID. \
+                    Use discord_list_channels first to get channel IDs. \
+                    DESTRUCTIVE — deleted channels cannot be recovered. \
+                    Useful for cleaning up duplicates or reorganizing.".into(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "channel_ids": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "Array of channel/category IDs to delete. Get IDs from discord_list_channels."
+                        }
+                    },
+                    "required": ["channel_ids"]
+                }),
+            },
+        },
     ]
 }
 
@@ -152,9 +174,10 @@ pub async fn execute(
     app_handle: &tauri::AppHandle,
 ) -> Option<Result<String, String>> {
     match name {
-        "discord_setup_channels" => Some(execute_setup(args, app_handle).await.map_err(|e| e.to_string())),
-        "discord_list_channels"  => Some(execute_list(args, app_handle).await.map_err(|e| e.to_string())),
-        "discord_send_message"   => Some(execute_send(args, app_handle).await.map_err(|e| e.to_string())),
+        "discord_setup_channels"  => Some(execute_setup(args, app_handle).await.map_err(|e| e.to_string())),
+        "discord_list_channels"   => Some(execute_list(args, app_handle).await.map_err(|e| e.to_string())),
+        "discord_send_message"    => Some(execute_send(args, app_handle).await.map_err(|e| e.to_string())),
+        "discord_delete_channels" => Some(execute_delete(args, app_handle).await.map_err(|e| e.to_string())),
         _ => None,
     }
 }
@@ -198,46 +221,76 @@ async fn execute_setup(args: &Value, app_handle: &tauri::AppHandle) -> EngineRes
         .ok_or("discord_setup_channels: missing 'categories' array")?;
 
     let token = get_bot_token(app_handle)?;
-
     let client = reqwest::Client::new();
+
+    // ── Fetch existing channels for idempotency ────────────────────────
+    let existing = fetch_existing_channels(&client, &token, &server_id).await?;
+    let existing_cats: std::collections::HashMap<String, String> = existing.iter()
+        .filter(|c| c["type"].as_i64() == Some(4))
+        .filter_map(|c| {
+            let name = c["name"].as_str()?.to_lowercase();
+            let id = c["id"].as_str()?.to_string();
+            Some((name, id))
+        })
+        .collect();
+    let existing_channels: std::collections::HashSet<(String, Option<String>)> = existing.iter()
+        .filter(|c| c["type"].as_i64() != Some(4))
+        .filter_map(|c| {
+            let name = c["name"].as_str()?.to_lowercase();
+            let parent = c["parent_id"].as_str().map(|s| s.to_string());
+            Some((name, parent))
+        })
+        .collect();
+
     let mut results: Vec<String> = Vec::new();
     let mut created_count = 0;
+    let mut skipped_count = 0;
     let mut error_count = 0;
 
     for category in categories {
         let cat_name = category["name"].as_str().unwrap_or("Unnamed");
         let channels = category["channels"].as_array();
 
-        // Create the category (type 4)
-        info!("[discord_setup] Creating category: {}", cat_name);
-        let cat_body = json!({
-            "name": cat_name,
-            "type": 4
-        });
-
-        let cat_result = create_channel(&client, &token, &server_id, &cat_body).await;
-        let category_id = match cat_result {
-            Ok(id) => {
-                results.push(format!("✅ Category '{}' created ({})", cat_name, id));
-                created_count += 1;
-                id
-            }
-            Err(e) => {
-                results.push(format!("❌ Category '{}' failed: {}", cat_name, e));
-                error_count += 1;
-                continue; // Skip channels if category creation failed
+        // ── Check if category already exists ──────────────────────────
+        let category_id = if let Some(existing_id) = existing_cats.get(&cat_name.to_lowercase()) {
+            results.push(format!("⏭️  Category '{}' already exists ({})", cat_name, existing_id));
+            skipped_count += 1;
+            existing_id.clone()
+        } else {
+            info!("[discord_setup] Creating category: {}", cat_name);
+            let cat_body = json!({
+                "name": cat_name,
+                "type": 4
+            });
+            match create_channel(&client, &token, &server_id, &cat_body).await {
+                Ok(id) => {
+                    results.push(format!("✅ Category '{}' created ({})", cat_name, id));
+                    created_count += 1;
+                    tokio::time::sleep(Duration::from_millis(300)).await;
+                    id
+                }
+                Err(e) => {
+                    results.push(format!("❌ Category '{}' failed: {}", cat_name, e));
+                    error_count += 1;
+                    continue;
+                }
             }
         };
-
-        // Small delay to respect rate limits
-        tokio::time::sleep(Duration::from_millis(300)).await;
 
         // Create channels inside this category
         if let Some(channels) = channels {
             for channel in channels {
                 let ch_name = channel["name"].as_str().unwrap_or("unnamed");
-                let ch_type = channel["type"].as_i64().unwrap_or(0); // 0=text, 2=voice
+                let ch_type = channel["type"].as_i64().unwrap_or(0);
                 let ch_topic = channel["topic"].as_str();
+
+                // ── Check if channel already exists under this parent ─
+                if existing_channels.contains(&(ch_name.to_lowercase(), Some(category_id.clone()))) {
+                    let type_str = if ch_type == 2 { "🔊" } else { "#" };
+                    results.push(format!("  ⏭️  {}{} already exists", type_str, ch_name));
+                    skipped_count += 1;
+                    continue;
+                }
 
                 info!("[discord_setup] Creating channel: {} (type={}) in category {}", ch_name, ch_type, cat_name);
 
@@ -262,19 +315,25 @@ async fn execute_setup(args: &Value, app_handle: &tauri::AppHandle) -> EngineRes
                     }
                 }
 
-                // Rate limit delay between channels
                 tokio::time::sleep(Duration::from_millis(300)).await;
             }
         }
     }
 
-    let summary = format!(
-        "Discord server setup complete!\n\
-        Created: {} | Failed: {}\n\n{}",
-        created_count, error_count, results.join("\n")
-    );
+    let summary = if created_count == 0 && error_count == 0 {
+        format!(
+            "All {} categories/channels already exist — nothing to create.\n\n{}",
+            skipped_count, results.join("\n")
+        )
+    } else {
+        format!(
+            "Discord server setup complete!\n\
+            Created: {} | Skipped (already exist): {} | Failed: {}\n\n{}",
+            created_count, skipped_count, error_count, results.join("\n")
+        )
+    };
 
-    info!("[discord_setup] Done: {} created, {} errors", created_count, error_count);
+    info!("[discord_setup] Done: {} created, {} skipped, {} errors", created_count, skipped_count, error_count);
     Ok(summary)
 }
 
@@ -433,6 +492,30 @@ fn resolve_default_channel(app_handle: &tauri::AppHandle) -> EngineResult<String
 
 // ── Shared helpers ─────────────────────────────────────────────────────
 
+/// Fetch all existing channels for a guild (used for idempotency checks).
+async fn fetch_existing_channels(
+    client: &reqwest::Client,
+    token: &str,
+    server_id: &str,
+) -> EngineResult<Vec<Value>> {
+    let url = format!("{}/guilds/{}/channels", DISCORD_API, server_id);
+    let resp = client.get(&url)
+        .header("Authorization", format!("Bot {}", token))
+        .send()
+        .await
+        .map_err(|e| format!("HTTP error fetching channels: {}", e))?;
+
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+
+    if !status.is_success() {
+        return Err(format!("Discord API {}: {}", status, &text[..text.len().min(300)]).into());
+    }
+
+    serde_json::from_str(&text)
+        .map_err(|e| format!("Failed to parse channels: {}", e).into())
+}
+
 /// Create a single Discord channel/category via REST API.
 /// Returns the created channel's ID on success.
 async fn create_channel(
@@ -490,4 +573,85 @@ async fn create_channel(
     v["id"].as_str()
         .map(|s| s.to_string())
         .ok_or_else(|| "No ID in response".to_string())
+}
+
+// ── discord_delete_channels ────────────────────────────────────────────
+
+async fn execute_delete(args: &Value, app_handle: &tauri::AppHandle) -> EngineResult<String> {
+    let token = get_bot_token(app_handle)?;
+    let channel_ids = args["channel_ids"].as_array()
+        .ok_or("discord_delete_channels: missing 'channel_ids' array")?;
+
+    if channel_ids.is_empty() {
+        return Err("discord_delete_channels: 'channel_ids' array is empty".into());
+    }
+
+    let client = reqwest::Client::new();
+    let mut results: Vec<String> = Vec::new();
+    let mut deleted = 0;
+    let mut errors = 0;
+
+    for id_val in channel_ids {
+        let channel_id = id_val.as_str().unwrap_or("");
+        if channel_id.is_empty() { continue; }
+
+        info!("[discord] Deleting channel {}", channel_id);
+        let url = format!("{}/channels/{}", DISCORD_API, channel_id);
+        let resp = client.delete(&url)
+            .header("Authorization", format!("Bot {}", token))
+            .send()
+            .await;
+
+        match resp {
+            Ok(r) if r.status().is_success() => {
+                results.push(format!("✅ Deleted {}", channel_id));
+                deleted += 1;
+            }
+            Ok(r) if r.status().as_u16() == 429 => {
+                // Rate limited — wait and retry once
+                let text = r.text().await.unwrap_or_default();
+                let retry_after = serde_json::from_str::<Value>(&text)
+                    .ok()
+                    .and_then(|v| v["retry_after"].as_f64())
+                    .unwrap_or(1.0);
+                tokio::time::sleep(Duration::from_secs_f64(retry_after + 0.1)).await;
+                let r2 = client.delete(&url)
+                    .header("Authorization", format!("Bot {}", token))
+                    .send()
+                    .await;
+                match r2 {
+                    Ok(r2) if r2.status().is_success() => {
+                        results.push(format!("✅ Deleted {} (after rate limit wait)", channel_id));
+                        deleted += 1;
+                    }
+                    Ok(r2) => {
+                        let t = r2.text().await.unwrap_or_default();
+                        results.push(format!("❌ {} — {}", channel_id, &t[..t.len().min(100)]));
+                        errors += 1;
+                    }
+                    Err(e) => {
+                        results.push(format!("❌ {} — {}", channel_id, e));
+                        errors += 1;
+                    }
+                }
+            }
+            Ok(r) => {
+                let status = r.status();
+                let text = r.text().await.unwrap_or_default();
+                results.push(format!("❌ {} — API {}: {}", channel_id, status, &text[..text.len().min(100)]));
+                errors += 1;
+            }
+            Err(e) => {
+                results.push(format!("❌ {} — {}", channel_id, e));
+                errors += 1;
+            }
+        }
+
+        tokio::time::sleep(Duration::from_millis(300)).await;
+    }
+
+    Ok(format!(
+        "Delete complete: {} deleted, {} failed\n\n{}",
+        deleted, errors, results.join("\n")
+    ))
 }

@@ -513,18 +513,15 @@ pub async fn engine_chat_send(
                         }
                     }
 
-                    // ── Auto-compact: if the session is getting large, compact it ──
-                    if let Ok(compact_db) = crate::engine::sessions::SessionStore::open() {
-                        let compact_store = std::sync::Arc::new(compact_db);
-                        let compact_provider = AnyProvider::from_config(&provider_config);
-                        if let Some(result) = crate::engine::compaction::auto_compact_if_needed(
-                            &compact_store, &compact_provider, &model, &session_id_clone,
-                        ).await {
-                            info!("[engine] Auto-compaction complete: {} → {} messages (tokens: {} → {})",
-                                result.messages_before, result.messages_after,
-                                result.tokens_before, result.tokens_after);
-                        }
-                    }
+                    // ── Auto-compact: DISABLED ──
+                    // Auto-compaction replaces conversation history with a summary,
+                    // which biases the model towards the old topic and prevents
+                    // natural topic shifts. Manual compaction is still available
+                    // via the session_compact command if a user explicitly wants it.
+                    //
+                    // Instead, we rely on:
+                    //   - Auto-prune (above) to cap stored messages
+                    //   - Mid-loop truncation (in agent_loop) to cap context window
                 }
             }
             Err(e) => {
