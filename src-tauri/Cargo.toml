@@ -47,7 +47,7 @@ keyring = { version = "3", features = ["apple-native", "linux-native"] }
 ed25519-dalek = { version = "2", features = ["rand_core", "pkcs8", "pem"] }
 sha2 = "0.10"
 hmac = "0.12"
-jsonwebtoken = "9"
+jsonwebtoken = "10"
 p256 = { version = "0.13", features = ["ecdsa", "pem"] }
 base64 = "0.22"
 
