@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or Discussion
+    url: https://github.com/OpenPawz/openpawz/discussions
+    about: Ask questions, share ideas, or show what you've built — use Discussions instead of opening an issue.
+  - name: Security Vulnerability
+    url: https://github.com/OpenPawz/openpawz/security/advisories/new
+    about: Report security issues privately. Do NOT open a public issue.
+  - name: Discord Community
+    url: https://discord.gg/wVvmgrMV
+    about: Chat with contributors and maintainers in real time.

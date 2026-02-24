@@ -1,6 +1,26 @@
-# Contributing to Pawz
+# Contributing to OpenPawz
 
-Thanks for your interest in contributing! This guide covers everything you need to get started.
+Thanks for your interest in contributing! Whether you write Rust, TypeScript, docs, or tests — there's a place for you here.
+
+---
+
+## Where to Start
+
+| I want to… | Start here |
+|------------|-----------|
+| **Fix something small** | Browse [`good first issue`](https://github.com/OpenPawz/openpawz/labels/good%20first%20issue) — these are scoped, well-described, and waiting for you |
+| **Write Rust** | Filter by [`area: rust`](https://github.com/OpenPawz/openpawz/labels/area%3A%20rust) — engine, channels, providers, tools |
+| **Write TypeScript** | Filter by [`area: typescript`](https://github.com/OpenPawz/openpawz/labels/area%3A%20typescript) — views, components, features |
+| **Improve UI/UX** | Filter by [`area: ui`](https://github.com/OpenPawz/openpawz/labels/area%3A%20ui) — themes, accessibility, layouts |
+| **Write tests** | See [#32 — Test coverage](https://github.com/OpenPawz/openpawz/issues/32) — great way to learn the codebase |
+| **Write docs** | Filter by [`area: docs`](https://github.com/OpenPawz/openpawz/labels/area%3A%20docs) or see [#34](https://github.com/OpenPawz/openpawz/issues/34) |
+| **Translate** | See [#25 — README translations](https://github.com/OpenPawz/openpawz/issues/25) and [#24 — i18n](https://github.com/OpenPawz/openpawz/issues/24) |
+| **Package for my OS** | Filter by [`area: packaging`](https://github.com/OpenPawz/openpawz/labels/area%3A%20packaging) — Homebrew, AUR, Flatpak, Snap, Windows |
+| **Do something big** | Look for [`help wanted`](https://github.com/OpenPawz/openpawz/labels/help%20wanted) + [`difficulty: hard`](https://github.com/OpenPawz/openpawz/labels/difficulty%3A%20hard) |
+
+> **Claim an issue** by commenting "I'd like to work on this" — we'll assign it to you within 24 hours.
+
+> **Questions?** Ask in [Discord](https://discord.gg/wVvmgrMV) or [GitHub Discussions](https://github.com/OpenPawz/openpawz/discussions). No question is too basic.
 
 ---
 

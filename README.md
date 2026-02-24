@@ -210,6 +210,25 @@ See [ENTERPRISE_PLAN.md](ENTERPRISE_PLAN.md) for the hardening audit and [AUTONO
 
 ---
 
+## Contributing
+
+OpenPawz is built by one developer and needs your help. Every contribution matters — code, docs, tests, translations, packaging.
+
+**Start here:**
+- [`good first issue`](https://github.com/OpenPawz/openpawz/labels/good%20first%20issue) — scoped tasks for newcomers
+- [`help wanted`](https://github.com/OpenPawz/openpawz/labels/help%20wanted) — bigger tasks we need help with
+- [CONTRIBUTING.md](CONTRIBUTING.md) — full setup guide, code style, and "where to start" picker
+
+**Claim an issue** by commenting "I'd like to work on this" — you'll be assigned within 24 hours. Questions? Ask in [Discord](https://discord.gg/wVvmgrMV) or [Discussions](https://github.com/OpenPawz/openpawz/discussions).
+
+### Contributors
+
+<a href="https://github.com/OpenPawz/openpawz/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=OpenPawz/openpawz" />
+</a>
+
+---
+
 ## Documentation
 
 | Document | Description |
