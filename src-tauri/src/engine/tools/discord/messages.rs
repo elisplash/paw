@@ -239,7 +239,7 @@ async fn exec_delete(args: &Value, app_handle: &tauri::AppHandle) -> EngineResul
 
     // Option 2: delete N recent messages
     if let Some(count) = args["count"].as_i64() {
-        let count = count.min(100).max(1);
+        let count = count.clamp(1, 100);
         // Fetch message IDs first
         let url = format!("{}/channels/{}/messages?limit={}", DISCORD_API, channel_id, count);
         let data = discord_request(&client, reqwest::Method::GET, &url, &auth, None).await?;
@@ -272,7 +272,7 @@ async fn exec_get(args: &Value, app_handle: &tauri::AppHandle) -> EngineResult<S
     let channel_id = args["channel_id"].as_str().ok_or("Missing 'channel_id'")?;
     let (client, auth) = authorized_client(&token);
 
-    let limit = args["limit"].as_i64().unwrap_or(25).min(100).max(1);
+    let limit = args["limit"].as_i64().unwrap_or(25).clamp(1, 100);
     let mut url = format!("{}/channels/{}/messages?limit={}", DISCORD_API, channel_id, limit);
     if let Some(before) = args["before"].as_str() {
         url.push_str(&format!("&before={}", before));

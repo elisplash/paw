@@ -516,7 +516,7 @@ async fn execute_manage_session(
                 .ok_or("'session_id' is required for 'clear' action")?;
 
             // Support prefix matching for bulk clear
-            if session_id.contains('*') || !state.store.get_session(session_id)?.is_some() {
+            if session_id.contains('*') || state.store.get_session(session_id)?.is_none() {
                 // Try prefix match
                 let prefix = session_id.trim_end_matches('*');
                 let sessions = state.store.list_sessions(500)?;
@@ -542,7 +542,7 @@ async fn execute_manage_session(
             let session_id = args["session_id"].as_str()
                 .ok_or("'session_id' is required for 'delete' action")?;
 
-            if session_id.contains('*') || !state.store.get_session(session_id)?.is_some() {
+            if session_id.contains('*') || state.store.get_session(session_id)?.is_none() {
                 let prefix = session_id.trim_end_matches('*');
                 let sessions = state.store.list_sessions(500)?;
                 let matching: Vec<_> = sessions.iter()

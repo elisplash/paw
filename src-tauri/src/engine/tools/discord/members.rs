@@ -113,7 +113,7 @@ async fn exec_list(args: &Value, app_handle: &tauri::AppHandle) -> EngineResult<
     let token = get_bot_token(app_handle)?;
     let (client, auth) = authorized_client(&token);
 
-    let limit = args["limit"].as_i64().unwrap_or(100).min(1000).max(1);
+    let limit = args["limit"].as_i64().unwrap_or(100).clamp(1, 1000);
     let mut url = format!("{}/guilds/{}/members?limit={}", DISCORD_API, server_id, limit);
     if let Some(after) = args["after"].as_str() {
         url.push_str(&format!("&after={}", after));
@@ -213,7 +213,7 @@ async fn exec_ban(args: &Value, app_handle: &tauri::AppHandle) -> EngineResult<S
     let mut body = json!({});
     if let Some(days) = args["delete_message_days"].as_i64() {
         // Discord API v10 uses delete_message_seconds
-        body["delete_message_seconds"] = json!(days.min(7).max(0) * 86400);
+        body["delete_message_seconds"] = json!(days.clamp(0, 7) * 86400);
     }
 
     let url = format!("{}/guilds/{}/bans/{}", DISCORD_API, server_id, user_id);
