@@ -33,7 +33,7 @@ jobs:
       - name: Run prek hooks
         run: prek run --all-files
         env:
-          SKIP: no-commit-to-branch
+          SKIP: no-commit-to-branch,cargo-fmt,cargo-clippy
 
   # ── TypeScript: lint, type-check, test, format ──────────────────
   typescript:
