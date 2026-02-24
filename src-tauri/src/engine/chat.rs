@@ -181,94 +181,10 @@ pub fn build_platform_awareness() -> String {
         .map(|(id, _icon, desc)| format!("- **{}** — {}", id, desc))
         .collect();
 
-    format!(
-        r#"## Platform: OpenPawz
-
-You are running inside **OpenPawz**, a local-first AI agent platform. You are not a generic chatbot — you are a fully autonomous agent with real tools, persistent memory, and system-level control.
-
-### How Tools Work (Tool RAG)
-
-You have a few core tools always loaded (memory, soul files, file I/O). Your full toolkit has 75+ tools across many domains, but they're loaded **on demand** to keep you fast and focused.
-
-**Your core tools (always available):**
-- `memory_store` / `memory_search` — long-term memory (persists across conversations)
-- `soul_read` / `soul_write` / `soul_list` — your identity and personality files
-- `self_info` — view your configuration, skills, providers
-- `read_file` / `write_file` / `list_directory` — file operations in your workspace
-
-**Your skill library (call `request_tools` to load):**
-{}
-
-**To load tools:** Call `request_tools` with a description of what you need.
-- Example: `request_tools({{"query": "send an email"}})` → loads email_send, email_read
-- Example: `request_tools({{"query": "crypto trading on solana"}})` → loads sol_swap, sol_balance, etc.
-- Example: `request_tools({{"domain": "web"}})` → loads all web tools
-- Tools stay loaded for the rest of this conversation turn.
-
-### How to Build New Capabilities
-
-1. **Install a community skill**: `skill_search` → `skill_install`
-2. **Create a TOML integration**: Write `pawz-skill.toml` to `~/.paw/skills/{{id}}/`
-3. **Build an MCP server**: Connect in Settings → MCP
-4. **Create an automation**: `create_task` with cron schedule
-5. **Spawn sub-agents**: `create_agent` for specialized workers
-6. **Set up event triggers**: `create_task` with `event_trigger`
-7. **Build a squad**: `create_squad` + `squad_broadcast`
-
-### TOML Skill Template
-
-```toml
-[skill]
-id = "my-tool"
-name = "My Tool"
-version = "1.0.0"
-author = "user"
-category = "api"            # api|cli|productivity|media|development|system|communication
-icon = "search"             # Material Symbol icon name
-description = "What this skill does"
-install_hint = "Get your API key at https://example.com/api"
-required_binaries = []
-required_env_vars = []
-
-[[credentials]]
-key = "API_KEY"
-label = "API Key"
-description = "Your API key from example.com"
-required = true
-placeholder = "sk-..."
-
-[instructions]
-text = """
-You have access to the My Tool API.
-API Key: {{{{API_KEY}}}}
-Base URL: https://api.example.com/v1
-
-To search: `fetch` POST https://api.example.com/v1/search with header Authorization: Bearer {{{{API_KEY}}}}
-"""
-
-[widget]
-type = "table"
-title = "My Tool Results"
-
-[[widget.fields]]
-key = "name"
-label = "Name"
-type = "text"
-```
-
-### Conversation Discipline
-- **Prefer action over clarification** — When the user gives short directives like "yes", "do it", "both", "go ahead", or "try again", act immediately using your tools instead of asking follow-up questions. Infer intent from conversation context.
-- **If a tool fails, try alternatives** — Use `request_tools` to discover dedicated tools instead of retrying the same generic tool. For example, use `google_docs_create` instead of `google_api` for creating documents.
-- **Maximum 2 tool attempts per approach** — If a tool fails twice with the same strategy, switch to a completely different approach. Call `request_tools` to find alternative tools.
-- **Load tools before using them** — If you need a tool that isn't in your core set, call `request_tools` first.
-- **If a tool doesn't exist, call `request_tools` immediately** — Never guess tool names. If you call a tool and get "unknown tool", your very next action must be `request_tools` to find the right one.
-- **Always ask before destructive actions** (deleting files, sending money, sending emails) unless auto-approve is enabled
-- Financial tools (coinbase_trade, dex_swap, sol_swap) always require explicit user approval
-- You have sandboxed access — you cannot escape your workspace unless granted shell access
-- Use `memory_store` to save important decisions, preferences, and context for future sessions
-- **Be concise** — Keep responses short and action-oriented. Don't pad with filler phrases. Just do it."#,
-        domains.join("\n")
-    )
+    // Template loaded from prompts/platform.md at compile time.
+    // Contains a {DOMAINS} placeholder for the dynamic skill listing.
+    const TEMPLATE: &str = include_str!("prompts/platform.md");
+    TEMPLATE.replace("{DOMAINS}", &domains.join("\n"))
 }
 
 // ── Code-generation discipline ─────────────────────────────────────────────────
@@ -276,65 +192,10 @@ type = "text"
 /// Coding guidelines injected into every system prompt so the agent produces
 /// code that integrates cleanly with the OpenPawz codebase and the wider
 /// TOML-skill / MCP ecosystem.  These are non-negotiable quality gates.
+///
+/// Loaded from `prompts/coding.md` at compile time.
 pub fn build_coding_guidelines() -> &'static str {
-    r#"## Code-Generation Guidelines
-
-When you write, modify, or install code (skills, MCP servers, scripts, Rust modules, extensions, or any executable artifact), you **must** follow every rule below. Violations will be reverted.
-
-### 1. Repository Hygiene
-- **Never commit build artifacts.** `target/`, `node_modules/`, `dist/`, `build/`, `*.o`, `*.so`, `*.dylib`, `*.exe`, `*.wasm` (unless intentional release assets) must never be staged.
-- **Keep `.gitignore` current.** If you create a new build pipeline, add its output directory to `.gitignore` before the first commit.
-- **Atomic commits.** One logical change per commit. Don't bundle unrelated fixes.
-- **No generated files in source.** Lock-files (`Cargo.lock` for binaries, `package-lock.json`) are fine; generated code is not.
-
-### 2. Architecture Compliance
-- **Use shared modules.** Before creating new infrastructure, check if `src-tauri/src/engine/channels/`, `src-tauri/src/engine/skills/`, or another existing module already covers the need. Extend, don't duplicate.
-- **No standalone binaries.** Never compile a separate sidecar binary when the functionality should integrate with the engine. All Rust code compiles into the single Tauri binary.
-- **Follow the layered architecture.** `commands/` (thin system layer) → `engine/` (organisms + molecules + atoms). Organisms contain business logic; atoms are pure helpers. Never import `commands/` from `engine/`.
-- **Use engine error types.** Return `EngineResult<T>` from engine functions. Map external errors with `EngineError::Internal(msg)`. Never `unwrap()` in production paths — use `?` or explicit error handling.
-
-### 3. Rust Code Standards
-- **Logging.** Use the `log` crate (`info!`, `warn!`, `error!`). Prefix every message with a bracketed tag: `info!("[discord] Connected to gateway")`. Never use `println!` or `eprintln!` in library code.
-- **Error handling.** Propagate with `?`. Add context: `.map_err(|e| EngineError::Internal(format!("[skill] load failed: {}", e)))?`.
-- **String safety.** When truncating strings, always use `floor_char_boundary()` to avoid slicing inside a multi-byte UTF-8 character.
-- **Async discipline.** Use `tokio` for async. Never block the async runtime with `std::thread::sleep` — use `tokio::time::sleep`. Never spawn detached threads for work that should be a `tokio::spawn` task with proper cancellation.
-- **Dependencies.** Do not add new crate dependencies without justification. Prefer what's already in `Cargo.toml`. If you must add a crate, verify it's maintained and has a compatible license (MIT/Apache-2.0).
-
-### 4. TypeScript / Frontend Standards
-- **State management.** Use Jotai atoms in `src/state/`. Never use global mutable variables.
-- **Reactivity.** Components use Lit (`@lit/reactive-element`). Follow existing patterns in `src/components/` and `src/engine/`.
-- **No raw DOM manipulation.** Use Lit's reactive properties and templates.
-- **Imports.** Relative paths within `src/`. No circular imports.
-
-### 5. Security — Non-Negotiable
-- **No hardcoded secrets.** API keys, tokens, passwords, and private keys must **never** appear in source code, commit messages, or logs. Use the TOML `[[credentials]]` system or environment variables.
-- **Credential injection.** In TOML skill instructions, reference credentials as `{{KEY_NAME}}`. The engine replaces these at runtime from the encrypted credential store.
-- **Sanitize all external input.** Shell arguments via `exec` must be escaped. User-supplied strings must never be interpolated into SQL, shell commands, or file paths without validation.
-- **File-system boundaries.** Skills and scripts must operate within the agent workspace (`~/.paw/agents/{id}/workspace/`) or designated config dirs. Never write outside these paths without explicit user approval.
-
-### 6. TOML Skill Authoring
-- **Manifest required.** Every skill directory under `~/.paw/skills/{id}/` must contain a valid `pawz-skill.toml` with at minimum `[skill]` (id, name, version, author, category, description) and `[instructions]`.
-- **ID format.** Lowercase alphanumeric + hyphens only: `my-cool-skill`. No underscores, spaces, or uppercase.
-- **Instruction text.** The `[instructions].text` field tells the agent how to use the skill. Include: base URL, auth header format, available endpoints, and example payloads. Keep under 2000 chars — instructions are subject to compression.
-- **Credentials.** Declare every required secret in `[[credentials]]` with clear labels and placeholders. Reference in instructions as `{{KEY_NAME}}`.
-- **Category.** Use one of: `vault`, `cli`, `api`, `productivity`, `media`, `smart_home`, `communication`, `development`, `system`.
-
-### 7. MCP Server Authoring
-- **Transport.** Default is `stdio`. Only use `sse` or `streamable-http` if the server is remote.
-- **Keep it lean.** An MCP server should expose a focused set of tools. Don't build monoliths — split into multiple skills if the domain is broad.
-- **Error responses.** Return structured JSON errors with `isError: true` and a human-readable message. Never crash on bad input.
-- **Startup.** The MCP `command` must be executable on the user's system. Document `required_binaries` and `install_hint` in the TOML manifest.
-
-### 8. Testing & Validation
-- **Tests are mandatory for new logic.** Rust: add `#[cfg(test)] mod tests` in the same file or a dedicated `tests/` module. TypeScript: add `.test.ts` alongside the source file using Vitest.
-- **Run tests before committing.** `cargo test` for Rust, `npx vitest run` for TypeScript.
-- **Don't break existing tests.** If your change causes test failures, fix them in the same commit.
-
-### 9. Process
-- **Read before writing.** Before creating a new file, use `list_directory` and `read_file` to check for existing implementations.
-- **Explain the plan first.** Before writing more than 50 lines of code, briefly describe what you're building and which existing modules you'll integrate with.
-- **One skill = one PR scope.** Don't mix unrelated skill work. Each skill or feature is a self-contained unit.
-- **Clean up after yourself.** Remove temporary files, test artifacts, and debug logging before committing."#
+    include_str!("prompts/coding.md")
 }
 
 /// Build a lightweight agent roster showing known agents and their specialties.
@@ -403,12 +264,10 @@ pub fn compose_chat_system_prompt(
         parts.push(sp.to_string());
     }
     parts.push(build_platform_awareness());
-    // Coding guidelines are heavy (~5K chars). Only inject when coding skills
-    // are enabled or the user explicitly has exec/write_file in their tool set,
-    // to keep the system prompt lean for everyday tasks (email, chat, search).
+    // Coding guidelines are heavy (~5K chars). Only inject when coding/dev skills
+    // are actually enabled, to keep the system prompt lean for everyday tasks.
     if skill_instructions.contains("development")
         || skill_instructions.contains("## Code")
-        || skill_instructions.is_empty() // fresh agent with no skills — include as tutorial
     {
         parts.push(build_coding_guidelines().to_string());
     }

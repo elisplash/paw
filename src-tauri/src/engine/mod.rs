@@ -39,3 +39,4 @@ pub mod mcp;
 pub mod events;
 pub mod swarm;
 pub mod tool_index;
+pub mod tasks;

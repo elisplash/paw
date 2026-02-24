@@ -519,7 +519,7 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
                                     // and actual credentials baked in. This goes into the
                                     // base system prompt and bypasses skill compression.
                                     let server_id = if cfg_server_id.is_empty() { "<unknown — ask user>" } else { &cfg_server_id };
-                                    let ctx = build_discord_agent_context(&tok, server_id, &cid);
+                                    let ctx = build_discord_agent_context(server_id, &cid);
 
                                     info!("[discord] Routing message from {} to agent '{}'", uid, agent_id);
                                     let response = channels::run_channel_agent(
@@ -593,7 +593,7 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
 // actual credentials. This goes directly into the base system prompt,
 // bypassing the skill compression system that truncates long instructions.
 
-fn build_discord_agent_context(_bot_token: &str, server_id: &str, current_channel_id: &str) -> String {
+fn build_discord_agent_context(server_id: &str, current_channel_id: &str) -> String {
     format!(r#"You are chatting via Discord. Keep responses concise and conversational.
 Use Discord markdown (**bold**, *italic*, `code`, ```code blocks```, ||spoilers||).
 Max message length is 2000 characters.

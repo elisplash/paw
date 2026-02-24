@@ -3,6 +3,7 @@
 // This is the core agent loop that drives Pawz AI interactions.
 
 mod trading;
+mod helpers;
 
 use crate::engine::types::*;
 use crate::engine::providers::AnyProvider;
@@ -10,7 +11,7 @@ use crate::engine::tools;
 use crate::engine::state::{PendingApprovals, DailyTokenTracker};
 use log::{info, warn};
 use std::time::Duration;
-use tauri::{Emitter, Manager};
+use tauri::Emitter;
 use trading::check_trading_auto_approve;
 use crate::atoms::error::EngineResult;
 
@@ -244,75 +245,20 @@ pub async fn run_agent_turn(
         if !has_tool_calls || tool_call_map.is_empty() {
             final_text = text_accum.clone();
 
-            // ── Handle MALFORMED_FUNCTION_CALL from Gemini ──────────────
-            // Gemini sometimes fails to produce valid JSON for tool calls,
-            // especially with nested JSON-in-string (fetch body). Detect this
-            // and retry with a nudge telling the model to simplify.
-            let is_malformed = final_text.contains("[MALFORMED_TOOL_CALL]");
-            if is_malformed && round <= 2 && round < max_rounds {
-                warn!("[engine] MALFORMED_FUNCTION_CALL detected at round {} — retrying with simplified instructions", round);
-                messages.push(Message {
-                    role: Role::Assistant,
-                    content: MessageContent::Text(final_text.clone()),
-                    tool_calls: None,
-                    tool_call_id: None,
-                    name: None,
-                });
-                messages.push(Message {
-                    role: Role::User,
-                    content: MessageContent::Text(
-                        "Your tool call was malformed. When using fetch with a JSON body, pass `body` as a JSON object, NOT a string. \
-                        Example: {\"url\":\"...\",\"method\":\"POST\",\"body\":{\"name\":\"test\",\"type\":0}} \
-                        Try again now — one API call at a time.".to_string()
-                    ),
-                    tool_calls: None,
-                    tool_call_id: None,
-                    name: None,
-                });
-                continue; // retry the loop
+            // Retry on malformed tool calls (Gemini JSON issues)
+            if helpers::handle_malformed_tool_call(&final_text, messages, round, max_rounds) {
+                continue;
             }
 
-            // Handle completely empty responses: the model returned nothing.
-            // Auto-retry ONCE by injecting a nudge so the model tries again.
-            // Use System role to avoid consecutive user messages (Gemini rejects those).
-            // Include the user's actual message to refocus the model.
-            if final_text.is_empty() && round == 1 && round < max_rounds {
-                warn!("[engine] Model returned empty response at round {} — injecting nudge and retrying", round);
-                let user_recap = messages.iter().rev()
-                    .find(|m| m.role == Role::User)
-                    .map(|m| {
-                        let t = m.content.as_text_ref();
-                        if t.len() > 300 { format!("{}…", &t[..t.floor_char_boundary(300)]) } else { t.to_string() }
-                    })
-                    .unwrap_or_default();
-                let nudge = if user_recap.is_empty() {
-                    "[SYSTEM] The model returned an empty response. Retry the user's request. Use tools if needed.".to_string()
-                } else {
-                    format!(
-                        "[SYSTEM] The model returned an empty response. The user's request is: \"{}\"\n\
-                        Respond to this request directly. Ignore previous conversation topics. Use tools if needed.",
-                        user_recap
-                    )
-                };
-                messages.push(Message {
-                    role: Role::System,
-                    content: MessageContent::Text(nudge),
-                    tool_calls: None,
-                    tool_call_id: None,
-                    name: None,
-                });
-                continue; // retry the loop with the nudge
+            // Retry on empty response (nudge with user recap)
+            if helpers::handle_empty_response(&final_text, messages, round, max_rounds) {
+                continue;
             }
 
-            // If still empty after the nudge retry (or not round 1), show fallback
+            // Persistent empty → fallback message
             if final_text.is_empty() {
                 warn!("[engine] Model returned empty response (0 chars, 0 tool calls) at round {}", round);
-                final_text = "I wasn't able to generate a response. This can happen when:\n\
-                    - The conversation context is very large (try compacting the session)\n\
-                    - A content filter was triggered (try rephrasing)\n\
-                    - The model is overwhelmed — try starting a new session\n\n\
-                    Please try again or start a new session."
-                    .to_string();
+                final_text = helpers::empty_response_fallback();
             }
 
             // Add assistant message to history
@@ -572,124 +518,10 @@ pub async fn run_agent_turn(
         }
 
         // ── 6. Tool RAG: refresh tools if request_tools was called ─────
-        // When the agent calls request_tools, new tool names are added to
-        // state.loaded_tools. We need to inject those new ToolDefinitions
-        // into the active tool list so the agent can use them in the next round.
-        if let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() {
-            let loaded = state.loaded_tools.lock().clone();
-            let current_names: std::collections::HashSet<String> = tools.iter()
-                .map(|t| t.function.name.clone())
-                .collect();
-            let new_names: Vec<String> = loaded.difference(&current_names)
-                .cloned()
-                .collect();
-            if !new_names.is_empty() {
-                // Build the full tool registry to find the definitions
-                let mut all_defs = ToolDefinition::builtins();
-                let enabled_ids: Vec<String> = crate::engine::skills::builtin_skills()
-                    .iter()
-                    .filter(|s| state.store.is_skill_enabled(&s.id).unwrap_or(false))
-                    .map(|s| s.id.clone())
-                    .collect();
-                all_defs.extend(ToolDefinition::skill_tools(&enabled_ids));
-
-                let mut added = 0;
-                for def in all_defs {
-                    if new_names.contains(&def.function.name) {
-                        info!("[tool-rag] Hot-loading tool '{}' into active round", def.function.name);
-                        tools.push(def);
-                        added += 1;
-                    }
-                }
-                if added > 0 {
-                    info!("[tool-rag] Injected {} new tools into active tool list (now {} total)",
-                        added, tools.len());
-                }
-            }
-        }
+        helpers::refresh_tool_rag(app_handle, tools);
 
         // ── 7. Mid-loop context truncation ─────────────────────────────
-        // The messages Vec grows each round (assistant + tool results).
-        // Without trimming, later rounds can send 50k+ tokens to the API.
-        // Uses the same context_window_tokens from Settings → Engine as
-        // the initial conversation load (default 32K).
-        // Always preserves: system prompt (first msg) and last user message.
-        let mid_loop_max = {
-            if let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() {
-                let cfg = state.config.lock();
-                cfg.context_window_tokens
-            } else {
-                32_000
-            }
-        };
-        let estimate_msg_tokens = |m: &Message| -> usize {
-            let text_len = match &m.content {
-                MessageContent::Text(t) => t.len(),
-                MessageContent::Blocks(blocks) => blocks.iter().map(|b| match b {
-                    ContentBlock::Text { text } => text.len(),
-                    ContentBlock::ImageUrl { .. } => 1000,
-                    ContentBlock::Document { data, .. } => data.len() / 4,
-                }).sum(),
-            };
-            let tc_len = m.tool_calls.as_ref().map(|tcs| {
-                tcs.iter().map(|tc2| tc2.function.arguments.len() + tc2.function.name.len() + 20).sum::<usize>()
-            }).unwrap_or(0);
-            (text_len + tc_len) / 4 + 4
-        };
-        let mid_total: usize = messages.iter().map(&estimate_msg_tokens).sum();
-        if mid_total > mid_loop_max && messages.len() > 3 {
-            // Preserve system prompt (index 0)
-            let sys_msg = if !messages.is_empty() && messages[0].role == Role::System {
-                Some(messages.remove(0))
-            } else {
-                None
-            };
-            let sys_tokens = sys_msg.as_ref().map(&estimate_msg_tokens).unwrap_or(0);
-            let msg_tokens: Vec<usize> = messages.iter().map(&estimate_msg_tokens).collect();
-            let mut running = sys_tokens + msg_tokens.iter().sum::<usize>();
-            // Find last user message — never drop past it
-            let last_user_idx = messages.iter().rposition(|m| m.role == Role::User)
-                .unwrap_or(messages.len().saturating_sub(1));
-            let mut keep_from = 0;
-            for (i, &t) in msg_tokens.iter().enumerate() {
-                if running <= mid_loop_max { break; }
-                if i >= last_user_idx { break; }
-                running -= t;
-                keep_from = i + 1;
-            }
-            // Ensure we don't split a tool-call/tool-result pair:
-            // If keep_from lands on a Tool message, advance past all
-            // consecutive Tool messages so we don't orphan them.
-            while keep_from < messages.len() && messages[keep_from].role == Role::Tool {
-                if keep_from < msg_tokens.len() {
-                    running -= msg_tokens[keep_from];
-                }
-                keep_from += 1;
-            }
-            // Ensure the first non-system message is a User message.
-            // Gemini (and other providers) require the conversation to
-            // start with a user turn — starting with an assistant turn
-            // containing functionCall causes 400 errors.
-            while keep_from < messages.len()
-                && keep_from < last_user_idx
-                && messages[keep_from].role != Role::User
-            {
-                if keep_from < msg_tokens.len() {
-                    running -= msg_tokens[keep_from];
-                }
-                keep_from += 1;
-            }
-            if keep_from > 0 {
-                *messages = messages.split_off(keep_from);
-                if let Some(sys) = sys_msg {
-                    messages.insert(0, sys);
-                }
-                info!("[engine] Mid-loop truncation: {} → {} est tokens, {} messages kept",
-                    mid_total, running, messages.len());
-            } else if let Some(sys) = sys_msg {
-                messages.insert(0, sys);
-            }
-        }
+        helpers::truncate_mid_loop(app_handle, messages);
 
         // ── 8. Loop: send tool results back to model ──────────────────
         info!("[engine] {} tool calls executed, feeding results back to model", tc_count);

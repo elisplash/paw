@@ -105,7 +105,7 @@ pub fn run() {
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
                 log::info!("[heartbeat] Cron heartbeat started (60s interval)");
                 loop {
-                    commands::task::run_cron_heartbeat(&app_handle).await;
+                    engine::tasks::run_cron_heartbeat(&app_handle).await;
                     tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                 }
             });
