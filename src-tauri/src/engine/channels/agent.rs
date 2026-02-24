@@ -82,22 +82,38 @@ pub async fn run_channel_agent(
     if !session_exists {
         engine_state.store.create_session(&session_id, &model, system_prompt.as_deref(), Some(agent_id))?;
     } else {
-        // Check if the previous conversation is poisoned by failed tool-call loops.
-        // If the last N messages are all tool calls/results (no actual assistant text),
-        // the agent was stuck in a loop. Clear the session to break the cycle.
+        // Check if the previous conversation is poisoned by:
+        // 1. Failed tool-call loops (all tool calls, no useful text)
+        // 2. Accumulated "I wasn't able to generate a response" errors
+        // 3. System nudge messages from failed retries
+        // In any of these cases, clear the session to start fresh.
         let recent = engine_state.store.load_conversation(
             &session_id, None, Some(2_000), Some(agent_id),
         ).unwrap_or_default();
-        if recent.len() > 10 {
-            let last_msgs: Vec<&Message> = recent.iter().rev().take(10).collect();
+
+        let should_clear = if recent.len() > 6 {
+            let last_msgs: Vec<&Message> = recent.iter().rev().take(6).collect();
+            // Detect tool-call spam
             let all_tool_spam = last_msgs.iter().all(|m| {
                 m.role == Role::Tool || m.role == Role::System ||
                 (m.role == Role::Assistant && m.tool_calls.is_some())
             });
-            if all_tool_spam {
-                info!("[{}] Session {} appears poisoned (last 10 msgs are all tool calls). Clearing history.", channel_prefix, session_id);
-                let _ = engine_state.store.clear_messages(&session_id);
-            }
+            // Detect error message accumulation
+            let error_count = last_msgs.iter().filter(|m| {
+                m.role == Role::Assistant && (
+                    m.content.as_text().contains("wasn't able to generate") ||
+                    m.content.as_text().contains("empty response") ||
+                    m.content.as_text().contains("[MALFORMED_TOOL_CALL]")
+                )
+            }).count();
+            all_tool_spam || error_count >= 2
+        } else {
+            false
+        };
+
+        if should_clear {
+            info!("[{}] Session {} appears poisoned. Clearing history for fresh start.", channel_prefix, session_id);
+            let _ = engine_state.store.clear_messages(&session_id);
         }
     }
 
@@ -114,38 +130,19 @@ pub async fn run_channel_agent(
     };
     engine_state.store.add_message(&user_msg)?;
 
-    // Compose system prompt with agent context + memory (skip heavy skill instructions — see below)
-    let agent_context = engine_state.store.compose_agent_context(agent_id).unwrap_or(None);
-
-    // Load core soul files (IDENTITY.md, SOUL.md, USER.md) — same as UI chat
+    // Load core soul files (IDENTITY.md, SOUL.md, USER.md) — lean identity only.
+    // We do NOT load compose_agent_context() here — it includes ALL agent files
+    // (IDENTITY, SOUL, USER, AGENTS, TOOLS, custom files) which can add ~10K chars
+    // of irrelevant context about other agents, coding tools, etc.
     let core_context = engine_state.store.compose_core_context(agent_id).unwrap_or(None);
     if let Some(ref cc) = core_context {
         info!("[{}] Core soul context loaded ({} chars) for agent '{}'", channel_prefix, cc.len(), agent_id);
     }
 
-    // Load today's memory notes (unused in lean channel prompt, kept for future use)
-    let _todays_memories = engine_state.store.get_todays_memories(agent_id).unwrap_or(None);
-
-    // Auto-recall memories
-    let (auto_recall_on, recall_limit, recall_threshold) = {
-        let mcfg = engine_state.memory_config.lock();
-        (mcfg.auto_recall, mcfg.recall_limit, mcfg.recall_threshold)
-    };
-
-    let memory_context = if auto_recall_on {
-        let emb_client = engine_state.embedding_client();
-        match memory::search_memories(
-            &engine_state.store, message, recall_limit, recall_threshold, emb_client.as_ref(), None
-        ).await {
-            Ok(mems) if !mems.is_empty() => {
-                let ctx: Vec<String> = mems.iter().map(|m| format!("- [{}] {}", m.category, m.content)).collect();
-                Some(format!("## Relevant Memories\n{}", ctx.join("\n")))
-            }
-            _ => None,
-        }
-    } else {
-        None
-    };
+    // Skip memory recall for channel bridges. Memory recall adds latency
+    // (BM25 + vector search) and ~1K chars of context per request.
+    // Channel bridges need speed and focus, not memory recall.
+    // Memory is still available on-demand via memory_search tool.
 
     // Build full system prompt — MINIMAL version for channel bridges.
     //
@@ -191,16 +188,6 @@ pub async fn run_channel_agent(
             - **If a call fails, try again.** Don't give up or ask the user to do it manually.\n\
             - **Keep responses short.** Brief updates between actions, not essays.".to_string()
         );
-
-        // 6. Agent-specific context
-        if let Some(ac) = &agent_context {
-            parts.push(ac.to_string());
-        }
-
-        // 7. Auto-recalled memories (compact)
-        if let Some(mc) = &memory_context {
-            parts.push(mc.to_string());
-        }
 
         let prompt = parts.join("\n\n---\n\n");
         info!("[{}] System prompt: {} chars for agent '{}'", channel_prefix, prompt.len(), agent_id);

@@ -462,15 +462,16 @@ impl GoogleProvider {
                                     // Detect blocked/empty responses (e.g. SAFETY, RECITATION, OTHER)
                                     if content.is_null() || content["parts"].is_null() {
                                         if let Some(ref reason) = finish_reason {
+                                            // Log ALL empty-content responses, including STOP
+                                            let safety_info = candidate.get("safetyRatings")
+                                                .map(|r| r.to_string())
+                                                .unwrap_or_else(|| "none".to_string());
+                                            warn!(
+                                                "[engine] Google: empty content chunk — finishReason={} safety={}",
+                                                reason,
+                                                &safety_info[..safety_info.len().min(500)]
+                                            );
                                             if reason != "STOP" {
-                                                let safety_info = candidate.get("safetyRatings")
-                                                    .map(|r| r.to_string())
-                                                    .unwrap_or_default();
-                                                warn!(
-                                                    "[engine] Google: empty response with finishReason={} safety={}",
-                                                    reason,
-                                                    &safety_info[..safety_info.len().min(300)]
-                                                );
                                                 // Emit a visible error chunk so the agent loop can surface it
                                                 let msg = match reason.as_str() {
                                                     "SAFETY" => "My response was blocked by Google's safety filter. Try rephrasing your request.".to_string(),
