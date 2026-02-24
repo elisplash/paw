@@ -130,23 +130,19 @@ pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
     let mut config: DiscordConfig = channels::load_channel_config(&app_handle, CONFIG_KEY)
         .unwrap_or_default();
 
-    // ── Skill-credential fallback ──────────────────────────────────────
-    // If the bridge config has no token, try the built-in Discord skill's
-    // credential vault.  This lets users configure Discord in ONE place
-    // (Settings → Skills → Discord) and have the real-time bridge Just Work.
-    if config.bot_token.is_empty() {
-        if let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() {
-            if let Ok(creds) = crate::engine::skills::get_skill_credentials(&state.store, "discord") {
-                if let Some(token) = creds.get("DISCORD_BOT_TOKEN") {
-                    if !token.is_empty() {
-                        info!("[discord] No bridge config — importing token from Discord skill credentials");
-                        config.bot_token = token.clone();
-                        config.enabled = true;
-                        // Persist to bridge config so future starts don't need this fallback
-                        if let Err(e) = channels::save_channel_config(&app_handle, CONFIG_KEY, &config) {
-                            warn!("[discord] Failed to persist synced config: {}", e);
-                        }
-                    }
+    // ── Skill-credential sync ──────────────────────────────────────────
+    // The skill vault is the source of truth for the bot token. Users
+    // configure it in Settings → Skills → Discord. Always check it and
+    // prefer it over whatever's in the bridge config (which may be stale
+    // from a previous failed sync).
+    if let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() {
+        if let Ok(creds) = crate::engine::skills::get_skill_credentials(&state.store, "discord") {
+            if let Some(token) = creds.get("DISCORD_BOT_TOKEN") {
+                if !token.is_empty() && *token != config.bot_token {
+                    info!("[discord] Syncing bot token from skill credentials");
+                    config.bot_token = token.clone();
+                    config.enabled = true;
+                    let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &config);
                 }
             }
         }
@@ -201,21 +197,18 @@ pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
 
                     // ── Re-read config on reconnect ────────────────────────
                     // The user may have updated the token while we were
-                    // retrying.  Check bridge config first, fall back to
-                    // skill credentials (same logic as start_bridge).
+                    // retrying.  Skill vault is source of truth.
                     if let Ok(fresh) = channels::load_channel_config::<DiscordConfig>(&app_handle, CONFIG_KEY) {
                         live_config = fresh;
                     }
-                    if live_config.bot_token.is_empty() {
-                        if let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() {
-                            if let Ok(creds) = crate::engine::skills::get_skill_credentials(&state.store, "discord") {
-                                if let Some(token) = creds.get("DISCORD_BOT_TOKEN") {
-                                    if !token.is_empty() {
-                                        info!("[discord] Picked up updated token from skill credentials");
-                                        live_config.bot_token = token.clone();
-                                        live_config.enabled = true;
-                                        let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &live_config);
-                                    }
+                    if let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() {
+                        if let Ok(creds) = crate::engine::skills::get_skill_credentials(&state.store, "discord") {
+                            if let Some(token) = creds.get("DISCORD_BOT_TOKEN") {
+                                if !token.is_empty() && *token != live_config.bot_token {
+                                    info!("[discord] Picked up updated token from skill credentials");
+                                    live_config.bot_token = token.clone();
+                                    live_config.enabled = true;
+                                    let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &live_config);
                                 }
                             }
                         }
