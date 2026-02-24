@@ -150,7 +150,8 @@ export async function loadSessions(opts?: { skipHistory?: boolean }): Promise<vo
     }
 
     renderSessionSelect();
-    if (!opts?.skipHistory && appState.currentSessionKey && !appState.isLoading) {
+    const sessionBusy = appState.activeStreams.has(appState.currentSessionKey ?? '');
+    if (!opts?.skipHistory && appState.currentSessionKey && !sessionBusy) {
       await loadChatHistory(appState.currentSessionKey);
     }
   } catch (e) {
@@ -790,7 +791,8 @@ export function addMessage(message: MessageWithAttachments): void {
 }
 
 function retryMessage(content: string): void {
-  if (appState.isLoading || !content) return;
+  const currentKey = appState.currentSessionKey ?? '';
+  if (appState.activeStreams.has(currentKey) || !content) return;
   const lastUserIdx = findLastIndex(appState.messages, (m) => m.role === 'user');
   if (lastUserIdx >= 0) appState.messages.splice(lastUserIdx);
   renderMessages();
@@ -952,7 +954,7 @@ function renderSingleMessage(
   // Retry button
   const isLastUser = index === lastUserIdx;
   const isErrored = index === lastAssistantIdx && msg.content.startsWith('Error:');
-  if ((isLastUser || isErrored) && !appState.isLoading) {
+  if ((isLastUser || isErrored) && !appState.activeStreams.has(appState.currentSessionKey ?? '')) {
     const retryBtn = document.createElement('button');
     retryBtn.className = 'message-retry-btn';
     retryBtn.title = 'Retry';
@@ -1262,7 +1264,10 @@ export async function sendMessage(): Promise<void> {
   const chatSend = document.getElementById('chat-send') as HTMLButtonElement | null;
   const chatModelSelect = document.getElementById('chat-model-select') as HTMLSelectElement | null;
   let content = chatInput?.value.trim();
-  if (!content || appState.isLoading) return;
+  // Per-session loading guard: only block if the *current* session is streaming.
+  // Other sessions can stream concurrently in the background.
+  const currentKey = appState.currentSessionKey ?? '';
+  if (!content || appState.activeStreams.has(currentKey)) return;
 
   // Slash command interception
   if (isSlashCommand(content)) {
@@ -1298,7 +1303,6 @@ export async function sendMessage(): Promise<void> {
     chatInput.style.height = 'auto';
   }
   clearPendingAttachments();
-  appState.isLoading = true;
   if (chatSend) chatSend.disabled = true;
 
   showStreamingMessage();
@@ -1307,7 +1311,6 @@ export async function sendMessage(): Promise<void> {
   const ss = appState.activeStreams.get(streamKey);
   if (!ss) {
     console.error('[chat] Stream state missing for key:', streamKey);
-    appState.isLoading = false;
     if (chatSend) chatSend.disabled = false;
     return;
   }
@@ -1361,7 +1364,6 @@ export async function sendMessage(): Promise<void> {
       finalizeStreaming(ss.content || `Error: ${errMsg}`);
     }
   } finally {
-    appState.isLoading = false;
     const finalKey = appState.currentSessionKey ?? streamKey;
     appState.activeStreams.delete(finalKey);
     if (ss?.timeout) {
@@ -1511,6 +1513,14 @@ export function initChatListeners(): void {
     const key = appState.currentSessionKey ?? 'default';
     try {
       await pawEngine.chatAbort(key);
+      // Immediately resolve the stream promise so the UI unblocks.
+      // Don't wait for the backend Complete event — it may be dropped
+      // by session filters or delayed by the 3s grace period.
+      const ss = appState.activeStreams.get(key);
+      if (ss?.resolve) {
+        ss.resolve(ss.content || '(Stopped)');
+        ss.resolve = null;
+      }
       showToast('Agent stopped', 'info');
     } catch (e) {
       console.warn('[chat] Abort failed:', e);

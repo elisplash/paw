@@ -102,7 +102,16 @@ function handleAgentEvent(payload: unknown): void {
 
     if (!stream_s && !appState.isLoading) return;
     if (stream_s?.runId && runId && runId !== stream_s.runId) return;
-    if (evtSession && appState.currentSessionKey && evtSession !== appState.currentSessionKey)
+    // Allow lifecycle:end and error events through for non-visible sessions
+    // so abort/complete can resolve their stream promises even if the user
+    // switched away. Only filter out delta/tool events for other sessions.
+    const isTerminal = stream === 'lifecycle' || stream === 'error';
+    if (
+      !isTerminal &&
+      evtSession &&
+      appState.currentSessionKey &&
+      evtSession !== appState.currentSessionKey
+    )
       return;
 
     if (stream === 'assistant' && data) {
