@@ -43,7 +43,7 @@ pub fn definitions() -> Vec<ToolDefinition> {
             function: FunctionDefinition {
                 name: "soul_list".into(),
                 description: "List all your soul/persona files and their sizes. Use this to see what files exist before reading or writing them.".into(),
-                parameters: serde_json::json!({}),
+                parameters: serde_json::json!({"type": "object", "properties": {}}),
             },
         },
     ]

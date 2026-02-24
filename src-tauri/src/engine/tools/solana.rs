@@ -9,7 +9,7 @@ pub fn definitions() -> Vec<ToolDefinition> {
         ToolDefinition { tool_type: "function".into(), function: FunctionDefinition {
             name: "sol_wallet_create".into(),
             description: "Create a new self-custody Solana wallet (ed25519). The private key is encrypted and stored in the OS keychain vault — you never see it. Returns the wallet address.".into(),
-            parameters: serde_json::json!({}),
+            parameters: serde_json::json!({"type": "object", "properties": {}}),
         }},
         ToolDefinition { tool_type: "function".into(), function: FunctionDefinition {
             name: "sol_balance".into(),
