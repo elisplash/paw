@@ -78,6 +78,24 @@ pub async fn run_channel_agent(
         .unwrap_or(false);
     if !session_exists {
         engine_state.store.create_session(&session_id, &model, system_prompt.as_deref(), Some(agent_id))?;
+    } else {
+        // Check if the previous conversation is poisoned by failed tool-call loops.
+        // If the last N messages are all tool calls/results (no actual assistant text),
+        // the agent was stuck in a loop. Clear the session to break the cycle.
+        let recent = engine_state.store.load_conversation(
+            &session_id, None, Some(2_000), Some(agent_id),
+        ).unwrap_or_default();
+        if recent.len() > 10 {
+            let last_msgs: Vec<&Message> = recent.iter().rev().take(10).collect();
+            let all_tool_spam = last_msgs.iter().all(|m| {
+                m.role == Role::Tool || m.role == Role::System ||
+                (m.role == Role::Assistant && m.tool_calls.is_some())
+            });
+            if all_tool_spam {
+                info!("[{}] Session {} appears poisoned (last 10 msgs are all tool calls). Clearing history.", channel_prefix, session_id);
+                let _ = engine_state.store.clear_messages(&session_id);
+            }
+        }
     }
 
     // Store user message
