@@ -10,6 +10,29 @@ permissions:
   contents: read
 
 jobs:
+  # ── prek: pre-commit hooks (fast, Rust-native) ─────────────────
+  prek:
+    name: Pre-commit (prek)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install prek
+        run: curl -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
+
+      - name: Run prek hooks
+        run: prek run --all-files
+
   # ── TypeScript: lint, type-check, test, format ──────────────────
   typescript:
     name: TypeScript

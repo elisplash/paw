@@ -10,6 +10,7 @@ Thanks for your interest in contributing! This guide covers everything you need 
 
 - **Node.js** 18+ — [nodejs.org](https://nodejs.org/)
 - **Rust** (latest stable) — [rustup.rs](https://rustup.rs/)
+- **prek** — fast pre-commit hooks — [github.com/j178/prek](https://github.com/j178/prek)
 - **Tauri v2 prerequisites** — [platform-specific dependencies](https://v2.tauri.app/start/prerequisites/)
 
 ### Getting Running
@@ -18,6 +19,7 @@ Thanks for your interest in contributing! This guide covers everything you need 
 git clone https://github.com/OpenPawz/openpawz.git
 cd paw
 npm install
+prek install          # set up git hooks
 npm run tauri dev
 ```
 
@@ -26,6 +28,9 @@ This starts the Tauri dev server with hot-reload for the frontend and live-rebui
 ### Verifying Changes
 
 ```bash
+# Run all pre-commit hooks at once (recommended)
+prek run --all-files
+
 # Run all TypeScript tests (360 tests)
 npx vitest run
 
@@ -137,10 +142,11 @@ For non-compatible providers:
 
 ## CI Pipeline
 
-Every push and PR triggers 3 parallel CI jobs:
+Every push and PR triggers 4 parallel CI jobs:
 
 | Job | What it checks | Timeout |
 |-----|---------------|--------|
+| **Pre-commit (prek)** | All hooks from `.pre-commit-config.yaml` — trailing whitespace, YAML/JSON/TOML, ESLint, Prettier, tsc, cargo fmt, clippy, conventional commits | 10 min |
 | **TypeScript** | `tsc --noEmit` → `eslint` → `vitest run` (360 tests) → `prettier --check` | 10 min |
 | **Rust** | `cargo check` → `cargo test` (242 tests) → `cargo clippy -- -D warnings` | 30 min |
 | **Security Audit** | `cargo audit` → `npm audit --audit-level=high` | 10 min |

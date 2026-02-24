@@ -1,0 +1,75 @@
+# prek (https://github.com/j178/prek) — fast pre-commit hooks, drop-in replacement
+# Install: curl -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
+# Setup:   prek install
+# Run all: prek run --all-files
+
+repos:
+  # ── General file hygiene ────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md,mdx]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: mixed-line-endings
+        args: [--fix=lf]
+      - id: no-commit-to-branch
+        args: [--branch, main]
+
+  # ── TypeScript / JavaScript ─────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint
+        entry: npx eslint --max-warnings 0
+        language: system
+        files: '^src/.*\.ts$'
+        exclude: '\.test\.ts$'
+        types: [ts]
+
+      - id: prettier
+        name: prettier
+        entry: npx prettier --check
+        language: system
+        files: '^src/.*\.ts$'
+        types: [ts]
+
+      - id: typecheck
+        name: tsc --noEmit
+        entry: npx tsc --noEmit
+        language: system
+        pass_filenames: false
+        files: '^src/.*\.ts$'
+        types: [ts]
+
+  # ── Rust ────────────────────────────────────────────────────────
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --manifest-path src-tauri/Cargo.toml --
+        language: system
+        files: '^src-tauri/.*\.rs$'
+        types: [rust]
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+        language: system
+        pass_filenames: false
+        files: '^src-tauri/.*\.rs$'
+        types: [rust]
+
+  # ── Commit message ─────────────────────────────────────────────
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert]

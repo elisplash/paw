@@ -257,9 +257,22 @@ src-tauri/                    # Rust backend
 │       ├── types.rs          # All shared data types
 │       └── error.rs          # Typed EngineError enum
 ├── Cargo.toml                # Rust dependencies
-├── tauri.conf.json           # Tauri config (CSP, bundle, permissions)
+├── tauri.conf.json           # Tauri config (CSP, bundle, updater, permissions)
 └── capabilities/
-    └── default.json          # Filesystem scope, shell permissions
+    └── default.json          # Filesystem scope, shell, updater permissions
+
+.github/                      # CI/CD workflows
+├── workflows/
+│   ├── ci.yml                # Lint, test, audit (4 parallel jobs incl. prek)
+│   └── release.yml           # Multi-platform build, sign, publish + auto-update
+
+.pre-commit-config.yaml       # prek hooks config (https://github.com/j178/prek)
+package.json                  # Node dependencies, scripts
+eslint.config.js              # ESLint config (TypeScript rules)
+vite.config.ts                # Vite build config
+vitest.config.ts              # Vitest test config
+tsconfig.json                 # TypeScript config
+index.html                    # Single-page application shell
 ```
 
 ---
