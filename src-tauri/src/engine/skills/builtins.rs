@@ -115,25 +115,42 @@ Available gh commands: issue (list/create/view/close), pr (list/create/view/merg
                 CredentialField { key: "DISCORD_DEFAULT_CHANNEL".into(), label: "Default Channel ID".into(), description: "Default channel to post to".into(), required: false, placeholder: "1234567890".into() },
                 CredentialField { key: "DISCORD_SERVER_ID".into(), label: "Server (Guild) ID".into(), description: "Right-click server → Copy Server ID (enable Developer Mode in Discord settings)".into(), required: false, placeholder: "1234567890".into() },
             ],
-            tool_names: vec!["discord_setup_channels".into(), "discord_list_channels".into(), "discord_send_message".into(), "discord_delete_channels".into()],
+            tool_names: vec![
+                // channels
+                "discord_list_channels".into(), "discord_setup_channels".into(),
+                "discord_delete_channels".into(), "discord_edit_channel".into(),
+                // messages
+                "discord_send_message".into(), "discord_edit_message".into(),
+                "discord_delete_messages".into(), "discord_get_messages".into(),
+                "discord_pin_message".into(), "discord_unpin_message".into(), "discord_react".into(),
+                // roles
+                "discord_list_roles".into(), "discord_create_role".into(),
+                "discord_delete_role".into(), "discord_assign_role".into(), "discord_remove_role".into(),
+                // members
+                "discord_list_members".into(), "discord_get_member".into(),
+                "discord_kick".into(), "discord_ban".into(), "discord_unban".into(),
+                // server
+                "discord_server_info".into(), "discord_create_invite".into(),
+            ],
             required_binaries: vec![], required_env_vars: vec![], install_hint: "Bot must be invited with Administrator permission (permission value 8) for full server management.".into(),
-            agent_instructions: r#"You have Discord bot access with these built-in tools:
-- **discord_list_channels**: List all channels/categories in a server (use FIRST to see current state)
-- **discord_setup_channels**: Create categories and channels. Idempotent — skips what already exists. ONLY for creating server structure.
-- **discord_send_message**: Send a message to any channel. Use this to post welcome messages, announcements, or any content.
-- **discord_delete_channels**: Delete channels/categories by ID. Use discord_list_channels first to get IDs. DESTRUCTIVE.
+            agent_instructions: r#"You have full Discord bot access with 23 built-in tools:
 
-IMPORTANT tool selection:
-- To CREATE channels/categories → discord_setup_channels
-- To SEND/POST messages into a channel → discord_send_message
-- To SEE what exists → discord_list_channels
-- To DELETE/REMOVE channels → discord_delete_channels
-NEVER use discord_setup_channels to send messages. NEVER use discord_send_message to create channels.
+**Channels**: discord_list_channels, discord_setup_channels, discord_delete_channels, discord_edit_channel
+**Messages**: discord_send_message, discord_edit_message, discord_delete_messages, discord_get_messages, discord_pin_message, discord_unpin_message, discord_react
+**Roles**: discord_list_roles, discord_create_role, discord_delete_role, discord_assign_role, discord_remove_role
+**Members**: discord_list_members, discord_get_member, discord_kick, discord_ban, discord_unban
+**Server**: discord_server_info, discord_create_invite
 
-If no server_id is provided, the DISCORD_SERVER_ID from your credentials is used automatically.
-For any other Discord API calls (roles, permissions, members, etc.), use the **fetch** tool — it auto-injects the bot Authorization header for discord.com/api URLs.
-Base URL: https://discord.com/api/v10 | Channel types: 0=text, 2=voice, 4=category, 5=announcement, 13=stage, 15=forum
-Do NOT install community skills for Discord and do NOT run exec/curl to call the Discord API — use your built-in tools."#.into(),
+TOOL SELECTION RULES:
+- CREATE channels/categories → discord_setup_channels (idempotent, skips existing)
+- SEND/POST messages → discord_send_message
+- DELETE messages → discord_delete_messages (single or bulk purge)
+- VIEW channels → discord_list_channels
+- VIEW messages → discord_get_messages
+NEVER use discord_setup_channels to send messages.
+
+Server ID and channel IDs resolve automatically from credentials when not provided.
+Do NOT run exec/curl to call the Discord API — use your built-in tools."#.into(),
         },
         SkillDefinition {
             id: "coinbase".into(),

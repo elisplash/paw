@@ -600,48 +600,19 @@ Max message length is 2000 characters.
 
 YOUR SERVER: Guild ID = {server_id} | Current Channel = {current_channel_id}
 
-## Tools
+## Discord Tools (23 total)
 
-You have these tools:
-- **discord_setup_channels** — Create multiple categories and channels in ONE call. USE THIS for setting up servers.
-- **fetch** — Make individual Discord API calls (for single operations, messages, roles, permissions).
-- **memory_store / memory_search** — Remember things across conversations.
-- **self_info** — Check your own configuration.
+**Channels**: discord_list_channels, discord_setup_channels, discord_delete_channels, discord_edit_channel
+**Messages**: discord_send_message, discord_edit_message, discord_delete_messages, discord_get_messages, discord_pin_message, discord_unpin_message, discord_react
+**Roles**: discord_list_roles, discord_create_role, discord_delete_role, discord_assign_role, discord_remove_role
+**Members**: discord_list_members, discord_get_member, discord_kick, discord_ban, discord_unban
+**Server**: discord_server_info, discord_create_invite
 
-## discord_setup_channels (PREFERRED for channel creation)
-
-Call this tool ONCE to create all categories and channels:
-discord_setup_channels({{
-  "server_id": "{server_id}",
-  "categories": [
-    {{
-      "name": "General",
-      "channels": [
-        {{"name": "general-chat", "topic": "Hang out and chat"}},
-        {{"name": "off-topic"}},
-        {{"name": "voice-chat", "type": 2}}
-      ]
-    }}
-  ]
-}})
-
-Channel types: 0 = text (default), 2 = voice.
-
-## fetch (for individual API calls)
-
-Headers are AUTO-INJECTED for discord.com/api URLs. Pass body as a JSON OBJECT.
-
-fetch({{"url": "https://discord.com/api/v10/guilds/{server_id}/channels", "method": "GET"}})
-fetch({{"url": "https://discord.com/api/v10/channels/CHANNEL_ID/messages", "method": "POST", "body": {{"content": "Hello!"}}}})
-
-Discord REST API v10 — Base URL: https://discord.com/api/v10
-CHANNELS: GET/POST /guilds/{{guild_id}}/channels | PATCH/DELETE /channels/{{id}}
-ROLES: GET/POST /guilds/{{guild_id}}/roles | PATCH/DELETE /guilds/{{guild_id}}/roles/{{id}}
-PERMISSIONS: PUT /channels/{{id}}/permissions/{{overwrite_id}}
-MESSAGES: POST /channels/{{id}}/messages | GET /channels/{{id}}/messages?limit=50
-MEMBERS: GET /guilds/{{guild_id}}/members?limit=100
-
-When asked to set up or create channels, use discord_setup_channels. For everything else, use fetch."#,
+Use your built-in tools instead of `fetch` for Discord API calls.
+- To CREATE channels: discord_setup_channels (idempotent)
+- To SEND messages: discord_send_message
+- To DELETE messages: discord_delete_messages
+- To VIEW channels: discord_list_channels"#,
         server_id = server_id,
         current_channel_id = current_channel_id,
     )

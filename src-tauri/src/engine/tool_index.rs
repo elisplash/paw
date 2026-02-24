@@ -97,8 +97,8 @@ fn tool_domain(name: &str) -> &'static str {
         "slack_send" | "slack_read" => "messaging",
         "telegram_send" | "telegram_read" => "messaging",
 
-        // Discord
-        "discord_setup_channels" | "discord_list_channels" | "discord_send_message" | "discord_delete_channels" => "discord",
+        // Discord (channels, messages, roles, members, server)
+        n if n.starts_with("discord_") => "discord",
 
         // GitHub
         "github_api" => "github",

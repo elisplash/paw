@@ -36,7 +36,7 @@ pub mod squads;
 pub mod request_tools;
 pub mod google;
 pub mod google_oauth;
-pub mod discord_setup;
+pub mod discord;
 
 // ── ToolDefinition helpers (keep backward-compatible API for all callers) ───
 
@@ -92,7 +92,7 @@ impl ToolDefinition {
                 "dex"              => tools.extend(dex::definitions()),
                 "solana_dex"       => tools.extend(solana::definitions()),
                 "google_workspace" => tools.extend(google::definitions()),
-                "discord"          => tools.extend(discord_setup::definitions()),
+                "discord"          => tools.extend(discord::definitions()),
                 _ => {}
             }
         }
@@ -136,7 +136,7 @@ pub async fn execute_tool(tool_call: &crate::engine::types::ToolCall, app_handle
         .or(dex::execute(name, &args, app_handle).await)
         .or(solana::execute(name, &args, app_handle).await)
         .or(google::execute(name, &args, app_handle).await)
-        .or(discord_setup::execute(name, &args, app_handle).await);
+        .or(discord::execute(name, &args, app_handle).await);
 
     // Try MCP tools (prefixed with `mcp_`) if no built-in handled it
     // NOTE: holds the tokio::sync::Mutex for the duration of the tool call.
