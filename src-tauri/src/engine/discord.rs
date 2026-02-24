@@ -22,6 +22,9 @@ use tokio_tungstenite::{connect_async, tungstenite::Message as WsMessage};
 use futures::{SinkExt, StreamExt};
 use crate::atoms::error::{EngineResult, EngineError};
 
+/// Maximum reconnect attempts before giving up entirely.
+const MAX_RECONNECT_ATTEMPTS: u32 = 8;
+
 // ── Discord API Types ──────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
@@ -164,16 +167,64 @@ pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
 
     tauri::async_runtime::spawn(async move {
         let mut reconnect_attempt: u32 = 0;
+        let mut live_config = config;
         loop {
-            match run_gateway_loop(app_handle.clone(), config.clone()).await {
+            match run_gateway_loop(app_handle.clone(), live_config.clone()).await {
                 Ok(()) => break, // Clean shutdown
                 Err(e) => {
                     if get_stop_signal().load(Ordering::Relaxed) { break; }
-                    error!("[discord] Bridge error: {} — reconnecting", e);
-                    let delay = crate::engine::http::reconnect_delay(reconnect_attempt).await;
-                    warn!("[discord] Reconnecting in {}ms (attempt {})", delay.as_millis(), reconnect_attempt + 1);
+
+                    // ── Fatal error classification ─────────────────────────
+                    // 4004 and 4014 are non-recoverable without user action.
+                    let msg = e.to_string();
+                    let is_fatal = msg.contains("4004") || msg.contains("4014");
+
+                    if is_fatal {
+                        error!("[discord] Fatal: {} — stopping (user must fix config)", msg);
+                        let _ = app_handle.emit("discord-status", json!({
+                            "kind": "error",
+                            "message": msg,
+                        }));
+                        break;
+                    }
+
                     reconnect_attempt += 1;
+                    if reconnect_attempt > MAX_RECONNECT_ATTEMPTS {
+                        error!("[discord] Max reconnect attempts ({}) reached — giving up", MAX_RECONNECT_ATTEMPTS);
+                        break;
+                    }
+
+                    error!("[discord] Bridge error: {} — reconnecting", e);
+                    let delay = crate::engine::http::reconnect_delay(reconnect_attempt - 1).await;
+                    warn!("[discord] Reconnecting in {}ms (attempt {})", delay.as_millis(), reconnect_attempt);
                     if get_stop_signal().load(Ordering::Relaxed) { break; }
+
+                    // ── Re-read config on reconnect ────────────────────────
+                    // The user may have updated the token while we were
+                    // retrying.  Check bridge config first, fall back to
+                    // skill credentials (same logic as start_bridge).
+                    if let Ok(fresh) = channels::load_channel_config::<DiscordConfig>(&app_handle, CONFIG_KEY) {
+                        live_config = fresh;
+                    }
+                    if live_config.bot_token.is_empty() {
+                        if let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() {
+                            if let Ok(creds) = crate::engine::skills::get_skill_credentials(&state.store, "discord") {
+                                if let Some(token) = creds.get("DISCORD_BOT_TOKEN") {
+                                    if !token.is_empty() {
+                                        info!("[discord] Picked up updated token from skill credentials");
+                                        live_config.bot_token = token.clone();
+                                        live_config.enabled = true;
+                                        let _ = channels::save_channel_config(&app_handle, CONFIG_KEY, &live_config);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if live_config.bot_token.is_empty() {
+                        error!("[discord] No token after re-read — stopping");
+                        break;
+                    }
                 }
             }
         }
