@@ -49,15 +49,19 @@ pub async fn run_channel_agent(
     // Per-user per-agent session: eng-{channel}-{agent}-{user_id}
     let session_id = format!("eng-{}-{}-{}", channel_prefix, agent_id, user_id);
 
-    // Get provider config — use model_routing.resolve() so the worker_model
-    // setting is respected for chat bridges (instead of burning the expensive
-    // default_model on every message)
+    // Get provider config — channel bridges use the DEFAULT model (not worker_model).
+    // Channel bridges handle complex multi-step tasks (creating 15+ Discord channels,
+    // managing permissions, etc.) that require a capable model. The worker_model is
+    // intended for cheap sub-agent tasks, not interactive channel management.
     let (provider_config, model, system_prompt, max_rounds, tool_timeout) = {
         let cfg = engine_state.config.lock();
 
         let default_model = cfg.default_model.clone().unwrap_or_else(|| "gpt-4o".into());
+        // Use "channel" role — falls through to the default model since there's
+        // no channel-specific override in model routing. Users can add one in
+        // agent_models if they want a specific model for a specific agent.
         let model = normalize_model_name(
-            &cfg.model_routing.resolve(agent_id, "worker", "", &default_model)
+            &cfg.model_routing.resolve(agent_id, "channel", "", &default_model)
         ).to_string();
         let provider = resolve_provider_for_model(&model, &cfg.providers)
             .or_else(|| {
