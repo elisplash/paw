@@ -247,7 +247,7 @@ async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> E
                 if content.is_empty() { continue; }
 
                 debug!("[slack] Message from {} in {}: {}", user_id, channel_id,
-                    if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
+                    if content.len() > 50 { format!("{}...", &content[..content.floor_char_boundary(50)]) } else { content.clone() });
 
                 // Access control (DMs)
                 if is_dm {

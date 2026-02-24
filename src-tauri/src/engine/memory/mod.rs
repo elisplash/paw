@@ -80,8 +80,9 @@ pub async fn search_memories(
     // Truncate long queries — embedding models have limited context windows
     // (nomic-embed-text: 8192 tokens ≈ 6K chars). For search, first 2K chars
     // is more than enough to capture intent.
-    let truncated_query: &str = if query.len() > 2000 { &query[..2000] } else { query };
-    let query_preview = &truncated_query[..truncated_query.len().min(80)];
+    // Use floor_char_boundary to avoid panicking on multi-byte chars (e.g. em dash —)
+    let truncated_query: &str = &query[..query.floor_char_boundary(2000)];
+    let query_preview = &truncated_query[..truncated_query.floor_char_boundary(80)];
     let fetch_limit = limit * 3; // Fetch extra for MMR re-ranking
 
     // ── Step 1: BM25 full-text search ──────────────────────────────
@@ -378,8 +379,9 @@ pub fn extract_memorable_facts(user_message: &str, assistant_response: &str) -> 
         for pattern in &assistant_fact_patterns {
             if resp_lower.contains(pattern) {
                 // Store a condensed version (first 300 chars) to avoid bloat
+                // Use floor_char_boundary to avoid panicking on multi-byte chars
                 let condensed = if assistant_response.len() > 300 {
-                    format!("Agent finding: {}…", &assistant_response[..300])
+                    format!("Agent finding: {}…", &assistant_response[..assistant_response.floor_char_boundary(300)])
                 } else {
                     format!("Agent finding: {}", assistant_response)
                 };

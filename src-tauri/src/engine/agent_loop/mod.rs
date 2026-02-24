@@ -254,7 +254,7 @@ pub async fn run_agent_turn(
                     .find(|m| m.role == Role::User)
                     .map(|m| {
                         let t = m.content.as_text_ref();
-                        if t.len() > 300 { format!("{}…", &t[..300]) } else { t.to_string() }
+                        if t.len() > 300 { format!("{}…", &t[..t.floor_char_boundary(300)]) } else { t.to_string() }
                     })
                     .unwrap_or_default();
                 let nudge = if user_recap.is_empty() {

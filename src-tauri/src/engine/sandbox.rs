@@ -165,7 +165,7 @@ pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResu
         .map_err(|e| EngineError::Other(e.to_string()))?;
     let container_id = container.id.clone();
 
-    info!("[sandbox] Created container {} for command: {}", &container_id[..12], &command[..command.len().min(100)]);
+    info!("[sandbox] Created container {} for command: {}", &container_id[..12], &command[..command.floor_char_boundary(100)]);
 
     // Start container
     docker.start_container(&container_id, None::<StartContainerOptions<String>>).await

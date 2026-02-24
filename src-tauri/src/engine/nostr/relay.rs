@@ -128,7 +128,7 @@ pub(crate) async fn run_relay_loop(
                 debug!("[nostr] {} from {}...{}: {}",
                     if is_dm { "DM" } else { "Event" },
                     &sender_pk[..8], &sender_pk[sender_pk.len()-4..],
-                    if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
+                    if content.len() > 50 { format!("{}...", &content[..content.floor_char_boundary(50)]) } else { content.clone() });
 
                 // Access control
                 if let Err(_denial_msg) = channels::check_access(

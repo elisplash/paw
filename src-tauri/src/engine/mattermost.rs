@@ -305,7 +305,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
 
             debug!("[mattermost] Message from {} in {}: {}",
                 sender_username, channel_id,
-                if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
+                if content.len() > 50 { format!("{}...", &content[..content.floor_char_boundary(50)]) } else { content.clone() });
 
             // Access control (DMs)
             if is_dm {

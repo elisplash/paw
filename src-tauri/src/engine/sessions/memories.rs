@@ -269,7 +269,7 @@ impl SessionStore {
         let mut lines = Vec::new();
         for (content, category) in &rows {
             // Truncate long entries to keep the block compact
-            let short = if content.len() > 200 { format!("{}…", &content[..200]) } else { content.clone() };
+            let short = if content.len() > 200 { format!("{}…", &content[..content.floor_char_boundary(200)]) } else { content.clone() };
             lines.push(format!("- [{}] {}", category, short));
         }
         Ok(Some(format!("## Today's Memory Notes ({})\n{}", today, lines.join("\n"))))

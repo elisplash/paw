@@ -274,7 +274,7 @@ async fn run_irc_loop(app_handle: tauri::AppHandle, config: IrcConfig) -> Engine
             if content.is_empty() { continue; }
 
             debug!("[irc] {} from {}: {}", if is_dm { "DM" } else { "Channel msg" },
-                sender_nick, if content.len() > 50 { format!("{}...", &content[..50]) } else { content.clone() });
+                sender_nick, if content.len() > 50 { format!("{}...", &content[..content.floor_char_boundary(50)]) } else { content.clone() });
 
             // Access control (DMs only)
             if is_dm {

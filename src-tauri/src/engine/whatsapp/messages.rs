@@ -42,7 +42,7 @@ pub(crate) async fn handle_inbound_message(app_handle: tauri::AppHandle, payload
         let push_name = msg["pushName"].as_str().unwrap_or(&sender_id).to_string();
 
         debug!("[whatsapp] Message from {} ({}): {}", push_name, sender_id,
-            if text.len() > 50 { format!("{}...", &text[..50]) } else { text.to_string() });
+            if text.len() > 50 { format!("{}...", &text[..text.floor_char_boundary(50)]) } else { text.to_string() });
 
         // Load config for access control
         let mut config: WhatsAppConfig = match channels::load_channel_config(&app_handle, CONFIG_KEY) {

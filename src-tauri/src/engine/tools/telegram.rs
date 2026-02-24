@@ -122,7 +122,7 @@ async fn execute_telegram_send(args: &serde_json::Value, app_handle: &tauri::App
     };
 
     info!("[tool:telegram_send] Sending to chat_id {}: {}...", chat_id,
-        if text.len() > 50 { &text[..50] } else { text });
+        if text.len() > 50 { &text[..text.floor_char_boundary(50)] } else { text });
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(15))

@@ -467,7 +467,7 @@ pub async fn engine_chat_send(
                     });
                     if had_tool_calls && !final_text.is_empty() {
                         let summary = if final_text.len() > 300 {
-                            format!("{}…", &final_text[..300])
+                            format!("{}…", &final_text[..final_text.floor_char_boundary(300)])
                         } else {
                             final_text.clone()
                         };

@@ -35,7 +35,8 @@ impl EmbeddingClient {
     pub async fn embed(&self, text: &str) -> EngineResult<Vec<f32>> {
         // Safety truncation: nomic-embed-text context is 8192 tokens (~6K chars).
         // Truncate rather than fail for oversized inputs.
-        let safe_text: &str = if text.len() > 6000 { &text[..6000] } else { text };
+        // Use floor_char_boundary to avoid panicking on multi-byte chars (e.g. em dash —)
+        let safe_text: &str = &text[..text.floor_char_boundary(6000)];
 
         // Try Ollama format first (new /api/embed endpoint, then legacy /api/embeddings)
         let ollama_result = self.embed_ollama(safe_text).await;
