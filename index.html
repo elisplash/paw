@@ -2413,77 +2413,191 @@
         </div>
 
         <!-- ═══ Skills View — Agent Prompt Files & Extensions ═══ -->
-        <div class="view list-view" id="skills-view">
-          <div class="view-header">
-            <h1 class="view-title">
-              <span
-                class="ms ms-sm"
-                style="display: inline; vertical-align: middle; margin-right: 6px"
-                >auto_stories</span
-              >
-              Skills
-            </h1>
-            <div style="display: flex; gap: 6px">
-              <button class="btn btn-ghost btn-sm" id="refresh-skills-btn">
+        <div class="view skills-view" id="skills-view">
+          <!-- Hero header -->
+          <div class="skills-hero">
+            <div class="skills-hero-left">
+              <h1 class="skills-hero-title">Skills Library</h1>
+              <p class="skills-hero-sub">Prompt files, MCP servers, and extensions that give your agents new abilities</p>
+            </div>
+            <div class="skills-hero-right">
+              <div class="skills-hero-stat k-row k-spring">
+                <span class="ms skills-hero-stat-icon">auto_stories</span>
+                <div>
+                  <div class="skills-hero-stat-val" id="skills-stat-total">0</div>
+                  <div class="skills-hero-stat-lbl">Skills</div>
+                </div>
+              </div>
+              <div class="skills-hero-stat k-row k-spring">
+                <span class="ms skills-hero-stat-icon">check_circle</span>
+                <div>
+                  <div class="skills-hero-stat-val" id="skills-stat-active">0</div>
+                  <div class="skills-hero-stat-lbl">Active</div>
+                </div>
+              </div>
+              <div class="skills-hero-stat k-row k-spring">
+                <span class="ms skills-hero-stat-icon">dns</span>
+                <div>
+                  <div class="skills-hero-stat-val" id="skills-stat-mcp">0</div>
+                  <div class="skills-hero-stat-lbl">MCP</div>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="refresh-skills-btn">
                 <span class="ms ms-sm">sync</span>
                 Refresh
               </button>
             </div>
           </div>
 
-          <!-- Summary bar -->
-          <div id="skills-summary-bar" class="skills-summary-bar"></div>
+          <!-- Two-column body -->
+          <div class="skills-body">
+            <!-- Main column -->
+            <div class="skills-main-col">
+              <!-- Tab bar inside main column -->
+              <div class="skills-tab-bar" id="skills-tab-bar">
+                <button class="skills-tab active" data-skills-tab="active">
+                  <span class="ms ms-sm">check_circle</span>
+                  Active
+                  <span class="skills-tab-count" id="tab-count-active"></span>
+                </button>
+                <button class="skills-tab" data-skills-tab="tools">
+                  <span class="ms ms-sm">description</span>
+                  Prompts
+                  <span class="skills-tab-count" id="tab-count-tools"></span>
+                </button>
+                <button class="skills-tab" data-skills-tab="extensions">
+                  <span class="ms ms-sm">dashboard</span>
+                  Extensions
+                  <span class="skills-tab-count" id="tab-count-extensions"></span>
+                </button>
+                <button class="skills-tab" data-skills-tab="create">
+                  <span class="ms ms-sm">add_circle</span>
+                  Create
+                </button>
+              </div>
 
-          <!-- Tab bar -->
-          <div class="skills-tab-bar" id="skills-tab-bar">
-            <button class="skills-tab active" data-skills-tab="active">
-              <span class="ms ms-sm">check_circle</span>
-              Active
-              <span class="skills-tab-count" id="tab-count-active"></span>
-            </button>
-            <button class="skills-tab" data-skills-tab="tools">
-              <span class="ms ms-sm">description</span>
-              Prompts
-              <span class="skills-tab-count" id="tab-count-tools"></span>
-            </button>
-            <button class="skills-tab" data-skills-tab="extensions">
-              <span class="ms ms-sm">dashboard</span>
-              Extensions
-              <span class="skills-tab-count" id="tab-count-extensions"></span>
-            </button>
-            <button class="skills-tab" data-skills-tab="create">
-              <span class="ms ms-sm">add_circle</span>
-              Create
-            </button>
-          </div>
+              <!-- Hidden tab count for integrations (backward compat) -->
+              <span id="tab-count-integrations" style="display:none"></span>
 
-          <!-- Hidden tab count for integrations (still used by JS, just not displayed) -->
-          <span id="tab-count-integrations" style="display:none"></span>
+              <!-- Status toast -->
+              <div class="skills-toast" id="skills-toast" style="display: none"></div>
 
-          <!-- Status toast -->
-          <div class="skills-toast" id="skills-toast" style="display: none"></div>
+              <!-- Tab content section -->
+              <div class="skills-section k-row k-materialise">
+                <div id="skills-tab-content">
+                  <div
+                    id="skills-vault-loading"
+                    style="color: var(--text-muted); font-size: 13px; padding: 12px 0"
+                  >
+                    Loading skills...
+                  </div>
+                  <div id="skills-vault-list"></div>
+                </div>
+              </div>
 
-          <!-- Tab content panels -->
-          <div id="skills-tab-content">
-            <div
-              id="skills-vault-loading"
-              style="color: var(--text-muted); font-size: 13px; padding: 12px 0"
-            >
-              Loading skills...
+              <div
+                id="skills-vault-toast"
+                style="
+                  display: none;
+                  margin-top: 12px;
+                  padding: 8px 14px;
+                  border-radius: 8px;
+                  font-size: 13px;
+                "
+              ></div>
             </div>
-            <div id="skills-vault-list"></div>
-          </div>
 
-          <div
-            id="skills-vault-toast"
-            style="
-              display: none;
-              margin-top: 12px;
-              padding: 8px 14px;
-              border-radius: 8px;
-              font-size: 13px;
-            "
-          ></div>
+            <!-- Side panel -->
+            <div class="skills-side-panel k-stagger">
+              <!-- What Are Skills? -->
+              <div class="skills-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">info</span>
+                  <span class="skills-panel-card-title">What Are Skills?</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <p>Skills are <strong>markdown prompt files</strong> that teach your agent how to do something specific. Each skill is a <code>.md</code> file with instructions, personality traits, or domain knowledge.</p>
+                  <p>Unlike integrations (which call APIs), skills shape <em>how</em> your agent thinks and responds. They're the simplest way to customise behaviour.</p>
+                </div>
+              </div>
+
+              <!-- How Agents Use Skills -->
+              <div class="skills-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">psychology</span>
+                  <span class="skills-panel-card-title">How Agents Use Skills</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <ul class="skills-explainer-list">
+                    <li><span class="ms">upload_file</span> Skill <code>.md</code> files are loaded into the agent's context window</li>
+                    <li><span class="ms">auto_awesome</span> The agent reads the instructions and follows them during conversations</li>
+                    <li><span class="ms">build</span> Skills with <strong>tools</strong> give the agent callable functions (file I/O, web search, etc.)</li>
+                    <li><span class="ms">hub</span> <strong>MCP servers</strong> extend tools via the Model Context Protocol — external tool providers</li>
+                    <li><span class="ms">tune</span> Multiple skills combine — an agent can have many skills active at once</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Skill Types -->
+              <div class="skills-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">category</span>
+                  <span class="skills-panel-card-title">Skill Types</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <div class="skills-type-list">
+                    <div class="skills-type-row">
+                      <span class="skills-type-dot skill-dot-prompt"></span>
+                      <div>
+                        <strong>Prompts</strong>
+                        <span>Markdown instructions that guide agent behaviour</span>
+                      </div>
+                    </div>
+                    <div class="skills-type-row">
+                      <span class="skills-type-dot skill-dot-extension"></span>
+                      <div>
+                        <strong>Extensions</strong>
+                        <span>Skills with dashboard widgets or custom views</span>
+                      </div>
+                    </div>
+                    <div class="skills-type-row">
+                      <span class="skills-type-dot skill-dot-mcp"></span>
+                      <div>
+                        <strong>MCP Servers</strong>
+                        <span>External tool providers via Model Context Protocol</span>
+                      </div>
+                    </div>
+                    <div class="skills-type-row">
+                      <span class="skills-type-dot skill-dot-community"></span>
+                      <div>
+                        <strong>Community</strong>
+                        <span>Skills shared by others — install via TOML manifests</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Quick Actions -->
+              <div class="skills-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">rocket_launch</span>
+                  <span class="skills-panel-card-title">Quick Actions</span>
+                </div>
+                <div class="skills-quick-actions">
+                  <button class="skills-quick-btn" id="skills-qa-create">
+                    <span class="ms">add_circle</span> Create Skill
+                  </button>
+                  <button class="skills-quick-btn" id="skills-qa-refresh">
+                    <span class="ms">sync</span> Refresh All
+                  </button>
+                  <button class="skills-quick-btn" id="skills-qa-browse">
+                    <span class="ms">explore</span> Browse Community
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- ═══ PawzHub View — REMOVED (n8n replaces marketplace) ═══ -->

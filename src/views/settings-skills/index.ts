@@ -1,4 +1,4 @@
-// My Skills — Tabbed Workspace Orchestrator
+// Skills — Tabbed Workspace Orchestrator
 // Manages tab switching, data loading, and wiring between atomic tab modules.
 
 import {
@@ -10,6 +10,7 @@ import {
 } from '../../engine';
 import { isEngineMode } from '../../engine-bridge';
 import { $ } from '../../components/helpers';
+import { updateSkillsHeroStats, bindSkillsQuickActions, initSkillsKinetic } from '../../components/skills-panel';
 
 // Tab modules (atomic)
 import { renderActiveTab, bindActiveTabEvents, type ActiveTabData } from './tab-active';
@@ -17,7 +18,7 @@ import { renderIntegrationsTab, bindIntegrationsTabEvents } from './tab-integrat
 import { renderToolsTab, bindToolsTabEvents, setToolsReload, type ToolsTabData } from './tab-tools';
 import { renderExtensionsTab, bindExtensionsTabEvents } from './tab-extensions';
 import { renderCreateTab, bindCreateTabEvents } from './tab-create';
-import { renderSummaryBar, updateTabCounts } from './summary-bar';
+import { updateTabCounts } from './summary-bar';
 import { setMoleculesState } from './molecules';
 import { renderSetupWizard, bindSetupWizardEvents } from './setup-wizard';
 
@@ -130,7 +131,6 @@ function bindTabBar(): void {
 export async function loadSkillsSettings(): Promise<void> {
   const loading = $('skills-vault-loading');
   const list = $('skills-vault-list');
-  const summaryBar = $('skills-summary-bar');
 
   if (!isEngineMode()) {
     if (loading) loading.textContent = 'Pawz engine is required.';
@@ -178,11 +178,11 @@ export async function loadSkillsSettings(): Promise<void> {
     const promptSkills = skills.filter((s) => s.tier === 'skill');
     const toolCount = mcpServers.length + promptSkills.length;
     const extensionCount = skills.filter((s) => s.tier === 'extension' || s.has_widget).length;
+    const enabledCount = skills.filter((s) => s.enabled).length;
+    const mcpConnected = mcpStatuses.filter((s) => s.connected).length;
 
-    // Update summary bar
-    if (summaryBar) {
-      summaryBar.innerHTML = renderSummaryBar({ skills, mcpStatuses });
-    }
+    // Update hero stats
+    updateSkillsHeroStats(skills.length, enabledCount, mcpConnected);
 
     // Update tab counts
     updateTabCounts({ skills, mcpStatuses, integrationCount, toolCount, extensionCount });
@@ -190,10 +190,19 @@ export async function loadSkillsSettings(): Promise<void> {
     // Wire tab bar (only needs to happen once but is idempotent)
     bindTabBar();
 
+    // Wire quick actions in side panel
+    bindSkillsQuickActions({
+      onRefresh: () => loadSkillsSettings(),
+      onCreateTab: () => switchTab('create'),
+    });
+
+    // Init kinetic animations on side panel
+    initSkillsKinetic();
+
     // Render the currently selected tab
     renderCurrentTab();
   } catch (e) {
-    console.error('[my-skills] Load failed:', e);
+    console.error('[skills] Load failed:', e);
     if (loading) loading.textContent = `Failed to load skills: ${e}`;
   }
 }
