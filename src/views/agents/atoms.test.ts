@@ -93,8 +93,8 @@ describe('AVATAR_COLORS', () => {
 });
 
 describe('SPRITE_AVATARS', () => {
-  it('has 50 avatars', () => {
-    expect(SPRITE_AVATARS).toHaveLength(50);
+  it('has 25 avatars', () => {
+    expect(SPRITE_AVATARS).toHaveLength(25);
   });
 
   it('each avatar is a numeric string', () => {

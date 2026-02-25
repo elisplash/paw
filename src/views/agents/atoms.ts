@@ -219,8 +219,8 @@ export const AVATAR_COLORS = [
 ];
 
 // ── Avatars ────────────────────────────────────────────────────────────────
-// Pawz Boi avatar set (96×96 PNGs in /src/assets/avatars/)
-export const SPRITE_AVATARS = Array.from({ length: 50 }, (_, i) => String(i + 1));
+// OpenPawz avatar set (PNGs in /src/assets/avatars/)
+export const SPRITE_AVATARS = Array.from({ length: 25 }, (_, i) => String(i + 1));
 
 /** Default avatar for the main Pawz agent */
 export const DEFAULT_AVATAR = '5';
@@ -233,7 +233,10 @@ export function isAvatar(avatar: string): boolean {
 /** Render an agent avatar as an <img> or legacy emoji <span> */
 export function spriteAvatar(avatar: string, size = 32): string {
   if (isAvatar(avatar)) {
-    return `<img src="/src/assets/avatars/${avatar}.png" alt="" width="${size}" height="${size}" style="display:block;border-radius:50%">`;
+    // Clamp to available avatar range (1–25)
+    let id = parseInt(avatar, 10);
+    if (id < 1 || id > SPRITE_AVATARS.length) id = ((id - 1) % SPRITE_AVATARS.length) + 1;
+    return `<img src="/src/assets/avatars/${id}.png" alt="" width="${size}" height="${size}" style="display:block;border-radius:50%">`;
   }
   // Legacy emoji fallback
   return `<span style="font-size:${Math.round(size * 0.7)}px;line-height:1">${avatar}</span>`;
