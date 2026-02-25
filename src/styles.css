@@ -1,9 +1,9 @@
 /* ══════════════════════════════════════════
-   OpenPawz — Command Center UI
-   Modern dark dashboard aesthetic
+   OpenPawz — Kinetic Intelligence Engine
+   Industrial-grade AI workspace
    ══════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Share+Tech+Mono&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
 
 /* ── Material Symbols Outlined (self-hosted) ───────────────────────────── */
 @font-face {
@@ -46,113 +46,113 @@
 }
 
 :root {
-  /* Background — VS Code neutral darks */
-  --bg-primary: #1e1e1e;
-  --bg-secondary: #252526;
-  --bg-sidebar: #181818;
-  --bg-hover: #2a2d2e;
-  --bg-input: #313131;
-  --bg-overlay: rgba(0, 0, 0, 0.7);
-  --bg-tertiary: #2d2d2d;
-  --bg-code: #1e1e1e;
-  --bg-success: rgba(57, 255, 20, 0.12);
-  --bg-danger: rgba(255, 34, 68, 0.12);
-  --bg-info: rgba(0, 204, 255, 0.12);
+  /* Background — near-black void canvas */
+  --bg-primary: #050505;
+  --bg-secondary: #0a0a0a;
+  --bg-sidebar: #030303;
+  --bg-hover: #141414;
+  --bg-input: #0f0f0f;
+  --bg-overlay: rgba(0, 0, 0, 0.85);
+  --bg-tertiary: #111111;
+  --bg-code: #060606;
+  --bg-success: rgba(143, 176, 160, 0.12);
+  --bg-danger: rgba(255, 77, 77, 0.12);
+  --bg-info: rgba(122, 139, 154, 0.12);
 
-  /* Actions — neon disco palette */
-  --accent: #ff00ff;
-  --accent-hover: #ff44ff;
-  --accent-subtle: rgba(255, 0, 255, 0.12);
-  --accent-muted: rgba(255, 0, 255, 0.18);
-  --accent-lighter: rgba(255, 0, 255, 0.08);
-  --accent-strong: rgba(255, 0, 255, 0.55);
-  --accent-color: #a855f7;
-  --success: #39ff14;
-  --success-subtle: rgba(57, 255, 20, 0.12);
-  --warning: #ffdd00;
-  --warning-subtle: rgba(255, 221, 0, 0.12);
-  --error: #ff2244;
-  --error-subtle: rgba(255, 34, 68, 0.12);
-  --danger: #ef4444;
-  --danger-subtle: rgba(239, 68, 68, 0.12);
-  --purple: #a855f7;
-  --purple-subtle: rgba(168, 85, 247, 0.12);
+  /* Actions — kinetic red */
+  --accent: #FF4D4D;
+  --accent-hover: #FF6B6B;
+  --accent-subtle: rgba(255, 77, 77, 0.12);
+  --accent-muted: rgba(255, 77, 77, 0.18);
+  --accent-lighter: rgba(255, 77, 77, 0.08);
+  --accent-strong: rgba(255, 77, 77, 0.55);
+  --accent-color: #FF4D4D;
+  --success: #8FB0A0;
+  --success-subtle: rgba(143, 176, 160, 0.12);
+  --warning: #D4A853;
+  --warning-subtle: rgba(212, 168, 83, 0.12);
+  --error: #FF4D4D;
+  --error-subtle: rgba(255, 77, 77, 0.12);
+  --danger: #FF4D4D;
+  --danger-subtle: rgba(255, 77, 77, 0.12);
+  --purple: #7A8B9A;
+  --purple-subtle: rgba(122, 139, 154, 0.12);
 
-  /* Feature icon colors — neon spectrum */
-  --blue: #00ccff;
-  --blue-subtle: rgba(0, 204, 255, 0.12);
-  --green: #39ff14;
-  --green-subtle: rgba(57, 255, 20, 0.12);
-  --pink: #ff69b4;
-  --pink-subtle: rgba(255, 105, 180, 0.12);
-  --cyan: #00ffff;
-  --cyan-subtle: rgba(0, 255, 255, 0.12);
-  --orange: #ff8c00;
-  --orange-subtle: rgba(255, 140, 0, 0.12);
-  --yellow: #ffdd00;
-  --yellow-subtle: rgba(255, 221, 0, 0.12);
-  --red: #ff2244;
-  --red-subtle: rgba(255, 34, 68, 0.12);
+  /* Feature icon colors — restrained kinetic spectrum */
+  --blue: #7A8B9A;
+  --blue-subtle: rgba(122, 139, 154, 0.12);
+  --green: #8FB0A0;
+  --green-subtle: rgba(143, 176, 160, 0.12);
+  --pink: #FF4D4D;
+  --pink-subtle: rgba(255, 77, 77, 0.12);
+  --cyan: #7A8B9A;
+  --cyan-subtle: rgba(122, 139, 154, 0.12);
+  --orange: #D4A853;
+  --orange-subtle: rgba(212, 168, 83, 0.12);
+  --yellow: #D4A853;
+  --yellow-subtle: rgba(212, 168, 83, 0.12);
+  --red: #FF4D4D;
+  --red-subtle: rgba(255, 77, 77, 0.12);
 
-  /* Semantic status colors (Tailwind-aligned for consistency) */
-  --status-error: #ef4444;
-  --status-success: #22c55e;
-  --status-warning: #eab308;
-  --status-info: #3b82f6;
-  --status-orange: #f97316;
-  --status-purple: #9382dc;
-  --status-amber: #f59e0b;
-  --status-emerald: #10b981;
+  /* Semantic status colors — 4-color system */
+  --status-error: #FF4D4D;
+  --status-success: #8FB0A0;
+  --status-warning: #D4A853;
+  --status-info: #7A8B9A;
+  --status-orange: #D4A853;
+  --status-purple: #7A8B9A;
+  --status-amber: #D4A853;
+  --status-emerald: #8FB0A0;
 
-  /* Text — neutral */
-  --text-primary: #cccccc;
-  --text-secondary: #969696;
-  --text-muted: #5a5a5a;
-  --text-tertiary: #6e6e6e;
-  --text-inverse: #1e1e1e;
-  --text-code: #cdd6f4;
-  --text-danger: #ff4466;
-  --text-success: #39ff14;
-  --text-on-accent: #ffffff;
+  /* Text — warm cream on void */
+  --text-primary: #E8E0D4;
+  --text-secondary: #8A8478;
+  --text-muted: #4A4540;
+  --text-tertiary: #5A5550;
+  --text-inverse: #050505;
+  --text-code: #E8E0D4;
+  --text-danger: #FF4D4D;
+  --text-success: #8FB0A0;
+  --text-on-accent: #050505;
 
-  /* Borders — neutral */
-  --border: #3c3c3c;
-  --border-subtle: #2a2a2a;
-  --border-focus: #ff00ff;
-  --border-light: #e6e9ef;
+  /* Borders — sharp 1px grid */
+  --border: #1a1a1a;
+  --border-subtle: #111111;
+  --border-focus: #FF4D4D;
+  --border-light: #2a2a2a;
 
-  /* Radius — modern rounded */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 18px;
+  /* Radius — sharp industrial */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
   --radius-pill: 999px;
 
-  /* Shadows — layered depth */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25), 0 1px 2px rgba(0, 0, 0, 0.15);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.15);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.35), 0 4px 8px rgba(0, 0, 0, 0.2);
-  --glow-cyan: 0 0 12px rgba(0, 255, 255, 0.25);
-  --glow-magenta: 0 0 12px rgba(255, 0, 255, 0.25);
-  --glow-green: 0 0 12px rgba(57, 255, 20, 0.25);
+  /* Shadows — minimal, only for floating elements */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.7);
+  --glow-cyan: 0 0 8px rgba(143, 176, 160, 0.2);
+  --glow-magenta: 0 0 8px rgba(255, 77, 77, 0.25);
+  --glow-green: 0 0 8px rgba(143, 176, 160, 0.2);
 
   /* Transitions — smooth curves, no pixel steps */
   --transition-fast: 120ms ease-out;
   --transition-normal: 200ms ease-out;
   --transition-smooth: 350ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Typography scale — dashboard needs hierarchy */
-  --type-hero: 2rem;
+  /* Typography scale — dense information hierarchy */
+  --type-hero: 1.75rem;
   --type-title: 1.25rem;
   --type-heading: 0.9375rem;
   --type-body: 0.8125rem;
-  --type-label: 0.6875rem;
-  --type-micro: 0.625rem;
+  --type-label: 0.625rem;
+  --type-micro: 0.5625rem;
 
-  /* Font — system UI + pixel branding */
+  /* Font — system UI + industrial mono */
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif;
-  --font-pixel: 'Press Start 2P', 'Share Tech Mono', monospace;
+  --font-pixel: 'Share Tech Mono', monospace;
   --font-mono:
     'Droid Sans Mono', 'Cascadia Code', 'Fira Code', Menlo, Monaco, Consolas, 'Courier New',
     monospace;
@@ -160,116 +160,130 @@
   /* Sprite paths */
   --avatar-path: '/src/assets/avatars/';
 
-  /* Sidebar border */
-  --sidebar-border-image: linear-gradient(
-      180deg,
-      rgba(255, 0, 255, 0.15),
-      rgba(0, 255, 255, 0.15),
-      rgba(255, 0, 255, 0.15)
-    )
-    1;
+  /* Sidebar border — solid 1px edge */
+  --sidebar-border-image: none;
+  --sidebar-border-color: var(--border);
 
-  /* CRT scanline opacity */
-  --scanline-opacity: 0.08;
+  /* Kinetic-specific tokens */
+  --kinetic-black: #050505;
+  --kinetic-red: #FF4D4D;
+  --kinetic-cream: #E8E0D4;
+  --kinetic-sage: #8FB0A0;
+  --kinetic-white: #F5F0EB;
+  --kinetic-steel: #7A8B9A;
+  --kinetic-gold: #D4A853;
+  --grain-opacity: 0.04;
+  --halftone-opacity: 0.03;
+  --pulse-glow: 0 0 8px rgba(255, 77, 77, 0.3);
+
+  /* Scanlines disabled — replaced by grain */
+  --scanline-opacity: 0;
 }
 
 /* ═══════════════════════════════════════════
    Light Theme
    ═══════════════════════════════════════════ */
 [data-theme='light'] {
-  /* Background — warm paper tones */
-  --bg-primary: #f5f3f0;
-  --bg-secondary: #eae8e4;
-  --bg-sidebar: #e8e5e0;
-  --bg-hover: #ddd9d4;
-  --bg-input: #ffffff;
-  --bg-overlay: rgba(0, 0, 0, 0.4);
-  --bg-tertiary: #e0ddd8;
-  --bg-code: #f0eeeb;
-  --bg-success: rgba(34, 197, 94, 0.12);
-  --bg-danger: rgba(239, 68, 68, 0.12);
-  --bg-info: rgba(59, 130, 246, 0.12);
+  /* Background — warm cream paper */
+  --bg-primary: #F5F0EB;
+  --bg-secondary: #EDE8E2;
+  --bg-sidebar: #E8E3DD;
+  --bg-hover: #DDD8D2;
+  --bg-input: #FAF7F3;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+  --bg-tertiary: #E3DED8;
+  --bg-code: #EDE8E2;
+  --bg-success: rgba(109, 148, 133, 0.12);
+  --bg-danger: rgba(204, 51, 51, 0.12);
+  --bg-info: rgba(90, 105, 120, 0.12);
 
-  /* Actions — toned-down neon for readability */
-  --accent: #cc00cc;
-  --accent-hover: #aa00aa;
-  --accent-subtle: rgba(204, 0, 204, 0.1);
-  --accent-muted: rgba(204, 0, 204, 0.15);
-  --accent-lighter: rgba(204, 0, 204, 0.06);
-  --accent-strong: rgba(204, 0, 204, 0.45);
-  --accent-color: #7c3aed;
-  --success: #16a34a;
-  --success-subtle: rgba(22, 163, 74, 0.1);
-  --warning: #ca8a04;
-  --warning-subtle: rgba(202, 138, 4, 0.1);
-  --error: #dc2626;
-  --error-subtle: rgba(220, 38, 38, 0.1);
-  --danger: #dc2626;
-  --danger-subtle: rgba(220, 38, 38, 0.1);
-  --purple: #7c3aed;
-  --purple-subtle: rgba(124, 58, 237, 0.1);
+  /* Actions — darker red for light contrast */
+  --accent: #CC3333;
+  --accent-hover: #B02828;
+  --accent-subtle: rgba(204, 51, 51, 0.1);
+  --accent-muted: rgba(204, 51, 51, 0.15);
+  --accent-lighter: rgba(204, 51, 51, 0.06);
+  --accent-strong: rgba(204, 51, 51, 0.45);
+  --accent-color: #CC3333;
+  --success: #6D9485;
+  --success-subtle: rgba(109, 148, 133, 0.1);
+  --warning: #B08A3E;
+  --warning-subtle: rgba(176, 138, 62, 0.1);
+  --error: #CC3333;
+  --error-subtle: rgba(204, 51, 51, 0.1);
+  --danger: #CC3333;
+  --danger-subtle: rgba(204, 51, 51, 0.1);
+  --purple: #5A6978;
+  --purple-subtle: rgba(90, 105, 120, 0.1);
 
-  /* Feature icon colors — readable on light */
-  --blue: #0284c7;
-  --blue-subtle: rgba(2, 132, 199, 0.1);
-  --green: #16a34a;
-  --green-subtle: rgba(22, 163, 74, 0.1);
-  --pink: #db2777;
-  --pink-subtle: rgba(219, 39, 119, 0.1);
-  --cyan: #0891b2;
-  --cyan-subtle: rgba(8, 145, 178, 0.1);
-  --orange: #c2410c;
-  --orange-subtle: rgba(194, 65, 12, 0.1);
-  --yellow: #ca8a04;
-  --yellow-subtle: rgba(202, 138, 4, 0.1);
-  --red: #dc2626;
-  --red-subtle: rgba(220, 38, 38, 0.1);
+  /* Feature icon colors — muted kinetic spectrum */
+  --blue: #5A6978;
+  --blue-subtle: rgba(90, 105, 120, 0.1);
+  --green: #6D9485;
+  --green-subtle: rgba(109, 148, 133, 0.1);
+  --pink: #CC3333;
+  --pink-subtle: rgba(204, 51, 51, 0.1);
+  --cyan: #5A6978;
+  --cyan-subtle: rgba(90, 105, 120, 0.1);
+  --orange: #B08A3E;
+  --orange-subtle: rgba(176, 138, 62, 0.1);
+  --yellow: #B08A3E;
+  --yellow-subtle: rgba(176, 138, 62, 0.1);
+  --red: #CC3333;
+  --red-subtle: rgba(204, 51, 51, 0.1);
 
-  /* Semantic status (slightly darker for contrast) */
-  --status-error: #dc2626;
-  --status-success: #16a34a;
-  --status-warning: #ca8a04;
-  --status-info: #2563eb;
-  --status-orange: #c2410c;
-  --status-purple: #6d28d9;
-  --status-amber: #d97706;
-  --status-emerald: #059669;
+  /* Semantic status — darker variants for light bg */
+  --status-error: #CC3333;
+  --status-success: #6D9485;
+  --status-warning: #B08A3E;
+  --status-info: #5A6978;
+  --status-orange: #B08A3E;
+  --status-purple: #5A6978;
+  --status-amber: #B08A3E;
+  --status-emerald: #6D9485;
 
-  /* Text — high contrast on light */
-  --text-primary: #1e1e1e;
-  --text-secondary: #4a4a4a;
-  --text-muted: #888888;
-  --text-tertiary: #6a6a6a;
-  --text-inverse: #f5f3f0;
-  --text-code: #2d2d3d;
-  --text-danger: #dc2626;
-  --text-success: #16a34a;
-  --text-on-accent: #ffffff;
+  /* Text — high contrast on cream */
+  --text-primary: #1A1815;
+  --text-secondary: #4A4540;
+  --text-muted: #8A8478;
+  --text-tertiary: #6A6560;
+  --text-inverse: #F5F0EB;
+  --text-code: #1A1815;
+  --text-danger: #CC3333;
+  --text-success: #6D9485;
+  --text-on-accent: #F5F0EB;
 
-  /* Borders — soft edges */
-  --border: #c8c5c0;
-  --border-subtle: #d8d5d0;
-  --border-focus: #cc00cc;
-  --border-light: #e6e3de;
+  /* Borders — warm soft edges */
+  --border: #D4CFC8;
+  --border-subtle: #DDD8D2;
+  --border-focus: #CC3333;
+  --border-light: #E3DED8;
 
-  /* Shadows — soft, no neon glow */
+  /* Shadows — soft, minimal */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
   --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.08);
   --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --glow-cyan: 0 0 6px rgba(8, 145, 178, 0.2);
-  --glow-magenta: 0 0 6px rgba(204, 0, 204, 0.2);
-  --glow-green: 0 0 6px rgba(22, 163, 74, 0.2);
+  --glow-cyan: 0 0 6px rgba(109, 148, 133, 0.15);
+  --glow-magenta: 0 0 6px rgba(204, 51, 51, 0.15);
+  --glow-green: 0 0 6px rgba(109, 148, 133, 0.15);
 
-  /* Sidebar border — subtle gradient */
-  --sidebar-border-image: linear-gradient(
-      180deg,
-      rgba(204, 0, 204, 0.15),
-      rgba(8, 145, 178, 0.15),
-      rgba(204, 0, 204, 0.15)
-    )
-    1;
+  /* Sidebar border — solid warm edge */
+  --sidebar-border-image: none;
+  --sidebar-border-color: var(--border);
 
-  /* No scanlines in light mode */
+  /* Kinetic light overrides */
+  --kinetic-black: #1A1815;
+  --kinetic-red: #CC3333;
+  --kinetic-cream: #1A1815;
+  --kinetic-sage: #6D9485;
+  --kinetic-white: #1A1815;
+  --kinetic-steel: #5A6978;
+  --kinetic-gold: #B08A3E;
+  --grain-opacity: 0.02;
+  --halftone-opacity: 0.02;
+  --pulse-glow: 0 0 6px rgba(204, 51, 51, 0.2);
+
+  /* No scanlines */
   --scanline-opacity: 0;
 }
 
@@ -502,14 +516,7 @@ body {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  border-right: 2px solid var(--border);
-  border-image: linear-gradient(
-      180deg,
-      var(--accent-muted),
-      var(--cyan-subtle),
-      var(--accent-muted)
-    )
-    1;
+  border-right: 1px solid var(--border);
 }
 
 .sidebar-header {
