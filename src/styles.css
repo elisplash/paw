@@ -2770,8 +2770,8 @@ button:focus:not(:focus-visible) {
   background: var(--bg-hover);
 }
 .tasks-tab.active {
-  color: var(--cyan);
-  border-color: var(--cyan-subtle);
+  color: var(--accent);
+  border-color: var(--accent-muted);
   background: var(--bg-secondary);
 }
 .tasks-tab-panel {
@@ -2827,7 +2827,7 @@ button:focus:not(:focus-visible) {
   flex-direction: column;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 0;
   overflow: hidden;
 }
 .tasks-column-done {
@@ -2852,7 +2852,7 @@ button:focus:not(:focus-visible) {
   color: var(--text-inverse);
   font-size: 11px;
   font-weight: 700;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   padding: 1px 7px;
   min-width: 20px;
   text-align: center;
@@ -2892,19 +2892,15 @@ button:focus:not(:focus-visible) {
 .task-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   padding: 10px 12px;
   cursor: grab;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
   transition:
-    transform var(--transition-fast),
-    box-shadow var(--transition-normal),
     border-color var(--transition-normal);
   position: relative;
 }
 .task-card:hover {
   border-color: var(--accent-muted);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 .task-card:active {
   cursor: grabbing;
@@ -2965,7 +2961,7 @@ button:focus:not(:focus-visible) {
   color: var(--accent, #6366f1);
   font-size: 9px;
   padding: 1px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-weight: 500;
   max-width: 120px;
   overflow: hidden;
@@ -3011,7 +3007,7 @@ button:focus:not(:focus-visible) {
   flex-direction: column;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 0;
   overflow: hidden;
 }
 .tasks-feed-header {
@@ -3036,7 +3032,7 @@ button:focus:not(:focus-visible) {
   color: var(--text-muted);
   font-size: 11px;
   padding: 3px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 .tasks-feed-tab.active {
@@ -3151,12 +3147,11 @@ button:focus:not(:focus-visible) {
 .tasks-modal {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
+  border-radius: 0;
   width: 520px;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 }
 .tasks-modal-header {
   display: flex;
@@ -5115,18 +5110,12 @@ button:focus:not(:focus-visible) {
 .agent-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   padding: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
-  transition:
-    box-shadow var(--transition-smooth),
-    border-color var(--transition-smooth),
-    transform var(--transition-smooth);
+  transition: border-color var(--transition-smooth);
 }
 .agent-card:hover {
-  border-color: var(--accent-muted);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--accent-lighter);
-  transform: translateY(-2px);
+  border-color: var(--accent);
 }
 .agent-card-header {
   display: flex;
@@ -5190,7 +5179,7 @@ button:focus:not(:focus-visible) {
   color: var(--text-muted);
   background: var(--bg-secondary);
   padding: 4px 10px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
 }
 .agent-actions {
   display: flex;
@@ -5852,17 +5841,16 @@ button:focus:not(:focus-visible) {
 }
 .channel-card {
   background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   padding: 20px;
-  box-shadow: var(--shadow-md);
-  transition: all var(--transition-fast);
+  border: 1px solid var(--border);
+  transition: border-color var(--transition-fast);
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 .channel-card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-1px);
+  border-color: var(--accent);
 }
 .channel-card-header {
   display: flex;
@@ -5872,49 +5860,25 @@ button:focus:not(:focus-visible) {
 .channel-card-icon {
   width: 40px;
   height: 40px;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
   flex-shrink: 0;
 }
-.channel-card-icon.telegram {
-  background: rgba(0, 136, 204, 0.15);
-}
-.channel-card-icon.discord {
-  background: rgba(114, 102, 255, 0.15);
-}
-.channel-card-icon.whatsapp {
-  background: rgba(57, 255, 20, 0.12);
-}
-.channel-card-icon.signal {
-  background: rgba(0, 136, 204, 0.15);
-}
-.channel-card-icon.slack {
-  background: rgba(255, 221, 0, 0.12);
-}
-.channel-card-icon.irc {
-  background: rgba(0, 200, 100, 0.12);
-}
-.channel-card-icon.matrix {
-  background: rgba(0, 189, 170, 0.15);
-}
-.channel-card-icon.mattermost {
-  background: rgba(0, 100, 180, 0.15);
-}
-.channel-card-icon.nextcloud {
-  background: rgba(0, 130, 201, 0.15);
-}
-.channel-card-icon.nostr {
-  background: rgba(128, 0, 255, 0.12);
-}
-.channel-card-icon.twitch {
-  background: rgba(145, 70, 255, 0.15);
-}
-.channel-card-icon.default {
-  background: var(--bg-primary);
-}
+.channel-card-icon.telegram { background: var(--bg-tertiary); }
+.channel-card-icon.discord { background: var(--bg-tertiary); }
+.channel-card-icon.whatsapp { background: var(--bg-tertiary); }
+.channel-card-icon.signal { background: var(--bg-tertiary); }
+.channel-card-icon.slack { background: var(--bg-tertiary); }
+.channel-card-icon.irc { background: var(--bg-tertiary); }
+.channel-card-icon.matrix { background: var(--bg-tertiary); }
+.channel-card-icon.mattermost { background: var(--bg-tertiary); }
+.channel-card-icon.nextcloud { background: var(--bg-tertiary); }
+.channel-card-icon.nostr { background: var(--bg-tertiary); }
+.channel-card-icon.twitch { background: var(--bg-tertiary); }
+.channel-card-icon.default { background: var(--bg-tertiary); }
 .channel-card-title {
   font-size: 14px;
   font-weight: 600;
@@ -6234,17 +6198,16 @@ select.form-input {
 }
 .skill-card {
   background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   padding: 18px 20px;
-  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast);
 }
 .skill-card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-1px);
+  border-color: var(--accent);
 }
 .skill-card-header {
   display: flex;
@@ -6411,7 +6374,7 @@ select.form-input {
   margin-bottom: 16px;
   padding: 12px 16px;
   background: var(--bg-secondary);
-  border-radius: 10px;
+  border-radius: 0;
   border: 1px solid var(--border);
   flex-wrap: wrap;
 }
@@ -6512,7 +6475,7 @@ select.form-input {
 
 .skill-vault-card {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 16px 18px;
   margin-bottom: 10px;
   background: var(--bg-secondary);
@@ -7323,19 +7286,16 @@ details[open] > .skill-advanced-summary::before {
 #agents-list .agent-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   padding: 16px;
   display: flex;
   align-items: center;
   gap: 14px;
   cursor: pointer;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+  transition: border-color 0.15s;
 }
 #agents-list .agent-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 2px 8px rgba(0, 115, 234, 0.08);
 }
 
 #agents-list .agent-card-avatar {
@@ -7348,7 +7308,7 @@ details[open] > .skill-advanced-summary::before {
   align-items: center;
   justify-content: center;
   background: var(--bg-tertiary);
-  border-radius: var(--radius-md);
+  border-radius: 0;
 }
 
 #agents-list .agent-card-body {
@@ -7367,7 +7327,7 @@ details[open] > .skill-advanced-summary::before {
   font-size: 10px;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--accent-muted);
   color: var(--accent);
   margin-left: 6px;
@@ -11702,7 +11662,7 @@ details[open] > .skill-advanced-summary::before {
   color: var(--text-secondary);
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -11745,19 +11705,14 @@ details[open] > .skill-advanced-summary::before {
   border-radius: 50%;
   cursor: pointer;
   pointer-events: all;
-  transition:
-    transform 0.15s,
-    box-shadow 0.15s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: border-color 0.15s;
+  border: 2px solid transparent;
 }
 .agent-dock-item:hover {
-  transform: scale(1.12);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  border-color: var(--accent);
 }
 .agent-dock-active {
-  box-shadow:
-    0 0 0 3px var(--accent),
-    0 2px 8px rgba(0, 0, 0, 0.2);
+  border-color: var(--accent);
 }
 .agent-dock-avatar {
   width: 48px;
@@ -11785,13 +11740,12 @@ details[open] > .skill-advanced-summary::before {
   font-size: 12px;
   font-weight: 600;
   padding: 5px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 .agent-dock-tooltip::after {
   content: '';
@@ -13354,7 +13308,7 @@ details[open] > .skill-advanced-summary::before {
   padding: 8px 14px;
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: 8px;
+  border-radius: 0;
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -13381,14 +13335,13 @@ details[open] > .skill-advanced-summary::before {
 /* Compact skill cards (used by Active, Tools, Extensions tabs) */
 .skill-card-compact {
   border: 1px solid var(--border-subtle);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 14px 16px;
   background: var(--bg-surface);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s;
 }
 .skill-card-compact:hover {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 .skill-card-compact-header {
   display: flex;
@@ -14023,7 +13976,7 @@ details[open] > .skill-advanced-summary::before {
   display: inline-flex;
   align-items: center;
   padding: 2px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
   background: var(--accent);
@@ -14048,7 +14001,7 @@ details[open] > .skill-advanced-summary::before {
   min-width: 200px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   padding: 6px 12px;
 }
 
@@ -14104,7 +14057,7 @@ details[open] > .skill-advanced-summary::before {
   align-items: center;
   gap: 4px;
   padding: 5px 12px;
-  border-radius: 16px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-secondary);
   color: var(--text-secondary);
@@ -14162,14 +14115,13 @@ details[open] > .skill-advanced-summary::before {
   padding: 16px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   cursor: pointer;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s;
 }
 
 .integrations-card:hover {
   border-color: var(--accent);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .integrations-card-connected {
@@ -14179,7 +14131,7 @@ details[open] > .skill-advanced-summary::before {
 .integrations-card-icon {
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14251,7 +14203,6 @@ details[open] > .skill-advanced-summary::before {
   border-left: 1px solid var(--border);
   overflow-y: auto;
   z-index: 100;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
   padding: 24px;
 }
 
@@ -14266,7 +14217,7 @@ details[open] > .skill-advanced-summary::before {
 .integrations-detail-icon {
   width: 56px;
   height: 56px;
-  border-radius: var(--radius-md);
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -14370,7 +14321,7 @@ details[open] > .skill-advanced-summary::before {
   padding: 5px 12px;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   color: var(--text-secondary);
 }
@@ -14407,7 +14358,7 @@ details[open] > .skill-advanced-summary::before {
 .setup-guide-icon {
   width: 48px;
   height: 48px;
-  border-radius: var(--radius-md, 8px);
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
