@@ -14,6 +14,7 @@ import {
   setOpenChannelSetup,
 } from './molecules';
 import { openChannelSetup, closeChannelSetup, saveChannelSetup } from './setup';
+import { initChannelsKinetic } from '../../components/channels-panel';
 
 // Wire the circular dependency: molecules needs openChannelSetup from setup
 setOpenChannelSetup(openChannelSetup);
@@ -73,6 +74,18 @@ export function initChannels() {
   $('channel-setup-modal')?.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).id === 'channel-setup-modal') closeChannelSetup();
   });
+
+  // Quick Actions in side panel
+  $('channels-qa-add')?.addEventListener('click', () => {
+    $('add-channel-btn')?.click();
+  });
+  $('channels-qa-refresh')?.addEventListener('click', () => loadChannels());
+  $('channels-qa-docs')?.addEventListener('click', () => {
+    showToast('Setup guides opening soon', 'info');
+  });
+
+  // Kinetic animations
+  initChannelsKinetic();
 
   $('add-channel-btn')?.addEventListener('click', () => {
     const body = $('channel-setup-body');

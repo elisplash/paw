@@ -1613,114 +1613,227 @@
           </div>
         </div>
 
-        <!-- ═══ Channels View — Connection Hub ═══ -->
-        <div class="view list-view" id="channels-view">
-          <div class="view-header">
-            <h1 class="view-title">Channels</h1>
-            <div style="display: flex; gap: 8px">
-              <button class="btn btn-primary btn-sm" id="add-channel-btn">
+        <!-- ═══ Channels View — Remote Agent Communication ═══ -->
+        <div class="view channels-view" id="channels-view">
+          <!-- Hero header -->
+          <div class="channels-hero">
+            <div class="channels-hero-left">
+              <h1 class="channels-hero-title">Command Channels</h1>
+              <p class="channels-hero-sub">Talk to your agent from anywhere — Telegram, Discord, Slack, or any platform. No computer needed.</p>
+            </div>
+            <div class="channels-hero-right">
+              <div class="channels-hero-stat k-row k-spring">
+                <span class="ms channels-hero-stat-icon">cell_tower</span>
+                <div>
+                  <div class="channels-hero-stat-val" id="channels-stat-total">0</div>
+                  <div class="channels-hero-stat-lbl">Channels</div>
+                </div>
+              </div>
+              <div class="channels-hero-stat k-row k-spring">
+                <span class="ms channels-hero-stat-icon">radio_button_checked</span>
+                <div>
+                  <div class="channels-hero-stat-val" id="channels-stat-active">0</div>
+                  <div class="channels-hero-stat-lbl">Active</div>
+                </div>
+              </div>
+              <div class="channels-hero-stat k-row k-spring">
+                <span class="ms channels-hero-stat-icon">forum</span>
+                <div>
+                  <div class="channels-hero-stat-val" id="channels-stat-messages">0</div>
+                  <div class="channels-hero-stat-lbl">Messages</div>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="add-channel-btn">
                 <span class="ms ms-sm">add</span>
                 Add Channel
               </button>
-              <button class="btn btn-ghost btn-sm" id="refresh-channels-btn">
-                <span class="ms ms-sm">sync</span>
-                Refresh
-              </button>
-            </div>
-          </div>
-          <div class="channel-grid" id="channels-list"></div>
-
-          <!-- Direct Send Message (channel send) -->
-          <div
-            class="channel-send-section"
-            id="channel-send-section"
-            style="
-              display: none;
-              margin-top: 20px;
-              border-top: 1px solid var(--border-light);
-              padding-top: 16px;
-            "
-          >
-            <h3 style="font-size: 14px; font-weight: 600; margin-bottom: 8px">
-              Send Direct Message
-            </h3>
-            <div style="display: flex; gap: 8px; align-items: flex-end">
-              <div style="flex: 1">
-                <label
-                  style="
-                    font-size: 12px;
-                    color: var(--text-muted);
-                    display: block;
-                    margin-bottom: 4px;
-                  "
-                  >Channel</label
-                >
-                <select
-                  id="channel-send-target"
-                  class="settings-input"
-                  style="width: 100%"
-                ></select>
-              </div>
-              <div style="flex: 2">
-                <label
-                  style="
-                    font-size: 12px;
-                    color: var(--text-muted);
-                    display: block;
-                    margin-bottom: 4px;
-                  "
-                  >Message</label
-                >
-                <input
-                  type="text"
-                  id="channel-send-message"
-                  class="settings-input"
-                  placeholder="Type a message…"
-                  style="width: 100%"
-                />
-              </div>
-              <button class="btn btn-primary btn-sm" id="channel-send-btn">Send</button>
             </div>
           </div>
 
-          <div class="empty-state" id="channels-empty">
-            <div class="empty-icon"><span class="ms" style="font-size: 48px">videocam</span></div>
-            <div class="empty-title">No channels configured</div>
-            <div class="empty-subtitle">
-              Connect your agent to messaging platforms — chat with Paw from anywhere
+          <!-- Two-column body -->
+          <div class="channels-body">
+            <!-- Main column -->
+            <div class="channels-main-col">
+              <!-- Connected Channels section -->
+              <div class="channels-section k-row k-materialise" id="channels-connected-section">
+                <div class="channels-section-header">
+                  <span class="ms channels-section-icon">link</span>
+                  <span class="channels-section-title">Connected Channels</span>
+                  <button class="btn btn-ghost btn-sm" id="refresh-channels-btn">
+                    <span class="ms ms-sm">sync</span> Refresh
+                  </button>
+                </div>
+                <div class="channel-grid" id="channels-list"></div>
+                <div class="channels-empty-inline" id="channels-empty" style="display: none;">
+                  <span class="ms" style="font-size: 32px; color: var(--text-muted)">cell_tower</span>
+                  <p>No channels connected yet. Add one below or from the side panel.</p>
+                </div>
+                <div class="view-loading" id="channels-loading" style="display: none">Loading channels…</div>
+              </div>
+
+              <!-- Available Platforms section -->
+              <div class="channels-section k-row k-materialise">
+                <div class="channels-section-header">
+                  <span class="ms channels-section-icon">apps</span>
+                  <span class="channels-section-title">Available Platforms</span>
+                  <span class="channels-section-badge">11 Platforms</span>
+                </div>
+                <p class="channels-section-desc">Connect your agent to any messaging platform — one click to set up</p>
+                <div class="channel-picker-grid" id="channels-picker-empty">
+                  <button class="channel-pick-btn" data-ch-type="telegram">
+                    <span class="channel-pick-icon telegram">TG</span>
+                    <span class="channel-pick-name">Telegram</span>
+                    <span class="channel-pick-desc">Message your agent from Telegram via bot API</span>
+                  </button>
+                  <button class="channel-pick-btn" data-ch-type="discord">
+                    <span class="channel-pick-icon discord">DC</span>
+                    <span class="channel-pick-name">Discord</span>
+                    <span class="channel-pick-desc">Agent joins servers, responds to DMs &amp; @mentions</span>
+                  </button>
+                  <button class="channel-pick-btn" data-ch-type="slack">
+                    <span class="channel-pick-icon slack">SL</span>
+                    <span class="channel-pick-name">Slack</span>
+                    <span class="channel-pick-desc">Socket Mode — DMs and channel mentions</span>
+                  </button>
+                  <button class="channel-pick-btn" data-ch-type="whatsapp">
+                    <span class="channel-pick-icon whatsapp">WA</span>
+                    <span class="channel-pick-name">WhatsApp</span>
+                    <span class="channel-pick-desc">Give your agent a phone number people can text</span>
+                  </button>
+                  <button class="channel-pick-btn" data-ch-type="matrix">
+                    <span class="channel-pick-icon matrix">MX</span>
+                    <span class="channel-pick-name">Matrix</span>
+                    <span class="channel-pick-desc">Federated chat — any homeserver (Element, etc.)</span>
+                  </button>
+                  <button class="channel-pick-btn" data-ch-type="irc">
+                    <span class="channel-pick-icon irc">IRC</span>
+                    <span class="channel-pick-name">IRC</span>
+                    <span class="channel-pick-desc">Classic text protocol — connect to any server</span>
+                  </button>
+                  <button class="channel-pick-btn" data-ch-type="mattermost">
+                    <span class="channel-pick-icon mattermost">MM</span>
+                    <span class="channel-pick-name">Mattermost</span>
+                    <span class="channel-pick-desc">Self-hosted team chat via WebSocket + REST</span>
+                  </button>
+                  <button class="channel-pick-btn" data-ch-type="nextcloud">
+                    <span class="channel-pick-icon nextcloud">NC</span>
+                    <span class="channel-pick-name">Nextcloud Talk</span>
+                    <span class="channel-pick-desc">Chat with your agent through Nextcloud</span>
+                  </button>
+                  <button class="channel-pick-btn" data-ch-type="nostr">
+                    <span class="channel-pick-icon nostr">NS</span>
+                    <span class="channel-pick-name">Nostr</span>
+                    <span class="channel-pick-desc">Decentralized social — responds to mentions on relays</span>
+                  </button>
+                  <button class="channel-pick-btn" data-ch-type="twitch">
+                    <span class="channel-pick-icon twitch">TW</span>
+                    <span class="channel-pick-name">Twitch</span>
+                    <span class="channel-pick-desc">Agent joins Twitch chat rooms via IRC</span>
+                  </button>
+                  <button class="channel-pick-btn" data-ch-type="webchat">
+                    <span class="channel-pick-icon default"><span class="ms" style="font-size: 20px">language</span></span>
+                    <span class="channel-pick-name">Web Chat</span>
+                    <span class="channel-pick-desc">Share a link — anyone chats with your agent in-browser</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Direct Send Message section -->
+              <div class="channels-section k-row k-materialise" id="channel-send-section" style="display: none;">
+                <div class="channels-section-header">
+                  <span class="ms channels-section-icon">send</span>
+                  <span class="channels-section-title">Send Direct Message</span>
+                </div>
+                <div class="channels-send-form">
+                  <div class="channels-send-field">
+                    <label class="channels-send-label">Channel</label>
+                    <select id="channel-send-target" class="form-input"></select>
+                  </div>
+                  <div class="channels-send-field" style="flex: 2">
+                    <label class="channels-send-label">Message</label>
+                    <input type="text" id="channel-send-message" class="form-input" placeholder="Type a message…" />
+                  </div>
+                  <button class="btn btn-primary btn-sm" id="channel-send-btn">Send</button>
+                </div>
+              </div>
             </div>
-            <div class="channel-picker-grid" id="channels-picker-empty">
-              <button class="channel-pick-btn" data-ch-type="telegram">
-                <span class="channel-pick-icon telegram">TG</span><span>Telegram</span>
-              </button>
-              <button class="channel-pick-btn" data-ch-type="discord">
-                <span class="channel-pick-icon discord">DC</span><span>Discord</span>
-              </button>
-              <button class="channel-pick-btn" data-ch-type="slack">
-                <span class="channel-pick-icon slack">SL</span><span>Slack</span>
-              </button>
-              <button class="channel-pick-btn" data-ch-type="matrix">
-                <span class="channel-pick-icon matrix">MX</span><span>Matrix</span>
-              </button>
-              <button class="channel-pick-btn" data-ch-type="irc">
-                <span class="channel-pick-icon irc">IRC</span><span>IRC</span>
-              </button>
-              <button class="channel-pick-btn" data-ch-type="mattermost">
-                <span class="channel-pick-icon mattermost">MM</span><span>Mattermost</span>
-              </button>
-              <button class="channel-pick-btn" data-ch-type="nextcloud">
-                <span class="channel-pick-icon nextcloud">NC</span><span>Nextcloud</span>
-              </button>
-              <button class="channel-pick-btn" data-ch-type="nostr">
-                <span class="channel-pick-icon nostr">NS</span><span>Nostr</span>
-              </button>
-              <button class="channel-pick-btn" data-ch-type="twitch">
-                <span class="channel-pick-icon twitch">TW</span><span>Twitch</span>
-              </button>
+
+            <!-- Side panel -->
+            <div class="channels-side-panel k-stagger">
+              <!-- What Are Channels? card -->
+              <div class="channels-panel-card k-row k-spring k-materialise">
+                <div class="channels-panel-card-header">
+                  <span class="ms channels-panel-card-icon">info</span>
+                  <span class="channels-panel-card-title">What Are Channels?</span>
+                </div>
+                <div class="channels-panel-card-body">
+                  <p>Channels let you talk to your AI agent from <strong>anywhere</strong> — your phone, a chat app, or even a web link. No need to be at your computer.</p>
+                  <p>Each channel is a bridge between a messaging platform and your agent. Messages you send on Telegram, Discord, or any platform get forwarded to your agent, and it replies right there.</p>
+                  <ul class="channels-feature-list">
+                    <li><span class="ms">smartphone</span> Message from your phone</li>
+                    <li><span class="ms">group</span> Let friends &amp; team chat with your agent</li>
+                    <li><span class="ms">shield</span> Access control — approve who can talk</li>
+                    <li><span class="ms">sync</span> Always on — agent responds 24/7</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Platform Categories card -->
+              <div class="channels-panel-card k-row k-spring k-materialise">
+                <div class="channels-panel-card-header">
+                  <span class="ms channels-panel-card-icon">category</span>
+                  <span class="channels-panel-card-title">Platform Types</span>
+                </div>
+                <div class="channels-panel-card-body">
+                  <div class="channels-category">
+                    <div class="channels-category-label">Chat Apps</div>
+                    <div class="channels-category-items">Telegram · Discord · Slack · WhatsApp</div>
+                  </div>
+                  <div class="channels-category">
+                    <div class="channels-category-label">Self-Hosted</div>
+                    <div class="channels-category-items">Matrix · Mattermost · Nextcloud Talk</div>
+                  </div>
+                  <div class="channels-category">
+                    <div class="channels-category-label">Social &amp; Streaming</div>
+                    <div class="channels-category-items">Nostr · Twitch</div>
+                  </div>
+                  <div class="channels-category">
+                    <div class="channels-category-label">Open Protocols</div>
+                    <div class="channels-category-items">IRC · Web Chat</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Connection Health card -->
+              <div class="channels-panel-card k-row k-spring k-materialise">
+                <div class="channels-panel-card-header">
+                  <span class="ms channels-panel-card-icon">monitor_heart</span>
+                  <span class="channels-panel-card-title">Connection Health</span>
+                </div>
+                <div class="channels-health-list" id="channels-health-list">
+                  <div class="channels-health-empty">No active connections</div>
+                </div>
+              </div>
+
+              <!-- Quick Actions card -->
+              <div class="channels-panel-card k-row k-spring k-materialise">
+                <div class="channels-panel-card-header">
+                  <span class="ms channels-panel-card-icon">rocket_launch</span>
+                  <span class="channels-panel-card-title">Quick Actions</span>
+                </div>
+                <div class="channels-quick-actions">
+                  <button class="channels-quick-btn" id="channels-qa-add">
+                    <span class="ms">add_circle</span> Add Channel
+                  </button>
+                  <button class="channels-quick-btn" id="channels-qa-refresh">
+                    <span class="ms">sync</span> Refresh All
+                  </button>
+                  <button class="channels-quick-btn" id="channels-qa-docs">
+                    <span class="ms">menu_book</span> Setup Guides
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-          <div class="view-loading" id="channels-loading" style="display: none">
-            Loading channels…
           </div>
         </div>
 

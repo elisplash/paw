@@ -1,21 +1,163 @@
-/* ═══ Channel Grid ═══ */
+/* ═══ Channels View ═══ */
+.channels-view {
+  overflow: hidden;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── Hero Header ── */
+.channels-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 32px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.channels-hero-left {
+  flex: 1;
+  min-width: 200px;
+}
+.channels-hero-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.channels-hero-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+.channels-hero-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.channels-hero-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 80px;
+}
+.channels-hero-stat-icon {
+  font-size: 20px;
+  color: var(--accent);
+}
+.channels-hero-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  line-height: 1;
+}
+.channels-hero-stat-lbl {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Two-column body ── */
+.channels-body {
+  display: flex;
+  gap: 24px;
+  padding: 24px 32px 32px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  align-items: flex-start;
+}
+.channels-main-col {
+  flex: 1;
+  min-width: 0;
+}
+.channels-side-panel {
+  width: 300px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Sections ── */
+.channels-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.channels-section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.channels-section-icon {
+  font-size: 20px;
+  color: var(--accent);
+}
+.channels-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex: 1;
+}
+.channels-section-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-subtle, rgba(var(--accent-rgb, 99, 102, 241), 0.12));
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.02em;
+}
+.channels-section-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: -8px 0 16px;
+  line-height: 1.5;
+}
+.channels-empty-inline {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.channels-empty-inline p {
+  margin: 0;
+}
+
+/* ── Channel Grid (connected cards) ── */
 .channel-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 12px;
 }
 .channel-card {
-  background: var(--bg-secondary);
-  border-radius: 0;
+  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
   padding: 20px;
-  border: 1px solid var(--border);
-  transition: border-color var(--transition-fast);
+  border: 1px solid var(--border-light);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 .channel-card:hover {
   border-color: var(--accent);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 .channel-card-header {
   display: flex;
@@ -25,25 +167,24 @@
 .channel-card-icon {
   width: 40px;
   height: 40px;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 20px;
   flex-shrink: 0;
 }
-.channel-card-icon.telegram { background: var(--bg-tertiary); }
-.channel-card-icon.discord { background: var(--bg-tertiary); }
-.channel-card-icon.whatsapp { background: var(--bg-tertiary); }
-.channel-card-icon.signal { background: var(--bg-tertiary); }
-.channel-card-icon.slack { background: var(--bg-tertiary); }
-.channel-card-icon.irc { background: var(--bg-tertiary); }
-.channel-card-icon.matrix { background: var(--bg-tertiary); }
-.channel-card-icon.mattermost { background: var(--bg-tertiary); }
-.channel-card-icon.nextcloud { background: var(--bg-tertiary); }
-.channel-card-icon.nostr { background: var(--bg-tertiary); }
-.channel-card-icon.twitch { background: var(--bg-tertiary); }
-.channel-card-icon.default { background: var(--bg-tertiary); }
+.channel-card-icon.telegram { background: rgba(0, 136, 204, 0.12); color: #0088cc; }
+.channel-card-icon.discord { background: rgba(114, 102, 255, 0.12); color: #7266ff; }
+.channel-card-icon.whatsapp { background: rgba(37, 211, 102, 0.12); color: #25d366; }
+.channel-card-icon.slack { background: rgba(255, 180, 0, 0.12); color: #e8a200; }
+.channel-card-icon.irc { background: rgba(0, 200, 100, 0.12); color: #00c864; }
+.channel-card-icon.matrix { background: rgba(0, 189, 170, 0.12); color: #00bdaa; }
+.channel-card-icon.mattermost { background: rgba(0, 100, 180, 0.12); color: #0064b4; }
+.channel-card-icon.nextcloud { background: rgba(0, 130, 201, 0.12); color: #0082c9; }
+.channel-card-icon.nostr { background: rgba(128, 0, 255, 0.12); color: #8000ff; }
+.channel-card-icon.twitch { background: rgba(145, 70, 255, 0.12); color: #9146ff; }
+.channel-card-icon.default { background: var(--bg-tertiary); color: var(--text-secondary); }
 .channel-card-title {
   font-size: 14px;
   font-weight: 600;
@@ -70,33 +211,40 @@
   flex-wrap: wrap;
 }
 
-/* ── Channel Picker Grid (empty state + add modal) ── */
+/* ── Channel Picker Grid (platform cards) ── */
 .channel-picker-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 12px;
-  margin-top: 16px;
-  justify-content: center;
-  flex-wrap: wrap;
 }
 .channel-pick-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px 20px;
-  border: 2px solid var(--border-light);
+  gap: 6px;
+  padding: 16px 12px 14px;
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   cursor: pointer;
   transition: all var(--transition-fast);
-  min-width: 100px;
-  font-size: 13px;
-  font-weight: 500;
+  text-align: center;
   color: var(--text-primary);
 }
 .channel-pick-btn:hover {
-  border-color: var(--blue);
-  background: var(--blue-subtle);
+  border-color: var(--accent);
+  background: var(--accent-subtle, rgba(99, 102, 241, 0.06));
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.channel-pick-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.channel-pick-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 .channel-pick-icon {
   width: 44px;
@@ -105,43 +253,177 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
+  font-weight: 700;
 }
-.channel-pick-icon.telegram {
-  background: rgba(0, 136, 204, 0.15);
+.channel-pick-icon.telegram { background: rgba(0, 136, 204, 0.15); color: #0088cc; }
+.channel-pick-icon.discord { background: rgba(114, 102, 255, 0.15); color: #7266ff; }
+.channel-pick-icon.whatsapp { background: rgba(37, 211, 102, 0.12); color: #25d366; }
+.channel-pick-icon.slack { background: rgba(255, 180, 0, 0.12); color: #e8a200; }
+.channel-pick-icon.irc { background: rgba(0, 200, 100, 0.12); color: #00c864; }
+.channel-pick-icon.matrix { background: rgba(0, 189, 170, 0.15); color: #00bdaa; }
+.channel-pick-icon.mattermost { background: rgba(0, 100, 180, 0.15); color: #0064b4; }
+.channel-pick-icon.nextcloud { background: rgba(0, 130, 201, 0.15); color: #0082c9; }
+.channel-pick-icon.nostr { background: rgba(128, 0, 255, 0.12); color: #8000ff; }
+.channel-pick-icon.twitch { background: rgba(145, 70, 255, 0.15); color: #9146ff; }
+.channel-pick-icon.default { background: var(--bg-tertiary); color: var(--text-secondary); }
+
+/* ── Send Message Form ── */
+.channels-send-form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
 }
-.channel-pick-icon.discord {
-  background: rgba(114, 102, 255, 0.15);
+.channels-send-field {
+  flex: 1;
 }
-.channel-pick-icon.whatsapp {
-  background: rgba(57, 255, 20, 0.12);
+.channels-send-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
 }
-.channel-pick-icon.signal {
-  background: rgba(0, 136, 204, 0.15);
+
+/* ── Side Panel Cards ── */
+.channels-panel-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
 }
-.channel-pick-icon.slack {
-  background: rgba(255, 221, 0, 0.12);
+.channels-panel-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
 }
-.channel-pick-icon.irc {
-  background: rgba(0, 200, 100, 0.12);
+.channels-panel-card-icon {
+  font-size: 18px;
+  color: var(--accent);
 }
-.channel-pick-icon.matrix {
-  background: rgba(0, 189, 170, 0.15);
+.channels-panel-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
-.channel-pick-icon.mattermost {
-  background: rgba(0, 100, 180, 0.15);
+.channels-panel-card-body {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
 }
-.channel-pick-icon.nextcloud {
-  background: rgba(0, 130, 201, 0.15);
+.channels-panel-card-body p {
+  margin: 0 0 8px;
 }
-.channel-pick-icon.nostr {
-  background: rgba(128, 0, 255, 0.12);
+.channels-panel-card-body p:last-child {
+  margin-bottom: 0;
 }
-.channel-pick-icon.twitch {
-  background: rgba(145, 70, 255, 0.15);
+.channels-feature-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
 }
-.channel-pick-icon.default {
+.channels-feature-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.channels-feature-list li .ms {
+  font-size: 16px;
+  color: var(--accent);
+}
+
+/* ── Platform Categories ── */
+.channels-category {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.channels-category:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+.channels-category-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.channels-category-items {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ── Connection Health list ── */
+.channels-health-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.channels-health-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
   background: var(--bg-primary);
+  font-size: 12px;
+}
+.channels-health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.channels-health-dot.online { background: var(--success); }
+.channels-health-dot.offline { background: var(--text-muted); }
+.channels-health-name {
+  flex: 1;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.channels-health-status {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.channels-health-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 12px 0;
+}
+
+/* ── Quick Actions ── */
+.channels-quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.channels-quick-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.channels-quick-btn:hover {
+  background: var(--bg-primary);
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+.channels-quick-btn .ms {
+  font-size: 16px;
+  color: var(--accent);
 }
 
 /* ── Channel Setup Modal ── */
@@ -154,6 +436,26 @@
   font-size: 13px;
   margin-bottom: 16px;
   line-height: 1.5;
+}
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .channels-body {
+    flex-direction: column;
+    padding: 16px;
+  }
+  .channels-side-panel {
+    width: 100%;
+  }
+  .channels-hero {
+    padding: 20px 16px 16px;
+  }
+  .channels-hero-right {
+    flex-wrap: wrap;
+  }
+  .channel-picker-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  }
 }
 
 /* ── WhatsApp Setup Guide ── */

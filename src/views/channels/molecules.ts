@@ -5,6 +5,11 @@ import { pawEngine, type ChannelStatus } from '../../engine';
 import { $, escHtml, escAttr, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { CHANNEL_CLASSES, CHANNEL_SETUPS, isChannelConfigured, emptyChannelConfig } from './atoms';
+import {
+  updateChannelsHeroStats,
+  renderHealthList,
+  type ChannelHealthEntry,
+} from '../../components/channels-panel';
 
 // ── Injected dependency (set by index.ts to break circular import) ─────────
 
@@ -439,6 +444,11 @@ export async function loadChannels() {
   if (empty) empty.style.display = 'none';
   list.innerHTML = '';
 
+  let totalCount = 0;
+  let activeCount = 0;
+  let totalMessages = 0;
+  const healthEntries: ChannelHealthEntry[] = [];
+
   try {
     let anyConfigured = false;
 
@@ -449,7 +459,16 @@ export async function loadChannels() {
       const tgConfigured = !!tgConfig.bot_token;
       if (tgConfigured) {
         anyConfigured = true;
+        totalCount++;
         const tgConnected = tgStatus.running && tgStatus.connected;
+        if (tgConnected) activeCount++;
+        totalMessages += tgStatus.message_count || 0;
+        healthEntries.push({
+          name: 'Telegram',
+          icon: 'TG',
+          connected: tgConnected,
+          messageCount: tgStatus.message_count,
+        });
         const cardId = 'ch-telegram';
         const tgCard = document.createElement('div');
         tgCard.className = 'channel-card';
@@ -576,10 +595,20 @@ export async function loadChannels() {
         if (!_isConfigured) continue;
 
         anyConfigured = true;
+        totalCount++;
         const isConnected = status.running && status.connected;
+        if (isConnected) activeCount++;
+        totalMessages += status.message_count || 0;
         const def = CHANNEL_SETUPS.find((c) => c.id === ch);
         const name = def?.name ?? ch;
         const iconStr = def?.icon ?? ch.substring(0, 2).toUpperCase();
+
+        healthEntries.push({
+          name,
+          icon: iconStr,
+          connected: isConnected,
+          messageCount: status.message_count,
+        });
 
         const card = document.createElement('div');
         card.className = 'channel-card';
@@ -602,11 +631,17 @@ export async function loadChannels() {
       if (empty) empty.style.display = 'flex';
     }
 
+    // Update hero stats & health panel
+    updateChannelsHeroStats(totalCount, activeCount, totalMessages);
+    renderHealthList(healthEntries);
+
     const sendSection = $('channel-send-section');
     if (sendSection) sendSection.style.display = 'none';
   } catch (e) {
     console.warn('Channels load failed:', e);
     if (loading) loading.style.display = 'none';
     if (empty) empty.style.display = 'flex';
+    updateChannelsHeroStats(0, 0, 0);
+    renderHealthList([]);
   }
 }
