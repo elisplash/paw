@@ -58,6 +58,8 @@ export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
 
   if (_viewMode === 'roster') {
     // Roster/table view (default)
+    grid.classList.remove('agents-grid-cards');
+    grid.classList.add('agents-grid-roster');
     grid.innerHTML = `
     <table class="agents-roster">
       <thead>
@@ -97,6 +99,8 @@ export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
     </div>`;
   } else {
     // Grid view (compact cards, no bio)
+    grid.classList.remove('agents-grid-roster');
+    grid.classList.add('agents-grid-cards');
     grid.innerHTML = `${agents
       .map(
         (agent) => `
