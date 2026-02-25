@@ -530,8 +530,9 @@ body {
   animation: none;
 }
 
-[data-theme='light'] .sidebar {
+[data-theme='light'] .sidebar:hover {
   border-right-color: #C0B9B0;
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.06);
 }
 
 [data-theme='light'] body {
@@ -571,32 +572,48 @@ body {
 
 /* ─── Sidebar Rail ─── */
 .sidebar {
-  width: 40px;
+  width: 0;
   background: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  border-right: 1px solid var(--border);
-  transition: width var(--transition-smooth);
+  border-right: none;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  position: relative;
+  z-index: 100;
+}
+
+/* Invisible hover trigger zone at left edge */
+.sidebar::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  z-index: 101;
 }
 
 .sidebar:hover {
   width: 200px;
+  border-right: 1px solid var(--border);
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.12);
 }
 
 .sidebar-header {
-  padding: 8px 0;
+  padding: 8px 10px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   flex-shrink: 0;
   min-height: 40px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
 .sidebar:hover .sidebar-header {
-  justify-content: space-between;
-  padding: 8px 10px;
+  opacity: 1;
 }
 
 .sidebar-brand {
@@ -639,12 +656,6 @@ body {
   color: var(--accent);
   letter-spacing: 0.08em;
   white-space: nowrap;
-  opacity: 0;
-  transition: opacity var(--transition-normal);
-}
-
-.sidebar:hover .sidebar-title {
-  opacity: 1;
 }
 
 .sidebar-nav {
@@ -659,16 +670,6 @@ body {
 }
 
 .nav-section-label {
-  font-size: 0;
-  height: 1px;
-  background: var(--border-subtle);
-  margin: 6px 12px;
-  padding: 0;
-  display: block;
-  overflow: hidden;
-}
-
-.sidebar:hover .nav-section-label {
   font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 600;
@@ -676,16 +677,16 @@ body {
   letter-spacing: 0.1em;
   color: var(--text-muted);
   padding: 6px 12px 2px;
-  height: auto;
-  background: none;
-  margin: 0;
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 0;
+  padding: 7px 12px;
   border-radius: 0;
   cursor: pointer;
   color: var(--text-secondary);
@@ -699,12 +700,7 @@ body {
   position: relative;
   border: none;
   border-left: 2px solid transparent;
-  justify-content: center;
-}
-
-.sidebar:hover .nav-item {
-  justify-content: flex-start;
-  padding: 7px 12px;
+  white-space: nowrap;
 }
 
 /* Icon always visible in rail */
@@ -715,15 +711,8 @@ body {
   transition: color var(--transition-fast);
 }
 
-/* Label hidden when collapsed, shown on hover */
 .nav-item .nav-label {
   white-space: nowrap;
-  opacity: 0;
-  transition: opacity var(--transition-normal);
-}
-
-.sidebar:hover .nav-item .nav-label {
-  opacity: 1;
 }
 
 .nav-item:hover {
@@ -743,21 +732,6 @@ body {
 }
 
 .nav-item .nav-badge {
-  width: 6px;
-  height: 6px;
-  min-width: 6px;
-  border-radius: 50%;
-  background: var(--accent);
-  font-size: 0;
-  padding: 0;
-  border: none;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-.sidebar:hover .nav-item .nav-badge {
-  width: auto;
-  height: auto;
   font-size: var(--type-micro);
   font-weight: 600;
   padding: 1px 6px;
@@ -765,13 +739,22 @@ body {
   background: var(--accent-subtle);
   color: var(--accent);
   border: 1px solid var(--accent-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* nav-icon rendered as Material Symbols <span> in HTML — ::after icons removed */
 
 .sidebar-footer {
-  padding: 6px;
+  padding: 8px 10px;
   border-top: 1px solid var(--border);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sidebar:hover .sidebar-footer {
+  opacity: 1;
 }
 
 .sidebar-theme-toggle {
@@ -795,9 +778,7 @@ body {
   font-size: 20px;
 }
 
-.sidebar:hover .sidebar-footer {
-  padding: 8px 10px;
-}
+
 
 .status-indicator {
   display: flex;
@@ -807,21 +788,11 @@ body {
   border-radius: var(--radius-sm);
   font-size: 11px;
   color: var(--text-secondary);
-  justify-content: center;
-}
-
-.sidebar:hover .status-indicator {
-  justify-content: flex-start;
+  white-space: nowrap;
 }
 
 #status-text {
   white-space: nowrap;
-  opacity: 0;
-  transition: opacity var(--transition-normal);
-}
-
-.sidebar:hover #status-text {
-  opacity: 1;
 }
 
 .status-dot {
