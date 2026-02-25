@@ -14,6 +14,7 @@ import {
   setMailSelectedId,
   setOpenMailAccountSetup,
   setLoadMailRef,
+  updateMailHeroStats,
 } from './molecules';
 import {
   setCloseChannelSetupFn,
@@ -77,6 +78,7 @@ export async function loadMail(): Promise<void> {
     if (getMailAccountsRef().length === 0) {
       showMailEmpty(true);
     }
+    updateMailHeroStats();
     return;
   }
   try {
@@ -89,6 +91,7 @@ export async function loadMail(): Promise<void> {
       renderMailList();
       showMailEmpty(true);
     }
+    updateMailHeroStats();
   } catch (e) {
     console.warn('[mail] Load failed:', e);
     showMailEmpty(true);
@@ -98,6 +101,11 @@ export async function loadMail(): Promise<void> {
 // ── Event wiring ───────────────────────────────────────────────────────────
 
 export function initMailEvents(): void {
+  // ── Kinetic stagger on side panel cards ─────────────────────────────
+  document.querySelectorAll('.mail-side-panel .mail-panel-card').forEach((card, i) => {
+    (card as HTMLElement).style.animationDelay = `${i * 60}ms`;
+  });
+
   // Compose new email
   $('mail-compose')?.addEventListener('click', () => {
     showToast('Himalaya skill is required to send emails. Enable it in the Skills view.', 'error');
@@ -131,6 +139,8 @@ export function initMailEvents(): void {
   // Refresh
   $('mail-refresh')?.addEventListener('click', () => loadMail());
 
-  // Add account buttons
+  // Add account buttons (sidebar + quick action)
   $('mail-add-account')?.addEventListener('click', () => _openMailAccountSetup());
+  $('mail-qa-add-account')?.addEventListener('click', () => _openMailAccountSetup());
+  $('mail-qa-refresh')?.addEventListener('click', () => loadMail());
 }

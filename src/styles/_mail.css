@@ -1,13 +1,122 @@
-/* ═══ Mail Client View ═══ */
-.mail-client-view.active {
+/* ═══ Mail View — Kinetic UI ═══ */
+
+/* ── View shell ── */
+.mail-client-view {
+  overflow: hidden;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── Hero Header ── */
+.mail-hero {
   display: flex;
-  flex-direction: row;
-  height: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28px 32px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.mail-hero-left {
+  flex: 1;
+  min-width: 200px;
+}
+.mail-hero-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.mail-hero-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+.mail-hero-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.mail-hero-stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  min-width: 80px;
+}
+.mail-hero-stat-icon {
+  font-size: 20px;
+  color: var(--accent);
+}
+.mail-hero-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  line-height: 1;
+}
+.mail-hero-stat-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  line-height: 1;
+  margin-top: 2px;
+}
+
+/* ── Two-Column Body ── */
+.mail-body {
+  display: flex;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
+.mail-main-col {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── 3-Pane Email Client (inside main column) ── */
+.mail-panes {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Side Panel ── */
+.mail-side-panel {
+  width: 280px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 0;
+}
+.mail-panel-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  flex-shrink: 0;
+}
+
+/* ── Folder Sidebar ── */
 .mail-sidebar {
-  width: 230px;
-  min-width: 200px;
+  width: 200px;
+  min-width: 180px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border);
   display: flex;
@@ -15,12 +124,6 @@
   flex-shrink: 0;
   padding: 14px;
   overflow-y: auto;
-}
-.mail-sidebar-header {
-  margin-bottom: 16px;
-}
-.mail-compose-btn {
-  width: 100%;
 }
 .mail-folders {
   display: flex;
@@ -357,4 +460,23 @@
   display: grid;
   grid-template-columns: 1fr 100px;
   gap: 12px;
+}
+
+/* ── Responsive: collapse side panel + folder sidebar ── */
+@media (max-width: 1100px) {
+  .mail-side-panel {
+    display: none;
+  }
+}
+@media (max-width: 800px) {
+  .mail-sidebar {
+    display: none;
+  }
+  .mail-list {
+    width: 100%;
+    max-width: none;
+  }
+  .mail-preview {
+    display: none;
+  }
 }

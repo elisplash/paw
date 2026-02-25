@@ -1530,85 +1530,186 @@
 
         <!-- ═══ Mail View — Email Client ═══ -->
         <div class="view mail-client-view" id="mail-view">
-          <div class="mail-sidebar">
-            <div class="mail-sidebar-header">
-              <button class="btn btn-primary btn-sm mail-compose-btn" id="mail-compose">
+          <!-- Hero header -->
+          <div class="mail-hero">
+            <div class="mail-hero-left">
+              <h1 class="mail-hero-title">Mail</h1>
+              <p class="mail-hero-sub">Read, draft, and send emails with AI assistance across all your accounts</p>
+            </div>
+            <div class="mail-hero-right">
+              <div class="mail-hero-stat k-row k-spring">
+                <span class="ms mail-hero-stat-icon">mail</span>
+                <div>
+                  <div class="mail-hero-stat-val" id="mail-stat-accounts">0</div>
+                  <div class="mail-hero-stat-lbl">Accounts</div>
+                </div>
+              </div>
+              <div class="mail-hero-stat k-row k-spring">
+                <span class="ms mail-hero-stat-icon">inbox</span>
+                <div>
+                  <div class="mail-hero-stat-val" id="mail-stat-inbox">0</div>
+                  <div class="mail-hero-stat-lbl">Inbox</div>
+                </div>
+              </div>
+              <div class="mail-hero-stat k-row k-spring">
+                <span class="ms mail-hero-stat-icon">layers</span>
+                <div>
+                  <div class="mail-hero-stat-val" id="mail-stat-drafts">0</div>
+                  <div class="mail-hero-stat-lbl">Drafts</div>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="mail-compose">
                 <span class="ms ms-sm">edit</span>
                 Compose
               </button>
             </div>
-            <div class="mail-folders">
-              <div class="mail-folder active" data-folder="inbox">
-                <span class="ms ms-sm">inbox</span>
-                <span>Inbox</span>
-                <span class="mail-count" id="mail-inbox-count">0</span>
-              </div>
-              <div class="mail-folder" data-folder="drafts">
-                <span class="ms ms-sm">description</span>
-                <span>Drafts</span>
-              </div>
-              <div class="mail-folder" data-folder="sent">
-                <span class="ms ms-sm">send</span>
-                <span>Sent</span>
-              </div>
-              <div class="mail-folder" data-folder="agent">
-                <span class="ms ms-sm">layers</span>
-                <span>Agent Drafts</span>
-                <span class="mail-count mail-count-accent" id="mail-agent-count">0</span>
-              </div>
-            </div>
-            <div class="mail-accounts-section">
-              <div class="mail-accounts-header">
-                <span class="ms ms-sm">lock</span>
-                Credential Vault
-              </div>
-              <div id="mail-accounts-list">
-                <div class="mail-no-accounts">No accounts connected</div>
-              </div>
-              <button
-                class="btn btn-ghost btn-sm"
-                id="mail-add-account"
-                style="width: 100%; margin-top: 8px"
-              >
-                <span class="ms ms-sm">add</span>
-                Add Account
-              </button>
-            </div>
-            <!-- Mail scheduled tasks -->
-            <div
-              class="space-cron-widget space-cron-widget-sidebar"
-              id="mail-cron-widget"
-              style="display: none"
-            >
-              <div class="space-cron-header">
-                <span class="ms ms-sm">bolt</span>
-                <span>Digests</span>
-                <span class="space-cron-count" id="mail-cron-count">0</span>
-              </div>
-              <div class="space-cron-items" id="mail-cron-items"></div>
-            </div>
           </div>
-          <div class="mail-list" id="mail-message-list">
-            <div class="mail-list-header">
-              <span class="mail-list-title" id="mail-folder-title">Inbox</span>
-              <button class="btn btn-ghost btn-sm" id="mail-refresh">
-                <span class="ms ms-sm">sync</span>
-              </button>
-            </div>
-            <div class="mail-items" id="mail-items"></div>
-            <div class="empty-state" id="mail-empty">
-              <div class="empty-icon"><span class="ms" style="font-size: 48px">mail</span></div>
-              <div class="empty-title">Connect your email</div>
-              <div class="empty-subtitle">
-                Add an IMAP/SMTP account to read, draft, and send emails with AI assistance
+
+          <!-- Two-column body -->
+          <div class="mail-body">
+            <!-- Main column: 3-pane email client -->
+            <div class="mail-main-col">
+              <div class="mail-panes">
+                <!-- Folder sidebar -->
+                <div class="mail-sidebar">
+                  <div class="mail-folders">
+                    <div class="mail-folder active" data-folder="inbox">
+                      <span class="ms ms-sm">inbox</span>
+                      <span>Inbox</span>
+                      <span class="mail-count" id="mail-inbox-count">0</span>
+                    </div>
+                    <div class="mail-folder" data-folder="drafts">
+                      <span class="ms ms-sm">description</span>
+                      <span>Drafts</span>
+                    </div>
+                    <div class="mail-folder" data-folder="sent">
+                      <span class="ms ms-sm">send</span>
+                      <span>Sent</span>
+                    </div>
+                    <div class="mail-folder" data-folder="agent">
+                      <span class="ms ms-sm">layers</span>
+                      <span>Agent Drafts</span>
+                      <span class="mail-count mail-count-accent" id="mail-agent-count">0</span>
+                    </div>
+                  </div>
+                  <div class="mail-accounts-section">
+                    <div class="mail-accounts-header">
+                      <span class="ms ms-sm">lock</span>
+                      Credential Vault
+                    </div>
+                    <div id="mail-accounts-list">
+                      <div class="mail-no-accounts">No accounts connected</div>
+                    </div>
+                    <button
+                      class="btn btn-ghost btn-sm"
+                      id="mail-add-account"
+                      style="width: 100%; margin-top: 8px"
+                    >
+                      <span class="ms ms-sm">add</span>
+                      Add Account
+                    </button>
+                  </div>
+                  <!-- Mail scheduled tasks -->
+                  <div
+                    class="space-cron-widget space-cron-widget-sidebar"
+                    id="mail-cron-widget"
+                    style="display: none"
+                  >
+                    <div class="space-cron-header">
+                      <span class="ms ms-sm">bolt</span>
+                      <span>Digests</span>
+                      <span class="space-cron-count" id="mail-cron-count">0</span>
+                    </div>
+                    <div class="space-cron-items" id="mail-cron-items"></div>
+                  </div>
+                </div>
+
+                <!-- Message list -->
+                <div class="mail-list" id="mail-message-list">
+                  <div class="mail-list-header">
+                    <span class="mail-list-title" id="mail-folder-title">Inbox</span>
+                    <button class="btn btn-ghost btn-sm" id="mail-refresh">
+                      <span class="ms ms-sm">sync</span>
+                    </button>
+                  </div>
+                  <div class="mail-items" id="mail-items"></div>
+                  <div class="empty-state" id="mail-empty">
+                    <div class="empty-icon"><span class="ms" style="font-size: 48px">mail</span></div>
+                    <div class="empty-title">Connect your email</div>
+                    <div class="empty-subtitle">
+                      Add an IMAP/SMTP account to read, draft, and send emails with AI assistance
+                    </div>
+                    <button class="btn btn-primary" id="mail-setup-account" style="margin-top: 16px">
+                      Add Email Account
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Preview panel -->
+                <div class="mail-preview" id="mail-preview">
+                  <div class="mail-preview-empty">Select an email to read</div>
+                </div>
               </div>
-              <button class="btn btn-primary" id="mail-setup-account" style="margin-top: 16px">
-                Add Email Account
-              </button>
             </div>
-          </div>
-          <div class="mail-preview" id="mail-preview">
-            <div class="mail-preview-empty">Select an email to read</div>
+
+            <!-- Side panel -->
+            <div class="mail-side-panel k-stagger">
+              <!-- What Is Mail? -->
+              <div class="mail-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">info</span>
+                  <span class="skills-panel-card-title">AI-Powered Mail</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <p>Connect your email accounts and let your agent read, draft, and manage messages. Agents can summarise threads, draft replies, and flag important items.</p>
+                  <p>Supports <strong>Google OAuth</strong>, <strong>IMAP/SMTP</strong>, and <strong>Himalaya CLI</strong> backends.</p>
+                </div>
+              </div>
+
+              <!-- Security -->
+              <div class="mail-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">shield</span>
+                  <span class="skills-panel-card-title">Credential Vault</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <ul class="skills-explainer-list">
+                    <li><span class="ms">lock</span> Credentials stored locally in encrypted vault</li>
+                    <li><span class="ms">verified_user</span> Per-account permission controls (read, send, delete)</li>
+                    <li><span class="ms">history</span> Full audit log of credential access</li>
+                    <li><span class="ms">gpp_maybe</span> Agent needs explicit permission before sending</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Agent Drafts -->
+              <div class="mail-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">smart_toy</span>
+                  <span class="skills-panel-card-title">Agent Drafts</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <p>When your agent writes an email, it goes to <strong>Agent Drafts</strong> first. Review, edit, and approve before anything gets sent.</p>
+                  <p>Use digests to schedule automated email summaries.</p>
+                </div>
+              </div>
+
+              <!-- Quick Actions -->
+              <div class="mail-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">rocket_launch</span>
+                  <span class="skills-panel-card-title">Quick Actions</span>
+                </div>
+                <div class="skills-quick-actions">
+                  <button class="skills-quick-btn" id="mail-qa-add-account">
+                    <span class="ms">add</span> Add Account
+                  </button>
+                  <button class="skills-quick-btn" id="mail-qa-refresh">
+                    <span class="ms">sync</span> Refresh Inbox
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

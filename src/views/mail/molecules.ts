@@ -38,6 +38,18 @@ let _mailSelectedId: string | null = null;
 let _mailAccounts: MailAccount[] = [];
 let _googleEmail: string | null = null;
 
+// ── Hero stat helpers ──────────────────────────────────────────────────────
+
+export function updateMailHeroStats(): void {
+  const acctEl = document.getElementById('mail-stat-accounts');
+  const inboxEl = document.getElementById('mail-stat-inbox');
+  const draftsEl = document.getElementById('mail-stat-drafts');
+  if (acctEl) acctEl.textContent = String(_mailAccounts.length);
+  if (inboxEl) inboxEl.textContent = String(_mailMessages.length);
+  // Agent drafts folder is not yet populated — show 0
+  if (draftsEl) draftsEl.textContent = '0';
+}
+
 let onSwitchView: ((view: string) => void) | null = null;
 let onSetCurrentSession: ((key: string | null) => void) | null = null;
 let getChatInput: (() => HTMLTextAreaElement | null) | null = null;
@@ -405,6 +417,7 @@ export async function renderMailAccounts(
     list.innerHTML = '<div class="mail-no-accounts">No accounts connected</div>';
   }
 
+  updateMailHeroStats();
   renderCredentialActivityLog();
 }
 
@@ -566,6 +579,8 @@ export async function loadMailInbox() {
 
   const countEl = $('mail-inbox-count');
   if (countEl) countEl.textContent = String(_mailMessages.length);
+
+  updateMailHeroStats();
 }
 
 // ── Mail list ──────────────────────────────────────────────────────────────
