@@ -1,0 +1,282 @@
+
+/* ══════════════════════════════════════════════════════════════
+   Phase 7 — Action Receipts, Service Detail, Auto-Discovery
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Action Receipts (chat inline) ── */
+.action-receipt-wrapper {
+  padding: 0.25rem 0;
+}
+
+.action-receipt {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  padding: 0.6rem 0.85rem;
+  font-size: 0.82rem;
+  transition: border-color 0.15s;
+}
+
+.action-receipt--success {
+  border-left: 3px solid var(--success, #8FB0A0);
+}
+
+.action-receipt--failed {
+  border-left: 3px solid var(--danger, #FF4D4D);
+}
+
+.action-receipt--running {
+  border-left: 3px solid var(--warning, #f59e0b);
+}
+
+.action-receipt--compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.6rem;
+  border-left: none;
+}
+
+.action-receipt-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.action-receipt-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.action-receipt-service {
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.action-receipt-label {
+  font-weight: 500;
+}
+
+.action-receipt-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.action-receipt-duration {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+
+.action-receipt-time {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.action-receipt-link {
+  color: var(--accent);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
+.action-receipt-link:hover {
+  opacity: 0.8;
+}
+
+.action-receipt-summary {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.action-receipt-error {
+  margin-top: 0.35rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--danger, #FF4D4D) 8%, transparent);
+  color: var(--danger, #FF4D4D);
+  font-size: 0.78rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* ── Batch receipt ── */
+.action-receipt-batch {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.action-receipt-batch-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+}
+
+.action-receipt-batch-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.4rem;
+}
+
+.action-receipt-batch-items .action-receipt {
+  border: none;
+  background: transparent;
+  padding: 0.25rem 0.5rem;
+}
+
+/* ── Service Detail Extended ── */
+.svc-detail-health {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.svc-detail-health-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.svc-detail-health-label {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.svc-detail-health-msg {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.svc-detail-health-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.svc-detail-health-failures {
+  color: var(--danger, #FF4D4D);
+}
+
+.svc-detail-expiry {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--warning, #f59e0b);
+}
+
+/* ── Recent actions in detail ── */
+.svc-detail-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.svc-detail-action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.8rem;
+  transition: background 0.1s;
+}
+
+.svc-detail-action:hover {
+  background: var(--bg-secondary);
+}
+
+.svc-detail-action-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.svc-detail-action-time {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.svc-detail-action-dur {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-family: monospace;
+  flex-shrink: 0;
+}
+
+.svc-detail-action--success .ms { color: var(--success, #8FB0A0); }
+.svc-detail-action--failed .ms  { color: var(--danger, #FF4D4D); }
+.svc-detail-action--running .ms { color: var(--warning, #f59e0b); }
+
+/* ── Connection info ── */
+.svc-detail-conn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.svc-detail-conn-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+/* ── Quick actions ── */
+.svc-detail-quick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.svc-detail-quick-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+  color: var(--text-primary);
+}
+
+.svc-detail-quick-btn:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, var(--bg-secondary));
+}
+
+.svc-detail-quick-btn--danger {
+  color: var(--danger, #FF4D4D);
+  border-color: color-mix(in srgb, var(--danger, #FF4D4D) 20%, var(--border));
+}
+
+.svc-detail-quick-btn--danger:hover {
+  border-color: var(--danger, #FF4D4D);
+  background: color-mix(in srgb, var(--danger, #FF4D4D) 5%, var(--bg-secondary));
+}

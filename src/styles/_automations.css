@@ -1,0 +1,219 @@
+/* ═══ Automations Board ═══ */
+.auto-view {
+  padding: 32px;
+  overflow-y: auto;
+}
+.auto-view > * {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+.auto-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-top: 0;
+}
+.auto-column {
+  background: var(--bg-sidebar);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+.auto-column-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.auto-column-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.auto-column-dot.active {
+  background: var(--success);
+}
+.auto-column-dot.paused {
+  background: var(--warning);
+}
+.auto-column-dot.history {
+  background: var(--purple);
+}
+.auto-column-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+}
+.auto-column-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.auto-card {
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  cursor: default;
+  transition: border-color var(--transition-fast);
+}
+.auto-card:hover {
+  border-color: var(--accent);
+}
+.auto-card-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.auto-card-schedule {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  margin-bottom: 6px;
+}
+.auto-card-prompt {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.auto-card-actions {
+  display: flex;
+  gap: 6px;
+}
+.auto-card-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.auto-card-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+}
+.auto-card-status.success {
+  background: var(--success-subtle);
+  color: var(--success);
+}
+.auto-card-status.failed {
+  background: var(--error-subtle);
+  color: var(--error);
+}
+.auto-card-status.running {
+  background: var(--blue-subtle);
+  color: var(--blue);
+}
+
+/* Error-highlighted run cards */
+.auto-card-error {
+  border-left: 3px solid var(--error, #d83a52);
+  background: color-mix(in srgb, var(--error, #d83a52) 5%, var(--bg-secondary));
+}
+.auto-card-error-icon {
+  stroke: var(--error, #d83a52);
+  fill: none;
+  flex-shrink: 0;
+}
+
+/* Run card header row (time + status inline) */
+.auto-card-header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.auto-card-header-row .auto-card-time {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+/* Meta line (next/last run) */
+.auto-card-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+/* Duration / timeout bar */
+.auto-card-duration {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+.auto-card-duration-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  min-width: 36px;
+}
+.auto-card-duration-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--border-light, #e6e9ef);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.auto-card-duration-fill {
+  height: 100%;
+  background: var(--success, #00854d);
+  border-radius: 2px;
+  transition: width 300ms ease;
+}
+.auto-card-duration-fill.warning {
+  background: var(--warning, #ffcb00);
+}
+.auto-card-duration-fill.danger {
+  background: var(--error, #d83a52);
+}
+
+/* Expandable error detail */
+.auto-card-error-detail {
+  margin-top: 6px;
+  border-top: 1px solid var(--border-light, #e6e9ef);
+  padding-top: 6px;
+}
+.auto-card-error-toggle {
+  font-size: 11px;
+  color: var(--error, #d83a52);
+  cursor: pointer;
+  font-weight: 500;
+}
+.auto-card-error-toggle:hover {
+  text-decoration: underline;
+}
+.auto-card-error-content {
+  margin-top: 6px;
+}
+.auto-card-error-content pre {
+  font-size: 11px;
+  color: var(--error, #d83a52);
+  background: color-mix(in srgb, var(--error, #d83a52) 6%, transparent);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+  margin: 0;
+}
+.auto-card-error-collapsed .auto-card-error-content {
+  display: none;
+}

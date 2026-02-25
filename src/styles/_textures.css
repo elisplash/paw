@@ -1,0 +1,105 @@
+
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  50% { box-shadow: 0 0 0 4px currentColor; opacity: 0.6; }
+}
+
+/* ── Grain Overlay — film texture on void ──────────────────────────────── */
+.app::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+  mix-blend-mode: overlay;
+}
+
+/* ── Halftone Surface — selective dot pattern ──────────────────────────── */
+.halftone-surface {
+  position: relative;
+}
+.halftone-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, var(--kinetic-red) 0.5px, transparent 0.5px);
+  background-size: 6px 6px;
+  opacity: var(--halftone-opacity);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ── Kinetic Pulse Animation ───────────────────────────────────────────── */
+@keyframes kinetic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: var(--pulse-glow); }
+}
+@keyframes kinetic-text-pulse {
+  0% { text-shadow: 0 0 0 transparent; }
+  50% { text-shadow: 0 0 6px var(--kinetic-red); }
+  100% { text-shadow: 0 0 0 transparent; }
+}
+.kinetic-pulse-active {
+  animation: kinetic-pulse 2s ease-in-out infinite;
+}
+.kinetic-text-pulse-active {
+  animation: kinetic-text-pulse 0.3s ease-out;
+}
+
+/* ── Kinetic Pulse Bridge — event-driven visual heartbeat ─────────── */
+.kinetic-pulse-stream {
+  border-color: var(--kinetic-red) !important;
+}
+.kinetic-pulse-tool {
+  border-color: var(--kinetic-gold) !important;
+}
+.kinetic-pulse-tool-end {
+  border-color: var(--kinetic-sage) !important;
+}
+.kinetic-pulse-error {
+  border-color: var(--kinetic-red) !important;
+}
+.kinetic-pulse-complete {
+  border-color: var(--kinetic-sage) !important;
+}
+
+/* Pulse flash on sidebar border */
+.app.kinetic-pulse-stream > .sidebar,
+.app.kinetic-pulse-tool > .sidebar,
+.app.kinetic-pulse-error > .sidebar {
+  transition: border-color 0.15s ease-out;
+}
+.app.kinetic-pulse-stream > .sidebar {
+  border-right-color: var(--kinetic-red);
+}
+.app.kinetic-pulse-tool > .sidebar {
+  border-right-color: var(--kinetic-gold);
+}
+.app.kinetic-pulse-error > .sidebar {
+  border-right-color: var(--kinetic-red);
+}
+.app.kinetic-pulse-complete > .sidebar {
+  border-right-color: var(--kinetic-sage);
+}
+
+/* Light mode overrides for elements that need special handling */
+[data-theme='light'] body,
+[data-theme='light'] .sidebar-title {
+  text-shadow: none;
+}
+
+[data-theme='light'] .sidebar-logo {
+  filter: none;
+  animation: none;
+}
+
+[data-theme='light'] .sidebar {
+  border-right-color: #C0B9B0;
+}
+
+[data-theme='light'] body {
+  -webkit-font-smoothing: antialiased;
+}

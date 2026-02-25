@@ -1,0 +1,148 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   PawzHub Marketplace (Phase 2) — native in-app marketplace
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Card grid ─────────────────────────────────────────── */
+.ph-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+
+/* ── Card ──────────────────────────────────────────────── */
+.ph-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  padding: 14px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ph-card:hover {
+  border-color: var(--accent);
+}
+.ph-card-installed {
+  border-left: 3px solid var(--accent-success, #8FB0A0);
+}
+.ph-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ph-card-identity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.ph-card-icon {
+  font-size: 22px;
+  color: var(--accent);
+}
+.ph-card-name {
+  font-size: 14px;
+  font-weight: 600;
+  display: block;
+}
+.ph-card-version {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.ph-card-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.ph-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ph-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+.ph-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 8px;
+}
+
+/* ── Badges ────────────────────────────────────────────── */
+.ph-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  background: var(--bg-primary);
+}
+.ph-badge-verified {
+  border-color: var(--accent-success, #8FB0A0);
+  color: var(--accent-success, #8FB0A0);
+}
+.ph-installed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--accent-success, #8FB0A0);
+}
+
+/* ── Section titles ────────────────────────────────────── */
+.ph-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.ph-section-count {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  background: var(--bg-primary);
+  padding: 1px 8px;
+  border-radius: 0;
+  border: 1px solid var(--border-subtle);
+}
+
+/* ── Links ─────────────────────────────────────────────── */
+.ph-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--accent);
+  text-decoration: none;
+}
+.ph-source-link:hover {
+  text-decoration: underline;
+}
+.ph-external-link {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--accent);
+  text-decoration: none;
+  margin-left: auto;
+}
+.ph-external-link:hover {
+  text-decoration: underline;
+}

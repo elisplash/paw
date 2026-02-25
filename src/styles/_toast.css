@@ -1,0 +1,30 @@
+/* ─── Global Toast ─── */
+.global-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 20px;
+  border-radius: 0;
+  font-size: 12px;
+  font-weight: 400;
+  z-index: 10000;
+  transition: opacity 0.3s ease-out;
+  pointer-events: none;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-left: 2px solid var(--border);
+}
+.toast-info {
+  border-left-color: var(--kinetic-steel, #7A8B9A);
+}
+.toast-success {
+  border-left-color: var(--kinetic-sage, #8FB0A0);
+}
+.toast-error {
+  border-left-color: var(--kinetic-red, #FF4D4D);
+}
+.toast-warning {
+  border-left-color: var(--kinetic-gold, #D4A853);
+}

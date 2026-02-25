@@ -1,0 +1,160 @@
+/* ── Log Viewer (Settings → Logs tab) ────────────────────────────── */
+
+.log-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 0;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.log-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  align-items: flex-end;
+}
+
+.log-toolbar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.log-toolbar-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.log-toolbar-select {
+  min-width: 120px;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.log-toolbar-input {
+  min-width: 140px;
+  font-size: 12px;
+  padding: 4px 8px;
+}
+
+.log-toolbar-actions {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.log-toolbar-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.log-toolbar-toggle input {
+  margin: 0;
+}
+
+.log-viewer-output {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 8px 12px;
+  overflow-y: auto;
+  max-height: 500px;
+  min-height: 300px;
+  background: var(--bg-secondary);
+}
+
+.log-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+  padding: 1px 0;
+}
+
+.log-ts {
+  color: var(--text-tertiary, #888);
+  font-size: 11px;
+}
+
+.log-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  min-width: 28px;
+  text-align: center;
+}
+
+.log-badge.log-level-debug {
+  background: rgba(100, 100, 100, 0.2);
+  color: var(--text-secondary);
+}
+
+.log-badge.log-level-info {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--kinetic-steel);
+}
+
+.log-badge.log-level-warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+}
+
+.log-badge.log-level-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--error);
+}
+
+.log-module {
+  color: var(--accent, #FF4D4D);
+  font-weight: 500;
+}
+
+.log-msg {
+  color: var(--text-primary);
+}
+
+.log-data {
+  color: var(--text-tertiary, #888);
+  font-size: 11px;
+}
+
+.log-line.log-level-error {
+  background: rgba(239, 68, 68, 0.05);
+}
+
+.log-line.log-level-warn {
+  background: rgba(245, 158, 11, 0.03);
+}
+
+.log-empty {
+  color: var(--text-secondary);
+  padding: 24px;
+  text-align: center;
+  font-style: italic;
+}
+
+.log-status-bar {
+  display: flex;
+  align-items: center;
+  padding: 4px 12px;
+  font-size: 11px;
+  color: var(--text-tertiary, #888);
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+}

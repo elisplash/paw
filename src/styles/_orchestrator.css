@@ -1,0 +1,393 @@
+/* ═══ Orchestrator — Multi-Agent Projects ═══ */
+
+.orchestrator-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 12px;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.orchestrator-header-left .view-title {
+  margin: 0;
+}
+.orchestrator-header-left .view-subtitle {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.orchestrator-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.orchestrator-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.orchestrator-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 24px 24px;
+}
+
+/* ── Project cards ── */
+
+.orch-project-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.orch-project-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.orch-project-card:hover {
+  border-color: var(--accent);
+}
+
+.orch-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.orch-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.orch-card-goal {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.orch-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── Status badges ── */
+
+.orch-status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.orch-status-planning {
+  background: rgba(147, 130, 220, 0.15);
+  color: var(--status-purple);
+}
+.orch-status-running {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--status-info);
+}
+.orch-status-paused {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--status-amber);
+}
+.orch-status-completed {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--status-success);
+}
+.orch-status-failed {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--status-error);
+}
+
+/* ── Project detail ── */
+
+.orch-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.orch-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.orch-detail-title h2 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.orch-detail-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.orch-detail-goal {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border-radius: 0;
+  margin-bottom: 20px;
+  white-space: pre-wrap;
+}
+
+/* ── Section ── */
+
+.orch-section {
+  margin-bottom: 24px;
+}
+
+.orch-section h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+
+.orch-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.orch-section-header h3 {
+  margin: 0;
+}
+
+/* ── Agent roster ── */
+
+.orch-agent-roster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.orch-agent-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 12px;
+  transition: border-color 0.15s ease;
+}
+
+.orch-agent-card.orch-agent-working {
+  border-color: var(--status-info);
+  border-left: 3px solid var(--status-info);
+}
+
+.orch-agent-card.orch-agent-done {
+  border-color: var(--status-success);
+  border-left: 3px solid var(--status-success);
+}
+
+.orch-agent-card.orch-agent-error {
+  border-color: var(--status-error);
+  border-left: 3px solid var(--status-error);
+}
+
+.orch-agent-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.orch-agent-icon {
+  font-size: 18px;
+}
+
+.orch-agent-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.orch-agent-role-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  background: rgba(147, 130, 220, 0.15);
+  color: var(--status-purple);
+}
+
+.orch-agent-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.orch-dot-idle {
+  background: var(--text-muted);
+}
+.orch-dot-working {
+  background: var(--status-info);
+  animation: pulse 1.5s infinite;
+}
+.orch-dot-done {
+  background: var(--status-success);
+}
+.orch-dot-error {
+  background: var(--status-error);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.orch-agent-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.orch-agent-specialty {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+
+.orch-agent-model {
+  font-size: 10px;
+  font-family: var(--font-mono, monospace);
+  color: var(--accent);
+  background: rgba(var(--accent-rgb, 99, 102, 241), 0.12);
+  padding: 1px 6px;
+  border-radius: 0;
+  width: fit-content;
+}
+
+.orch-agent-task {
+  font-size: 11px;
+  color: var(--primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Message bus ── */
+
+.orch-message-bus {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.orch-message {
+  background: var(--bg);
+  border-radius: 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--border);
+}
+
+.orch-msg-delegation {
+  border-left-color: var(--status-info);
+}
+.orch-msg-progress {
+  border-left-color: var(--status-amber);
+}
+.orch-msg-result {
+  border-left-color: var(--status-success);
+}
+.orch-msg-error {
+  border-left-color: var(--status-error);
+}
+.orch-msg-message {
+  border-left-color: var(--status-purple);
+}
+
+.orch-msg-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.orch-msg-kind {
+  font-weight: 600;
+}
+
+.orch-msg-from {
+  color: var(--text-muted);
+}
+
+.orch-msg-time {
+  color: var(--text-muted);
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.orch-msg-content {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.empty-state-sm {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.btn-xs {
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.btn-danger {
+  background: var(--status-error);
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+}

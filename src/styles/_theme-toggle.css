@@ -1,0 +1,63 @@
+/* ═══════════════════════════════════════════
+   Theme Toggle Switch
+   ═══════════════════════════════════════════ */
+.theme-toggle {
+  cursor: pointer;
+  user-select: none;
+}
+
+.theme-toggle-track {
+  position: relative;
+  width: 56px;
+  height: 28px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 6px;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+
+.theme-toggle-track:hover {
+  border-color: var(--accent);
+}
+
+.theme-toggle-icon {
+  font-size: 13px;
+  line-height: 1;
+  z-index: 1;
+  transition: opacity 0.2s;
+}
+
+.theme-toggle-dark {
+  opacity: 1;
+}
+.theme-toggle-light {
+  opacity: 0.4;
+}
+
+[data-theme='light'] .theme-toggle-dark {
+  opacity: 0.4;
+}
+[data-theme='light'] .theme-toggle-light {
+  opacity: 1;
+}
+
+.theme-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  background: var(--accent);
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+[data-theme='light'] .theme-toggle-thumb {
+  transform: translateX(28px);
+}

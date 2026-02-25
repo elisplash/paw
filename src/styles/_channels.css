@@ -1,0 +1,341 @@
+/* ═══ Channel Grid ═══ */
+.channel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.channel-card {
+  background: var(--bg-secondary);
+  border-radius: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  transition: border-color var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.channel-card:hover {
+  border-color: var(--accent);
+}
+.channel-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.channel-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.channel-card-icon.telegram { background: var(--bg-tertiary); }
+.channel-card-icon.discord { background: var(--bg-tertiary); }
+.channel-card-icon.whatsapp { background: var(--bg-tertiary); }
+.channel-card-icon.signal { background: var(--bg-tertiary); }
+.channel-card-icon.slack { background: var(--bg-tertiary); }
+.channel-card-icon.irc { background: var(--bg-tertiary); }
+.channel-card-icon.matrix { background: var(--bg-tertiary); }
+.channel-card-icon.mattermost { background: var(--bg-tertiary); }
+.channel-card-icon.nextcloud { background: var(--bg-tertiary); }
+.channel-card-icon.nostr { background: var(--bg-tertiary); }
+.channel-card-icon.twitch { background: var(--bg-tertiary); }
+.channel-card-icon.default { background: var(--bg-tertiary); }
+.channel-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.channel-card-status {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.channel-card-status .status-dot {
+  width: 6px;
+  height: 6px;
+}
+.channel-card-accounts {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.channel-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: auto;
+  flex-wrap: wrap;
+}
+
+/* ── Channel Picker Grid (empty state + add modal) ── */
+.channel-picker-grid {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.channel-pick-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border: 2px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  min-width: 100px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.channel-pick-btn:hover {
+  border-color: var(--blue);
+  background: var(--blue-subtle);
+}
+.channel-pick-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+.channel-pick-icon.telegram {
+  background: rgba(0, 136, 204, 0.15);
+}
+.channel-pick-icon.discord {
+  background: rgba(114, 102, 255, 0.15);
+}
+.channel-pick-icon.whatsapp {
+  background: rgba(57, 255, 20, 0.12);
+}
+.channel-pick-icon.signal {
+  background: rgba(0, 136, 204, 0.15);
+}
+.channel-pick-icon.slack {
+  background: rgba(255, 221, 0, 0.12);
+}
+.channel-pick-icon.irc {
+  background: rgba(0, 200, 100, 0.12);
+}
+.channel-pick-icon.matrix {
+  background: rgba(0, 189, 170, 0.15);
+}
+.channel-pick-icon.mattermost {
+  background: rgba(0, 100, 180, 0.15);
+}
+.channel-pick-icon.nextcloud {
+  background: rgba(0, 130, 201, 0.15);
+}
+.channel-pick-icon.nostr {
+  background: rgba(128, 0, 255, 0.12);
+}
+.channel-pick-icon.twitch {
+  background: rgba(145, 70, 255, 0.15);
+}
+.channel-pick-icon.default {
+  background: var(--bg-primary);
+}
+
+/* ── Channel Setup Modal ── */
+.channel-setup-modal-inner {
+  max-width: 520px;
+  width: 100%;
+}
+.channel-setup-desc {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+/* ── WhatsApp Setup Guide ── */
+.wa-setup-guide {
+  margin-bottom: 8px;
+}
+.wa-prereq {
+  background: rgba(255, 180, 0, 0.08);
+  border: 1px solid rgba(255, 180, 0, 0.25);
+  border-radius: 0;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+.wa-prereq a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.wa-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.wa-step {
+  font-size: 13px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wa-step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 0;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.wa-step-sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-left: 30px;
+  font-style: italic;
+}
+
+/* ── Advanced Settings Toggle ── */
+.advanced-toggle {
+  margin-top: 8px;
+  border-top: 1px solid var(--border-light);
+  padding-top: 8px;
+}
+.advanced-toggle summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  user-select: none;
+  padding: 4px 0;
+}
+.advanced-toggle summary:hover {
+  color: var(--text-secondary);
+}
+.advanced-toggle[open] summary {
+  margin-bottom: 8px;
+}
+
+/* ── WhatsApp Status Banner ── */
+.wa-status-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px 16px;
+  border-radius: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  animation: fadeIn 0.2s ease;
+}
+.wa-status-banner.wa-status-error {
+  background: rgba(255, 77, 77, 0.08);
+  border-color: rgba(255, 77, 77, 0.3);
+  color: var(--error);
+}
+.wa-status-banner.wa-status-warning {
+  background: rgba(212, 168, 83, 0.08);
+  border-color: rgba(212, 168, 83, 0.3);
+  color: var(--warning);
+}
+.wa-status-banner.wa-status-success {
+  background: rgba(143, 176, 160, 0.08);
+  border-color: rgba(143, 176, 160, 0.3);
+  color: var(--success);
+}
+.wa-status-banner.wa-status-qr {
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--accent);
+}
+.wa-status-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.wa-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-light);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.wa-qr-section {
+  padding: 8px 0;
+}
+.wa-qr-image {
+  max-width: 256px;
+  width: 100%;
+  height: auto;
+  border-radius: 0;
+  border: 2px solid var(--border);
+  image-rendering: pixelated;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.form-label .required {
+  color: var(--error);
+}
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-xs);
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  transition: border-color var(--transition-fast);
+  box-sizing: border-box;
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px var(--blue-subtle);
+}
+select.form-input {
+  appearance: auto;
+  cursor: pointer;
+}
+.form-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}

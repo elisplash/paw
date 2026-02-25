@@ -1,0 +1,77 @@
+/*
+ * OpenPawz — Atomic CSS Index
+ * All styles split from the monolithic styles.css for maintainability.
+ * Import order matters: tokens → reset → foundations → components → features → views
+ */
+
+/* ── Foundation ─────────────────────────────────────────── */
+@import './_tokens.css';        /* Design tokens, CSS custom properties, light theme */
+@import './_reset.css';         /* Font-face, material symbols, universal reset, body */
+@import './_textures.css';      /* Grain overlay, halftone, kinetic pulse */
+@import './_cards.css';         /* Card system, typography utilities, data-viz atoms */
+@import './_icons.css';         /* Icon sizing, status indicators */
+@import './_layout.css';        /* App shell layout */
+
+/* ── Core Components ────────────────────────────────────── */
+@import './_sidebar.css';       /* Sidebar navigation, collapse, logo */
+@import './_views.css';         /* View containers, view-header, topbar */
+@import './_forms.css';         /* Inputs, selects, textareas */
+@import './_buttons.css';       /* Button variants, icon buttons */
+@import './_modals.css';        /* Modal overlays, modal cards */
+@import './_toast.css';         /* Toast notifications */
+@import './_components.css';    /* Chat attachments, markdown rendering */
+@import './_empty-state.css';   /* Empty state placeholders */
+@import './_responsive.css';    /* Responsive breakpoints */
+@import './_theme-toggle.css';  /* Theme toggle switch */
+
+/* ── Chat & Communication ───────────────────────────────── */
+@import './_chat.css';          /* Chat view, messages, input, bubbles */
+@import './_mini-chat.css';     /* Mini-chat popups, agent dock */
+@import './_channels.css';      /* Channel views */
+@import './_mail.css';          /* Mail/email view */
+
+/* ── Feature Views ──────────────────────────────────────── */
+@import './_settings.css';      /* Settings panels (main) */
+@import './_settings-ext.css';  /* Settings extended: usage, approvals, security, audit */
+@import './_memory.css';        /* Memory view */
+@import './_memory-palace.css'; /* Memory palace visualization */
+@import './_tasks.css';         /* Tasks view */
+@import './_ide.css';           /* IDE / code editor view */
+@import './_studio.css';        /* Content studio */
+@import './_credentials.css';   /* Credential management */
+@import './_today.css';         /* Today / mission control dashboard */
+@import './_agents.css';        /* Agent roster, agent cards */
+@import './_automations.css';   /* Automations view */
+@import './_skills.css';        /* Skills view */
+@import './_skills-tabs.css';   /* Skills tabbed workspace */
+@import './_skill-widgets.css'; /* Skill widget cards, metrics, tables */
+@import './_trading.css';       /* Trading view */
+@import './_foundry.css';       /* Foundry view */
+@import './_cron.css';          /* Cron/schedule view */
+@import './_projects.css';      /* Projects view */
+@import './_engine.css';        /* Engine status view */
+@import './_research.css';      /* Research view */
+@import './_orchestrator.css';  /* Orchestrator view */
+@import './_log-viewer.css';    /* Log viewer */
+@import './_extensions.css';    /* Extensions view */
+@import './_squads.css';        /* Squads view */
+
+/* ── Overlays & Wizards ─────────────────────────────────── */
+@import './_command-palette.css';    /* Command palette, keyboard shortcuts */
+@import './_onboarding.css';         /* Onboarding tour, capabilities card */
+@import './_notifications.css';      /* Notification center, webhook log */
+@import './_setup-wizard.css';       /* Setup wizard overlay */
+@import './_credential-prompt.css';  /* Credential prompt modal */
+
+/* ── PawzHub & Marketplace ──────────────────────────────── */
+@import './_pawzhub.css';       /* PawzHub marketplace */
+@import './_unified-card.css';  /* Unified card component */
+
+/* ── Integrations ───────────────────────────────────────── */
+@import './_integrations.css';       /* Integrations view, matrix, setup guide */
+@import './_integration-feed.css';   /* Integration activity feed, receipts */
+@import './_health-dashboard.css';   /* Integration health dashboard */
+
+/* ── Safety & Audit ─────────────────────────────────────── */
+@import './_guardrails.css';    /* Guardrails, rate limits, audit log, permissions */
+@import './_action-receipts.css'; /* Action receipts inline */

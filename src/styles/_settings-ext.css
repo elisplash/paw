@@ -1,0 +1,934 @@
+/* ─── Settings: Usage Cards ─── */
+.usage-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.usage-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 16px;
+  min-width: 140px;
+  flex: 1;
+}
+.usage-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.usage-card-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.usage-card-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.usage-models {
+  width: 100%;
+  margin-top: 8px;
+}
+.usage-models h4 {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.usage-model-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.usage-model-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* ─── Settings: Logs Viewer ─── */
+.logs-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+/* ─── Settings: Gateway Status ─── */
+.status-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.status-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  min-width: 130px;
+  flex: 1;
+}
+.status-card-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.status-card-value {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ─── Cron Service Status Badge ─── */
+.cron-service-status {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  letter-spacing: 0.02em;
+}
+.cron-service-status.running {
+  background: rgba(57, 255, 20, 0.1);
+  color: var(--success);
+}
+.cron-service-status.stopped {
+  background: rgba(255, 34, 68, 0.1);
+  color: var(--error);
+}
+.logs-output {
+  background: var(--bg-code);
+  color: var(--text-code);
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  max-height: 400px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ─── Settings: Presence ─── */
+.presence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.presence-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.presence-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+.presence-dot.online {
+  background: var(--success);
+}
+.presence-info {
+  flex: 1;
+}
+.presence-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.presence-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ─── Approval Modal ─── */
+.approval-details {
+  max-height: 300px;
+  overflow: auto;
+}
+.approval-details .code-block {
+  background: var(--bg-code);
+  color: var(--text-code);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+/* ─── Approval Modal: Danger Variant ─── */
+.modal-card.danger-modal {
+  border: 2px solid var(--status-error);
+}
+.modal-card.danger-modal .modal-header {
+  background: rgba(255, 34, 68, 0.15);
+  border-radius: 0;
+}
+.modal-card.danger-modal .modal-title {
+  color: var(--error);
+}
+
+.approval-risk-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  background: rgba(239, 68, 68, 0.08);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+}
+.approval-risk-icon {
+  font-size: 28px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.approval-risk-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.approval-risk-reason {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Risk level colors */
+.approval-risk-banner.risk-critical {
+  background: rgba(239, 68, 68, 0.12);
+  border-bottom-color: rgba(239, 68, 68, 0.3);
+}
+.approval-risk-banner.risk-critical .approval-risk-label {
+  color: var(--status-error);
+}
+.approval-risk-banner.risk-critical .approval-risk-icon {
+  color: var(--status-error);
+}
+
+.approval-risk-banner.risk-high {
+  background: rgba(249, 115, 22, 0.1);
+  border-bottom-color: rgba(249, 115, 22, 0.25);
+}
+.approval-risk-banner.risk-high .approval-risk-label {
+  color: var(--status-orange);
+}
+.approval-risk-banner.risk-high .approval-risk-icon {
+  color: var(--status-orange);
+}
+
+.approval-risk-banner.risk-medium {
+  background: rgba(234, 179, 8, 0.08);
+  border-bottom-color: rgba(234, 179, 8, 0.2);
+}
+.approval-risk-banner.risk-medium .approval-risk-label {
+  color: var(--status-warning);
+}
+.approval-risk-banner.risk-medium .approval-risk-icon {
+  color: var(--status-warning);
+}
+
+/* ── Network audit banner (C5) ── */
+.network-banner {
+  padding: 8px 14px;
+  font-size: 12px;
+  line-height: 1.5;
+  border-radius: 0;
+  margin: 0 16px 8px 16px;
+}
+.network-banner.network-exfiltration {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: var(--status-error);
+}
+.network-banner.network-external {
+  background: rgba(255, 221, 0, 0.08);
+  border: 1px solid rgba(255, 221, 0, 0.25);
+  color: var(--warning);
+}
+.network-banner.network-local {
+  background: rgba(57, 255, 20, 0.08);
+  border: 1px solid rgba(57, 255, 20, 0.2);
+  color: var(--success);
+}
+.network-banner strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+/* Type-to-confirm for critical commands */
+.approval-type-confirm {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.approval-type-label {
+  font-size: 12px;
+  color: var(--status-error);
+  font-weight: 500;
+}
+.approval-type-input {
+  font-size: 13px;
+  padding: 6px 10px;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+  background: rgba(239, 68, 68, 0.05);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.approval-type-input:focus {
+  border-color: var(--status-error) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+/* Danger modal: red deny gets emphasis, allow is de-emphasized */
+.modal-card.danger-modal .modal-footer #approval-deny-btn {
+  background: var(--status-error);
+  color: white;
+  font-weight: 600;
+}
+.modal-card.danger-modal .modal-footer #approval-allow-btn {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.modal-card.danger-modal .modal-footer #approval-allow-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ─── Session Override (C3) ─── */
+.session-override-group {
+  position: relative;
+  margin-right: auto;
+}
+.session-override-group #session-override-btn {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  white-space: nowrap;
+}
+.session-override-group #session-override-btn:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+.session-override-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg, 0 4px 24px rgba(0, 0, 0, 0.15));
+  overflow: hidden;
+  min-width: 140px;
+  z-index: 100;
+  margin-bottom: 4px;
+}
+.session-override-opt {
+  padding: 8px 14px;
+  font-size: 13px;
+  background: none;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  transition: background 120ms;
+}
+.session-override-opt:hover {
+  background: var(--bg-hover);
+}
+.session-override-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 221, 0, 0.08);
+  border: 1px solid rgba(255, 221, 0, 0.25);
+  color: var(--warning);
+}
+.session-override-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.session-override-banner-icon {
+  font-size: 16px;
+}
+
+/* ─── Security Settings ─── */
+.security-toggles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.security-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 120ms;
+}
+.security-toggle-row:hover {
+  background: var(--bg-hover);
+}
+.security-toggle-row input[type='checkbox'] {
+  margin-top: 3px;
+  flex-shrink: 0;
+  accent-color: var(--status-error);
+  width: 16px;
+  height: 16px;
+}
+.security-toggle-info {
+  flex: 1;
+  min-width: 0;
+}
+.security-toggle-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.security-toggle-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.security-patterns-input {
+  font-family: var(--font-mono, 'SF Mono', 'Consolas', 'Courier New', monospace);
+  font-size: 12px;
+  line-height: 1.6;
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* ─── Settings: Section Description ─── */
+.settings-section-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+/* ─── Security Audit Dashboard ─── */
+/* ── Encryption status indicator (C2) ── */
+.encryption-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 0;
+  font-size: 12px;
+  background: var(--bg-hover);
+}
+.encryption-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.encryption-status-bar.enc-active .encryption-status-dot {
+  background: var(--status-success);
+}
+.encryption-status-bar.enc-inactive .encryption-status-dot {
+  background: var(--status-warning);
+}
+
+/* ── Keychain health indicator (Phase 3B) ── */
+.keychain-health-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border-radius: 0;
+  font-size: 12px;
+  background: var(--bg-hover);
+  flex-wrap: wrap;
+}
+.keychain-health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+  flex-shrink: 0;
+}
+.keychain-health-bar.kc-healthy .keychain-health-dot {
+  background: var(--status-success);
+}
+.keychain-health-bar.kc-degraded .keychain-health-dot {
+  background: var(--status-warning);
+}
+.keychain-health-bar.kc-unavailable .keychain-health-dot {
+  background: var(--status-error, #e74c3c);
+}
+.keychain-health-detail {
+  width: 100%;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.audit-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+.audit-filter-select {
+  width: auto;
+  min-width: 120px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.audit-score-card {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.audit-score-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+}
+.audit-score-icon {
+  font-size: 14px;
+}
+.audit-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  max-height: 480px;
+  overflow-y: auto;
+}
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.audit-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-tertiary, var(--bg-secondary));
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  z-index: 1;
+}
+.audit-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border-light, rgba(255, 255, 255, 0.04));
+  color: var(--text-primary);
+  vertical-align: top;
+}
+.audit-table tr:hover td {
+  background: var(--bg-hover);
+}
+.audit-row-denied td {
+  background: rgba(239, 68, 68, 0.04);
+}
+.audit-cell-time {
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.audit-cell-event {
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+.audit-cell-tool {
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.audit-cell-detail {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.audit-risk-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+}
+.audit-risk-badge.risk-critical {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--status-error);
+}
+.audit-risk-badge.risk-high {
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--status-orange);
+}
+.audit-risk-badge.risk-medium {
+  background: rgba(234, 179, 8, 0.1);
+  color: var(--status-warning);
+}
+.audit-risk-badge.risk-low {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--status-info);
+}
+.audit-risk-badge.risk-safe {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--status-success);
+}
+.audit-result-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+}
+.audit-result-badge.allowed {
+  background: rgba(34, 197, 94, 0.12);
+  color: var(--status-success);
+}
+.audit-result-badge.denied {
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--status-error);
+}
+.audit-empty {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+/* ─── Device Token Age ─── */
+.device-token-age {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.device-token-age.stale {
+  color: var(--status-orange);
+  font-weight: 500;
+}
+.device-token-age.critical {
+  color: var(--status-error);
+  font-weight: 600;
+}
+/* ─── Skill Safety Warning ─── */
+.skill-safety-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.25);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.skill-safety-banner .safety-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.skill-safety-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.skill-safety-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.skill-safety-check .check-pass {
+  color: var(--status-success);
+}
+.skill-safety-check .check-warn {
+  color: var(--status-warning);
+}
+.skill-safety-check .check-fail {
+  color: var(--status-error);
+}
+
+/* npm risk score panel (H2) */
+.npm-risk-score {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.npm-risk-item {
+  white-space: nowrap;
+}
+
+.settings-subsection-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 16px 0 8px;
+}
+.settings-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ─── Settings: Device Cards ─── */
+.device-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.device-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  transition: var(--transition-fast);
+}
+.device-card:hover {
+  border-color: var(--accent);
+}
+.device-card-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.device-card-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.device-card-icon svg {
+  width: 20px;
+  height: 20px;
+}
+.device-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.device-card-meta {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.device-card-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ─── Settings: Exec Approvals Config ─── */
+.approvals-default-policy {
+  margin-bottom: 20px;
+}
+.approvals-policy-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+.approvals-policy-options {
+  display: flex;
+  gap: 8px;
+}
+.approvals-policy-option {
+  cursor: pointer;
+  flex: 1;
+}
+.approvals-policy-option input[type='radio'] {
+  display: none;
+}
+.approvals-policy-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: var(--transition-fast);
+}
+.approvals-policy-card .icon-sm {
+  width: 16px;
+  height: 16px;
+}
+.approvals-policy-option input:checked + .approvals-policy-card {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.approvals-policy-card:hover {
+  border-color: var(--accent);
+}
+
+/* Tool rule rows */
+.approvals-tool-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.approvals-empty {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.approvals-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+.approvals-tool-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.approvals-toggle-group {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.approvals-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+}
+.approvals-toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+.approvals-toggle-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.approvals-toggle-btn.active.allow {
+  background: rgba(57, 255, 20, 0.15);
+  color: var(--success);
+}
+.approvals-toggle-btn.active.ask {
+  background: rgba(255, 221, 0, 0.15);
+  color: var(--warning);
+}
+.approvals-toggle-btn.active.deny {
+  background: rgba(255, 34, 68, 0.15);
+  color: var(--error);
+}
+.icon-xs {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+.approvals-remove-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-fast);
+  flex-shrink: 0;
+}
+.approvals-remove-btn:hover {
+  background: rgba(255, 34, 68, 0.1);
+  color: var(--error);
+}
+
+/* btn-danger */
+.btn-danger {
+  background: transparent;
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+.btn-danger:hover {
+  background: rgba(255, 34, 68, 0.15);
+}

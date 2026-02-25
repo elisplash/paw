@@ -1,0 +1,401 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   INTEGRATION GUARDRAILS — Phase 3.5
+   Confirmation cards, rate-limit warnings, dry-run plans, audit log,
+   agent permission editor.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Guardrail message wrapper ─────────────────────────────────────── */
+
+.guardrail-message {
+  margin: 0.75rem 0;
+  animation: guardrail-slide-in 0.25s ease-out;
+}
+
+@keyframes guardrail-slide-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.guardrail-fade-out {
+  animation: guardrail-fade 0.3s ease-out forwards;
+}
+
+@keyframes guardrail-fade {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.95); }
+}
+
+/* ── Confirmation card ─────────────────────────────────────────────── */
+
+.guardrail-confirm-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  max-width: 480px;
+}
+
+.guardrail-confirm-card.risk-soft {
+  border-left: 3px solid var(--warning, #f59e0b);
+}
+
+.guardrail-confirm-card.risk-hard {
+  border-left: 3px solid var(--danger, #FF4D4D);
+  background: color-mix(in srgb, var(--danger, #FF4D4D) 5%, var(--bg-secondary));
+}
+
+.guardrail-confirm-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.guardrail-confirm-header .ms {
+  font-size: 18px;
+}
+
+.guardrail-confirm-title {
+  flex: 1;
+}
+
+.guardrail-service-badge {
+  font-size: 0.75rem;
+  background: var(--bg-tertiary, rgba(255,255,255,0.06));
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+}
+
+.guardrail-confirm-target {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  padding: 0.25rem 0;
+}
+
+.guardrail-confirm-preview {
+  font-size: 0.85rem;
+  background: var(--bg-tertiary, rgba(255,255,255,0.04));
+  border-radius: var(--radius-sm, 4px);
+  padding: 0.5rem 0.75rem;
+  margin: 0.5rem 0;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.guardrail-confirm-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* ── Guardrail buttons ─────────────────────────────────────────────── */
+
+.guardrail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-tertiary, rgba(255,255,255,0.06));
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.guardrail-btn .ms {
+  font-size: 16px;
+}
+
+.guardrail-btn:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.1));
+}
+
+.guardrail-btn-approve {
+  background: color-mix(in srgb, var(--success, #8FB0A0) 15%, transparent);
+  border-color: var(--success, #8FB0A0);
+  color: var(--success, #8FB0A0);
+}
+
+.guardrail-btn-approve:hover {
+  background: color-mix(in srgb, var(--success, #8FB0A0) 25%, transparent);
+}
+
+.guardrail-btn-edit {
+  background: color-mix(in srgb, var(--accent, #FF4D4D) 15%, transparent);
+  border-color: var(--accent, #FF4D4D);
+  color: var(--accent, #FF4D4D);
+}
+
+.guardrail-btn-edit:hover {
+  background: color-mix(in srgb, var(--accent, #FF4D4D) 25%, transparent);
+}
+
+.guardrail-btn-cancel {
+  color: var(--text-secondary);
+}
+
+.guardrail-btn-cancel:hover {
+  border-color: var(--danger, #FF4D4D);
+  color: var(--danger, #FF4D4D);
+}
+
+/* ── Rate limit warning ────────────────────────────────────────────── */
+
+.guardrail-rate-warning {
+  background: var(--bg-secondary);
+  border: 1px solid var(--warning, #f59e0b);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  max-width: 480px;
+}
+
+.guardrail-rate-warning.exhausted {
+  border-color: var(--danger, #FF4D4D);
+  background: color-mix(in srgb, var(--danger, #FF4D4D) 5%, var(--bg-secondary));
+}
+
+.guardrail-rate-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.guardrail-rate-header .ms {
+  font-size: 18px;
+  color: var(--warning, #f59e0b);
+}
+
+.exhausted .guardrail-rate-header .ms {
+  color: var(--danger, #FF4D4D);
+}
+
+.guardrail-rate-bar {
+  height: 6px;
+  background: var(--bg-tertiary, rgba(255,255,255,0.08));
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 0.5rem 0;
+}
+
+.guardrail-rate-fill {
+  height: 100%;
+  background: var(--warning, #f59e0b);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.exhausted .guardrail-rate-fill {
+  background: var(--danger, #FF4D4D);
+}
+
+.guardrail-rate-info {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.guardrail-rate-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+/* ── Dry-run plan ──────────────────────────────────────────────────── */
+
+.guardrail-dryrun {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  max-width: 540px;
+}
+
+.guardrail-dryrun-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.guardrail-dryrun-header .ms {
+  font-size: 20px;
+  color: var(--accent, #FF4D4D);
+}
+
+.guardrail-dryrun-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  counter-reset: plan-step;
+}
+
+.guardrail-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.85rem;
+  counter-increment: plan-step;
+}
+
+.guardrail-step::before {
+  content: counter(plan-step) ".";
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 20px;
+}
+
+.guardrail-step:nth-child(odd) {
+  background: var(--bg-tertiary, rgba(255,255,255,0.02));
+}
+
+.guardrail-step.risk-hard {
+  background: color-mix(in srgb, var(--danger, #FF4D4D) 8%, transparent);
+}
+
+.guardrail-dryrun-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* ── Audit log table ───────────────────────────────────────────────── */
+
+.guardrail-audit {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.guardrail-audit-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.guardrail-audit-header .ms {
+  font-size: 18px;
+  color: var(--accent, #FF4D4D);
+}
+
+.guardrail-audit-header span:nth-child(2) {
+  flex: 1;
+}
+
+.guardrail-audit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.guardrail-audit-table th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-tertiary, rgba(255,255,255,0.04));
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.guardrail-audit-table td {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.guardrail-audit-row:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.03));
+}
+
+.guardrail-audit-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: var(--text-secondary);
+  justify-content: center;
+}
+
+.guardrail-audit-empty .ms {
+  font-size: 24px;
+}
+
+/* ── Permission editor ─────────────────────────────────────────────── */
+
+.guardrail-permissions {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.guardrail-perm-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.guardrail-perm-header .ms {
+  font-size: 18px;
+  color: var(--accent, #FF4D4D);
+}
+
+.guardrail-perm-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.guardrail-perm-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.guardrail-perm-row:last-child {
+  border-bottom: none;
+}
+
+.guardrail-perm-row .ms {
+  font-size: 18px;
+}
+
+.guardrail-perm-service {
+  flex: 1;
+  font-size: 0.875rem;
+  text-transform: capitalize;
+}
+
+.guardrail-perm-select {
+  background: var(--bg-tertiary, rgba(255,255,255,0.06));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.guardrail-perm-select:focus {
+  outline: none;
+  border-color: var(--accent, #FF4D4D);
+}

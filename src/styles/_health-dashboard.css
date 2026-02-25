@@ -1,0 +1,250 @@
+/* ══════════════════════════════════════════════════════════════
+   Phase 6 — Integration Health Dashboard
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Connected-services chip strip ── */
+.ihealth-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+}
+
+.ihealth-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+  cursor: default;
+  transition: border-color 0.15s;
+}
+
+.ihealth-chip:hover {
+  border-color: var(--accent);
+}
+
+.ihealth-chip-icon {
+  font-size: 1rem;
+}
+
+.ihealth-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ihealth-chip-dot--healthy  { background: var(--success, #8FB0A0); }
+.ihealth-chip-dot--degraded { background: var(--warning, #f59e0b); }
+.ihealth-chip-dot--error    { background: var(--danger, #FF4D4D); }
+.ihealth-chip-dot--expired  { background: var(--danger, #FF4D4D); }
+.ihealth-chip-dot--unknown  { background: var(--text-secondary, #888); }
+
+.ihealth-strip-empty {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  padding: 0.5rem 0;
+}
+
+/* ── Health warning banner ── */
+.ihealth-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--warning, #f59e0b) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warning, #f59e0b) 30%, transparent);
+  margin-bottom: 0.75rem;
+}
+
+.ihealth-warning-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--warning, #f59e0b);
+}
+
+.ihealth-warning-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.ihealth-warning-item span {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ihealth-warning-item .btn-sm {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--warning, #f59e0b);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.ihealth-warning-item .btn-sm:hover {
+  opacity: 0.85;
+}
+
+/* ── Smart suggestions ── */
+.ihealth-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.ihealth-suggestions-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.ihealth-suggestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s;
+}
+
+.ihealth-suggestion:hover {
+  border-color: var(--accent);
+}
+
+.ihealth-suggestion-text {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+}
+
+.ihealth-suggestion .btn-sm {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.ihealth-suggestion .btn-sm:hover {
+  opacity: 0.85;
+}
+
+/* ── Workflow chain rules ── */
+.ihealth-chains {
+  margin-top: 0.75rem;
+}
+
+.ihealth-chains-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.ihealth-chains-empty {
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  padding: 0.5rem 0;
+}
+
+.ihealth-chain {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  margin-bottom: 0.4rem;
+  transition: border-color 0.15s, opacity 0.15s;
+}
+
+.ihealth-chain--disabled {
+  opacity: 0.5;
+}
+
+.ihealth-chain-toggle {
+  appearance: none;
+  width: 34px;
+  height: 18px;
+  border-radius: 0;
+  background: var(--border);
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.ihealth-chain-toggle::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+
+.ihealth-chain-toggle:checked {
+  background: var(--accent);
+}
+
+.ihealth-chain-toggle:checked::after {
+  transform: translateX(16px);
+}
+
+.ihealth-chain-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ihealth-chain-name {
+  font-weight: 500;
+  font-size: 0.82rem;
+}
+
+.ihealth-chain-flow {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+
+/* ── Dashboard composite container ── */
+.ihealth-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ihealth-section-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.5rem 0;
+}

@@ -1,0 +1,82 @@
+/* ═══ Space Cron Mini-Widgets ═══ */
+.space-cron-widget {
+  border-top: 1px solid var(--border);
+  padding: 10px 12px;
+  flex-shrink: 0;
+}
+.space-cron-widget-inline {
+  margin-top: auto;
+}
+.space-cron-widget-sidebar {
+  margin-top: auto;
+}
+.space-cron-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.space-cron-header svg {
+  width: 12px;
+  height: 12px;
+}
+.space-cron-count {
+  background: var(--accent-lighter);
+  color: var(--accent);
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 0;
+  margin-left: auto;
+}
+.space-cron-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.space-cron-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.space-cron-item:hover {
+  background: var(--bg-hover);
+}
+.space-cron-item-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+}
+.space-cron-item-dot.paused {
+  background: var(--warning);
+}
+.space-cron-item-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.space-cron-item-schedule {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* ─── Code Actions Bar ─── */
+.code-actions-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}

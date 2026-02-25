@@ -1,0 +1,85 @@
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--accent-muted);
+  border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-strong);
+}
+
+/* ─── Focus ─── */
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+
+button:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ─── Chat Header Responsive ─── */
+@media (max-width: 900px) {
+  /* Hide less-critical session buttons at medium widths */
+  #session-compact-btn,
+  #session-clear-btn {
+    display: none;
+  }
+
+  .chat-header-left .token-meter {
+    display: none;
+  }
+
+  .chat-session-select {
+    max-width: 160px;
+  }
+}
+
+@media (max-width: 600px) {
+  /* At narrow widths, collapse to most essential controls */
+  #session-rename-btn,
+  #session-delete-btn,
+  #session-compact-btn,
+  #session-clear-btn {
+    display: none;
+  }
+
+  .chat-session-select {
+    max-width: 120px;
+  }
+
+  .chat-header {
+    padding: 8px 10px;
+  }
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 600px) {
+  .sidebar {
+    width: 48px;
+  }
+  .sidebar:hover {
+    width: 48px; /* No expand on mobile — too narrow */
+  }
+  .sidebar .nav-item span,
+  .sidebar:hover .nav-item span,
+  .sidebar .nav-section-label,
+  .sidebar:hover .nav-section-label,
+  .sidebar-title,
+  .sidebar:hover .sidebar-title,
+  .status-indicator span,
+  .sidebar:hover .status-indicator span {
+    display: none;
+    opacity: 0;
+  }
+  .sidebar .nav-item,
+  .sidebar:hover .nav-item {
+    justify-content: center;
+    padding: 8px 0;
+  }
+}

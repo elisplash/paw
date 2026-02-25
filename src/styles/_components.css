@@ -1,0 +1,409 @@
+  display: block;
+}
+
+/* ══════════════════════════════════════════
+   New Components — Full UI Pass
+   ══════════════════════════════════════════ */
+
+/* ─── Nav Badge (muted / "Soon") ─── */
+.nav-item .nav-badge.muted {
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  font-size: 9px;
+}
+
+/* ─── Chat Mode Picker ─── */
+#chat-mode-select {
+  font-size: 12px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  max-width: 140px;
+  cursor: pointer;
+}
+#chat-mode-select:focus {
+  border-color: var(--border-focus);
+  outline: none;
+}
+
+/* ─── Chat Session Buttons ─── */
+.session-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 13px;
+  transition: all var(--transition-fast);
+}
+.session-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.session-btn.danger:hover {
+  background: var(--error-subtle);
+  color: var(--error);
+  border-color: var(--error);
+}
+
+/* ─── Chat Abort Button ─── */
+.chat-abort-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px auto 0;
+  padding: 7px 18px;
+  border: 1.5px solid var(--error);
+  border-radius: var(--radius-pill);
+  background: var(--error-subtle);
+  color: var(--error);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: inherit;
+}
+.chat-abort-btn:hover {
+  background: var(--error);
+  color: white;
+  box-shadow: 0 0 0 3px var(--error-subtle);
+}
+.chat-abort-btn:active {
+  transform: scale(0.97);
+}
+.chat-abort-btn svg {
+  width: 13px;
+  height: 13px;
+  stroke-width: 2.5;
+}
+
+/* ─── Chat Attach Button ─── */
+.chat-attach-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.chat-attach-btn:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+.chat-attach-btn:active {
+  transform: scale(0.92);
+}
+.chat-attach-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ─── Chat Talk (Mic) Button ─── */
+.chat-talk-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.chat-talk-btn:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+.chat-talk-btn:active {
+  transform: scale(0.92);
+}
+.chat-talk-btn.talk-active {
+  color: var(--accent);
+  background: rgba(255, 68, 68, 0.15);
+  animation: talk-pulse 1.2s ease-in-out infinite;
+}
+@keyframes talk-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(255, 68, 68, 0);
+  }
+}
+.chat-talk-btn .ms {
+  font-size: 18px;
+}
+
+/* ─── Attachment Preview Strip ─── */
+.chat-attachment-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  animation: attachSlideUp 200ms ease;
+}
+@keyframes attachSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  max-width: 220px;
+  transition: all var(--transition-fast);
+  animation: chipFadeIn 150ms ease;
+}
+@keyframes chipFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.attachment-chip:hover {
+  border-color: var(--accent);
+}
+.attachment-chip-thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 0;
+  border: 1px solid var(--border);
+}
+.attachment-chip-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--accent-subtle);
+  border-radius: 0;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.attachment-chip-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.attachment-chip-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.attachment-chip-name {
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.attachment-chip-size {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.attachment-chip-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.attachment-chip-remove svg {
+  width: 14px;
+  height: 14px;
+}
+.attachment-chip-remove:hover {
+  background: var(--error-subtle);
+  color: var(--error);
+}
+
+/* ─── Message Inline Attachments ─── */
+.message-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 0 2px;
+}
+.message-attachment-card {
+  position: relative;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: all var(--transition-fast);
+  max-width: 280px;
+}
+.message-attachment-card:hover {
+  border-color: var(--accent);
+}
+.message-attachment-card:hover .message-attachment-overlay {
+  opacity: 1;
+}
+.message-attachment-img {
+  display: block;
+  max-width: 280px;
+  max-height: 200px;
+  object-fit: cover;
+}
+.message-attachment-overlay {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 50%;
+  color: white;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+}
+.message-attachment-overlay svg {
+  width: 14px;
+  height: 14px;
+}
+.message-attachment-label {
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.message-attachment-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+.message-attachment-doc svg {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.message-attachment-doc:hover {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+/* ─── Markdown in Chat Messages ─── */
+.message-content h2,
+.message-content h3,
+.message-content h4 {
+  margin: 12px 0 4px;
+  color: var(--text-primary);
+}
+.message-content h2 {
+  font-size: 16px;
+}
+.message-content h3 {
+  font-size: 15px;
+}
+.message-content h4 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.message-content strong {
+  font-weight: 600;
+}
+.message-content em {
+  font-style: italic;
+}
+
+.message-content .md-bullet {
+  padding-left: 16px;
+  margin: 2px 0;
+  position: relative;
+}
+
+.message-content .inline-code {
+  background: var(--bg-hover);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  color: var(--purple);
+}
+
+.message-content .code-block {
+  background: var(--bg-code);
+  color: var(--text-code);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  margin: 8px 0;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.message-content .code-block code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.message-content a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.message-content a:hover {
+  text-decoration: underline;
+}

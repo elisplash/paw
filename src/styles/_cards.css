@@ -1,0 +1,126 @@
+/* ── Card System — Kinetic Bento ────────────────────────────────────────── */
+/* Flat border-based cards. No shadows on cards. Shadows reserved for floating elements only. */
+
+.card-surface {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-normal);
+}
+.card-surface:hover {
+  border-color: var(--border);
+}
+
+.card-elevated {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-smooth);
+}
+.card-elevated:hover {
+  border-color: var(--accent-muted);
+}
+
+.card-glass {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-smooth);
+}
+.card-glass:hover {
+  border-color: var(--border-light);
+}
+
+/* Light-theme card overrides */
+[data-theme='light'] .card-surface {
+  border-color: var(--border-subtle);
+}
+[data-theme='light'] .card-elevated {
+  border-color: var(--border);
+}
+[data-theme='light'] .card-elevated:hover {
+  border-color: var(--accent-muted);
+}
+[data-theme='light'] .card-glass {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+}
+
+/* ── Typography Utilities ──────────────────────────────────────────────── */
+
+.stat-value {
+  font-size: var(--type-hero);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.stat-label {
+  font-size: var(--type-label);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── Data Visualization Atoms ──────────────────────────────────────────── */
+
+.viz-sparkline {
+  display: inline-block;
+  vertical-align: middle;
+}
+.viz-sparkline path {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.viz-heatmap {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+.viz-heatmap-cell {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--bg-tertiary);
+  transition: background var(--transition-fast);
+}
+
+.viz-progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  overflow: hidden;
+}
+.viz-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease-out;
+}
+
+.viz-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.viz-dot-idle {
+  background: var(--text-muted);
+}
+.viz-dot-active {
+  background: var(--status-success);
+  animation: dotPulse 2s ease-in-out infinite;
+}
+.viz-dot-error {
+  background: var(--status-error);
+}
+.viz-dot-offline {
+  background: var(--bg-tertiary);
+}

@@ -1,0 +1,358 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   INTEGRATION FEED — Phase 4
+   Activity feed, pulse summary, receipt cards, rich output cards.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Integration Pulse ─────────────────────────────────────────────── */
+
+.intfeed-pulse {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.intfeed-pulse-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.intfeed-pulse-header .ms {
+  font-size: 18px;
+  color: var(--accent, #FF4D4D);
+}
+
+.intfeed-pulse-summary {
+  padding: 0.75rem 1rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.intfeed-pulse-services {
+  padding: 0 1rem 0.75rem;
+}
+
+.intfeed-pulse-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+}
+
+.intfeed-pulse-service {
+  flex: 1;
+  font-weight: 500;
+}
+
+.intfeed-pulse-count {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.intfeed-pulse-empty .intfeed-pulse-body {
+  padding: 1.5rem 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ── Activity Feed ─────────────────────────────────────────────────── */
+
+.intfeed-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.intfeed-empty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 2rem;
+  color: var(--text-secondary);
+  justify-content: center;
+}
+
+.intfeed-empty .ms {
+  font-size: 24px;
+}
+
+.intfeed-entry {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.intfeed-entry:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.03));
+}
+
+.intfeed-entry:last-child {
+  border-bottom: none;
+}
+
+.intfeed-entry-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.intfeed-entry-icon {
+  font-size: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.intfeed-entry-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.intfeed-entry-label {
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.intfeed-entry-summary {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.intfeed-entry-error {
+  font-size: 0.8rem;
+  color: var(--danger, #FF4D4D);
+  margin-top: 4px;
+}
+
+.intfeed-entry-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.intfeed-entry-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary, var(--text-secondary));
+  white-space: nowrap;
+}
+
+.intfeed-entry-dur {
+  font-size: 0.7rem;
+  color: var(--text-tertiary, var(--text-secondary));
+  background: var(--bg-tertiary, rgba(255,255,255,0.04));
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+}
+
+.intfeed-entry-link {
+  font-size: 0.75rem;
+  color: var(--accent, #FF4D4D);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.intfeed-entry-link:hover {
+  text-decoration: underline;
+}
+
+.intfeed-entry-agent {
+  font-size: 0.75rem;
+  color: var(--text-tertiary, var(--text-secondary));
+  margin-left: 1.75rem;
+  margin-top: 2px;
+}
+
+.intfeed-more {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  color: var(--accent, #FF4D4D);
+  cursor: pointer;
+  text-align: center;
+}
+
+.intfeed-more:hover {
+  text-decoration: underline;
+}
+
+/* ── Receipt card (in-chat compact) ────────────────────────────────── */
+
+.intfeed-receipt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  max-width: 480px;
+  margin: 0.25rem 0;
+}
+
+.intfeed-receipt.intfeed-status-success {
+  border-left: 3px solid var(--success, #8FB0A0);
+}
+
+.intfeed-receipt.intfeed-status-failed {
+  border-left: 3px solid var(--danger, #FF4D4D);
+}
+
+.intfeed-receipt-text {
+  flex: 1;
+}
+
+.intfeed-receipt-summary {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  max-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.intfeed-receipt-link {
+  font-size: 0.75rem;
+  color: var(--accent, #FF4D4D);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.intfeed-receipt-link:hover {
+  text-decoration: underline;
+}
+
+/* ── Rich output cards ─────────────────────────────────────────────── */
+
+.intfeed-output-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  max-width: 580px;
+  margin: 0.5rem 0;
+}
+
+.intfeed-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.intfeed-card-header .ms {
+  font-size: 18px;
+  color: var(--accent, #FF4D4D);
+}
+
+.intfeed-card-body {
+  padding: 0.75rem 1rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.intfeed-card-more {
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.intfeed-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem 0.75rem;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+/* Table card */
+.intfeed-card-table-el {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.intfeed-card-table-el th {
+  text-align: left;
+  padding: 0.4rem 0.75rem;
+  background: var(--bg-tertiary, rgba(255,255,255,0.04));
+  color: var(--text-secondary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+}
+
+.intfeed-card-table-el td {
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.intfeed-card-table-el tr:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.03));
+}
+
+/* Timeline card */
+.intfeed-tl-list {
+  padding: 0.5rem 1rem;
+}
+
+.intfeed-tl-entry {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.intfeed-tl-entry:last-child {
+  border-bottom: none;
+}
+
+.intfeed-tl-time {
+  font-size: 0.75rem;
+  color: var(--text-tertiary, var(--text-secondary));
+  white-space: nowrap;
+  min-width: 60px;
+}
+
+.intfeed-tl-text {
+  flex: 1;
+}
+
+/* Notification card */
+.intfeed-notif-list {
+  padding: 0.5rem 1rem;
+}
+
+.intfeed-notif-msg {
+  padding: 0.35rem 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.intfeed-notif-msg:last-child {
+  border-bottom: none;
+}
+
+.intfeed-notif-time {
+  font-size: 0.7rem;
+  color: var(--text-tertiary, var(--text-secondary));
+  margin-left: 0.5rem;
+}

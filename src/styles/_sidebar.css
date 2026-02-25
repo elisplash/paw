@@ -1,0 +1,323 @@
+/* ─── Sidebar Rail ─── */
+.sidebar {
+  width: 200px;
+  background: var(--bg-sidebar);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Collapsed state — icon-only rail */
+.sidebar.collapsed {
+  width: 44px;
+}
+
+.sidebar-header {
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  min-height: 40px;
+}
+
+.sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* Hide notification bell + title when collapsed */
+.sidebar.collapsed .sidebar-notification-btn,
+.sidebar.collapsed .sidebar-title {
+  display: none;
+}
+
+/* Collapse toggle button */
+.sidebar-collapse-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s ease, background 0.15s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebar-collapse-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+/* Flip arrow when collapsed */
+.sidebar.collapsed .sidebar-collapse-btn {
+  transform: rotate(180deg);
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.sidebar.collapsed .sidebar-brand {
+  gap: 0;
+}
+
+.sidebar.collapsed .sidebar-header {
+  justify-content: center;
+  padding: 8px 4px;
+}
+
+.sidebar-logo {
+  width: 24px;
+  height: 24px;
+  background: url('/images/pawz-logo.png') center/contain no-repeat;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(255, 77, 77, 0.4));
+  animation: logoPulse 3s ease-in-out infinite;
+}
+
+@keyframes logoPulse {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 4px rgba(255, 77, 77, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(255, 77, 77, 0.6));
+  }
+}
+
+.sidebar-logo svg {
+  display: none;
+}
+
+.sidebar-title {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 4px 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.nav-section {
+  margin-bottom: 4px;
+}
+
+.nav-section-label {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  padding: 6px 12px 2px;
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.15s ease, height 0.15s ease, padding 0.15s ease;
+}
+
+/* Collapse: hide section labels */
+.sidebar.collapsed .nav-section-label {
+  font-size: 0;
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 4px 8px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-radius: 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+  margin-bottom: 0;
+  font-size: 12px;
+  font-weight: 400;
+  position: relative;
+  border: none;
+  border-left: 2px solid transparent;
+  white-space: nowrap;
+}
+
+/* Icon always visible in rail */
+.nav-item .nav-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  opacity: 1;
+  transition: color var(--transition-fast);
+}
+
+.nav-item .nav-label {
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 0.15s ease;
+}
+
+/* Collapse: hide labels */
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 8px 0;
+}
+.sidebar.collapsed .nav-item .nav-label {
+  display: none;
+}
+
+.nav-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  background: var(--accent-lighter);
+  color: var(--accent);
+  font-weight: 500;
+  border-left-color: var(--accent);
+}
+
+.nav-item.active::before {
+  display: none;
+}
+
+.nav-item .nav-badge {
+  font-size: var(--type-micro);
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border: 1px solid var(--accent-muted);
+  margin-left: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Collapse: dot badge */
+.sidebar.collapsed .nav-item .nav-badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  min-width: 6px;
+  padding: 0;
+  font-size: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  margin: 0;
+}
+
+/* nav-icon rendered as Material Symbols <span> in HTML — ::after icons removed */
+
+.sidebar-footer {
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar.collapsed .sidebar-footer {
+  padding: 4px;
+}
+
+.sidebar-theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+
+.sidebar-theme-toggle:hover {
+  color: var(--accent);
+}
+
+.sidebar-theme-toggle .nav-icon {
+  font-size: 20px;
+}
+
+
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .status-indicator #status-text {
+  display: none;
+}
+
+.sidebar.collapsed .status-indicator {
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+  transition: all var(--transition-normal);
+}
+
+.status-dot.connected {
+  background: var(--kinetic-sage);
+}
+
+.status-dot.error {
+  background: var(--error);
+}
+
+@keyframes statusPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+.status-dot.connecting {
+  background: var(--warning);
+  animation: statusPulse 1s ease-in-out infinite;
+}

@@ -1,0 +1,367 @@
+/* ═══ Backend Agent Cards ═══ */
+.agent-card-backend {
+  border-left: 3px solid var(--accent);
+}
+.agent-stat-backend {
+  color: var(--accent);
+  font-weight: 600;
+}
+.agent-minichat-btn {
+  font-size: 14px !important;
+  padding: 2px 8px !important;
+}
+
+/* ═══ Mini-Chat Popups (FB Messenger–style) ═══ */
+.mini-chat {
+  position: fixed;
+  bottom: 0;
+  width: 300px;
+  height: 400px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 9000;
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+}
+.mini-chat-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.mini-chat-minimized {
+  height: 44px;
+  overflow: hidden;
+}
+.mini-chat-minimized .mini-chat-body {
+  display: none;
+}
+
+/* Header */
+.mini-chat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 0;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+}
+.mini-chat-avatar {
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+.mini-chat-avatar img {
+  image-rendering: auto;
+}
+.mini-chat-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-on-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mini-chat-controls {
+  display: flex;
+  gap: 2px;
+}
+.mini-chat-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: var(--text-on-accent);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  line-height: 24px;
+  text-align: center;
+  cursor: pointer;
+  padding: 0;
+}
+.mini-chat-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* Body */
+.mini-chat-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.mini-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mini-chat-msg {
+  max-width: 100%;
+  padding: 6px 12px;
+  border-radius: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  border-left: 2px solid var(--border);
+}
+.mini-chat-msg-user {
+  align-self: stretch;
+  background: transparent;
+  color: var(--text-secondary);
+  border-left-color: var(--text-muted);
+}
+.mini-chat-msg-assistant {
+  align-self: stretch;
+  background: transparent;
+  color: var(--text-primary);
+  border-left-color: var(--accent);
+}
+.mini-chat-msg-assistant a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.mini-chat-msg-assistant code {
+  background: rgba(0, 0, 0, 0.15);
+  padding: 1px 4px;
+  border-radius: 0;
+  font-size: 12px;
+}
+.mini-chat-msg-assistant pre.mini-chat-code {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 8px;
+  border-radius: 0;
+  font-size: 11px;
+  overflow-x: auto;
+  margin: 4px 0;
+  white-space: pre-wrap;
+}
+.mini-chat-streaming {
+  opacity: 0.85;
+}
+.mini-chat-dots {
+  animation: miniChatDots 1s infinite;
+  display: inline-block;
+}
+@keyframes miniChatDots {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Input */
+.mini-chat-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.mini-chat-input {
+  flex: 1;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+  border-radius: 0;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+}
+.mini-chat-input:focus {
+  border-color: var(--accent);
+}
+.mini-chat-input:disabled {
+  opacity: 0.5;
+}
+.mini-chat-send {
+  background: var(--accent);
+  border: none;
+  color: var(--text-on-accent);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.mini-chat-send:hover {
+  filter: brightness(1.1);
+}
+
+/* ═══ Mini-Chat Unread Badge ═══ */
+.mini-chat-unread {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--status-error);
+  color: var(--text-on-accent);
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  padding: 0 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* ═══ Agent Dock / Tray (FB Messenger–style) ═══ */
+.agent-dock {
+  position: fixed;
+  bottom: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  z-index: 8999; /* just below mini-chat popups */
+  pointer-events: none;
+}
+
+/* Toggle button  */
+.agent-dock-toggle {
+  pointer-events: all;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+  flex-shrink: 0;
+}
+.agent-dock-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+  border-color: var(--accent-muted);
+}
+
+/* Items container */
+.agent-dock-items {
+  display: flex;
+  flex-direction: column-reverse; /* newest at bottom */
+  gap: 8px;
+  transition:
+    opacity 0.2s,
+    max-height 0.3s ease;
+  max-height: 600px;
+  opacity: 1;
+  overflow: hidden;
+}
+.agent-dock-collapsed .agent-dock-items {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.agent-dock-item {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: all;
+  transition: border-color 0.15s;
+  border: 2px solid transparent;
+}
+.agent-dock-item:hover {
+  border-color: var(--accent);
+}
+.agent-dock-active {
+  border-color: var(--accent);
+}
+.agent-dock-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+}
+.agent-dock-avatar img {
+  image-rendering: auto;
+}
+
+/* Hover tooltip — appears to the left of the avatar */
+.agent-dock-tooltip {
+  position: absolute;
+  right: 56px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.agent-dock-tooltip::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-right: none;
+  border-left-color: var(--border);
+}
+.agent-dock-item:hover .agent-dock-tooltip {
+  opacity: 1;
+}
+
+.agent-dock-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--status-error);
+  color: var(--text-on-accent);
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--radius-pill);
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  border: 2px solid var(--bg-primary);
+  pointer-events: none;
+}

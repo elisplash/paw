@@ -1,0 +1,286 @@
+/* ═══ Skill Widget Cards (Phase F.2) ═══════════════════════════════════ */
+
+.skill-widget-card {
+  border-left: 3px solid var(--accent, #7c3aed);
+}
+
+.skill-widget-updated {
+  font-size: 11px;
+  color: var(--text-tertiary, #888);
+  margin-left: auto;
+}
+
+/* ── Status ────────────────────────────────────────────── */
+
+.skill-widget-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.skill-widget-status .ms {
+  font-size: 20px;
+  color: var(--accent, #7c3aed);
+}
+
+.skill-widget-status-text {
+  flex: 1;
+}
+
+.skill-widget-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 0;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--accent, #7c3aed);
+  color: #fff;
+}
+
+/* ── Metric ────────────────────────────────────────────── */
+
+.skill-widget-metric {
+  text-align: center;
+  padding: 8px 0;
+}
+
+.skill-widget-metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.skill-widget-metric-unit {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-secondary, #aaa);
+  margin-left: 4px;
+}
+
+.skill-widget-metric-label {
+  font-size: 12px;
+  color: var(--text-tertiary, #888);
+  margin-top: 2px;
+}
+
+.skill-widget-metric-change {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.skill-widget-trend-up {
+  color: var(--success);
+}
+
+.skill-widget-trend-down {
+  color: var(--error);
+}
+
+.skill-widget-trend-flat {
+  color: var(--text-tertiary, #888);
+}
+
+/* ── Table ─────────────────────────────────────────────── */
+
+.skill-widget-table-wrap {
+  overflow-x: auto;
+}
+
+.skill-widget-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.skill-widget-table th {
+  text-align: left;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-color, #333);
+  color: var(--text-secondary, #aaa);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.skill-widget-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-color-subtle, #222);
+}
+
+.skill-widget-table tbody tr:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.03));
+}
+
+.skill-widget-table-more {
+  font-size: 11px;
+  color: var(--text-tertiary, #888);
+  padding: 4px 8px;
+  text-align: center;
+}
+
+/* ── Log ───────────────────────────────────────────────── */
+
+.skill-widget-log {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+}
+
+.skill-widget-log-entry {
+  display: flex;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.skill-widget-log-time {
+  color: var(--text-tertiary, #888);
+  white-space: nowrap;
+  min-width: 60px;
+}
+
+.skill-widget-log-text {
+  flex: 1;
+  word-break: break-word;
+}
+
+.skill-widget-log-info {
+  color: var(--text-primary, #eee);
+}
+
+.skill-widget-log-warn {
+  color: var(--warning);
+}
+
+.skill-widget-log-error {
+  color: var(--error);
+}
+
+.skill-widget-log-success {
+  color: var(--success);
+}
+
+/* ── KV ────────────────────────────────────────────────── */
+
+.skill-widget-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.skill-widget-kv-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+}
+
+.skill-widget-kv-key {
+  font-size: 12px;
+  color: var(--text-secondary, #aaa);
+}
+
+.skill-widget-kv-value {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ── Empty state ───────────────────────────────────────── */
+
+.skill-widget-empty {
+  text-align: center;
+  color: var(--text-tertiary, #888);
+  font-size: 12px;
+  padding: 12px 0;
+}
+
+/* ── PawzHub tier badges (Phase F.4) ───────────────────── */
+
+.pawzhub-tier-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--tier-color, #7A8B9A) 15%, transparent);
+  color: var(--tier-color, #7A8B9A);
+  border: 1px solid color-mix(in srgb, var(--tier-color, #7A8B9A) 30%, transparent);
+}
+
+.pawzhub-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--success);
+}
+.pawzhub-verified-badge .ms {
+  font-size: 14px;
+  color: var(--success);
+}
+
+.pawzhub-feature-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+.pawzhub-feature-badge .ms {
+  font-size: 12px;
+}
+
+.pawzhub-entry-card.pawzhub-installed {
+  opacity: 0.6;
+}
+
+.pawzhub-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.pawzhub-card-meta .ms {
+  font-size: 13px;
+}
+
+/* ── Skill Wizard (Phase F.5) ──────────────────────────── */
+
+.wizard-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.wizard-field span {
+  font-weight: 600;
+  color: var(--text-secondary, #aaa);
+}
+.wizard-field input,
+.wizard-field select,
+.wizard-field textarea {
+  font-size: 13px;
+}
+.wizard-step-content {
+  min-height: 200px;
+}
