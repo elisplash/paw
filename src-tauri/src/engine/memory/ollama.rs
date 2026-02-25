@@ -3,7 +3,7 @@
 // Auto-start, model discovery, and model pulling for the local Ollama instance.
 // Called at startup by `ensure_ollama_ready()` to guarantee the embedding
 // model is available before the memory system starts.
-
+use std::os::windows::process::CommandExt;
 use crate::engine::types::*;
 use crate::atoms::error::EngineResult;
 use log::{info, warn, error};
