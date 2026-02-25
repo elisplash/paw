@@ -1,30 +1,31 @@
-// skills-panel.ts — Skills side panel: hero stats, kinetic init, quick action wiring
+// skills-panel.ts — Skills side panel: kinetic init
+// Hero stats are now managed directly in Skills and Built In index modules.
 
 import { $ } from './helpers';
 
-// ── Hero stat counters ─────────────────────────────────────────────────────
+// ── Hero stat counters (kept for backward compat) ──────────────────────────
 
 export function updateSkillsHeroStats(total: number, active: number, mcp: number): void {
-  const elTotal = $('skills-stat-total');
-  const elActive = $('skills-stat-active');
+  const elTotal = $('skills-stat-total') ?? $('skills-stat-installed');
+  const elActive = $('skills-stat-active') ?? $('skills-stat-enabled');
   const elMcp = $('skills-stat-mcp');
   if (elTotal) elTotal.textContent = String(total);
   if (elActive) elActive.textContent = String(active);
   if (elMcp) elMcp.textContent = String(mcp);
 }
 
-// ── Quick Actions wiring ───────────────────────────────────────────────────
+// ── Quick Actions wiring (kept for backward compat) ────────────────────────
 
 export function bindSkillsQuickActions(opts: {
   onRefresh: () => void;
-  onCreateTab: () => void;
+  onCreateTab?: () => void;
 }): void {
-  $('skills-qa-create')?.addEventListener('click', opts.onCreateTab);
   $('skills-qa-refresh')?.addEventListener('click', opts.onRefresh);
+  if (opts.onCreateTab) {
+    $('skills-qa-create')?.addEventListener('click', opts.onCreateTab);
+  }
   $('skills-qa-browse')?.addEventListener('click', () => {
-    // Switch to Prompts tab which has community browser
-    const toolsTab = document.querySelector('.skills-tab[data-skills-tab="tools"]') as HTMLElement | null;
-    toolsTab?.click();
+    $('skills-qa-browse-community')?.click();
   });
 }
 

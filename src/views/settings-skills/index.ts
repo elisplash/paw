@@ -1,132 +1,29 @@
-// Skills — Tabbed Workspace Orchestrator
-// Manages tab switching, data loading, and wiring between atomic tab modules.
+// Skills — Community .md Prompt Skills (skills.sh)
+// Shows installed community skills + skills.sh browser.
+// All native Rust tools moved to Built In page.
 
 import {
   pawEngine,
-  type EngineSkillStatus,
-  type TomlSkillEntry,
-  type McpServerConfig,
-  type McpServerStatus,
 } from '../../engine';
 import { isEngineMode } from '../../engine-bridge';
 import { $ } from '../../components/helpers';
-import { updateSkillsHeroStats, bindSkillsQuickActions, initSkillsKinetic } from '../../components/skills-panel';
-
-// Tab modules (atomic)
-import { renderActiveTab, bindActiveTabEvents, type ActiveTabData } from './tab-active';
-import { renderIntegrationsTab, bindIntegrationsTabEvents } from './tab-integrations';
-import { renderToolsTab, bindToolsTabEvents, setToolsReload, type ToolsTabData } from './tab-tools';
-import { renderExtensionsTab, bindExtensionsTabEvents } from './tab-extensions';
-import { renderCreateTab, bindCreateTabEvents } from './tab-create';
-import { updateTabCounts } from './summary-bar';
-import { setMoleculesState } from './molecules';
-import { renderSetupWizard, bindSetupWizardEvents } from './setup-wizard';
+import { renderCommunitySection, setCommunityReload, bindCommunityEvents } from './community';
 
 // ── Re-exports (backward compat) ──────────────────────────────────────────
 
 export { CATEGORY_META, SKILL_ICON_MAP, msIcon, skillIcon, formatInstalls } from './atoms';
 export { POPULAR_REPOS, POPULAR_TAGS } from './atoms';
 
-// ── Tab state ──────────────────────────────────────────────────────────────
+// ── Hero stats ─────────────────────────────────────────────────────────
 
-type SkillsTab = 'active' | 'integrations' | 'tools' | 'extensions' | 'create';
-let _activeTab: SkillsTab = 'active';
-let _currentFilter = 'all';
-let _searchQuery = '';
-
-// Cached data (shared across tabs, refreshed on load)
-let _skills: EngineSkillStatus[] = [];
-let _tomlSkills: TomlSkillEntry[] = [];
-let _mcpServers: McpServerConfig[] = [];
-let _mcpStatuses: McpServerStatus[] = [];
-
-function setFilter(f: string): void {
-  _currentFilter = f;
-}
-function setSearch(q: string): void {
-  _searchQuery = q;
+function updateSkillsHeroStats(installed: number, enabled: number): void {
+  const elInstalled = $('skills-stat-installed');
+  const elEnabled = $('skills-stat-enabled');
+  if (elInstalled) elInstalled.textContent = String(installed);
+  if (elEnabled) elEnabled.textContent = String(enabled);
 }
 
-// ── Tab switching ──────────────────────────────────────────────────────────
-
-function switchTab(tab: SkillsTab): void {
-  // Integrations tab removed from Skills — redirect to Integrations page
-  if (tab === 'integrations') {
-    import('../router').then((r) => r.switchView('integrations'));
-    return;
-  }
-
-  _activeTab = tab;
-
-  // Update tab bar active state
-  document.querySelectorAll('.skills-tab').forEach((btn) => {
-    btn.classList.toggle('active', (btn as HTMLElement).dataset.skillsTab === tab);
-  });
-
-  // Render the selected tab content
-  renderCurrentTab();
-}
-
-function renderCurrentTab(): void {
-  const list = $('skills-vault-list');
-  if (!list) return;
-
-  switch (_activeTab) {
-    case 'active': {
-      const data: ActiveTabData = { skills: _skills, mcpStatuses: _mcpStatuses };
-      list.innerHTML = renderActiveTab(data);
-      bindActiveTabEvents();
-      break;
-    }
-    case 'integrations': {
-      setMoleculesState({
-        currentFilter: _currentFilter,
-        searchQuery: _searchQuery,
-        reloadFn: loadSkillsSettings,
-      });
-      list.innerHTML = renderIntegrationsTab(_skills, loadSkillsSettings);
-      const integrations = _skills.filter(
-        (s) =>
-          s.tier === 'integration' || (s.required_credentials && s.required_credentials.length > 0),
-      );
-      bindIntegrationsTabEvents(integrations, setFilter, setSearch);
-      break;
-    }
-    case 'tools': {
-      const data: ToolsTabData = {
-        skills: _skills,
-        mcpServers: _mcpServers,
-        mcpStatuses: _mcpStatuses,
-      };
-      list.innerHTML = renderToolsTab(data);
-      bindToolsTabEvents();
-      break;
-    }
-    case 'extensions': {
-      list.innerHTML = renderExtensionsTab(_skills, _tomlSkills);
-      bindExtensionsTabEvents();
-      break;
-    }
-    case 'create': {
-      list.innerHTML = renderCreateTab();
-      bindCreateTabEvents(loadSkillsSettings);
-      break;
-    }
-  }
-}
-
-// ── Tab bar event wiring ───────────────────────────────────────────────────
-
-function bindTabBar(): void {
-  document.querySelectorAll('.skills-tab').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const tab = (btn as HTMLElement).dataset.skillsTab as SkillsTab | undefined;
-      if (tab) switchTab(tab);
-    });
-  });
-}
-
-// ── Main data loader ───────────────────────────────────────────────────────
+// ── Main data loader ───────────────────────────────────────────────────
 
 export async function loadSkillsSettings(): Promise<void> {
   const loading = $('skills-vault-loading');
@@ -138,72 +35,48 @@ export async function loadSkillsSettings(): Promise<void> {
     return;
   }
 
-  // Set reload callbacks for modules that need them
-  setToolsReload(loadSkillsSettings);
+  // Set reload callback for community module
+  setCommunityReload(loadSkillsSettings);
 
   try {
     if (loading) loading.style.display = '';
 
-    // Fetch all data in parallel (plus onboarding state)
-    const [skills, , tomlSkills, mcpServers, mcpStatuses, onboardingDone] = await Promise.all([
-      pawEngine.skillsList(),
-      pawEngine.communitySkillsList(), // pre-fetched for community skills browser
-      pawEngine.tomlSkillsScan(),
-      pawEngine.mcpListServers(),
-      pawEngine.mcpStatus(),
-      pawEngine.isOnboardingComplete(),
-    ]);
+    // Fetch community skills
+    const communitySkills = await pawEngine.communitySkillsList();
 
     if (loading) loading.style.display = 'none';
 
-    // Show setup wizard on first launch
-    if (!onboardingDone) {
-      const wizardContainer = document.createElement('div');
-      wizardContainer.innerHTML = renderSetupWizard();
-      document.body.appendChild(wizardContainer);
-      bindSetupWizardEvents(skills, loadSkillsSettings);
+    // Hero stats
+    const enabled = communitySkills.filter((s) => s.enabled).length;
+    updateSkillsHeroStats(communitySkills.length, enabled);
+
+    // Render community section (installed + browser)
+    if (list) {
+      list.innerHTML = renderCommunitySection(communitySkills);
+      bindCommunityEvents();
     }
 
-    // Cache data for tab rendering
-    _skills = skills;
-    _tomlSkills = tomlSkills;
-    _mcpServers = mcpServers;
-    _mcpStatuses = mcpStatuses;
-
-    // Integration-tier skills live on the Integrations page — exclude from Skills
-    const nonIntegrationSkills = skills.filter((s) => s.tier !== 'integration');
-
-    // Compute counts (integrations excluded)
-    const integrationCount = 0; // no longer shown on Skills page
-    const promptSkills = nonIntegrationSkills.filter((s) => s.tier === 'skill');
-    const toolCount = mcpServers.length + promptSkills.length;
-    const extensionCount = nonIntegrationSkills.filter((s) => s.tier === 'extension' || s.has_widget).length;
-    const readyCount = nonIntegrationSkills.filter((s) => s.enabled && s.is_ready).length;
-    const mcpConnected = mcpStatuses.filter((s) => s.connected).length;
-
-    // Hero stats: Total skills | Ready (actually working) | MCP connected
-    updateSkillsHeroStats(nonIntegrationSkills.length, readyCount, mcpConnected);
-
-    // Active tab count shows ready + MCP connected (actually working items)
-    const activeCount = readyCount + mcpConnected;
-
-    // Update tab counts
-    updateTabCounts({ skills: nonIntegrationSkills, mcpStatuses, integrationCount, toolCount, extensionCount, activeCountOverride: activeCount });
-
-    // Wire tab bar (only needs to happen once but is idempotent)
-    bindTabBar();
-
-    // Wire quick actions in side panel
-    bindSkillsQuickActions({
-      onRefresh: () => loadSkillsSettings(),
-      onCreateTab: () => switchTab('create'),
+    // Quick actions in side panel
+    $('skills-qa-refresh')?.addEventListener('click', () => loadSkillsSettings());
+    $('skills-qa-browse-community')?.addEventListener('click', () => {
+      const searchInput = document.getElementById('community-skill-search') as HTMLInputElement | null;
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     });
 
-    // Init kinetic animations on side panel
-    initSkillsKinetic();
+    // Refresh button in hero
+    $('refresh-skills-btn')?.addEventListener('click', () => loadSkillsSettings());
 
-    // Render the currently selected tab
-    renderCurrentTab();
+    // Kinetic stagger on side panel cards
+    const view = document.getElementById('skills-view');
+    if (view) {
+      const cards = view.querySelectorAll('.skills-panel-card');
+      cards.forEach((card, i) => {
+        (card as HTMLElement).style.animationDelay = `${i * 60}ms`;
+      });
+    }
   } catch (e) {
     console.error('[skills] Load failed:', e);
     if (loading) loading.textContent = `Failed to load skills: ${e}`;

@@ -1,16 +1,18 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   Skills Library — Kinetic UI (K-17)
+   Skills & Built In — Kinetic UI (K-17/K-18)
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── View shell ── */
-.skills-view {
+.skills-view,
+.builtin-view {
   overflow: hidden;
   flex-direction: column;
   min-height: 0;
 }
 
-/* ── Hero Header ── */
-.skills-hero {
+/* ── Hero Header (shared) ── */
+.skills-hero,
+.builtin-hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -19,11 +21,13 @@
   flex-wrap: wrap;
   gap: 16px;
 }
-.skills-hero-left {
+.skills-hero-left,
+.builtin-hero-left {
   flex: 1;
   min-width: 200px;
 }
-.skills-hero-title {
+.skills-hero-title,
+.builtin-hero-title {
   font-size: 22px;
   font-weight: 700;
   color: var(--text-primary);
@@ -35,12 +39,19 @@
   color: var(--text-muted);
   margin: 4px 0 0;
 }
-.skills-hero-right {
+.builtin-hero-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+.skills-hero-right,
+.builtin-hero-right {
   display: flex;
   align-items: center;
   gap: 16px;
 }
-.skills-hero-stat {
+.skills-hero-stat,
+.builtin-hero-stat {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -50,18 +61,21 @@
   border-radius: var(--radius-sm);
   min-width: 80px;
 }
-.skills-hero-stat-icon {
+.skills-hero-stat-icon,
+.builtin-hero-stat-icon {
   font-size: 20px;
   color: var(--accent);
 }
-.skills-hero-stat-val {
+.skills-hero-stat-val,
+.builtin-hero-stat-val {
   font-size: 18px;
   font-weight: 700;
   font-family: var(--font-mono);
   color: var(--text-primary);
   line-height: 1;
 }
-.skills-hero-stat-lbl {
+.skills-hero-stat-lbl,
+.builtin-hero-stat-lbl {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -72,25 +86,29 @@
 }
 
 /* ── Two-Column Body ── */
-.skills-body {
+.skills-body,
+.builtin-body {
   display: flex;
   gap: 0;
   flex: 1;
   min-height: 0;
   overflow: hidden;
 }
-.skills-main-col {
+.skills-main-col,
+.builtin-main-col {
   flex: 1;
   overflow-y: auto;
   padding: 24px 28px;
   min-width: 0;
 }
-.skills-main-col > * + * {
+.skills-main-col > * + *,
+.builtin-main-col > * + * {
   margin-top: 0;
 }
 
 /* ── Side Panel ── */
-.skills-side-panel {
+.skills-side-panel,
+.builtin-side-panel {
   width: 280px;
   flex-shrink: 0;
   border-left: 1px solid var(--border);
@@ -103,7 +121,8 @@
 }
 
 /* ── Side Panel Cards ── */
-.skills-panel-card {
+.skills-panel-card,
+.builtin-panel-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -260,7 +279,8 @@
 }
 
 /* ── Kinetic section wrapper ── */
-.skills-section {
+.skills-section,
+.builtin-section {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -564,10 +584,12 @@
 
 /* ── Responsive: collapse side panel ── */
 @media (max-width: 900px) {
-  .skills-body {
+  .skills-body,
+  .builtin-body {
     flex-direction: column;
   }
-  .skills-side-panel {
+  .skills-side-panel,
+  .builtin-side-panel {
     width: 100%;
     border-left: none;
     border-top: 1px solid var(--border);
@@ -575,7 +597,8 @@
     flex-wrap: wrap;
     overflow-y: visible;
   }
-  .skills-panel-card {
+  .skills-panel-card,
+  .builtin-panel-card {
     flex: 1;
     min-width: 220px;
   }

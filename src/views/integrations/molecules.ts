@@ -35,16 +35,15 @@ export function initMoleculesState(): { setMoleculesState: (s: MoleculesState) =
 
 // ── Native integrations (engine skills + MCP) ──────────────────────────
 
-let _nativeSkills: EngineSkillStatus[] = [];
 let _mcpServers: McpServerConfig[] = [];
 let _mcpStatuses: McpServerStatus[] = [];
 
 export function setNativeIntegrations(
-  skills: EngineSkillStatus[],
+  _skills: EngineSkillStatus[],
   mcpServers: McpServerConfig[],
   mcpStatuses: McpServerStatus[],
 ): void {
-  _nativeSkills = skills;
+  // _skills param kept for backward compat but native cards moved to Built In page
   _mcpServers = mcpServers;
   _mcpStatuses = mcpStatuses;
 }
@@ -158,44 +157,18 @@ function _renderServicesTab(tabBody: HTMLElement): void {
   _wireEvents();
 }
 
-// ── Native integrations section ────────────────────────────────────────
+// ── Active integrations section (MCP servers only — native Rust tools live on Built In page) ──
 
 function _renderNativeSection(tabBody: HTMLElement): void {
-  const enabledNative = _nativeSkills.filter((s) => s.enabled);
   const connectedMcp = _mcpStatuses.filter((s) => s.connected);
 
-  if (enabledNative.length === 0 && connectedMcp.length === 0 && _mcpServers.length === 0) return;
+  if (connectedMcp.length === 0 && _mcpServers.length === 0) return;
 
   const sectionEl = document.createElement('div');
   sectionEl.className = 'native-integrations-section';
 
-  // Build native skill cards
+  // MCP server cards only (native Rust skills moved to Built In page)
   let cardsHtml = '';
-  for (const skill of enabledNative) {
-    const isReady = skill.is_ready;
-    const statusClass = isReady ? 'native-status-active' : (skill.missing_credentials.length > 0 ? 'native-status-warning' : 'native-status-error');
-    const statusLabel = isReady ? 'Active' : (skill.missing_credentials.length > 0 ? 'Missing credentials' : 'Missing binaries');
-    const statusIcon = isReady ? 'check_circle' : (skill.missing_credentials.length > 0 ? 'warning' : 'error');
-    const toolText = skill.tool_names.length > 0 ? `${skill.tool_names.length} tool${skill.tool_names.length !== 1 ? 's' : ''}` : '';
-
-    cardsHtml += `
-      <div class="native-card k-row k-spring ${isReady ? 'k-breathe' : ''}">
-        <div class="native-card-header">
-          <span class="ms native-card-icon">${escHtml(skill.icon || 'extension')}</span>
-          <div class="native-card-info">
-            <span class="native-card-name">${escHtml(skill.name)}</span>
-            <span class="native-card-desc">${escHtml(skill.description)}</span>
-          </div>
-          <div class="native-card-status ${statusClass}">
-            <span class="ms ms-sm">${statusIcon}</span>
-            <span>${statusLabel}</span>
-          </div>
-        </div>
-        ${toolText ? `<span class="native-card-tools">${toolText}</span>` : ''}
-      </div>`;
-  }
-
-  // MCP servers
   for (const server of _mcpServers) {
     const status = _mcpStatuses.find((s) => s.id === server.id);
     const isConnected = status?.connected ?? false;
@@ -219,10 +192,10 @@ function _renderNativeSection(tabBody: HTMLElement): void {
 
   sectionEl.innerHTML = `
     <div class="native-section-header">
-      <span class="ms native-section-icon">power</span>
-      <span class="native-section-title">Active Integrations</span>
-      <span class="native-section-badge">${enabledNative.length + connectedMcp.length} active</span>
-      <span class="native-section-sub">Native engine integrations &amp; MCP servers — working now</span>
+      <span class="ms native-section-icon">dns</span>
+      <span class="native-section-title">MCP Servers</span>
+      <span class="native-section-badge">${connectedMcp.length}/${_mcpServers.length} connected</span>
+      <span class="native-section-sub">External tool providers via Model Context Protocol</span>
     </div>
     <div class="native-cards-grid">${cardsHtml}</div>
   `;

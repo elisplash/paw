@@ -85,6 +85,10 @@
               <span class="ms nav-icon">auto_stories</span>
               <span class="nav-label">Skills</span>
             </div>
+            <div class="nav-item" data-view="builtin">
+              <span class="ms nav-icon">memory</span>
+              <span class="nav-label">Built In</span>
+            </div>
             <div class="nav-item" data-view="foundry">
               <span class="ms nav-icon">precision_manufacturing</span>
               <span class="nav-label">Foundry</span>
@@ -2412,34 +2416,27 @@
           <div class="view-loading" id="memory-loading" style="display: none">Loading memory…</div>
         </div>
 
-        <!-- ═══ Skills View — Agent Prompt Files & Extensions ═══ -->
+        <!-- ═══ Skills View — Community .md Prompt Skills (skills.sh) ═══ -->
         <div class="view skills-view" id="skills-view">
           <!-- Hero header -->
           <div class="skills-hero">
             <div class="skills-hero-left">
-              <h1 class="skills-hero-title">Skills Library</h1>
-              <p class="skills-hero-sub">Prompt files, MCP servers, and extensions that give your agents new abilities</p>
+              <h1 class="skills-hero-title">Skills</h1>
+              <p class="skills-hero-sub">Community <code>.md</code> prompt files from <a href="https://skills.sh" target="_blank" style="color:var(--accent);text-decoration:none">skills.sh</a> that teach your agents new abilities</p>
             </div>
             <div class="skills-hero-right">
               <div class="skills-hero-stat k-row k-spring">
-                <span class="ms skills-hero-stat-icon">auto_stories</span>
+                <span class="ms skills-hero-stat-icon">download</span>
                 <div>
-                  <div class="skills-hero-stat-val" id="skills-stat-total">0</div>
-                  <div class="skills-hero-stat-lbl">Skills</div>
+                  <div class="skills-hero-stat-val" id="skills-stat-installed">0</div>
+                  <div class="skills-hero-stat-lbl">Installed</div>
                 </div>
               </div>
               <div class="skills-hero-stat k-row k-spring">
                 <span class="ms skills-hero-stat-icon">check_circle</span>
                 <div>
-                  <div class="skills-hero-stat-val" id="skills-stat-active">0</div>
-                  <div class="skills-hero-stat-lbl">Ready</div>
-                </div>
-              </div>
-              <div class="skills-hero-stat k-row k-spring">
-                <span class="ms skills-hero-stat-icon">dns</span>
-                <div>
-                  <div class="skills-hero-stat-val" id="skills-stat-mcp">0</div>
-                  <div class="skills-hero-stat-lbl">MCP</div>
+                  <div class="skills-hero-stat-val" id="skills-stat-enabled">0</div>
+                  <div class="skills-hero-stat-lbl">Enabled</div>
                 </div>
               </div>
               <button class="btn btn-primary" id="refresh-skills-btn">
@@ -2453,36 +2450,10 @@
           <div class="skills-body">
             <!-- Main column -->
             <div class="skills-main-col">
-              <!-- Tab bar inside main column -->
-              <div class="skills-tab-bar" id="skills-tab-bar">
-                <button class="skills-tab active" data-skills-tab="active">
-                  <span class="ms ms-sm">check_circle</span>
-                  Active
-                  <span class="skills-tab-count" id="tab-count-active"></span>
-                </button>
-                <button class="skills-tab" data-skills-tab="tools">
-                  <span class="ms ms-sm">description</span>
-                  Prompts
-                  <span class="skills-tab-count" id="tab-count-tools"></span>
-                </button>
-                <button class="skills-tab" data-skills-tab="extensions">
-                  <span class="ms ms-sm">dashboard</span>
-                  Extensions
-                  <span class="skills-tab-count" id="tab-count-extensions"></span>
-                </button>
-                <button class="skills-tab" data-skills-tab="create">
-                  <span class="ms ms-sm">add_circle</span>
-                  Create
-                </button>
-              </div>
-
-              <!-- Hidden tab count for integrations (backward compat) -->
-              <span id="tab-count-integrations" style="display:none"></span>
-
               <!-- Status toast -->
               <div class="skills-toast" id="skills-toast" style="display: none"></div>
 
-              <!-- Tab content section -->
+              <!-- Content: installed skills + community browser -->
               <div class="skills-section k-row k-materialise">
                 <div id="skills-tab-content">
                   <div
@@ -2494,17 +2465,6 @@
                   <div id="skills-vault-list"></div>
                 </div>
               </div>
-
-              <div
-                id="skills-vault-toast"
-                style="
-                  display: none;
-                  margin-top: 12px;
-                  padding: 8px 14px;
-                  border-radius: 8px;
-                  font-size: 13px;
-                "
-              ></div>
             </div>
 
             <!-- Side panel -->
@@ -2516,65 +2476,36 @@
                   <span class="skills-panel-card-title">What Are Skills?</span>
                 </div>
                 <div class="skills-panel-card-body">
-                  <p>Skills are <strong>markdown prompt files</strong> that teach your agent how to do something specific. Each skill is a <code>.md</code> file with instructions, personality traits, or domain knowledge.</p>
-                  <p>Unlike integrations (which call APIs), skills shape <em>how</em> your agent thinks and responds. They're the simplest way to customise behaviour.</p>
+                  <p>Skills are <strong>markdown prompt files</strong> (<code>.md</code>) that teach your agent how to do something specific — instructions, personality traits, or domain knowledge.</p>
+                  <p>Unlike integrations (which call APIs) or built-in tools (compiled into the engine), skills shape <em>how</em> your agent thinks and responds.</p>
                 </div>
               </div>
 
-              <!-- How Agents Use Skills -->
+              <!-- skills.sh -->
+              <div class="skills-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">public</span>
+                  <span class="skills-panel-card-title">skills.sh</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <p><a href="https://skills.sh" target="_blank" style="color:var(--accent);text-decoration:none;font-weight:600">skills.sh</a> is the community skill directory. Browse, search, and install open-source <code>.md</code> skills created by the community.</p>
+                  <p>Skills work across all channels — WhatsApp, Telegram, Discord, Slack, and more.</p>
+                </div>
+              </div>
+
+              <!-- How It Works -->
               <div class="skills-panel-card k-row k-spring k-materialise">
                 <div class="skills-panel-card-header">
                   <span class="ms skills-panel-card-icon">psychology</span>
-                  <span class="skills-panel-card-title">How Agents Use Skills</span>
+                  <span class="skills-panel-card-title">How It Works</span>
                 </div>
                 <div class="skills-panel-card-body">
                   <ul class="skills-explainer-list">
                     <li><span class="ms">upload_file</span> Skill <code>.md</code> files are loaded into the agent's context window</li>
                     <li><span class="ms">auto_awesome</span> The agent reads the instructions and follows them during conversations</li>
-                    <li><span class="ms">build</span> Skills with <strong>tools</strong> give the agent callable functions (file I/O, web search, etc.)</li>
-                    <li><span class="ms">hub</span> <strong>MCP servers</strong> extend tools via the Model Context Protocol — external tool providers</li>
                     <li><span class="ms">tune</span> Multiple skills combine — an agent can have many skills active at once</li>
+                    <li><span class="ms">person</span> Assign skills to specific agents or share across all</li>
                   </ul>
-                </div>
-              </div>
-
-              <!-- Skill Types -->
-              <div class="skills-panel-card k-row k-spring k-materialise">
-                <div class="skills-panel-card-header">
-                  <span class="ms skills-panel-card-icon">category</span>
-                  <span class="skills-panel-card-title">Skill Types</span>
-                </div>
-                <div class="skills-panel-card-body">
-                  <div class="skills-type-list">
-                    <div class="skills-type-row">
-                      <span class="skills-type-dot skill-dot-prompt"></span>
-                      <div>
-                        <strong>Prompts</strong>
-                        <span>Markdown instructions that guide agent behaviour</span>
-                      </div>
-                    </div>
-                    <div class="skills-type-row">
-                      <span class="skills-type-dot skill-dot-extension"></span>
-                      <div>
-                        <strong>Extensions</strong>
-                        <span>Skills with dashboard widgets or custom views</span>
-                      </div>
-                    </div>
-                    <div class="skills-type-row">
-                      <span class="skills-type-dot skill-dot-mcp"></span>
-                      <div>
-                        <strong>MCP Servers</strong>
-                        <span>External tool providers via Model Context Protocol</span>
-                      </div>
-                    </div>
-                    <div class="skills-type-row">
-                      <span class="skills-type-dot skill-dot-community"></span>
-                      <div>
-                        <strong>Community</strong>
-                        <span>Skills shared by others — install via TOML manifests</span>
-                      </div>
-                    </div>
-                  </div>
                 </div>
               </div>
 
@@ -2585,15 +2516,128 @@
                   <span class="skills-panel-card-title">Quick Actions</span>
                 </div>
                 <div class="skills-quick-actions">
-                  <button class="skills-quick-btn" id="skills-qa-create">
-                    <span class="ms">add_circle</span> Create Skill
-                  </button>
                   <button class="skills-quick-btn" id="skills-qa-refresh">
                     <span class="ms">sync</span> Refresh All
                   </button>
-                  <button class="skills-quick-btn" id="skills-qa-browse">
-                    <span class="ms">explore</span> Browse Community
+                  <button class="skills-quick-btn" id="skills-qa-browse-community">
+                    <span class="ms">explore</span> Browse skills.sh
                   </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ Built In View — Native Rust Engine Tools ═══ -->
+        <div class="view builtin-view" id="builtin-view">
+          <!-- Hero header -->
+          <div class="builtin-hero">
+            <div class="builtin-hero-left">
+              <h1 class="builtin-hero-title">Built In</h1>
+              <p class="builtin-hero-sub">Native Rust tools compiled into the engine — system access, file I/O, and platform capabilities</p>
+            </div>
+            <div class="builtin-hero-right">
+              <div class="builtin-hero-stat k-row k-spring">
+                <span class="ms builtin-hero-stat-icon">memory</span>
+                <div>
+                  <div class="builtin-hero-stat-val" id="builtin-stat-total">0</div>
+                  <div class="builtin-hero-stat-lbl">Total</div>
+                </div>
+              </div>
+              <div class="builtin-hero-stat k-row k-spring">
+                <span class="ms builtin-hero-stat-icon">check_circle</span>
+                <div>
+                  <div class="builtin-hero-stat-val" id="builtin-stat-ready">0</div>
+                  <div class="builtin-hero-stat-lbl">Ready</div>
+                </div>
+              </div>
+              <div class="builtin-hero-stat k-row k-spring">
+                <span class="ms builtin-hero-stat-icon">warning</span>
+                <div>
+                  <div class="builtin-hero-stat-val" id="builtin-stat-issues">0</div>
+                  <div class="builtin-hero-stat-lbl">Issues</div>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="refresh-builtin-btn">
+                <span class="ms ms-sm">sync</span>
+                Refresh
+              </button>
+            </div>
+          </div>
+
+          <!-- Two-column body -->
+          <div class="builtin-body">
+            <!-- Main column -->
+            <div class="builtin-main-col">
+              <div class="builtin-section k-row k-materialise">
+                <div id="builtin-content">
+                  <div
+                    id="builtin-loading"
+                    style="color: var(--text-muted); font-size: 13px; padding: 12px 0"
+                  >
+                    Loading built-in tools...
+                  </div>
+                  <div id="builtin-list"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Side panel -->
+            <div class="builtin-side-panel k-stagger">
+              <!-- What Are Built In Tools? -->
+              <div class="builtin-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">info</span>
+                  <span class="skills-panel-card-title">What Are These?</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <p>Built-in tools are <strong>native Rust capabilities</strong> compiled directly into the Pawz engine. They provide low-level system access that external integrations cannot.</p>
+                  <p>Some require platform-specific binaries (e.g. macOS apps) and may not work on all systems.</p>
+                </div>
+              </div>
+
+              <!-- Status Guide -->
+              <div class="builtin-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">category</span>
+                  <span class="skills-panel-card-title">Status Guide</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <div class="skills-type-list">
+                    <div class="skills-type-row">
+                      <span class="skills-type-dot" style="background:var(--success, #8FB0A0)"></span>
+                      <div>
+                        <strong>Ready</strong>
+                        <span>All dependencies met — tool works on this system</span>
+                      </div>
+                    </div>
+                    <div class="skills-type-row">
+                      <span class="skills-type-dot" style="background:var(--accent-warning, #D4A853)"></span>
+                      <div>
+                        <strong>Needs Setup</strong>
+                        <span>Missing credentials or environment variables</span>
+                      </div>
+                    </div>
+                    <div class="skills-type-row">
+                      <span class="skills-type-dot" style="background:var(--text-muted)"></span>
+                      <div>
+                        <strong>Unavailable</strong>
+                        <span>Missing binaries — not available on this platform</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- vs Integrations -->
+              <div class="builtin-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">compare_arrows</span>
+                  <span class="skills-panel-card-title">vs Integrations</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <p><strong>Built In</strong> tools run natively inside the engine — direct file access, system commands, clipboard, screenshots.</p>
+                  <p><strong>Integrations</strong> connect to external services via APIs — Slack, GitHub, Google, and 400+ more via n8n workflows.</p>
                 </div>
               </div>
             </div>

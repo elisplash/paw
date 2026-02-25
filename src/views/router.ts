@@ -8,6 +8,7 @@ import { loadActiveSettingsTab } from './settings-tabs';
 import * as AgentsModule from './agents';
 import * as AutomationsModule from './automations';
 import * as SkillsSettings from './settings-skills';
+import * as BuiltInModule from './built-in';
 import * as FoundryModule from './foundry';
 import * as TasksModule from './tasks';
 import * as OrchestratorModule from './orchestrator';
@@ -31,6 +32,7 @@ export const allViewIds = [
   'research-view',
   'memory-view',
   'skills-view',
+  'builtin-view',
   'foundry-view',
   'settings-view',
   'nodes-view',
@@ -54,6 +56,7 @@ const viewMap: Record<string, string> = {
   research: 'chat-view',
   memory: 'settings-view',
   skills: 'skills-view',
+  builtin: 'builtin-view',
   foundry: 'foundry-view',
   settings: 'settings-view',
   nodes: 'settings-view',
@@ -136,6 +139,9 @@ export function switchView(viewName: string) {
         break;
       case 'skills':
         SkillsSettings.loadSkillsSettings();
+        break;
+      case 'builtin':
+        BuiltInModule.loadBuiltIn();
         break;
       case 'foundry':
         FoundryModule.loadModels();
