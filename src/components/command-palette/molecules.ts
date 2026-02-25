@@ -7,6 +7,7 @@ import {
   clampIndex,
   type PaletteItem,
   type AgentInfo,
+  type SkillInfo,
 } from './atoms';
 
 let _overlay: HTMLElement | null = null;
@@ -88,10 +89,15 @@ function renderList() {
   const html = _filteredItems
     .map((item, i) => {
       const active = i === _selectedIndex ? ' active' : '';
-      const kindBadge = item.kind === 'agent' ? 'Agent' : 'View';
+      const kindBadge =
+        item.kind === 'agent' ? 'Agent' : item.kind === 'action' ? 'Action' : 'View';
+      const shortcutHtml = item.shortcut
+        ? `<span class="command-palette-item-shortcut"><kbd>${item.shortcut}</kbd></span>`
+        : '';
       return `<div class="command-palette-item${active}" data-index="${i}">
         <span class="command-palette-item-icon">${item.icon ?? ''}</span>
         <span class="command-palette-item-label">${item.label}</span>
+        ${shortcutHtml}
         <span class="command-palette-item-badge">${kindBadge}</span>
       </div>`;
     })
@@ -113,9 +119,13 @@ function renderList() {
 }
 
 /** Open the command palette. */
-export function openPalette(agents: AgentInfo[], onSelect: (item: PaletteItem) => void) {
+export function openPalette(
+  agents: AgentInfo[],
+  onSelect: (item: PaletteItem) => void,
+  skills?: SkillInfo[],
+) {
   const { overlay, input } = ensureDOM();
-  _allItems = buildPaletteItems(agents);
+  _allItems = buildPaletteItems(agents, skills);
   _filteredItems = _allItems;
   _selectedIndex = 0;
   _onSelect = onSelect;

@@ -11,25 +11,30 @@ export interface PaletteItem {
   /** For agents: the agent id. For views: the view key. For actions: action key. */
   payload: string;
   description?: string;
+  /** Keyboard hint shown on the right, e.g. "⌘K" */
+  shortcut?: string;
 }
 
 /** View entries for the palette, keyed by router viewMap name. */
-const VIEW_ENTRIES: { key: string; label: string; icon: string }[] = [
-  { key: 'today', label: 'Today', icon: '☀️' },
-  { key: 'chat', label: 'Chat', icon: '💬' },
-  { key: 'agents', label: 'Agents', icon: '🤖' },
-  { key: 'tasks', label: 'Tasks', icon: '📋' },
-  { key: 'squads', label: 'Squads', icon: '👥' },
-  { key: 'code', label: 'Code', icon: '💻' },
-  { key: 'mail', label: 'Mail', icon: '📧' },
-  { key: 'channels', label: 'Channels', icon: '📡' },
-  { key: 'research', label: 'Research', icon: '🔍' },
-  { key: 'trading', label: 'Trading', icon: '📊' },
-  { key: 'memory', label: 'Memory Palace', icon: '🧠' },
-  { key: 'skills', label: 'Skills', icon: '🔌' },
-  { key: 'foundry', label: 'Foundry', icon: '🔧' },
-  { key: 'nodes', label: 'Engine', icon: '⚙️' },
-  { key: 'settings', label: 'Settings', icon: '⚙️' },
+const VIEW_ENTRIES: { key: string; label: string; icon: string; shortcut?: string }[] = [
+  { key: 'today', label: 'Today', icon: '☀️', shortcut: '1' },
+  { key: 'chat', label: 'Chat', icon: '💬', shortcut: '2' },
+  { key: 'agents', label: 'Agents', icon: '🤖', shortcut: '3' },
+  { key: 'tasks', label: 'Tasks', icon: '📋', shortcut: '4' },
+  { key: 'mail', label: 'Mail', icon: '📧', shortcut: '5' },
+  { key: 'channels', label: 'Channels', icon: '📡', shortcut: '6' },
+  { key: 'skills', label: 'My Skills', icon: '🔌', shortcut: '7' },
+  { key: 'pawzhub', label: 'PawzHub', icon: '🏪', shortcut: '8' },
+  { key: 'foundry', label: 'Foundry', icon: '🔧', shortcut: '9' },
+  { key: 'settings', label: 'Settings', icon: '⚙️', shortcut: '⌘,' },
+];
+
+/** Action entries that appear in the palette. */
+const ACTION_ENTRIES: { key: string; label: string; icon: string; description: string; shortcut?: string }[] = [
+  { key: 'new-task', label: 'New Task', icon: '➕', description: 'Create a task', shortcut: '⌘N' },
+  { key: 'new-chat', label: 'New Chat', icon: '💬', description: 'Start a new conversation' },
+  { key: 'toggle-theme', label: 'Toggle Theme', icon: '🎨', description: 'Switch dark/light mode' },
+  { key: 'shortcuts', label: 'Keyboard Shortcuts', icon: '⌨️', description: 'Show all shortcuts', shortcut: '?' },
 ];
 
 /** Simple agent info passed in — avoids importing the full Agent type. */
@@ -39,9 +44,30 @@ export interface AgentInfo {
   avatar: string;
 }
 
-/** Build the full list of palette items from agents + static views. */
-export function buildPaletteItems(agents: AgentInfo[]): PaletteItem[] {
+/** Skill info for palette search. */
+export interface SkillInfo {
+  id: string;
+  name: string;
+  enabled: boolean;
+  icon?: string;
+}
+
+/** Build the full list of palette items from agents + views + actions + skills. */
+export function buildPaletteItems(agents: AgentInfo[], skills?: SkillInfo[]): PaletteItem[] {
   const items: PaletteItem[] = [];
+
+  // Action items (come first — they're quick commands)
+  for (const a of ACTION_ENTRIES) {
+    items.push({
+      id: `action-${a.key}`,
+      label: a.label,
+      kind: 'action',
+      icon: a.icon,
+      payload: a.key,
+      description: a.description,
+      shortcut: a.shortcut,
+    });
+  }
 
   // Agent items
   for (const agent of agents) {
@@ -64,7 +90,22 @@ export function buildPaletteItems(agents: AgentInfo[]): PaletteItem[] {
       icon: v.icon,
       payload: v.key,
       description: 'Go to view',
+      shortcut: v.shortcut,
     });
+  }
+
+  // Skill items (if provided)
+  if (skills?.length) {
+    for (const s of skills) {
+      items.push({
+        id: `skill-${s.id}`,
+        label: `${s.name} ${s.enabled ? '(on)' : '(off)'}`,
+        kind: 'action',
+        icon: s.icon ?? '🔌',
+        payload: `skill-toggle:${s.id}`,
+        description: s.enabled ? 'Disable skill' : 'Enable skill',
+      });
+    }
   }
 
   return items;

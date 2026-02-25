@@ -202,3 +202,7 @@ export function switchTab(tabName: string) {
     SquadsModule.loadSquads();
   }
 }
+
+// ── Re-exports ─────────────────────────────────────────────────────────────
+
+export { openTaskModal } from './molecules';

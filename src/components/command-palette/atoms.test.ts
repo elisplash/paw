@@ -2,15 +2,18 @@ import { describe, it, expect } from 'vitest';
 import { buildPaletteItems, filterPaletteItems, clampIndex, type AgentInfo } from './atoms';
 
 describe('buildPaletteItems', () => {
-  it('returns view items when no agents provided', () => {
+  it('returns action and view items when no agents provided', () => {
     const items = buildPaletteItems([]);
     expect(items.length).toBeGreaterThan(0);
-    expect(items.every((i) => i.kind === 'view')).toBe(true);
-    expect(items.some((i) => i.label === 'Today')).toBe(true);
-    expect(items.some((i) => i.label === 'Settings')).toBe(true);
+    const viewItems = items.filter((i) => i.kind === 'view');
+    const actionItems = items.filter((i) => i.kind === 'action');
+    expect(viewItems.length).toBeGreaterThan(0);
+    expect(actionItems.length).toBeGreaterThan(0);
+    expect(viewItems.some((i) => i.label === 'Today')).toBe(true);
+    expect(viewItems.some((i) => i.label === 'Settings')).toBe(true);
   });
 
-  it('includes agent items before view items', () => {
+  it('includes agent items after action items', () => {
     const agents: AgentInfo[] = [
       { id: 'a1', name: 'Alice', avatar: '🧑' },
       { id: 'a2', name: 'Bob', avatar: '🤠' },
@@ -20,10 +23,12 @@ describe('buildPaletteItems', () => {
     const viewItems = items.filter((i) => i.kind === 'view');
     expect(agentItems).toHaveLength(2);
     expect(viewItems.length).toBeGreaterThan(0);
-    // Agents come first
-    expect(items[0].kind).toBe('agent');
-    expect(items[0].label).toBe('Alice');
-    expect(items[1].label).toBe('Bob');
+    // Actions come first, then agents, then views
+    const firstAgent = items.findIndex((i) => i.kind === 'agent');
+    const firstView = items.findIndex((i) => i.kind === 'view');
+    expect(firstAgent).toBeLessThan(firstView);
+    expect(agentItems[0].label).toBe('Alice');
+    expect(agentItems[1].label).toBe('Bob');
   });
 
   it('agent items have correct id and payload', () => {

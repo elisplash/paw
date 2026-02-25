@@ -60,6 +60,7 @@ import * as AgentsModule from './views/agents';
 import * as TasksModule from './views/tasks';
 import * as OrchestratorModule from './views/orchestrator';
 import { initCommandPalette } from './components/command-palette';
+import { getTheme, setTheme } from './components/molecules/theme';
 import { initNotifications } from './components/notifications';
 import { initWebhookLog } from './components/webhook-log';
 
@@ -181,6 +182,29 @@ async function connectEngine(): Promise<boolean> {
   }
   console.warn('[main] connectEngine: engine mode should have handled it above');
   return false;
+}
+
+// ── Command Palette Action Handler ──────────────────────────────────────────
+function handlePaletteAction(action: string) {
+  if (action === 'new-task') {
+    switchView('tasks');
+    // Small delay to ensure view is rendered
+    requestAnimationFrame(() => TasksModule.openTaskModal());
+  } else if (action === 'new-chat') {
+    switchView('chat');
+  } else if (action === 'toggle-theme') {
+    setTheme(getTheme() === 'dark' ? 'light' : 'dark');
+  } else if (action === 'shortcuts') {
+    // The shortcuts overlay is handled inside the command-palette module
+    // Trigger via keypress simulation
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: '?', shiftKey: true }));
+  } else if (action.startsWith('skill-toggle:')) {
+    const skillId = action.replace('skill-toggle:', '');
+    pawEngine.skillSetEnabled(skillId, true).catch((e) => {
+      console.warn('[main] skill toggle failed:', e);
+      showToast('Failed to toggle skill', 'error');
+    });
+  }
 }
 
 // ── Initialize ──────────────────────────────────────────────────────────────────────────────
@@ -396,6 +420,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       getAgents: AgentsModule.getAgents,
       switchView,
       switchAgent: switchToAgent,
+      onAction: handlePaletteAction,
     });
     initNotifications();
     initWebhookLog();
