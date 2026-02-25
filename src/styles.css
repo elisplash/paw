@@ -483,6 +483,42 @@ body {
   animation: kinetic-text-pulse 0.3s ease-out;
 }
 
+/* ── Kinetic Pulse Bridge — event-driven visual heartbeat ─────────── */
+.kinetic-pulse-stream {
+  border-color: var(--kinetic-red) !important;
+}
+.kinetic-pulse-tool {
+  border-color: var(--kinetic-gold) !important;
+}
+.kinetic-pulse-tool-end {
+  border-color: var(--kinetic-sage) !important;
+}
+.kinetic-pulse-error {
+  border-color: var(--kinetic-red) !important;
+}
+.kinetic-pulse-complete {
+  border-color: var(--kinetic-sage) !important;
+}
+
+/* Pulse flash on sidebar border */
+.app.kinetic-pulse-stream > .sidebar,
+.app.kinetic-pulse-tool > .sidebar,
+.app.kinetic-pulse-error > .sidebar {
+  transition: border-color 0.15s ease-out;
+}
+.app.kinetic-pulse-stream > .sidebar {
+  border-right-color: var(--kinetic-red);
+}
+.app.kinetic-pulse-tool > .sidebar {
+  border-right-color: var(--kinetic-gold);
+}
+.app.kinetic-pulse-error > .sidebar {
+  border-right-color: var(--kinetic-red);
+}
+.app.kinetic-pulse-complete > .sidebar {
+  border-right-color: var(--kinetic-sage);
+}
+
 /* Light mode overrides for elements that need special handling */
 [data-theme='light'] body,
 [data-theme='light'] .sidebar-title {

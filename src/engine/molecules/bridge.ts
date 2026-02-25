@@ -58,6 +58,9 @@ export async function startEngineBridge(): Promise<void> {
   await pawEngine.startListening();
 
   pawEngine.on('*', (event: EngineEvent) => {
+    // Kinetic pulse: flash UI indicators on engine events
+    kineticPulse(event.kind);
+
     if (event.kind === 'tool_request') {
       for (const h of _toolApprovalHandlers) {
         try {
@@ -268,4 +271,27 @@ function translateEngineEvent(event: EngineEvent): Record<string, unknown> | nul
     default:
       return null;
   }
+}
+
+/**
+ * Kinetic Pulse — CSS-driven visual heartbeat on engine events.
+ * Adds a flash class to the app shell that auto-removes after animation.
+ */
+function kineticPulse(kind: string): void {
+  const app = document.querySelector('.app');
+  if (!app) return;
+
+  const classMap: Record<string, string> = {
+    delta: 'kinetic-pulse-stream',
+    tool_request: 'kinetic-pulse-tool',
+    tool_result: 'kinetic-pulse-tool-end',
+    error: 'kinetic-pulse-error',
+    complete: 'kinetic-pulse-complete',
+  };
+
+  const cls = classMap[kind];
+  if (!cls) return;
+
+  app.classList.add(cls);
+  setTimeout(() => app.classList.remove(cls), 300);
 }
