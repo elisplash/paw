@@ -1,25 +1,72 @@
 /* ═══ Tasks Hub — Kanban Board ═══ */
-.tasks-view.active {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+.tasks-view {
   overflow: hidden;
+  flex-direction: column;
+  min-height: 0;
 }
-.tasks-header {
+
+/* ── Kinetic hero header ────────────────────────────────────── */
+.tasks-hero {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 20px 24px 12px;
-  gap: 16px;
+  padding: 20px 24px 14px;
   flex-shrink: 0;
+  gap: 16px;
 }
-.tasks-header-left .view-title {
+.tasks-hero-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tasks-hero-title {
+  font-size: 22px;
+  font-weight: 700;
   margin: 0;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
 }
+.tasks-hero-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+.tasks-hero-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.tasks-hero-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.tasks-hero-stat-icon {
+  font-size: 20px;
+  color: var(--accent);
+}
+.tasks-hero-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.tasks-hero-stat-lbl {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Tabs ───────────────────────────────────────────────────── */
 .tasks-tabs {
   display: flex;
   gap: 2px;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 .tasks-tab {
   padding: 4px 12px;
@@ -41,41 +88,71 @@
   border-color: var(--accent-muted);
   background: var(--bg-secondary);
 }
+
+/* ── Two-column body ────────────────────────────────────────── */
+.tasks-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  padding: 0 12px 12px;
+  gap: 16px;
+  min-height: 0;
+}
+.tasks-main-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Tab panels ─────────────────────────────────────────────── */
 .tasks-tab-panel {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-.tasks-header-left .view-subtitle {
-  color: var(--text-muted);
-  font-size: 13px;
-  margin-top: 2px;
-}
-.tasks-header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.tasks-stats {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-.tasks-stat-sep {
-  opacity: 0.4;
-}
 
-/* Board layout: columns + feed sidebar */
-.tasks-body {
+/* ── Board inner (kanban + feed) ────────────────────────────── */
+.tasks-board-inner {
   display: flex;
   flex: 1;
   overflow: hidden;
-  padding: 0 12px 12px;
   gap: 12px;
 }
+
+/* ── Side panel ─────────────────────────────────────────────── */
+.tasks-side-panel {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.tasks-panel-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  flex-shrink: 0;
+}
+.tasks-panel-card .skills-panel-card-body {
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+/* ── Scheduled tab header ───────────────────────────────────── */
+.tasks-scheduled-header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 0 12px 12px;
+}
+
+/* ── Kanban board layout ────────────────────────────────────── */
 .tasks-board {
   display: flex;
   gap: 10px;
@@ -577,4 +654,16 @@
 .tasks-modal-activity-item time {
   color: var(--text-muted);
   font-size: 10px;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .tasks-side-panel { display: none; }
+  .tasks-hero { flex-wrap: wrap; }
+  .tasks-hero-right { flex-wrap: wrap; }
+}
+@media (max-width: 800px) {
+  .tasks-hero-stat { display: none; }
+  .tasks-feed { display: none; }
+  .tasks-column { min-width: 180px; }
 }

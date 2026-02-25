@@ -206,10 +206,10 @@ export function renderStats() {
   const total = $('tasks-stat-total');
   const active = $('tasks-stat-active');
   const cron = $('tasks-stat-cron');
-  if (total) total.textContent = `${tasks.length} tasks`;
+  if (total) total.textContent = String(tasks.length);
   if (active)
-    active.textContent = `${tasks.filter((t) => t.status === 'in_progress').length} active`;
-  if (cron) cron.textContent = `${tasks.filter((t) => t.cron_enabled).length} scheduled`;
+    active.textContent = String(tasks.filter((t) => t.status === 'in_progress').length);
+  if (cron) cron.textContent = String(tasks.filter((t) => t.cron_enabled).length);
 }
 
 // ── Task Modal ─────────────────────────────────────────────────────────

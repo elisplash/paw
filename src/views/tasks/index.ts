@@ -119,11 +119,23 @@ export function stopCronTimer() {
 export function bindTaskEvents() {
   initMoleculesState();
 
-  // New task button
+  // ── Kinetic stagger on side panel cards ─────────────────────────────
+  document.querySelectorAll('.tasks-side-panel .tasks-panel-card').forEach((card, i) => {
+    (card as HTMLElement).style.animationDelay = `${i * 60}ms`;
+  });
+
+  // New task button (hero + quick action)
   $('tasks-add-btn')?.addEventListener('click', () => openTaskModal());
+  $('tasks-qa-new-task')?.addEventListener('click', () => openTaskModal());
 
   // Empty state create button
   $('tasks-empty-create')?.addEventListener('click', () => openTaskModal());
+
+  // Quick action: new automation (switches to scheduled tab)
+  $('tasks-qa-new-automation')?.addEventListener('click', () => {
+    switchTab('scheduled');
+    $('add-cron-btn')?.click();
+  });
 
   // Column add buttons
   document.querySelectorAll<HTMLElement>('.tasks-column-add').forEach((btn) => {
