@@ -817,6 +817,46 @@ export interface N8nWorkflow {
   updatedAt: string;
 }
 
+// ── n8n Engine (Phase 0) ─────────────────────────────────────────────
+
+export type N8nMode = 'embedded' | 'process' | 'local' | 'remote';
+
+export interface N8nEndpoint {
+  url: string;
+  api_key: string;
+  mode: N8nMode;
+}
+
+export interface N8nEngineConfig {
+  mode: N8nMode;
+  url: string;
+  api_key: string;
+  container_id?: string;
+  container_port?: number;
+  encryption_key?: string;
+  process_pid?: number;
+  process_port?: number;
+  enabled: boolean;
+  auto_discover: boolean;
+  mcp_mode: boolean;
+}
+
+export interface N8nEngineStatus {
+  running: boolean;
+  mode: N8nMode;
+  url: string;
+  docker_available: boolean;
+  node_available: boolean;
+  container_id?: string;
+  process_pid?: number;
+  version: string;
+}
+
+export interface N8nStatusEvent {
+  kind: 'provisioning' | 'downloading' | 'starting' | 'ready' | 'error' | 'healthy' | 'unhealthy';
+  message: string;
+}
+
 // ── MCP Servers (Phase E) ────────────────────────────────────────────
 
 export type McpTransport = 'stdio' | 'sse';

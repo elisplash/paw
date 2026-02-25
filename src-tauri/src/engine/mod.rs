@@ -23,6 +23,7 @@ pub mod matrix;
 pub mod mattermost;
 pub mod mcp;
 pub mod memory;
+pub mod n8n_engine;
 pub mod nextcloud;
 pub mod nostr;
 pub mod orchestrator;

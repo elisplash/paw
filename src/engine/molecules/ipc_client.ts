@@ -60,6 +60,9 @@ import type {
   N8nConfig,
   N8nTestResult,
   N8nWorkflow,
+  N8nEndpoint,
+  N8nEngineConfig,
+  N8nEngineStatus,
   McpServerConfig,
   McpServerStatus,
   SkillOutput,
@@ -1069,6 +1072,32 @@ export class PawEngineClient {
 
   async n8nTriggerWorkflow(workflowId: string, payload?: unknown): Promise<unknown> {
     return invoke('engine_n8n_trigger_workflow', { workflowId, payload });
+  }
+
+  // ── n8n Engine Lifecycle (Phase 0) ─────────────────────────────────
+
+  async n8nEnsureReady(): Promise<N8nEndpoint> {
+    return invoke<N8nEndpoint>('engine_n8n_ensure_ready');
+  }
+
+  async n8nGetStatus(): Promise<N8nEngineStatus> {
+    return invoke<N8nEngineStatus>('engine_n8n_get_status');
+  }
+
+  async n8nGetEngineConfig(): Promise<N8nEngineConfig> {
+    return invoke<N8nEngineConfig>('engine_n8n_get_engine_config');
+  }
+
+  async n8nSetEngineConfig(config: N8nEngineConfig): Promise<void> {
+    return invoke('engine_n8n_set_engine_config', { config });
+  }
+
+  async n8nHealthCheck(): Promise<boolean> {
+    return invoke<boolean>('engine_n8n_health_check');
+  }
+
+  async n8nShutdown(): Promise<void> {
+    return invoke('engine_n8n_shutdown');
   }
 
   // ── MCP Servers (Phase E) ──────────────────────────────────────────

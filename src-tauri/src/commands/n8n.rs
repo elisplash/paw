@@ -1,6 +1,7 @@
 // commands/n8n.rs — Tauri IPC commands for n8n integration
 
 use crate::engine::channels;
+use crate::engine::n8n_engine;
 use serde::{Deserialize, Serialize};
 
 // ── Config ─────────────────────────────────────────────────────────────
@@ -328,4 +329,60 @@ pub async fn engine_n8n_trigger_workflow(
 
     let result: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
     Ok(result)
+}
+
+// ── Phase 0: Engine lifecycle commands ─────────────────────────────────
+
+/// Ensure the n8n integration engine is running.
+/// Returns the endpoint URL and mode.  Auto-provisions via Docker or
+/// Node.js if not already running.
+#[tauri::command]
+pub async fn engine_n8n_ensure_ready(
+    app_handle: tauri::AppHandle,
+) -> Result<n8n_engine::N8nEndpoint, String> {
+    n8n_engine::ensure_n8n_ready(&app_handle)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Get the current status of the n8n engine (for Settings → Advanced).
+#[tauri::command]
+pub async fn engine_n8n_get_status(
+    app_handle: tauri::AppHandle,
+) -> Result<n8n_engine::N8nEngineStatus, String> {
+    Ok(n8n_engine::get_status(&app_handle).await)
+}
+
+/// Get the extended engine configuration.
+#[tauri::command]
+pub fn engine_n8n_get_engine_config(
+    app_handle: tauri::AppHandle,
+) -> Result<n8n_engine::N8nEngineConfig, String> {
+    n8n_engine::load_config(&app_handle).map_err(|e| e.to_string())
+}
+
+/// Save the extended engine configuration.
+#[tauri::command]
+pub fn engine_n8n_set_engine_config(
+    app_handle: tauri::AppHandle,
+    config: n8n_engine::N8nEngineConfig,
+) -> Result<(), String> {
+    n8n_engine::save_config(&app_handle, &config).map_err(|e| e.to_string())
+}
+
+/// Perform a health check on the running engine.
+#[tauri::command]
+pub async fn engine_n8n_health_check(
+    app_handle: tauri::AppHandle,
+) -> Result<bool, String> {
+    Ok(n8n_engine::health_check(&app_handle).await)
+}
+
+/// Gracefully shut down the engine (Docker stop / process kill).
+#[tauri::command]
+pub async fn engine_n8n_shutdown(
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    n8n_engine::shutdown(&app_handle).await;
+    Ok(())
 }

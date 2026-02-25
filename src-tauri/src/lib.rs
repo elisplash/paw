@@ -398,6 +398,13 @@ pub fn run() {
             commands::n8n::engine_n8n_test_connection,
             commands::n8n::engine_n8n_list_workflows,
             commands::n8n::engine_n8n_trigger_workflow,
+            // ── n8n Engine Lifecycle (Phase 0) ──
+            commands::n8n::engine_n8n_ensure_ready,
+            commands::n8n::engine_n8n_get_status,
+            commands::n8n::engine_n8n_get_engine_config,
+            commands::n8n::engine_n8n_set_engine_config,
+            commands::n8n::engine_n8n_health_check,
+            commands::n8n::engine_n8n_shutdown,
             // ── MCP Servers (Phase E) ──
             commands::mcp::engine_mcp_list_servers,
             commands::mcp::engine_mcp_save_server,
