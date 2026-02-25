@@ -5,25 +5,13 @@ use serde::{Deserialize, Serialize};
 
 // ── Config ─────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct N8nConfig {
     pub url: String,
     pub api_key: String,
     pub enabled: bool,
     pub auto_discover: bool,
     pub mcp_mode: bool,
-}
-
-impl Default for N8nConfig {
-    fn default() -> Self {
-        Self {
-            url: String::new(),
-            api_key: String::new(),
-            enabled: false,
-            auto_discover: false,
-            mcp_mode: false,
-        }
-    }
 }
 
 // ── Test-connection result ─────────────────────────────────────────────
@@ -66,9 +54,7 @@ fn classify_reqwest_error(e: &reqwest::Error) -> String {
             return "SSL/TLS certificate verification failed — if using a self-signed certificate, check your system trust store.".into();
         }
         if inner.contains("dns") || inner.contains("resolve") || inner.contains("no such host") {
-            return format!(
-                "DNS resolution failed — could not resolve the hostname. Check the URL for typos."
-            );
+            return "DNS resolution failed — could not resolve the hostname. Check the URL for typos.".to_string();
         }
         if inner.contains("refused") {
             return "Connection refused — is n8n running on this address and port?".into();
