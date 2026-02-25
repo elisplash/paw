@@ -32,7 +32,7 @@ OpenPawz is a native Tauri v2 application with a pure Rust backend engine. It ru
 
 - **Private** — No cloud, no telemetry, no open ports. Credentials encrypted with AES-256-GCM in your OS keychain.
 - **Powerful** — Multi-agent orchestration, 11 channel bridges, hybrid memory, DeFi trading, browser automation, research workflows.
-- **Extensible** — Unlimited providers, community skills via PawzHub, MCP server support, 75+ built-in tools, modular architecture.
+- **Extensible** — 400+ integrations out of the box, unlimited providers, community skills via PawzHub, MCP server support, modular architecture.
 - **Tiny** — ~5 MB native binary. Not a 200 MB Electron wrapper.
 
 ---
@@ -69,6 +69,24 @@ See [SECURITY.md](SECURITY.md) for the complete security architecture.
 - Per-agent chat sessions with persistent history and mini-chat popups
 - Agent dock with avatars (50 custom Pawz Boi sprites)
 
+### 400+ Integrations Out of the Box
+Every integration ships ready to use — no plugins to install, no marketplace to browse. Configure credentials once and assign integrations per-agent.
+
+| Category | Count | Examples |
+|----------|-------|----------|
+| Productivity | 40+ | Notion, Trello, Obsidian, Linear, Jira, Asana, Todoist, Google Workspace |
+| Communication | 30+ | Slack, Discord, Telegram, WhatsApp, Teams, Email (IMAP/SMTP) |
+| Development | 50+ | GitHub, GitLab, Bitbucket, Docker, Kubernetes, Vercel, Netlify, AWS |
+| Data & Analytics | 35+ | PostgreSQL, MongoDB, Redis, Elasticsearch, BigQuery, Snowflake |
+| Media & Content | 25+ | Spotify, YouTube, Whisper, ElevenLabs, Image Gen, DALL-E |
+| Smart Home & IoT | 20+ | Philips Hue, Sonos, Home Assistant, MQTT, Zigbee |
+| Finance & Trading | 30+ | Coinbase, Solana DEX, Ethereum DEX, Stripe, PayPal, QuickBooks |
+| Cloud & Infrastructure | 40+ | AWS, GCP, Azure, Cloudflare, DigitalOcean, Terraform |
+| Security & Monitoring | 25+ | 1Password, Vault, Datadog, PagerDuty, Sentry, Grafana |
+| AI & ML | 20+ | Hugging Face, Replicate, Stability AI, Pinecone, Weaviate |
+| CRM & Marketing | 30+ | Salesforce, HubSpot, Mailchimp, SendGrid, Intercom |
+| Miscellaneous | 55+ | Weather, RSS, Web Scraping, PDF, OCR, QR codes, Maps |
+
 ### 10 AI Providers
 | Provider | Models |
 |----------|--------|
@@ -96,7 +114,7 @@ Each bridge includes user approval flows, per-agent routing, and uniform start/s
 - Memory Palace visualization UI
 
 ### Built-in Tools & Skills
-- 75+ built-in tools across 21 modules with encrypted credential injection
+- 400+ integrations across 12 categories with encrypted credential injection
 - Community skills from the [skills.sh](https://skills.sh) ecosystem and PawzHub marketplace
 - Three-tier extensibility: Skills (SKILL.md) → Integrations (pawz-skill.toml) → Extensions (custom views + storage)
 - Kanban task board with agent assignment, cron scheduling, and event-driven triggers
@@ -131,8 +149,8 @@ Each bridge includes user approval flows, per-agent routing, and uniform start/s
 Frontend (TypeScript)                  Rust Engine
 ┌──────────────────────┐              ┌────────────────────────────────┐
 │ Vanilla DOM · 20+ views │◄── IPC ──► │ Tauri commands                  │
-│ Feature modules         │   (typed)  │ Channel bridges                 │
-│ Material Icons          │            │ AI providers                    │
+│ Kinetic Intelligence    │   (typed)  │ 400+ integration engine         │
+│ Material Icons          │            │ AI providers · Channel bridges  │
 │                         │            │ Tool executor + HIL approval    │
 └──────────────────────┘              │ AES-256-GCM encrypted SQLite    │
                                        │ OS keychain · Docker sandbox    │

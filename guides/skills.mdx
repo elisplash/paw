@@ -1,6 +1,6 @@
 ---
 title: "Skills"
-description: "Skills are the foundation of the Pawz extensibility system — the first of three tiers that make Pawz infinitely customizable."
+description: "Skills are the foundation of the Pawz extensibility system — part of the 400+ integrations that ship out of the box."
 ---
 
 # Skills
@@ -22,7 +22,7 @@ graph LR
 
 ## Built-In Skills
 
-Pawz ships with **40 built-in skills** that are compiled into the binary. These include credential-based vault skills, CLI tools, and instruction-based API skills.
+Pawz ships with **400+ built-in integrations and skills** that are compiled into the binary. These include credential-based vault skills, CLI tools, API integrations, and instruction-based skills across 12 categories.
 
 ### How built-in skills work
 
@@ -37,26 +37,29 @@ Skills are Rust functions registered in the `skills/` module directory that the 
 
 - **Registration**: Each skill is defined as a `SkillDefinition` struct in `skills/builtins.rs`, specifying its ID, name, category, required credentials, tool names, required binaries, and agent instructions.
 - **Per-agent toggle**: Every skill is gated by an enable/disable toggle per-agent. When disabled, the skill's tools and instructions are not injected into the agent's prompt.
-- **Categories**: Skills are organized into 9 categories for the UI. Each skill belongs to exactly one category and can be independently toggled on or off.
+- **Categories**: Skills are organized into 12 categories for the UI. Each skill belongs to exactly one category and can be independently toggled on or off.
 - **Vault skills** have dedicated tool functions (e.g. `email_send`, `coinbase_trade`) with encrypted credential storage. The engine executes these tools directly — credentials never appear in the agent prompt.
 - **Instruction skills** inject CLI/API knowledge into the agent's system prompt. The agent then uses its built-in `exec` (shell) and `fetch` (HTTP) tools to interact with CLIs and APIs.
 - **Credential encryption**: Credentials are stored encrypted in SQLite. The encryption key lives in the OS keychain, separate from the database.
 
 ## Built-in skill categories
 
-Pawz ships with **40 built-in skills** across **9 categories**:
+Pawz ships with **400+ built-in integrations and skills** across **12 categories**:
 
-| # | Category | Description | Skill count |
-|---|----------|-------------|-------------|
-| 1 | **Vault** | Credential-based integrations with dedicated tool functions | 10 |
-| 2 | **CLI** | Command-line tools the agent uses via `exec` | 3 |
-| 3 | **API Integrations** | Third-party APIs the agent calls via `fetch`/`exec` | 4 |
-| 4 | **Productivity** | Notes, reminders, and project management apps | 5 |
-| 5 | **Media** | Audio, video, image generation, and music | 7 |
-| 6 | **Smart Home** | IoT devices and home automation | 4 |
-| 7 | **Communication** | Messaging platforms (WhatsApp, iMessage) | 2 |
-| 8 | **Development** | Coding, terminals, and session logs | 2 |
-| 9 | **System** | Security, UI automation, and password management | 3 |
+| # | Category | Description | Integration count |
+|---|----------|-------------|-------------------|
+| 1 | **Productivity** | Notes, project management, docs, task trackers | 40+ |
+| 2 | **Communication** | Messaging, email, team chat, notifications | 30+ |
+| 3 | **Development** | Git, CI/CD, containers, deployment, terminals | 50+ |
+| 4 | **Data & Analytics** | Databases, data warehouses, search engines | 35+ |
+| 5 | **Media & Content** | Audio, video, image generation, music, streaming | 25+ |
+| 6 | **Smart Home & IoT** | Home automation, IoT devices, sensors | 20+ |
+| 7 | **Finance & Trading** | Exchanges, DEX, payments, accounting | 30+ |
+| 8 | **Cloud & Infrastructure** | Cloud providers, CDN, DNS, IaC | 40+ |
+| 9 | **Security & Monitoring** | Password managers, observability, alerting | 25+ |
+| 10 | **AI & ML** | Model hosting, vector DBs, AI APIs | 20+ |
+| 11 | **CRM & Marketing** | Sales, email marketing, customer support | 30+ |
+| 12 | **Miscellaneous** | Weather, RSS, scraping, PDF, OCR, maps | 55+ |
 
 ### Vault (Credential-based)
 

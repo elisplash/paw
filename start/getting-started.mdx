@@ -1,6 +1,6 @@
 ---
 title: "OpenPawz"
-description: "Your AI, your rules. A native desktop AI agent platform — private, powerful, extensible."
+description: "Your AI, your rules. A native desktop AI agent platform with 400+ integrations — private, powerful, extensible."
 sidebarTitle: "OpenPawz"
 ---
 
@@ -13,7 +13,7 @@ sidebarTitle: "OpenPawz"
 
 > "Your AI, your rules." — The whole point.
 
-A native desktop AI agent platform built on [Tauri v2](https://v2.tauri.app/). Create autonomous agents, connect them to chat platforms, run tools — all locally on your machine. No cloud, no open ports, no Node.js backend.
+A native desktop AI agent platform built on [Tauri v2](https://v2.tauri.app/). Create autonomous agents with **400+ integrations out of the box**, connect them to 11 chat platforms, and run everything locally on your machine. No cloud, no open ports, no Node.js backend.
 
 <Columns cols={3}>
   <Card title="Get Started" href="/start/installation">
@@ -33,7 +33,7 @@ A native desktop AI agent platform built on [Tauri v2](https://v2.tauri.app/). C
 
 OpenPawz is the **open-source AI agent operating system** for your desktop. It's not a chatbot. It's not a wrapper around an API. It's a full-blown, multi-agent platform that runs natively on your machine — with zero cloud dependency.
 
-**Imagine this:** You have autonomous AI agents with unique personalities, long-term memory, and access to 75+ tools — managing your emails, trading crypto on three chains, voicing responses aloud, monitoring markets, researching the web, writing content, running shell commands, and responding to messages across **11 chat platforms simultaneously**. They install new skills for themselves. They coordinate in squads. They route complex tasks to powerful models and simple queries to cheap ones. All from one app. All on your hardware. All under your control.
+**Imagine this:** You have autonomous AI agents with unique personalities, long-term memory, and access to **400+ integrations** — managing Notion boards, Slack channels, GitHub repos, email, trading crypto on three chains, voicing responses aloud, monitoring infrastructure, controlling smart home devices, researching the web, deploying to AWS, writing content, and responding to messages across **11 chat platforms simultaneously**. Every integration ships ready to use. No plugins to install. No marketplace to browse. Just configure credentials and go.
 
 <Tabs>
   <Tab title="Who is it for?">
@@ -41,13 +41,13 @@ OpenPawz is the **open-source AI agent operating system** for your desktop. It's
   </Tab>
   <Tab title="What's different?">
     Most AI tools give you a chat window. OpenPawz gives you an **agent operating system**:
+    - **400+ integrations** — Productivity, dev tools, cloud, CRM, media, smart home, trading, and more — all built in
     - **11 channels at once** — Telegram, Discord, Slack, WhatsApp, Matrix, IRC, Twitch, and more
     - **Multi-agent orchestration** — Boss/worker delegation, agent squads, inter-agent messaging
-    - **Multi-chain DeFi trading** — Coinbase + Solana (Jupiter/Pump.fun) + Ethereum (Uniswap) with configurable policy guardrails
-    - **Hybrid semantic memory** — BM25 + vector + MMR + temporal decay. The most advanced retrieval in any agent platform
+    - **Multi-chain DeFi trading** — Coinbase + Solana (Jupiter/Pump.fun) + Ethereum (Uniswap) with policy guardrails
+    - **Hybrid semantic memory** — BM25 + vector + MMR + temporal decay
     - **Voice** — Three TTS providers (Google, OpenAI, ElevenLabs) + speech-to-text
     - **Visual node editor** — Drag-and-drop workflow builder for agent pipelines
-    - **75+ built-in tools** — Email, GitHub, trading, browser, shell, TTS, crypto — not plugins, *built in*
     - **Model routing** — Auto complexity-based routing + daily budget caps + thinking level control
     - **Self-improving agents** — Agents search PawzHub and install skills for themselves at runtime
     - **Remote access** — Tailscale mesh VPN + webhook server for triggering agents from anywhere
@@ -75,7 +75,7 @@ OpenPawz is the **open-source AI agent operating system** for your desktop. It's
 graph LR
     A["Chat Apps\n(Telegram, Discord, Slack...)"] --> B["OpenPawz\n(Tauri Desktop App)"]
     B --> C["AI Providers\n(Ollama, OpenAI, Anthropic...)"]
-    B --> D["75+ Built-in Tools"]
+    B --> D["400+ Integrations"]
     B --> E["MCP Extensions"]
     B --> F["SQLite + Keychain\n(Local Storage)"]
 ```
@@ -87,14 +87,14 @@ The desktop app is the single source of truth for agents, sessions, routing, and
 ## Key capabilities
 
 <Columns cols={2}>
-  <Card title="Multi-channel gateway">
-    Telegram, Discord, Slack, Matrix, IRC, WhatsApp, Twitch, and 4 more with a single app. Per-channel agent routing and smart message splitting.
+  <Card title="400+ integrations out of the box">
+    Productivity, dev tools, cloud infrastructure, CRM, media, smart home, trading, security, and more. Every integration ships ready — configure credentials and assign to agents.
   </Card>
   <Card title="Multi-agent orchestration">
     Boss/worker delegation, persistent agent squads, inter-agent messaging, and workspace isolation. Full project lifecycle management.
   </Card>
-  <Card title="75+ built-in tools">
-    Email, GitHub, trading, TTS, browser automation, inter-agent comms, and more. Not plugins — built directly into the platform.
+  <Card title="Multi-channel gateway">
+    Telegram, Discord, Slack, Matrix, IRC, WhatsApp, Twitch, and 4 more with a single app. Per-channel agent routing and smart message splitting.
   </Card>
   <Card title="Multi-chain DeFi trading">
     Coinbase + Solana (Jupiter/Pump.fun) + Ethereum (Uniswap). Trading policy engine with daily loss limits. Full trade audit trail.
@@ -193,10 +193,10 @@ OpenPawz was designed from the ground up with a **zero-trust, local-first securi
     The app launches with the built-in UI. No separate backend needed.
   </Step>
   <Step title="Add a provider">
-    Open **Settings → Models** and add an API key for OpenAI, Anthropic, or point to a local Ollama instance.
+    Open **Settings → Providers** and add an API key for OpenAI, Anthropic, or point to a local Ollama instance.
   </Step>
   <Step title="Create your first agent">
-    Go to **Agents → New Agent**, pick a model, and start chatting. Your agent is ready.
+    Go to **Agents → New Agent**, pick a model, and start chatting. Your agent has immediate access to 400+ integrations.
   </Step>
 </Steps>
 
@@ -219,8 +219,8 @@ Need the full install guide? See [Installation](/start/installation).
   <Card title="Channels" href="/channels/overview">
     Connect Telegram, Discord, Slack, and 8 more.
   </Card>
-  <Card title="Skills & Tools" href="/guides/skills">
-    Browse the 75+ built-in tools available to agents.
+  <Card title="Integrations" href="/guides/integrations">
+    Browse the 400+ integrations available to agents.
   </Card>
   <Card title="Architecture" href="/reference/architecture">
     Understand how the Tauri + Rust + TypeScript stack fits together.

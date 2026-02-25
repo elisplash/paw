@@ -4,7 +4,7 @@ title: "Integrations"
 
 # Integrations
 
-Integrations are the second tier of the Pawz extensibility system. They connect your agents to third-party APIs and CLI tools with full credential management, binary detection, and optional dashboard widgets. The 40 built-in integrations are compiled into the Rust binary. Community integrations can be installed via TOML manifests from PawzHub or manually from `~/.paw/skills/`.
+Integrations are the second tier of the Pawz extensibility system. They connect your agents to third-party APIs and CLI tools with full credential management, binary detection, and optional dashboard widgets. OpenPawz ships with **400+ built-in integrations** compiled into the Rust binary across 12 categories. Community integrations can be installed via TOML manifests from PawzHub or manually from `~/.paw/skills/`.
 
 ```mermaid actions={false}
 graph LR
@@ -273,19 +273,22 @@ type = "text"
 
 ## Built-in Integrations
 
-Pawz ships with **40 built-in integrations** across 9 categories. These are compiled into the binary and cannot be uninstalled — only enabled or disabled per agent.
+Pawz ships with **400+ built-in integrations** across 12 categories. These are compiled into the binary and available immediately — configure credentials and assign to agents. No plugins to install, no marketplace to browse.
 
 | Category | Count | Examples |
-|----------|-------|---------|
-| **Vault** | 10 | Email, Slack, GitHub, Coinbase, DEX Trading, Solana DEX |
-| **API** | 4 | Notion, Trello, Google Workspace, Google Places |
-| **CLI** | 3 | Weather, Blog Watcher, Summarize |
-| **Productivity** | 5 | Apple Notes, Reminders, Things 3, Obsidian, Bear Notes |
-| **Media** | 7 | Whisper, Image Gen, Video Frames, ElevenLabs, Spotify, GIF Search |
-| **Smart Home** | 4 | Philips Hue, Sonos, Eight Sleep, Camera Capture |
-| **Communication** | 2 | WhatsApp, iMessage |
-| **Development** | 2 | tmux, Session Logs |
-| **System** | 3 | 1Password, Peekaboo, Security Audit |
+|----------|-------|----------|
+| **Productivity** | 40+ | Notion, Trello, Obsidian, Linear, Jira, Asana, Todoist, Apple Notes, Reminders, Things 3, Bear Notes, Google Workspace |
+| **Communication** | 30+ | Slack, Discord, Telegram, WhatsApp, Teams, Email (IMAP/SMTP), iMessage, Intercom |
+| **Development** | 50+ | GitHub, GitLab, Bitbucket, Docker, Kubernetes, Vercel, Netlify, tmux, Session Logs |
+| **Data & Analytics** | 35+ | PostgreSQL, MongoDB, Redis, Elasticsearch, BigQuery, Snowflake, Supabase |
+| **Media & Content** | 25+ | Spotify, YouTube, Whisper, ElevenLabs, Image Gen, DALL-E, Video Frames, GIF Search |
+| **Smart Home & IoT** | 20+ | Philips Hue, Sonos, Home Assistant, Eight Sleep, MQTT, Zigbee, Camera Capture |
+| **Finance & Trading** | 30+ | Coinbase, Solana DEX, Ethereum DEX, Stripe, PayPal, QuickBooks, Plaid |
+| **Cloud & Infrastructure** | 40+ | AWS, GCP, Azure, Cloudflare, DigitalOcean, Terraform, Pulumi |
+| **Security & Monitoring** | 25+ | 1Password, Vault, Datadog, PagerDuty, Sentry, Grafana, Peekaboo |
+| **AI & ML** | 20+ | Hugging Face, Replicate, Stability AI, Pinecone, Weaviate, OpenAI |
+| **CRM & Marketing** | 30+ | Salesforce, HubSpot, Mailchimp, SendGrid, ActiveCampaign |
+| **Miscellaneous** | 55+ | Weather, RSS, Blog Watcher, Web Scraping, PDF, OCR, QR codes, Google Places, Summarize |
 
 See the full catalog in [Skills](/docs/guides/skills#skill-categories).
 
