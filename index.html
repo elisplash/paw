@@ -478,6 +478,49 @@
                 </div>
               </div>
 
+              <!-- Quick Prompts — common asks, one-click to chat -->
+              <div class="mission-card k-row k-spring k-materialise">
+                <div class="mission-card-header mission-card-header-toggle" data-toggle="mission-prompts-body">
+                  <span class="ms mission-card-icon">chat_bubble</span>
+                  <span class="mission-card-title">QUICK PROMPTS</span>
+                  <span class="ms mission-card-chevron">expand_more</span>
+                </div>
+                <div class="mission-card-collapsible" id="mission-prompts-body">
+                  <div class="mission-prompt-pills" id="mission-prompt-pills">
+                    <!-- Populated by chat-mission-panel.ts -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Automations — popular templates, one-click activate -->
+              <div class="mission-card k-row k-spring k-materialise">
+                <div class="mission-card-header mission-card-header-toggle" data-toggle="mission-automations-body">
+                  <span class="ms mission-card-icon">bolt</span>
+                  <span class="mission-card-title">AUTOMATIONS</span>
+                  <span class="mission-card-badge" id="mission-auto-badge">0</span>
+                  <span class="ms mission-card-chevron">expand_more</span>
+                </div>
+                <div class="mission-card-collapsible" id="mission-automations-body">
+                  <div class="mission-compact-list" id="mission-automations-list">
+                    <!-- Populated by chat-mission-panel.ts -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Queries — saved questions, one-click to chat -->
+              <div class="mission-card k-row k-spring k-materialise">
+                <div class="mission-card-header mission-card-header-toggle" data-toggle="mission-queries-body">
+                  <span class="ms mission-card-icon">search</span>
+                  <span class="mission-card-title">QUERIES</span>
+                  <span class="ms mission-card-chevron">expand_more</span>
+                </div>
+                <div class="mission-card-collapsible" id="mission-queries-body">
+                  <div class="mission-compact-list" id="mission-queries-list">
+                    <!-- Populated by chat-mission-panel.ts -->
+                  </div>
+                </div>
+              </div>
+
               <!-- Agent Selector -->
               <div class="mission-card k-row k-spring k-materialise">
                 <div class="mission-card-header">
