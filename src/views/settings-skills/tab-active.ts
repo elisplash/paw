@@ -27,7 +27,8 @@ export function renderActiveTab(data: ActiveTabData): string {
       <span class="ms" style="font-size:48px;opacity:0.3;display:block;margin-bottom:12px">check_circle</span>
       <h3 style="margin:0 0 8px;font-size:16px;font-weight:600;color:var(--text-primary)">No active skills</h3>
       <p style="color:var(--text-muted);font-size:13px;margin:0 0 16px;max-width:400px;margin-inline:auto">
-        Enable skills from the <strong>Integrations</strong> or <strong>Tools</strong> tabs to give your agent superpowers.
+        Enable prompt skills from the <strong>Prompts</strong> tab to give your agent new abilities.
+        For service integrations, visit the <strong>Integrations</strong> page.
       </p>
     </div>`;
   }

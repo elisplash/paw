@@ -44,7 +44,7 @@ export function renderWizardSection(): string {
     </div>
     <p style="color:var(--text-muted);font-size:13px;margin:0 0 16px;max-width:600px">
       Build a new skill with a step-by-step wizard. Generate a <code>pawz-skill.toml</code> manifest,
-      install it locally, or publish to PawzHub.
+      install it locally, or share with the community.
     </p>
     <button class="btn btn-primary" id="wizard-open-btn" style="padding:10px 20px;border-radius:10px;font-size:14px">
       ${msIcon('add')} New Skill
@@ -264,7 +264,7 @@ function renderStep5(): string {
   <div class="wizard-step-content">
     <h3 style="margin:0 0 12px;font-size:15px">${msIcon('preview')} Review & Generate</h3>
     <p style="color:var(--text-muted);font-size:12px;margin:0 0 12px">
-      Preview the generated TOML manifest. You can install it locally or publish to PawzHub.
+      Preview the generated TOML manifest. You can install it locally or share with the community.
     </p>
     <div style="display:flex;gap:8px;margin-bottom:12px">
       <button class="btn btn-primary" id="wiz-generate-btn">${msIcon('code')} Generate TOML</button>
@@ -273,7 +273,7 @@ function renderStep5(): string {
       <pre id="wiz-toml-output" style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:12px;font-size:12px;max-height:400px;overflow:auto;white-space:pre-wrap;margin:0 0 12px"></pre>
       <div style="display:flex;gap:8px">
         <button class="btn btn-primary" id="wiz-install-btn">${msIcon('download')} Install Locally</button>
-        <button class="btn btn-ghost" id="wiz-publish-btn">${msIcon('cloud_upload')} Publish to PawzHub</button>
+        <button class="btn btn-ghost" id="wiz-publish-btn">${msIcon('cloud_upload')} Share Skill</button>
         <button class="btn btn-ghost" id="wiz-copy-btn">${msIcon('content_copy')} Copy TOML</button>
       </div>
     </div>

@@ -3,13 +3,15 @@
 // Thin barrel: owns module state, re-exports public surface.
 
 import type { ServiceDefinition, ConnectedService } from './atoms';
-import { renderIntegrations, initMoleculesState } from './molecules';
+import { renderIntegrations, initMoleculesState, setNativeIntegrations } from './molecules';
 import {
   updateIntegrationsHeroStats,
   renderHealthList,
   renderCategoryBreakdown,
   initIntegrationsKinetic,
 } from '../../components/integrations-panel';
+import { pawEngine, type EngineSkillStatus, type McpServerConfig, type McpServerStatus } from '../../engine';
+import { isEngineMode } from '../../engine-bridge';
 
 // ── Module state ───────────────────────────────────────────────────────
 
@@ -26,6 +28,32 @@ setMoleculesState({
 // ── Public API ─────────────────────────────────────────────────────────
 
 export async function loadIntegrations(): Promise<void> {
+  // Fetch native engine skills + MCP servers (the working integrations)
+  let nativeSkills: EngineSkillStatus[] = [];
+  let mcpServers: McpServerConfig[] = [];
+  let mcpStatuses: McpServerStatus[] = [];
+
+  if (isEngineMode()) {
+    try {
+      const [skills, servers, statuses] = await Promise.all([
+        pawEngine.skillsList(),
+        pawEngine.mcpListServers(),
+        pawEngine.mcpStatus(),
+      ]);
+      // Native integrations = skills with credentials (tier=integration) that are enabled
+      nativeSkills = skills.filter(
+        (s) => s.tier === 'integration' || (s.required_credentials && s.required_credentials.length > 0),
+      );
+      mcpServers = servers;
+      mcpStatuses = statuses;
+    } catch (e) {
+      console.warn('[integrations] Failed to fetch native skills:', e);
+    }
+  }
+
+  // Pass native data into molecules for rendering
+  setNativeIntegrations(nativeSkills, mcpServers, mcpStatuses);
+
   // TODO Phase 2.5+: fetch connected services from backend
   // _connected = await pawEngine.engine_n8n_get_connected_services();
   renderIntegrations();

@@ -1,10 +1,10 @@
-// Unified Skill Card — Shared component for My Skills and PawzHub
+// Unified Skill Card — Shared component for Skills and Integrations
 // Phase 3: Consistent card design with status dots, type badges,
 // capability badges, and adaptive primary actions.
 //
 // This is the single source of truth for rendering any skill-type item:
 // - Built-in skills (EngineSkillStatus)
-// - PawzHub registry entries (PawzHubEntry)
+// - Community/marketplace entries
 // - MCP servers (McpServerConfig + McpServerStatus)
 // - Community skills (CommunitySkill / DiscoveredSkill)
 
@@ -51,7 +51,7 @@ export type CardStatus =
   | 'warning' // 🟡 yellow — needs setup (missing creds/binaries/env)
   | 'disabled' // ⚪ grey — installed but off
   | 'error' // 🔴 red — disconnected, binary missing, failed
-  | 'available'; // ⬡ neutral — not installed yet (PawzHub)
+  | 'available'; // ⬡ neutral — not installed yet (marketplace)
 
 export type CardAction =
   | { type: 'toggle'; checked: boolean; skillId: string }
@@ -90,7 +90,7 @@ function ms(name: string): string {
 
 /**
  * Render a unified skill card.
- * Used by My Skills tabs, PawzHub marketplace, and community browser.
+ * Used by Skills tabs, Integrations page, and community browser.
  */
 export function renderSkillCard(data: SkillCardData): string {
   const statusCfg = STATUS_CONFIG[data.status] ?? STATUS_CONFIG.disabled;

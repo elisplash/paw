@@ -37,10 +37,10 @@ const NAV_KEYS: Record<string, string> = {
   '2': 'chat',
   '3': 'agents',
   '4': 'tasks',
-  '5': 'mail',
-  '6': 'channels',
-  '7': 'skills',
-  '8': 'pawzhub',
+  '5': 'integrations',
+  '6': 'mail',
+  '7': 'channels',
+  '8': 'skills',
   '9': 'foundry',
 };
 

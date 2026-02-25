@@ -14,7 +14,8 @@ import * as OrchestratorModule from './orchestrator';
 import * as SettingsModule from './settings-main';
 import * as MailModule from './mail';
 import * as TodayModule from './today';
-import * as PawzHubModule from './pawzhub';
+// PawzHub removed — n8n integration marketplace replaces it
+// import * as PawzHubModule from './pawzhub';
 import * as IntegrationsModule from './integrations';
 
 export const allViewIds = [
@@ -37,7 +38,7 @@ export const allViewIds = [
   'today-view',
   'trading-view',
   'squads-view',
-  'pawzhub-view',
+  // 'pawzhub-view', // removed — redirects to integrations
   'integrations-view',
 ];
 
@@ -61,7 +62,7 @@ const viewMap: Record<string, string> = {
   orchestrator: 'tasks-view',
   trading: 'today-view',
   squads: 'tasks-view',
-  pawzhub: 'pawzhub-view',
+  pawzhub: 'integrations-view', // PawzHub merged into Integrations
   integrations: 'integrations-view',
 };
 
@@ -197,7 +198,8 @@ export function switchView(viewName: string) {
   if (viewName !== 'orchestrator') OrchestratorModule.stopMessagePoll();
   switch (viewName) {
     case 'pawzhub':
-      PawzHubModule.loadPawzHub();
+      // PawzHub removed — redirect to integrations
+      IntegrationsModule.loadIntegrations();
       break;
     case 'integrations':
       IntegrationsModule.loadIntegrations();

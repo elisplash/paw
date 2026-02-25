@@ -49,6 +49,12 @@ function setSearch(q: string): void {
 // ── Tab switching ──────────────────────────────────────────────────────────
 
 function switchTab(tab: SkillsTab): void {
+  // Integrations tab removed from Skills — redirect to Integrations page
+  if (tab === 'integrations') {
+    import('../router').then((r) => r.switchView('integrations'));
+    return;
+  }
+
   _activeTab = tab;
 
   // Update tab bar active state
@@ -141,7 +147,7 @@ export async function loadSkillsSettings(): Promise<void> {
     // Fetch all data in parallel (plus onboarding state)
     const [skills, , tomlSkills, mcpServers, mcpStatuses, onboardingDone] = await Promise.all([
       pawEngine.skillsList(),
-      pawEngine.communitySkillsList(), // pre-fetched for Phase 2 (PawzHub marketplace)
+      pawEngine.communitySkillsList(), // pre-fetched for community skills browser
       pawEngine.tomlSkillsScan(),
       pawEngine.mcpListServers(),
       pawEngine.mcpStatus(),

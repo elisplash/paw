@@ -13,6 +13,7 @@ import { openSetupGuide } from './setup-guide';
 import { loadAutomations, loadServiceTemplates } from './automations';
 import { loadQueryPanel, loadServiceQueries, setQueryConnectedIds } from './queries';
 import { kineticStagger, kineticDot } from '../../components/kinetic-row';
+import type { EngineSkillStatus, McpServerConfig, McpServerStatus } from '../../engine';
 
 // ── Module state (set by index.ts) ─────────────────────────────────────
 
@@ -30,6 +31,22 @@ let _state: MoleculesState = {
 
 export function initMoleculesState(): { setMoleculesState: (s: MoleculesState) => void } {
   return { setMoleculesState: (s) => { _state = s; } };
+}
+
+// ── Native integrations (engine skills + MCP) ──────────────────────────
+
+let _nativeSkills: EngineSkillStatus[] = [];
+let _mcpServers: McpServerConfig[] = [];
+let _mcpStatuses: McpServerStatus[] = [];
+
+export function setNativeIntegrations(
+  skills: EngineSkillStatus[],
+  mcpServers: McpServerConfig[],
+  mcpStatuses: McpServerStatus[],
+): void {
+  _nativeSkills = skills;
+  _mcpServers = mcpServers;
+  _mcpStatuses = mcpStatuses;
 }
 
 // ── Filter / sort state ────────────────────────────────────────────────
@@ -136,8 +153,90 @@ function _renderServicesTab(tabBody: HTMLElement): void {
     </div>
   `;
 
+  _renderNativeSection(tabBody);
   _renderCards();
   _wireEvents();
+}
+
+// ── Native integrations section ────────────────────────────────────────
+
+function _renderNativeSection(tabBody: HTMLElement): void {
+  const enabledNative = _nativeSkills.filter((s) => s.enabled);
+  const connectedMcp = _mcpStatuses.filter((s) => s.connected);
+
+  if (enabledNative.length === 0 && connectedMcp.length === 0 && _mcpServers.length === 0) return;
+
+  const sectionEl = document.createElement('div');
+  sectionEl.className = 'native-integrations-section';
+
+  // Build native skill cards
+  let cardsHtml = '';
+  for (const skill of enabledNative) {
+    const isReady = skill.is_ready;
+    const statusClass = isReady ? 'native-status-active' : (skill.missing_credentials.length > 0 ? 'native-status-warning' : 'native-status-error');
+    const statusLabel = isReady ? 'Active' : (skill.missing_credentials.length > 0 ? 'Missing credentials' : 'Missing binaries');
+    const statusIcon = isReady ? 'check_circle' : (skill.missing_credentials.length > 0 ? 'warning' : 'error');
+    const toolText = skill.tool_names.length > 0 ? `${skill.tool_names.length} tool${skill.tool_names.length !== 1 ? 's' : ''}` : '';
+
+    cardsHtml += `
+      <div class="native-card k-row k-spring ${isReady ? 'k-breathe' : ''}">
+        <div class="native-card-header">
+          <span class="ms native-card-icon">${escHtml(skill.icon || 'extension')}</span>
+          <div class="native-card-info">
+            <span class="native-card-name">${escHtml(skill.name)}</span>
+            <span class="native-card-desc">${escHtml(skill.description)}</span>
+          </div>
+          <div class="native-card-status ${statusClass}">
+            <span class="ms ms-sm">${statusIcon}</span>
+            <span>${statusLabel}</span>
+          </div>
+        </div>
+        ${toolText ? `<span class="native-card-tools">${toolText}</span>` : ''}
+      </div>`;
+  }
+
+  // MCP servers
+  for (const server of _mcpServers) {
+    const status = _mcpStatuses.find((s) => s.id === server.id);
+    const isConnected = status?.connected ?? false;
+    const toolCount = status?.tool_count ?? 0;
+
+    cardsHtml += `
+      <div class="native-card k-row k-spring ${isConnected ? 'k-breathe' : ''}">
+        <div class="native-card-header">
+          <span class="ms native-card-icon">dns</span>
+          <div class="native-card-info">
+            <span class="native-card-name">${escHtml(server.name)}</span>
+            <span class="native-card-desc">MCP Server · ${escHtml(server.transport)}</span>
+          </div>
+          <div class="native-card-status ${isConnected ? 'native-status-active' : 'native-status-offline'}">
+            <span class="ms ms-sm">${isConnected ? 'check_circle' : 'radio_button_unchecked'}</span>
+            <span>${isConnected ? `Connected · ${toolCount} tools` : 'Offline'}</span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  sectionEl.innerHTML = `
+    <div class="native-section-header">
+      <span class="ms native-section-icon">power</span>
+      <span class="native-section-title">Active Integrations</span>
+      <span class="native-section-badge">${enabledNative.length + connectedMcp.length} active</span>
+      <span class="native-section-sub">Native engine integrations &amp; MCP servers — working now</span>
+    </div>
+    <div class="native-cards-grid">${cardsHtml}</div>
+  `;
+
+  // Insert before the toolbar
+  const toolbar = tabBody.querySelector('.integrations-toolbar');
+  if (toolbar) {
+    tabBody.insertBefore(sectionEl, toolbar);
+  } else {
+    tabBody.prepend(sectionEl);
+  }
+
+  // Stagger animate
+  kineticStagger(sectionEl, '.native-card');
 }
 
 // ── Card rendering ─────────────────────────────────────────────────────

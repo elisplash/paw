@@ -390,10 +390,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     $('refresh-skills-btn')?.addEventListener('click', () => SkillsSettings.loadSkillsSettings());
 
-    // PawzHub refresh button
+    // PawzHub removed — n8n integration marketplace replaces it
+    // Legacy refresh button handler kept as no-op for safety
     $('pawzhub-refresh-btn')?.addEventListener('click', async () => {
-      const { loadPawzHub } = await import('./views/pawzhub');
-      loadPawzHub();
+      const { loadIntegrations } = await import('./views/integrations');
+      loadIntegrations();
     });
 
     FoundryModule.initFoundryEvents();

@@ -29,7 +29,7 @@ export function renderIntegrationsTab(
       <span class="ms" style="font-size:48px;opacity:0.3;display:block;margin-bottom:12px">key</span>
       <h3 style="margin:0 0 8px;font-size:16px;font-weight:600;color:var(--text-primary)">No integrations</h3>
       <p style="color:var(--text-muted);font-size:13px;margin:0">
-        Install integrations from <strong>PawzHub</strong> to connect your agent to external services.
+        Service integrations are now managed on the <strong>Integrations</strong> page.
       </p>
     </div>`;
   }

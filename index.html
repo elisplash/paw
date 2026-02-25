@@ -82,13 +82,8 @@
           <div class="nav-section">
             <div class="nav-section-label">Workspace</div>
             <div class="nav-item" data-view="skills">
-              <span class="ms nav-icon">construction</span>
+              <span class="ms nav-icon">auto_stories</span>
               <span class="nav-label">Skills</span>
-            </div>
-            <div class="nav-item" data-view="pawzhub">
-              <span class="ms nav-icon">storefront</span>
-              <span class="nav-label">PawzHub</span>
-              <span class="nav-badge">New</span>
             </div>
             <div class="nav-item" data-view="foundry">
               <span class="ms nav-icon">precision_manufacturing</span>
@@ -221,7 +216,7 @@
           <div class="integrations-hero">
             <div class="integrations-hero-left">
               <h1 class="integrations-hero-title">Integration Hub</h1>
-              <p class="integrations-hero-sub">Connect 400+ services. One click. Infinite power.</p>
+              <p class="integrations-hero-sub">Native integrations, n8n services, and MCP servers — all your agent's tools in one place.</p>
             </div>
             <div class="integrations-hero-right">
               <div class="integrations-hero-stat k-row k-spring">
@@ -2417,16 +2412,16 @@
           <div class="view-loading" id="memory-loading" style="display: none">Loading memory…</div>
         </div>
 
-        <!-- ═══ My Skills View — Tabbed Workspace ═══ -->
+        <!-- ═══ Skills View — Agent Prompt Files & Extensions ═══ -->
         <div class="view list-view" id="skills-view">
           <div class="view-header">
             <h1 class="view-title">
               <span
                 class="ms ms-sm"
                 style="display: inline; vertical-align: middle; margin-right: 6px"
-                >lock</span
+                >auto_stories</span
               >
-              My Skills
+              Skills
             </h1>
             <div style="display: flex; gap: 6px">
               <button class="btn btn-ghost btn-sm" id="refresh-skills-btn">
@@ -2446,14 +2441,9 @@
               Active
               <span class="skills-tab-count" id="tab-count-active"></span>
             </button>
-            <button class="skills-tab" data-skills-tab="integrations">
-              <span class="ms ms-sm">key</span>
-              Integrations
-              <span class="skills-tab-count" id="tab-count-integrations"></span>
-            </button>
             <button class="skills-tab" data-skills-tab="tools">
-              <span class="ms ms-sm">dns</span>
-              Tools
+              <span class="ms ms-sm">description</span>
+              Prompts
               <span class="skills-tab-count" id="tab-count-tools"></span>
             </button>
             <button class="skills-tab" data-skills-tab="extensions">
@@ -2466,6 +2456,9 @@
               Create
             </button>
           </div>
+
+          <!-- Hidden tab count for integrations (still used by JS, just not displayed) -->
+          <span id="tab-count-integrations" style="display:none"></span>
 
           <!-- Status toast -->
           <div class="skills-toast" id="skills-toast" style="display: none"></div>
@@ -2493,38 +2486,9 @@
           ></div>
         </div>
 
-        <!-- ═══ PawzHub View — Native Marketplace ═══ -->
-        <div class="view" id="pawzhub-view">
-          <div class="view-header">
-            <h1 class="view-title">
-              <span
-                class="ms ms-sm"
-                style="display: inline; vertical-align: middle; margin-right: 6px"
-                >storefront</span
-              >
-              PawzHub
-            </h1>
-            <div style="display: flex; gap: 6px">
-              <button class="btn btn-ghost btn-sm" id="pawzhub-refresh-btn" title="Refresh">
-                <span class="ms ms-sm">refresh</span>
-                Refresh
-              </button>
-              <a
-                href="https://www.openpawz.ai"
-                target="_blank"
-                class="btn btn-ghost btn-sm"
-                title="Open website"
-              >
-                <span class="ms ms-sm">open_in_new</span>
-                openpawz.ai
-              </a>
-            </div>
-          </div>
-          <div
-            id="pawzhub-content"
-            style="padding: 0 8px 24px; overflow-y: auto; max-height: calc(100vh - 80px)"
-          ></div>
-        </div>
+        <!-- ═══ PawzHub View — REMOVED (n8n replaces marketplace) ═══ -->
+        <!-- PawzHub view kept hidden — code not deleted yet, redirect goes to Integrations -->
+        <div class="view" id="pawzhub-view" style="display:none !important"></div>
 
         <!-- ═══ Foundry View — Models & Modes ═══ -->
         <div class="view list-view" id="foundry-view">

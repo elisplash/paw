@@ -26,8 +26,8 @@ export function renderExtensionsTab(
       <span class="ms" style="font-size:48px;opacity:0.3;display:block;margin-bottom:12px">dashboard</span>
       <h3 style="margin:0 0 8px;font-size:16px;font-weight:600;color:var(--text-primary)">No extensions</h3>
       <p style="color:var(--text-muted);font-size:13px;margin:0;max-width:400px;margin-inline:auto">
-        Extensions add dashboard widgets and custom views. Install them from <strong>PawzHub</strong> or
-        create one with the <strong>Create</strong> tab.
+        Extensions add dashboard widgets and custom views. Create one with the <strong>Create</strong> tab
+        or install community extensions.
       </p>
     </div>`;
   }
