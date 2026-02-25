@@ -530,6 +530,10 @@ body {
   animation: none;
 }
 
+[data-theme='light'] .sidebar {
+  border-right-color: #C0B9B0;
+}
+
 [data-theme='light'] body {
   -webkit-font-smoothing: antialiased;
 }
@@ -567,7 +571,7 @@ body {
 
 /* ─── Sidebar Rail ─── */
 .sidebar {
-  width: 48px;
+  width: 40px;
   background: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
@@ -604,7 +608,7 @@ body {
 .sidebar-logo {
   width: 24px;
   height: 24px;
-  background: url('/src/assets/avatars/5.png') center/contain no-repeat;
+  background: url('/images/pawz-logo.png') center/contain no-repeat;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -681,7 +685,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
+  padding: 6px 0;
   border-radius: 0;
   cursor: pointer;
   color: var(--text-secondary);
@@ -705,7 +709,7 @@ body {
 
 /* Icon always visible in rail */
 .nav-item .nav-icon {
-  font-size: 20px;
+  font-size: 18px;
   flex-shrink: 0;
   opacity: 1;
   transition: color var(--transition-fast);
