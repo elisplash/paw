@@ -127,6 +127,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 16px;
+  flex-shrink: 0;
 }
 .skills-panel-card-header {
   display: flex;
@@ -152,6 +153,8 @@
   font-size: 12px;
   line-height: 1.55;
   color: var(--text-secondary);
+  max-height: 160px;
+  overflow-y: auto;
 }
 .skills-panel-card-body p {
   margin: 0 0 8px;
