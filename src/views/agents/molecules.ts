@@ -14,6 +14,9 @@ export interface RenderAgentsCallbacks {
   onCreate: () => void;
 }
 
+// Track which view mode is active
+let _viewMode: 'roster' | 'grid' = 'roster';
+
 export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
   console.debug('[agents] renderAgents called');
   const grid = $('agents-grid');
@@ -43,46 +46,100 @@ export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
     return;
   }
 
-  grid.innerHTML = `${agents
-    .map(
-      (agent) => `
-    <div class="agent-card${agent.source === 'backend' ? ' agent-card-backend' : ''}" data-id="${agent.id}">
-      <div class="agent-card-header">
-        <div class="agent-avatar" style="background:${agent.color}">${spriteAvatar(agent.avatar, 48)}</div>
-        <div class="agent-info">
-          <div class="agent-name">${escHtml(agent.name)}</div>
-          <div class="agent-template">${agent.source === 'backend' ? 'AI-Created' : agent.template.charAt(0).toUpperCase() + agent.template.slice(1)}</div>
-        </div>
-        <button class="btn-icon agent-menu-btn" title="Options">⋮</button>
-      </div>
-      <div class="agent-bio">${escHtml(agent.bio)}</div>
-      <div class="agent-stats">
-        <span class="agent-stat">${(() => {
+  // View toggle header
+  const toggleHtml = `<div class="agents-view-toggle">
+    <span class="agents-view-title">FLEET COMMAND</span>
+    <div class="agents-toggle-btns">
+      <button class="agents-toggle-btn${_viewMode === 'roster' ? ' active' : ''}" data-mode="roster">Roster</button>
+      <button class="agents-toggle-btn${_viewMode === 'grid' ? ' active' : ''}" data-mode="grid">Grid</button>
+    </div>
+  </div>`;
+
+  if (_viewMode === 'roster') {
+    // Roster/table view (default)
+    grid.innerHTML = `${toggleHtml}
+    <table class="agents-roster">
+      <thead>
+        <tr>
+          <th>STAT</th>
+          <th>AGENT</th>
+          <th>MODEL</th>
+          <th>TOOLS</th>
+          <th>LAST ACTIVE</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${agents.map((agent) => {
           const p = getAgentPolicy(agent.id);
-          return p.mode === 'unrestricted' ? 'All tools' : `${p.allowed.length} tools`;
-        })()}</span>
-        <span class="agent-stat">${agent.boundaries.length} rules</span>
+          const toolCount = p.mode === 'unrestricted' ? 'All' : String(p.allowed.length);
+          const lastUsed = agent.lastUsed
+            ? _timeAgo(new Date(agent.lastUsed))
+            : '—';
+          const isActive = agent.lastUsed && (Date.now() - new Date(agent.lastUsed).getTime()) < 600000;
+          return `<tr class="agents-roster-row" data-id="${agent.id}">
+            <td class="roster-stat">${isActive ? '<span class="roster-dot-active">◉</span>' : '<span class="roster-dot-idle">○</span>'}</td>
+            <td class="roster-name">${escHtml(agent.name)}</td>
+            <td class="roster-model">${escHtml(agent.model || '—')}</td>
+            <td class="roster-tools">${toolCount}</td>
+            <td class="roster-time">${lastUsed}</td>
+            <td class="roster-actions">
+              <button class="btn btn-primary btn-sm agent-chat-btn">Chat</button>
+              <button class="btn btn-ghost btn-sm agent-edit-btn">Edit</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <div class="agents-roster-footer">
+      <button class="btn btn-ghost" id="agent-card-new">+ New Agent</button>
+    </div>`;
+  } else {
+    // Grid view (compact cards, no bio)
+    grid.innerHTML = `${toggleHtml}${agents
+      .map(
+        (agent) => `
+      <div class="agent-card${agent.source === 'backend' ? ' agent-card-backend' : ''}" data-id="${agent.id}">
+        <div class="agent-card-header">
+          <div class="agent-avatar" style="background:${agent.color}">${spriteAvatar(agent.avatar, 48)}</div>
+          <div class="agent-info">
+            <div class="agent-name">${escHtml(agent.name)}</div>
+            <div class="agent-template">${agent.model || (agent.source === 'backend' ? 'AI-Created' : agent.template.charAt(0).toUpperCase() + agent.template.slice(1))}</div>
+          </div>
+          <button class="btn-icon agent-menu-btn" title="Options">⋮</button>
+        </div>
+        <div class="agent-actions">
+          <button class="btn btn-primary btn-sm agent-chat-btn">Chat</button>
+          <button class="btn btn-ghost btn-sm agent-minichat-btn" title="Open mini chat window"><span class="ms ms-sm">chat</span></button>
+          <button class="btn btn-ghost btn-sm agent-edit-btn">Edit</button>
+        </div>
       </div>
-      <div class="agent-actions">
-        <button class="btn btn-primary btn-sm agent-chat-btn">Chat</button>
-        <button class="btn btn-ghost btn-sm agent-minichat-btn" title="Open mini chat window"><span class="ms ms-sm">chat</span></button>
-        <button class="btn btn-ghost btn-sm agent-edit-btn">Edit</button>
+    `,
+      )
+      .join('')}
+      <div class="agent-card agent-card-new" id="agent-card-new">
+        <div class="agent-card-new-icon">+</div>
+        <div class="agent-card-new-label">Create Agent</div>
       </div>
-    </div>
-  `,
-    )
-    .join('')}
-    <div class="agent-card agent-card-new" id="agent-card-new">
-      <div class="agent-card-new-icon">+</div>
-      <div class="agent-card-new-label">Create Agent</div>
-    </div>
-  `;
+    `;
+  }
+
+  // Bind view toggle
+  grid.querySelectorAll('.agents-toggle-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const mode = (e.target as HTMLElement).getAttribute('data-mode');
+      if (mode === 'roster' || mode === 'grid') {
+        _viewMode = mode;
+        renderAgents(agents, cbs);
+      }
+    });
+  });
 
   // Bind events
   grid.querySelectorAll('.agent-chat-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
-      const card = (e.target as HTMLElement).closest('.agent-card');
-      const id = card?.getAttribute('data-id');
+      const row = (e.target as HTMLElement).closest('[data-id]');
+      const id = row?.getAttribute('data-id');
       if (id) cbs.onChat(id);
     });
   });
@@ -97,8 +154,8 @@ export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
 
   grid.querySelectorAll('.agent-edit-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
-      const card = (e.target as HTMLElement).closest('.agent-card');
-      const id = card?.getAttribute('data-id');
+      const row = (e.target as HTMLElement).closest('[data-id]');
+      const id = row?.getAttribute('data-id');
       if (id) cbs.onEdit(id);
     });
   });
@@ -108,6 +165,19 @@ export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
     _createBtnBound = true;
     $('agents-create-btn')?.addEventListener('click', () => cbs.onCreate());
   }
+}
+
+/** Relative time helper */
+function _timeAgo(d: Date): string {
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return 'yesterday';
+  return `${days}d ago`;
 }
 
 // ── Dock badge / active helpers (exported so mini-chat.ts can call them) ────

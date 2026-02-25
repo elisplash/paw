@@ -37,59 +37,73 @@
         <nav class="sidebar-nav">
           <div class="nav-section">
             <div class="nav-item active" data-view="today">
-              <span>Today</span>
+              <span class="ms nav-icon">dashboard</span>
+              <span class="nav-label">Today</span>
             </div>
             <div class="nav-item" data-view="chat">
-              <span>Chat</span>
+              <span class="ms nav-icon">terminal</span>
+              <span class="nav-label">Chat</span>
             </div>
             <div class="nav-item" data-view="agents">
-              <span>Agents</span>
+              <span class="ms nav-icon">smart_toy</span>
+              <span class="nav-label">Agents</span>
             </div>
           </div>
 
           <div class="nav-section">
             <div class="nav-section-label">Work</div>
             <div class="nav-item" data-view="tasks">
-              <span>Tasks</span>
+              <span class="ms nav-icon">task_alt</span>
+              <span class="nav-label">Tasks</span>
             </div>
           </div>
 
           <div class="nav-section">
             <div class="nav-section-label">Connect</div>
             <div class="nav-item" data-view="integrations">
-              <span>Integrations</span>
+              <span class="ms nav-icon">hub</span>
+              <span class="nav-label">Integrations</span>
             </div>
             <div class="nav-item" data-view="mail">
-              <span>Mail</span>
+              <span class="ms nav-icon">mail</span>
+              <span class="nav-label">Mail</span>
             </div>
             <div class="nav-item" data-view="channels">
-              <span>Channels</span>
+              <span class="ms nav-icon">forum</span>
+              <span class="nav-label">Channels</span>
             </div>
           </div>
 
           <div class="nav-section">
             <div class="nav-section-label">Workspace</div>
             <div class="nav-item" data-view="skills">
-              <span>My Skills</span>
+              <span class="ms nav-icon">construction</span>
+              <span class="nav-label">Skills</span>
             </div>
             <div class="nav-item" data-view="pawzhub">
-              <span>PawzHub</span>
+              <span class="ms nav-icon">storefront</span>
+              <span class="nav-label">PawzHub</span>
               <span class="nav-badge">New</span>
             </div>
             <div class="nav-item" data-view="foundry">
-              <span>Foundry</span>
+              <span class="ms nav-icon">precision_manufacturing</span>
+              <span class="nav-label">Foundry</span>
             </div>
           </div>
 
           <div class="nav-section">
             <div class="nav-section-label">System</div>
             <div class="nav-item" data-view="settings">
-              <span>Settings</span>
+              <span class="ms nav-icon">settings</span>
+              <span class="nav-label">Settings</span>
             </div>
           </div>
         </nav>
 
         <div class="sidebar-footer">
+          <button class="sidebar-theme-toggle" id="sidebar-theme-toggle" title="Toggle theme">
+            <span class="ms nav-icon">dark_mode</span>
+          </button>
           <div class="status-indicator">
             <span class="status-dot" id="status-dot"></span>
             <span id="status-text">Connecting...</span>

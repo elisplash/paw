@@ -36,7 +36,7 @@ export function initMoleculesState(): { setMoleculesState: (s: MoleculesState) =
 let _searchQuery = '';
 let _activeCategory: ServiceCategory | 'all' = 'all';
 let _sortOption: SortOption = 'popular';
-let _viewMode: 'grid' | 'list' = 'grid';
+let _viewMode: 'grid' | 'list' | 'matrix' = 'matrix';
 let _mainTab: 'services' | 'automations' | 'queries' = 'services';
 
 // ── Main render ────────────────────────────────────────────────────────
@@ -117,6 +117,10 @@ function _renderServicesTab(tabBody: HTMLElement): void {
           <option value="category" ${_sortOption === 'category' ? 'selected' : ''}>Category</option>
         </select>
         <div class="integrations-view-toggle">
+          <button class="btn btn-ghost btn-sm ${_viewMode === 'matrix' ? 'active' : ''}"
+                  data-viewmode="matrix" title="Matrix view">
+            <span class="ms ms-sm">table_chart</span>
+          </button>
           <button class="btn btn-ghost btn-sm ${_viewMode === 'grid' ? 'active' : ''}"
                   data-viewmode="grid" title="Grid view">
             <span class="ms ms-sm">grid_view</span>
@@ -138,7 +142,7 @@ function _renderServicesTab(tabBody: HTMLElement): void {
       ).join('')}
     </div>
 
-    <div class="integrations-grid ${_viewMode === 'list' ? 'integrations-list-mode' : ''}"
+    <div class="integrations-grid ${_viewMode === 'list' ? 'integrations-list-mode' : ''} ${_viewMode === 'matrix' ? 'integrations-matrix-mode' : ''}"
          id="integrations-grid">
     </div>
 
@@ -175,6 +179,47 @@ function _renderCards(): void {
   const rest = sorted.filter((s) => !connectedIds.has(s.id));
   const ordered = [...pinned, ...rest];
 
+  // Matrix view — dense status table
+  if (_viewMode === 'matrix') {
+    grid.innerHTML = `
+      <table class="integrations-matrix">
+        <thead>
+          <tr>
+            <th>SERVICE</th>
+            <th>STATE</th>
+            <th>HEALTH</th>
+            <th>TOOLS</th>
+            <th>ACTIONS</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${ordered.map((s) => {
+            const isConnected = connectedIds.has(s.id);
+            const conn = connected.find((c) => c.serviceId === s.id);
+            const healthLevel = isConnected ? (conn?.status === 'error' ? 1 : conn?.status === 'expired' ? 2 : 4) : 0;
+            const healthBar = Array.from({ length: 4 }, (_, i) =>
+              `<span class="health-seg ${i < healthLevel ? (healthLevel <= 1 ? 'health-red' : healthLevel <= 2 ? 'health-gold' : 'health-sage') : 'health-dim'}"></span>`
+            ).join('');
+            return `<tr class="matrix-row" data-service-id="${s.id}">
+              <td class="matrix-name"><span class="ms ms-sm" style="color:${s.color}">${s.icon}</span> ${escHtml(s.name)}</td>
+              <td class="matrix-state">${isConnected ? '<span class="matrix-on">● ON</span>' : '<span class="matrix-off">○ OFF</span>'}</td>
+              <td class="matrix-health">${healthBar}</td>
+              <td class="matrix-tools">${conn ? conn.toolCount : '—'}</td>
+              <td class="matrix-actions">
+                ${isConnected
+                  ? `<button class="btn btn-ghost btn-sm integrations-card-btn" data-service-id="${s.id}">▸</button>`
+                  : `<button class="btn btn-ghost btn-sm integrations-connect-btn" data-service-id="${s.id}">Setup ▸</button>`
+                }
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div class="matrix-footer">Showing ${ordered.length} of ${SERVICE_CATALOG.length} services</div>`;
+    return;
+  }
+
+  // Grid / List card view (existing)
   grid.innerHTML = ordered.map((s) => {
     const isConnected = connectedIds.has(s.id);
     const conn = connected.find((c) => c.serviceId === s.id);
@@ -342,11 +387,15 @@ function _wireEvents(): void {
   // View mode toggle
   document.querySelectorAll('.integrations-view-toggle button').forEach((btn) => {
     btn.addEventListener('click', () => {
-      _viewMode = (btn as HTMLElement).dataset.viewmode as 'grid' | 'list';
+      _viewMode = (btn as HTMLElement).dataset.viewmode as 'grid' | 'list' | 'matrix';
       const grid = document.getElementById('integrations-grid');
-      grid?.classList.toggle('integrations-list-mode', _viewMode === 'list');
+      if (grid) {
+        grid.classList.toggle('integrations-list-mode', _viewMode === 'list');
+        grid.classList.toggle('integrations-matrix-mode', _viewMode === 'matrix');
+      }
       document.querySelectorAll('.integrations-view-toggle button').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
+      _renderCards(); // re-render for matrix vs card
     });
   });
 

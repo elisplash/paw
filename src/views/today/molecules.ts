@@ -1,7 +1,7 @@
 // Today View — DOM rendering + IPC (Command Center)
 
 import { pawEngine } from '../../engine';
-import { getAgents, spriteAvatar } from '../agents';
+import { getAgents } from '../agents';
 import { switchView } from '../router';
 import { $, escHtml } from '../../components/helpers';
 import { showToast } from '../../components/toast';
@@ -382,11 +382,12 @@ export async function fetchFleetStatus() {
     container.innerHTML = showcase.agents
       .map((a) => {
         const status = agentStatus(a.lastUsed);
+        const dot = status === 'active' ? '◉' : '○';
+        const dotClass = status === 'active' ? 'fleet-dot-active' : 'fleet-dot-idle';
         return `<div class="cmd-fleet-item">
-          <div class="cmd-fleet-avatar"><span class="ms" style="font-size:28px">smart_toy</span></div>
+          <span class="${dotClass}">${dot}</span>
           <span class="cmd-fleet-name">${escHtml(a.name)}</span>
-          ${statusDot(status)}
-          <span class="cmd-fleet-status">${status}</span>
+          <span class="cmd-fleet-status">[${status}]</span>
         </div>`;
       })
       .join('');
@@ -403,11 +404,12 @@ export async function fetchFleetStatus() {
     container.innerHTML = agents
       .map((a) => {
         const status = agentStatus(a.lastUsed);
+        const dot = status === 'active' ? '◉' : '○';
+        const dotClass = status === 'active' ? 'fleet-dot-active' : 'fleet-dot-idle';
         return `<div class="cmd-fleet-item">
-          <div class="cmd-fleet-avatar">${spriteAvatar(a.avatar, 28)}</div>
+          <span class="${dotClass}">${dot}</span>
           <span class="cmd-fleet-name">${escHtml(a.name)}</span>
-          ${statusDot(status)}
-          <span class="cmd-fleet-status">${status}</span>
+          <span class="cmd-fleet-status">[${status}]</span>
         </div>`;
       })
       .join('');
@@ -454,55 +456,57 @@ export function renderToday() {
   const cost = showcase ? showcase.cost : appState.sessionCost;
 
   container.innerHTML = `
-    <div class="today-header">
-      <div class="today-greeting">${greeting}${userName ? `, ${escHtml(userName)}` : ''}</div>
-      <div class="today-date">${dateStr}</div>
+    <div class="today-header bento-row">
+      <div class="today-greeting-cell">
+        <div class="today-label">MISSION CONTROL</div>
+        <div class="today-greeting">${greeting}${userName ? `, ${escHtml(userName)}` : ''}</div>
+        <div class="today-date">${dateStr}</div>
+      </div>
+      <div class="today-weather-cell" id="today-weather">
+        <span class="today-loading">…</span>
+      </div>
     </div>
 
-    <div class="cmd-grid">
-      <!-- Row 1: Fleet + Usage -->
-      <div class="card-elevated cmd-card">
+    <div class="cmd-grid bento-grid">
+      <!-- Row 1: Fleet + Usage + Skills + Emails -->
+      <div class="cmd-card bento-cell bento-span-4">
         <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">smart_toy</span></span>
-          <span class="today-card-title">Agent Fleet</span>
+          <span class="today-card-title">AGENT FLEET</span>
         </div>
         <div class="today-card-body" id="cmd-fleet-body">
           <span class="today-loading">Loading…</span>
         </div>
       </div>
 
-      <div class="card-elevated cmd-card">
+      <div class="cmd-card bento-cell bento-span-3">
         <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">bar_chart</span></span>
-          <span class="today-card-title">Usage Today</span>
+          <span class="today-card-title">USAGE</span>
         </div>
         <div class="today-card-body cmd-usage-body">
           <div class="cmd-stat-row">
             <div class="cmd-stat">
               <span class="stat-value" id="cmd-tokens">${formatTokens(tokensUsed)}</span>
-              <span class="stat-label">Tokens</span>
+              <span class="stat-label">tokens</span>
             </div>
             <div class="cmd-stat">
               <span class="stat-value" id="cmd-cost">${formatCost(cost)}</span>
-              <span class="stat-label">Cost</span>
+              <span class="stat-label">cost</span>
             </div>
             <div class="cmd-stat">
               <span class="stat-value" id="cmd-input-tokens">${formatTokens(appState.sessionInputTokens)}</span>
-              <span class="stat-label">Input</span>
+              <span class="stat-label">in</span>
             </div>
             <div class="cmd-stat">
               <span class="stat-value" id="cmd-output-tokens">${formatTokens(appState.sessionOutputTokens)}</span>
-              <span class="stat-label">Output</span>
+              <span class="stat-label">out</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Row 2: Active Skills + Weather -->
-      <div class="card-elevated cmd-card">
+      <div class="cmd-card bento-cell bento-span-2">
         <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">bolt</span></span>
-          <span class="today-card-title">Active Skills</span>
+          <span class="today-card-title">SKILLS</span>
           <span class="today-card-count" id="cmd-skills-count">…</span>
         </div>
         <div class="today-card-body" id="cmd-skills-body">
@@ -510,33 +514,30 @@ export function renderToday() {
         </div>
       </div>
 
-      <div class="card-elevated cmd-card">
+      <div class="cmd-card bento-cell bento-span-3">
         <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">partly_cloudy_day</span></span>
-          <span class="today-card-title">Weather</span>
+          <span class="today-card-title">UNREAD MAIL</span>
         </div>
-        <div class="today-card-body" id="today-weather">
+        <div class="today-card-body" id="today-emails">
           <span class="today-loading">Loading…</span>
         </div>
       </div>
 
-      <!-- Row 2.5: Integrations strip (full width) -->
-      <div class="card-elevated cmd-card cmd-card-full">
+      <!-- Integrations strip (full width) -->
+      <div class="cmd-card bento-cell bento-span-full">
         <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">integration_instructions</span></span>
-          <span class="today-card-title">Integrations</span>
+          <span class="today-card-title">INTEGRATIONS</span>
           <span class="today-card-count" id="cmd-integrations-count">…</span>
         </div>
         <div class="today-card-body" id="cmd-integrations-body">
-          <span class="today-loading">Loading integrations…</span>
+          <span class="today-loading">Loading…</span>
         </div>
       </div>
 
-      <!-- Row 3: Tasks (full width) -->
-      <div class="card-elevated cmd-card cmd-card-full">
+      <!-- Tasks + Quick Actions side-by-side -->
+      <div class="cmd-card bento-cell bento-span-8">
         <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">task_alt</span></span>
-          <span class="today-card-title">Tasks</span>
+          <span class="today-card-title">TASKS</span>
           <span class="today-card-count">${pendingTasks.length}</span>
           <button class="btn btn-ghost btn-sm today-add-task-btn">+ Add</button>
         </div>
@@ -561,69 +562,54 @@ export function renderToday() {
         </div>
       </div>
 
-      <!-- Row 4: Activity + Heatmap -->
-      <div class="card-elevated cmd-card">
+      <div class="cmd-card bento-cell bento-span-4">
         <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">timeline</span></span>
-          <span class="today-card-title">Activity</span>
+          <span class="today-card-title">QUICK ACTIONS</span>
+        </div>
+        <div class="today-card-body">
+          <button class="today-quick-action" id="today-briefing-btn">
+            ▸ Morning Briefing
+          </button>
+          <button class="today-quick-action" id="today-summarize-btn">
+            ▸ Summarize Inbox
+          </button>
+          <button class="today-quick-action" id="today-schedule-btn">
+            ▸ What's on today?
+          </button>
+        </div>
+      </div>
+
+      <!-- Activity + Heatmap -->
+      <div class="cmd-card bento-cell bento-span-6">
+        <div class="today-card-header">
+          <span class="today-card-title">ACTIVITY</span>
         </div>
         <div class="today-card-body" id="today-activity">
           <span class="today-loading">Loading…</span>
         </div>
       </div>
 
-      <div class="card-elevated cmd-card">
+      <div class="cmd-card bento-cell bento-span-6">
         <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">calendar_month</span></span>
-          <span class="today-card-title">30-Day Activity</span>
+          <span class="today-card-title">30-DAY HEATMAP</span>
         </div>
         <div class="today-card-body" id="cmd-heatmap-body">
           <span class="today-loading">Loading…</span>
         </div>
       </div>
 
-      <!-- Capabilities Card (full width) -->
-      <div class="card-elevated cmd-card cmd-card-full capabilities-card">
+      <!-- Capabilities (full width) -->
+      <div class="cmd-card bento-cell bento-span-full capabilities-card">
         <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">auto_awesome</span></span>
-          <span class="today-card-title">Your Agent Can</span>
+          <span class="today-card-title">CAPABILITIES</span>
         </div>
         <div class="today-card-body" id="cmd-capabilities-body">
           <span class="today-loading">Loading…</span>
         </div>
       </div>
 
-      <!-- Row 5: Quick Actions + Emails -->
-      <div class="card-elevated cmd-card">
-        <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">rocket_launch</span></span>
-          <span class="today-card-title">Quick Actions</span>
-        </div>
-        <div class="today-card-body">
-          <button class="today-quick-action" id="today-briefing-btn">
-            <span class="ms">campaign</span> Morning Briefing
-          </button>
-          <button class="today-quick-action" id="today-summarize-btn">
-            <span class="ms">summarize</span> Summarize Inbox
-          </button>
-          <button class="today-quick-action" id="today-schedule-btn">
-            <span class="ms">calendar_today</span> What's on today?
-          </button>
-        </div>
-      </div>
-
-      <div class="card-elevated cmd-card">
-        <div class="today-card-header">
-          <span class="today-card-icon"><span class="ms">mail</span></span>
-          <span class="today-card-title">Unread Emails</span>
-        </div>
-        <div class="today-card-body" id="today-emails">
-          <span class="today-loading">Loading…</span>
-        </div>
-      </div>
-
       <!-- Skill Widgets -->
-      <div class="cmd-card-full" id="today-skill-widgets">
+      <div class="bento-cell bento-span-full" id="today-skill-widgets">
         ${renderSkillWidgets(_skillOutputs)}
       </div>
     </div>

@@ -618,7 +618,17 @@ export function showStreamingMessage(): void {
 
   const contentEl = document.createElement('div');
   contentEl.className = 'message-content';
-  contentEl.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+
+  // Terminal-style prefix for streaming
+  const prefix = document.createElement('span');
+  prefix.className = 'message-prefix';
+  const agent = AgentsModule.getCurrentAgent();
+  prefix.textContent = `${(agent?.name ?? 'AGENT').toUpperCase()} ›`;
+  contentEl.appendChild(prefix);
+
+  const streamSpan = document.createElement('span');
+  streamSpan.innerHTML = '<div class="loading-dots"><span></span><span></span><span></span></div>';
+  contentEl.appendChild(streamSpan);
 
   const time = document.createElement('div');
   time.className = 'message-time';
@@ -918,11 +928,27 @@ function renderSingleMessage(
 
   const contentEl = document.createElement('div');
   contentEl.className = 'message-content';
-  if (msg.role === 'assistant' || msg.role === 'system') {
-    contentEl.innerHTML = formatMarkdown(msg.content);
+
+  // Terminal-style prefix: YOU › or AGENT ›
+  const prefix = document.createElement('span');
+  prefix.className = 'message-prefix';
+  if (msg.role === 'user') {
+    prefix.textContent = 'YOU ›';
+  } else if (msg.role === 'assistant') {
+    const agent = AgentsModule.getCurrentAgent();
+    prefix.textContent = `${(agent?.name ?? 'AGENT').toUpperCase()} ›`;
   } else {
-    contentEl.textContent = msg.content;
+    prefix.textContent = 'SYS ›';
   }
+  contentEl.appendChild(prefix);
+
+  const textNode = document.createElement('span');
+  if (msg.role === 'assistant' || msg.role === 'system') {
+    textNode.innerHTML = formatMarkdown(msg.content);
+  } else {
+    textNode.textContent = msg.content;
+  }
+  contentEl.appendChild(textNode);
 
   const time = document.createElement('div');
   time.className = 'message-time';
