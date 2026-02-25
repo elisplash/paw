@@ -220,6 +220,11 @@
   text-overflow: ellipsis;
   max-width: 0;
 }
+.agents-roster-row td.roster-actions {
+  overflow: visible;
+  max-width: none;
+  text-overflow: clip;
+}
 .roster-stat { width: 40px; text-align: center; }
 .roster-dot-active { color: var(--accent); font-size: 16px; }
 .roster-dot-idle { color: var(--text-muted); font-size: 16px; }
