@@ -46,22 +46,8 @@ export function renderIntegrations(): void {
   const container = document.getElementById('integrations-content');
   if (!container) return;
 
-  const connected = _state.getConnected();
-  const totalCount = SERVICE_CATALOG.length;
-  const connectedCount = connected.length;
-
   container.innerHTML = `
     <div class="integrations-header">
-      <div class="integrations-hero">
-        <h1 class="integrations-title">
-          <span class="ms ms-lg">integration_instructions</span>
-          Integrations
-        </h1>
-        <p class="integrations-subtitle">
-          ${totalCount}+ services. One click.
-          ${connectedCount > 0 ? `<span class="integrations-connected-badge">${connectedCount} connected</span>` : ''}
-        </p>
-      </div>
       <div class="integrations-main-tabs">
         <button class="integrations-main-tab ${_mainTab === 'services' ? 'active' : ''}" data-main-tab="services">
           <span class="ms ms-sm">extension</span> Services
@@ -74,7 +60,6 @@ export function renderIntegrations(): void {
         </button>
       </div>
     </div>
-
     <div id="integrations-tab-body"></div>
   `;
 
@@ -180,47 +165,39 @@ function _renderCards(): void {
   const rest = sorted.filter((s) => !connectedIds.has(s.id));
   const ordered = [...pinned, ...rest];
 
-  // Matrix view — dense status table
+  // Matrix view — compact 2-column service rows
   if (_viewMode === 'matrix') {
     grid.innerHTML = `
-      <table class="integrations-matrix">
-        <thead>
-          <tr>
-            <th>SERVICE</th>
-            <th>STATE</th>
-            <th>HEALTH</th>
-            <th>TOOLS</th>
-            <th>ACTIONS</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${ordered.map((s) => {
-            const isConnected = connectedIds.has(s.id);
-            const conn = connected.find((c) => c.serviceId === s.id);
-            const healthLevel = isConnected ? (conn?.status === 'error' ? 1 : conn?.status === 'expired' ? 2 : 4) : 0;
-            const healthBar = Array.from({ length: 4 }, (_, i) =>
-              `<span class="health-seg ${i < healthLevel ? (healthLevel <= 1 ? 'health-red' : healthLevel <= 2 ? 'health-gold' : 'health-sage') : 'health-dim'}"></span>`
-            ).join('');
-            return `<tr class="matrix-row k-row${isConnected ? ` k-breathe k-status-${conn?.status === 'error' ? 'error' : conn?.status === 'expired' ? 'warning' : 'healthy'}` : ' k-status-idle'}" data-service-id="${s.id}">
-              <td class="matrix-name"><span class="ms ms-sm" style="color:${s.color}">${s.icon}</span> ${escHtml(s.name)}</td>
-              <td class="matrix-state">${isConnected ? `<span class="matrix-on">${kineticDot()} ON</span>` : '<span class="matrix-off">○ OFF</span>'}</td>
-              <td class="matrix-health">${healthBar}</td>
-              <td class="matrix-tools">${conn ? conn.toolCount : '—'}</td>
-              <td class="matrix-actions">
-                ${isConnected
-                  ? `<button class="btn btn-ghost btn-sm integrations-card-btn" data-service-id="${s.id}">▸</button>`
-                  : `<button class="btn btn-ghost btn-sm integrations-connect-btn" data-service-id="${s.id}">Setup ▸</button>`
-                }
-              </td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
+      <div class="matrix-grid">
+        ${ordered.map((s) => {
+          const isConnected = connectedIds.has(s.id);
+          const conn = connected.find((c) => c.serviceId === s.id);
+          return `<div class="matrix-row-card k-row k-spring${isConnected ? ` k-breathe k-status-${conn?.status === 'error' ? 'error' : conn?.status === 'expired' ? 'warning' : 'healthy'}` : ' k-status-idle'}" data-service-id="${s.id}">
+            <span class="ms matrix-row-icon" style="color:${s.color}">${s.icon}</span>
+            <div class="matrix-row-info">
+              <span class="matrix-row-name">${escHtml(s.name)}</span>
+              <span class="matrix-row-cat">${categoryLabel(s.category)}</span>
+            </div>
+            <div class="matrix-row-status">
+              ${isConnected
+                ? `<span class="matrix-on">${kineticDot()} ON</span>`
+                : '<span class="matrix-off">OFF</span>'
+              }
+            </div>
+            <div class="matrix-row-action">
+              ${isConnected
+                ? `<button class="btn btn-ghost btn-sm integrations-card-btn" data-service-id="${s.id}">▸</button>`
+                : `<button class="btn btn-ghost btn-sm integrations-connect-btn" data-service-id="${s.id}">Setup</button>`
+              }
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
       <div class="matrix-footer">Showing ${ordered.length} of ${SERVICE_CATALOG.length} services</div>`;
 
-    // Stagger matrix rows
-    const tbody = grid.querySelector('tbody');
-    if (tbody) kineticStagger(tbody as HTMLElement, '.matrix-row');
+    // Stagger rows
+    const matrixGrid = grid.querySelector('.matrix-grid');
+    if (matrixGrid) kineticStagger(matrixGrid as HTMLElement, '.matrix-row-card');
     return;
   }
 
@@ -424,7 +401,7 @@ function _wireEvents(): void {
     }
 
     // Otherwise open the detail panel
-    const card = target.closest('.integrations-card') as HTMLElement;
+    const card = (target.closest('.integrations-card') ?? target.closest('.matrix-row-card')) as HTMLElement;
     if (!card) return;
     const sid = card.dataset.serviceId;
     const service = SERVICE_CATALOG.find((s) => s.id === sid);

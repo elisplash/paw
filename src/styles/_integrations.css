@@ -323,14 +323,9 @@
 /* Category pills */
 .integrations-categories {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   padding-bottom: 14px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.integrations-categories::-webkit-scrollbar {
-  display: none;
 }
 
 .integrations-cat-pill {
@@ -388,68 +383,70 @@
   display: none;
 }
 
-/* ── Integrations Matrix (dense status table) ── */
-.integrations-matrix {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-  font-family: var(--font-mono);
+/* ── Integrations Matrix (compact 2-column grid) ── */
+.matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
 }
-.integrations-matrix thead th {
-  text-align: left;
-  padding: 6px 12px;
-  font-size: var(--type-micro);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
+@media (max-width: 700px) {
+  .matrix-grid { grid-template-columns: 1fr; }
 }
-.matrix-row {
-  border-bottom: 1px solid var(--border-subtle);
-  cursor: pointer;
-  transition: background var(--transition-fast);
-}
-.matrix-row:hover {
-  background: var(--bg-hover);
-}
-.matrix-row td {
-  padding: 6px 12px;
-  white-space: nowrap;
-  vertical-align: middle;
-}
-.matrix-name {
+.matrix-row-card {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-weight: 500;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.matrix-row-card:hover {
+  border-color: var(--accent);
+}
+.matrix-row-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.matrix-row-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.matrix-row-name {
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.matrix-row-cat {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.matrix-row-status {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
 }
 .matrix-on { color: var(--kinetic-sage); font-weight: 600; }
 .matrix-off { color: var(--text-muted); }
-.matrix-health {
-  display: flex;
-  gap: 2px;
+.matrix-row-action {
+  flex-shrink: 0;
 }
-.health-seg {
-  display: inline-block;
-  width: 12px;
-  height: 8px;
-  border-radius: 1px;
-}
-.health-sage { background: var(--kinetic-sage); }
-.health-gold { background: var(--kinetic-gold); }
-.health-red { background: var(--accent); }
-.health-dim { background: var(--bg-tertiary); }
-.matrix-tools { color: var(--text-secondary); text-align: center; }
-.matrix-actions { text-align: right; }
 .matrix-footer {
   padding: 8px 12px;
   font-size: var(--type-micro);
   font-family: var(--font-mono);
   color: var(--text-muted);
   border-top: 1px solid var(--border);
+  margin-top: 8px;
 }
 .integrations-matrix-mode .integrations-card { display: none; }
 
