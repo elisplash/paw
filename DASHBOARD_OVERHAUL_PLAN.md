@@ -117,7 +117,7 @@ The OpenClaw dashboard repos all have something OpenPawz doesn't: **a clear answ
 
 5. **Too many top-level tabs for niche features.** Trading is a whole sidebar tab used by <5% of users. Memory is a whole tab that most users don't understand. Engine shows almost nothing.
 
-6. **The app doesn't show what makes it special.** OpenPawz has 40 skills, multi-agent orchestration, tool approval, container sandboxes, 11 channel bridges. None of that is visible from the dashboard. You have to dig into Settings to discover it.
+6. **The app doesn't show what makes it special.** OpenPawz has 400+ integrations, multi-agent orchestration, tool approval, container sandboxes, 11 channel bridges. None of that is visible from the dashboard. You have to dig into Settings to discover it.
 
 ---
 

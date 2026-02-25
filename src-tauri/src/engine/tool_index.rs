@@ -1,7 +1,7 @@
 // Paw Agent Engine — Tool RAG Index (Intent-Stated Retrieval)
 //
-// The "Librarian" pattern: instead of dumping 75+ tool definitions into every
-// LLM request (~7,500 tokens), we embed tool descriptions and let the agent
+// The "Librarian" pattern: instead of dumping 400+ tool definitions into every
+// LLM request (~40,000 tokens), we embed tool descriptions and let the agent
 // discover tools on demand via semantic search.
 //
 // Architecture:
@@ -9,7 +9,7 @@
 //   LIBRARIAN (Ollama)    — embeds queries, searches tool index, returns schemas
 //   LIBRARY  (ToolIndex)  — holds tool definitions + their embedding vectors
 //
-// On startup, all tool definitions are embedded once (~75 vectors × 768 dims).
+// On startup, all tool definitions are embedded once (~400 vectors × 768 dims).
 // When the agent calls `request_tools("send email to john")`, we embed the
 // query, compute cosine similarity, and return the top-K matching tools.
 // Those tools get injected into the next agent loop round.

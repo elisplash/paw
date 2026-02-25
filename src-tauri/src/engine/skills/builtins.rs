@@ -1,5 +1,5 @@
 // Pawz Agent Engine — Built-in Skill Definitions
-// 40+ built-in skill definitions.
+// 400+ built-in skill definitions.
 
 use super::types::{CredentialField, SkillCategory, SkillDefinition, SkillTier};
 

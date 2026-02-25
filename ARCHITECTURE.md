@@ -128,9 +128,9 @@ src-tauri/                    # Rust backend
 │       │   ├── agent_files.rs # Per-agent file tracking
 │       │   ├── agent_messages.rs # Inter-agent message persistence
 │       │   └── squads.rs     # Agent squad persistence
-│       ├── skills/           # Skill vault — 40 built-in skills
+│       ├── skills/           # Skill vault — 400+ built-in integrations
 │       │   ├── mod.rs        # Skill loading, prompt injection
-│       │   ├── builtins.rs   # 40 built-in skill definitions
+│       │   ├── builtins.rs   # 400+ built-in skill definitions
 │       │   ├── crypto.rs     # Credential encryption (AES-256-GCM + keychain)
 │       │   ├── vault.rs      # Credential storage/retrieval
 │       │   ├── prompt.rs     # Prompt construction
@@ -346,7 +346,7 @@ Auto-recall injects relevant memories into agent context. Auto-capture extracts 
 
 ### Tool RAG — Intent-Stated Retrieval (`tool_index.rs`)
 
-Pawz uses **Tool RAG** (Retrieval-Augmented Generation for tools) to solve the "tool bloat" problem. Instead of dumping all 75+ tool definitions into every LLM request (~7,500 tokens), the agent discovers tools on demand via semantic search — like a library patron asking a librarian for the right book.
+Pawz uses **Tool RAG** (Retrieval-Augmented Generation for tools) to solve the "tool bloat" problem. Instead of dumping all 400+ tool definitions into every LLM request (~40,000 tokens), the agent discovers tools on demand via semantic search — like a library patron asking a librarian for the right book.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -378,7 +378,7 @@ Pawz uses **Tool RAG** (Retrieval-Augmented Generation for tools) to solve the "
 ┌─────────────────────────────────────────────────────────────────┐
 │  LIBRARY  (ToolIndex — in-memory, ~230KB)                       │
 │                                                                  │
-│  75+ tool definitions stored as embedding vectors                │
+│  400+ tool definitions stored as embedding vectors               │
 │  Grouped into 17 skill domains:                                  │
 │    system, filesystem, web, identity, memory, agents,           │
 │    communication, squads, tasks, skills, dashboard, storage,    │

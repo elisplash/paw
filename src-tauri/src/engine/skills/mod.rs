@@ -3,7 +3,7 @@
 //
 // Module layout:
 //   types      — all skill types (SkillCategory, SkillDefinition, SkillStatus, …)
-//   builtins   — the 40+ built-in skill definitions
+//   builtins   — the 400+ built-in skill definitions
 //   vault      — SessionStore impl: credential CRUD, enabled state, custom instructions
 //   crypto     — OS-keychain key, XOR encrypt/decrypt
 //   status     — get_all_skill_status, get_skill_credentials

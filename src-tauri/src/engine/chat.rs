@@ -21,7 +21,7 @@ use log::{info, warn};
 
 /// Assemble the tool list for a chat turn using Tool RAG (lazy loading).
 ///
-/// Instead of dumping all 75+ tools, sends only:
+/// Instead of dumping all 400+ tools, sends only:
 ///   1. Core tools (memory, soul, files, request_tools) — always available
 ///   2. Previously loaded tools (from request_tools calls this turn)
 ///   3. MCP tools (always included — they're dynamically registered)

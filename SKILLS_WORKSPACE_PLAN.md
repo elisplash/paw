@@ -7,7 +7,7 @@
 ## The Problem (3 things)
 
 ### 1. Everything is dumped into one "Skills" page
-Right now, clicking Skills shows you **everything** in a single scroll: a wizard, PawzHub browser, community browser, extensions, and 40+ built-in skill cards. There's no separation between:
+Right now, clicking Skills shows you **everything** in a single scroll: a wizard, PawzHub browser, community browser, extensions, and 400+ built-in integration cards. There's no separation between:
 
 - **Prompt-only skills** (`.md` — passive context injected into the agent)
 - **Tool integrations** (TOML with credentials — active tools the agent calls)
@@ -18,7 +18,7 @@ Right now, clicking Skills shows you **everything** in a single scroll: a wizard
 A user can't tell what's what, what's active, what needs setup, or what each thing actually does for them.
 
 ### 2. Not modular — everything ships baked in
-All 40 built-ins are compiled into the binary. The user gets everything whether they want it or not. There's no concept of "my workspace" vs "available to add." It should feel like a phone's home screen vs app store.
+All 400+ built-ins are compiled into the binary. The user gets everything whether they want it or not. There's no concept of "my workspace" vs "available to add." It should feel like a phone's home screen vs app store.
 
 ### 3. No discovery moment for PawzHub
 PawzHub exists as a registry and an iframe view, but there's no natural flow where a user discovers new capabilities. The iframe just loads the whole docs site — it's not a marketplace experience.
@@ -195,7 +195,7 @@ Browse PawzHub → Click "Install" → Skill appears in My Skills →
 
 | Current Location | Thing | New Location |
 |-----------------|-------|-------------|
-| Skills page → built-in cards | 40 built-in skills | **My Skills → Active/Integrations tab** (only if enabled) |
+| Skills page → built-in cards | 400+ built-in integrations | **My Skills → Active/Integrations tab** (only if enabled) |
 | Skills page → PawzHub section | PawzHub browser | **PawzHub sidebar view** (native, not iframe) |
 | Skills page → Community section | Community skills browser | **PawzHub sidebar view** (merged into one store) |
 | Skills page → Wizard | Skill creation wizard | **My Skills → Create tab** |

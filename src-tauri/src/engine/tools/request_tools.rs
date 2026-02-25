@@ -4,7 +4,7 @@
 // it needs for a specific task. Uses semantic search over the tool index
 // to find the most relevant tools and inject them into the current round.
 //
-// This replaces the brute-force approach of dumping 75+ tool definitions
+// This replaces the brute-force approach of dumping 400+ tool definitions
 // into every request. The agent sees a compact skill domain summary and
 // calls request_tools when it needs specific capabilities.
 
