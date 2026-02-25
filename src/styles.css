@@ -4587,33 +4587,36 @@ button:focus:not(:focus-visible) {
 
 /* ═══ Today View ═══ */
 .today-view {
-  padding: 32px;
+  padding: 16px;
   overflow-y: auto;
   height: 100%;
   box-sizing: border-box;
 }
 .today-content {
-  max-width: 1000px;
+  max-width: 1100px;
 }
 .today-header {
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 .today-greeting {
-  font-size: 18px;
-  font-weight: 700;
-  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-mono);
   color: var(--text-primary);
-  text-shadow: none;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 .today-date {
-  font-size: 14px;
+  font-size: var(--type-micro);
+  font-family: var(--font-mono);
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .today-grid {
   display: grid;
-  grid-template-columns: 1fr 280px;
-  gap: 20px;
+  grid-template-columns: 1fr 260px;
+  gap: 0;
+  border: 1px solid var(--border);
 }
 @media (max-width: 800px) {
   .today-grid {
@@ -4623,12 +4626,18 @@ button:focus:not(:focus-visible) {
 .today-main {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
+  border-right: 1px solid var(--border);
+}
+@media (max-width: 800px) {
+  .today-main {
+    border-right: none;
+  }
 }
 .today-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
 }
 
 /* ── Command Center Grid ───────────────────────────────────── */
@@ -4662,12 +4671,13 @@ button:focus:not(:focus-visible) {
   border-bottom: none;
 }
 .cmd-fleet-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   overflow: hidden;
   flex-shrink: 0;
   image-rendering: auto;
+  border: 1px solid var(--border);
 }
 .cmd-fleet-avatar img {
   image-rendering: auto;
@@ -4730,58 +4740,58 @@ button:focus:not(:focus-visible) {
 .today-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
+  border-radius: 0;
   overflow: hidden;
-  transition:
-    box-shadow var(--transition-smooth),
-    border-color var(--transition-smooth),
-    transform var(--transition-smooth);
+  transition: border-color var(--transition-normal);
 }
 .today-card:hover {
   border-color: var(--accent-muted);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3), 0 0 0 1px var(--accent-lighter);
-  transform: translateY(-2px);
 }
 .today-card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 14px 16px;
+  gap: 6px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-secondary);
 }
 .today-card-icon {
-  font-size: 16px;
+  font-size: 14px;
+  color: var(--text-muted);
 }
 .today-card-title {
-  font-size: 13px;
+  font-size: var(--type-label);
   font-weight: 600;
-  color: var(--text-primary);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 .today-card-count {
-  font-size: 12px;
-  background: var(--accent-subtle);
-  color: var(--accent);
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
+  font-size: var(--type-micro);
+  font-family: var(--font-mono);
+  background: none;
+  color: var(--text-muted);
+  padding: 0;
+  border-radius: 0;
   margin-left: auto;
 }
 .today-card-header .btn {
   margin-left: auto;
 }
 .today-card-body {
-  padding: 16px;
+  padding: 10px 12px;
 }
 .today-loading {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
+  font-family: var(--font-mono);
 }
 .today-section-empty {
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
   text-align: center;
-  padding: 12px;
+  padding: 8px;
 }
 
 /* ── Activity Feed ──────────────────────────────────────────── */
@@ -4827,25 +4837,29 @@ button:focus:not(:focus-visible) {
 .today-tasks {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
 }
 .today-task {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
+  gap: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.today-task:last-child {
+  border-bottom: none;
 }
 .today-task-check {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   accent-color: var(--accent);
   cursor: pointer;
 }
 .today-task-text {
   flex: 1;
-  font-size: 14px;
+  font-size: 12px;
   color: var(--text-primary);
 }
 .today-task:has(.today-task-check:checked) .today-task-text {
@@ -4889,44 +4903,50 @@ button:focus:not(:focus-visible) {
 .today-quick-action {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+  padding: 6px 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  font-size: 12px;
   color: var(--text-primary);
   cursor: pointer;
-  transition: all var(--transition-fast);
-  margin-bottom: 8px;
+  transition: color var(--transition-fast);
+  margin-bottom: 0;
 }
 .today-quick-action:last-child {
   margin-bottom: 0;
+  border-bottom: none;
+}
+.today-quick-action:hover {
+  color: var(--accent);
 }
 
 /* Pawz's card */
 .today-dave-card {
   background: var(--bg-secondary);
-  border: 1px solid var(--accent-muted);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
   color: var(--text-primary);
-  box-shadow: 0 0 12px rgba(255, 0, 255, 0.15);
 }
 .today-dave-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 10px 12px;
 }
 .today-dave-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-sm);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   image-rendering: auto;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid var(--border);
 }
 .today-dave-avatar img {
   image-rendering: auto;
@@ -4935,10 +4955,10 @@ button:focus:not(:focus-visible) {
   flex: 1;
 }
 .today-dave-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  font-family: var(--font-sans);
-  color: #ff00ff;
+  font-family: var(--font-mono);
+  color: var(--accent);
 }
 .today-dave-role {
   font-size: 12px;
