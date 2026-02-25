@@ -409,6 +409,9 @@ pub fn run() {
             commands::n8n::engine_integrations_test_credentials,
             commands::n8n::engine_integrations_save_credentials,
             commands::n8n::engine_integrations_get_credentials,
+            // ── Credential Status & Provisioning (Phase 3) ──
+            commands::n8n::engine_integrations_credential_status,
+            commands::n8n::engine_integrations_provision,
             // ── Automation Templates (Phase 2.7) ──
             commands::automations::engine_automations_activate_template,
             commands::automations::engine_automations_list,

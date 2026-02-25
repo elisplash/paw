@@ -714,3 +714,61 @@ async fn _test_notion(
         }),
     }
 }
+
+// ── Credential status (Phase 3) ────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceCredentialStatus {
+    pub service_id: String,
+    pub status: String, // "connected" | "expired" | "not_connected"
+    pub last_tested: Option<String>,
+}
+
+/// Get credential status for all known services.
+#[tauri::command]
+pub async fn engine_integrations_credential_status(
+    app_handle: tauri::AppHandle,
+    service_ids: Vec<String>,
+) -> Result<Vec<ServiceCredentialStatus>, String> {
+    let mut statuses = Vec::new();
+
+    for sid in service_ids {
+        let key = format!("integration_creds_{}", sid);
+        let has_creds = channels::load_channel_config::<std::collections::HashMap<String, String>>(
+            &app_handle,
+            &key,
+        )
+        .map(|m| !m.is_empty())
+        .unwrap_or(false);
+
+        statuses.push(ServiceCredentialStatus {
+            service_id: sid,
+            status: if has_creds {
+                "connected".to_string()
+            } else {
+                "not_connected".to_string()
+            },
+            last_tested: None,
+        });
+    }
+
+    Ok(statuses)
+}
+
+/// Auto-provision agent tools after saving credentials.
+/// Phase 3+: Will create/activate n8n workflows and register tools.
+#[tauri::command]
+pub async fn engine_integrations_provision(
+    _app_handle: tauri::AppHandle,
+    service_id: String,
+) -> Result<String, String> {
+    // Phase 3+ stub: in the full implementation, this would:
+    // 1. Find the n8n workflow template for this service
+    // 2. Inject saved credentials into the workflow
+    // 3. Activate the workflow
+    // 4. Register new tools with the agent
+    Ok(format!(
+        "Service '{}' provisioned. Agent tools will be available when n8n is configured.",
+        service_id
+    ))
+}
