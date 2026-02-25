@@ -349,13 +349,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     $('refresh-skills-btn')?.addEventListener('click', () => SkillsSettings.loadSkillsSettings());
 
-    // PawzHub embedded view buttons
-    $('pawzhub-reload-btn')?.addEventListener('click', () => {
-      const iframe = document.getElementById('pawzhub-iframe') as HTMLIFrameElement | null;
-      if (iframe) iframe.src = 'https://www.openpawz.ai';
-    });
-    $('pawzhub-open-btn')?.addEventListener('click', () => {
-      window.open('https://www.openpawz.ai', '_blank');
+    // PawzHub refresh button
+    $('pawzhub-refresh-btn')?.addEventListener('click', async () => {
+      const { loadPawzHub } = await import('./views/pawzhub');
+      loadPawzHub();
     });
 
     FoundryModule.initFoundryEvents();

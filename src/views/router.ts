@@ -20,6 +20,7 @@ import * as MailModule from './mail';
 import * as TodayModule from './today';
 import * as ProjectsModule from './projects';
 import * as SquadsModule from './squads';
+import * as PawzHubModule from './pawzhub';
 
 export const allViewIds = [
   'setup-view',
@@ -165,13 +166,9 @@ export function switchView(viewName: string) {
     case 'squads':
       SquadsModule.loadSquads();
       break;
-    case 'pawzhub': {
-      const iframe = document.getElementById('pawzhub-iframe') as HTMLIFrameElement | null;
-      if (iframe && (!iframe.src || iframe.src === 'about:blank')) {
-        iframe.src = 'https://www.openpawz.ai';
-      }
+    case 'pawzhub':
+      PawzHubModule.loadPawzHub();
       break;
-    }
     default:
       break;
   }

@@ -78,12 +78,9 @@
           </div>
 
           <div class="nav-section">
-            <div class="nav-section-label">System</div>
-            <div class="nav-item" data-view="memory">
-              <span>Memory</span>
-            </div>
+            <div class="nav-section-label">Workspace</div>
             <div class="nav-item" data-view="skills">
-              <span>Skills</span>
+              <span>My Skills</span>
             </div>
             <div class="nav-item" data-view="pawzhub">
               <span>PawzHub</span>
@@ -91,6 +88,13 @@
             </div>
             <div class="nav-item" data-view="foundry">
               <span>Foundry</span>
+            </div>
+          </div>
+
+          <div class="nav-section">
+            <div class="nav-section-label">System</div>
+            <div class="nav-item" data-view="memory">
+              <span>Memory</span>
             </div>
             <div class="nav-item" data-view="nodes">
               <span>Engine</span>
@@ -1887,7 +1891,7 @@
           <div class="view-loading" id="memory-loading" style="display: none">Loading memory…</div>
         </div>
 
-        <!-- ═══ Skills View — Skill Vault ═══ -->
+        <!-- ═══ My Skills View — Tabbed Workspace ═══ -->
         <div class="view list-view" id="skills-view">
           <div class="view-header">
             <h1 class="view-title">
@@ -1896,7 +1900,7 @@
                 style="display: inline; vertical-align: middle; margin-right: 6px"
                 >lock</span
               >
-              Skills
+              My Skills
             </h1>
             <div style="display: flex; gap: 6px">
               <button class="btn btn-ghost btn-sm" id="refresh-skills-btn">
@@ -1905,27 +1909,52 @@
               </button>
             </div>
           </div>
-          <p
-            style="
-              color: var(--text-secondary);
-              font-size: 13px;
-              margin-bottom: 16px;
-              padding: 0 4px;
-            "
-          >
-            Give your agent superpowers — email, Slack, GitHub, REST APIs, webhooks. Credentials are
-            encrypted and stored in your OS keychain. The agent never sees raw keys.
-          </p>
+
+          <!-- Summary bar -->
+          <div id="skills-summary-bar" class="skills-summary-bar"></div>
+
+          <!-- Tab bar -->
+          <div class="skills-tab-bar" id="skills-tab-bar">
+            <button class="skills-tab active" data-skills-tab="active">
+              <span class="ms ms-sm">check_circle</span>
+              Active
+              <span class="skills-tab-count" id="tab-count-active"></span>
+            </button>
+            <button class="skills-tab" data-skills-tab="integrations">
+              <span class="ms ms-sm">key</span>
+              Integrations
+              <span class="skills-tab-count" id="tab-count-integrations"></span>
+            </button>
+            <button class="skills-tab" data-skills-tab="tools">
+              <span class="ms ms-sm">dns</span>
+              Tools
+              <span class="skills-tab-count" id="tab-count-tools"></span>
+            </button>
+            <button class="skills-tab" data-skills-tab="extensions">
+              <span class="ms ms-sm">dashboard</span>
+              Extensions
+              <span class="skills-tab-count" id="tab-count-extensions"></span>
+            </button>
+            <button class="skills-tab" data-skills-tab="create">
+              <span class="ms ms-sm">add_circle</span>
+              Create
+            </button>
+          </div>
+
           <!-- Status toast -->
           <div class="skills-toast" id="skills-toast" style="display: none"></div>
-          <!-- Vault content -->
-          <div
-            id="skills-vault-loading"
-            style="color: var(--text-muted); font-size: 13px; padding: 12px 0"
-          >
-            Loading skills...
+
+          <!-- Tab content panels -->
+          <div id="skills-tab-content">
+            <div
+              id="skills-vault-loading"
+              style="color: var(--text-muted); font-size: 13px; padding: 12px 0"
+            >
+              Loading skills...
+            </div>
+            <div id="skills-vault-list"></div>
           </div>
-          <div id="skills-vault-list"></div>
+
           <div
             id="skills-vault-toast"
             style="
@@ -1938,7 +1967,7 @@
           ></div>
         </div>
 
-        <!-- ═══ PawzHub View — Embedded Marketplace ═══ -->
+        <!-- ═══ PawzHub View — Native Marketplace ═══ -->
         <div class="view" id="pawzhub-view">
           <div class="view-header">
             <h1 class="view-title">
@@ -1950,28 +1979,17 @@
               PawzHub
             </h1>
             <div style="display: flex; gap: 6px">
-              <button class="btn btn-ghost btn-sm" id="pawzhub-reload-btn" title="Reload">
+              <button class="btn btn-ghost btn-sm" id="pawzhub-refresh-btn" title="Refresh">
                 <span class="ms ms-sm">refresh</span>
-                Reload
+                Refresh
               </button>
-              <button class="btn btn-ghost btn-sm" id="pawzhub-open-btn" title="Open in browser">
+              <a href="https://www.openpawz.ai" target="_blank" class="btn btn-ghost btn-sm" title="Open website">
                 <span class="ms ms-sm">open_in_new</span>
-                Open in Browser
-              </button>
+                openpawz.ai
+              </a>
             </div>
           </div>
-          <iframe
-            id="pawzhub-iframe"
-            src="about:blank"
-            style="
-              width: 100%;
-              height: calc(100vh - 80px);
-              border: none;
-              border-radius: 8px;
-              background: var(--bg-primary);
-            "
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-          ></iframe>
+          <div id="pawzhub-content" style="padding: 0 8px 24px; overflow-y: auto; max-height: calc(100vh - 80px);"></div>
         </div>
 
         <!-- ═══ Foundry View — Models & Modes ═══ -->
