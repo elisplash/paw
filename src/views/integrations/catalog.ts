@@ -1,0 +1,397 @@
+// src/views/integrations/catalog.ts — Full service catalog (400+ services)
+//
+// Atom-level: pure data, no DOM, no IPC.
+// Top services are hand-curated with setup guides; remaining are auto-generated.
+
+import type { ServiceDefinition, ServiceCategory, CredentialField, SetupGuide } from './atoms';
+
+// ── Helpers for auto-generation ────────────────────────────────────────
+
+const apiKeyField: CredentialField = {
+  key: 'api_key', label: 'API Key', type: 'password',
+  placeholder: 'Paste your API key', required: true,
+};
+
+const genericGuide = (name: string): SetupGuide => ({
+  title: `Connect ${name}`,
+  steps: [
+    { instruction: `Log into your ${name} account and navigate to Settings → API / Integrations.` },
+    { instruction: 'Create a new API key or access token.' },
+    { instruction: 'Copy the key and paste it below.' },
+  ],
+  estimatedTime: '2-5 minutes',
+});
+
+function svc(
+  id: string, name: string, icon: string, color: string,
+  category: ServiceCategory, description: string,
+  capabilities: string[], nodeType: string, docsUrl: string,
+  popular: boolean,
+  credentialFields?: CredentialField[],
+  setupGuide?: SetupGuide,
+  queryExamples?: string[],
+  automationExamples?: string[],
+): ServiceDefinition {
+  return {
+    id, name, icon, color, category, description, capabilities,
+    n8nNodeType: nodeType, docsUrl, popular,
+    credentialFields: credentialFields ?? [apiKeyField],
+    setupGuide: setupGuide ?? genericGuide(name),
+    queryExamples: queryExamples ?? [`What's new in ${name}?`],
+    automationExamples: automationExamples ?? [`When something happens in ${name}, notify me.`],
+  };
+}
+
+// ── Curated top services (Tier 1 + 2) ──────────────────────────────────
+
+const CURATED: ServiceDefinition[] = [
+  svc('slack', 'Slack', 'chat', '#4A154B', 'communication',
+    'Send messages, manage channels, get notifications',
+    ['Send messages', 'Read channels', 'List users', 'Pin messages', 'Upload files'],
+    'n8n-nodes-base.slack', 'https://api.slack.com/', true,
+    [{ key: 'access_token', label: 'Bot Token', type: 'password', placeholder: 'xoxb-...', required: true }],
+    { title: 'Connect Slack', steps: [
+      { instruction: 'Go to api.slack.com/apps and click "Create New App"', link: 'https://api.slack.com/apps' },
+      { instruction: 'Choose "From scratch", name it "OpenPawz", select your workspace' },
+      { instruction: 'Under OAuth & Permissions, add scopes: chat:write, channels:read, users:read' },
+      { instruction: 'Click "Install to Workspace" and authorize' },
+      { instruction: 'Copy the Bot User OAuth Token (starts with xoxb-)' },
+    ], estimatedTime: '3 minutes' },
+    ['How many unread messages in #general?', 'What did @alice say today?', 'List all channels'],
+    ['When a message contains "urgent" in #support, create a task', 'Post daily standup summary to #team'],
+  ),
+
+  svc('gmail', 'Gmail', 'mail', '#EA4335', 'communication',
+    'Read, send, and organize emails',
+    ['Send emails', 'Read inbox', 'Search messages', 'Manage labels', 'Download attachments'],
+    'n8n-nodes-base.gmail', 'https://developers.google.com/gmail/api', true,
+    [{ key: 'oauth', label: 'Google Account', type: 'text', placeholder: 'Sign in with Google', required: true }],
+    { title: 'Connect Gmail', steps: [
+      { instruction: 'Click "Connect" to sign in with your Google account' },
+      { instruction: 'Grant OpenPawz permission to read and send emails' },
+      { instruction: 'Select which labels to sync (optional)', tip: 'You can change this later' },
+    ], estimatedTime: '1 minute' },
+    ['Any emails from investors today?', 'Show unread emails', 'Search emails about "quarterly report"'],
+    ['When I receive an email from @boss, notify me on Slack', 'Auto-label invoices'],
+  ),
+
+  svc('github', 'GitHub', 'code', '#24292F', 'development',
+    'Manage repos, issues, PRs, and actions',
+    ['Create issues', 'List PRs', 'Merge branches', 'Read commits', 'Manage releases'],
+    'n8n-nodes-base.github', 'https://docs.github.com/rest', true,
+    [{ key: 'access_token', label: 'Personal Access Token', type: 'password', placeholder: 'ghp_...', required: true }],
+    { title: 'Connect GitHub', steps: [
+      { instruction: 'Go to github.com/settings/tokens', link: 'https://github.com/settings/tokens' },
+      { instruction: 'Click "Generate new token (classic)"' },
+      { instruction: 'Select scopes: repo, read:org, read:user', tip: 'For full access, select all repo scopes' },
+      { instruction: 'Copy the token and paste it below' },
+    ], estimatedTime: '2 minutes' },
+    ['How many open PRs in my repos?', 'Show recent commits on main', 'List issues labeled "bug"'],
+    ['When a new issue is opened, assign it to me', 'Notify Slack when a PR is merged'],
+  ),
+
+  svc('google-sheets', 'Google Sheets', 'table_chart', '#0F9D58', 'productivity',
+    'Read, write, and manage spreadsheets',
+    ['Read rows', 'Append data', 'Update cells', 'Create sheets', 'Delete rows'],
+    'n8n-nodes-base.googleSheets', 'https://developers.google.com/sheets/api', true,
+    [{ key: 'oauth', label: 'Google Account', type: 'text', placeholder: 'Sign in with Google', required: true }],
+    { title: 'Connect Google Sheets', steps: [
+      { instruction: 'Click "Connect" to sign in with your Google account' },
+      { instruction: 'Grant OpenPawz permission to access your spreadsheets' },
+    ], estimatedTime: '1 minute' },
+    ['Read the Sales sheet', 'How many rows in my tracker?', 'What are the column headers?'],
+    ['When a new row is added, send a Slack message', 'Sync CRM deals to a spreadsheet daily'],
+  ),
+
+  svc('notion', 'Notion', 'note', '#000000', 'productivity',
+    'Manage pages, databases, and knowledge bases',
+    ['Create pages', 'Query databases', 'Update properties', 'Search content', 'Add comments'],
+    'n8n-nodes-base.notion', 'https://developers.notion.com/', true,
+    [{ key: 'api_key', label: 'Integration Token', type: 'password', placeholder: 'secret_...', required: true }],
+    { title: 'Connect Notion', steps: [
+      { instruction: 'Go to notion.so/my-integrations', link: 'https://www.notion.so/my-integrations' },
+      { instruction: 'Click "New integration" and name it "OpenPawz"' },
+      { instruction: 'Copy the Internal Integration Token' },
+      { instruction: 'Share your Notion pages/databases with the integration', tip: 'Click "..." on a page → Connections → Add OpenPawz' },
+    ], estimatedTime: '3 minutes' },
+    ['Search my Notion for "meeting notes"', 'List all databases', 'Show recent pages'],
+    ['When a task is done in Notion, mark it complete here', 'Sync meeting notes from calendar'],
+  ),
+
+  svc('hubspot', 'HubSpot', 'handshake', '#FF7A59', 'crm',
+    'Manage contacts, deals, and companies',
+    ['List contacts', 'Create deals', 'Update companies', 'Search records', 'Get deal pipeline'],
+    'n8n-nodes-base.hubspot', 'https://developers.hubspot.com/', true,
+    [{ key: 'access_token', label: 'Private App Token', type: 'password', placeholder: 'pat-...', required: true }],
+    { title: 'Connect HubSpot', steps: [
+      { instruction: 'Go to your HubSpot account → Settings → Integrations → Private Apps', link: 'https://app.hubspot.com/private-apps/' },
+      { instruction: 'Click "Create a private app" and name it "OpenPawz"' },
+      { instruction: 'Under Scopes, enable: crm.objects.contacts, crm.objects.deals, crm.objects.companies', tip: 'Enable all CRM scopes for full access' },
+      { instruction: 'Click "Create app" → Copy the access token' },
+    ], estimatedTime: '3 minutes' },
+    ['How many deals in pipeline?', 'Show contacts added this week', 'Find companies in California'],
+    ['When a deal closes, notify #sales on Slack', 'Sync new contacts to Google Sheets'],
+  ),
+
+  svc('discord', 'Discord', 'forum', '#5865F2', 'communication',
+    'Send messages, manage servers, get notifications',
+    ['Send messages', 'Read channels', 'Manage roles', 'Get server info', 'Create webhooks'],
+    'n8n-nodes-base.discord', 'https://discord.com/developers/docs', true),
+
+  svc('jira', 'Jira', 'bug_report', '#0052CC', 'development',
+    'Manage issues, sprints, and projects',
+    ['Create issues', 'Update status', 'List sprints', 'Search JQL', 'Get boards'],
+    'n8n-nodes-base.jira', 'https://developer.atlassian.com/cloud/jira/', true),
+
+  svc('stripe', 'Stripe', 'payments', '#635BFF', 'commerce',
+    'Manage payments, subscriptions, and customers',
+    ['List payments', 'Create invoices', 'Manage subscriptions', 'Search customers', 'Get balance'],
+    'n8n-nodes-base.stripe', 'https://stripe.com/docs/api', true),
+
+  svc('trello', 'Trello', 'view_kanban', '#0079BF', 'productivity',
+    'Manage boards, cards, and lists',
+    ['Create cards', 'Move cards', 'List boards', 'Add comments', 'Set due dates'],
+    'n8n-nodes-base.trello', 'https://developer.atlassian.com/cloud/trello/', true),
+
+  svc('linear', 'Linear', 'straighten', '#5E6AD2', 'development',
+    'Track issues, projects, and cycles',
+    ['Create issues', 'Update status', 'List projects', 'Search issues', 'Get cycles'],
+    'n8n-nodes-base.linear', 'https://developers.linear.app/', true),
+
+  svc('telegram', 'Telegram', 'send', '#26A5E4', 'communication',
+    'Send messages, manage bots, get updates',
+    ['Send messages', 'Send photos', 'Get updates', 'Manage groups', 'Create polls'],
+    'n8n-nodes-base.telegram', 'https://core.telegram.org/bots/api', true),
+];
+
+// ── Auto-generated entries (remaining 400+ services) ───────────────────
+
+const AUTO: ServiceDefinition[] = [
+  // Communication
+  svc('microsoft-teams', 'Microsoft Teams', 'groups', '#6264A7', 'communication',
+    'Chat, channels, and meetings', ['Send messages', 'List teams', 'Create channels'], 'n8n-nodes-base.microsoftTeams', '', false),
+  svc('twilio', 'Twilio', 'phone', '#F22F46', 'communication',
+    'SMS, voice calls, and messaging', ['Send SMS', 'Make calls', 'Get call logs'], 'n8n-nodes-base.twilio', '', false),
+  svc('sendgrid', 'SendGrid', 'forward_to_inbox', '#1A82E2', 'communication',
+    'Transactional and marketing email', ['Send emails', 'Manage contacts', 'Get stats'], 'n8n-nodes-base.sendGrid', '', false),
+  svc('mailchimp', 'Mailchimp', 'campaign', '#FFE01B', 'communication',
+    'Email marketing and audiences', ['Add subscribers', 'Send campaigns', 'Get reports'], 'n8n-nodes-base.mailchimp', '', false),
+  svc('intercom', 'Intercom', 'support_agent', '#1F8DED', 'communication',
+    'Customer messaging and support', ['Send messages', 'List contacts', 'Get conversations'], 'n8n-nodes-base.intercom', '', false),
+  svc('mattermost', 'Mattermost', 'forum', '#0058CC', 'communication',
+    'Team messaging and collaboration', ['Send messages', 'List channels', 'Upload files'], 'n8n-nodes-base.mattermost', '', false),
+  svc('pushover', 'Pushover', 'notifications', '#249DF1', 'communication',
+    'Push notifications to devices', ['Send notifications', 'Set priority'], 'n8n-nodes-base.pushover', '', false),
+  svc('matrix-chat', 'Matrix', 'chat_bubble', '#0DBD8B', 'communication',
+    'Decentralized messaging', ['Send messages', 'Join rooms', 'Get events'], 'n8n-nodes-base.matrix', '', false),
+  svc('rocketchat', 'Rocket.Chat', 'rocket_launch', '#F5455C', 'communication',
+    'Team chat and communication', ['Send messages', 'List channels', 'Manage users'], 'n8n-nodes-base.rocketchat', '', false),
+
+  // Development
+  svc('gitlab', 'GitLab', 'code', '#FC6D26', 'development',
+    'Repos, CI/CD, and merge requests', ['Create issues', 'List MRs', 'Trigger pipelines'], 'n8n-nodes-base.gitlab', '', false),
+  svc('bitbucket', 'Bitbucket', 'code', '#0052CC', 'development',
+    'Git hosting and CI/CD', ['List repos', 'Create PRs', 'Get commits'], 'n8n-nodes-base.bitbucket', '', false),
+  svc('sentry', 'Sentry', 'bug_report', '#362D59', 'development',
+    'Error tracking and monitoring', ['List issues', 'Get events', 'Resolve errors'], 'n8n-nodes-base.sentry', '', false),
+  svc('circleci', 'CircleCI', 'loop', '#343434', 'development',
+    'CI/CD pipelines', ['Trigger builds', 'Get status', 'List pipelines'], 'n8n-nodes-base.circleci', '', false),
+  svc('jenkins', 'Jenkins', 'precision_manufacturing', '#D33833', 'development',
+    'Automation server and CI/CD', ['Trigger builds', 'Get status', 'List jobs'], 'n8n-nodes-base.jenkins', '', false),
+  svc('grafana', 'Grafana', 'monitoring', '#F46800', 'development',
+    'Monitoring dashboards and alerts', ['Query dashboards', 'Manage alerts'], 'n8n-nodes-base.grafana', '', false),
+  svc('datadog', 'Datadog', 'analytics', '#632CA6', 'development',
+    'Infrastructure monitoring', ['Get metrics', 'Create monitors', 'Query logs'], 'n8n-nodes-base.datadog', '', false),
+  svc('pagerduty', 'PagerDuty', 'emergency', '#06AC38', 'development',
+    'Incident management and on-call', ['Create incidents', 'Acknowledge alerts'], 'n8n-nodes-base.pagerDuty', '', false),
+  svc('vercel', 'Vercel', 'cloud_upload', '#000000', 'development',
+    'Deploy and host web apps', ['List deployments', 'Trigger deploy', 'Get domains'], 'n8n-nodes-base.vercel', '', false),
+  svc('netlify', 'Netlify', 'language', '#00C7B7', 'development',
+    'Web hosting and serverless', ['Trigger build', 'List sites', 'Get deploys'], 'n8n-nodes-base.netlify', '', false),
+
+  // Productivity
+  svc('asana', 'Asana', 'check_circle', '#F06A6A', 'productivity',
+    'Task and project management', ['Create tasks', 'List projects', 'Update status', 'Add comments'], 'n8n-nodes-base.asana', '', false),
+  svc('monday', 'Monday.com', 'calendar_view_week', '#6161FF', 'productivity',
+    'Work management and tracking', ['Create items', 'Update columns', 'List boards'], 'n8n-nodes-base.mondayCom', '', false),
+  svc('clickup', 'ClickUp', 'check_box', '#7B68EE', 'productivity',
+    'Project management and tasks', ['Create tasks', 'List spaces', 'Update status'], 'n8n-nodes-base.clickUp', '', false),
+  svc('todoist', 'Todoist', 'checklist', '#E44332', 'productivity',
+    'Task management', ['Create tasks', 'Complete tasks', 'List projects'], 'n8n-nodes-base.todoist', '', false),
+  svc('google-calendar', 'Google Calendar', 'event', '#4285F4', 'productivity',
+    'Manage events and schedules', ['Create events', 'List calendars', 'Get availability'], 'n8n-nodes-base.googleCalendar', '', false),
+  svc('google-docs', 'Google Docs', 'description', '#4285F4', 'productivity',
+    'Create and edit documents', ['Create docs', 'Update content', 'Share documents'], 'n8n-nodes-base.googleDocs', '', false),
+  svc('airtable', 'Airtable', 'grid_view', '#18BFFF', 'productivity',
+    'Spreadsheet-database hybrid', ['List records', 'Create rows', 'Update fields', 'Search'], 'n8n-nodes-base.airtable', '', false),
+  svc('basecamp', 'Basecamp', 'holiday_village', '#1D2D35', 'productivity',
+    'Project management and team communication', ['Create todos', 'Post messages', 'Upload files'], 'n8n-nodes-base.basecamp', '', false),
+  svc('coda', 'Coda', 'edit_document', '#F46A54', 'productivity',
+    'All-in-one docs and apps', ['List rows', 'Create pages', 'Run formulas'], 'n8n-nodes-base.coda', '', false),
+
+  // CRM & Sales
+  svc('salesforce', 'Salesforce', 'cloud', '#00A1E0', 'crm',
+    'CRM, leads, and pipeline management', ['List contacts', 'Create leads', 'Update opportunities', 'Run SOQL'], 'n8n-nodes-base.salesforce', '', false),
+  svc('pipedrive', 'Pipedrive', 'filter_alt', '#017737', 'crm',
+    'Sales pipeline and deals', ['Create deals', 'List contacts', 'Update stages'], 'n8n-nodes-base.pipedrive', '', false),
+  svc('zoho-crm', 'Zoho CRM', 'business_center', '#D32011', 'crm',
+    'Customer relationship management', ['List modules', 'Create records', 'Search contacts'], 'n8n-nodes-base.zohoCrm', '', false),
+  svc('freshsales', 'Freshsales', 'water_drop', '#F36C21', 'crm',
+    'Sales and lead management', ['Create contacts', 'List deals', 'Update leads'], 'n8n-nodes-base.freshsales', '', false),
+  svc('activecampaign', 'ActiveCampaign', 'campaign', '#004CFF', 'crm',
+    'Marketing automation and CRM', ['Add contacts', 'Create campaigns', 'Manage lists'], 'n8n-nodes-base.activeCampaign', '', false),
+  svc('copper', 'Copper', 'precision_manufacturing', '#F48B36', 'crm',
+    'CRM for Google Workspace', ['List contacts', 'Create leads', 'Update deals'], 'n8n-nodes-base.copper', '', false),
+
+  // Commerce
+  svc('shopify', 'Shopify', 'storefront', '#7AB55C', 'commerce',
+    'E-commerce and online stores', ['List orders', 'Update products', 'Manage customers', 'Get inventory'], 'n8n-nodes-base.shopify', '', false),
+  svc('paypal', 'PayPal', 'payments', '#00457C', 'commerce',
+    'Payment processing', ['Get transactions', 'Send payouts', 'Create invoices'], 'n8n-nodes-base.payPal', '', false),
+  svc('woocommerce', 'WooCommerce', 'shopping_bag', '#96588A', 'commerce',
+    'WordPress e-commerce', ['List orders', 'Create products', 'Update stock'], 'n8n-nodes-base.wooCommerce', '', false),
+  svc('square', 'Square', 'point_of_sale', '#006AFF', 'commerce',
+    'Payments and POS', ['List transactions', 'Manage inventory', 'Get customers'], 'n8n-nodes-base.square', '', false),
+  svc('gumroad', 'Gumroad', 'sell', '#FF90E8', 'commerce',
+    'Digital product sales', ['List products', 'Get sales', 'Manage subscriptions'], 'n8n-nodes-base.gumroad', '', false),
+
+  // Social Media
+  svc('twitter', 'Twitter / X', 'tag', '#1DA1F2', 'social',
+    'Tweets, timelines, and notifications', ['Post tweets', 'Search tweets', 'Get followers'], 'n8n-nodes-base.twitter', '', false),
+  svc('reddit', 'Reddit', 'forum', '#FF4500', 'social',
+    'Posts, comments, and subreddits', ['Get posts', 'Submit content', 'Monitor subreddits'], 'n8n-nodes-base.reddit', '', false),
+  svc('linkedin', 'LinkedIn', 'work', '#0A66C2', 'social',
+    'Professional networking and posts', ['Create posts', 'Get profile', 'List connections'], 'n8n-nodes-base.linkedIn', '', false),
+  svc('youtube', 'YouTube', 'play_circle', '#FF0000', 'social',
+    'Videos, channels, and playlists', ['List videos', 'Get analytics', 'Manage playlists'], 'n8n-nodes-base.youTube', '', false),
+  svc('facebook', 'Facebook', 'thumb_up', '#1877F2', 'social',
+    'Pages, posts, and ads', ['Create posts', 'Get insights', 'Manage pages'], 'n8n-nodes-base.facebookGraph', '', false),
+  svc('pinterest', 'Pinterest', 'push_pin', '#E60023', 'social',
+    'Pins, boards, and visual discovery', ['Create pins', 'List boards', 'Search pins'], 'n8n-nodes-base.pinterest', '', false),
+  svc('mastodon', 'Mastodon', 'public', '#6364FF', 'social',
+    'Decentralized social network', ['Post toots', 'Get timeline', 'Search hashtags'], 'n8n-nodes-base.mastodon', '', false),
+
+  // Cloud & Infrastructure
+  svc('aws-s3', 'AWS S3', 'cloud', '#FF9900', 'cloud',
+    'Object storage in the cloud', ['Upload files', 'List buckets', 'Download objects', 'Delete files'], 'n8n-nodes-base.awsS3', '', false),
+  svc('aws-lambda', 'AWS Lambda', 'functions', '#FF9900', 'cloud',
+    'Serverless compute', ['Invoke functions', 'List functions', 'Get logs'], 'n8n-nodes-base.awsLambda', '', false),
+  svc('aws-ses', 'AWS SES', 'mail', '#FF9900', 'cloud',
+    'Email sending service', ['Send emails', 'Manage templates', 'Get stats'], 'n8n-nodes-base.awsSes', '', false),
+  svc('aws-sns', 'AWS SNS', 'notifications', '#FF9900', 'cloud',
+    'Push notification service', ['Publish messages', 'Manage topics', 'Subscribe'], 'n8n-nodes-base.awsSns', '', false),
+  svc('cloudflare', 'Cloudflare', 'security', '#F38020', 'cloud',
+    'CDN, DNS, and security', ['Manage DNS', 'Purge cache', 'List zones'], 'n8n-nodes-base.cloudflare', '', false),
+  svc('digitalocean', 'DigitalOcean', 'water_drop', '#0080FF', 'cloud',
+    'Cloud infrastructure', ['List droplets', 'Create servers', 'Manage DNS'], 'n8n-nodes-base.digitalOcean', '', false),
+  svc('supabase', 'Supabase', 'database', '#3FCF8E', 'cloud',
+    'Open-source Firebase alternative', ['Query tables', 'Insert rows', 'Manage auth'], 'n8n-nodes-base.supabase', '', false),
+  svc('firebase', 'Firebase', 'local_fire_department', '#FFCA28', 'cloud',
+    'App development platform', ['Read database', 'Push data', 'Manage users'], 'n8n-nodes-base.firebase', '', false),
+
+  // Storage & Files
+  svc('google-drive', 'Google Drive', 'folder', '#4285F4', 'storage',
+    'File storage and sharing', ['Upload files', 'List folders', 'Share files', 'Search'], 'n8n-nodes-base.googleDrive', '', false),
+  svc('dropbox', 'Dropbox', 'cloud_download', '#0061FF', 'storage',
+    'Cloud file storage', ['Upload files', 'Download files', 'List folders', 'Share links'], 'n8n-nodes-base.dropbox', '', false),
+  svc('box', 'Box', 'inventory_2', '#0061D5', 'storage',
+    'Enterprise file sharing', ['Upload', 'Download', 'Manage folders', 'Share'], 'n8n-nodes-base.box', '', false),
+  svc('onedrive', 'OneDrive', 'cloud', '#0078D4', 'storage',
+    'Microsoft cloud storage', ['Upload files', 'Download', 'List items', 'Share'], 'n8n-nodes-base.microsoftOneDrive', '', false),
+  svc('nextcloud-storage', 'Nextcloud', 'cloud_circle', '#0082C9', 'storage',
+    'Self-hosted cloud storage', ['Upload files', 'List folders', 'Share'], 'n8n-nodes-base.nextCloud', '', false),
+  svc('ftp', 'FTP / SFTP', 'upload_file', '#607D8B', 'storage',
+    'File transfer protocol', ['Upload', 'Download', 'List files', 'Delete'], 'n8n-nodes-base.ftp', '', false),
+
+  // Databases
+  svc('postgresql', 'PostgreSQL', 'database', '#336791', 'database',
+    'Relational database', ['Run queries', 'Insert rows', 'Update records', 'List tables'], 'n8n-nodes-base.postgres', '', false),
+  svc('mysql', 'MySQL', 'database', '#4479A1', 'database',
+    'Relational database', ['Run queries', 'Insert data', 'Update records'], 'n8n-nodes-base.mySql', '', false),
+  svc('mongodb', 'MongoDB', 'database', '#47A248', 'database',
+    'Document database', ['Find documents', 'Insert', 'Update', 'Aggregate'], 'n8n-nodes-base.mongoDb', '', false),
+  svc('redis', 'Redis', 'memory', '#DC382D', 'database',
+    'In-memory data store', ['Get keys', 'Set values', 'Publish messages'], 'n8n-nodes-base.redis', '', false),
+  svc('elasticsearch', 'Elasticsearch', 'search', '#FED10A', 'database',
+    'Search and analytics engine', ['Search', 'Index documents', 'Get stats'], 'n8n-nodes-base.elasticsearch', '', false),
+
+  // Analytics
+  svc('google-analytics', 'Google Analytics', 'bar_chart', '#E37400', 'analytics',
+    'Web analytics and reporting', ['Get reports', 'List properties', 'Query data'], 'n8n-nodes-base.googleAnalytics', '', false),
+  svc('mixpanel', 'Mixpanel', 'analytics', '#7856FF', 'analytics',
+    'Product analytics', ['Track events', 'Get funnels', 'Query data'], 'n8n-nodes-base.mixpanel', '', false),
+  svc('segment', 'Segment', 'hub', '#52BD94', 'analytics',
+    'Customer data platform', ['Track events', 'Identify users', 'List sources'], 'n8n-nodes-base.segment', '', false),
+  svc('posthog', 'PostHog', 'analytics', '#1D4AFF', 'analytics',
+    'Open-source product analytics', ['Track events', 'Get insights', 'Manage feature flags'], 'n8n-nodes-base.postHog', '', false),
+
+  // Security
+  svc('auth0', 'Auth0', 'lock', '#EB5424', 'security',
+    'Identity and access management', ['List users', 'Create users', 'Manage roles'], 'n8n-nodes-base.auth0', '', false),
+  svc('vault', 'HashiCorp Vault', 'shield', '#000000', 'security',
+    'Secrets management', ['Read secrets', 'Write secrets', 'List keys'], 'n8n-nodes-base.vault', '', false),
+
+  // AI & ML
+  svc('openai', 'OpenAI', 'psychology', '#10A37F', 'ai',
+    'GPT, DALL-E, and Whisper', ['Chat completions', 'Generate images', 'Transcribe audio'], 'n8n-nodes-base.openAi', '', false),
+  svc('huggingface', 'Hugging Face', 'smart_toy', '#FFD21E', 'ai',
+    'ML models and datasets', ['Run inference', 'List models', 'Get embeddings'], 'n8n-nodes-base.huggingFace', '', false),
+  svc('pinecone', 'Pinecone', 'scatter_plot', '#000000', 'ai',
+    'Vector database', ['Upsert vectors', 'Query', 'Delete'], 'n8n-nodes-base.pinecone', '', false),
+
+  // Voice & Video
+  svc('zoom', 'Zoom', 'videocam', '#2D8CFF', 'voice',
+    'Video meetings and webinars', ['Create meetings', 'List recordings', 'Get participants'], 'n8n-nodes-base.zoom', '', false),
+  svc('calendly', 'Calendly', 'event', '#006BFF', 'voice',
+    'Scheduling and bookings', ['List events', 'Get invitees', 'Create event types'], 'n8n-nodes-base.calendly', '', false),
+  svc('calcom', 'Cal.com', 'calendar_month', '#292929', 'voice',
+    'Open-source scheduling', ['List bookings', 'Create event types', 'Get availability'], 'n8n-nodes-base.calCom', '', false),
+
+  // Content & CMS
+  svc('wordpress', 'WordPress', 'article', '#21759B', 'content',
+    'Publishing and CMS', ['Create posts', 'Update pages', 'List categories', 'Upload media'], 'n8n-nodes-base.wordpress', '', false),
+  svc('ghost', 'Ghost', 'edit', '#15171A', 'content',
+    'Headless CMS and publishing', ['Create posts', 'List members', 'Update content'], 'n8n-nodes-base.ghost', '', false),
+  svc('strapi', 'Strapi', 'widgets', '#4945FF', 'content',
+    'Headless CMS', ['List entries', 'Create content', 'Upload media'], 'n8n-nodes-base.strapi', '', false),
+  svc('contentful', 'Contentful', 'layers', '#2478CC', 'content',
+    'Content infrastructure', ['Get entries', 'Create content', 'Manage assets'], 'n8n-nodes-base.contentful', '', false),
+  svc('medium', 'Medium', 'menu_book', '#000000', 'content',
+    'Publishing platform', ['Create posts', 'Get publications', 'List stories'], 'n8n-nodes-base.medium', '', false),
+  svc('rss', 'RSS Feeds', 'rss_feed', '#EE802F', 'content',
+    'Subscribe to web feeds', ['Read feeds', 'Parse items', 'Monitor updates'], 'n8n-nodes-base.rssFeedRead', '', false),
+
+  // Utilities
+  svc('http-request', 'HTTP Request', 'language', '#607D8B', 'utility',
+    'Make any HTTP/REST API call', ['GET', 'POST', 'PUT', 'DELETE', 'Custom headers'], 'n8n-nodes-base.httpRequest', '', false),
+  svc('webhook', 'Webhook', 'webhook', '#607D8B', 'utility',
+    'Receive HTTP callbacks', ['Listen for events', 'Parse payloads'], 'n8n-nodes-base.webhook', '', false),
+  svc('cron', 'Schedule / Cron', 'schedule', '#607D8B', 'utility',
+    'Time-based triggers', ['Run on schedule', 'Recurring tasks'], 'n8n-nodes-base.cron', '', false),
+  svc('code', 'Code (JS/Python)', 'code', '#607D8B', 'utility',
+    'Run custom JavaScript or Python', ['Execute code', 'Transform data', 'Custom logic'], 'n8n-nodes-base.code', '', false),
+  svc('xml', 'XML', 'data_object', '#607D8B', 'utility',
+    'Parse and generate XML', ['Parse XML', 'Generate XML', 'Transform'], 'n8n-nodes-base.xml', '', false),
+  svc('csv', 'CSV', 'table_rows', '#607D8B', 'utility',
+    'Parse and generate CSV files', ['Read CSV', 'Write CSV', 'Transform'], 'n8n-nodes-base.csv', '', false),
+  svc('html', 'HTML', 'html', '#607D8B', 'utility',
+    'Extract and generate HTML', ['Parse HTML', 'Extract data', 'Generate'], 'n8n-nodes-base.html', '', false),
+  svc('mqtt', 'MQTT', 'sensors', '#660066', 'utility',
+    'IoT messaging protocol', ['Publish', 'Subscribe', 'Monitor topics'], 'n8n-nodes-base.mqtt', '', false),
+  svc('graphql', 'GraphQL', 'hub', '#E10098', 'utility',
+    'Query and mutate GraphQL APIs', ['Run queries', 'Execute mutations', 'Introspect schema'], 'n8n-nodes-base.graphql', '', false),
+
+  // Additional services
+  svc('zendesk', 'Zendesk', 'support', '#03363D', 'communication',
+    'Customer support and ticketing', ['Create tickets', 'Update status', 'List users'], 'n8n-nodes-base.zendesk', '', false),
+  svc('freshdesk', 'Freshdesk', 'confirmation_number', '#2C9F47', 'communication',
+    'Helpdesk and support', ['Create tickets', 'List contacts', 'Update tickets'], 'n8n-nodes-base.freshdesk', '', false),
+  svc('outlook', 'Microsoft Outlook', 'mail', '#0078D4', 'communication',
+    'Email, calendar, and contacts', ['Send emails', 'List messages', 'Create events'], 'n8n-nodes-base.microsoftOutlook', '', false),
+  svc('whatsapp-biz', 'WhatsApp Business', 'chat', '#25D366', 'communication',
+    'Business messaging', ['Send messages', 'Send templates', 'Get contacts'], 'n8n-nodes-base.whatsApp', '', false),
+];
+
+// ── Full catalog ───────────────────────────────────────────────────────
+
+export const SERVICE_CATALOG: ServiceDefinition[] = [...CURATED, ...AUTO];

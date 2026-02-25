@@ -15,6 +15,7 @@ import * as SettingsModule from './settings-main';
 import * as MailModule from './mail';
 import * as TodayModule from './today';
 import * as PawzHubModule from './pawzhub';
+import * as IntegrationsModule from './integrations';
 
 export const allViewIds = [
   'setup-view',
@@ -37,6 +38,7 @@ export const allViewIds = [
   'trading-view',
   'squads-view',
   'pawzhub-view',
+  'integrations-view',
 ];
 
 const viewMap: Record<string, string> = {
@@ -60,6 +62,7 @@ const viewMap: Record<string, string> = {
   trading: 'today-view',
   squads: 'tasks-view',
   pawzhub: 'pawzhub-view',
+  integrations: 'integrations-view',
 };
 
 /** Check whether the app has been initialised (engine mode active). */
@@ -195,6 +198,9 @@ export function switchView(viewName: string) {
   switch (viewName) {
     case 'pawzhub':
       PawzHubModule.loadPawzHub();
+      break;
+    case 'integrations':
+      IntegrationsModule.loadIntegrations();
       break;
     default:
       break;

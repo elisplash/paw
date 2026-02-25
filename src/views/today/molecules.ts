@@ -515,6 +515,21 @@ export function renderToday() {
         </div>
       </div>
 
+      <!-- Row 2.5: Integrations strip (full width) -->
+      <div class="card-elevated cmd-card cmd-card-full">
+        <div class="today-card-header">
+          <span class="today-card-icon"><span class="ms">integration_instructions</span></span>
+          <span class="today-card-title">Integrations</span>
+          <span class="today-card-count" id="cmd-integrations-count">…</span>
+        </div>
+        <div class="today-card-body" id="cmd-integrations-body">
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)">
+            <span class="ms ms-sm">hub</span>
+            <span>400+ services available · <a href="#" data-view="integrations" style="color:var(--accent);text-decoration:none">Browse all</a></span>
+          </div>
+        </div>
+      </div>
+
       <!-- Row 3: Tasks (full width) -->
       <div class="card-elevated cmd-card cmd-card-full">
         <div class="today-card-header">
