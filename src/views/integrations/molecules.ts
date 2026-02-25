@@ -9,6 +9,7 @@ import {
   type ConnectedService,
 } from './atoms';
 import { SERVICE_CATALOG } from './catalog';
+import { openSetupGuide } from './setup-guide';
 
 // ── Module state (set by index.ts) ─────────────────────────────────────
 
@@ -242,6 +243,23 @@ function _renderDetail(service: ServiceDefinition): void {
     panel.style.display = 'none';
     _state.setSelectedService(null);
   });
+
+  // Wire connect button → open setup guide
+  document.getElementById('detail-connect-btn')?.addEventListener('click', () => {
+    _openGuide(service);
+  });
+}
+
+// ── Setup guide launcher ───────────────────────────────────────────────
+
+function _openGuide(service: ServiceDefinition): void {
+  const panel = document.getElementById('integrations-detail');
+  if (!panel) return;
+  panel.style.display = 'block';
+  openSetupGuide(panel, service, {
+    onSave: () => renderIntegrations(),
+    onClose: () => _renderDetail(service),
+  });
 }
 
 // ── Event wiring ───────────────────────────────────────────────────────
@@ -282,9 +300,24 @@ function _wireEvents(): void {
     });
   });
 
-  // Card clicks → detail
+  // Card clicks → detail (or connect button → guide)
   document.getElementById('integrations-grid')?.addEventListener('click', (e) => {
-    const card = (e.target as HTMLElement).closest('.integrations-card') as HTMLElement;
+    const target = e.target as HTMLElement;
+
+    // If user clicked the "Connect" button directly, open the guide
+    const connectBtn = target.closest('.integrations-connect-btn') as HTMLElement;
+    if (connectBtn) {
+      const sid = connectBtn.dataset.serviceId;
+      const service = SERVICE_CATALOG.find((s) => s.id === sid);
+      if (service) {
+        _state.setSelectedService(service);
+        _openGuide(service);
+      }
+      return;
+    }
+
+    // Otherwise open the detail panel
+    const card = target.closest('.integrations-card') as HTMLElement;
     if (!card) return;
     const sid = card.dataset.serviceId;
     const service = SERVICE_CATALOG.find((s) => s.id === sid);

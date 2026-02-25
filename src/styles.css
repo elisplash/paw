@@ -14263,3 +14263,254 @@ details[open] > .skill-advanced-summary::before {
 .integrations-docs-link:hover {
   text-decoration: underline;
 }
+
+/* ── Setup Guide (Phase 2.5) ──────────────────────────────────────── */
+
+.setup-guide {
+  padding: 1.5rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.setup-guide-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.setup-guide-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-md, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.setup-guide-title-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.setup-guide-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.setup-guide-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin-top: 0.25rem;
+}
+
+.setup-guide-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+/* Steps */
+
+.setup-guide-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.setup-guide-step {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.setup-guide-step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent, #6366f1);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.setup-guide-step-body {
+  flex: 1;
+  padding-top: 0.2rem;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.setup-guide-step-link {
+  color: var(--accent, #6366f1);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.setup-guide-step-link:hover {
+  text-decoration: underline;
+}
+
+.setup-guide-tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-tertiary, #f5f3ff);
+  border-radius: var(--radius-sm, 6px);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Credential fields */
+
+.setup-guide-credentials {
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--border);
+}
+
+.setup-guide-cred-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.setup-guide-field {
+  margin-bottom: 0.75rem;
+}
+
+.setup-guide-field:last-child {
+  margin-bottom: 0;
+}
+
+.setup-guide-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+}
+
+.setup-guide-required {
+  color: var(--danger, #ef4444);
+}
+
+.setup-guide-help {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  margin-bottom: 0.25rem;
+}
+
+.setup-guide-input-wrap {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.setup-guide-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-family: var(--font-mono, 'SF Mono', 'Fira Code', monospace);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.setup-guide-input:focus {
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+.setup-guide-input-error {
+  border-color: var(--danger, #ef4444) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15) !important;
+}
+
+/* Actions */
+
+.setup-guide-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.setup-guide-actions .btn-success {
+  background: var(--success, #22c55e) !important;
+  border-color: var(--success, #22c55e) !important;
+}
+
+/* Feedback */
+
+.setup-guide-feedback {
+  margin-top: 0.5rem;
+}
+
+.setup-guide-fb {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-sm, 6px);
+  font-size: 0.85rem;
+}
+
+.setup-guide-fb-testing {
+  background: var(--bg-tertiary, #f0f0f0);
+  color: var(--text-secondary);
+}
+
+.setup-guide-fb-success {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success, #22c55e);
+}
+
+.setup-guide-fb-error {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger, #ef4444);
+}
+
+.setup-guide-fb-details {
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  opacity: 0.85;
+}
+
+/* Spin animation for testing state */
+
+@keyframes spin-guide {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.setup-guide-fb .spin {
+  animation: spin-guide 1s linear infinite;
+}

@@ -405,6 +405,10 @@ pub fn run() {
             commands::n8n::engine_n8n_set_engine_config,
             commands::n8n::engine_n8n_health_check,
             commands::n8n::engine_n8n_shutdown,
+            // ── Integration Credentials (Phase 2.5) ──
+            commands::n8n::engine_integrations_test_credentials,
+            commands::n8n::engine_integrations_save_credentials,
+            commands::n8n::engine_integrations_get_credentials,
             // ── MCP Servers (Phase E) ──
             commands::mcp::engine_mcp_list_servers,
             commands::mcp::engine_mcp_save_server,
