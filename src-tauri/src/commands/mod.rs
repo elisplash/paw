@@ -4,6 +4,7 @@
 // Heavy logic lives in engine/ organisms; these modules
 // only deserialise, delegate, and serialise.
 
+pub mod action_log;
 pub mod agent;
 pub mod automations;
 pub mod browser;

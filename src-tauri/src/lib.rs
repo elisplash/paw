@@ -432,6 +432,11 @@ pub fn run() {
             commands::guardrails::engine_guardrails_clear_audit,
             commands::guardrails::engine_guardrails_check_token_expiry,
             commands::guardrails::engine_guardrails_update_token_info,
+            // ── Integration Action Log (Phase 4) ──
+            commands::action_log::engine_action_log_record,
+            commands::action_log::engine_action_log_list,
+            commands::action_log::engine_action_log_stats,
+            commands::action_log::engine_action_log_clear,
             // ── MCP Servers (Phase E) ──
             commands::mcp::engine_mcp_list_servers,
             commands::mcp::engine_mcp_save_server,
