@@ -5,7 +5,7 @@
 // Called from chat_controller when token/state changes occur.
 
 import { progressRing } from './molecules/data-viz';
-import { kineticDot } from './kinetic-row';
+import { kineticRow, kineticDot } from './kinetic-row';
 
 // ── Shared app state reference ─────────────────────────────────────────
 // We read from the global appState rather than importing it to avoid
@@ -146,13 +146,39 @@ export function refreshMissionPanel(state: {
     cost: state.cost,
     messageCount: state.messageCount,
   });
+
+  // Flash signal wave on metrics card when tokens arrive
+  if (state.tokensUsed > 0 && _metricsCtrl) {
+    _metricsCtrl.signal('accent');
+  }
+  // Flash gauge card if context is getting high
+  if (state.tokensUsed > 0 && _gaugeCtrl) {
+    const pct = state.contextLimit > 0 ? (state.tokensUsed / state.contextLimit) * 100 : 0;
+    if (pct >= 80) _gaugeCtrl.signal('error');
+    else if (pct >= 60) _gaugeCtrl.signal('warning');
+  }
 }
 
-// ── Init: render initial empty gauge ───────────────────────────────────
+// ── Init: render initial empty gauge + wire kinetic controllers ────────
+
+let _metricsCtrl: ReturnType<typeof kineticRow> | null = null;
+let _gaugeCtrl: ReturnType<typeof kineticRow> | null = null;
 
 export function initMissionPanel(): void {
   updateMissionGauge(0, 128_000);
   renderActiveJobs();
+
+  // Wire kinetic controllers for signal flashes on updates
+  const panel = $('chat-mission-panel');
+  if (panel) {
+    const cards = panel.querySelectorAll('.mission-card');
+    if (cards[0] && !_gaugeCtrl) {
+      _gaugeCtrl = kineticRow(cards[0] as HTMLElement, {});
+    }
+    if (cards[1] && !_metricsCtrl) {
+      _metricsCtrl = kineticRow(cards[1] as HTMLElement, {});
+    }
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
