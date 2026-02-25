@@ -11494,13 +11494,12 @@ details[open] > .skill-advanced-summary::before {
 .mini-chat {
   position: fixed;
   bottom: 0;
-  width: 320px;
-  height: 420px;
+  width: 300px;
+  height: 400px;
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-bottom: none;
-  border-radius: 12px 12px 0 0;
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.18);
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   z-index: 9000;
@@ -11528,7 +11527,7 @@ details[open] > .skill-advanced-summary::before {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 12px 12px 0 0;
+  border-radius: 0;
   cursor: pointer;
   user-select: none;
   flex-shrink: 0;
@@ -11560,7 +11559,7 @@ details[open] > .skill-advanced-summary::before {
   color: var(--text-on-accent);
   width: 24px;
   height: 24px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   line-height: 24px;
   text-align: center;
@@ -11587,25 +11586,26 @@ details[open] > .skill-advanced-summary::before {
   gap: 8px;
 }
 .mini-chat-msg {
-  max-width: 85%;
-  padding: 8px 12px;
-  border-radius: 14px;
+  max-width: 100%;
+  padding: 6px 12px;
+  border-radius: 0;
   font-size: 13px;
   line-height: 1.4;
   word-wrap: break-word;
   white-space: pre-wrap;
+  border-left: 2px solid var(--border);
 }
 .mini-chat-msg-user {
-  align-self: flex-end;
-  background: var(--accent);
-  color: var(--text-on-accent);
-  border-bottom-right-radius: 4px;
+  align-self: stretch;
+  background: transparent;
+  color: var(--text-secondary);
+  border-left-color: var(--text-muted);
 }
 .mini-chat-msg-assistant {
-  align-self: flex-start;
-  background: var(--bg-secondary);
+  align-self: stretch;
+  background: transparent;
   color: var(--text-primary);
-  border-bottom-left-radius: 4px;
+  border-left-color: var(--accent);
 }
 .mini-chat-msg-assistant a {
   color: var(--accent);
@@ -11614,13 +11614,13 @@ details[open] > .skill-advanced-summary::before {
 .mini-chat-msg-assistant code {
   background: rgba(0, 0, 0, 0.15);
   padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: 0;
   font-size: 12px;
 }
 .mini-chat-msg-assistant pre.mini-chat-code {
   background: rgba(0, 0, 0, 0.2);
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 11px;
   overflow-x: auto;
   margin: 4px 0;
@@ -11656,7 +11656,8 @@ details[open] > .skill-advanced-summary::before {
   flex: 1;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-left: 2px solid var(--accent);
+  border-radius: 0;
   padding: 6px 14px;
   font-size: 13px;
   color: var(--text-primary);
@@ -11674,7 +11675,7 @@ details[open] > .skill-advanced-summary::before {
   color: var(--text-on-accent);
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--radius-sm);
   font-size: 14px;
   cursor: pointer;
   display: flex;
