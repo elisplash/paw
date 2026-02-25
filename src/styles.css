@@ -1085,12 +1085,10 @@ body {
   background: transparent;
   color: var(--accent);
   border: 1px solid var(--accent);
-  text-shadow: 0 0 6px rgba(255, 0, 255, 0.4);
 }
 
 .btn-primary:hover {
-  background: rgba(255, 0, 255, 0.15);
-  box-shadow: 0 0 12px rgba(255, 0, 255, 0.3);
+  background: rgba(255, 77, 77, 0.12);
 }
 
 .btn-primary:active {
@@ -1109,14 +1107,14 @@ body {
 
 .btn-secondary {
   background: transparent;
-  color: var(--cyan);
-  border: 1px solid var(--cyan-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
 }
 
 .btn-secondary:hover {
-  background: rgba(0, 255, 255, 0.08);
-  border-color: var(--cyan);
-  box-shadow: 0 0 8px rgba(0, 255, 255, 0.2);
+  background: var(--bg-hover);
+  border-color: var(--text-muted);
+  color: var(--text-primary);
 }
 
 .btn-danger {
@@ -1128,7 +1126,6 @@ body {
 .btn-danger:hover {
   background: rgba(255, 34, 68, 0.1);
   border-color: var(--error);
-  box-shadow: 0 0 8px rgba(255, 34, 68, 0.3);
 }
 
 .btn-ghost {
@@ -1140,8 +1137,8 @@ body {
 
 .btn-ghost:hover {
   background: var(--bg-hover);
-  color: var(--cyan);
-  border-color: var(--cyan-subtle);
+  color: var(--text-primary);
+  border-color: var(--border);
 }
 
 .btn-group {
@@ -2661,7 +2658,6 @@ button:focus:not(:focus-visible) {
   background: var(--bg-secondary);
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  box-shadow: 0 0 30px rgba(255, 0, 255, 0.15);
   width: 480px;
   max-width: 90vw;
   max-height: 85vh;
@@ -3138,7 +3134,7 @@ button:focus:not(:focus-visible) {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--bg-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4497,7 +4493,7 @@ button:focus:not(:focus-visible) {
 .mail-compose-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--bg-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4505,13 +4501,13 @@ button:focus:not(:focus-visible) {
 }
 .mail-compose-dialog {
   background: var(--bg-primary);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  border-radius: 0;
   width: 560px;
   max-width: 90vw;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 .mail-compose-header {
   display: flex;
@@ -5055,7 +5051,7 @@ button:focus:not(:focus-visible) {
 .today-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--bg-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5063,10 +5059,10 @@ button:focus:not(:focus-visible) {
 }
 .today-modal-dialog {
   background: var(--bg-primary);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  border-radius: 0;
   width: 400px;
   max-width: 90vw;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
 }
 .today-modal-header {
   display: flex;
@@ -5216,7 +5212,7 @@ button:focus:not(:focus-visible) {
 .agent-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--bg-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5224,13 +5220,13 @@ button:focus:not(:focus-visible) {
 }
 .agent-modal-dialog {
   background: var(--bg-primary);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  border-radius: 0;
   width: 480px;
   max-width: 90vw;
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
   margin: 40px;
 }
 .agent-modal-large {
@@ -9151,13 +9147,10 @@ details[open] > .skill-advanced-summary::before {
 /* ─── Approval Modal: Danger Variant ─── */
 .modal-card.danger-modal {
   border: 2px solid var(--status-error);
-  box-shadow:
-    0 0 24px rgba(239, 68, 68, 0.25),
-    var(--shadow-lg);
 }
 .modal-card.danger-modal .modal-header {
   background: rgba(255, 34, 68, 0.15);
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  border-radius: 0;
 }
 .modal-card.danger-modal .modal-title {
   color: var(--error);
@@ -9910,7 +9903,6 @@ details[open] > .skill-advanced-summary::before {
 }
 .btn-danger:hover {
   background: rgba(255, 34, 68, 0.15);
-  box-shadow: 0 0 8px rgba(255, 34, 68, 0.4);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -12700,7 +12692,7 @@ details[open] > .skill-advanced-summary::before {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--bg-overlay);
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -12718,8 +12710,7 @@ details[open] > .skill-advanced-summary::before {
   max-width: 90vw;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md, 8px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 .command-palette-input {
@@ -12792,7 +12783,7 @@ details[open] > .skill-advanced-summary::before {
   position: fixed;
   inset: 0;
   z-index: 9998;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--bg-overlay);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -12810,8 +12801,7 @@ details[open] > .skill-advanced-summary::before {
   max-height: 80vh;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -12973,7 +12963,7 @@ details[open] > .skill-advanced-summary::before {
 .tour-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--bg-overlay);
 }
 .tour-spotlight-svg {
   position: absolute;
@@ -12987,8 +12977,7 @@ details[open] > .skill-advanced-summary::before {
   width: 320px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--accent-lighter, rgba(124, 58, 237, 0.15));
+  border-radius: var(--radius-sm);
   padding: 0;
   outline: none;
   animation: tour-fade-in 0.25s ease-out;
@@ -13119,8 +13108,7 @@ details[open] > .skill-advanced-summary::before {
   max-height: 360px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md, 8px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border-radius: 0;
   z-index: 100;
   overflow: hidden;
 }
@@ -13785,8 +13773,7 @@ details[open] > .skill-advanced-summary::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(8px);
+  background: var(--bg-overlay);
   animation: sw-fadein 0.3s ease;
 }
 
@@ -13796,15 +13783,14 @@ details[open] > .skill-advanced-summary::before {
 }
 
 .sw-dialog {
-  background: var(--bg-card, #1e1e2e);
-  border: 1px solid var(--border-subtle, #333);
-  border-radius: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 0;
   padding: 32px;
   max-width: 540px;
   width: 90vw;
   max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
   animation: sw-slideup 0.3s ease;
 }
 
@@ -15151,7 +15137,7 @@ details[open] > .skill-advanced-summary::before {
 .credential-prompt-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--bg-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15162,11 +15148,10 @@ details[open] > .skill-advanced-summary::before {
 .credential-prompt-modal {
   background: var(--bg-primary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
+  border-radius: 0;
   width: min(480px, 90vw);
   max-height: 85vh;
   overflow-y: auto;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.2s ease;
 }
 
@@ -15190,7 +15175,7 @@ details[open] > .skill-advanced-summary::before {
 .credential-prompt-icon {
   width: 56px;
   height: 56px;
-  border-radius: 14px;
+  border-radius: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
