@@ -83,6 +83,9 @@ export async function loadModels() {
 
     _state.setCachedModels(newModels);
 
+    // Update hero stats
+    updateFoundryHeroStats(providers.length, newModels.length);
+
     // Show global default model info
     if (config.default_model) {
       const infoCard = document.createElement('div');
@@ -117,9 +120,11 @@ export async function loadModes() {
     const modes = await listModes();
     if (!modes.length) {
       if (empty) empty.style.display = '';
+      updateFoundryHeroStats(undefined, undefined, 0);
       return;
     }
     if (empty) empty.style.display = 'none';
+    updateFoundryHeroStats(undefined, undefined, modes.length);
 
     for (const mode of modes) {
       const card = document.createElement('div');
@@ -190,4 +195,20 @@ export function hideModeModal() {
   const modal = $('mode-modal');
   if (modal) modal.style.display = 'none';
   _state.setEditingModeId(null);
+}
+
+// ── Hero stats ─────────────────────────────────────────────────────────────
+export function updateFoundryHeroStats(providerCount?: number, modelCount?: number, modeCount?: number) {
+  if (providerCount !== undefined) {
+    const el = $('foundry-stat-providers');
+    if (el) el.textContent = String(providerCount);
+  }
+  if (modelCount !== undefined) {
+    const el = $('foundry-stat-models');
+    if (el) el.textContent = String(modelCount);
+  }
+  if (modeCount !== undefined) {
+    const el = $('foundry-stat-modes');
+    if (el) el.textContent = String(modeCount);
+  }
 }

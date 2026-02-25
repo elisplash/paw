@@ -1,28 +1,110 @@
-/* ═══ Foundry Tabs & Modes ═══ */
+/* ═══ Foundry View — Kinetic Layout ═══ */
+.foundry-view {
+  overflow: hidden;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── Kinetic hero header ────────────────────────────────────── */
+.foundry-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 20px 24px 14px;
+  flex-shrink: 0;
+  gap: 16px;
+}
+.foundry-hero-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.foundry-hero-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.3px;
+  color: var(--text-primary);
+}
+.foundry-hero-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+}
+.foundry-hero-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.foundry-hero-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+.foundry-hero-stat-icon {
+  font-size: 20px;
+  color: var(--accent);
+}
+.foundry-hero-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.foundry-hero-stat-lbl {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Tabs ───────────────────────────────────────────────────── */
 .foundry-tabs {
   display: flex;
-  padding: 0;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 20px;
+  gap: 2px;
+  margin-top: 4px;
 }
 .foundry-tab {
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  border-bottom: 2px solid transparent;
-  transition: all var(--transition-fast);
+  padding: 4px 12px;
+  font-size: 12px;
   font-family: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 .foundry-tab:hover {
   color: var(--text-primary);
+  background: var(--bg-hover);
 }
 .foundry-tab.active {
   color: var(--accent);
-  border-bottom-color: var(--accent);
+  border-color: var(--accent-muted);
+  background: var(--bg-secondary);
+}
+
+/* ── Two-column body ────────────────────────────────────────── */
+.foundry-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  padding: 0 12px 12px;
+  gap: 16px;
+  min-height: 0;
+}
+.foundry-main-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 0 12px;
 }
 .foundry-panel {
   /* shown/hidden via JS */
@@ -144,6 +226,38 @@
   border-radius: var(--radius-sm);
   background: var(--accent-muted);
   color: var(--accent);
+}
+
+/* ── Side panel ─────────────────────────────────────────────── */
+.foundry-side-panel {
+  width: 280px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.foundry-panel-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  flex-shrink: 0;
+}
+.foundry-panel-card .skills-panel-card-body {
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+/* ── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .foundry-side-panel { display: none; }
+}
+@media (max-width: 800px) {
+  .foundry-hero { flex-wrap: wrap; }
+  .foundry-hero-right { flex-wrap: wrap; }
+  .foundry-hero-stat { display: none; }
 }
 
 /* ═══ Agents — Multi-Agent Cards & Detail (Foundry view) ═══ */

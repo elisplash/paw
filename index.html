@@ -2683,57 +2683,150 @@
         <div class="view" id="pawzhub-view" style="display:none !important"></div>
 
         <!-- ═══ Foundry View — Models & Modes ═══ -->
-        <div class="view list-view" id="foundry-view">
-          <div class="view-header">
-            <h1 class="view-title">Foundry</h1>
-            <button class="btn btn-ghost btn-sm" id="refresh-models-btn">
-              <span class="ms ms-sm">sync</span>
-              Refresh
-            </button>
-          </div>
-          <div class="foundry-tabs">
-            <button class="foundry-tab active" data-foundry-tab="models">Models</button>
-            <button class="foundry-tab" data-foundry-tab="modes">Chat Modes</button>
-          </div>
-          <!-- Models Tab -->
-          <div class="foundry-panel" id="foundry-models-panel">
-            <div class="models-grid" id="models-list"></div>
-            <div class="empty-state" id="models-empty">
-              <div class="empty-icon">
-                <span class="ms" style="font-size: 48px">view_in_ar</span>
-              </div>
-              <div class="empty-title">No models available</div>
-              <div class="empty-subtitle">
-                Configure your AI provider in Settings to see available models
-              </div>
-              <div class="empty-actions" style="margin-top: 16px">
-                <button class="btn btn-primary" id="foundry-goto-settings">
-                  <span class="ms ms-sm">settings</span> Go to Settings
-                </button>
+        <div class="view foundry-view" id="foundry-view">
+          <!-- Kinetic hero header -->
+          <div class="foundry-hero">
+            <div class="foundry-hero-left">
+              <h1 class="foundry-hero-title">Foundry</h1>
+              <p class="foundry-hero-sub">Configure AI providers, models, and agent behaviour modes</p>
+              <div class="foundry-tabs">
+                <button class="foundry-tab active" data-foundry-tab="models">Models</button>
+                <button class="foundry-tab" data-foundry-tab="modes">Chat Modes</button>
               </div>
             </div>
-            <div class="view-loading" id="models-loading" style="display: none">
-              Loading models…
-            </div>
-          </div>
-          <!-- Agent Modes Tab -->
-          <div class="foundry-panel" id="foundry-modes-panel" style="display: none">
-            <div class="modes-header">
-              <p class="modes-description">
-                Agent modes are named configurations — each with its own model, system prompt, and
-                skill set.
-              </p>
-              <button class="btn btn-primary btn-sm" id="modes-add-btn">
-                <span class="ms ms-sm">add</span>
-                New Mode
+            <div class="foundry-hero-right">
+              <div class="foundry-hero-stat k-row k-spring">
+                <span class="ms foundry-hero-stat-icon">dns</span>
+                <div>
+                  <div class="foundry-hero-stat-val" id="foundry-stat-providers">0</div>
+                  <div class="foundry-hero-stat-lbl">Providers</div>
+                </div>
+              </div>
+              <div class="foundry-hero-stat k-row k-spring">
+                <span class="ms foundry-hero-stat-icon">view_in_ar</span>
+                <div>
+                  <div class="foundry-hero-stat-val" id="foundry-stat-models">0</div>
+                  <div class="foundry-hero-stat-lbl">Models</div>
+                </div>
+              </div>
+              <div class="foundry-hero-stat k-row k-spring">
+                <span class="ms foundry-hero-stat-icon">tune</span>
+                <div>
+                  <div class="foundry-hero-stat-val" id="foundry-stat-modes">0</div>
+                  <div class="foundry-hero-stat-lbl">Modes</div>
+                </div>
+              </div>
+              <button class="btn btn-ghost btn-sm" id="refresh-models-btn">
+                <span class="ms ms-sm">sync</span>
+                Refresh
               </button>
             </div>
-            <div class="modes-list" id="modes-list"></div>
-            <div class="empty-state" id="modes-empty" style="display: none">
-              <div class="empty-title">No modes yet</div>
-              <div class="empty-subtitle">Create modes to quickly switch your agent's behavior</div>
+          </div>
+
+          <!-- Two-column body -->
+          <div class="foundry-body">
+            <!-- Main column -->
+            <div class="foundry-main-col">
+              <!-- Models Tab -->
+              <div class="foundry-panel" id="foundry-models-panel">
+                <div class="models-grid" id="models-list"></div>
+                <div class="empty-state" id="models-empty">
+                  <div class="empty-icon">
+                    <span class="ms" style="font-size: 48px">view_in_ar</span>
+                  </div>
+                  <div class="empty-title">No models available</div>
+                  <div class="empty-subtitle">
+                    Configure your AI provider in Settings to see available models
+                  </div>
+                  <div class="empty-actions" style="margin-top: 16px">
+                    <button class="btn btn-primary" id="foundry-goto-settings">
+                      <span class="ms ms-sm">settings</span> Go to Settings
+                    </button>
+                  </div>
+                </div>
+                <div class="view-loading" id="models-loading" style="display: none">
+                  Loading models…
+                </div>
+              </div>
+              <!-- Agent Modes Tab -->
+              <div class="foundry-panel" id="foundry-modes-panel" style="display: none">
+                <div class="modes-header">
+                  <p class="modes-description">
+                    Agent modes are named configurations — each with its own model, system prompt, and
+                    skill set.
+                  </p>
+                  <button class="btn btn-primary btn-sm" id="modes-add-btn">
+                    <span class="ms ms-sm">add</span>
+                    New Mode
+                  </button>
+                </div>
+                <div class="modes-list" id="modes-list"></div>
+                <div class="empty-state" id="modes-empty" style="display: none">
+                  <div class="empty-title">No modes yet</div>
+                  <div class="empty-subtitle">Create modes to quickly switch your agent's behavior</div>
+                </div>
+              </div>
+            </div>
+            <!-- /foundry-main-col -->
+
+            <!-- Side panel -->
+            <div class="foundry-side-panel k-stagger">
+              <!-- What Is Foundry? -->
+              <div class="foundry-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">info</span>
+                  <span class="skills-panel-card-title">Foundry</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <p>The Foundry is your AI configuration hub. Add providers, browse available models, and create custom agent modes that shape how your agents think and respond.</p>
+                </div>
+              </div>
+
+              <!-- Models -->
+              <div class="foundry-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">view_in_ar</span>
+                  <span class="skills-panel-card-title">Models</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <ul class="skills-explainer-list">
+                    <li><span class="ms">dns</span> Connect multiple AI providers at once</li>
+                    <li><span class="ms">star</span> Set default model for all conversations</li>
+                    <li><span class="ms">key</span> API key management per provider</li>
+                    <li><span class="ms">home</span> Local models via Ollama support</li>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- Chat Modes -->
+              <div class="foundry-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">tune</span>
+                  <span class="skills-panel-card-title">Chat Modes</span>
+                </div>
+                <div class="skills-panel-card-body">
+                  <p>Named presets with a custom model, system prompt, thinking level, and temperature. Switch modes instantly to change agent behaviour mid-conversation.</p>
+                </div>
+              </div>
+
+              <!-- Quick Actions -->
+              <div class="foundry-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">rocket_launch</span>
+                  <span class="skills-panel-card-title">Quick Actions</span>
+                </div>
+                <div class="skills-quick-actions">
+                  <button class="skills-quick-btn" id="foundry-qa-refresh">
+                    <span class="ms">sync</span> Refresh Models
+                  </button>
+                  <button class="skills-quick-btn" id="foundry-qa-new-mode">
+                    <span class="ms">add</span> New Mode
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+          <!-- /foundry-body -->
           <!-- Mode Editor Modal -->
           <div class="modal-overlay" id="mode-modal" style="display: none">
             <div class="modal-card modal-lg">

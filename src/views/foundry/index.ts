@@ -110,6 +110,23 @@ export function initFoundryEvents() {
     hideModeModal();
     loadModes();
   });
+
+  // Quick action buttons (side panel)
+  $('foundry-qa-refresh')?.addEventListener('click', () => {
+    loadModels();
+    loadModes();
+  });
+  $('foundry-qa-new-mode')?.addEventListener('click', () => {
+    // Switch to modes tab then open editor
+    document.querySelectorAll('.foundry-tab').forEach((t) => t.classList.remove('active'));
+    const modesTab = document.querySelector('.foundry-tab[data-foundry-tab="modes"]') as HTMLElement;
+    if (modesTab) modesTab.classList.add('active');
+    const modelsPanel = $('foundry-models-panel');
+    const modesPanel = $('foundry-modes-panel');
+    if (modelsPanel) modelsPanel.style.display = 'none';
+    if (modesPanel) modesPanel.style.display = '';
+    editMode();
+  });
 }
 
 export { loadModels, loadModes };
