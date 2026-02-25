@@ -11,6 +11,9 @@ import * as TailscaleSettings from './settings-tailscale';
 import * as WebhookSettings from './settings-webhook';
 import * as McpSettings from './settings-mcp';
 import * as LogsSettings from './settings-logs';
+import * as MemoryPalaceModule from './memory-palace';
+import * as NodesModule from './nodes';
+import { loadMemory } from './channels';
 
 import { $ } from '../components/helpers';
 
@@ -48,6 +51,29 @@ export function loadActiveSettingsTab() {
     case 'logs':
       LogsSettings.loadLogsSettings();
       break;
+    case 'memory': {
+      const container = $('settings-memory-container');
+      const sourceView = $('memory-view');
+      if (container && sourceView && !container.hasChildNodes()) {
+        while (sourceView.firstChild) {
+          container.appendChild(sourceView.firstChild);
+        }
+      }
+      MemoryPalaceModule.loadMemoryPalace();
+      loadMemory();
+      break;
+    }
+    case 'engine': {
+      const container = $('settings-engine-container');
+      const sourceView = $('nodes-view');
+      if (container && sourceView && !container.hasChildNodes()) {
+        while (sourceView.firstChild) {
+          container.appendChild(sourceView.firstChild);
+        }
+      }
+      NodesModule.loadNodes();
+      break;
+    }
     default:
       break;
   }

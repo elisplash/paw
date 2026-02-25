@@ -52,13 +52,6 @@
             <div class="nav-item" data-view="tasks">
               <span>Tasks</span>
             </div>
-            <div class="nav-item" data-view="squads">
-              <span>Squads</span>
-              <span class="nav-badge">New</span>
-            </div>
-            <div class="nav-item" data-view="code">
-              <span>Files</span>
-            </div>
           </div>
 
           <div class="nav-section">
@@ -68,12 +61,6 @@
             </div>
             <div class="nav-item" data-view="channels">
               <span>Channels</span>
-            </div>
-            <div class="nav-item" data-view="research">
-              <span>Research</span>
-            </div>
-            <div class="nav-item" data-view="trading">
-              <span>Trading</span>
             </div>
           </div>
 
@@ -93,12 +80,6 @@
 
           <div class="nav-section">
             <div class="nav-section-label">System</div>
-            <div class="nav-item" data-view="memory">
-              <span>Memory</span>
-            </div>
-            <div class="nav-item" data-view="nodes">
-              <span>Engine</span>
-            </div>
             <div class="nav-item" data-view="settings">
               <span>Settings</span>
             </div>
@@ -398,6 +379,7 @@
               <div class="tasks-tabs" id="tasks-tabs">
                 <button class="tasks-tab active" data-tasks-tab="board">Board</button>
                 <button class="tasks-tab" data-tasks-tab="scheduled">Scheduled</button>
+                <button class="tasks-tab" data-tasks-tab="squads">Squads</button>
                 <button class="tasks-tab" data-tasks-tab="projects">Projects</button>
               </div>
             </div>
@@ -921,6 +903,12 @@
             </div>
           </div>
           <!-- /tasks-tab-projects -->
+
+          <!-- Tab: Squads (Agent Teams) -->
+          <div class="tasks-tab-panel" id="tasks-tab-squads" style="display: none">
+            <div id="tasks-squads-container"></div>
+          </div>
+          <!-- /tasks-tab-squads -->
         </div>
 
         <!-- ═══ Squads View — Agent Teams ═══ -->
@@ -2194,6 +2182,12 @@
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="security">
               Security
             </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="memory">
+              Memory
+            </button>
+            <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="engine">
+              Engine
+            </button>
             <button class="btn btn-ghost btn-sm settings-tab" data-settings-tab="logs">Logs</button>
           </div>
 
@@ -2655,6 +2649,16 @@
             </div>
           </div>
           <!-- end settings-panel-security -->
+
+          <!-- ── Tab: Memory ── -->
+          <div class="settings-tab-panel" id="settings-panel-memory" style="display: none">
+            <div id="settings-memory-container"></div>
+          </div>
+
+          <!-- ── Tab: Engine ── -->
+          <div class="settings-tab-panel" id="settings-panel-engine" style="display: none">
+            <div id="settings-engine-container"></div>
+          </div>
 
           <!-- ── Tab: Logs ── -->
           <div class="settings-tab-panel" id="settings-panel-logs" style="display: none">

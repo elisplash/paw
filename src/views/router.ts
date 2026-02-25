@@ -2,24 +2,18 @@
 // View routing — switchView and showView — extracted from main.ts.
 
 import { appState } from '../state/index';
-import { loadChannels, loadSpaceCron, loadMemory } from './channels';
+import { loadChannels, loadSpaceCron } from './channels';
 import { loadSessions, populateAgentSelect } from '../engine/organisms/chat_controller';
 import { loadActiveSettingsTab } from './settings-tabs';
 import * as AgentsModule from './agents';
 import * as AutomationsModule from './automations';
-import * as MemoryPalaceModule from './memory-palace';
 import * as SkillsSettings from './settings-skills';
 import * as FoundryModule from './foundry';
-import * as NodesModule from './nodes';
 import * as TasksModule from './tasks';
 import * as OrchestratorModule from './orchestrator';
-import * as TradingModule from './trading';
 import * as SettingsModule from './settings-main';
-import * as ResearchModule from './research';
 import * as MailModule from './mail';
 import * as TodayModule from './today';
-import * as ProjectsModule from './projects';
-import * as SquadsModule from './squads';
 import * as PawzHubModule from './pawzhub';
 
 export const allViewIds = [
@@ -49,22 +43,22 @@ const viewMap: Record<string, string> = {
   dashboard: 'today-view',
   chat: 'chat-view',
   tasks: 'tasks-view',
-  code: 'code-view',
+  code: 'tasks-view',
   content: 'content-view',
   mail: 'mail-view',
   automations: 'tasks-view',
   channels: 'channels-view',
-  research: 'research-view',
-  memory: 'memory-view',
+  research: 'chat-view',
+  memory: 'settings-view',
   skills: 'skills-view',
   foundry: 'foundry-view',
   settings: 'settings-view',
-  nodes: 'nodes-view',
+  nodes: 'settings-view',
   agents: 'agents-view',
   today: 'today-view',
   orchestrator: 'tasks-view',
-  trading: 'trading-view',
-  squads: 'squads-view',
+  trading: 'today-view',
+  squads: 'tasks-view',
   pawzhub: 'pawzhub-view',
 };
 
@@ -73,11 +67,31 @@ function isConfigured(): boolean {
   return localStorage.getItem('paw-runtime-mode') === 'engine';
 }
 
+/** Map deprecated/merged sidebar names to the nav-item that should highlight. */
+const navHighlightMap: Record<string, string> = {
+  squads: 'tasks',
+  code: 'tasks',
+  orchestrator: 'tasks',
+  automations: 'tasks',
+  memory: 'settings',
+  nodes: 'settings',
+  research: 'chat',
+  trading: 'today',
+  dashboard: 'today',
+};
+
+/** Programmatically click a settings sub-tab (for memory/engine redirects). */
+function _switchSettingsTab(tabName: string) {
+  const btn = document.querySelector(`.settings-tab[data-settings-tab="${tabName}"]`) as HTMLElement | null;
+  if (btn) btn.click();
+}
+
 export function switchView(viewName: string) {
   if (!isConfigured() && viewName !== 'settings') return;
 
+  const highlightName = navHighlightMap[viewName] ?? viewName;
   document.querySelectorAll('.nav-item').forEach((item) => {
-    item.classList.toggle('active', item.getAttribute('data-view') === viewName);
+    item.classList.toggle('active', item.getAttribute('data-view') === highlightName);
   });
   allViewIds.forEach((id) => document.getElementById(id)?.classList.remove('active'));
   (document.getElementById(viewMap[viewName] ?? '') ?? null)?.classList.add('active');
@@ -88,6 +102,8 @@ export function switchView(viewName: string) {
         TodayModule.loadToday();
         break;
       case 'chat':
+      case 'research':
+        // Research redirects to Chat (research is now a chat mode)
         loadSessions();
         populateAgentSelect();
         break;
@@ -108,6 +124,8 @@ export function switchView(viewName: string) {
         AgentsModule.loadAgents();
         break;
       case 'today':
+      case 'trading':
+        // Trading removed from sidebar — redirect to Today
         TodayModule.loadToday();
         break;
       case 'skills':
@@ -118,13 +136,21 @@ export function switchView(viewName: string) {
         FoundryModule.loadModes();
         break;
       case 'nodes':
-        NodesModule.loadNodes();
+        // Engine moved to Settings → Engine tab
+        SettingsModule.loadSettings();
+        SettingsModule.startUsageAutoRefresh();
+        loadActiveSettingsTab();
+        _switchSettingsTab('engine');
         break;
       case 'memory':
-        MemoryPalaceModule.loadMemoryPalace();
-        loadMemory();
+        // Memory moved to Settings → Memory tab
+        SettingsModule.loadSettings();
+        SettingsModule.startUsageAutoRefresh();
+        loadActiveSettingsTab();
+        _switchSettingsTab('memory');
         break;
-      case 'tasks': {
+      case 'tasks':
+      case 'code': {
         const al = AgentsModule.getAgents();
         TasksModule.setAgents(al.map((a) => ({ id: a.id, name: a.name, avatar: a.avatar })));
         AutomationsModule.setAgents(al.map((a) => ({ id: a.id, name: a.name, avatar: a.avatar })));
@@ -132,12 +158,19 @@ export function switchView(viewName: string) {
         AutomationsModule.loadCron();
         break;
       }
+      case 'squads': {
+        // Squads merged into Tasks → Squads tab
+        const al2 = AgentsModule.getAgents();
+        TasksModule.setAgents(al2.map((a) => ({ id: a.id, name: a.name, avatar: a.avatar })));
+        AutomationsModule.setAgents(al2.map((a) => ({ id: a.id, name: a.name, avatar: a.avatar })));
+        TasksModule.loadTasks();
+        AutomationsModule.loadCron();
+        TasksModule.switchTab('squads');
+        break;
+      }
       case 'orchestrator':
         OrchestratorModule.loadProjects();
         TasksModule.switchTab('projects');
-        break;
-      case 'trading':
-        TradingModule.loadTrading();
         break;
       case 'mail':
         MailModule.loadMail();
@@ -152,20 +185,10 @@ export function switchView(viewName: string) {
         break;
     }
   }
-  if (viewName !== 'settings') SettingsModule.stopUsageAutoRefresh();
-  if (viewName !== 'settings') SettingsModule.stopOverrideBannerInterval();
+  if (viewName !== 'settings' && viewName !== 'memory' && viewName !== 'nodes') SettingsModule.stopUsageAutoRefresh();
+  if (viewName !== 'settings' && viewName !== 'memory' && viewName !== 'nodes') SettingsModule.stopOverrideBannerInterval();
   if (viewName !== 'orchestrator') OrchestratorModule.stopMessagePoll();
   switch (viewName) {
-    case 'research':
-      ResearchModule.loadResearchProjects();
-      if (appState.wsConnected) loadSpaceCron('research');
-      break;
-    case 'code':
-      ProjectsModule.loadProjects();
-      break;
-    case 'squads':
-      SquadsModule.loadSquads();
-      break;
     case 'pawzhub':
       PawzHubModule.loadPawzHub();
       break;

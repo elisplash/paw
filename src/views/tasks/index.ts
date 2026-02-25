@@ -5,6 +5,7 @@
 import { pawEngine, type EngineTask, type EngineTaskActivity, type TaskAgent } from '../../engine';
 import { showToast } from '../../components/toast';
 import { $ } from '../../components/helpers';
+import * as SquadsModule from '../squads';
 import {
   setMoleculesState,
   renderBoard,
@@ -180,9 +181,21 @@ export function switchTab(tabName: string) {
   document.querySelectorAll<HTMLElement>('[data-tasks-tab]').forEach((t) => {
     t.classList.toggle('active', t.dataset.tasksTab === tabName);
   });
-  const panels = ['board', 'scheduled', 'projects'];
+  const panels = ['board', 'scheduled', 'projects', 'squads'];
   for (const panel of panels) {
     const el = $(`tasks-tab-${panel}`);
     if (el) el.style.display = panel === tabName ? '' : 'none';
+  }
+  // Load squads content into embedded container when that tab is selected
+  if (tabName === 'squads') {
+    const container = $('tasks-squads-container');
+    const sourceView = $('squads-view');
+    if (container && sourceView && !container.hasChildNodes()) {
+      // Move the squads view content into the tasks tab container
+      while (sourceView.firstChild) {
+        container.appendChild(sourceView.firstChild);
+      }
+    }
+    SquadsModule.loadSquads();
   }
 }
