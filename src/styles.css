@@ -3875,7 +3875,7 @@ button:focus:not(:focus-visible) {
   font-weight: 600;
   background: var(--bg-hover);
   padding: 1px 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   color: var(--text-muted);
 }
 .mail-count-accent {
@@ -4286,7 +4286,7 @@ button:focus:not(:focus-visible) {
   font-size: 10px;
   background: var(--bg-secondary);
   padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: 0;
 }
 
 .mail-vault-actions {
@@ -4401,7 +4401,7 @@ button:focus:not(:focus-visible) {
   font-size: 10px;
   background: rgba(16, 185, 129, 0.1);
   padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: 0;
 }
 
 .mail-security-limitations {
@@ -7074,7 +7074,7 @@ details[open] > .skill-advanced-summary::before {
 .trading-badge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
@@ -7148,7 +7148,7 @@ details[open] > .skill-advanced-summary::before {
 .trading-dex-pair-tag {
   display: inline-block;
   padding: 3px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   font-weight: 600;
   font-family: var(--font-mono);
@@ -7269,17 +7269,16 @@ details[open] > .skill-advanced-summary::before {
 }
 .model-card {
   background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 0;
   padding: 18px 20px;
-  box-shadow: var(--shadow-md);
   display: flex;
   flex-direction: column;
   gap: 6px;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast);
 }
 .model-card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-1px);
+  border-color: var(--accent);
 }
 .model-card-header {
   display: flex;
@@ -7295,7 +7294,7 @@ details[open] > .skill-advanced-summary::before {
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-secondary);
 }
@@ -7310,7 +7309,7 @@ details[open] > .skill-advanced-summary::before {
   font-size: 10px;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--purple-subtle);
   color: var(--purple);
 }
@@ -7333,19 +7332,18 @@ details[open] > .skill-advanced-summary::before {
 }
 .mode-card {
   background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  border-radius: 0;
   padding: 16px 20px;
-  box-shadow: var(--shadow-md);
   display: flex;
   align-items: center;
   gap: 14px;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: border-color var(--transition-fast);
   border-left: 4px solid transparent;
 }
 .mode-card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-1px);
+  border-color: var(--accent);
 }
 .mode-card-icon {
   font-size: 24px;
@@ -7378,7 +7376,7 @@ details[open] > .skill-advanced-summary::before {
   font-size: 10px;
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: var(--accent-muted);
   color: var(--accent);
 }
@@ -8010,7 +8008,7 @@ details[open] > .skill-advanced-summary::before {
   display: inline-block;
   padding: 1px 6px;
   background: var(--bg-primary);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   font-size: 10px;
   color: var(--text-muted);
 }
@@ -8032,7 +8030,7 @@ details[open] > .skill-advanced-summary::before {
 .palace-memory-agent {
   font-size: 9px;
   padding: 1px 5px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--bg-tertiary, rgba(255, 255, 255, 0.06));
   color: var(--text-muted);
 }
@@ -8057,7 +8055,7 @@ details[open] > .skill-advanced-summary::before {
 .palace-result-agent {
   font-size: 10px;
   padding: 1px 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: var(--bg-tertiary, rgba(255, 255, 255, 0.06));
   color: var(--text-muted);
 }
@@ -8151,10 +8149,10 @@ details[open] > .skill-advanced-summary::before {
 }
 .palace-result-card {
   background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   padding: 16px;
   margin-bottom: 12px;
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
 }
 .palace-result-header {
   display: flex;
@@ -8168,7 +8166,7 @@ details[open] > .skill-advanced-summary::before {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 2px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: var(--accent-lighter);
   color: var(--accent);
 }
@@ -10025,7 +10023,7 @@ details[open] > .skill-advanced-summary::before {
 .engine-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -10057,7 +10055,7 @@ details[open] > .skill-advanced-summary::before {
   color: var(--text-muted);
   background: var(--bg-primary);
   padding: 2px 8px;
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
 }
 /* Status row */
@@ -10550,7 +10548,6 @@ details[open] > .skill-advanced-summary::before {
 .research-mode-btn.active {
   background: var(--bg-primary);
   color: var(--primary);
-  box-shadow: var(--shadow-sm);
 }
 
 .research-input-wrapper {
@@ -10563,7 +10560,7 @@ details[open] > .skill-advanced-summary::before {
   flex: 1;
   padding: 12px 16px;
   border: 2px solid var(--border-light);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   font-size: 14px;
   background: var(--bg-primary);
   color: var(--text-primary);
@@ -10789,16 +10786,13 @@ details[open] > .skill-advanced-summary::before {
 .research-finding-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   padding: 16px;
-  transition:
-    box-shadow 0.15s,
-    border-color 0.15s;
+  transition: border-color 0.15s;
 }
 
 .research-finding-card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--primary-light);
+  border-color: var(--accent);
 }
 
 .research-finding-header {
@@ -10863,7 +10857,7 @@ details[open] > .skill-advanced-summary::before {
   padding: 4px 10px;
   background: var(--bg-primary);
   border: 1px solid var(--border-light);
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   font-size: 11px;
   color: var(--text-secondary);
   text-decoration: none;
@@ -10979,8 +10973,8 @@ details[open] > .skill-advanced-summary::before {
 
 .research-modal-content {
   background: var(--bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
+  border-radius: 0;
+  border: 1px solid var(--border);
   max-height: 90vh;
   overflow: hidden;
   display: flex;
@@ -11068,7 +11062,7 @@ details[open] > .skill-advanced-summary::before {
 .research-detail-body code {
   background: var(--bg-secondary);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 12px;
 }
 
@@ -11168,16 +11162,14 @@ details[open] > .skill-advanced-summary::before {
 .orch-project-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 0;
   padding: 16px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 
 .orch-project-card:hover {
-  border-color: var(--primary);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent);
 }
 
 .orch-card-header {
@@ -11215,7 +11207,7 @@ details[open] > .skill-advanced-summary::before {
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -11274,7 +11266,7 @@ details[open] > .skill-advanced-summary::before {
   line-height: 1.5;
   padding: 12px 16px;
   background: var(--bg-secondary);
-  border-radius: 8px;
+  border-radius: 0;
   margin-bottom: 20px;
   white-space: pre-wrap;
 }
@@ -11314,7 +11306,7 @@ details[open] > .skill-advanced-summary::before {
 .orch-agent-card {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 12px;
   transition: border-color 0.15s ease;
 }
@@ -11356,7 +11348,7 @@ details[open] > .skill-advanced-summary::before {
   font-size: 10px;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-sm);
   text-transform: uppercase;
   background: rgba(147, 130, 220, 0.15);
   color: var(--status-purple);
@@ -11411,7 +11403,7 @@ details[open] > .skill-advanced-summary::before {
   color: var(--accent);
   background: rgba(var(--accent-rgb, 99, 102, 241), 0.12);
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: 0;
   width: fit-content;
 }
 
@@ -11428,7 +11420,7 @@ details[open] > .skill-advanced-summary::before {
 .orch-message-bus {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 12px;
   max-height: 400px;
   overflow-y: auto;
@@ -11439,7 +11431,7 @@ details[open] > .skill-advanced-summary::before {
 
 .orch-message {
   background: var(--bg);
-  border-radius: 8px;
+  border-radius: 0;
   padding: 10px 12px;
   border-left: 3px solid var(--border);
 }
