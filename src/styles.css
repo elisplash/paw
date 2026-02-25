@@ -6355,28 +6355,26 @@ select.form-input {
 /* Skills toast */
 .skills-toast {
   padding: 10px 16px;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   font-size: 13px;
   font-weight: 500;
   margin-bottom: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-left: 2px solid var(--border);
 }
 .skills-toast.success {
-  background: rgba(57, 255, 20, 0.1);
-  color: var(--success);
-  border: 1px solid var(--success-subtle);
+  border-left-color: var(--kinetic-sage, #8FB0A0);
 }
 .skills-toast.error {
-  background: rgba(255, 34, 68, 0.1);
-  color: var(--error);
-  border: 1px solid var(--error-subtle);
+  border-left-color: var(--kinetic-red, #FF4D4D);
 }
 .skills-toast.info {
-  background: rgba(0, 204, 255, 0.1);
-  color: var(--blue);
-  border: 1px solid var(--blue-subtle);
+  border-left-color: var(--kinetic-steel, #7A8B9A);
 }
 
 /* Bins modal list */
@@ -9019,33 +9017,28 @@ details[open] > .skill-advanced-summary::before {
   left: 50%;
   transform: translateX(-50%);
   padding: 8px 20px;
-  border-radius: var(--radius-sm);
+  border-radius: 0;
   font-size: 12px;
   font-weight: 400;
   z-index: 10000;
   transition: opacity 0.3s ease-out;
   pointer-events: none;
-  border: 1px solid;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-left: 2px solid var(--border);
 }
 .toast-info {
-  background: rgba(0, 204, 255, 0.1);
-  color: var(--blue);
-  border-color: var(--blue-subtle);
+  border-left-color: var(--kinetic-steel, #7A8B9A);
 }
 .toast-success {
-  background: rgba(57, 255, 20, 0.1);
-  color: var(--success);
-  border-color: var(--success-subtle);
+  border-left-color: var(--kinetic-sage, #8FB0A0);
 }
 .toast-error {
-  background: rgba(255, 34, 68, 0.1);
-  color: var(--error);
-  border-color: var(--error-subtle);
+  border-left-color: var(--kinetic-red, #FF4D4D);
 }
 .toast-warning {
-  background: rgba(255, 221, 0, 0.1);
-  color: var(--warning);
-  border-color: var(--warning-subtle);
+  border-left-color: var(--kinetic-gold, #D4A853);
 }
 
 /* ─── Settings: Usage Cards ─── */
@@ -9057,7 +9050,7 @@ details[open] > .skill-advanced-summary::before {
 .usage-card {
   background: var(--bg-primary);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: 0;
   padding: 16px;
   min-width: 140px;
   flex: 1;
@@ -13165,7 +13158,7 @@ details[open] > .skill-advanced-summary::before {
   position: absolute;
   top: -2px;
   right: -4px;
-  background: var(--accent, #e74c3c);
+  background: var(--accent);
   color: #fff;
   font-size: 10px;
   min-width: 16px;
@@ -13229,7 +13222,7 @@ details[open] > .skill-advanced-summary::before {
   background: var(--bg-hover, rgba(255, 255, 255, 0.04));
 }
 .notification-item.unread {
-  background: var(--accent-subtle, rgba(99, 102, 241, 0.06));
+  border-left: 2px solid var(--accent);
 }
 .notification-icon {
   color: var(--text-muted);
