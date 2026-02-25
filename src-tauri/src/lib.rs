@@ -437,6 +437,11 @@ pub fn run() {
             commands::action_log::engine_action_log_list,
             commands::action_log::engine_action_log_stats,
             commands::action_log::engine_action_log_clear,
+            // ── Tool Bridge & Remapping (Phase 5) ──
+            commands::tool_bridge::engine_tools_remap,
+            commands::tool_bridge::engine_tools_by_service,
+            commands::tool_bridge::engine_tools_get_agent_assignment,
+            commands::tool_bridge::engine_tools_set_agent_service,
             // ── MCP Servers (Phase E) ──
             commands::mcp::engine_mcp_list_servers,
             commands::mcp::engine_mcp_save_server,
