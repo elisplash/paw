@@ -3,7 +3,7 @@
 // Preserves the two-pass thought-part parsing for Gemini thinking models.
 
 use crate::atoms::traits::{AiProvider, ProviderError};
-use crate::engine::http::CircuitBreaker;
+use crate::engine::http::{pinned_client, sign_and_log_request, update_last_audit_status, CircuitBreaker};
 use crate::engine::providers::openai::{
     is_retryable_status, parse_retry_after, retry_delay, MAX_RETRIES,
 };
@@ -14,6 +14,7 @@ use log::{error, info, warn};
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::sync::LazyLock;
+use zeroize::Zeroizing;
 
 /// Circuit breaker shared across all Google/Gemini requests.
 static GOOGLE_CIRCUIT: LazyLock<CircuitBreaker> = LazyLock::new(|| CircuitBreaker::new(5, 60));
@@ -23,7 +24,8 @@ static GOOGLE_CIRCUIT: LazyLock<CircuitBreaker> = LazyLock::new(|| CircuitBreake
 pub struct GoogleProvider {
     client: Client,
     base_url: String,
-    api_key: String,
+    /// API key wrapped in Zeroizing<> — automatically zeroed from RAM on drop.
+    api_key: Zeroizing<String>,
 }
 
 impl GoogleProvider {
@@ -33,13 +35,9 @@ impl GoogleProvider {
             .clone()
             .unwrap_or_else(|| config.kind.default_base_url().to_string());
         GoogleProvider {
-            client: Client::builder()
-                .connect_timeout(std::time::Duration::from_secs(10))
-                .timeout(std::time::Duration::from_secs(120))
-                .build()
-                .unwrap_or_default(),
+            client: pinned_client(),
             base_url,
-            api_key: config.api_key.clone(),
+            api_key: Zeroizing::new(config.api_key.clone()),
         }
     }
 
@@ -335,7 +333,7 @@ impl GoogleProvider {
             "{}/models/{}:streamGenerateContent?alt=sse&key={}",
             self.base_url.trim_end_matches('/'),
             model,
-            self.api_key
+            self.api_key.as_str()
         );
 
         let (system_instruction, mut contents) = Self::format_messages(messages);
@@ -471,6 +469,10 @@ impl GoogleProvider {
                 );
             }
 
+            // Sign the outbound request body for tamper detection
+            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
+            sign_and_log_request("google", model, &body_bytes);
+
             let response = match self
                 .client
                 .post(&url)
@@ -479,7 +481,10 @@ impl GoogleProvider {
                 .send()
                 .await
             {
-                Ok(r) => r,
+                Ok(r) => {
+                    update_last_audit_status(r.status().as_u16());
+                    r
+                }
                 Err(e) => {
                     GOOGLE_CIRCUIT.record_failure();
                     last_error = format!("HTTP request failed: {}", e);

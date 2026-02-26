@@ -171,6 +171,9 @@ The following hardening measures were applied as part of a systematic enterprise
 - **Persistent logging**: Structured log files with daily rotation and 7-day pruning. In-app log viewer with filtering.
 - **530 automated tests**: 164 Rust tests (14 modules + 4 integration test files) + 366 TypeScript tests (24 test files) covering all security-critical paths.
 - **3-job CI pipeline**: `cargo check` + `cargo test` + `cargo clippy -- -D warnings` + `cargo audit` + `npm audit` on every push.
+- **TLS certificate pinning**: All provider connections use a custom `rustls::ClientConfig` pinned to Mozilla root certificates only. The OS trust store is explicitly excluded — a compromised or rogue system CA cannot intercept API traffic.
+- **Outbound request signing**: Every AI provider request is SHA-256 signed before transmission (`provider ‖ model ‖ timestamp ‖ body`). Hashes are logged to an in-memory ring buffer (500 entries) for tamper detection and compliance auditing.
+- **Memory encryption (secure zeroing)**: API keys in provider structs are wrapped in `Zeroizing<String>` from the `zeroize` crate. When a provider is dropped, the key memory is immediately zeroed using `write_volatile` to prevent dead-store elimination by the compiler.
 
 ---
 

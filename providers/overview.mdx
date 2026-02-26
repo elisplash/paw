@@ -110,3 +110,18 @@ You can configure as many providers as you want. Benefits:
 - Automatic fallback if one provider is down
 - Mix local (Ollama) and cloud providers
 - Use cheap models for routine tasks, expensive for complex ones
+
+## Provider security
+
+Every provider connection is protected by multiple security layers:
+
+| Layer | Protection |
+|-------|-----------|
+| **TLS pinning** | Custom `rustls` config with Mozilla root CAs only — OS trust store excluded to prevent MITM from compromised CAs |
+| **Request signing** | Every outbound request SHA-256 signed (`provider ‖ model ‖ timestamp ‖ body`) and logged to a 500-entry audit ring buffer |
+| **Key zeroing** | API keys wrapped in `Zeroizing<String>` — automatically overwritten with zeros in RAM on provider drop |
+| **Credential vault** | Keys encrypted with XOR (32-byte key in OS keychain) at rest, decrypted only at call time |
+| **Circuit breaker** | 5 consecutive failures → 60-second cooldown window to prevent cascading failures |
+| **Retry with backoff** | Exponential backoff with ±25% jitter (1s → 30s), respects `Retry-After` headers |
+
+→ Deep dive: [Security reference](/reference/security)

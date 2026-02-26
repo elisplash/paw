@@ -12,7 +12,7 @@ use futures::StreamExt;
 use log::{error, info, warn};
 use reqwest::Client;
 use serde_json::{json, Value};
-use std::time::Duration;
+use zeroize::Zeroizing;
 
 // ── Shared retry utilities ─────────────────────────────────────────────────
 // Re-export from engine::http so existing callers (anthropic, google) work
@@ -22,8 +22,8 @@ pub(crate) use crate::engine::http::{
     is_retryable_status, parse_retry_after, retry_delay, MAX_RETRIES,
 };
 
-// Import the circuit breaker for provider-level use
-use crate::engine::http::CircuitBreaker;
+// Import the circuit breaker and security utilities
+use crate::engine::http::{pinned_client, sign_and_log_request, update_last_audit_status, CircuitBreaker};
 use std::sync::LazyLock;
 
 /// Circuit breaker shared across all OpenAI-compatible requests.
@@ -34,7 +34,8 @@ static OPENAI_CIRCUIT: LazyLock<CircuitBreaker> = LazyLock::new(|| CircuitBreake
 pub struct OpenAiProvider {
     client: Client,
     base_url: String,
-    api_key: String,
+    /// API key wrapped in Zeroizing<> — automatically zeroed from RAM on drop.
+    api_key: Zeroizing<String>,
     is_azure: bool,
 }
 
@@ -46,13 +47,9 @@ impl OpenAiProvider {
             .unwrap_or_else(|| config.kind.default_base_url().to_string());
         let is_azure = base_url.contains(".azure.com");
         OpenAiProvider {
-            client: Client::builder()
-                .connect_timeout(Duration::from_secs(10))
-                .timeout(Duration::from_secs(120))
-                .build()
-                .unwrap_or_default(),
+            client: pinned_client(),
             base_url,
-            api_key: config.api_key.clone(),
+            api_key: Zeroizing::new(config.api_key.clone()),
             is_azure,
         }
     }
@@ -280,13 +277,20 @@ impl AiProvider for OpenAiProvider {
                 .post(&url)
                 .header("Content-Type", "application/json");
             if self.is_azure {
-                req = req.header("api-key", &self.api_key);
+                req = req.header("api-key", self.api_key.as_str());
             } else {
-                req = req.header("Authorization", format!("Bearer {}", self.api_key));
+                req = req.header("Authorization", format!("Bearer {}", self.api_key.as_str()));
             }
 
+            // Sign the outbound request body for tamper detection
+            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
+            sign_and_log_request("openai", model, &body_bytes);
+
             let response = match req.json(&body).send().await {
-                Ok(r) => r,
+                Ok(r) => {
+                    update_last_audit_status(r.status().as_u16());
+                    r
+                }
                 Err(e) => {
                     OPENAI_CIRCUIT.record_failure();
                     last_error = format!("HTTP request failed: {}", e);

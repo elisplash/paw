@@ -33,7 +33,7 @@ All three jobs run in parallel on every push. All must pass.
 | `security.rs` | AES-256-GCM encryption, key derivation, nonce generation |
 | `injection.rs` | 30+ prompt injection patterns, severity classification |
 | `access_control.rs` | Agent policy enforcement, tool allowlist/denylist |
-| `retry.rs` | Exponential backoff, circuit breaker, jitter |
+| `http.rs` | Exponential backoff, circuit breaker, jitter, TLS pinning, request signing |
 | `providers/` | Provider routing, fallback chains, streaming |
 | `channels/` | Bridge lifecycle, message routing, user sessions |
 | `trading/` | Honeypot detection, swap primitives, wallet signing |
@@ -79,6 +79,9 @@ Zero clippy warnings enforced. Zero known CVEs. Dependabot enabled for automated
 | **Retry logic** | Exponential backoff with jitter (1s base, 30s max, 3 retries). Circuit breaker after 5 failures. |
 | **Logging** | Daily rotation, 7-day pruning, structured format, in-app log viewer. |
 | **Keychain** | Hard-fail on missing OS keychain — no silent plaintext fallback. |
+| **TLS pinning** | Custom `rustls::ClientConfig` with Mozilla root CAs only. OS trust store excluded. Singleton `reqwest::Client` shared across all providers. |
+| **Request signing** | SHA-256 hash of every outbound AI request logged to 500-entry ring buffer for tamper detection and compliance auditing. |
+| **Memory zeroing** | Provider API keys wrapped in `Zeroizing<String>` — zeroed from RAM on drop via `core::ptr::write_volatile`. |
 | **Warnings** | `cargo clippy -- -D warnings` enforced in CI on every commit. |
 
 See [ENTERPRISE_PLAN.md](https://github.com/OpenPawz/openpawz/blob/main/ENTERPRISE_PLAN.md) for the complete hardening audit.

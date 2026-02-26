@@ -426,6 +426,21 @@ OpenPawz was designed from the ground up with a **zero-trust, local-first securi
   </Card>
 </Columns>
 
+<Columns cols={2}>
+  <Card title="TLS certificate pinning">
+    **Unique to OpenPawz.** Custom `rustls` config pinned to Mozilla root CAs only — OS trust store explicitly excluded. Even a compromised CA on the user's machine cannot MITM provider traffic.
+  </Card>
+  <Card title="Outbound request signing">
+    Every AI provider request SHA-256 signed before transmission. Hash of `provider ‖ model ‖ timestamp ‖ body` logged to a 500-entry audit ring buffer for tamper detection and compliance.
+  </Card>
+  <Card title="Memory encryption (RAM zeroing)">
+    API keys wrapped in `Zeroizing<String>` — memory automatically overwritten with zeros on drop via `write_volatile`. Prevents memory dump, swap file, and use-after-free key extraction.
+  </Card>
+  <Card title="Shared pinned HTTP client">
+    Singleton `reqwest::Client` with pinned TLS config shared across all providers. Connection pooling, 10s connect timeout, 120s request timeout. No per-request client creation overhead.
+  </Card>
+</Columns>
+
 → Deep dive: [Security reference](/reference/security)
 
 ---
@@ -540,6 +555,9 @@ Not a toy integration — a complete email client. IMAP/SMTP via himalaya bridge
 | **Session compaction** | Automatic, 40–60% savings | No | No | No | No |
 | **Daily budget caps** | Built-in USD cap | No | No | No | No |
 | **Security audit trail** | Full + export | Basic | None | None | None |
+| **TLS cert pinning** | ✅ Mozilla-only | ❌ OS default | ❌ | ❌ | ❌ |
+| **Request signing** | ✅ SHA-256 audit | ❌ | ❌ | ❌ | ❌ |
+| **Memory zeroing** | ✅ Zeroize on drop | ❌ | ❌ | ❌ | ❌ |
 | **Webhooks + Tailscale** | Built-in | None | None | None | None |
 | **Credential security** | OS keychain + AES-256 | Config files | Config files | Env vars | Env vars |
 | **Open source** | MIT | Proprietary | MIT | MIT | MIT |

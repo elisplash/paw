@@ -101,12 +101,15 @@ Built on [Tauri v2](https://v2.tauri.app/) with a Rust backend. While other tool
     **Automatic session compaction** — when conversations near the context limit, older parts are summarized. Key facts preserved in memory. Full session archived. 40–60% token savings on long sessions.
   </Tab>
   <Tab title="Security">
-    Zero-trust, local-first:
+    Zero-trust, local-first — **10 security layers**:
     - **100% local** — no data leaves your machine
     - **OS keychain** — credentials in macOS Keychain / Windows Credential Manager / Linux Secret Service
     - **Risk classification** — every tool rated 1–5. Dangerous ops require confirmation
     - **Container sandbox** — Docker isolation with resource limits
     - **Prompt injection defense** — dual implementation, 30+ detection patterns
+    - **TLS certificate pinning** — Mozilla root CAs only, OS trust store excluded
+    - **Request signing** — SHA-256 hash of every outbound AI request for tamper detection
+    - **Memory zeroing** — API keys auto-zeroed from RAM on provider drop
   </Tab>
 </Tabs>
 

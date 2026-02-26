@@ -174,6 +174,15 @@ OpenPawz was designed from the ground up with a **zero-trust, local-first securi
   </Card>
 </Columns>
 
+<Columns cols={2}>
+  <Card title="TLS certificate pinning" icon="lock">
+    Custom `rustls` config pinned to Mozilla root CAs only — OS trust store excluded. Even a compromised CA on the user's machine cannot intercept provider traffic.
+  </Card>
+  <Card title="Request signing & memory zeroing" icon="fingerprint">
+    Every outbound AI request SHA-256 signed for tamper detection. API keys auto-zeroed from RAM on provider drop via `Zeroizing<String>`.
+  </Card>
+</Columns>
+
 ---
 
 ## Quick start

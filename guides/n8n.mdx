@@ -155,5 +155,8 @@ The widget refreshes every 5 minutes.
 ## Security notes
 
 - Your n8n API key is **encrypted** in the Pawz vault (XOR, 32-byte key in OS keychain) — never stored in plain text
+- In RAM, the API key is wrapped in `Zeroizing<String>` — automatically zeroed from memory when the provider is dropped
 - API calls go directly from your machine to your n8n instance — no cloud relay
+- All outbound requests use the **certificate-pinned TLS client** (Mozilla root CAs only, OS trust store excluded)
+- Every outbound request is **SHA-256 signed** and logged to the audit ring buffer for tamper detection
 - The `fetch` domain allowlist applies — make sure your n8n domain is allowed if you have a blocklist configured

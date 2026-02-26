@@ -12,7 +12,7 @@
     <p>
       OpenPawz is a fully local, multi-agent AI desktop app built with Tauri and Rust.
       It supports 10 AI providers, 11 channel bridges, hybrid memory with BM25 + vector search,
-      and 7 security layers including prompt injection scanning, container sandboxing,
+      and 10 security layers including prompt injection scanning, container sandboxing, TLS certificate pinning,
       and an encrypted credential vault.
     </p>
     <p>

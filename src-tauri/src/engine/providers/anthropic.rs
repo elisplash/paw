@@ -3,7 +3,7 @@
 // All Claude-specific SSE event parsing and prompt-caching logic lives here.
 
 use crate::atoms::traits::{AiProvider, ProviderError};
-use crate::engine::http::CircuitBreaker;
+use crate::engine::http::{pinned_client, sign_and_log_request, update_last_audit_status, CircuitBreaker};
 use crate::engine::providers::openai::{
     is_retryable_status, parse_retry_after, retry_delay, MAX_RETRIES,
 };
@@ -14,6 +14,7 @@ use log::{error, info, warn};
 use reqwest::Client;
 use serde_json::{json, Value};
 use std::sync::LazyLock;
+use zeroize::Zeroizing;
 
 /// Circuit breaker shared across all Anthropic requests.
 static ANTHROPIC_CIRCUIT: LazyLock<CircuitBreaker> = LazyLock::new(|| CircuitBreaker::new(5, 60));
@@ -23,7 +24,8 @@ static ANTHROPIC_CIRCUIT: LazyLock<CircuitBreaker> = LazyLock::new(|| CircuitBre
 pub struct AnthropicProvider {
     client: Client,
     base_url: String,
-    api_key: String,
+    /// API key wrapped in Zeroizing<> — automatically zeroed from RAM on drop.
+    api_key: Zeroizing<String>,
     is_azure: bool,
 }
 
@@ -35,13 +37,9 @@ impl AnthropicProvider {
             .unwrap_or_else(|| config.kind.default_base_url().to_string());
         let is_azure = base_url.contains(".azure.com");
         AnthropicProvider {
-            client: Client::builder()
-                .connect_timeout(std::time::Duration::from_secs(10))
-                .timeout(std::time::Duration::from_secs(120))
-                .build()
-                .unwrap_or_default(),
+            client: pinned_client(),
             base_url,
-            api_key: config.api_key.clone(),
+            api_key: Zeroizing::new(config.api_key.clone()),
             is_azure,
         }
     }
@@ -505,13 +503,20 @@ impl AnthropicProvider {
                     "prompt-caching-2024-07-31,interleaved-thinking-2025-05-14",
                 );
             if self.is_azure {
-                req = req.header("api-key", &self.api_key);
+                req = req.header("api-key", self.api_key.as_str());
             } else {
-                req = req.header("x-api-key", &self.api_key);
+                req = req.header("x-api-key", self.api_key.as_str());
             }
 
+            // Sign the outbound request body for tamper detection
+            let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
+            sign_and_log_request("anthropic", model, &body_bytes);
+
             let response = match req.json(&body).send().await {
-                Ok(r) => r,
+                Ok(r) => {
+                    update_last_audit_status(r.status().as_u16());
+                    r
+                }
                 Err(e) => {
                     ANTHROPIC_CIRCUIT.record_failure();
                     last_error = format!("HTTP request failed: {}", e);

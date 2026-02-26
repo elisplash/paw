@@ -1,11 +1,11 @@
 ---
 title: "Security"
-description: "OpenPawz is designed with defense-in-depth: multiple layers protect against prompt injection, data exfiltration, and unauthorized actions."
+description: "OpenPawz is designed with defense-in-depth: 10 security layers protect against prompt injection, data exfiltration, MITM attacks, memory forensics, and unauthorized actions."
 ---
 
 # Security
 
-OpenPawz is designed with defense-in-depth: multiple layers protect against prompt injection, data exfiltration, and unauthorized actions.
+OpenPawz is designed with defense-in-depth: **10 security layers** protect against prompt injection, data exfiltration, MITM attacks, memory forensics, and unauthorized actions.
 
 ## Human-in-the-Loop (HIL)
 
@@ -160,6 +160,77 @@ Sensitive database fields are encrypted with **AES-256-GCM** via the Web Crypto 
 :::info Two independent layers
 The XOR layer protects skill credentials stored in the `skill_credentials` table. The AES-256-GCM layer protects other sensitive fields across the database. Both derive their keys from the OS keychain but use separate keychain entries.
 :::
+
+## TLS certificate pinning
+
+All AI provider connections use a **certificate-pinned TLS configuration** that explicitly ignores the operating system trust store. This means a compromised or rogue CA installed on the user's machine cannot intercept provider traffic.
+
+| Property | Detail |
+|----------|--------|
+| Library | `rustls` 0.23 (pure-Rust TLS, no OpenSSL) |
+| Root store | Mozilla root certificates via `webpki-roots` only |
+| OS trust store | **Explicitly excluded** — system CAs are never consulted |
+| Client sharing | Singleton `reqwest::Client` shared across all providers |
+| Connection pooling | Enabled — one pool for all OpenAI, Anthropic, Google, etc. calls |
+| Connect timeout | 10 seconds |
+| Request timeout | 120 seconds |
+
+### Why this matters
+
+Most TLS MITM attacks rely on installing a custom root CA on the victim's machine (corporate proxies, malware, government surveillance). By pinning to Mozilla's root store, OpenPawz rejects certificates signed by any non-Mozilla CA — even if the OS trusts it.
+
+### Covered providers
+
+All providers routed through the pinned client: OpenAI, Anthropic, Google Gemini, OpenRouter, DeepSeek, Grok, Mistral, Moonshot, Ollama, and any custom OpenAI-compatible endpoint.
+
+## Outbound request signing
+
+Every AI provider request is **signed with SHA-256** before transmission for tamper detection and compliance auditing.
+
+### How it works
+
+Before each `.send()`, the engine computes:
+
+```
+SHA-256(provider || model || ISO-8601 timestamp || request body)
+```
+
+The resulting hex digest is logged to an in-memory ring buffer (500 entries) along with the provider name, model, timestamp, and HTTP response status.
+
+| Property | Detail |
+|----------|--------|
+| Algorithm | SHA-256 (via `sha2` crate) |
+| Buffer size | 500 entries (ring buffer, overwrites oldest) |
+| Logged fields | timestamp, provider, model, hash, HTTP status |
+| Storage | In-memory only — not persisted to disk |
+
+### Use cases
+
+- **Tamper detection** — If a proxy modifies the request body in transit, the recorded hash won't match a re-computed hash of the actual payload received by the provider
+- **Compliance audit** — Security teams can export request hashes to verify that specific prompts were sent at specific times
+- **Replay detection** — Each hash includes a timestamp, making every entry unique even for identical request bodies
+
+## Memory encryption (secure zeroing)
+
+API keys and other sensitive credentials are protected in RAM using **`Zeroizing<String>`** wrappers from the `zeroize` crate, ensuring they are overwritten with zeros when no longer needed.
+
+### What this prevents
+
+When a provider is dropped (e.g. user switches providers, session ends, or the app closes), the API key memory is **immediately zeroed** rather than left as a dangling allocation. This protects against:
+
+- **Memory dump attacks** — Forensic tools or malware scanning process memory for API key patterns
+- **Swap file leaks** — Unencrypted API keys persisted to disk via OS swap/page file
+- **Use-after-free** — Freed memory still containing the key being reallocated to another buffer
+
+### Implementation
+
+| Component | Protection |
+|-----------|-----------|
+| `OpenAiProvider.api_key` | `Zeroizing<String>` |
+| `AnthropicProvider.api_key` | `Zeroizing<String>` |
+| `GoogleProvider.api_key` | `Zeroizing<String>` |
+| Drop behavior | Memory zeroed on `Drop` via `zeroize` crate |
+| Compiler optimization | `zeroize` uses `core::ptr::write_volatile` to prevent dead-store elimination |
 
 ## Tool execution security
 

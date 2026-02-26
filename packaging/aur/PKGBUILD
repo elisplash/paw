@@ -5,7 +5,7 @@
 pkgname=openpawz-bin
 pkgver=0.1.0
 pkgrel=1
-pkgdesc="Multi-agent AI desktop app — 10 providers, 11 channels, hybrid memory, 7 security layers"
+pkgdesc="Multi-agent AI desktop app — 10 providers, 11 channels, hybrid memory, 10 security layers"
 arch=('x86_64')
 url="https://github.com/OpenPawz/openpawz"
 license=('MIT')

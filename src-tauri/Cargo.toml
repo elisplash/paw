@@ -1,7 +1,7 @@
 [package]
 name = "openpawz"
 version = "0.1.0"
-description = "Multi-agent AI desktop app — 10 providers, 11 channels, hybrid memory, 7 security layers. Fully local, open source."
+description = "Multi-agent AI desktop app — 10 providers, 11 channels, hybrid memory, 10 security layers. Fully local, open source."
 authors = ["Eli Bury <eli@openpawz.com>"]
 edition = "2021"
 license = "MIT"
@@ -88,6 +88,9 @@ cbc = "0.1"
 
 # ── Skill Vault Encryption (AES-256-GCM) ────────────────────────
 aes-gcm = "0.10"
+
+# ── Secure memory zeroing ───────────────────────────────────────
+zeroize = { version = "1", features = ["derive"] }
 
 # ── Solana DEX Trading ───────────────────────────────────────
 bs58 = "0.5"

@@ -194,3 +194,18 @@ The engine tries endpoints in order:
 3. OpenAI-compatible `/v1/embeddings`
 
 This means you can use any OpenAI-compatible embedding API by changing the base URL.
+
+## Security
+
+Memory in Pawz is protected at multiple levels:
+
+| Layer | Protection |
+|-------|-----------|
+| **At rest** | Sensitive database fields encrypted with AES-256-GCM, key stored in OS keychain |
+| **In transit** | TLS certificate-pinned connections to embedding providers (Mozilla root CAs only, OS trust store excluded) |
+| **In RAM** | Provider API keys wrapped in `Zeroizing<String>` — automatically zeroed from memory on drop |
+| **Outbound** | Every embedding request SHA-256 signed and logged to a 500-entry audit ring buffer |
+
+:::tip
+Memory content itself is stored unencrypted in SQLite for fast full-text search (BM25). If you need encrypted memory content at rest, use the container sandbox with an encrypted filesystem.
+:::

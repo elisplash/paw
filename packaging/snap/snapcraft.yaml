@@ -8,7 +8,7 @@ description: |
   - 10 AI providers (OpenAI, Anthropic, Google Gemini, Ollama, DeepSeek, xAI, Mistral, Moonshot, OpenRouter, custom)
   - 11 channel bridges (Telegram, Discord, IRC, Slack, Matrix, Mattermost, Nextcloud Talk, Nostr, Twitch, WebChat, WhatsApp)
   - Hybrid memory with BM25 + vector search and Ollama embeddings
-  - 7 security layers including prompt injection scanning, container sandboxing, and encrypted credential vault
+  - 10 security layers including prompt injection scanning, container sandboxing, TLS certificate pinning, and encrypted credential vault
   - Multi-agent orchestration with boss/worker delegation and agent squads
   - 35+ built-in skills including web browsing, Google Workspace, and trading
 

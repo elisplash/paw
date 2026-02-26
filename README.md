@@ -63,7 +63,7 @@ Every commit is validated by a 3-job CI pipeline: Rust (check + test + clippy), 
 
 ## Security
 
-OpenPawz takes a defense-in-depth approach with 7 security layers. The agent never touches the OS directly — every tool call flows through the Rust engine where it can be intercepted, classified, and blocked.
+OpenPawz takes a defense-in-depth approach with 10 security layers. The agent never touches the OS directly — every tool call flows through the Rust engine where it can be intercepted, classified, and blocked.
 
 ### Zero Trust by Default
 
@@ -76,7 +76,7 @@ OpenPawz takes a defense-in-depth approach with 7 security layers. The agent nev
 | Known CVEs | **0** enforced in CI |
 | Clippy warnings | **0** enforced via `-D warnings` |
 
-### 7 Security Layers
+### 10 Security Layers
 
 1. **Prompt injection scanner** — Dual TypeScript + Rust detection, 30+ patterns across 4 severity levels
 2. **Command risk classifier** — 30+ danger patterns across 5 risk levels (critical → safe), color-coded approval modals
@@ -85,6 +85,9 @@ OpenPawz takes a defense-in-depth approach with 7 security layers. The agent nev
 5. **Container sandboxing** — Docker isolation with `CAP_DROP ALL`, memory/CPU limits, network disabled by default
 6. **Browser network policy** — Domain allowlist/blocklist prevents data exfiltration
 7. **Credential vault** — OS keychain + AES-256-GCM encrypted SQLite; keys never appear in prompts or logs
+8. **TLS certificate pinning** — Custom `rustls` config pinned to Mozilla root CAs; OS trust store excluded to prevent MITM from compromised CAs
+9. **Outbound request signing** — Every provider request SHA-256 signed (`provider ‖ model ‖ timestamp ‖ body`) with 500-entry audit ring buffer
+10. **Memory encryption** — API keys wrapped in `Zeroizing<String>`, zeroed from RAM on drop via `write_volatile` to defeat memory forensics
 
 ### Why This Matters
 
