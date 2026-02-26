@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "quill",
+  "theme": "maple",
   "name": "OpenPawz",
   "description": "Your AI, your rules. The open-source AI agent OS with 400+ integrations, 11 channels, multi-agent orchestration — all running locally on your desktop.",
   "logo": {
