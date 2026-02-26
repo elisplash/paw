@@ -35,10 +35,7 @@ import {
   isSlashCommand,
   type CommandContext,
 } from '../../features/slash-commands';
-import {
-  parseCredentialSignal,
-  handleCredentialRequired,
-} from '../molecules/credential_bridge';
+import { parseCredentialSignal, handleCredentialRequired } from '../molecules/credential_bridge';
 import type { Message, ToolCall, Agent } from '../../types';
 
 const $ = (id: string) => document.getElementById(id);

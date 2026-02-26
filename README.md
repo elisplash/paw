@@ -20,6 +20,19 @@ A native desktop AI platform that runs fully offline, connects to any provider, 
 
 ---
 
+## Screenshots
+
+<div align="center">
+
+| Integration Hub | Fleet Command | Chat |
+|:---:|:---:|:---:|
+| <img src="images/screenshots/Integrations.png" alt="Integration Hub" width="300"> | <img src="images/screenshots/Agents.png" alt="Fleet Command" width="300"> | <img src="images/screenshots/Chat.png" alt="Chat" width="300"> |
+| 405+ services with category filters, connection health, and quick setup | Manage agents, deploy templates, monitor fleet activity | Session metrics, active jobs, quick actions, automations |
+
+</div>
+
+---
+
 ## Why OpenPawz?
 
 OpenPawz is a native Tauri v2 application with a pure Rust backend engine. It runs fully offline with Ollama, connects to any OpenAI-compatible provider, and gives you complete control over your AI agents, data, and tools.
@@ -157,37 +170,275 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full technical breakdown.
 
 ---
 
-## Getting Started
+## Installation
 
-### Prerequisites (build-time only)
+### Prerequisites
 
-> **Note:** Node.js is only needed to build the frontend — the final app is a standalone native binary with no Node.js runtime.
+> **Note:** Node.js is only needed to build the frontend — the final app is a standalone ~5 MB native binary with no Node.js runtime.
 
-- [Node.js](https://nodejs.org/) 18+ *(build tooling: Vite bundler, TypeScript compiler)*
-- [Rust](https://rustup.rs/) (latest stable)
-- Platform dependencies for Tauri — see [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
+| Requirement | Version | Why | Install |
+|-------------|---------|-----|---------|
+| **Node.js** | 18+ | Vite bundler + TypeScript compiler (build-time only) | [nodejs.org](https://nodejs.org/) |
+| **Rust** | Latest stable | Compiles the native backend engine | [rustup.rs](https://rustup.rs/) |
+| **Platform deps** | — | WebKit, SSL, system libraries (see below) | Per-platform |
 
-### Development
+#### Optional (runtime)
+
+| Tool | Purpose | Install |
+|------|---------|---------|
+| **Ollama** | Fully local AI — no API keys needed | [ollama.com](https://ollama.com/) |
+| **Docker** | Container sandboxing for agent commands | [docker.com](https://www.docker.com/) |
+| **gnome-keyring** or **kwallet** | OS keychain for credential encryption (Linux) | System package manager |
+
+### Platform-Specific Dependencies
+
+<details>
+<summary><strong>Linux (Debian / Ubuntu)</strong></summary>
 
 ```bash
+# System libraries required by Tauri + WebKit
+sudo apt update
+sudo apt install -y \
+  libwebkit2gtk-4.1-dev \
+  build-essential \
+  curl \
+  wget \
+  file \
+  libxdo-dev \
+  libssl-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev
+
+# Keychain (required for credential encryption)
+# GNOME-based desktops usually have this already
+sudo apt install -y gnome-keyring libsecret-1-dev
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+
+# Install Node.js 18+ (via nvm)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+nvm install 22
+```
+
+</details>
+
+<details>
+<summary><strong>Linux (Fedora)</strong></summary>
+
+```bash
+sudo dnf install -y \
+  webkit2gtk4.1-devel \
+  openssl-devel \
+  curl \
+  wget \
+  file \
+  libxdo-devel \
+  libappindicator-gtk3-devel \
+  librsvg2-devel \
+  gnome-keyring \
+  libsecret-devel
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+
+</details>
+
+<details>
+<summary><strong>Linux (Arch)</strong></summary>
+
+```bash
+sudo pacman -S --needed \
+  webkit2gtk-4.1 \
+  base-devel \
+  curl \
+  wget \
+  file \
+  openssl \
+  libxdo \
+  libappindicator-gtk3 \
+  librsvg \
+  gnome-keyring \
+  libsecret
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+```
+
+</details>
+
+<details>
+<summary><strong>macOS</strong></summary>
+
+```bash
+# Install Xcode command line tools (provides clang, make, etc.)
+xcode-select --install
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source "$HOME/.cargo/env"
+
+# Install Node.js (via Homebrew)
+brew install node
+```
+
+macOS Keychain is used automatically — no additional setup needed.
+
+</details>
+
+<details>
+<summary><strong>Windows</strong></summary>
+
+1. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with:
+   - "Desktop development with C++" workload
+   - Windows 10/11 SDK
+2. Install [Rust](https://rustup.rs/) — download and run `rustup-init.exe`
+3. Install [Node.js 18+](https://nodejs.org/) — use the LTS installer
+
+Windows Credential Manager is used automatically for the keychain.
+
+</details>
+
+<details>
+<summary><strong>Containers / CI / Headless Linux</strong></summary>
+
+If you're running in a Docker container, devcontainer, or headless server, there's no graphical keychain by default. You need to start one manually:
+
+```bash
+# Install gnome-keyring
+sudo apt install -y gnome-keyring dbus-x11
+
+# Start the keyring daemon
+eval $(dbus-launch --sh-syntax)
+eval $(gnome-keyring-daemon --start --components=secrets 2>/dev/null)
+export GNOME_KEYRING_CONTROL
+```
+
+Without a running keychain, credential encryption will fail and integrations won't work. The app's **Settings → Security** panel shows keychain health status.
+
+</details>
+
+---
+
+### Quick Start
+
+```bash
+# 1. Clone the repository
 git clone https://github.com/OpenPawz/openpawz.git
 cd paw
+
+# 2. Install frontend dependencies
 npm install
+
+# 3. Run in development mode (hot-reload frontend + live Rust rebuilds)
 npm run tauri dev
 ```
+
+> **First build takes 3–5 minutes** while Rust compiles all dependencies. Subsequent builds are incremental (~5–15 seconds).
+
+### Frontend Only (No Rust / Tauri Required)
+
+If you just want to run the frontend UI without the Rust backend (useful for UI development or quick previews):
+
+```bash
+npm install
+npm run dev
+```
+
+This starts the Vite dev server at `http://localhost:1420/` with hot-reload. The full Tauri backend (provider calls, credential vault, container sandbox, etc.) won't be available in this mode, but all views and UI components will render.
+
+### Verify It's Working
+
+After launching, OpenPawz opens to the Today dashboard. To verify everything is functional:
+
+1. **Settings → Security** — check that keychain health shows "Healthy"
+2. **Settings → Providers** — configure at least one AI provider (or install Ollama for local AI)
+3. **Agents** — create an agent and start chatting
+
+---
+
+### Optional: Ollama (Fully Local AI)
+
+For completely offline AI with no API keys or cloud dependency:
+
+```bash
+# Install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Pull a chat model
+ollama pull llama3.1
+
+# Pull the embedding model (used for memory search)
+ollama pull nomic-embed-text
+```
+
+OpenPawz auto-detects Ollama on `localhost:11434` and lists available models automatically in **Settings → Providers**.
+
+---
+
+### Optional: Docker (Container Sandboxing)
+
+To enable sandboxed command execution for agents:
+
+```bash
+# Install Docker (if not already installed)
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+# Log out and back in for group changes to take effect
+
+# Verify Docker works
+docker run --rm hello-world
+```
+
+Container sandboxing runs agent shell commands inside isolated Docker containers with `CAP_DROP ALL`, memory/CPU limits, and network disabled by default. Configure in **Settings → Security**.
+
+---
+
+### Configuring Integrations
+
+OpenPawz stores all credentials in an AES-256-GCM encrypted vault backed by your OS keychain. There are two ways to add credentials:
+
+**Option A: Settings → Skills** (recommended)
+1. Open **Settings → Skills**
+2. Find the integration (e.g. Slack, GitHub, n8n)
+3. Enter your credentials and click **Save**
+4. Toggle the skill to **Enabled**
+
+**Option B: Integrations panel** (if using n8n)
+1. Open the **Integrations** view
+2. Click the service and follow the setup guide
+3. Enter credentials, click **Test & Save**
+4. The app tests the connection, then auto-provisions to the skill vault
+
+> **Important:** Credentials must be saved through the app UI — setting environment variables (`.env` files, shell exports) does not work. The agent tools read exclusively from the encrypted skill vault in SQLite, not from environment variables.
+
+---
 
 ### Run Tests
 
 ```bash
-# TypeScript tests
+# TypeScript tests (360 tests)
 npx vitest run
 
-# Rust tests
+# Rust tests (242 tests)
 cd src-tauri && cargo test
 
-# Lint
+# TypeScript type-check
 npx tsc --noEmit
+
+# Rust lint (zero warnings enforced)
 cd src-tauri && cargo clippy -- -D warnings
+
+# Code formatting check
+npx prettier --check "src/**/*.ts"
+cd src-tauri && cargo fmt --check
+
+# Run everything at once
+npm run check
 ```
 
 ### Production Build
@@ -195,6 +446,29 @@ cd src-tauri && cargo clippy -- -D warnings
 ```bash
 npm run tauri build
 ```
+
+The built app will be in `src-tauri/target/release/bundle/` — platform-specific installer:
+
+| Platform | Output |
+|----------|--------|
+| macOS | `.dmg` + `.app` |
+| Linux | `.deb` + `.AppImage` |
+| Windows | `.msi` + `.exe` |
+
+---
+
+### Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| **First build fails on Linux** | Make sure all system libraries are installed (see platform deps above) |
+| **"Keyring init failed"** | No keychain daemon running — install `gnome-keyring` and start it (see headless section) |
+| **"Missing required credentials" for a skill** | Credentials must be saved via the app UI (**Settings → Skills**), not via `.env` files |
+| **Provision silently fails** | Check **Settings → Security** — if keychain is "unavailable", the vault can't encrypt credentials |
+| **Ollama not detected** | Make sure Ollama is running (`ollama serve`) and accessible at `http://localhost:11434` |
+| **n8n "no API access"** | Set `N8N_PUBLIC_API_ENABLED=true` in your n8n instance environment, restart n8n, and create an API key in n8n **Settings → API** |
+| **Rust compilation OOM** | On low-memory machines (< 4 GB), close other apps or add swap: `sudo fallocate -l 4G /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile` |
+| **Docker sandbox won't start** | Ensure Docker is running and your user is in the `docker` group (`groups` to check) |
 
 ---
 
@@ -221,7 +495,7 @@ Progress is tracked via [milestones](https://github.com/OpenPawz/openpawz/milest
 - [**v0.4 — Mobile & Sync**](https://github.com/OpenPawz/openpawz/milestone/3) — Mobile companion (iOS/Android), encrypted cloud sync
 - [**v1.0 — Production Ready**](https://github.com/OpenPawz/openpawz/milestone/4) — Enterprise hardening, stable API, third-party security audit
 
-See [ENTERPRISE_PLAN.md](ENTERPRISE_PLAN.md) for the hardening audit and [AUTONOMY_ROADMAP.md](AUTONOMY_ROADMAP.md) for the agent autonomy plan.
+See [ENTERPRISE_PLAN.md](ENTERPRISE_PLAN.md) for the hardening audit.
 
 ---
 
@@ -252,7 +526,7 @@ OpenPawz is built by one developer and needs your help. Every contribution matte
 | [SECURITY.md](SECURITY.md) | Complete security architecture — 7 layers, threat model, credential handling |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Development setup, code style, testing, PR guidelines |
 | [ENTERPRISE_PLAN.md](ENTERPRISE_PLAN.md) | Enterprise hardening audit — all phases with test counts |
-| [AUTONOMY_ROADMAP.md](AUTONOMY_ROADMAP.md) | Agent autonomy roadmap — auto-approve, webhooks, MCP, PawzHub |
+| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
 | [Docs Site](https://www.openpawz.ai) | Full documentation with guides, channel setup, and API reference |
 
 ---
