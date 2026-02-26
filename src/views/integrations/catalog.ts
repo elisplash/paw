@@ -75,7 +75,7 @@ const CURATED: ServiceDefinition[] = [
     true,
     [
       {
-        key: 'access_token',
+        key: 'bot_token',
         label: 'Bot Token',
         type: 'password',
         placeholder: 'xoxb-...',

@@ -417,7 +417,7 @@ pub async fn engine_integrations_test_credentials(
     // Per-service lightweight validation
     let result = match service_id.as_str() {
         "slack" => {
-            let token = credentials.get("bot_token").or(credentials.get("api_key")).cloned().unwrap_or_default();
+            let token = credentials.get("bot_token").or(credentials.get("access_token")).or(credentials.get("api_key")).cloned().unwrap_or_default();
             _test_bearer(&client, "https://slack.com/api/auth.test", &token, "Slack").await
         }
         "discord" => {
