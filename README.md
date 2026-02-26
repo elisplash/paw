@@ -26,7 +26,7 @@ A native desktop AI platform that runs fully offline, connects to any provider, 
 
 | Integration Hub | Fleet Command | Chat |
 |:---:|:---:|:---:|
-| <img src="images/screenshots/Integrations.png" alt="Integration Hub" width="300"> | <img src="images/screenshots/Agents.png" alt="Fleet Command" width="300"> | <img src="images/screenshots/Chat.png" alt="Chat" width="300"> |
+| <img src="images/screenshots/Integrations.png" alt="Integration Hub" width="320" height="165"> | <img src="images/screenshots/Agents.png" alt="Fleet Command" width="320" height="165"> | <img src="images/screenshots/Chat.png" alt="Chat" width="320" height="165"> |
 | 405+ services with category filters, connection health, and quick setup | Manage agents, deploy templates, monitor fleet activity | Session metrics, active jobs, quick actions, automations |
 
 </div>
@@ -54,13 +54,37 @@ Every commit is validated by a 3-job CI pipeline: Rust (check + test + clippy), 
 
 OpenPawz takes a defense-in-depth approach with 7 security layers. The agent never touches the OS directly — every tool call flows through the Rust engine where it can be intercepted, classified, and blocked.
 
-1. **Prompt injection scanner** — Dual TypeScript + Rust detection, 30+ patterns
-2. **Command risk classifier** — 30+ danger patterns across 5 risk levels
-3. **Human-in-the-Loop approval** — Side-effect tools require explicit user approval
+### Zero Trust by Default
+
+| Metric | Value |
+|--------|-------|
+| Open network ports | **0** — Tauri IPC only, no HTTP server |
+| Credential encryption | **AES-256-GCM** with OS keychain key storage |
+| Automated tests | **530** (164 Rust + 366 TypeScript) |
+| CI security checks | `cargo audit` + `npm audit` on every push |
+| Known CVEs | **0** enforced in CI |
+| Clippy warnings | **0** enforced via `-D warnings` |
+
+### 7 Security Layers
+
+1. **Prompt injection scanner** — Dual TypeScript + Rust detection, 30+ patterns across 4 severity levels
+2. **Command risk classifier** — 30+ danger patterns across 5 risk levels (critical → safe), color-coded approval modals
+3. **Human-in-the-Loop approval** — Side-effect tools require explicit user approval; critical commands require typing "ALLOW"
 4. **Per-agent tool policies** — Allowlist, denylist, or unrestricted mode per agent
-5. **Container sandboxing** — Docker isolation with `CAP_DROP ALL`, memory/CPU limits, network disabled
+5. **Container sandboxing** — Docker isolation with `CAP_DROP ALL`, memory/CPU limits, network disabled by default
 6. **Browser network policy** — Domain allowlist/blocklist prevents data exfiltration
-7. **Credential vault** — OS keychain + AES-256-GCM encrypted SQLite; keys never appear in prompts
+7. **Credential vault** — OS keychain + AES-256-GCM encrypted SQLite; keys never appear in prompts or logs
+
+### Why This Matters
+
+- **No plaintext secrets** — Credentials are encrypted at rest with per-field IVs. If the keychain is unavailable, the app blocks credential storage entirely rather than falling back to plaintext.
+- **Agents can't go rogue** — Dangerous commands (`sudo`, `rm -rf`, `curl | bash`, `chmod 777`) are auto-denied or require explicit approval. Even in "allow all" session override mode, privilege escalation remains blocked.
+- **90+ safe command patterns** — Common dev commands (`git status`, `ls`, `cat`, `npm test`) are auto-approved so you're not clicking "Allow" on every harmless action.
+- **Financial guardrails** — Trading tools (swaps, transfers) have configurable per-transaction caps, daily loss limits, and pair whitelists. Read-only trading (balances, prices) is always auto-approved.
+- **Filesystem sandboxing** — 20+ sensitive paths blocked (`~/.ssh`, `~/.aws`, `~/.gnupg`, `/etc`, `/root`). Path traversal blocked. Optional read-only mode disables all agent writes.
+- **Channel access control** — Every channel bridge supports DM pairing, user allowlists, and per-agent routing. No open relay.
+- **Full audit trail** — Every security event logged with risk level, tool name, decision, and matched pattern. Filterable dashboard with JSON/CSV export.
+- **Skill vetting** — Community skills are checked against npm registry risk intelligence (download count, maintainer count, deprecation status) with a risk score before install.
 
 See [SECURITY.md](SECURITY.md) for the complete security architecture.
 
@@ -148,20 +172,42 @@ Each bridge includes user approval flows, per-agent routing, and uniform start/s
 - ElevenLabs TTS (16 premium voices)
 - Talk Mode — continuous voice loop (mic → STT → agent → TTS → speaker)
 
+### Token Savings & Cost Control
+
+Most AI tools let token usage run unchecked — long conversations silently burn through context windows and your wallet. OpenPawz actively manages this for you:
+
+- **Automatic session compaction** — When conversations approach the context window limit, older messages are summarized into a compact digest. Key facts are preserved in memory, the full session is archived, and the conversation continues seamlessly. **40–60% token savings** on long sessions.
+- **Configurable context window** — Set per-agent context limits (4K–1M tokens) in Settings. Conservative defaults (32K) prevent accidental cost spikes on large-context models.
+- **Live token meter** — Real-time context usage bar in every chat session. Click for a full breakdown of where tokens are going (system prompt, memory, conversation, tools). Color-coded warnings at 60% and 80%.
+- **Session cost tracking** — Per-session cost displayed in the chat header and Mission Control dashboard. Input/output tokens tracked separately with per-model pricing.
+- **Daily budget limits** — Set a daily spending cap. Budget alerts fire at 80% and hard-stop at 100%. Prevents runaway costs from automated tasks, cron jobs, or long agent loops.
+- **Auto model tiering** — Enable `auto_tier` to automatically route simple queries to cheaper models. Complex tasks use your primary model. **Can cut costs 50%+** with no quality loss on basic questions.
+- **Smart skill prompt budgeting** — When agents load skill instructions, the engine compresses and prioritizes them to fit within a token budget. Priority skills get full context; lower-priority skills are compressed or dropped. No wasted tokens on irrelevant tool docs.
+- **Lean channel context** — Channel bridges (Discord, Telegram, etc.) use a minimal context strategy: core identity only, no memory recall overhead, only the tools needed for that channel. Fast responses, minimal token burn.
+- **Free local inference** — Ollama models cost $0. Use local models for testing, development, and casual tasks. Switch to paid providers only when you need frontier capability.
+
 ---
 
 ## Architecture
 
-```
-Frontend (TypeScript)                  Rust Engine
-┌──────────────────────┐              ┌────────────────────────────────┐
-│ Vanilla DOM · 20+ views │◄── IPC ──► │ Tauri commands                  │
-│ Kinetic Intelligence    │   (typed)  │ 400+ integration engine         │
-│ Material Icons          │            │ AI providers · Channel bridges  │
-│                         │            │ Tool executor + HIL approval    │
-└──────────────────────┘              │ AES-256-GCM encrypted SQLite    │
-                                       │ OS keychain · Docker sandbox    │
-                                       └────────────────────────────────┘
+```mermaid
+flowchart LR
+  subgraph Frontend["Frontend · TypeScript"]
+    UI["Vanilla DOM · 20+ views"]
+    KI["Kinetic Intelligence"]
+    Icons["Material Icons"]
+  end
+
+  subgraph Engine["Rust Engine"]
+    Tauri["Tauri Commands"]
+    Integrations["400+ Integration Engine"]
+    Providers["AI Providers · Channel Bridges"]
+    Tools["Tool Executor + HIL Approval"]
+    DB["AES-256-GCM Encrypted SQLite"]
+    Security["OS Keychain · Docker Sandbox"]
+  end
+
+  Frontend <-->|"Tauri IPC\n(typed)"| Engine
 ```
 
 No Node.js backend. No gateway process. No open ports. Everything flows through Tauri IPC.
