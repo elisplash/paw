@@ -57,6 +57,8 @@ export interface ServiceDefinition {
   automationExamples: string[];
   docsUrl: string;
   popular: boolean;
+  /** npm package name if this service needs a community node (not in n8n-nodes-base). */
+  communityPackage?: string;
 }
 
 export interface ConnectedService {

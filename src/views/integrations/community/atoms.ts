@@ -107,3 +107,68 @@ export function displayName(packageName: string): string {
     .replace(/-/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+// ── Community Package Requirements ─────────────────────────────────────
+//
+// Maps service IDs to the npm package name they need from the community.
+// Services using n8n-nodes-base.httpRequest as a fallback often have a
+// dedicated community node that provides richer, native integration.
+//
+// This map grows over time. Only well-known, maintained packages are listed.
+
+export const COMMUNITY_PACKAGE_MAP: Record<string, string> = {
+  // Messaging & Communication
+  whatsapp: 'n8n-nodes-whatsapp-buttons',
+  telegram: 'n8n-nodes-telegram-trigger',
+  twilio: 'n8n-nodes-twilio-extended',
+
+  // Browser & Scraping
+  puppeteer: 'n8n-nodes-puppeteer',
+  browserless: 'n8n-nodes-browserless',
+  playwright: '@nicklason/n8n-nodes-playwright',
+
+  // Databases & Caching
+  redis: 'n8n-nodes-redis',
+  mongodb: 'n8n-nodes-mongodb',
+  dynamodb: 'n8n-nodes-dynamodb',
+
+  // Cloud Storage
+  minio: 'n8n-nodes-minio',
+  backblaze: 'n8n-nodes-backblaze',
+
+  // DevOps & Infra
+  docker: 'n8n-nodes-docker',
+  kubernetes: 'n8n-nodes-kubernetes',
+  portainer: 'n8n-nodes-portainer',
+
+  // AI & ML
+  'openai-advanced': 'n8n-nodes-openai',
+  langchain: '@n8n/n8n-nodes-langchain',
+
+  // Productivity
+  'google-calendar-advanced': 'n8n-nodes-google-calendar',
+  raindrop: 'n8n-nodes-raindrop',
+  rss: 'n8n-nodes-rss-feed-trigger',
+
+  // Social
+  mastodon: 'n8n-nodes-mastodon',
+  bluesky: 'n8n-nodes-bluesky',
+
+  // Home Automation
+  'home-assistant': 'n8n-nodes-home-assistant',
+  mqtt: 'n8n-nodes-mqtt',
+
+  // CRM & Marketing
+  lemlist: 'n8n-nodes-lemlist',
+
+  // Finance
+  plaid: 'n8n-nodes-plaid',
+};
+
+/** Look up the community package needed for a service (if any). */
+export function getRequiredPackage(serviceId: string, communityPackage?: string): string | null {
+  // Explicit per-service override takes priority
+  if (communityPackage) return communityPackage;
+  // Then check the static map
+  return COMMUNITY_PACKAGE_MAP[serviceId] ?? null;
+}

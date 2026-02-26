@@ -16,9 +16,10 @@ import {
 import { SERVICE_CATALOG } from './catalog';
 import { openSetupGuide } from './setup-guide';
 import { refreshConnected } from './index';
+import { invoke } from '@tauri-apps/api/core';
 import { loadAutomations, loadServiceTemplates } from './automations';
 import { loadQueryPanel, loadServiceQueries, setQueryConnectedIds } from './queries';
-import { mountCommunityBrowser } from './community';
+import { mountCommunityBrowser, getRequiredPackage, displayName as communityDisplayName } from './community';
 import { kineticStagger, kineticDot } from '../../components/kinetic-row';
 import type { EngineSkillStatus, McpServerConfig, McpServerStatus } from '../../engine';
 
@@ -363,6 +364,8 @@ function _renderDetail(service: ServiceDefinition): void {
       }
     </div>
 
+    <div id="community-package-banner"></div>
+
     <div class="integrations-detail-section">
       <h3><span class="ms ms-sm">auto_awesome</span> What Your Agent Can Do</h3>
       <ul class="integrations-capabilities">
@@ -435,6 +438,79 @@ function _renderDetail(service: ServiceDefinition): void {
   document.getElementById('detail-connect-btn')?.addEventListener('click', () => {
     _openGuide(service);
   });
+
+  // Show community package banner if applicable
+  _renderCommunityBanner(service);
+}
+
+// ── Community package banner in detail panel ─────────────────────────
+
+async function _renderCommunityBanner(service: ServiceDefinition): Promise<void> {
+  const requiredPkg = getRequiredPackage(service.id, service.communityPackage);
+  if (!requiredPkg) return;
+
+  const banner = document.getElementById('community-package-banner');
+  if (!banner) return;
+
+  const pkgName = communityDisplayName(requiredPkg);
+
+  // Check if already installed
+  let isInstalled = false;
+  try {
+    const installed = await invoke<Array<{ packageName: string }>>(
+      'engine_n8n_community_packages_list',
+    );
+    isInstalled = installed.some((p) => p.packageName === requiredPkg);
+  } catch {
+    // n8n not running — show banner anyway
+  }
+
+  if (isInstalled) {
+    banner.innerHTML = `
+      <div class="community-req-banner community-req-installed">
+        <span class="ms ms-sm">check_circle</span>
+        <span>Community package <strong>${escHtml(pkgName)}</strong> is installed — native node support active.</span>
+      </div>`;
+  } else {
+    banner.innerHTML = `
+      <div class="community-req-banner community-req-available">
+        <span class="ms ms-sm">extension</span>
+        <div class="community-req-text">
+          <span>A dedicated community package <strong>${escHtml(requiredPkg)}</strong> is available for richer integration.</span>
+          <span class="community-req-hint">Install it for native node support instead of generic HTTP requests.</span>
+        </div>
+        <button class="btn btn-sm community-req-install" id="community-req-install-btn">
+          <span class="ms ms-sm">add_circle</span> Install
+        </button>
+      </div>`;
+
+    document.getElementById('community-req-install-btn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('community-req-install-btn') as HTMLButtonElement;
+      if (!btn) return;
+      btn.disabled = true;
+      btn.innerHTML = '<span class="ms ms-sm k-spin">progress_activity</span> Installing…';
+
+      try {
+        const { showToast: toast } = await import('../../components/toast');
+        await invoke('engine_n8n_community_packages_install', { packageName: requiredPkg });
+        toast(`Installed ${requiredPkg}`, 'success');
+
+        // Auto-deploy MCP workflow
+        try {
+          await invoke('engine_n8n_deploy_mcp_workflow');
+        } catch { /* best effort */ }
+
+        // Re-render banner as installed
+        _renderCommunityBanner(service);
+      } catch (e) {
+        const err = e instanceof Error ? e.message : String(e);
+        const { showToast: toast } = await import('../../components/toast');
+        toast(`Install failed: ${err}`, 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<span class="ms ms-sm">add_circle</span> Install';
+      }
+    });
+  }
 }
 
 // ── Setup guide launcher ───────────────────────────────────────────────
@@ -443,12 +519,151 @@ function _openGuide(service: ServiceDefinition): void {
   const panel = document.getElementById('integrations-detail');
   if (!panel) return;
   panel.style.display = 'block';
-  openSetupGuide(panel, service, {
-    onSave: () => {
-      // Re-fetch connected list from backend so cards show ON/Connected
-      refreshConnected();
-    },
-    onClose: () => _renderDetail(service),
+
+  // Check if a community package is needed and not yet installed
+  const requiredPkg = getRequiredPackage(service.id, service.communityPackage);
+  if (requiredPkg) {
+    _showAutoInstallPrompt(panel, service, requiredPkg);
+  } else {
+    openSetupGuide(panel, service, {
+      onSave: () => {
+        refreshConnected();
+      },
+      onClose: () => _renderDetail(service),
+    });
+  }
+}
+
+/** Show a prompt to install a required community package before setup. */
+async function _showAutoInstallPrompt(
+  panel: HTMLElement,
+  service: ServiceDefinition,
+  requiredPkg: string,
+): Promise<void> {
+  // First check if already installed
+  let alreadyInstalled = false;
+  try {
+    const installed = await invoke<Array<{ packageName: string }>>(
+      'engine_n8n_community_packages_list',
+    );
+    alreadyInstalled = installed.some((p) => p.packageName === requiredPkg);
+  } catch {
+    // n8n not running — skip check, proceed to guide directly
+    openSetupGuide(panel, service, {
+      onSave: () => { refreshConnected(); },
+      onClose: () => _renderDetail(service),
+    });
+    return;
+  }
+
+  if (alreadyInstalled) {
+    // Already installed — go straight to setup
+    openSetupGuide(panel, service, {
+      onSave: () => { refreshConnected(); },
+      onClose: () => _renderDetail(service),
+    });
+    return;
+  }
+
+  // Show install prompt
+  const pkgDisplay = communityDisplayName(requiredPkg);
+  panel.innerHTML = `
+    <div class="setup-guide">
+      <div class="setup-guide-header">
+        <div class="setup-guide-icon" style="background: ${service.color}15; color: ${service.color}">
+          <span class="ms ms-lg">${service.icon}</span>
+        </div>
+        <div class="setup-guide-title-wrap">
+          <h2 class="setup-guide-title">Install ${escHtml(pkgDisplay)}</h2>
+          <span class="setup-guide-time">
+            <span class="ms ms-sm">extension</span>
+            Community package required
+          </span>
+        </div>
+        <button class="btn btn-ghost btn-sm setup-guide-close" id="auto-install-close">
+          <span class="ms">close</span>
+        </button>
+      </div>
+
+      <div class="community-req-banner community-req-available" style="margin:16px 0">
+        <span class="ms">info</span>
+        <div class="community-req-text">
+          <span><strong>${escHtml(service.name)}</strong> requires the community package
+            <code style="font-size:12px;padding:2px 6px;background:var(--bg-tertiary,rgba(255,255,255,0.05));border-radius:4px">${escHtml(requiredPkg)}</code></span>
+          <span class="community-req-hint">This provides native n8n node support with richer actions and triggers.</span>
+        </div>
+      </div>
+
+      <div class="setup-guide-actions">
+        <button class="btn btn-primary" id="auto-install-btn">
+          <span class="ms ms-sm">download</span>
+          <span>Install &amp; Continue</span>
+        </button>
+        <button class="btn btn-ghost" id="auto-install-skip">
+          Skip (use generic HTTP)
+        </button>
+      </div>
+
+      <div id="auto-install-feedback" style="display:none"></div>
+    </div>
+  `;
+
+  // Close button
+  document.getElementById('auto-install-close')?.addEventListener('click', () => {
+    _renderDetail(service);
+  });
+
+  // Skip button — proceed to guide without installing
+  document.getElementById('auto-install-skip')?.addEventListener('click', () => {
+    openSetupGuide(panel, service, {
+      onSave: () => { refreshConnected(); },
+      onClose: () => _renderDetail(service),
+    });
+  });
+
+  // Install button
+  document.getElementById('auto-install-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('auto-install-btn') as HTMLButtonElement;
+    const skipBtn = document.getElementById('auto-install-skip') as HTMLButtonElement;
+    const feedback = document.getElementById('auto-install-feedback') as HTMLElement;
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="ms ms-sm k-spin">progress_activity</span> Installing… (this may take a minute)';
+    if (skipBtn) skipBtn.style.display = 'none';
+    if (feedback) {
+      feedback.style.display = 'block';
+      feedback.innerHTML = '<div class="setup-guide-fb setup-guide-fb-testing"><span class="ms ms-sm spin">progress_activity</span> Installing community package…</div>';
+    }
+
+    try {
+      await invoke('engine_n8n_community_packages_install', { packageName: requiredPkg });
+
+      // Auto-deploy MCP workflow
+      try {
+        await invoke('engine_n8n_deploy_mcp_workflow');
+      } catch { /* best effort */ }
+
+      if (feedback) {
+        feedback.innerHTML = '<div class="setup-guide-fb setup-guide-fb-success"><span class="ms ms-sm">check_circle</span> Package installed! Continuing to setup…</div>';
+      }
+
+      // Short delay so user sees the success, then proceed to setup guide
+      setTimeout(() => {
+        openSetupGuide(panel, service, {
+          onSave: () => { refreshConnected(); },
+          onClose: () => _renderDetail(service),
+        });
+      }, 1200);
+    } catch (e) {
+      const err = e instanceof Error ? e.message : String(e);
+      if (feedback) {
+        feedback.innerHTML = `<div class="setup-guide-fb setup-guide-fb-error"><span class="ms ms-sm">error</span> Install failed: ${escHtml(err)}</div>`;
+      }
+      btn.disabled = false;
+      btn.innerHTML = '<span class="ms ms-sm">download</span> <span>Retry Install</span>';
+      if (skipBtn) skipBtn.style.display = '';
+    }
   });
 }
 

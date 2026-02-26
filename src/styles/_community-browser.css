@@ -336,3 +336,49 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* ── Community Package Requirement Banner ── */
+.community-req-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+.community-req-banner > .ms {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.community-req-available {
+  background: rgba(var(--accent-rgb, 99, 102, 241), 0.06);
+  border-color: rgba(var(--accent-rgb, 99, 102, 241), 0.25);
+}
+.community-req-available > .ms {
+  color: var(--accent);
+}
+.community-req-installed {
+  background: rgba(var(--success-rgb, 143, 176, 160), 0.06);
+  border-color: rgba(var(--success-rgb, 143, 176, 160), 0.25);
+}
+.community-req-installed > .ms {
+  color: var(--kinetic-sage, var(--success));
+}
+.community-req-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.community-req-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.community-req-install {
+  flex-shrink: 0;
+  align-self: center;
+}

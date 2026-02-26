@@ -5,7 +5,7 @@
 >
 > **Architecture**: `Opus (Architect) → MCP → n8n Bridge → Qwen (Worker/Foreman)`
 >
-> **Status**: Phases 0–5 shipped. Phase 6.1 shipped. Phase 6.2 + 7 in progress.
+> **Status**: Phases 0–6 shipped. Phase 7 in progress.
 
 ---
 
@@ -271,7 +271,7 @@ Users can toggle which services each agent can use:
 - [x] CSS: `_community-browser.css` imported in index.css
 - [x] Wired as "Community" tab in integrations main tabs
 
-#### 6.2 — On-Demand Auto-Install
+#### ✅ 6.2 — On-Demand Auto-Install
 
 When a user clicks a catalog service that requires a community node not yet installed:
 
@@ -282,10 +282,14 @@ User clicks "Redis" in catalog
   → User confirms → install → deploy MCP workflow → ready
 ```
 
-- [ ] Map catalog services to required community packages
-- [ ] Check installed packages against requirements
-- [ ] Install prompt with package metadata (stars, size, author)
-- [ ] Automatic MCP workflow deployment after install
+- [x] `communityPackage` optional field added to `ServiceDefinition` type
+- [x] `COMMUNITY_PACKAGE_MAP` in `community/atoms.ts` — 30+ service→package mappings
+- [x] `getRequiredPackage()` helper checks explicit field then static map
+- [x] `_showAutoInstallPrompt()` in molecules.ts — install prompt before setup guide
+- [x] "Install & Continue" or "Skip (use generic HTTP)" flow
+- [x] `_renderCommunityBanner()` — banner in detail panel for available packages
+- [x] Automatic MCP workflow deployment after install
+- [x] CSS: `.community-req-banner` styles (available + installed states)
 
 ---
 
