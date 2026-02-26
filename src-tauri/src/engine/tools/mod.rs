@@ -39,6 +39,7 @@ pub mod tasks;
 pub mod telegram;
 pub mod trello;
 pub mod web;
+pub mod worker_delegate;
 
 // ── ToolDefinition helpers (keep backward-compatible API for all callers) ───
 
@@ -153,21 +154,33 @@ pub async fn execute_tool(
         .or(discord::execute(name, &args, app_handle).await)
         .or(trello::execute(name, &args, app_handle).await);
 
-    // Try MCP tools (prefixed with `mcp_`) if no built-in handled it
-    // NOTE: holds the tokio::sync::Mutex for the duration of the tool call.
-    // This is safe (tokio mutex is await-safe) but limits concurrency.
-    // TODO(perf): extract client Arc and drop lock before awaiting call_tool.
+    // Try MCP tools (prefixed with `mcp_`) if no built-in handled it.
+    // When a worker_model is configured, delegate MCP calls to the local
+    // Ollama worker instead of executing directly — zero API cost.
     let result = match result {
         Some(r) => r,
         None if name.starts_with("mcp_") => {
-            if let Some(state) = app_handle.try_state::<EngineState>() {
-                let reg = state.mcp_registry.lock().await;
-                match reg.execute_tool(name, &args).await {
-                    Some(r) => r,
-                    None => Err(format!("Unknown tool: {}", name)),
+            // Try worker delegation first (local Ollama model)
+            if let Some(worker_result) =
+                worker_delegate::delegate_to_worker(tool_call, app_handle, agent_id).await
+            {
+                if worker_result.success {
+                    Ok(worker_result.output)
+                } else {
+                    Err(worker_result.output)
                 }
             } else {
-                Err(format!("Unknown tool: {}", name))
+                // No worker configured — fall back to direct MCP execution
+                info!("[engine] No worker model configured, executing MCP tool directly");
+                if let Some(state) = app_handle.try_state::<EngineState>() {
+                    let reg = state.mcp_registry.lock().await;
+                    match reg.execute_tool(name, &args).await {
+                        Some(r) => r,
+                        None => Err(format!("Unknown tool: {}", name)),
+                    }
+                } else {
+                    Err(format!("Unknown tool: {}", name))
+                }
             }
         }
         None => Err(format!("Unknown tool: {}", name)),
