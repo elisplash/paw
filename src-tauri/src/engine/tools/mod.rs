@@ -26,6 +26,7 @@ pub mod google;
 pub mod google_oauth;
 pub mod integrations;
 pub mod memory;
+pub mod n8n;
 pub mod request_tools;
 pub mod skill_output;
 pub mod skill_storage;
@@ -59,6 +60,7 @@ impl ToolDefinition {
         tools.extend(agent_comms::definitions());
         tools.extend(squads::definitions());
         tools.extend(request_tools::definitions());
+        tools.extend(n8n::definitions());
         tools
     }
 
@@ -143,6 +145,7 @@ pub async fn execute_tool(
         .or(slack::execute(name, &args, app_handle).await)
         .or(github::execute(name, &args, app_handle).await)
         .or(integrations::execute(name, &args, app_handle).await)
+        .or(n8n::execute(name, &args, app_handle).await)
         .or(coinbase::execute(name, &args, app_handle).await)
         .or(dex::execute(name, &args, app_handle).await)
         .or(solana::execute(name, &args, app_handle).await)

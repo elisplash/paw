@@ -302,6 +302,22 @@ function _wireGuideEvents(container: HTMLElement, service: ServiceDefinition): v
         btn.querySelector('.guide-btn-label')!.textContent = 'Saved!';
         btn.classList.add('btn-success');
       }
+
+      // ── Wire: connect service + bridge credentials → skill vault ──
+      try {
+        // Mark service as connected (updates connected list & health monitor)
+        await invoke('engine_integrations_connect', {
+          serviceId: service.id,
+          toolCount: service.capabilities?.length ?? 1,
+        });
+        // Bridge integration creds → skill vault & auto-enable skill
+        await invoke('engine_integrations_provision', {
+          serviceId: service.id,
+        });
+      } catch (e) {
+        console.warn('[setup-guide] Post-save wiring:', e);
+      }
+
       // Notify parent
       _callbacks.onSave(service.id, credentials);
     } else {

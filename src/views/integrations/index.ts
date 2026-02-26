@@ -17,6 +17,7 @@ import {
   type McpServerStatus,
 } from '../../engine';
 import { isEngineMode } from '../../engine-bridge';
+import { invoke } from '@tauri-apps/api/core';
 
 // ── Module state ───────────────────────────────────────────────────────
 
@@ -62,8 +63,16 @@ export async function loadIntegrations(): Promise<void> {
   // Pass native data into molecules for rendering
   setNativeIntegrations(nativeSkills, mcpServers, mcpStatuses);
 
-  // TODO Phase 2.5+: fetch connected services from backend
-  // _connected = await pawEngine.engine_n8n_get_connected_services();
+  // Fetch connected services from backend
+  if (isEngineMode()) {
+    try {
+      const details = await invoke<ConnectedService[]>('engine_integrations_get_connected');
+      _connected.length = 0;
+      _connected.push(...details);
+    } catch (e) {
+      console.warn('[integrations] Failed to fetch connected services:', e);
+    }
+  }
   renderIntegrations();
 
   // Side panel

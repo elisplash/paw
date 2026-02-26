@@ -2,7 +2,11 @@
 
 use crate::engine::channels;
 use crate::engine::n8n_engine;
+use crate::engine::skills;
+use crate::engine::state::EngineState;
+use log::info;
 use serde::{Deserialize, Serialize};
+use tauri::Manager;
 
 // ── Config ─────────────────────────────────────────────────────────────
 
@@ -756,19 +760,279 @@ pub async fn engine_integrations_credential_status(
 }
 
 /// Auto-provision agent tools after saving credentials.
-/// Phase 3+: Will create/activate n8n workflows and register tools.
+/// Bridges integration credentials → skill vault and auto-enables the skill.
 #[tauri::command]
-pub async fn engine_integrations_provision(
-    _app_handle: tauri::AppHandle,
+pub fn engine_integrations_provision(
+    app_handle: tauri::AppHandle,
     service_id: String,
 ) -> Result<String, String> {
-    // Phase 3+ stub: in the full implementation, this would:
-    // 1. Find the n8n workflow template for this service
-    // 2. Inject saved credentials into the workflow
-    // 3. Activate the workflow
-    // 4. Register new tools with the agent
+    // 1. Load integration credentials
+    let cred_key = format!("integration_creds_{}", service_id);
+    let creds: std::collections::HashMap<String, String> =
+        channels::load_channel_config(&app_handle, &cred_key)
+            .map_err(|e| format!("Failed to load credentials for {}: {}", service_id, e))?;
+
+    if creds.is_empty() {
+        return Err(format!(
+            "No credentials found for '{}'. Save credentials first.",
+            service_id
+        ));
+    }
+
+    // 2. Map integration credential keys → skill vault keys
+    let (skill_id, mapped_creds) = map_integration_to_skill(&service_id, &creds);
+
+    if mapped_creds.is_empty() {
+        return Ok(format!(
+            "Service '{}' credentials saved. No skill mapping needed (will use REST API tool).",
+            service_id
+        ));
+    }
+
+    // 3. Get engine state and vault key for encryption
+    let state = app_handle
+        .try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+    let vault_key = skills::get_vault_key();
+
+    // 4. Write each credential to the skill vault (encrypted)
+    for (key, value) in &mapped_creds {
+        let encrypted = skills::encrypt_credential(value, &vault_key);
+        state
+            .store
+            .set_skill_credential(&skill_id, key, &encrypted)
+            .map_err(|e| {
+                format!(
+                    "Failed to store credential {} for skill {}: {}",
+                    key, skill_id, e
+                )
+            })?;
+    }
+
+    // 5. Auto-enable the skill
+    state
+        .store
+        .set_skill_enabled(&skill_id, true)
+        .map_err(|e| format!("Failed to enable skill {}: {}", skill_id, e))?;
+
+    let tool_count = mapped_creds.len();
+    info!(
+        "[provision] Bridged {} credentials for service '{}' → skill '{}', skill enabled",
+        tool_count, service_id, skill_id
+    );
+
     Ok(format!(
-        "Service '{}' provisioned. Agent tools will be available when n8n is configured.",
-        service_id
+        "Service '{}' provisioned → skill '{}' enabled with {} credentials. Agent tools are now active.",
+        service_id, skill_id, tool_count
     ))
+}
+
+/// Map integration credential keys (from UI) to skill vault keys (for tools).
+/// Returns (skill_id, mapped_credentials).
+fn map_integration_to_skill(
+    service_id: &str,
+    creds: &std::collections::HashMap<String, String>,
+) -> (String, std::collections::HashMap<String, String>) {
+    let mut mapped = std::collections::HashMap::new();
+
+    let skill_id = match service_id {
+        // ── Services with dedicated tool modules ──
+        "slack" => {
+            if let Some(v) = creds.get("bot_token").or(creds.get("access_token")).or(creds.get("api_key")) {
+                mapped.insert("SLACK_BOT_TOKEN".into(), v.clone());
+            }
+            if let Some(v) = creds.get("default_channel") {
+                mapped.insert("SLACK_DEFAULT_CHANNEL".into(), v.clone());
+            }
+            "slack"
+        }
+        "discord" => {
+            if let Some(v) = creds.get("bot_token").or(creds.get("api_key")) {
+                mapped.insert("DISCORD_BOT_TOKEN".into(), v.clone());
+            }
+            if let Some(v) = creds.get("default_channel") {
+                mapped.insert("DISCORD_DEFAULT_CHANNEL".into(), v.clone());
+            }
+            if let Some(v) = creds.get("server_id").or(creds.get("guild_id")) {
+                mapped.insert("DISCORD_SERVER_ID".into(), v.clone());
+            }
+            "discord"
+        }
+        "github" | "github-app" => {
+            if let Some(v) = creds.get("access_token").or(creds.get("api_key")).or(creds.get("token")) {
+                mapped.insert("GITHUB_TOKEN".into(), v.clone());
+            }
+            "github"
+        }
+        "trello" => {
+            if let Some(v) = creds.get("api_key") {
+                mapped.insert("TRELLO_API_KEY".into(), v.clone());
+            }
+            if let Some(v) = creds.get("api_token").or(creds.get("token")) {
+                mapped.insert("TRELLO_TOKEN".into(), v.clone());
+            }
+            "trello"
+        }
+        "telegram" => {
+            // Telegram uses channel bridge config, but we also store in skill vault
+            // so the tool can use it directly
+            if let Some(v) = creds.get("bot_token").or(creds.get("api_key")) {
+                mapped.insert("TELEGRAM_BOT_TOKEN".into(), v.clone());
+            }
+            "telegram"
+        }
+        // ── Services that map to the generic REST API skill ──
+        "notion" => {
+            if let Some(v) = creds.get("api_key").or(creds.get("access_token")) {
+                mapped.insert("API_KEY".into(), v.clone());
+            }
+            mapped.insert("API_BASE_URL".into(), "https://api.notion.com/v1".into());
+            mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+            mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
+            "rest_api"
+        }
+        "linear" => {
+            if let Some(v) = creds.get("api_key") {
+                mapped.insert("API_KEY".into(), v.clone());
+            }
+            mapped.insert("API_BASE_URL".into(), "https://api.linear.app".into());
+            mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+            mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
+            "rest_api"
+        }
+        "stripe" => {
+            if let Some(v) = creds.get("secret_key").or(creds.get("api_key")) {
+                mapped.insert("API_KEY".into(), v.clone());
+            }
+            mapped.insert("API_BASE_URL".into(), "https://api.stripe.com/v1".into());
+            mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+            mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
+            "rest_api"
+        }
+        "todoist" => {
+            if let Some(v) = creds.get("api_token").or(creds.get("api_key")) {
+                mapped.insert("API_KEY".into(), v.clone());
+            }
+            mapped.insert("API_BASE_URL".into(), "https://api.todoist.com/rest/v2".into());
+            mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+            mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
+            "rest_api"
+        }
+        "clickup" => {
+            if let Some(v) = creds.get("api_key") {
+                mapped.insert("API_KEY".into(), v.clone());
+            }
+            mapped.insert("API_BASE_URL".into(), "https://api.clickup.com/api/v2".into());
+            mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+            mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
+            "rest_api"
+        }
+        "airtable" => {
+            if let Some(v) = creds.get("api_key") {
+                mapped.insert("API_KEY".into(), v.clone());
+            }
+            mapped.insert("API_BASE_URL".into(), "https://api.airtable.com/v0".into());
+            mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+            mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
+            "rest_api"
+        }
+        "sendgrid" => {
+            if let Some(v) = creds.get("api_key") {
+                mapped.insert("API_KEY".into(), v.clone());
+            }
+            mapped.insert("API_BASE_URL".into(), "https://api.sendgrid.com/v3".into());
+            mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+            mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
+            "rest_api"
+        }
+        "jira" => {
+            // Jira uses Basic auth — store domain + encoded credentials
+            let domain = creds.get("domain").cloned().unwrap_or_default();
+            let email = creds.get("email").cloned().unwrap_or_default();
+            let token = creds.get("api_token").cloned().unwrap_or_default();
+            if !domain.is_empty() {
+                let base = if domain.starts_with("http") {
+                    format!("{}/rest/api/3", domain.trim_end_matches('/'))
+                } else {
+                    format!("https://{}/rest/api/3", domain.trim_end_matches('/'))
+                };
+                mapped.insert("API_BASE_URL".into(), base);
+            }
+            if !email.is_empty() && !token.is_empty() {
+                use base64::Engine;
+                let encoded = base64::engine::general_purpose::STANDARD
+                    .encode(format!("{}:{}", email, token));
+                mapped.insert("API_KEY".into(), encoded);
+                mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+                mapped.insert("API_AUTH_PREFIX".into(), "Basic".into());
+            }
+            "rest_api"
+        }
+        "zendesk" => {
+            let subdomain = creds.get("subdomain").cloned().unwrap_or_default();
+            let email = creds.get("email").cloned().unwrap_or_default();
+            let token = creds.get("api_token").cloned().unwrap_or_default();
+            if !subdomain.is_empty() {
+                mapped.insert(
+                    "API_BASE_URL".into(),
+                    format!("https://{}.zendesk.com/api/v2", subdomain),
+                );
+            }
+            if !email.is_empty() && !token.is_empty() {
+                use base64::Engine;
+                let encoded = base64::engine::general_purpose::STANDARD
+                    .encode(format!("{}/token:{}", email, token));
+                mapped.insert("API_KEY".into(), encoded);
+                mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+                mapped.insert("API_AUTH_PREFIX".into(), "Basic".into());
+            }
+            "rest_api"
+        }
+        "hubspot" => {
+            if let Some(v) = creds.get("access_token").or(creds.get("api_key")) {
+                mapped.insert("API_KEY".into(), v.clone());
+            }
+            mapped.insert("API_BASE_URL".into(), "https://api.hubapi.com".into());
+            mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+            mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
+            "rest_api"
+        }
+        "twilio" => {
+            let sid = creds.get("account_sid").cloned().unwrap_or_default();
+            let token = creds.get("auth_token").cloned().unwrap_or_default();
+            if !sid.is_empty() {
+                mapped.insert(
+                    "API_BASE_URL".into(),
+                    format!("https://api.twilio.com/2010-04-01/Accounts/{}", sid),
+                );
+            }
+            if !sid.is_empty() && !token.is_empty() {
+                use base64::Engine;
+                let encoded = base64::engine::general_purpose::STANDARD
+                    .encode(format!("{}:{}", sid, token));
+                mapped.insert("API_KEY".into(), encoded);
+                mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
+                mapped.insert("API_AUTH_PREFIX".into(), "Basic".into());
+            }
+            "rest_api"
+        }
+        "microsoft-teams" => {
+            // MS Teams uses OAuth — store client credentials for now
+            for (k, v) in creds {
+                mapped.insert(k.to_uppercase(), v.clone());
+            }
+            "rest_api"
+        }
+        // ── Fallback: store raw creds under service_id as a REST API skill ──
+        other => {
+            // For any unknown service, map all credentials as-is
+            // and try to use as REST API
+            for (k, v) in creds {
+                mapped.insert(k.to_uppercase(), v.clone());
+            }
+            other
+        }
+    };
+
+    (skill_id.to_string(), mapped)
 }

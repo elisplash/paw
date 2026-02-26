@@ -94,8 +94,7 @@ fn save_history(
 // ── Commands ───────────────────────────────────────────────────────────
 
 /// Execute a query against connected services.
-/// In Phase 2.9 this constructs a placeholder result; Phase 3+ will
-/// route through n8n workflow execution for real data.
+/// Routes the query through available integration tools (REST API, n8n, native skills).
 #[tauri::command]
 pub async fn engine_queries_execute(
     app_handle: tauri::AppHandle,
@@ -111,17 +110,16 @@ pub async fn engine_queries_execute(
         request.service_ids.clone()
     };
 
+    // Try to execute the query by making direct API calls to connected services
+    let result_text = execute_query_direct(&app_handle, &request.question, &target_services).await;
+
     // Store in history
     let entry = QueryHistoryEntry {
         id: query_id.clone(),
         question: request.question.clone(),
         service_ids: target_services.clone(),
         status: "success".to_string(),
-        formatted: format!(
-            "Query '{}' targeting {} service(s) — awaiting n8n workflow execution (Phase 3+).",
-            request.question,
-            target_services.len()
-        ),
+        formatted: result_text.clone(),
         executed_at: now.clone(),
     };
 
@@ -138,17 +136,121 @@ pub async fn engine_queries_execute(
     Ok(QueryResult {
         query_id,
         status: "success".to_string(),
-        formatted: format!(
-            "🔍 Query received: \"{}\"\n\
-             📡 Target service(s): {}\n\
-             ⏳ Real-time data fetching will be available once n8n workflows are configured.\n\
-             Use the Automations tab to set up service connections.",
-            request.question,
-            target_services.join(", "),
-        ),
+        formatted: result_text,
         data: None,
         highlights: None,
         executed_at: now,
+    })
+}
+
+/// Execute a query by making direct REST API calls to connected services.
+async fn execute_query_direct(
+    app_handle: &tauri::AppHandle,
+    question: &str,
+    target_services: &[String],
+) -> String {
+    use crate::engine::tools;
+
+    let mut results = Vec::new();
+
+    for service_id in target_services {
+        // Build a tool call to execute the query
+        let tool_call = build_query_tool_call(service_id, question);
+
+        if let Some(tc) = tool_call {
+            let result = tools::execute_tool(&tc, app_handle, "query-agent").await;
+            if result.success {
+                results.push(format!("📡 {} result:\n{}", service_id, result.output));
+            } else {
+                results.push(format!(
+                    "⚠️ {} error: {}\nEnsure the service is connected in Integrations.",
+                    service_id, result.output
+                ));
+            }
+        } else {
+            results.push(format!(
+                "ℹ️ {} — No direct query tool available. \
+                 Connect the service in Integrations to enable queries.",
+                service_id,
+            ));
+        }
+    }
+
+    if results.is_empty() {
+        format!(
+            "🔍 Query: \"{}\"\n\n\
+             No target services detected. Try asking about a specific service \
+             (e.g., \"How many GitHub issues are open?\").",
+            question,
+        )
+    } else {
+        format!(
+            "🔍 Query: \"{}\"\n\n{}",
+            question,
+            results.join("\n\n"),
+        )
+    }
+}
+
+/// Map a query to the appropriate tool call for a given service.
+fn build_query_tool_call(
+    service_id: &str,
+    question: &str,
+) -> Option<crate::engine::types::ToolCall> {
+    let (tool_name, args) = match service_id {
+        "github" => {
+            // Map common GitHub queries to API endpoints
+            let endpoint = if question.to_lowercase().contains("issue") {
+                "/repos/{owner}/{repo}/issues?state=open&per_page=10"
+            } else if question.to_lowercase().contains("pr") || question.to_lowercase().contains("pull request") {
+                "/repos/{owner}/{repo}/pulls?state=open&per_page=10"
+            } else {
+                "/user/repos?sort=updated&per_page=5"
+            };
+            ("github_api", serde_json::json!({"endpoint": endpoint, "method": "GET"}))
+        }
+        "slack" => {
+            ("slack_read", serde_json::json!({"channel": "general", "limit": 10}))
+        }
+        "trello" => {
+            ("rest_api_call", serde_json::json!({"path": "/1/members/me/boards", "method": "GET"}))
+        }
+        // For services that map to rest_api, use rest_api_call
+        "notion" | "linear" | "todoist" | "clickup" | "airtable"
+        | "sendgrid" | "hubspot" | "stripe" => {
+            let path = match service_id {
+                "notion" => "/search",
+                "linear" => "/graphql",
+                "todoist" => "/tasks",
+                "clickup" => "/team",
+                "airtable" => "/meta/bases",
+                "sendgrid" => "/user/profile",
+                "hubspot" => "/crm/v3/objects/contacts?limit=5",
+                "stripe" => "/balance",
+                _ => "/",
+            };
+            let method = if service_id == "notion" || service_id == "linear" { "POST" } else { "GET" };
+            ("rest_api_call", serde_json::json!({"path": path, "method": method}))
+        }
+        // Generic n8n execution for everything else
+        _ => {
+            ("n8n_execute_action", serde_json::json!({
+                "service": service_id,
+                "action": "list",
+                "params": {}
+            }))
+        }
+    };
+
+    Some(crate::engine::types::ToolCall {
+        id: format!("query-{}-{}", service_id, chrono::Utc::now().timestamp_millis()),
+        call_type: "function".into(),
+        function: crate::engine::types::FunctionCall {
+            name: tool_name.into(),
+            arguments: serde_json::to_string(&args).unwrap_or_default(),
+        },
+        thought_signature: None,
+        thought_parts: vec![],
     })
 }
 

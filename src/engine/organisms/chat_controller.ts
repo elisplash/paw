@@ -35,6 +35,10 @@ import {
   isSlashCommand,
   type CommandContext,
 } from '../../features/slash-commands';
+import {
+  parseCredentialSignal,
+  handleCredentialRequired,
+} from '../molecules/credential_bridge';
 import type { Message, ToolCall, Agent } from '../../types';
 
 const $ = (id: string) => document.getElementById(id);
@@ -833,6 +837,16 @@ export function finalizeStreaming(finalContent: string, toolCalls?: ToolCall[]):
 export function addMessage(message: MessageWithAttachments): void {
   appState.messages.push(message);
   renderMessages();
+
+  // ── Credential bridge: detect [CREDENTIAL_REQUIRED] signals ──
+  if (message.role === 'assistant' && message.content) {
+    const signal = parseCredentialSignal(message.content);
+    if (signal) {
+      handleCredentialRequired(signal).catch((e) =>
+        console.warn('[chat] Credential bridge error:', e),
+      );
+    }
+  }
 }
 
 function retryMessage(content: string): void {
