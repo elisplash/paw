@@ -793,7 +793,8 @@ pub fn engine_integrations_provision(
     let state = app_handle
         .try_state::<EngineState>()
         .ok_or("Engine state not available")?;
-    let vault_key = skills::get_vault_key();
+    let vault_key = skills::get_vault_key()
+        .map_err(|e| format!("Failed to get vault key: {}", e))?;
 
     // 4. Write each credential to the skill vault (encrypted)
     for (key, value) in &mapped_creds {

@@ -7,10 +7,8 @@
 
 use crate::atoms::types::*;
 use crate::engine::channels;
-use crate::engine::state::EngineState;
 use log::info;
 use std::time::Duration;
-use tauri::Manager;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![
@@ -90,9 +88,11 @@ struct N8nConnection {
 }
 
 fn load_n8n_config(app_handle: &tauri::AppHandle) -> Result<N8nConnection, String> {
-    #[derive(serde::Deserialize)]
+    #[derive(serde::Deserialize, Default)]
     struct Cfg {
+        #[serde(default)]
         url: String,
+        #[serde(default)]
         api_key: String,
     }
     let cfg: Cfg = channels::load_channel_config(app_handle, "n8n_config")
