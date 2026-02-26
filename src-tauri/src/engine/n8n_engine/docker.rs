@@ -109,6 +109,10 @@ pub async fn provision_docker_container(
         // Disable telemetry for self-hosted
         "N8N_DIAGNOSTICS_ENABLED=false".to_string(),
         "N8N_PERSONALIZATION_ENABLED=false".to_string(),
+        // Enable community node installation (required for 25K+ packages)
+        "N8N_COMMUNITY_PACKAGES_ENABLED=true".to_string(),
+        // Enable MCP server so workflows can expose tools via MCP
+        "N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true".to_string(),
     ];
 
     let host_config = HostConfig {
@@ -176,7 +180,7 @@ pub async fn provision_docker_container(
         process_port: None,
         enabled: true,
         auto_discover: true,
-        mcp_mode: false,
+        mcp_mode: true,
     };
     super::save_config(app_handle, &new_config)?;
 

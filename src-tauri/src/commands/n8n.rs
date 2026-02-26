@@ -340,13 +340,94 @@ pub async fn engine_n8n_trigger_workflow(
 /// Ensure the n8n integration engine is running.
 /// Returns the endpoint URL and mode.  Auto-provisions via Docker or
 /// Node.js if not already running.
+///
+/// When `mcp_mode` is enabled in the engine config, also auto-registers
+/// the n8n engine as an MCP server so agents discover tools dynamically.
 #[tauri::command]
 pub async fn engine_n8n_ensure_ready(
     app_handle: tauri::AppHandle,
 ) -> Result<n8n_engine::N8nEndpoint, String> {
-    n8n_engine::ensure_n8n_ready(&app_handle)
+    let endpoint = n8n_engine::ensure_n8n_ready(&app_handle)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    // ── MCP bridge auto-registration ───────────────────────────────
+    let config = n8n_engine::load_config(&app_handle).unwrap_or_default();
+    if config.mcp_mode {
+        if let Some(state) = app_handle.try_state::<EngineState>() {
+            let mut reg = state.mcp_registry.lock().await;
+            if !reg.is_n8n_registered() {
+                match reg.register_n8n(&endpoint.url, &endpoint.api_key).await {
+                    Ok(tool_count) => {
+                        log::info!(
+                            "[n8n] MCP bridge registered — {} tools available to agents",
+                            tool_count
+                        );
+                        // Notify frontend about MCP tools
+                        use tauri::Emitter;
+                        let _ = app_handle.emit(
+                            "n8n-mcp-status",
+                            serde_json::json!({
+                                "connected": true,
+                                "tool_count": tool_count,
+                            }),
+                        );
+                    }
+                    Err(e) => {
+                        log::warn!("[n8n] MCP bridge registration failed: {}", e);
+                        // Not fatal — n8n itself is running, just MCP discovery unavailable
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(endpoint)
+}
+
+/// Get the MCP bridge status for the n8n integration engine.
+/// Returns connection state and number of dynamically discovered tools.
+#[tauri::command]
+pub async fn engine_n8n_mcp_status(
+    app_handle: tauri::AppHandle,
+) -> Result<serde_json::Value, String> {
+    if let Some(state) = app_handle.try_state::<EngineState>() {
+        let reg = state.mcp_registry.lock().await;
+        let connected = reg.is_n8n_registered();
+        let tool_count = if connected {
+            reg.tool_definitions_for(&["n8n".into()]).len()
+        } else {
+            0
+        };
+        Ok(serde_json::json!({
+            "connected": connected,
+            "tool_count": tool_count,
+        }))
+    } else {
+        Ok(serde_json::json!({
+            "connected": false,
+            "tool_count": 0,
+        }))
+    }
+}
+
+/// Refresh the n8n MCP tool list (re-discovers tools from the running engine).
+#[tauri::command]
+pub async fn engine_n8n_mcp_refresh(
+    app_handle: tauri::AppHandle,
+) -> Result<usize, String> {
+    let state = app_handle
+        .try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+    let mut reg = state.mcp_registry.lock().await;
+    if reg.is_n8n_registered() {
+        reg.refresh_tools("n8n").await?;
+        let tool_count = reg.tool_definitions_for(&["n8n".into()]).len();
+        log::info!("[n8n] MCP tools refreshed — {} tools", tool_count);
+        Ok(tool_count)
+    } else {
+        Err("n8n MCP bridge is not connected".to_string())
+    }
 }
 
 /// Get the current status of the n8n engine (for Settings → Advanced).
@@ -389,6 +470,406 @@ pub async fn engine_n8n_shutdown(
 ) -> Result<(), String> {
     n8n_engine::shutdown(&app_handle).await;
     Ok(())
+}
+
+// ── Community Nodes: install/list/uninstall npm packages in n8n ────────
+
+/// A community node package installed in the n8n engine.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommunityPackage {
+    #[serde(rename = "packageName")]
+    pub package_name: String,
+    #[serde(rename = "installedVersion", default)]
+    pub installed_version: String,
+    #[serde(rename = "installedNodes", default)]
+    pub installed_nodes: Vec<CommunityNode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommunityNode {
+    pub name: String,
+    #[serde(rename = "type", default)]
+    pub node_type: String,
+}
+
+/// Get the n8n base URL and API key from the engine config.
+fn get_n8n_endpoint(app_handle: &tauri::AppHandle) -> Result<(String, String), String> {
+    let config = n8n_engine::load_config(app_handle).map_err(|e| e.to_string())?;
+    let url = match config.mode {
+        n8n_engine::N8nMode::Remote | n8n_engine::N8nMode::Local => config.url.clone(),
+        n8n_engine::N8nMode::Embedded => {
+            format!(
+                "http://127.0.0.1:{}",
+                config.container_port.unwrap_or(5678)
+            )
+        }
+        n8n_engine::N8nMode::Process => {
+            format!(
+                "http://127.0.0.1:{}",
+                config.process_port.unwrap_or(5678)
+            )
+        }
+    };
+    if url.is_empty() || config.api_key.is_empty() {
+        return Err("Integration engine not configured".into());
+    }
+    Ok((url, config.api_key))
+}
+
+/// List community node packages installed in the n8n engine.
+#[tauri::command]
+pub async fn engine_n8n_community_packages_list(
+    app_handle: tauri::AppHandle,
+) -> Result<Vec<CommunityPackage>, String> {
+    let (base_url, api_key) = get_n8n_endpoint(&app_handle)?;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .get(format!("{}/api/v1/community-packages", base_url.trim_end_matches('/')))
+        .header("X-N8N-API-KEY", &api_key)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to list community packages: {}", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status().as_u16();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("List packages failed (HTTP {}): {}", status, body));
+    }
+
+    let packages: Vec<CommunityPackage> = resp.json().await.map_err(|e| e.to_string())?;
+    Ok(packages)
+}
+
+/// Install a community node package from npm into the n8n engine.
+///
+/// `package_name` is the npm package name, e.g. "n8n-nodes-puppeteer"
+/// or "@n8n/n8n-nodes-langchain".
+#[tauri::command]
+pub async fn engine_n8n_community_packages_install(
+    app_handle: tauri::AppHandle,
+    package_name: String,
+) -> Result<CommunityPackage, String> {
+    let (base_url, api_key) = get_n8n_endpoint(&app_handle)?;
+
+    info!(
+        "[n8n] Installing community package: {}",
+        package_name
+    );
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120)) // npm install can be slow
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .post(format!("{}/api/v1/community-packages", base_url.trim_end_matches('/')))
+        .header("X-N8N-API-KEY", &api_key)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "name": package_name }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to install package: {}", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status().as_u16();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "Install '{}' failed (HTTP {}): {}",
+            package_name, status, body
+        ));
+    }
+
+    let pkg: CommunityPackage = resp.json().await.map_err(|e| e.to_string())?;
+    info!(
+        "[n8n] Installed {} v{} ({} nodes)",
+        pkg.package_name,
+        pkg.installed_version,
+        pkg.installed_nodes.len()
+    );
+
+    Ok(pkg)
+}
+
+/// Uninstall a community node package from the n8n engine.
+#[tauri::command]
+pub async fn engine_n8n_community_packages_uninstall(
+    app_handle: tauri::AppHandle,
+    package_name: String,
+) -> Result<(), String> {
+    let (base_url, api_key) = get_n8n_endpoint(&app_handle)?;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let resp = client
+        .delete(format!(
+            "{}/api/v1/community-packages",
+            base_url.trim_end_matches('/')
+        ))
+        .header("X-N8N-API-KEY", &api_key)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "name": package_name }))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to uninstall package: {}", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status().as_u16();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "Uninstall '{}' failed (HTTP {}): {}",
+            package_name, status, body
+        ));
+    }
+
+    info!("[n8n] Uninstalled community package: {}", package_name);
+    Ok(())
+}
+
+// ── MCP Workflow Auto-Deployer ─────────────────────────────────────────
+//
+// Creates n8n workflows with the MCP Server Trigger node that expose
+// service tools to agents via the MCP bridge. When a user connects
+// a service (saves credentials), we auto-deploy a workflow that makes
+// that service's actions available as MCP tools.
+
+/// Deploy an MCP-enabled workflow for a service into the n8n engine.
+///
+/// This creates (or updates) a workflow with:
+///   1. An MCP Server Trigger node (entry point for MCP tool calls)
+///   2. The service's n8n node configured to execute operations
+///
+/// Returns the created workflow ID.
+#[tauri::command]
+pub async fn engine_n8n_deploy_mcp_workflow(
+    app_handle: tauri::AppHandle,
+    service_id: String,
+    service_name: String,
+    n8n_node_type: String,
+) -> Result<String, String> {
+    let (base_url, api_key) = get_n8n_endpoint(&app_handle)?;
+
+    info!(
+        "[n8n:mcp] Deploying MCP workflow for service '{}' (node: {})",
+        service_id, n8n_node_type
+    );
+
+    let workflow_name = format!("OpenPawz MCP — {}", service_name);
+    let tag = format!("openpawz-mcp-{}", service_id);
+
+    // Check if workflow already exists (by searching for our tag)
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let existing = find_mcp_workflow(&client, &base_url, &api_key, &tag).await?;
+
+    // Build the MCP workflow JSON
+    let workflow_json = build_mcp_workflow(&workflow_name, &tag, &service_id, &n8n_node_type);
+
+    let workflow_id = if let Some(existing_id) = existing {
+        // Update existing workflow
+        let resp = client
+            .patch(format!(
+                "{}/api/v1/workflows/{}",
+                base_url.trim_end_matches('/'),
+                existing_id
+            ))
+            .header("X-N8N-API-KEY", &api_key)
+            .header("Content-Type", "application/json")
+            .json(&workflow_json)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to update workflow: {}", e))?;
+
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("Update workflow failed: {}", body));
+        }
+        existing_id
+    } else {
+        // Create new workflow
+        let resp = client
+            .post(format!(
+                "{}/api/v1/workflows",
+                base_url.trim_end_matches('/')
+            ))
+            .header("X-N8N-API-KEY", &api_key)
+            .header("Content-Type", "application/json")
+            .json(&workflow_json)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to create workflow: {}", e))?;
+
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("Create workflow failed: {}", body));
+        }
+
+        let result: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+        let id = result["id"]
+            .as_str()
+            .or_else(|| result["id"].as_u64().map(|_| ""))
+            .unwrap_or("");
+        // Handle numeric or string id
+        let id_str = if let Some(n) = result["id"].as_u64() {
+            n.to_string()
+        } else {
+            result["id"].as_str().unwrap_or("unknown").to_string()
+        };
+        id_str
+    };
+
+    // Activate the workflow so MCP trigger is live
+    let activate_resp = client
+        .patch(format!(
+            "{}/api/v1/workflows/{}",
+            base_url.trim_end_matches('/'),
+            workflow_id
+        ))
+        .header("X-N8N-API-KEY", &api_key)
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({ "active": true }))
+        .send()
+        .await;
+
+    match activate_resp {
+        Ok(r) if r.status().is_success() => {
+            info!("[n8n:mcp] Workflow '{}' activated (id={})", workflow_name, workflow_id);
+        }
+        Ok(r) => {
+            let body = r.text().await.unwrap_or_default();
+            log::warn!("[n8n:mcp] Workflow activation returned non-success: {}", body);
+        }
+        Err(e) => {
+            log::warn!("[n8n:mcp] Workflow activation request failed: {}", e);
+        }
+    }
+
+    // Refresh MCP tools so agents see the new workflow's tools
+    if let Some(state) = app_handle.try_state::<EngineState>() {
+        let mut reg = state.mcp_registry.lock().await;
+        if reg.is_n8n_registered() {
+            // Small delay to let n8n register the MCP trigger
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            if let Err(e) = reg.refresh_tools("n8n").await {
+                log::warn!("[n8n:mcp] Tool refresh after deploy failed: {}", e);
+            }
+        }
+    }
+
+    Ok(workflow_id)
+}
+
+/// Find an existing MCP workflow we deployed (by tag in the name).
+async fn find_mcp_workflow(
+    client: &reqwest::Client,
+    base_url: &str,
+    api_key: &str,
+    tag: &str,
+) -> Result<Option<String>, String> {
+    let resp = client
+        .get(format!(
+            "{}/api/v1/workflows",
+            base_url.trim_end_matches('/')
+        ))
+        .header("X-N8N-API-KEY", api_key)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to list workflows: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Ok(None); // Can't search — treat as not found
+    }
+
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+    let workflows = body["data"].as_array().or_else(|| body.as_array());
+
+    if let Some(workflows) = workflows {
+        for wf in workflows {
+            let name = wf["name"].as_str().unwrap_or("");
+            if name.contains(tag) {
+                let id = if let Some(n) = wf["id"].as_u64() {
+                    n.to_string()
+                } else {
+                    wf["id"].as_str().unwrap_or("").to_string()
+                };
+                if !id.is_empty() {
+                    return Ok(Some(id));
+                }
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+/// Build the n8n workflow JSON with MCP Server Trigger + service node.
+///
+/// The workflow structure:
+///   [MCP Server Trigger] → [Service Node (e.g. Slack)]
+///
+/// The MCP trigger exposes the service node's operations as MCP tools.
+/// When an agent calls a tool via MCP, the trigger fires, routes to the
+/// service node, executes the operation, and returns the result.
+fn build_mcp_workflow(
+    name: &str,
+    tag: &str,
+    service_id: &str,
+    n8n_node_type: &str,
+) -> serde_json::Value {
+    serde_json::json!({
+        "name": name,
+        "nodes": [
+            {
+                "parameters": {},
+                "id": format!("mcp-trigger-{}", service_id),
+                "name": "MCP Server Trigger",
+                "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+                "typeVersion": 1,
+                "position": [250, 300]
+            },
+            {
+                "parameters": {
+                    "operation": "={{ $json.operation }}",
+                },
+                "id": format!("node-{}", service_id),
+                "name": service_id,
+                "type": n8n_node_type,
+                "typeVersion": 1,
+                "position": [500, 300],
+            }
+        ],
+        "connections": {
+            "MCP Server Trigger": {
+                "main": [
+                    [
+                        {
+                            "node": service_id,
+                            "type": "main",
+                            "index": 0
+                        }
+                    ]
+                ]
+            }
+        },
+        "settings": {
+            "executionOrder": "v1"
+        },
+        "tags": [
+            { "name": tag },
+            { "name": "openpawz-mcp" }
+        ],
+        "active": false
+    })
 }
 
 // ── Phase 2.5: Integration credential commands ────────────────────────

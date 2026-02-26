@@ -335,6 +335,21 @@ function _wireGuideEvents(container: HTMLElement, service: ServiceDefinition): v
         console.error('[setup-guide] provision FAILED — agent tools will not work:', e);
       }
 
+      // ── MCP workflow deployment (dynamic tool discovery) ──
+      // Auto-deploy an n8n workflow with MCP trigger so the service's
+      // tools are discoverable by agents via the MCP bridge.
+      try {
+        await invoke('engine_n8n_deploy_mcp_workflow', {
+          serviceId: service.id,
+          serviceName: service.name,
+          n8nNodeType: service.n8nNodeType,
+        });
+        console.log(`[setup-guide] MCP workflow deployed for ${service.id}`);
+      } catch (e) {
+        // Non-fatal: MCP is a bonus, not required for basic tool usage
+        console.warn('[setup-guide] MCP workflow deploy (non-fatal):', e);
+      }
+
       // Notify parent
       _callbacks.onSave(service.id, credentials);
     } else {

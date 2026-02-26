@@ -55,6 +55,43 @@ export async function loadIntegrations(): Promise<void> {
       );
       mcpServers = servers;
       mcpStatuses = statuses;
+
+      // ── n8n MCP bridge: auto-ensure ready + fetch bridge status ──
+      try {
+        const mcpBridge = await invoke<{ connected: boolean; tool_count: number }>(
+          'engine_n8n_mcp_status',
+        );
+        if (mcpBridge.connected && mcpBridge.tool_count > 0) {
+          // Inject the n8n MCP bridge as a visible MCP server entry
+          const n8nServer: McpServerConfig = {
+            id: 'n8n',
+            name: 'n8n Integrations (MCP Bridge)',
+            transport: 'sse',
+            command: '',
+            args: [],
+            env: {},
+            url: '',
+            enabled: true,
+          };
+          const n8nStatus: McpServerStatus = {
+            id: 'n8n',
+            name: 'n8n Integrations (MCP Bridge)',
+            connected: true,
+            error: null,
+            tool_count: mcpBridge.tool_count,
+          };
+          // Only add if not already present from regular MCP list
+          if (!mcpServers.some((s) => s.id === 'n8n')) {
+            mcpServers.push(n8nServer);
+          }
+          if (!mcpStatuses.some((s) => s.id === 'n8n')) {
+            mcpStatuses.push(n8nStatus);
+          }
+        }
+      } catch (e) {
+        // n8n MCP bridge not available — that's fine
+        console.debug('[integrations] n8n MCP bridge not available:', e);
+      }
     } catch (e) {
       console.warn('[integrations] Failed to fetch native skills:', e);
     }

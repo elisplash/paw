@@ -2,8 +2,9 @@
 //
 // Manages the connection to a single MCP server.
 // Handles initialize handshake, tools/list, tools/call.
+// Supports both Stdio and SSE transports via McpTransportHandle.
 
-use super::transport::StdioTransport;
+use super::transport::McpTransportHandle;
 use super::types::*;
 use log::info;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -19,8 +20,8 @@ const TOOL_CALL_TIMEOUT: u64 = 120;
 pub struct McpClient {
     /// The server config this client was created from.
     pub config: McpServerConfig,
-    /// Underlying transport.
-    transport: StdioTransport,
+    /// Underlying transport (Stdio or SSE).
+    transport: McpTransportHandle,
     /// Monotonically increasing request ID.
     next_id: AtomicU64,
     /// Server's declared capabilities (from initialize response).
@@ -30,15 +31,30 @@ pub struct McpClient {
 }
 
 impl McpClient {
-    /// Spawn the server process, perform the MCP initialize handshake,
-    /// and fetch the initial tool list.
+    /// Connect to the MCP server using the appropriate transport,
+    /// perform the initialize handshake, and fetch the initial tool list.
     pub async fn connect(config: McpServerConfig) -> Result<Self, String> {
         info!(
-            "[mcp] Connecting to server '{}' ({})",
-            config.name, config.command
+            "[mcp] Connecting to server '{}' via {:?}",
+            config.name, config.transport
         );
 
-        let transport = StdioTransport::spawn(&config.command, &config.args, &config.env).await?;
+        let transport = match config.transport {
+            McpTransport::Stdio => {
+                use super::transport::StdioTransport;
+                let stdio = StdioTransport::spawn(&config.command, &config.args, &config.env).await?;
+                McpTransportHandle::Stdio(stdio)
+            }
+            McpTransport::Sse => {
+                use super::transport::SseTransport;
+                if config.url.is_empty() {
+                    return Err("SSE transport requires a URL".to_string());
+                }
+                // Pass env vars as headers (e.g., API keys)
+                let sse = SseTransport::connect(&config.url, &config.env).await?;
+                McpTransportHandle::Sse(sse)
+            }
+        };
 
         let mut client = McpClient {
             config,
@@ -176,7 +192,7 @@ impl McpClient {
         Ok(extract_text_content(&tool_result.content))
     }
 
-    /// Check if the underlying process is still alive.
+    /// Check if the underlying transport is still alive.
     pub async fn is_alive(&self) -> bool {
         self.transport.is_alive().await
     }

@@ -45,6 +45,9 @@ pub async fn start_n8n_process(
         .env("N8N_USER_FOLDER", data_dir.to_string_lossy().as_ref())
         .env("N8N_DIAGNOSTICS_ENABLED", "false")
         .env("N8N_PERSONALIZATION_ENABLED", "false")
+        // Enable community node installation (required for 25K+ packages)
+        .env("N8N_COMMUNITY_PACKAGES_ENABLED", "true")
+        .env("N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE", "true")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .spawn()
@@ -85,7 +88,7 @@ pub async fn start_n8n_process(
         process_port: Some(port),
         enabled: true,
         auto_discover: true,
-        mcp_mode: false,
+        mcp_mode: true,
     };
     super::save_config(app_handle, &new_config)?;
 

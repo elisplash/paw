@@ -6,9 +6,9 @@
 //
 // Architecture:
 //   types.rs     — MCP protocol types + config structs
-//   transport.rs — stdio process spawning + Content-Length framing
-//   client.rs    — JSON-RPC initialize/tools-list/tools-call
-//   registry.rs  — multi-server lifecycle + tool dispatch
+//   transport.rs — stdio + SSE transports + unified McpTransportHandle
+//   client.rs    — JSON-RPC initialize/tools-list/tools-call (transport-agnostic)
+//   registry.rs  — multi-server lifecycle + tool dispatch + n8n auto-registration
 
 pub mod client;
 pub mod registry;

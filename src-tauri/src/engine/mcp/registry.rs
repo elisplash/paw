@@ -2,11 +2,16 @@
 //
 // Manages the lifecycle of all configured MCP servers:
 // connect, disconnect, health-check, restart, and tool dispatch.
+// Also handles auto-registration of the embedded n8n engine as an MCP server.
 
 use super::client::McpClient;
 use super::types::*;
 use crate::atoms::types::{FunctionDefinition, ToolDefinition};
+use log::info;
 use std::collections::HashMap;
+
+/// Well-known server ID for the auto-registered n8n integration engine.
+pub const N8N_MCP_SERVER_ID: &str = "n8n";
 
 /// The MCP server registry. Thread-safe via Arc<tokio::sync::Mutex<McpRegistry>>
 /// stored in EngineState.
@@ -123,6 +128,61 @@ impl McpRegistry {
             .get_mut(id)
             .ok_or_else(|| format!("Server '{}' not connected", id))?;
         client.refresh_tools().await
+    }
+
+    /// Register the embedded n8n engine as an SSE-based MCP server.
+    ///
+    /// This is called automatically when n8n starts and `mcp_mode` is enabled.
+    /// The n8n MCP endpoint is at `{n8n_url}/mcp`.
+    /// After connecting, all n8n-provided tools appear as `mcp_n8n_{tool_name}`.
+    pub async fn register_n8n(&mut self, n8n_url: &str, api_key: &str) -> Result<usize, String> {
+        let mcp_url = format!("{}/mcp", n8n_url.trim_end_matches('/'));
+        info!(
+            "[mcp] Auto-registering n8n as MCP server at {}",
+            mcp_url
+        );
+
+        let mut env = HashMap::new();
+        if !api_key.is_empty() {
+            // n8n expects the API key as a header
+            env.insert("X-N8N-API-KEY".to_string(), api_key.to_string());
+        }
+
+        let config = McpServerConfig {
+            id: N8N_MCP_SERVER_ID.to_string(),
+            name: "n8n Integrations".to_string(),
+            transport: McpTransport::Sse,
+            command: String::new(),
+            args: vec![],
+            env,
+            url: mcp_url,
+            enabled: true,
+        };
+
+        self.connect(config).await?;
+
+        let tool_count = self
+            .clients
+            .get(N8N_MCP_SERVER_ID)
+            .map(|c| c.tools.len())
+            .unwrap_or(0);
+
+        info!(
+            "[mcp] n8n MCP server registered — {} tools discovered",
+            tool_count
+        );
+
+        Ok(tool_count)
+    }
+
+    /// Check if the n8n MCP server is currently registered.
+    pub fn is_n8n_registered(&self) -> bool {
+        self.clients.contains_key(N8N_MCP_SERVER_ID)
+    }
+
+    /// Disconnect the n8n MCP server.
+    pub async fn disconnect_n8n(&mut self) {
+        self.disconnect(N8N_MCP_SERVER_ID).await;
     }
 }
 
