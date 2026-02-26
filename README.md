@@ -24,10 +24,21 @@ A native desktop AI platform that runs fully offline, connects to any provider, 
 
 <div align="center">
 
-| Integration Hub | Fleet Command | Chat |
-|:---:|:---:|:---:|
-| <img src="images/screenshots/Integrations.png" alt="Integration Hub" width="320" height="165"> | <img src="images/screenshots/Agents.png" alt="Fleet Command" width="320" height="165"> | <img src="images/screenshots/Chat.png" alt="Chat" width="320" height="165"> |
-| 405+ services with category filters, connection health, and quick setup | Manage agents, deploy templates, monitor fleet activity | Session metrics, active jobs, quick actions, automations |
+**Integration Hub** — 405+ services with category filters, connection health, and quick setup
+
+<img src="images/screenshots/Integrations.png" alt="Integration Hub" width="800">
+
+<br>
+
+**Fleet Command** — Manage agents, deploy templates, and monitor fleet activity
+
+<img src="images/screenshots/Agents.png" alt="Fleet Command" width="800">
+
+<br>
+
+**Chat** — Session metrics, active jobs, quick actions, and automations
+
+<img src="images/screenshots/Chat.png" alt="Chat" width="800">
 
 </div>
 
