@@ -275,12 +275,13 @@
     max-height 0.3s ease;
   max-height: 600px;
   opacity: 1;
-  overflow: hidden;
+  overflow: visible; /* allow tooltips to extend outside */
 }
 .agent-dock-collapsed .agent-dock-items {
   max-height: 0;
   opacity: 0;
   pointer-events: none;
+  overflow: hidden;
 }
 
 .agent-dock-item {
