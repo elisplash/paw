@@ -516,6 +516,114 @@ fn get_n8n_endpoint(app_handle: &tauri::AppHandle) -> Result<(String, String), S
     Ok((url, config.api_key))
 }
 
+// ── NCNodes / npm Registry Search ──────────────────────────────────────
+
+/// A search result from the npm registry for n8n community packages.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NCNodeResult {
+    pub package_name: String,
+    pub description: String,
+    pub author: String,
+    pub version: String,
+    pub weekly_downloads: u64,
+    pub last_updated: String,
+    pub repository_url: Option<String>,
+    pub keywords: Vec<String>,
+}
+
+/// Search the npm registry for n8n community node packages.
+///
+/// Uses the npm registry search API with the `n8n-community-node-package`
+/// keyword filter. This covers the same 25,000+ packages indexed by ncnodes.com.
+#[tauri::command]
+pub async fn engine_n8n_search_ncnodes(
+    query: String,
+    limit: Option<u32>,
+) -> Result<Vec<NCNodeResult>, String> {
+    let limit = limit.unwrap_or(10).min(50);
+
+    info!("[n8n:ncnodes] Searching npm for '{}' (limit={})", query, limit);
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // npm registry search API — filter by the n8n community node keyword
+    let encoded_query = url::form_urlencoded::Serializer::new(String::new())
+        .append_pair("text", &format!("{} keywords:n8n-community-node-package", query))
+        .append_pair("size", &limit.to_string())
+        .finish();
+    let search_url = format!(
+        "https://registry.npmjs.org/-/v1/search?{}",
+        encoded_query
+    );
+
+    let resp = client
+        .get(&search_url)
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .map_err(|e| format!("npm search failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        let status = resp.status().as_u16();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("npm search failed (HTTP {}): {}", status, body));
+    }
+
+    let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
+
+    let results: Vec<NCNodeResult> = body["objects"]
+        .as_array()
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|obj| {
+                    let pkg = &obj["package"];
+                    let name = pkg["name"].as_str()?;
+                    Some(NCNodeResult {
+                        package_name: name.to_string(),
+                        description: pkg["description"]
+                            .as_str()
+                            .unwrap_or("")
+                            .to_string(),
+                        author: pkg["publisher"]["username"]
+                            .as_str()
+                            .or_else(|| pkg["author"]["name"].as_str())
+                            .unwrap_or("unknown")
+                            .to_string(),
+                        version: pkg["version"].as_str().unwrap_or("0.0.0").to_string(),
+                        weekly_downloads: obj["score"]["detail"]["popularity"]
+                            .as_f64()
+                            .map(|p| (p * 100_000.0) as u64)
+                            .unwrap_or(0),
+                        last_updated: pkg["date"].as_str().unwrap_or("").to_string(),
+                        repository_url: pkg["links"]["repository"]
+                            .as_str()
+                            .map(|s| s.to_string()),
+                        keywords: pkg["keywords"]
+                            .as_array()
+                            .map(|a| {
+                                a.iter()
+                                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                    .collect()
+                            })
+                            .unwrap_or_default(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    info!(
+        "[n8n:ncnodes] Found {} packages for '{}'",
+        results.len(),
+        query
+    );
+
+    Ok(results)
+}
+
 /// List community node packages installed in the n8n engine.
 #[tauri::command]
 pub async fn engine_n8n_community_packages_list(
@@ -715,10 +823,6 @@ pub async fn engine_n8n_deploy_mcp_workflow(
         }
 
         let result: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-        let id = result["id"]
-            .as_str()
-            .or_else(|| result["id"].as_u64().map(|_| ""))
-            .unwrap_or("");
         // Handle numeric or string id
         let id_str = if let Some(n) = result["id"].as_u64() {
             n.to_string()

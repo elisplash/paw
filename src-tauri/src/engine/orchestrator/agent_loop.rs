@@ -72,6 +72,10 @@ const SAFE_TOOLS: &[&str] = &[
     // Task management (read/create — not destructive)
     "create_task",
     "list_tasks",
+    // n8n discovery (read-only — no HIL needed)
+    "search_ncnodes",
+    "n8n_list_workflows",
+    "mcp_refresh",
 ];
 
 // ── Unified loop ───────────────────────────────────────────────────────

@@ -7,8 +7,10 @@
 
 use crate::atoms::types::*;
 use crate::engine::channels;
+use crate::engine::state::EngineState;
 use log::info;
 use std::time::Duration;
+use tauri::Manager;
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![
@@ -54,6 +56,56 @@ pub fn definitions() -> Vec<ToolDefinition> {
                 }),
             },
         },
+        // ── Zero-Gap Discovery & Install Tools ─────────────────────────
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "search_ncnodes".into(),
+                description: "Search 25,000+ n8n community automation packages on npm. Returns package name, description, author, version, and popularity. Use this when you need a capability that isn't in your current tool set — search for it, evaluate the results, and install the best match.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "Search query (e.g. 'puppeteer', 'redis', 'whatsapp', 'pdf generation')"
+                        },
+                        "limit": {
+                            "type": "number",
+                            "description": "Max results to return (default: 5, max: 20)"
+                        }
+                    },
+                    "required": ["query"]
+                }),
+            },
+        },
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "install_n8n_node".into(),
+                description: "Install an n8n community node package from npm. This adds new automation capabilities to your tool set. After installation, call mcp_refresh to discover the new tools. Requires user approval.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "package_name": {
+                            "type": "string",
+                            "description": "npm package name (e.g. 'n8n-nodes-puppeteer', '@custom/n8n-nodes-redis')"
+                        }
+                    },
+                    "required": ["package_name"]
+                }),
+            },
+        },
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "mcp_refresh".into(),
+                description: "Refresh the MCP tool list from the n8n engine. Call this after installing a new community node package to discover and use the new tools immediately.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {}
+                }),
+            },
+        },
     ]
 }
 
@@ -63,20 +115,28 @@ pub async fn execute(
     app_handle: &tauri::AppHandle,
 ) -> Option<Result<String, String>> {
     match name {
-        "n8n_list_workflows" | "n8n_trigger_workflow" | "n8n_execute_action" => {}
+        "n8n_list_workflows" | "n8n_trigger_workflow" | "n8n_execute_action"
+        | "search_ncnodes" | "install_n8n_node" | "mcp_refresh" => {}
         _ => return None,
     }
 
-    let config = match load_n8n_config(app_handle) {
-        Ok(c) => c,
-        Err(e) => return Some(Err(e)),
-    };
-
     Some(match name {
-        "n8n_list_workflows" => execute_list_workflows(&config).await,
-        "n8n_trigger_workflow" => execute_trigger_workflow(args, &config).await,
-        "n8n_execute_action" => execute_action(args, &config, app_handle).await,
-        _ => unreachable!(),
+        "search_ncnodes" => execute_search_ncnodes(args).await,
+        "install_n8n_node" => execute_install_n8n_node(args, app_handle).await,
+        "mcp_refresh" => execute_mcp_refresh(app_handle).await,
+        _ => {
+            // Original n8n workflow tools need n8n config
+            let config = match load_n8n_config(app_handle) {
+                Ok(c) => c,
+                Err(e) => return Some(Err(e)),
+            };
+            match name {
+                "n8n_list_workflows" => execute_list_workflows(&config).await,
+                "n8n_trigger_workflow" => execute_trigger_workflow(args, &config).await,
+                "n8n_execute_action" => execute_action(args, &config, app_handle).await,
+                _ => unreachable!(),
+            }
+        }
     })
 }
 
@@ -574,5 +634,153 @@ fn map_action_to_rest(service: &str, action: &str, params: &serde_json::Value) -
             ("DELETE", format!("/{}/{}", resource, id))
         }
         _ => ("GET", format!("/{}", action)),
+    }
+}
+
+// ── Zero-Gap Tool Executors ────────────────────────────────────────────
+
+/// Search npm for n8n community node packages.
+async fn execute_search_ncnodes(args: &serde_json::Value) -> Result<String, String> {
+    let query = args["query"]
+        .as_str()
+        .ok_or("search_ncnodes: missing 'query' parameter")?;
+    let limit = args["limit"].as_u64().unwrap_or(5).min(20) as u32;
+
+    info!("[tool:n8n] search_ncnodes query='{}' limit={}", query, limit);
+
+    let results = crate::commands::n8n::engine_n8n_search_ncnodes(
+        query.to_string(),
+        Some(limit),
+    )
+    .await?;
+
+    if results.is_empty() {
+        return Ok(format!(
+            "No n8n community packages found for '{}'. Try a different search term.",
+            query
+        ));
+    }
+
+    let mut output = format!("Found {} community package(s) for '{}':\n\n", results.len(), query);
+    for (i, pkg) in results.iter().enumerate() {
+        output.push_str(&format!(
+            "{}. **{}** v{}\n   {}\n   Author: {} | Popularity: {} | Updated: {}\n",
+            i + 1,
+            pkg.package_name,
+            pkg.version,
+            if pkg.description.is_empty() {
+                "(no description)".to_string()
+            } else {
+                pkg.description.clone()
+            },
+            pkg.author,
+            pkg.weekly_downloads,
+            if pkg.last_updated.is_empty() {
+                "unknown".to_string()
+            } else {
+                pkg.last_updated[..10.min(pkg.last_updated.len())].to_string()
+            },
+        ));
+        if let Some(repo) = &pkg.repository_url {
+            output.push_str(&format!("   Repo: {}\n", repo));
+        }
+        output.push('\n');
+    }
+    output.push_str("To install a package, use the install_n8n_node tool with the package name.");
+
+    Ok(output)
+}
+
+/// Install an n8n community node package via the n8n REST API.
+async fn execute_install_n8n_node(
+    args: &serde_json::Value,
+    app_handle: &tauri::AppHandle,
+) -> Result<String, String> {
+    let package_name = args["package_name"]
+        .as_str()
+        .ok_or("install_n8n_node: missing 'package_name' parameter")?;
+
+    info!("[tool:n8n] Installing community package: {}", package_name);
+
+    // Install via the existing Tauri command
+    let pkg = crate::commands::n8n::engine_n8n_community_packages_install(
+        app_handle.clone(),
+        package_name.to_string(),
+    )
+    .await?;
+
+    let node_names: Vec<String> = pkg
+        .installed_nodes
+        .iter()
+        .map(|n| n.name.clone())
+        .collect();
+
+    // Auto-deploy MCP workflow for the first node type if available
+    let mcp_deployed = if let Some(first_node) = pkg.installed_nodes.first() {
+        let service_id = package_name
+            .trim_start_matches("n8n-nodes-")
+            .trim_start_matches("@n8n/n8n-nodes-")
+            .replace('-', "_");
+        match crate::commands::n8n::engine_n8n_deploy_mcp_workflow(
+            app_handle.clone(),
+            service_id.clone(),
+            first_node.name.clone(),
+            first_node.node_type.clone(),
+        )
+        .await
+        {
+            Ok(_) => {
+                info!("[tool:n8n] Auto-deployed MCP workflow for {}", service_id);
+                true
+            }
+            Err(e) => {
+                info!("[tool:n8n] MCP workflow deploy skipped: {}", e);
+                false
+            }
+        }
+    } else {
+        false
+    };
+
+    // Auto-refresh MCP tools after install
+    let tool_count = match execute_mcp_refresh(app_handle).await {
+        Ok(msg) => msg,
+        Err(_) => "MCP refresh skipped".to_string(),
+    };
+
+    let mut output = format!(
+        "✅ Installed {} v{}\n   Nodes: {}\n",
+        pkg.package_name,
+        pkg.installed_version,
+        node_names.join(", ")
+    );
+    if mcp_deployed {
+        output.push_str("   MCP workflow deployed — new tools are available.\n");
+    }
+    output.push_str(&format!("   {}\n", tool_count));
+    output.push_str("\nThe new tools are now available in your tool set. You can use them immediately.");
+
+    Ok(output)
+}
+
+/// Refresh MCP tools from the n8n engine.
+async fn execute_mcp_refresh(app_handle: &tauri::AppHandle) -> Result<String, String> {
+    info!("[tool:n8n] Refreshing MCP tools");
+
+    let state = app_handle
+        .try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    let mut reg = state.mcp_registry.lock().await;
+    if reg.is_n8n_registered() {
+        reg.refresh_tools("n8n").await?;
+        let tool_count = reg.tool_definitions_for(&["n8n".into()]).len();
+        info!("[tool:n8n] MCP tools refreshed — {} tools available", tool_count);
+        Ok(format!(
+            "MCP tools refreshed. {} tool(s) now available from n8n.",
+            tool_count
+        ))
+    } else {
+        Err("n8n MCP bridge is not connected. Ensure n8n is running (engine_n8n_ensure_ready).".to_string())
     }
 }

@@ -412,6 +412,8 @@ pub fn run() {
             commands::n8n::engine_n8n_community_packages_install,
             commands::n8n::engine_n8n_community_packages_uninstall,
             commands::n8n::engine_n8n_deploy_mcp_workflow,
+            // ── NCNodes Discovery (Phase 3) ──
+            commands::n8n::engine_n8n_search_ncnodes,
             // ── Integration Credentials (Phase 2.5) ──
             commands::n8n::engine_integrations_test_credentials,
             commands::n8n::engine_integrations_save_credentials,
