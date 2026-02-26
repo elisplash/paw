@@ -73,6 +73,7 @@
 @import './_integrations.css';       /* Integrations view, matrix, setup guide */
 @import './_integration-feed.css';   /* Integration activity feed, receipts */
 @import './_health-dashboard.css';   /* Integration health dashboard */
+@import './_community-browser.css';  /* Community package browser (25K+ nodes) */
 
 /* ── Safety & Audit ─────────────────────────────────────── */
 @import './_guardrails.css';    /* Guardrails, rate limits, audit log, permissions */

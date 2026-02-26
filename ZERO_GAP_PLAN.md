@@ -5,7 +5,7 @@
 >
 > **Architecture**: `Opus (Architect) → MCP → n8n Bridge → Qwen (Worker/Foreman)`
 >
-> **Status**: Phases 0–5 shipped. Phase 6–7 in progress.
+> **Status**: Phases 0–5 shipped. Phase 6.1 shipped. Phase 6.2 + 7 in progress.
 
 ---
 
@@ -258,33 +258,18 @@ Users can toggle which services each agent can use:
 ### Phase 6 — Community Node Browser UI
 **Goal**: Visual search, install, and manage 25K+ packages from the app.
 
-#### 6.1 — Browse View
-**File**: `src/views/integrations/community-browser.ts` (new)
+#### ✅ 6.1 — Browse View
+**Files**: `src/views/integrations/community/` (atoms + molecules + index)
 
-```
-┌─────────────────────────────────────────────────┐
-│  🔍 Search community packages...                │
-│                                                 │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │ Puppeteer│  │ Telegram │  │ WhatsApp │      │
-│  │ ⭐ 142   │  │ ⭐ 89    │  │ ⭐ 234   │      │
-│  │ Browser  │  │ Messaging│  │ Messaging│      │
-│  │ [Install]│  │ [Install]│  │ [Installed]│    │
-│  └──────────┘  └──────────┘  └──────────┘      │
-│                                                 │
-│  Installed (3)                                  │
-│  ├── n8n-nodes-puppeteer v1.2.3 [Uninstall]    │
-│  ├── n8n-nodes-redis v0.8.1 [Uninstall]        │
-│  └── n8n-nodes-minio v2.0.0 [Uninstall]        │
-└─────────────────────────────────────────────────┘
-```
-
-- [ ] Search input with debounced ncnodes query
-- [ ] Package cards: name, stars, description, install button
-- [ ] Installed packages section (from `community_packages_list`)
-- [ ] Install progress indicator (npm install takes 10-60s)
-- [ ] Auto-deploy MCP workflow after install
-- [ ] Link from Integrations catalog: "Need more? Browse 25K+ packages →"
+- [x] Atomic file structure: atoms.ts (types/helpers), molecules.ts (DOM/IPC), index.ts (barrel)
+- [x] Search input with debounced ncnodes query
+- [x] Package cards: name, downloads, description, install button
+- [x] Installed packages tab (from `community_packages_list`)
+- [x] Install progress indicator (spinner + status)
+- [x] Auto-deploy MCP workflow after install
+- [x] Uninstall button with confirmation
+- [x] CSS: `_community-browser.css` imported in index.css
+- [x] Wired as "Community" tab in integrations main tabs
 
 #### 6.2 — On-Demand Auto-Install
 
@@ -430,6 +415,10 @@ N8N_MCP_SERVER_MODE=true                       # ✅ Shipped (via mcp_mode)
 | `resources/ollama/worker-qwen.Modelfile` | ✅ Done | Qwen silent executor profile |
 | `src-tauri/src/commands/ollama.rs` | ✅ Done | Ollama model management (5 commands) |
 | `src/views/settings-advanced/molecules.ts` | ✅ Done | Worker setup UI button |
+| `src/views/integrations/community/atoms.ts` | ✅ Done | Community browser types + helpers |
+| `src/views/integrations/community/molecules.ts` | ✅ Done | Community browser DOM + IPC |
+| `src/views/integrations/community/index.ts` | ✅ Done | Community browser barrel |
+| `src/styles/_community-browser.css` | ✅ Done | Community browser stylesheet |
 | `src/views/integrations/community-browser.ts` | 🔲 Phase 6 | Package browser UI |
 | `src-tauri/tests/n8n_mcp_e2e.rs` | 🔲 Phase 7 | Integration test |
 | `src-tauri/src/lib.rs` | ✅ Done + Phase 3 | Register new commands |

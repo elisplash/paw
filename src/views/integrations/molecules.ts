@@ -18,6 +18,7 @@ import { openSetupGuide } from './setup-guide';
 import { refreshConnected } from './index';
 import { loadAutomations, loadServiceTemplates } from './automations';
 import { loadQueryPanel, loadServiceQueries, setQueryConnectedIds } from './queries';
+import { mountCommunityBrowser } from './community';
 import { kineticStagger, kineticDot } from '../../components/kinetic-row';
 import type { EngineSkillStatus, McpServerConfig, McpServerStatus } from '../../engine';
 
@@ -64,7 +65,7 @@ let _searchQuery = '';
 let _activeCategory: ServiceCategory | 'all' = 'all';
 let _sortOption: SortOption = 'popular';
 let _viewMode: 'grid' | 'list' | 'matrix' = 'matrix';
-let _mainTab: 'services' | 'automations' | 'queries' = 'services';
+let _mainTab: 'services' | 'automations' | 'queries' | 'community' = 'services';
 
 // ── Main render ────────────────────────────────────────────────────────
 
@@ -84,6 +85,9 @@ export function renderIntegrations(): void {
         <button class="integrations-main-tab ${_mainTab === 'queries' ? 'active' : ''}" data-main-tab="queries">
           <span class="ms ms-sm">psychology</span> Queries
         </button>
+        <button class="integrations-main-tab ${_mainTab === 'community' ? 'active' : ''}" data-main-tab="community">
+          <span class="ms ms-sm">explore</span> Community
+        </button>
       </div>
     </div>
     <div id="integrations-tab-body"></div>
@@ -92,7 +96,7 @@ export function renderIntegrations(): void {
   // Wire main tab switching
   container.querySelectorAll('.integrations-main-tab').forEach((btn) => {
     btn.addEventListener('click', () => {
-      _mainTab = (btn as HTMLElement).dataset.mainTab as 'services' | 'automations' | 'queries';
+      _mainTab = (btn as HTMLElement).dataset.mainTab as 'services' | 'automations' | 'queries' | 'community';
       renderIntegrations();
     });
   });
@@ -105,6 +109,9 @@ export function renderIntegrations(): void {
     tabBody.innerHTML = '<div class="queries-panel"></div>';
     setQueryConnectedIds(new Set(_state.getConnected().map((c) => c.serviceId)));
     loadQueryPanel(tabBody.querySelector('.queries-panel')!);
+  } else if (_mainTab === 'community') {
+    tabBody.innerHTML = '<div class="community-panel"></div>';
+    mountCommunityBrowser(tabBody.querySelector('.community-panel')!);
   } else {
     _renderServicesTab(tabBody);
   }
