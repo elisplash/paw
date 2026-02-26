@@ -154,7 +154,7 @@ export async function loadAdvancedSettings() {
           <strong style="font-size:13px">Worker Agent (Foreman)</strong>
         </div>
         <p style="margin:0 0 8px;font-size:11px;color:var(--text-muted);line-height:1.4">
-          Create a local Qwen-based worker model optimized for silent tool execution.
+          Create a local Qwen-based worker model (qwen2.5-coder:7b, ~4.7 GB) optimized for silent tool execution.
           The Architect (cloud AI) delegates automation tasks to this local worker for fast, private execution via the n8n MCP bridge.
         </p>
       `;

@@ -5,12 +5,14 @@
 # them into precise MCP tool calls. No chat, no commentary — just execution.
 #
 # Usage:
+#   ollama pull qwen2.5-coder:7b
 #   ollama create worker-qwen -f worker-qwen.Modelfile
 #
-# Smaller machines:
-#   Edit the FROM line to use qwen3.5:8b instead of 35b-a3b
+# The default base model is qwen2.5-coder:7b (~4.7 GB) — a code-focused
+# model with strong tool-calling ability. For heavier workloads you can
+# swap the FROM line to a larger variant (e.g. qwen2.5-coder:32b).
 
-FROM qwen3.5:35b-a3b
+FROM qwen2.5-coder:7b
 
 PARAMETER temperature 0
 PARAMETER num_ctx 16384

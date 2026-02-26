@@ -201,7 +201,7 @@ pub async fn engine_ollama_setup_worker(
     app_handle: tauri::AppHandle,
     base_model: Option<String>,
 ) -> Result<OllamaCreateResult, String> {
-    let base = base_model.unwrap_or_else(|| "qwen3.5:35b-a3b".to_string());
+    let base = base_model.unwrap_or_else(|| "qwen2.5-coder:7b".to_string());
     let worker_name = "worker-qwen";
 
     info!(

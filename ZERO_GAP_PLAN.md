@@ -24,7 +24,7 @@
 │  └──────────┬───────────────────────────────────┘               │
 │             │  Task Orders (structured JSON)                    │
 │  ┌──────────▼───────────────────────────────────┐               │
-│  │  WORKER / FOREMAN (Qwen 3.5 / Local Ollama)  │              │
+│  │  WORKER / FOREMAN (Qwen 2.5 Coder / Ollama)  │              │
 │  │  • Executes MCP tool calls                    │              │
 │  │  • Handles n8n node installation              │              │
 │  │  • Manages JSON payloads & retries            │              │
@@ -155,7 +155,7 @@ The only gap is that worker agents need the n8n-specific tools added to their to
 **File**: `resources/ollama/worker-qwen.Modelfile`
 
 ```Dockerfile
-FROM qwen3.5:35b-a3b
+FROM qwen2.5-coder:7b
 
 PARAMETER temperature 0
 PARAMETER num_ctx 16384
@@ -188,7 +188,7 @@ precise MCP tool calls. You are a silent execution unit.
 - [x] Add `engine_ollama_setup_worker` command — one-click: check/pull base model + create worker-qwen
 - [x] `engine_ollama_list_models`, `engine_ollama_has_model`, `engine_ollama_pull_model`, `engine_ollama_create_model`
 - [x] Wire into first-run setup: detect Ollama → offer to create worker model
-- [ ] Smaller alternative: `worker-qwen-small` using `qwen3.5:8b` for lighter machines
+- [x] Default base model: `qwen2.5-coder:7b` (~4.7 GB) — code-focused with strong tool calling
 
 #### ✅ 4.4 — Auto-Setup Flow
 
@@ -197,7 +197,7 @@ When a user first sets up OpenPawz with Ollama configured:
 ```
 1. Detect Ollama provider is configured
 2. Check if `worker-qwen` model exists (ollama list)
-3. If not: prompt "Create local automation worker? (Qwen 3.5, ~20GB)"
+3. If not: prompt "Create local automation worker? (qwen2.5-coder:7b, ~4.7 GB)"
 4. If yes: ollama create worker-qwen -f worker-qwen.Modelfile
 5. Create "foreman" agent with model=worker-qwen, specialty=automation-executor
 6. Set model_routing.worker_model = "worker-qwen:latest"
@@ -374,6 +374,7 @@ Before ordering any package installation, the Architect MUST evaluate:
 
 ```bash
 # One-time setup (automated by Phase 4.4)
+ollama pull qwen2.5-coder:7b  # ~4.7 GB download
 ollama create worker-qwen -f resources/ollama/worker-qwen.Modelfile
 ```
 
