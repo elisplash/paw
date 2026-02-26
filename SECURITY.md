@@ -18,31 +18,31 @@ Pawz is a Tauri v2 desktop AI agent. Every system call flows through the Rust ba
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  User (Pawz UI)                                          │
-│  ┌────────────────────────────────────────────────────┐  │
-│  │  Frontend (TypeScript)                             │  │
-│  │  • Approval modal (Allow / Deny / type "ALLOW")    │  │
-│  │  • Security policy toggles                         │  │
-│  │  • Audit dashboard with export                     │  │
-│  └──────────────┬─────────────────────────────────────┘  │
-│                 │ Tauri IPC (structured commands)         │
-│  ┌──────────────▼─────────────────────────────────────┐  │
-│  │  Rust Engine Backend                               │  │
-│  │  • Tool executor with HIL approval flow            │  │
-│  │  • Command risk classifier                         │  │
-│  │  • Prompt injection scanner                        │  │
-│  │  • OS keychain (keyring crate)                     │  │
-│  │  • AES-256-GCM field encryption                    │  │
-│  │  • Filesystem scope enforcement                    │  │
-│  │  • Container sandbox (Docker via bollard)           │  │
-│  │  • Channel access control (pairing + allowlists)   │  │
-│  └──────────────┬─────────────────────────────────────┘  │
-│                 │                                        │
-│                 ▼                                        │
-│           Operating System                               │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+  subgraph User["User (Pawz UI)"]
+    direction TB
+    subgraph Frontend["Frontend · TypeScript"]
+      F1["Approval modal\n(Allow / Deny / type ALLOW)"]
+      F2["Security policy toggles"]
+      F3["Audit dashboard with export"]
+    end
+
+    Frontend -->|"Tauri IPC\n(structured commands)"| Engine
+
+    subgraph Engine["Rust Engine Backend"]
+      E1["Tool executor with HIL approval flow"]
+      E2["Command risk classifier"]
+      E3["Prompt injection scanner"]
+      E4["OS keychain (keyring crate)"]
+      E5["AES-256-GCM field encryption"]
+      E6["Filesystem scope enforcement"]
+      E7["Container sandbox (Docker via bollard)"]
+      E8["Channel access control (pairing + allowlists)"]
+    end
+
+    Engine -->|"Sandboxed access"| OS["Operating System"]
+  end
 ```
 
 **Key design principle**: The agent never touches the OS directly. Every tool call goes through the Rust tool executor. Read-only tools (fetch, read_file, web_search, etc.) are auto-approved at the Rust level. Side-effect tools (exec, write_file, delete_file) emit a `ToolRequest` event → the frontend shows a risk-classified approval modal → user decides → `engine_approve_tool` resolves.
