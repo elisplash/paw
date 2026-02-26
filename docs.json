@@ -181,6 +181,13 @@
               "reference/quality",
               "reference/troubleshooting"
             ]
+          },
+          {
+            "group": "Original Research",
+            "pages": [
+              "reference/librarian-method",
+              "reference/foreman-protocol"
+            ]
           }
         ]
       }
