@@ -12,7 +12,7 @@ pub fn definitions() -> Vec<ToolDefinition> {
         tool_type: "function".into(),
         function: FunctionDefinition {
             name: "fetch".into(),
-            description: "Make an HTTP request to any URL. Returns the response body. Use for API calls, web scraping, downloading content.".into(),
+            description: "Make an HTTP request to any URL. Returns the response body. Use for web page scraping or downloading public content. NEVER use fetch to call external service APIs (Slack, Discord, GitHub, etc.) — use mcp_* tools for those.".into(),
             parameters: serde_json::json!({
                 "type": "object",
                 "properties": {

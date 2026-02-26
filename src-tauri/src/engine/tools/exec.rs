@@ -13,7 +13,7 @@ pub fn definitions() -> Vec<ToolDefinition> {
         tool_type: "function".into(),
         function: FunctionDefinition {
             name: "exec".into(),
-            description: "Execute a shell command on the user's machine. Returns stdout and stderr. Use this for file operations, git, package managers, CLI tools, etc.".into(),
+            description: "Execute a shell command on the user's machine. Returns stdout and stderr. Use for local file operations, git, build tools, package managers, etc. NEVER use exec for external service access (Slack, Discord, GitHub, etc.) — use mcp_* tools for those.".into(),
             parameters: serde_json::json!({
                 "type": "object",
                 "properties": {

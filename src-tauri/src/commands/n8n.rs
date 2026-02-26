@@ -1003,7 +1003,7 @@ pub async fn engine_integrations_test_credentials(
     let result = match service_id.as_str() {
         "slack" => {
             let token = credentials.get("bot_token").or(credentials.get("access_token")).or(credentials.get("api_key")).cloned().unwrap_or_default();
-            _test_bearer(&client, "https://slack.com/api/auth.test", &token, "Slack").await
+            _test_slack(&client, &token).await
         }
         "discord" => {
             let token = credentials.get("bot_token").or(credentials.get("api_key")).cloned().unwrap_or_default();
@@ -1102,6 +1102,58 @@ pub fn engine_integrations_get_credentials(
 }
 
 // ── Credential test helpers ────────────────────────────────────────────
+
+/// Slack's auth.test requires POST and returns `{"ok": true/false}` in the JSON body.
+/// A GET still returns HTTP 200 but with `ok: false`, so we must use POST and check the body.
+async fn _test_slack(
+    client: &reqwest::Client,
+    token: &str,
+) -> Result<CredentialTestResult, String> {
+    if token.is_empty() {
+        return Ok(CredentialTestResult {
+            success: false,
+            message: "Bot token is empty".into(),
+            details: None,
+        });
+    }
+    match client
+        .post("https://slack.com/api/auth.test")
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .send()
+        .await
+    {
+        Ok(resp) => {
+            let body = resp.text().await.unwrap_or_default();
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                if json["ok"].as_bool() == Some(true) {
+                    let team = json["team"].as_str().unwrap_or("your workspace");
+                    return Ok(CredentialTestResult {
+                        success: true,
+                        message: format!("Connected to Slack ({})", team),
+                        details: None,
+                    });
+                }
+                let err = json["error"].as_str().unwrap_or("unknown error");
+                return Ok(CredentialTestResult {
+                    success: false,
+                    message: format!("Slack rejected the token: {}", err),
+                    details: Some(body),
+                });
+            }
+            Ok(CredentialTestResult {
+                success: false,
+                message: "Slack returned an unexpected response".into(),
+                details: Some(body),
+            })
+        }
+        Err(e) => Ok(CredentialTestResult {
+            success: false,
+            message: "Could not reach Slack".into(),
+            details: Some(classify_reqwest_error(&e)),
+        }),
+    }
+}
 
 async fn _test_bearer(
     client: &reqwest::Client,

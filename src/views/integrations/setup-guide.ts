@@ -304,6 +304,7 @@ function _wireGuideEvents(container: HTMLElement, service: ServiceDefinition): v
       }
 
       // ── Wire: save creds, connect service, bridge → skill vault ──
+      let provisionFailed = false;
       try {
         // Persist credentials to the integration config store
         await invoke('engine_integrations_save_credentials', {
@@ -333,6 +334,16 @@ function _wireGuideEvents(container: HTMLElement, service: ServiceDefinition): v
         });
       } catch (e) {
         console.error('[setup-guide] provision FAILED — agent tools will not work:', e);
+        provisionFailed = true;
+      }
+
+      // Show provisioning warning if skill vault setup failed
+      if (provisionFailed && feedback) {
+        feedback.innerHTML = `
+          <div class="guide-feedback guide-feedback-warning" style="margin-top: 8px">
+            <span class="ms ms-sm" style="color: var(--warning, #f59e0b)">warning</span>
+            <span>Credentials saved, but skill provisioning failed. Agent tools may not work until you reconnect.</span>
+          </div>` + feedback.innerHTML;
       }
 
       // ── MCP workflow deployment (dynamic tool discovery) ──

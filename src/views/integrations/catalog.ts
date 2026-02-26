@@ -81,6 +81,13 @@ const CURATED: ServiceDefinition[] = [
         placeholder: 'xoxb-...',
         required: true,
       },
+      {
+        key: 'app_token',
+        label: 'App-Level Token (Socket Mode)',
+        type: 'password',
+        placeholder: 'xapp-...',
+        required: false,
+      },
     ],
     {
       title: 'Connect Slack',
@@ -92,10 +99,14 @@ const CURATED: ServiceDefinition[] = [
         { instruction: 'Choose "From scratch", name it "OpenPawz", select your workspace' },
         {
           instruction:
-            'Under OAuth & Permissions, add scopes: chat:write, channels:read, users:read',
+            'Under OAuth & Permissions, add scopes: chat:write, channels:read, channels:history, users:read',
         },
         { instruction: 'Click "Install to Workspace" and authorize' },
         { instruction: 'Copy the Bot User OAuth Token (starts with xoxb-)' },
+        {
+          instruction:
+            '(Optional) For real-time messages: enable Socket Mode under Settings, then create an App-Level Token with connections:write scope (starts with xapp-)',
+        },
       ],
       estimatedTime: '3 minutes',
     },
