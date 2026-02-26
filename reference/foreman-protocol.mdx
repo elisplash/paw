@@ -6,7 +6,7 @@ sidebarTitle: "The Foreman Protocol"
 
 # The Foreman Protocol
 
-**Zero-Cost Tool Execution via Local Models and Self-Describing MCP**
+**Bidirectional Access to 25,000+ Services via Local Models and Self-Describing MCP**
 
 *Invented by Eli Bury for OpenPawz. Open source (MIT).*
 
@@ -37,16 +37,28 @@ Even loading a subset means every tool call routes through the most expensive mo
 The Foreman Protocol splits the agent into two roles:
 
 - **Architect** (cloud LLM): Plans, reasons, talks to the user. Decides *what* needs to happen.
-- **Foreman** (local Ollama model): Executes tool calls. Handles *how* it happens. Runs locally at zero API cost.
+- **Foreman** (local Ollama model): Interfaces with external services. Handles *how* it happens — both reading and writing. Runs locally at zero API cost.
 
 The critical enabler is **MCP's self-describing schemas**. When the Foreman connects to an MCP server (n8n), the server tells it exactly what tools are available and how to call them — parameter names, types, descriptions, examples. The Foreman doesn't need pre-trained knowledge of Slack, Trello, or any integration. MCP provides the instruction manual at runtime.
+
+### Bidirectional, Not a Pipeline
+
+The Foreman is not a one-way executor in a sequence. It is a **bidirectional bridge** between your agent and every connected service. It can:
+
+- **Read** — Query a database, list Slack channels, fetch open Jira tickets, check GitHub PR status
+- **Write** — Send a message, create a ticket, update a spreadsheet, post to a webhook
+- **Both in one task** — Read the open tickets, then post a summary to Slack
+
+And it doesn't need to be part of a flow or automation chain. The agent can reach into any connected service at any point in a conversation, for any reason — to answer a question, to check a fact, to pull context before making a decision. There is no predetermined sequence. If you're connected to Slack, your Jira, your database, your CRM — the agent has live, bidirectional access to all of them through the Foreman, at any time.
+
+This is what makes it fundamentally different from automation platforms like Zapier or Make, where you build *flows* — predefined sequences of steps. With the Foreman Protocol, the agent decides what information it needs and what actions to take in real time, reaching into whichever services are relevant to the current conversation.
 
 ```mermaid actions={false}
 graph TD
     subgraph Architect["Architect (Cloud LLM)"]
         A["Understands user intent"]
         B["Plans the task"]
-        C["Calls mcp_slack_send_message"]
+        C["Requests action or information"]
     end
     subgraph Engine["Engine (Rust · intercepts MCP calls)"]
         D["Detects mcp_* tool call"]
@@ -55,12 +67,13 @@ graph TD
     subgraph Foreman["Foreman (Local Ollama · free)"]
         F["Receives task + MCP tool schemas"]
         G["MCP server describes available tools"]
-        H["Formats and executes tool call"]
+        H["Reads from or writes to service"]
         I["Returns structured result"]
     end
-    subgraph MCP["n8n MCP Server (localhost)"]
-        J["Self-describing tool schemas via JSON-RPC"]
-        K["Executes: Slack API, QR generation, etc."]
+    subgraph MCP["Connected Services via MCP"]
+        J["Slack · Jira · GitHub · Trello · DBs · CRMs · ..."]
+        K["Read: query, list, fetch, search"]
+        L["Write: send, create, update, delete"]
     end
     C --> D
     D --> E
@@ -68,20 +81,31 @@ graph TD
     F --> G
     G --> J
     H --> K
+    H --> L
     K --> I
+    L --> I
     I --> A
 ```
 
-### The Execution Flow
+### Examples
 
-When you say *"Send 'hello' to #general on Slack"*:
+The Foreman handles reads and writes identically — it's just a tool call in either direction:
 
-1. **Architect** (your cloud model) understands the intent and decides to call `mcp_slack_send_message`
-2. **Engine** intercepts the `mcp_*` tool call before execution
-3. **Foreman** (local Ollama, free) receives the task and the MCP tool schemas
-4. **MCP server** (n8n) tells the Foreman what tools are available and exactly how to call them — self-describing
-5. **Foreman** formats the JSON-RPC call and executes via MCP → n8n → Slack API
-6. **Result** flows back: Foreman → Engine → Architect → User
+**Reading (querying information):**
+> *"What are the open tickets assigned to me in Jira?"*
+> → Architect decides it needs Jira data → Foreman queries Jira via MCP → returns ticket list → Architect summarizes for user
+
+**Writing (taking action):**
+> *"Send 'hello' to #general on Slack"*
+> → Architect decides to post a message → Foreman calls Slack via MCP → message sent → Architect confirms
+
+**Both in one conversation:**
+> *"Summarize my open GitHub PRs and post the summary to #engineering on Slack"*
+> → Architect plans two steps → Foreman reads from GitHub, then writes to Slack → Architect presents the result
+
+**Ad-hoc access (no flow, no sequence):**
+> *"How many unread messages do I have in Slack?"*
+> → The agent just reaches into Slack, checks, and answers. No automation. No workflow. Just a question answered from a live data source.
 
 The Architect never sees MCP schemas. The Foreman never reasons about user intent. Each model does only what it's suited for.
 
@@ -98,9 +122,10 @@ The Foreman Protocol would not work without self-describing tool schemas. Here's
 No pre-training. No static configuration. No context window overflow.
 
 This means:
-- **Any new n8n community node is instantly usable** — install the npm package, the MCP server exposes it, the Foreman can execute it
-- **Zero configuration per tool** — no prompt engineering, no few-shot examples, no fine-tuning
+- **Any new n8n community node is instantly accessible** — install the npm package, the MCP server exposes it, the Foreman can read from or write to it
+- **Zero configuration per service** — no prompt engineering, no few-shot examples, no fine-tuning
 - **Any local model works** — the Foreman just needs to follow JSON-RPC formatting, which any code-capable model can do
+- **Reads are as natural as writes** — querying a database and sending a Slack message go through the same path
 
 ---
 
@@ -110,20 +135,20 @@ This means:
 
 In a traditional agent architecture, the cloud model handles everything — intent, planning, tool formatting, execution, response. You pay cloud rates for all of it.
 
-With the Foreman Protocol, the cloud model only handles intent and planning. All tool execution runs locally. The Architect pays only for the tokens it actually needs frontier intelligence for — understanding the user and deciding what to do. The mechanical work of formatting and executing tool calls shifts to a free local model.
+With the Foreman Protocol, the cloud model only handles intent and planning. All service interaction — reading and writing — runs locally. The Architect pays only for the tokens it actually needs frontier intelligence for — understanding the user and deciding what to do. The mechanical work of interfacing with external services shifts to a free local model.
 
-The savings scale with usage. The more tool calls your agents make, the more you save — because every tool execution that would have burned cloud tokens now runs locally at zero cost.
+The savings scale with usage. The more your agents interact with connected services, the more you save — because every read and every write that would have burned cloud tokens now runs locally at zero cost.
 
 ### vs. Automation Platforms
 
-| Platform | AI-Driven? | Tool Execution Cost | Integrations |
-|----------|------------|---------------------|--------------|
-| **OpenPawz (Foreman)** | Yes — natural language | Free (local model) | 25,000+ |
-| **Zapier** | Partial | Per-task pricing | 7,000 |
-| **Make** | No | Per-operation pricing | 2,000 |
-| **n8n Standalone** | No — manual workflows | Free (self-hosted) | 400+ built-in |
+| Platform | AI-Driven? | Tool Execution Cost | Integrations | Bidirectional? |
+|----------|------------|---------------------|--------------|----------------|
+| **OpenPawz (Foreman)** | Yes — natural language | Free (local model) | 25,000+ | Yes — read + write, any time |
+| **Zapier** | Partial | Per-task pricing | 7,000 | No — predefined flows |
+| **Make** | No | Per-operation pricing | 2,000 | No — predefined flows |
+| **n8n Standalone** | No — manual workflows | Free (self-hosted) | 400+ built-in | No — predefined flows |
 
-OpenPawz is the only platform where you can say *"Send a message to #general on Slack every morning with a summary of my GitHub notifications"* and have it work — with natural language, AI-driven execution, and free local tool execution across 25,000+ integrations.
+OpenPawz is the only platform where you can say *"What are my open PRs on GitHub, and post a summary to #engineering on Slack"* and have it work — with natural language, AI-driven execution, bidirectional service access, and free local tool execution across 25,000+ integrations.
 
 ---
 
@@ -138,7 +163,7 @@ The Foreman Protocol is wired into the main agent loop's `execute_tool()` path. 
 
 ### 2. Mini Agent Loop (8 Rounds Max)
 
-The Foreman runs a constrained agent loop — up to 8 rounds of tool calls. This handles multi-step tool execution (e.g., list channels → find channel ID → send message) without risking infinite loops.
+The Foreman runs a constrained agent loop — up to 8 rounds of tool calls. This handles multi-step tasks (e.g., query a database → format results → post to Slack) and multi-read scenarios (e.g., check Jira + check GitHub + check Slack) without risking infinite loops.
 
 ### 3. No Recursion
 
@@ -239,8 +264,8 @@ The Foreman Protocol and [The Librarian Method](/reference/librarian-method) are
 
 | | The Librarian Method | The Foreman Protocol |
 |---|---|---|
-| **Solves** | Tool discovery at scale | Tool execution cost |
-| **Question answered** | *Which* tool to use? | *How* to execute it without cloud costs? |
+| **Solves** | Tool discovery at scale | Service access cost and bidirectional reach |
+| **Question answered** | *Which* tool to use? | *How* to access any service without cloud costs? |
 | **Local model used** | Embedding model (e.g. `nomic-embed-text`) | Code model (e.g. `qwen2.5-coder:7b`) |
 | **Works independently?** | Yes | Yes |
 | **Better together?** | The Librarian finds the right tool, then the Foreman executes it for free |
