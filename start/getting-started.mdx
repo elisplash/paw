@@ -1,6 +1,6 @@
 ---
 title: "OpenPawz"
-description: "Your AI, your rules. The open-source AI agent OS with 400+ integrations — private, powerful, extensible."
+description: "Your AI, your rules. The open-source AI agent OS with 25,000+ integrations via MCP bridge — private, powerful, extensible."
 sidebarTitle: "OpenPawz"
 ---
 
@@ -13,7 +13,7 @@ sidebarTitle: "OpenPawz"
 
 > **Your AI, your rules.** — The whole point.
 
-The open-source AI agent OS built on [Tauri v2](https://v2.tauri.app/). Create autonomous agents with **400+ integrations out of the box**, connect them to 11 chat platforms, and run everything locally on your machine. No cloud, no open ports, no Node.js backend.
+The open-source AI agent OS built on [Tauri v2](https://v2.tauri.app/). Create autonomous agents with **25,000+ integrations via MCP bridge**, connect them to 11 chat platforms, and run everything locally on your machine. No cloud, no open ports, no Node.js backend.
 
 <Columns cols={3}>
   <Card title="Get Started" href="/start/installation" icon="download">
@@ -33,7 +33,7 @@ The open-source AI agent OS built on [Tauri v2](https://v2.tauri.app/). Create a
 
 OpenPawz is the **open-source AI agent operating system** for your desktop. It's not a chatbot. It's not a wrapper around an API. It's a full-blown, multi-agent platform that runs natively on your machine — with zero cloud dependency.
 
-**Imagine this:** You have autonomous AI agents with unique personalities, long-term memory, and access to **400+ integrations** — managing Notion boards, Slack channels, GitHub repos, email, trading crypto on three chains, voicing responses aloud, monitoring infrastructure, controlling smart home devices, researching the web, deploying to AWS, writing content, and responding to messages across **11 chat platforms simultaneously**. Every integration ships ready to use. No plugins to install. No marketplace to browse. Just configure credentials and go.
+**Imagine this:** You have autonomous AI agents with unique personalities, long-term memory, and access to **25,000+ integrations** — managing Notion boards, Slack channels, GitHub repos, email, trading crypto on three chains, voicing responses aloud, monitoring infrastructure, controlling smart home devices, researching the web, deploying to AWS, writing content, and responding to messages across **11 chat platforms simultaneously**. 400+ integrations ship built-in, and 25,000+ more are available via the embedded n8n engine and MCP Bridge — agents discover and install them at runtime, on demand. Just configure credentials and go.
 
 <Tabs>
   <Tab title="Who is it for?">
@@ -41,7 +41,7 @@ OpenPawz is the **open-source AI agent operating system** for your desktop. It's
   </Tab>
   <Tab title="What's different?">
     Most AI tools give you a chat window. OpenPawz gives you an **agent operating system**:
-    - **400+ integrations** — Productivity, dev tools, cloud, CRM, media, smart home, trading, and more — all built in
+    - **25,000+ integrations** — 400+ native built-in, plus 25,000+ community node types via the MCP Bridge to n8n — all discoverable and auto-installable at runtime
     - **11 channels at once** — Telegram, Discord, Slack, WhatsApp, Matrix, IRC, Twitch, and more
     - **Multi-agent orchestration** — Boss/worker delegation, agent squads, inter-agent messaging
     - **Multi-chain DeFi trading** — Coinbase + Solana (Jupiter/Pump.fun) + Ethereum (Uniswap) with policy guardrails
@@ -75,8 +75,8 @@ OpenPawz is the **open-source AI agent operating system** for your desktop. It's
 graph LR
     A["Chat Apps\n(Telegram, Discord, Slack...)"] --> B["OpenPawz\n(Tauri Desktop App)"]
     B --> C["AI Providers\n(Ollama, OpenAI, Anthropic...)"]
-    B --> D["400+ Integrations"]
-    B --> E["MCP Extensions"]
+    B --> D["25,000+ Integrations\n(400 native + MCP Bridge)"]
+    B --> E["MCP Bridge\n(Embedded n8n)"]
     B --> F["SQLite + Keychain\n(Local Storage)"]
 ```
 
@@ -87,8 +87,8 @@ The desktop app is the single source of truth for agents, sessions, routing, and
 ## Key capabilities
 
 <Columns cols={2}>
-  <Card title="400+ integrations" icon="puzzle">
-    Productivity, dev tools, cloud, CRM, media, smart home, trading, security, and more. Every integration ships ready — configure credentials and assign to agents.
+  <Card title="25,000+ integrations" icon="puzzle">
+    400+ native integrations built in, plus 25,000+ community node types via the MCP Bridge to n8n. Agents discover and auto-install integrations at runtime — zero configuration.
   </Card>
   <Card title="Multi-agent orchestration" icon="users">
     Boss/worker delegation, persistent agent squads, inter-agent messaging, and workspace isolation. Full project lifecycle management.
@@ -205,7 +205,7 @@ OpenPawz was designed from the ground up with a **zero-trust, local-first securi
     Open **Settings → Providers** and add an API key for OpenAI, Anthropic, or point to a local Ollama instance.
   </Step>
   <Step title="Create your first agent">
-    Go to **Agents → New Agent**, pick a model, and start chatting. Your agent has immediate access to 400+ integrations.
+    Go to **Agents → New Agent**, pick a model, and start chatting. Your agent has immediate access to 25,000+ integrations via the MCP Bridge.
   </Step>
 </Steps>
 
@@ -229,7 +229,7 @@ Need the full install guide? See [Installation](/start/installation).
     Connect Telegram, Discord, Slack, and 8 more.
   </Card>
   <Card title="Integrations" href="/guides/integrations" icon="puzzle">
-    Browse the 400+ integrations available to agents.
+    Browse the 25,000+ integrations available to agents.
   </Card>
   <Card title="Architecture" href="/reference/architecture" icon="sitemap">
     Understand how the Tauri + Rust + TypeScript stack fits together.

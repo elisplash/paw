@@ -64,7 +64,7 @@ Pawz has a three-tier extensibility architecture. Each tier adds more power over
 
 ```mermaid actions={false}
 graph TD
-    START["Startup"] --> BUILTIN["Load built-in skills\n400+ Rust SkillDefinitions"]
+    START["Startup"] --> BUILTIN["Load built-in skills\n400+ Rust SkillDefinitions\n+ 25K via MCP Bridge"]
     START --> COMMUNITY["Load community SKILL.md\nPer-agent, from DB"]
     START --> TOML["Load TOML integrations\n~/.paw/skills/*/pawz-skill.toml"]
     START --> EXT["Load extensions\nTOML + view + storage"]
