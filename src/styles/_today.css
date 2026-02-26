@@ -3,6 +3,7 @@
   padding: 16px;
   overflow-y: auto;
   height: 100%;
+  min-height: 0;
   box-sizing: border-box;
 }
 .today-content {

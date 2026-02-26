@@ -5,6 +5,8 @@
 #research-view {
   display: none;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
   background: var(--bg-primary);
 }
 
@@ -17,10 +19,12 @@
 .research-sidebar {
   width: 260px;
   min-width: 260px;
+  min-height: 0;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border-light);
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 
 .research-sidebar-header {

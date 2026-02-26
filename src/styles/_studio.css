@@ -2,15 +2,18 @@
 .studio-view.active {
   display: flex;
   height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 .studio-sidebar {
   width: 260px;
+  min-height: 0;
   background: var(--bg-sidebar);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  overflow: hidden;
 }
 .studio-sidebar-header {
   display: flex;
@@ -127,6 +130,8 @@
   font-size: 15px;
   line-height: 1.8;
   resize: none;
+  overflow-y: auto;
+  min-height: 0;
 }
 .studio-content-editor:focus {
   outline: none;

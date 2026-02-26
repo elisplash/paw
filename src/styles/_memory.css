@@ -58,7 +58,8 @@
 
 .memory-editor-content {
   width: 100%;
-  min-height: 300px;
+  min-height: 200px;
+  max-height: 60vh;
   padding: 14px;
   background: var(--bg-secondary);
   color: var(--text-primary);
@@ -67,6 +68,7 @@
   font-size: 13px;
   line-height: 1.6;
   resize: vertical;
+  overflow-y: auto;
 }
 .memory-editor-content:focus {
   outline: none;

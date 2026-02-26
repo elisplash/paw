@@ -3,6 +3,7 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 
 .chat-header {
@@ -690,6 +691,7 @@
 .list-view {
   padding: 32px;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .list-view > * {
