@@ -1,20 +1,22 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "linden",
+  "theme": "quill",
   "name": "OpenPawz",
-  "description": "Your AI, your rules. A native desktop AI agent platform with 400+ integrations — private, powerful, extensible.",
+  "description": "Your AI, your rules. The open-source AI agent OS with 400+ integrations, 11 channels, multi-agent orchestration — all running locally on your desktop.",
   "logo": {
     "dark": "/images/pawz-logo-text-dark.png",
     "light": "/images/pawz-logo-text-light.png"
   },
   "favicon": "/images/pawz-favicon.png",
   "colors": {
-    "primary": "#ff00ff",
-    "light": "#ff33ff",
-    "dark": "#cc00cc"
+    "primary": "#a855f7",
+    "light": "#c084fc",
+    "dark": "#7c3aed",
+    "ultraLight": "#f3e8ff",
+    "ultraDark": "#1e1b4b"
   },
   "background": {
-    "decoration": "grid"
+    "decoration": "windows"
   },
   "styling": {
     "eyebrows": "breadcrumbs"
@@ -25,12 +27,18 @@
   "navbar": {
     "primary": {
       "type": "button",
-      "label": "Download",
+      "label": "Get OpenPawz",
       "href": "https://github.com/OpenPawz/openpawz/releases"
-    }
+    },
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/OpenPawz/openpawz"
+      }
+    ]
   },
   "banner": {
-    "content": "**OpenPawz** is open source — [Star us on GitHub](https://github.com/OpenPawz/openpawz) and join the community!",
+    "content": "**OpenPawz** — the open-source AI agent OS. 400+ integrations out of the box. [Star us on GitHub →](https://github.com/OpenPawz/openpawz)",
     "dismissible": true
   },
   "navigation": {
@@ -190,11 +198,23 @@
     "raiseIssue": true
   },
   "search": {
-    "prompt": "Search OpenPawz docs..."
+    "prompt": "Search docs..."
   },
   "seo": {
     "indexHiddenPages": false
   },
+  "anchors": [
+    {
+      "anchor": "GitHub",
+      "href": "https://github.com/OpenPawz/openpawz",
+      "icon": "github"
+    },
+    {
+      "anchor": "Releases",
+      "href": "https://github.com/OpenPawz/openpawz/releases",
+      "icon": "rocket"
+    }
+  ],
   "contextual": {
     "options": []
   }

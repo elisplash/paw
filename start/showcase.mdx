@@ -1,132 +1,81 @@
 ---
 title: "Showcase"
-description: "Feature highlights, use cases, and what you can build with OpenPawz."
+description: "What you can build with OpenPawz — use cases, feature highlights, and real workflows."
 sidebarTitle: "Showcase"
 ---
 
-## What you can build
+<Note>
+OpenPawz isn't just a chat app — it's an **agent operating system**. Here's what people build with it.
+</Note>
 
-OpenPawz isn't just a chat app — it's an agent operating system. Here's what people build with it.
-
----
-
-### Personal AI assistant
-
-Run an agent on Telegram or WhatsApp that knows your preferences, remembers past conversations, and can execute tasks — send emails, check weather, manage your calendar, browse the web. It speaks responses aloud via TTS and listens via speech-to-text.
-
-<Card title="Get started" href="/start/first-agent">
-  Create your first agent in under 5 minutes.
-</Card>
-
----
-
-### Multi-platform support bot
-
-Connect a single agent to Discord, Slack, and Matrix simultaneously. Same personality, same memory, different platforms. Replies go back to the channel they came from. Smart message splitting handles each platform's limits automatically.
-
-<Card title="Connect channels" href="/channels/overview">
-  Set up multi-channel routing.
-</Card>
-
----
-
-### Autonomous trading desk
-
-Agents trade crypto autonomously across **three chains** — Coinbase exchange, Solana (Jupiter/Pump.fun), and Ethereum (Uniswap). Set policy guardrails: max trade size, daily loss limits, allowed pairs. The trading policy engine ensures agents stay within bounds while you sleep. Full audit trail for every trade.
-
-<Card title="Trading guide" href="/guides/trading">
-  Set up multi-chain DeFi trading.
-</Card>
-
----
-
-### Research squad
-
-Create a squad of specialist agents — a coordinator, a web researcher, a data analyst, and a writer. The coordinator delegates, workers run in parallel with headless Chrome, and the squad produces a synthesis. Agent squads persist and can be reused across projects.
-
-<Card title="Orchestrator" href="/guides/orchestrator">
-  Multi-agent delegation and squads.
-</Card>
-
----
-
-### DevOps & automation pipeline
-
-Schedule cron tasks, trigger agents on events, run shell commands in sandboxed containers. Use the visual node editor to wire up triggers → agents → tools → outputs without writing code. Pipe results through webhooks to GitHub Actions, Zapier, or any HTTP client.
-
-<Card title="Automations" href="/guides/automations">
-  Cron jobs, triggers, and scheduled agent tasks.
-</Card>
-
----
-
-### Content creation pipeline
-
-Use the Content Studio to draft documents with AI assistance. Agents research, write, and publish through connected channels. Route different content types to specialized agents — one for blog posts, another for social media, a third for technical docs.
-
-<Card title="Content Studio" href="/guides/content-studio">
-  Built-in editor with AI writing assistance.
-</Card>
-
----
-
-### Voice assistant
-
-Turn any agent into a voice assistant. Three TTS providers (Google, OpenAI, ElevenLabs) with configurable voice, speed, and language. Auto-speak mode reads all responses aloud. Combine with Telegram or Webchat for a full voice-driven experience.
-
-<Card title="Voice guide" href="/guides/voice">
-  Text-to-speech and speech-to-text setup.
-</Card>
-
----
-
-### Self-improving agent network
-
-Agents that discover and install their own capabilities. An agent encounters a new task type, searches PawzHub for a relevant skill, installs it, and immediately uses it — all conversationally, at runtime. No restarts, no manual configuration.
-
-<Card title="Skills" href="/guides/skills">
-  Skills, integrations, and the PawzHub marketplace.
-</Card>
-
----
-
-## Key features at a glance
+## Use cases
 
 <Columns cols={2}>
-  <Card title="11 chat channels">
-    Telegram, Discord, Slack, Matrix, IRC, WhatsApp, Twitch, Mattermost, Nextcloud, Nostr, Webchat.
+  <Card title="Personal AI assistant" icon="user" href="/start/first-agent">
+    Run an agent on Telegram or WhatsApp that knows your preferences, remembers past conversations, and executes tasks — email, calendar, web browsing, smart home control. Speaks responses aloud via TTS and listens via speech-to-text.
   </Card>
-  <Card title="10 AI providers">
-    Ollama, OpenAI, Anthropic, Google, DeepSeek, Grok, Mistral, OpenRouter, Moonshot, and custom endpoints.
+  <Card title="Multi-platform support bot" icon="headset" href="/channels/overview">
+    Connect a single agent to Discord, Slack, and Matrix simultaneously. Same personality, same memory, different platforms. Smart message splitting handles each platform's limits automatically.
   </Card>
-  <Card title="400+ integrations">
+  <Card title="Autonomous trading desk" icon="chart-line" href="/guides/trading">
+    Agents trade crypto across three chains — Coinbase, Solana (Jupiter/Pump.fun), Ethereum (Uniswap). Policy guardrails keep everything within bounds while you sleep. Full audit trail.
+  </Card>
+  <Card title="Research squad" icon="magnifying-glass" href="/guides/orchestrator">
+    A coordinator delegates to specialist agents — web researcher, data analyst, writer. Workers run in parallel with headless Chrome. Squads persist and reuse across projects.
+  </Card>
+  <Card title="DevOps automation" icon="gears" href="/guides/automations">
+    Cron tasks, event triggers, sandboxed shell commands. Wire up triggers → agents → tools → outputs in the visual node editor. Pipe results to GitHub Actions, Zapier, or any HTTP client.
+  </Card>
+  <Card title="Content pipeline" icon="pen-nib" href="/guides/content-studio">
+    Draft documents with AI assistance. Route different content types to specialized agents — blog posts, social media, technical docs. Agents research, write, and publish through connected channels.
+  </Card>
+  <Card title="Voice assistant" icon="microphone" href="/guides/voice">
+    Three TTS providers (Google, OpenAI, ElevenLabs) with configurable voice, speed, and language. Auto-speak mode reads all responses aloud. Combine with Telegram or Webchat for full voice-driven UX.
+  </Card>
+  <Card title="Self-improving network" icon="wand-magic-sparkles" href="/guides/skills">
+    Agents discover and install capabilities at runtime. An agent encounters a new task, searches PawzHub, installs a skill, and immediately uses it — all conversationally. No restarts.
+  </Card>
+</Columns>
+
+---
+
+## At a glance
+
+<Columns cols={3}>
+  <Card title="400+ integrations" icon="puzzle">
     Productivity, communication, development, data, media, IoT, finance, cloud, security, AI, CRM, and more — all out of the box.
   </Card>
-  <Card title="Multi-chain DeFi">
+  <Card title="11 chat channels" icon="message-lines">
+    Telegram, Discord, Slack, Matrix, IRC, WhatsApp, Twitch, Mattermost, Nextcloud, Nostr, Webchat.
+  </Card>
+  <Card title="10 AI providers" icon="server">
+    Ollama, OpenAI, Anthropic, Google, DeepSeek, Grok, Mistral, OpenRouter, Moonshot, and custom endpoints.
+  </Card>
+  <Card title="Multi-chain DeFi" icon="bitcoin-sign">
     Coinbase + Solana (Jupiter/Pump.fun) + Ethereum (Uniswap). Trading policy engine with guardrails.
   </Card>
-  <Card title="Hybrid semantic memory">
-    BM25 + vector search + MMR re-ranking + temporal decay. The most advanced retrieval in any agent platform.
+  <Card title="Semantic memory" icon="brain">
+    BM25 + vector + MMR re-ranking + temporal decay. The most advanced retrieval in any agent platform.
   </Card>
-  <Card title="Agent squads">
+  <Card title="Agent squads" icon="users">
     Persistent groups with coordinator/member roles. Reusable across projects. Inter-agent messaging.
   </Card>
-  <Card title="Visual node editor">
+  <Card title="Visual node editor" icon="diagram-project">
     Drag-and-drop workflow builder. Connect triggers, agents, tools, and outputs visually.
   </Card>
-  <Card title="Model routing">
+  <Card title="Model routing" icon="route">
     Auto complexity-based routing. Daily budget caps. Thinking level control per session.
   </Card>
-  <Card title="Voice (TTS/STT)">
+  <Card title="Voice (TTS/STT)" icon="volume-high">
     Three TTS providers + speech-to-text. Auto-speak mode. ElevenLabs advanced controls.
   </Card>
-  <Card title="Self-installing skills">
+  <Card title="Self-installing skills" icon="download">
     Agents search PawzHub and install capabilities at runtime. No restarts needed.
   </Card>
-  <Card title="Remote access">
+  <Card title="Remote access" icon="globe">
     Tailscale mesh VPN + webhook server. Trigger agents from anywhere.
   </Card>
-  <Card title="Security audit trail">
+  <Card title="Security audit trail" icon="shield-halved">
     Credential access logging, trade audit trail, cron run logs. Export to JSON/CSV.
   </Card>
 </Columns>

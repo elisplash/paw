@@ -6,10 +6,10 @@ sidebarTitle: "Overview"
 
 # Providers
 
-Providers are the AI backends that power your agents. Pawz supports **10 providers** and any OpenAI-compatible API.
+Providers are the AI backends that power your agents. OpenPawz supports **10 providers** and any OpenAI-compatible API.
 
 <Note>
-Mix local models (Ollama) with cloud providers. Pawz auto-falls back to the next provider if one goes down.
+Mix local models (Ollama) with cloud providers. OpenPawz auto-falls back to the next provider if one goes down.
 </Note>
 
 ---
@@ -17,41 +17,41 @@ Mix local models (Ollama) with cloud providers. Pawz auto-falls back to the next
 ## Supported providers
 
 <Columns cols={3}>
-  <Card title="Ollama" href="/providers/ollama">
+  <Card title="Ollama" href="/providers/ollama" icon="server">
     Local inference — no API key needed
   </Card>
-  <Card title="OpenAI" href="/providers/openai">
+  <Card title="OpenAI" href="/providers/openai" icon="bolt">
     GPT-4o, o1, o3, o4-mini
   </Card>
-  <Card title="Anthropic" href="/providers/anthropic">
+  <Card title="Anthropic" href="/providers/anthropic" icon="brain">
     Claude 4 Opus, Sonnet, Haiku
   </Card>
-  <Card title="Google" href="/providers/google">
+  <Card title="Google" href="/providers/google" icon="google">
     Gemini 2.5 Pro, Flash
   </Card>
-  <Card title="OpenRouter" href="/providers/openrouter">
+  <Card title="OpenRouter" href="/providers/openrouter" icon="route">
     200+ models via unified API
   </Card>
-  <Card title="DeepSeek" href="/providers/deepseek">
+  <Card title="DeepSeek" href="/providers/deepseek" icon="magnifying-glass">
     DeepSeek V3, R1, Coder
   </Card>
-  <Card title="Grok" href="/providers/grok">
+  <Card title="Grok" href="/providers/grok" icon="xmark">
     xAI's Grok models
   </Card>
-  <Card title="Mistral" href="/providers/mistral">
+  <Card title="Mistral" href="/providers/mistral" icon="wind">
     Mistral Large, Codestral
   </Card>
-  <Card title="Moonshot" href="/providers/moonshot">
+  <Card title="Moonshot" href="/providers/moonshot" icon="moon">
     Kimi and Moonshot models
   </Card>
-  <Card title="Custom" href="/providers/custom">
+  <Card title="Custom" href="/providers/custom" icon="plug">
     Any OpenAI-compatible API
   </Card>
 </Columns>
 
 ## Adding a provider
 
-1. Go to **Settings → Models**
+1. Go to **Settings → Providers**
 2. Click **Add Provider**
 3. Select the provider type
 4. Enter your API key
@@ -59,7 +59,7 @@ Mix local models (Ollama) with cloud providers. Pawz auto-falls back to the next
 
 ## Model routing
 
-Pawz can automatically route requests to different models based on the context:
+OpenPawz can automatically route requests to different models based on the context:
 
 | Setting | Purpose |
 |---------|---------|
@@ -74,7 +74,7 @@ Pawz can automatically route requests to different models based on the context:
 
 ## Smart prefix matching
 
-When you type a model name, Pawz auto-routes to the right provider:
+When you type a model name, OpenPawz auto-routes to the right provider:
 
 | Pattern | Routes to |
 |---------|-----------|
@@ -87,7 +87,7 @@ When you type a model name, Pawz auto-routes to the right provider:
 
 ## Provider fallback
 
-If a provider returns a billing, authentication, or rate limit error, Pawz automatically tries other configured providers before failing. This ensures your agents stay responsive even if one provider has issues.
+If a provider returns a billing, authentication, or rate limit error, OpenPawz automatically tries other configured providers before failing. This ensures your agents stay responsive even if one provider has issues.
 
 ## Budget enforcement
 

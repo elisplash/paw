@@ -1,9 +1,12 @@
 ---
 title: "Installation"
-description: "Get Pawz running on macOS, Linux, or Windows in under 5 minutes."
+description: "Get OpenPawz running on macOS, Linux, or Windows in under 5 minutes."
+sidebarTitle: "Installation"
 ---
 
 # Installation
+
+<Note>First build takes a few minutes while Rust compiles dependencies. Subsequent builds are incremental and much faster.</Note>
 
 ## Prerequisites
 
@@ -45,7 +48,7 @@ npm install
 npm run tauri dev
 ```
 
-The first build will take a few minutes while Rust compiles all dependencies. Subsequent builds are incremental and much faster.
+The first build will take a few minutes while Rust compiles all dependencies. Subsequent builds are incremental.
 
 ## Production build
 
@@ -57,7 +60,7 @@ The built app will be in `src-tauri/target/release/bundle/` — platform-specifi
 
 ## Verify
 
-After launching, Pawz opens to the Today dashboard. Go to **Settings** to configure your first AI provider, then you're ready to create agents and start chatting.
+After launching, OpenPawz opens to the Today dashboard. Go to **Settings → Providers** to configure your first AI provider, then create agents and start chatting.
 
 ## Optional: Ollama (local AI)
 

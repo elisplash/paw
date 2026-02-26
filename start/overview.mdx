@@ -4,41 +4,63 @@ description: "The open-source AI agent OS — 400+ integrations, multi-agent, mu
 sidebarTitle: "Overview"
 ---
 
-## The AI agent platform you actually own
+<Note>
+**OpenPawz is not a chatbot.** It's an AI agent operating system that runs on your desktop — with 400+ integrations, 11 chat channels, multi-agent orchestration, and zero cloud dependency.
+</Note>
 
-OpenPawz is an **open-source AI agent operating system** built on [Tauri v2](https://v2.tauri.app/). It's not another chatbot UI. It's a complete runtime for deploying, managing, and orchestrating autonomous AI agents — entirely on your desktop, with zero cloud dependency.
+## The AI agent OS you actually own
 
-While other tools give you a text box and an API bill, OpenPawz gives you:
+Built on [Tauri v2](https://v2.tauri.app/) with a Rust backend. While other tools give you a text box and an API bill, OpenPawz gives you a complete agent runtime:
 
-- **400+ integrations out of the box** — productivity, dev tools, cloud, CRM, media, smart home, trading, security, AI/ML, and more — every one ships ready to use
-- **11 chat channels** running simultaneously — Telegram, Discord, Slack, WhatsApp, Matrix, IRC, Twitch, Mattermost, Nextcloud, Nostr, and built-in Webchat
-- **Multi-agent orchestration** — boss/worker delegation, agent squads, inter-agent messaging, parallel workflows
-- **Multi-chain DeFi trading** — Coinbase + Solana (Jupiter/Pump.fun) + Ethereum (Uniswap) with trading policy guardrails
-- **Hybrid semantic memory** — BM25 + vector + MMR re-ranking + temporal decay. The most advanced retrieval system in any agent platform
-- **Voice** — three TTS providers (Google, OpenAI, ElevenLabs) + speech-to-text. Agents speak and listen
-- **Visual node editor** — drag-and-drop workflow builder for creating agent pipelines without code
-- **10 AI providers** — Ollama (free, local), OpenAI, Anthropic, Google, DeepSeek, Grok, Mistral, OpenRouter, Moonshot, plus any OpenAI-compatible endpoint
-- **Model routing** — automatic complexity-based routing sends simple queries to cheap models, complex tasks to powerful ones
-- **Three-tier extensibility** — Skills → Integrations → Extensions graduation path, plus MCP and PawzHub marketplace
-- **Self-improving agents** — agents search PawzHub and install new skills for themselves at runtime
-- **Native Rust performance** — Tauri v2, not Electron. 158 IPC commands. Zero-framework vanilla TypeScript frontend
-- **Token-saving session compaction** — automatic summarization saves 40–60% on tokens. Plus daily budget caps and thinking level control
-- **Remote access** — Tailscale mesh VPN and built-in webhook server for triggering agents from anywhere
-- **Enterprise-grade security** — OS keychain, AES-256-GCM encryption, command risk classification, container sandbox, prompt injection defense, credential audit trail, filesystem sandboxing
+<Columns cols={3}>
+  <Card title="400+ integrations" icon="puzzle">
+    Productivity, dev tools, cloud, CRM, media, IoT, trading, security, AI/ML — all ship ready to use. No plugins to install.
+  </Card>
+  <Card title="11 channels" icon="message-lines">
+    Telegram, Discord, Slack, WhatsApp, Matrix, IRC, Twitch, Mattermost, Nextcloud, Nostr, Webchat — all running simultaneously.
+  </Card>
+  <Card title="Multi-agent" icon="users">
+    Boss/worker delegation, persistent squads, inter-agent messaging, parallel workflows. Your AI army.
+  </Card>
+</Columns>
+
+<Columns cols={3}>
+  <Card title="3-chain DeFi" icon="bitcoin-sign">
+    Coinbase + Solana (Jupiter/Pump.fun) + Ethereum (Uniswap). Trading policy engine with guardrails.
+  </Card>
+  <Card title="Semantic memory" icon="brain">
+    BM25 + vector + MMR re-ranking + temporal decay. The most advanced retrieval in any agent platform.
+  </Card>
+  <Card title="Voice" icon="microphone">
+    Three TTS providers + speech-to-text. Agents speak and listen. Auto-speak mode reads responses aloud.
+  </Card>
+</Columns>
+
+<Columns cols={3}>
+  <Card title="Visual editor" icon="diagram-project">
+    Drag-and-drop workflow builder. Wire triggers → agents → tools → outputs. No code required.
+  </Card>
+  <Card title="10 AI providers" icon="server">
+    Ollama (local), OpenAI, Anthropic, Google, DeepSeek, Grok, Mistral, OpenRouter, Moonshot, plus custom endpoints.
+  </Card>
+  <Card title="Self-improving" icon="wand-magic-sparkles">
+    Agents search PawzHub and install new skills for themselves — at runtime, conversationally.
+  </Card>
+</Columns>
 
 ---
 
 ## Who is it for?
 
 <Columns cols={3}>
-  <Card title="Developers">
-    Full source access, MIT licensed. Build custom tools, integrations, and extensions. Rust + TypeScript stack with Tauri IPC architecture.
+  <Card title="Developers" icon="code">
+    Full source access, MIT licensed. Build custom tools, integrations, and extensions. Rust + TypeScript stack with Tauri IPC.
   </Card>
-  <Card title="Power users">
-    Run a personal AI army across every platform you use. Set up once, message your agents from anywhere. No coding after initial setup.
+  <Card title="Power users" icon="rocket">
+    Run a personal AI fleet across every platform you use. Set up once, message your agents from anywhere. No coding after initial setup.
   </Card>
-  <Card title="Teams & orgs">
-    Private, auditable AI that never phones home. Multi-agent workflows for research, content, support, trading, and DevOps — all on-premise.
+  <Card title="Teams" icon="building">
+    Private, auditable AI that never phones home. Multi-agent workflows for research, content, support, trading, DevOps — all on-premise.
   </Card>
 </Columns>
 
@@ -46,91 +68,64 @@ While other tools give you a text box and an API bill, OpenPawz gives you:
 
 ## How it stacks up
 
-| | **OpenPawz** | **ChatGPT / Claude** | **OpenClaw** | **AutoGPT / CrewAI** |
-|---|---|---|---|---|
-| **Runs locally** | 100% — your hardware | No — cloud only | Cloud or self-host | CLI / Python lib |
-| **Desktop native** | Tauri/Rust | No | Electron | No |
-| **Chat channels** | 11 simultaneous | Web/mobile only | 1–2 | 0 |
-| **Multi-agent** | Boss/worker + squads | Single assistant | Basic | Yes (framework) |
-| **Memory** | Hybrid BM25+vector+MMR+decay | Per-conversation | Basic | None / basic |
-| **Built-in integrations** | 400+ | Limited plugins | ~20 | ~15 / code-defined |
-| **DeFi trading** | 3 chains (Coinbase+Solana+ETH) | None | None | None |
-| **Voice (TTS/STT)** | 3 providers | Voice mode only | None | None |
-| **Extension marketplace** | 3 tiers + PawzHub | None | None | Plugin store / none |
-| **Self-installing skills** | Agents install their own | No | No | No |
-| **Visual node editor** | Built-in | No | No | No |
-| **Session compaction** | Auto, 40–60% savings | No | No | No |
-| **Daily budget caps** | Built-in USD cap | No | No | No |
-| **Model routing** | Auto complexity-based | N/A | No | No |
-| **Remote access** | Tailscale + webhooks | N/A | Cloud-based | No |
-| **Credential security** | OS keychain + AES-256 | Provider-managed | Config files | Env vars |
-| **Open source** | MIT | No | Proprietary | MIT |
+| | **OpenPawz** | **ChatGPT / Claude** | **AutoGPT / CrewAI** |
+|---|---|---|---|
+| **Runs locally** | 100% — your hardware | No — cloud only | CLI / Python lib |
+| **Desktop native** | Tauri/Rust | No | No |
+| **Chat channels** | 11 simultaneous | Web/mobile only | 0 |
+| **Multi-agent** | Boss/worker + squads | Single assistant | Yes (framework) |
+| **Memory** | Hybrid BM25+vector+MMR+decay | Per-conversation | None / basic |
+| **Built-in integrations** | 400+ | Limited plugins | ~15 / code-defined |
+| **DeFi trading** | 3 chains | None | None |
+| **Voice (TTS/STT)** | 3 providers | Voice mode only | None |
+| **Extension marketplace** | 3 tiers + PawzHub | None | Plugin store / none |
+| **Self-installing skills** | Agents install their own | No | No |
+| **Session compaction** | Auto, 40–60% savings | No | No |
+| **Model routing** | Auto complexity-based | N/A | No |
+| **Open source** | MIT | No | MIT |
 
 ---
 
-## Memory, tokens & security
-
-The features that set OpenPawz apart from everything else:
+## The three pillars
 
 <Tabs>
-  <Tab title="Semantic memory">
-    Your agents **never forget**. Every important fact, preference, and detail is automatically captured with vector embeddings and recalled when relevant.
+  <Tab title="Memory">
+    Your agents **never forget**. Every important fact is automatically captured with vector embeddings and recalled when relevant.
 
-    - **Auto-capture** — agents extract and store key information from every conversation
-    - **Auto-recall** — relevant memories are injected into context before the agent responds
-    - **Memory Palace** — browse, search, edit, and manage everything your agents know
-    - **Shared or isolated** — agents share memory by default, or you can isolate per agent/workspace
-
-    Unlike ChatGPT or Claude, your agents build up knowledge over weeks and months — and you can see and control every piece of it.
+    - **Auto-capture** — agents extract key info from every conversation
+    - **Auto-recall** — relevant memories injected into context before the agent responds
+    - **Memory Palace** — browse, search, edit everything your agents know
+    - **Hybrid retrieval** — BM25 + vector + MMR + temporal decay
   </Tab>
   <Tab title="Token savings">
-    Long conversations burn tokens. OpenPawz solves this with **automatic session compaction**:
-
-    1. When a conversation nears the context limit, older parts are **summarized** into a compact digest
-    2. Key facts and decisions are **preserved in memory** — nothing important is lost
-    3. The full session is **archived** for later reference
-    4. The conversation **continues seamlessly** with summary + memory context
-
-    The result: agents can run **indefinitely long conversations** without hitting context limits, and you pay for significantly fewer tokens. Typical savings: **40–60% on long-running sessions**.
+    **Automatic session compaction** — when conversations near the context limit, older parts are summarized. Key facts preserved in memory. Full session archived. 40–60% token savings on long sessions.
   </Tab>
   <Tab title="Security">
-    OpenPawz was designed with a **zero-trust, local-first security model**:
-
-    - **100% local** — no data leaves your machine. No cloud sync, no telemetry, no analytics
-    - **OS keychain** — API keys stored in macOS Keychain / Windows Credential Manager / Linux Secret Service. Never plain text.
-    - **Risk classification** — every tool rated 1–5 for risk. Dangerous operations require user confirmation.
-    - **Container sandbox** — run agent shell commands in isolated Docker containers with resource limits
-    - **Per-agent policies** — granular control over tools, channels, and risk levels per agent
-    - **Prompt injection defense** — built-in detection flags manipulation attempts before they reach agents
+    Zero-trust, local-first:
+    - **100% local** — no data leaves your machine
+    - **OS keychain** — credentials in macOS Keychain / Windows Credential Manager / Linux Secret Service
+    - **Risk classification** — every tool rated 1–5. Dangerous ops require confirmation
+    - **Container sandbox** — Docker isolation with resource limits
+    - **Prompt injection defense** — dual implementation, 30+ detection patterns
   </Tab>
 </Tabs>
 
 ---
 
-## What exists like this? Nothing.
-
-OpenPawz is the **first AI agent operating system** that combines multi-agent orchestration, 400+ integrations, 11 simultaneous chat channels, multi-chain DeFi trading, hybrid semantic memory, voice, a visual node editor, a three-tier extension marketplace with self-installing skills, and enterprise-grade security — in a single, native, open-source desktop application.
-
-- **OpenClaw** gives you a web interface. OpenPawz gives you a native desktop app with 11 channels.
-- **AutoGPT** gives you a single agent in a terminal. OpenPawz gives you an army of agents with squads.
-- **CrewAI** gives you a Python framework. OpenPawz gives you a complete platform with UI, marketplace, and trading.
-- **LangChain** gives you building blocks. OpenPawz gives you the finished building.
-- **ChatGPT/Claude** give you a chatbox owned by a corporation. OpenPawz gives you the whole thing — MIT licensed, on your hardware.
-
 ## Core philosophy
 
 <Columns cols={2}>
-  <Card title="Privacy first">
-    All data stays on your machine. Credentials live in the OS keychain. No telemetry, no analytics, no phone-home. The only network traffic is to the AI providers you explicitly configure.
+  <Card title="Privacy first" icon="shield-halved">
+    All data stays on your machine. Credentials in the OS keychain. No telemetry, no analytics, no phone-home. The only network traffic is to AI providers you explicitly configure.
   </Card>
-  <Card title="Agent-native">
-    Not a chatbot wrapper — a full agent runtime with tool use, memory, task management, session compaction, trading, voice, and multi-agent delegation built in from day one.
+  <Card title="Agent-native" icon="robot">
+    Not a chatbot wrapper — a full agent runtime with tool use, memory, tasks, compaction, trading, voice, and multi-agent delegation built in from day one.
   </Card>
-  <Card title="Open and extensible">
-    MIT licensed. Three tiers of extensibility — Skills, Integrations, Extensions — plus MCP and PawzHub marketplace. Agents can even install their own skills at runtime.
+  <Card title="Open and extensible" icon="code-branch">
+    MIT licensed. Three extensibility tiers — Skills, Integrations, Extensions — plus MCP and PawzHub. Agents install their own skills at runtime.
   </Card>
-  <Card title="Desktop-grade">
-    Built with Tauri v2 for native performance. Rust backend, vanilla TypeScript frontend, SQLite storage. 530 automated tests. Zero known CVEs. Runs on macOS, Linux, and Windows.
+  <Card title="Desktop-grade" icon="desktop">
+    Tauri v2 for native performance. Rust backend, vanilla TypeScript frontend, SQLite storage. 530 tests. Zero CVEs. macOS, Linux, Windows.
   </Card>
 </Columns>
 
@@ -139,10 +134,10 @@ OpenPawz is the **first AI agent operating system** that combines multi-agent or
 ## Next steps
 
 <Columns cols={2}>
-  <Card title="See it in action" href="/start/showcase">
-    Screenshots and feature highlights.
+  <Card title="See it in action" href="/start/showcase" icon="eye">
+    Feature highlights and use cases.
   </Card>
-  <Card title="Install it" href="/start/installation">
+  <Card title="Install it" href="/start/installation" icon="download">
     Get OpenPawz running in 5 minutes.
   </Card>
 </Columns>
