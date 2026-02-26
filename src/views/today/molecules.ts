@@ -140,9 +140,36 @@ export async function fetchUnreadEmails() {
   }
 
   try {
-    let accounts: { name: string; email: string }[] = [];
+    interface UnreadItem {
+      from: string;
+      subject: string;
+      date: Date | null;
+      source: 'google' | 'himalaya';
+    }
+    const unreadItems: UnreadItem[] = [];
 
-    // Primary: read config via pawEngine (consistent with Mail view)
+    // ── 1. Google OAuth emails ──────────────────────────────────────────
+    try {
+      const googleEmail = await pawEngine.googleOAuthStatus();
+      if (googleEmail) {
+        const gmailMsgs = await pawEngine.googleGmailList('is:unread', 10);
+        for (const gm of gmailMsgs) {
+          if (!gm.read) {
+            unreadItems.push({
+              from: gm.from || 'Unknown',
+              subject: gm.subject || '(No subject)',
+              date: gm.date ? new Date(gm.date) : null,
+              source: 'google',
+            });
+          }
+        }
+      }
+    } catch {
+      /* Google OAuth not available or not connected */
+    }
+
+    // ── 2. Himalaya IMAP emails ─────────────────────────────────────────
+    let himalayaAccounts: { name: string; email: string }[] = [];
     try {
       const toml = await pawEngine.mailReadConfig();
       if (toml) {
@@ -150,37 +177,60 @@ export async function fetchUnreadEmails() {
           /\[accounts\.([^\]]+)\][\s\S]*?email\s*=\s*"([^"]+)"/g,
         );
         for (const match of accountBlocks) {
-          accounts.push({ name: match[1], email: match[2] });
+          himalayaAccounts.push({ name: match[1], email: match[2] });
         }
       }
     } catch {
-      // Fallback: try direct Tauri invoke
-      if (invoke) {
-        try {
-          const toml = await invoke<string>('read_himalaya_config');
-          if (toml) {
-            const accountBlocks = toml.matchAll(
-              /\[accounts\.([^\]]+)\][\s\S]*?email\s*=\s*"([^"]+)"/g,
-            );
-            for (const match of accountBlocks) {
-              accounts.push({ name: match[1], email: match[2] });
-            }
-          }
-        } catch {
-          /* no config yet */
-        }
-      }
+      /* no himalaya config */
     }
-    if (accounts.length === 0) {
+    if (himalayaAccounts.length === 0) {
       try {
         const raw = localStorage.getItem('mail-accounts-fallback');
-        if (raw) accounts = JSON.parse(raw);
-      } catch {
-        /* ignore */
+        if (raw) himalayaAccounts = JSON.parse(raw);
+      } catch { /* ignore */ }
+    }
+
+    if (himalayaAccounts.length > 0) {
+      try {
+        const fetchPromise = pawEngine.mailFetchEmails(himalayaAccounts[0].name, 'INBOX', 10);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('IMAP timeout')), 12000),
+        );
+        const jsonResult = await Promise.race([fetchPromise, timeoutPromise]);
+        interface EmailEnvelope {
+          id: string;
+          flags: string[];
+          subject: string;
+          from: { name?: string; addr: string };
+          date: string;
+        }
+        let envelopes: EmailEnvelope[] = [];
+        try { envelopes = JSON.parse(jsonResult); } catch { /* ignore */ }
+        for (const env of envelopes) {
+          if (!env.flags?.includes('Seen')) {
+            unreadItems.push({
+              from: env.from?.name || env.from?.addr || 'Unknown',
+              subject: env.subject || '(No subject)',
+              date: env.date ? new Date(env.date) : null,
+              source: 'himalaya',
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('[today] Himalaya email fetch failed:', e);
       }
     }
 
-    if (accounts.length === 0) {
+    // ── 3. No email sources configured at all ───────────────────────────
+    if (unreadItems.length === 0 && himalayaAccounts.length === 0) {
+      // Check if we had a Google OAuth — if so, they just have 0 unread
+      try {
+        const googleEmail = await pawEngine.googleOAuthStatus();
+        if (googleEmail) {
+          emailsEl.innerHTML = `<div class="today-section-empty"><span class="ms ms-sm">mark_email_read</span> No unread emails — you're all caught up!</div>`;
+          return;
+        }
+      } catch { /* ignore */ }
       emailsEl.innerHTML = `<div class="today-section-empty">Set up email in the <a href="#" class="today-link-mail">Mail</a> view to see messages here</div>`;
       emailsEl.querySelector('.today-link-mail')?.addEventListener('click', (e) => {
         e.preventDefault();
@@ -190,57 +240,32 @@ export async function fetchUnreadEmails() {
       return;
     }
 
-    const accountName = accounts[0].name;
-    // Fetch emails with a timeout to prevent hanging on slow IMAP connections
-    const fetchPromise = pawEngine.mailFetchEmails(accountName, 'INBOX', 10);
-    const timeoutPromise = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Email fetch timed out')), 15000),
-    );
-    const jsonResult = await Promise.race([fetchPromise, timeoutPromise]);
-
-    interface EmailEnvelope {
-      id: string;
-      flags: string[];
-      subject: string;
-      from: { name?: string; addr: string };
-      date: string;
-    }
-
-    let envelopes: EmailEnvelope[] = [];
-    try {
-      envelopes = JSON.parse(jsonResult);
-    } catch {
-      /* ignore */
-    }
-
-    const unread = envelopes.filter((e) => !e.flags?.includes('Seen'));
-
-    if (unread.length === 0) {
+    if (unreadItems.length === 0) {
       emailsEl.innerHTML = `<div class="today-section-empty"><span class="ms ms-sm">mark_email_read</span> No unread emails — you're all caught up!</div>`;
       return;
     }
 
-    emailsEl.innerHTML = unread
+    // Sort by date descending
+    unreadItems.sort((a, b) => (b.date?.getTime() ?? 0) - (a.date?.getTime() ?? 0));
+
+    emailsEl.innerHTML = unreadItems
       .slice(0, 8)
       .map((email) => {
-        const from = email.from?.name || email.from?.addr || 'Unknown';
-        const subject = email.subject || '(No subject)';
-        const date = email.date ? new Date(email.date) : null;
-        const timeStr = date
-          ? date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+        const timeStr = email.date
+          ? email.date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
           : '';
         return `
         <div class="today-email-item">
-          <div class="today-email-from">${escHtml(from)}</div>
-          <div class="today-email-subject">${escHtml(subject)}</div>
+          <div class="today-email-from">${escHtml(email.from)}</div>
+          <div class="today-email-subject">${escHtml(email.subject)}</div>
           ${timeStr ? `<div class="today-email-time">${timeStr}</div>` : ''}
         </div>
       `;
       })
       .join('');
 
-    if (unread.length > 8) {
-      emailsEl.innerHTML += `<div class="today-email-more">+${unread.length - 8} more unread</div>`;
+    if (unreadItems.length > 8) {
+      emailsEl.innerHTML += `<div class="today-email-more">+${unreadItems.length - 8} more unread</div>`;
     }
   } catch (e) {
     console.warn('[today] Email fetch failed:', e);
@@ -319,6 +344,7 @@ export async function fetchActiveSkills() {
     `;
   } catch (e) {
     console.warn('[today] Skills list fetch failed:', e);
+    if (container) container.innerHTML = `<div class="today-section-empty">Could not load skills</div>`;
   }
 }
 
