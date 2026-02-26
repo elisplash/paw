@@ -190,24 +190,82 @@ impl McpRegistry {
 
 /// Convert an MCP tool definition to a Paw ToolDefinition.
 /// The tool name is prefixed with `mcp_{server_id}_` to namespace it.
+///
+/// For n8n tools, applies extra remapping to produce cleaner names:
+///   Raw:   `Gmail_SendEmail`  → `mcp_n8n_gmail_send_email`
+///   Raw:   `Slack_SendMessage` → `mcp_n8n_slack_send_message`
 fn mcp_tool_to_paw_def(server_id: &str, tool: &McpToolDef) -> ToolDefinition {
-    let prefixed_name = format!("mcp_{}_{}", server_id, tool.name);
-    let server_tag = format!(" [MCP: {}]", server_id);
-    let description = tool
-        .description
-        .as_deref()
-        .unwrap_or("(no description)")
-        .to_string()
-        + server_tag.as_str();
+    let (clean_name, description) = if server_id == N8N_MCP_SERVER_ID {
+        // n8n tool names are often PascalCase like "Gmail_SendEmail" or "SendSlackMessage"
+        // Remap to snake_case for consistency
+        let snake = pascal_to_snake(&tool.name);
+        let prefixed = format!("mcp_n8n_{}", snake);
+        let desc = tool
+            .description
+            .as_deref()
+            .unwrap_or("(no description)")
+            .to_string()
+            + " [n8n automation]";
+        (prefixed, desc)
+    } else {
+        let prefixed = format!("mcp_{}_{}", server_id, tool.name);
+        let desc = tool
+            .description
+            .as_deref()
+            .unwrap_or("(no description)")
+            .to_string()
+            + format!(" [MCP: {}]", server_id).as_str();
+        (prefixed, desc)
+    };
 
     ToolDefinition {
         tool_type: "function".into(),
         function: FunctionDefinition {
-            name: prefixed_name,
+            name: clean_name,
             description,
             parameters: tool.input_schema.clone(),
         },
     }
+}
+
+/// Convert PascalCase / camelCase / mixed names to snake_case.
+///
+/// Examples:
+///   "SendSlackMessage"  → "send_slack_message"
+///   "Gmail_SendEmail"   → "gmail_send_email"
+///   "awsS3Upload"       → "aws_s3_upload"
+///   "HTTPRequest"       → "http_request"
+///   "already_snake"     → "already_snake"
+fn pascal_to_snake(name: &str) -> String {
+    let mut result = String::with_capacity(name.len() + 8);
+    let chars: Vec<char> = name.chars().collect();
+
+    for (i, &ch) in chars.iter().enumerate() {
+        if ch == '_' || ch == '-' {
+            if !result.ends_with('_') {
+                result.push('_');
+            }
+            continue;
+        }
+        if ch.is_uppercase() {
+            // Insert underscore before uppercase if:
+            // - Not at the start
+            // - Previous char was lowercase or digit, OR
+            // - Next char is lowercase (handles "HTTPRequest" → "http_request")
+            if i > 0 && !result.ends_with('_') {
+                let prev = chars[i - 1];
+                let next_lower = chars.get(i + 1).map_or(false, |c| c.is_lowercase());
+                if prev.is_lowercase() || prev.is_ascii_digit() || (prev.is_uppercase() && next_lower) {
+                    result.push('_');
+                }
+            }
+            result.push(ch.to_lowercase().next().unwrap_or(ch));
+        } else {
+            result.push(ch);
+        }
+    }
+
+    result
 }
 
 /// Given a tool name with the `mcp_` prefix stripped (i.e. `{server_id}_{tool_name}`),
@@ -259,6 +317,18 @@ mod tests {
     }
 
     #[test]
+    fn test_mcp_tool_n8n_remapping() {
+        let tool = McpToolDef {
+            name: "Gmail_SendEmail".into(),
+            description: Some("Send an email via Gmail".into()),
+            input_schema: serde_json::json!({"type": "object"}),
+        };
+        let def = mcp_tool_to_paw_def("n8n", &tool);
+        assert_eq!(def.function.name, "mcp_n8n_gmail_send_email");
+        assert!(def.function.description.contains("[n8n automation]"));
+    }
+
+    #[test]
     fn test_mcp_tool_no_description() {
         let tool = McpToolDef {
             name: "ping".into(),
@@ -270,15 +340,20 @@ mod tests {
     }
 
     #[test]
+    fn test_pascal_to_snake() {
+        assert_eq!(pascal_to_snake("SendSlackMessage"), "send_slack_message");
+        assert_eq!(pascal_to_snake("Gmail_SendEmail"), "gmail_send_email");
+        assert_eq!(pascal_to_snake("awsS3Upload"), "aws_s3_upload");
+        assert_eq!(pascal_to_snake("HTTPRequest"), "http_request");
+        assert_eq!(pascal_to_snake("already_snake"), "already_snake");
+        assert_eq!(pascal_to_snake("simpleWord"), "simple_word");
+        assert_eq!(pascal_to_snake("A"), "a");
+        assert_eq!(pascal_to_snake("ABCDef"), "abc_def");
+    }
+
+    #[test]
     fn test_find_server_and_tool() {
-        // We can't create real McpClient instances without actually spawning processes,
-        // so we test the parsing logic directly.
-
-        // Test the prefix parsing logic manually instead
         let stripped = "github_read_file";
-        // If "github" is a known server ID, should return ("github", "read_file")
-
-        // Direct test of the prefix stripping logic
         assert_eq!(
             stripped
                 .strip_prefix("github")

@@ -15,6 +15,7 @@ pub mod mail;
 pub mod mcp;
 pub mod memory;
 pub mod n8n;
+pub mod ollama;
 pub mod project;
 pub mod guardrails;
 pub mod health_monitor;

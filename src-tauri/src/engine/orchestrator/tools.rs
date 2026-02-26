@@ -108,8 +108,8 @@ pub fn boss_tools() -> Vec<ToolDefinition> {
                         },
                         "specialty": {
                             "type": "string",
-                            "enum": ["coder", "researcher", "designer", "communicator", "security", "general"],
-                            "description": "The agent's area of expertise"
+                            "enum": ["coder", "researcher", "designer", "communicator", "security", "automation-executor", "general"],
+                            "description": "The agent's area of expertise. Use 'automation-executor' for agents that handle n8n/MCP tool installation and execution."
                         },
                         "system_prompt": {
                             "type": "string",

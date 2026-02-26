@@ -414,6 +414,12 @@ pub fn run() {
             commands::n8n::engine_n8n_deploy_mcp_workflow,
             // ── NCNodes Discovery (Phase 3) ──
             commands::n8n::engine_n8n_search_ncnodes,
+            // ── Ollama Model Management (Phase 4) ──
+            commands::ollama::engine_ollama_list_models,
+            commands::ollama::engine_ollama_has_model,
+            commands::ollama::engine_ollama_pull_model,
+            commands::ollama::engine_ollama_create_model,
+            commands::ollama::engine_ollama_setup_worker,
             // ── Integration Credentials (Phase 2.5) ──
             commands::n8n::engine_integrations_test_credentials,
             commands::n8n::engine_integrations_save_credentials,

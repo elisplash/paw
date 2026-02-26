@@ -79,7 +79,7 @@ pub(crate) async fn run_sub_agent(
     let state = app_handle.state::<EngineState>();
 
     // Get provider — use model routing for worker agents
-    let (provider_config, model, agent_capabilities) = {
+    let (provider_config, model, agent_capabilities, agent_specialty) = {
         let cfg = state.config.lock();
         let default_model = cfg
             .default_model
@@ -94,8 +94,8 @@ pub(crate) async fn run_sub_agent(
             .and_then(|agents| agents.into_iter().find(|a| a.agent_id == agent_id));
         let specialty = agent_entry
             .as_ref()
-            .map(|a| a.specialty.as_str())
-            .unwrap_or("general");
+            .map(|a| a.specialty.clone())
+            .unwrap_or_else(|| "general".to_string());
         let capabilities = agent_entry
             .as_ref()
             .map(|a| a.capabilities.clone())
@@ -110,7 +110,7 @@ pub(crate) async fn run_sub_agent(
             agent_model.to_string()
         } else {
             cfg.model_routing
-                .resolve(agent_id, "worker", specialty, &default_model)
+                .resolve(agent_id, "worker", &specialty, &default_model)
         };
 
         info!(
@@ -120,7 +120,7 @@ pub(crate) async fn run_sub_agent(
 
         let provider = resolve_provider_for_model(&cfg, &model);
         match provider {
-            Some(p) => (p, model, capabilities),
+            Some(p) => (p, model, capabilities, specialty),
             None => return Err("No AI provider configured".into()),
         }
     };
@@ -175,6 +175,34 @@ Your boss agent has delegated this task to you.
             format!("\n### Additional Context\n{}", context)
         }
     ));
+
+    // Automation-executor specialty: add foreman instructions
+    if agent_specialty == "automation-executor" {
+        sys_parts.push(r#"## Automation Executor Mode
+
+You are a silent execution agent. Your job is to translate Task Orders into
+precise tool calls. Minimize commentary — output tool calls, not explanations.
+
+### Available Tool Prefixes
+- `mcp_n8n_*` — Tools from the n8n MCP bridge (automation actions)
+- `install_n8n_node` — Install a community node package from npm
+- `search_ncnodes` — Search 25K+ community packages
+- `mcp_refresh` — Refresh available tools after installing a package
+- `report_progress` — Report completion or blockers to the Architect
+
+### Installation Flow
+When told to install a package:
+1. `install_n8n_node(package_name)` — wait for result (auto-deploys MCP workflow)
+2. Tools are auto-refreshed after install
+3. Proceed with the next tool call using newly available tools
+
+### Execution Rules
+1. Parse the Task Order. Identify the sequence of tool calls needed.
+2. Execute tool calls one at a time in the correct order.
+3. If a tool call fails, retry ONCE with corrected parameters.
+4. After all steps complete, call `report_progress` with status "done".
+5. If blocked (missing credentials, permission denied), call `report_progress` with status "blocked"."#.to_string());
+    }
 
     let full_system_prompt = sys_parts.join("\n\n---\n\n");
 

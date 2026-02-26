@@ -143,6 +143,83 @@ export async function loadAdvancedSettings() {
     ollamaSaveRow.appendChild(ollamaSaveBtn);
     ollamaSection.appendChild(ollamaSaveRow);
 
+    // ── Worker Agent Setup (Zero-Gap Automation) ─────────────────────────
+    if (hasOllama) {
+      const workerSection = document.createElement('div');
+      workerSection.style.cssText =
+        'margin:8px 0 16px;padding:10px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary, rgba(255,255,255,0.03))';
+      workerSection.innerHTML = `
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span class="ms ms-sm">precision_manufacturing</span>
+          <strong style="font-size:13px">Worker Agent (Foreman)</strong>
+        </div>
+        <p style="margin:0 0 8px;font-size:11px;color:var(--text-muted);line-height:1.4">
+          Create a local Qwen-based worker model optimized for silent tool execution.
+          The Architect (cloud AI) delegates automation tasks to this local worker for fast, private execution via the n8n MCP bridge.
+        </p>
+      `;
+
+      const workerBtnRow = document.createElement('div');
+      workerBtnRow.style.cssText = 'display:flex;gap:8px;align-items:center';
+      const workerBtn = document.createElement('button');
+      workerBtn.className = 'btn btn-sm';
+      workerBtn.textContent = 'Setup Worker Agent';
+      const workerStatus = document.createElement('span');
+      workerStatus.style.cssText = 'font-size:12px;color:var(--text-muted)';
+
+      // Check if worker model already exists
+      (async () => {
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const hasWorker = await invoke<boolean>('engine_ollama_has_model', {
+            modelName: 'worker-qwen',
+          });
+          if (hasWorker) {
+            workerStatus.textContent = '✓ worker-qwen model is ready';
+            workerStatus.style.color = 'var(--text-success, #4caf50)';
+            workerBtn.textContent = 'Recreate Worker';
+          }
+        } catch {
+          // Ollama might not be running — that's fine
+        }
+      })();
+
+      workerBtn.addEventListener('click', async () => {
+        workerBtn.disabled = true;
+        workerBtn.textContent = '⏳ Setting up…';
+        workerStatus.textContent = 'Pulling base model and creating worker… (this may take several minutes)';
+        workerStatus.style.color = 'var(--text-muted)';
+        try {
+          const { invoke } = await import('@tauri-apps/api/core');
+          const result = await invoke<{ success: boolean; model_name: string; message: string }>(
+            'engine_ollama_setup_worker',
+            { baseModel: null },
+          );
+          if (result.success) {
+            workerStatus.textContent = `✓ ${result.message}`;
+            workerStatus.style.color = 'var(--text-success, #4caf50)';
+            showToast('Worker agent ready!', 'success');
+          } else {
+            workerStatus.textContent = `✗ ${result.message}`;
+            workerStatus.style.color = 'var(--text-danger, #f44336)';
+          }
+        } catch (e) {
+          const err = e instanceof Error ? e.message : String(e);
+          workerStatus.textContent = `✗ ${err}`;
+          workerStatus.style.color = 'var(--text-danger, #f44336)';
+          showToast(`Worker setup failed: ${err}`, 'error');
+        } finally {
+          workerBtn.disabled = false;
+          workerBtn.textContent = 'Setup Worker Agent';
+        }
+      });
+
+      workerBtnRow.appendChild(workerBtn);
+      workerBtnRow.appendChild(workerStatus);
+      workerSection.appendChild(workerBtnRow);
+      ollamaSection.appendChild(workerSection);
+    }
+
     container.appendChild(ollamaSection);
 
     // ── All Providers ────────────────────────────────────────────────────

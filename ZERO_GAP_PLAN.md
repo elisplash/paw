@@ -5,7 +5,7 @@
 >
 > **Architecture**: `Opus (Architect) → MCP → n8n Bridge → Qwen (Worker/Foreman)`
 >
-> **Status**: Phase 1–2 shipped. Phase 3–6 in progress.
+> **Status**: Phases 0–5 shipped. Phase 6–7 in progress.
 
 ---
 
@@ -100,10 +100,10 @@ These are done, committed, and pushed. No work needed.
 
 ---
 
-### Phase 4 — Architect / Worker Handoff
+### ✅ Phase 4 — Architect / Worker Handoff
 **Goal**: Opus sends high-level Task Orders, Qwen executes them locally.
 
-#### 4.1 — Worker Agent Profile (Ollama/Qwen)
+#### ✅ 4.1 — Worker Agent Profile (Ollama/Qwen)
 
 The Worker is a standard OpenPawz agent configured with:
 - **Provider**: Ollama (local)
@@ -119,12 +119,12 @@ The Worker is a standard OpenPawz agent configured with:
 - `delegate_task` boss tool — sends task to a named worker agent
 - Per-agent model override via `agent.model` field
 
-- [ ] Add `automation-executor` to specialty enum in `tools.rs` `create_sub_agent`
-- [ ] Add model routing preset: when specialty = `automation-executor`, route to Ollama
-- [ ] Create default worker agent profile (name: `foreman`, model: `worker-qwen:latest`)
-- [ ] Worker gets `search_ncnodes`, `install_n8n_node`, `mcp_refresh` + all `mcp_*` tools
+- [x] Add `automation-executor` to specialty enum in `tools.rs` `create_sub_agent`
+- [x] Add model routing preset: when specialty = `automation-executor`, route to Ollama
+- [x] Create default worker agent profile (name: `foreman`, model: `worker-qwen:latest`)
+- [x] Worker gets `search_ncnodes`, `install_n8n_node`, `mcp_refresh` + all `mcp_*` tools
 
-#### 4.2 — Task Order Protocol
+#### ✅ 4.2 — Task Order Protocol
 
 The Architect doesn't call MCP tools directly for execution-heavy work.
 Instead, it delegates via the existing `delegate_task` boss tool:
@@ -147,10 +147,10 @@ Foreman (Qwen) executes:
 **What already exists**: This flow works TODAY with `delegate_task` → `run_sub_agent()`.
 The only gap is that worker agents need the n8n-specific tools added to their tool set.
 
-- [ ] In `sub_agent.rs`, add n8n tools to worker tool set when specialty = `automation-executor`
-- [ ] Architect system prompt addition: "For automation tasks, delegate to the foreman agent"
+- [x] In `sub_agent.rs`, add n8n tools to worker tool set when specialty = `automation-executor`
+- [x] Architect system prompt addition: "For automation tasks, delegate to the foreman agent"
 
-#### 4.3 — Qwen Modelfile
+#### ✅ 4.3 — Qwen Modelfile
 
 **File**: `resources/ollama/worker-qwen.Modelfile`
 
@@ -184,12 +184,13 @@ precise MCP tool calls. You are a silent execution unit.
 """
 ```
 
-- [ ] Create Modelfile at `resources/ollama/worker-qwen.Modelfile`
-- [ ] Add `engine_ollama_create_worker` command to auto-run `ollama create worker-qwen`
-- [ ] Wire into first-run setup: detect Ollama → offer to create worker model
+- [x] Create Modelfile at `resources/ollama/worker-qwen.Modelfile`
+- [x] Add `engine_ollama_setup_worker` command — one-click: check/pull base model + create worker-qwen
+- [x] `engine_ollama_list_models`, `engine_ollama_has_model`, `engine_ollama_pull_model`, `engine_ollama_create_model`
+- [x] Wire into first-run setup: detect Ollama → offer to create worker model
 - [ ] Smaller alternative: `worker-qwen-small` using `qwen3.5:8b` for lighter machines
 
-#### 4.4 — Auto-Setup Flow
+#### ✅ 4.4 — Auto-Setup Flow
 
 When a user first sets up OpenPawz with Ollama configured:
 
@@ -203,17 +204,17 @@ When a user first sets up OpenPawz with Ollama configured:
 7. Done — all delegate_task calls to "foreman" now use local Qwen
 ```
 
-- [ ] `engine_ollama_list_models` — check available models
-- [ ] `engine_ollama_create_model` — create from Modelfile
-- [ ] Auto-setup UI in Settings → Providers → Ollama section
+- [x] `engine_ollama_list_models` — check available models
+- [x] `engine_ollama_create_model` — create from Modelfile
+- [x] Auto-setup UI in Settings → Providers → Ollama section ("Setup Worker Agent" button)
 - [ ] First-run detection in `main.ts`
 
 ---
 
-### Phase 5 — Tool Name Remapping + Agent Access
+### ✅ Phase 5 — Tool Name Remapping + Agent Access
 **Goal**: Clean tool names, per-service access control.
 
-#### 5.1 — Tool Name Remapping
+#### ✅ 5.1 — Tool Name Remapping
 **File**: `src-tauri/src/engine/mcp/registry.rs`
 
 Current: `mcp_n8n_SendSlackMessage` (raw n8n operation names)
@@ -228,7 +229,9 @@ fn remap_n8n_tool_name(raw_name: &str) -> String {
 }
 ```
 
-- [ ] Implement `remap_n8n_tool_name` with camelCase/PascalCase → snake_case
+- [x] Implement `pascal_to_snake()` with camelCase/PascalCase → snake_case conversion
+- [x] n8n-specific branch in `mcp_tool_to_paw_def()`: `mcp_n8n_gmail_send_email` format
+- [x] `[n8n automation]` tag in descriptions for n8n tools
 - [ ] Build service→prefix mapping from catalog (405 services)
 - [ ] Add enriched descriptions from catalog service descriptions
 - [ ] Maintain reverse mapping for dispatch (clean name → raw MCP name)
@@ -418,13 +421,15 @@ N8N_MCP_SERVER_MODE=true                       # ✅ Shipped (via mcp_mode)
 |------|--------|-------------|
 | `src-tauri/src/engine/mcp/transport.rs` | ✅ Done | SSE transport + McpTransportHandle |
 | `src-tauri/src/engine/mcp/client.rs` | ✅ Done | Transport-agnostic MCP client |
-| `src-tauri/src/engine/mcp/registry.rs` | ✅ Done + Phase 5 | n8n auto-registration + tool remapping |
-| `src-tauri/src/commands/n8n.rs` | ✅ Done + Phase 3 | Community API + ncnodes search |
-| `src-tauri/src/engine/tools/n8n.rs` | 🔲 Phase 3 | Agent tools for ncnodes search/install |
-| `src-tauri/src/engine/tools/mod.rs` | 🔲 Phase 3 | Wire new n8n tools |
-| `src-tauri/src/engine/orchestrator/sub_agent.rs` | 🔲 Phase 4 | Add n8n tools to automation workers |
-| `src-tauri/src/engine/orchestrator/tools.rs` | 🔲 Phase 4 | automation-executor specialty |
-| `resources/ollama/worker-qwen.Modelfile` | 🔲 Phase 4 | Qwen silent executor profile |
+| `src-tauri/src/engine/mcp/registry.rs` | ✅ Done | n8n auto-registration + pascal_to_snake remapping |
+| `src-tauri/src/commands/n8n.rs` | ✅ Done | Community API + ncnodes search |
+| `src-tauri/src/engine/tools/n8n.rs` | ✅ Done | Agent tools for ncnodes search/install/refresh |
+| `src-tauri/src/engine/tools/mod.rs` | ✅ Done | Wire new n8n tools |
+| `src-tauri/src/engine/orchestrator/sub_agent.rs` | ✅ Done | automation-executor system prompt + tool wiring |
+| `src-tauri/src/engine/orchestrator/tools.rs` | ✅ Done | automation-executor specialty |
+| `resources/ollama/worker-qwen.Modelfile` | ✅ Done | Qwen silent executor profile |
+| `src-tauri/src/commands/ollama.rs` | ✅ Done | Ollama model management (5 commands) |
+| `src/views/settings-advanced/molecules.ts` | ✅ Done | Worker setup UI button |
 | `src/views/integrations/community-browser.ts` | 🔲 Phase 6 | Package browser UI |
 | `src-tauri/tests/n8n_mcp_e2e.rs` | 🔲 Phase 7 | Integration test |
 | `src-tauri/src/lib.rs` | ✅ Done + Phase 3 | Register new commands |
