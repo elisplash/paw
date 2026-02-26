@@ -443,8 +443,24 @@
   min-width: 32px;
   text-align: right;
 }
-.matrix-on { color: var(--kinetic-sage); font-weight: 600; }
+.matrix-on { color: var(--kinetic-sage); font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
 .matrix-off { color: var(--text-muted); }
+
+/* Green live indicator dot */
+.integrations-live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4caf50;
+  box-shadow: 0 0 6px rgba(76, 175, 80, 0.6);
+  animation: integrations-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes integrations-pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px rgba(76, 175, 80, 0.6); }
+  50% { opacity: 0.7; box-shadow: 0 0 10px rgba(76, 175, 80, 0.9); }
+}
 .matrix-row-action {
   flex-shrink: 0;
 }

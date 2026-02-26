@@ -24,7 +24,7 @@ import {
   getRequiredPackage,
   displayName as communityDisplayName,
 } from './community';
-import { kineticStagger, kineticDot } from '../../components/kinetic-row';
+import { kineticStagger } from '../../components/kinetic-row';
 import type { EngineSkillStatus, McpServerConfig, McpServerStatus } from '../../engine';
 
 // ── Module state (set by index.ts) ─────────────────────────────────────
@@ -282,14 +282,14 @@ function _renderCards(): void {
             <div class="matrix-row-status">
               ${
                 isConnected
-                  ? `<span class="matrix-on">${kineticDot()} ON</span>`
+                  ? `<span class="matrix-on"><span class="integrations-live-dot"></span> ON</span>`
                   : '<span class="matrix-off">OFF</span>'
               }
             </div>
             <div class="matrix-row-action">
               ${
                 isConnected
-                  ? `<button class="btn btn-ghost btn-sm integrations-card-btn" data-service-id="${s.id}">▸</button>`
+                  ? `<button class="btn btn-ghost btn-sm integrations-connect-btn" data-service-id="${s.id}">Edit</button>`
                   : `<button class="btn btn-ghost btn-sm integrations-connect-btn" data-service-id="${s.id}">Setup</button>`
               }
             </div>
@@ -326,9 +326,10 @@ function _renderCards(): void {
           ${
             isConnected
               ? `<span class="integrations-status connected">
-                <span class="ms ms-sm">check_circle</span>
-                Connected${conn ? ` · ${conn.toolCount} tools` : ''}
-              </span>`
+                <span class="integrations-live-dot"></span>
+                Connected${conn ? ` · ${conn.toolCount ?? 0} tools` : ''}
+              </span>
+              <button class="btn btn-sm btn-ghost integrations-connect-btn" data-service-id="${s.id}">Edit</button>`
               : `<button class="btn btn-sm btn-ghost integrations-connect-btn" data-service-id="${s.id}">
                 Connect
               </button>`

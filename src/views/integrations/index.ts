@@ -109,6 +109,34 @@ export async function loadIntegrations(): Promise<void> {
     } catch (e) {
       console.warn('[integrations] Failed to fetch connected services:', e);
     }
+
+    // ── Auto-detect Rust skill vault connections ──
+    // Skills configured via the Skills page (e.g. Google OAuth, Slack bot token)
+    // should also appear as connected in the Integration Hub.
+    const skillToService: Record<string, string[]> = {
+      google_workspace: ['gmail', 'google-sheets', 'google-calendar', 'google-docs', 'google-drive'],
+      slack: ['slack'],
+      discord: ['discord'],
+      github: ['github'],
+      trello: ['trello'],
+      telegram: ['telegram'],
+    };
+    const connectedIds = new Set(_connected.map((c) => c.serviceId));
+    for (const skill of nativeSkills) {
+      if (!skill.is_ready) continue;
+      const serviceIds = skillToService[skill.id];
+      if (!serviceIds) continue;
+      for (const sid of serviceIds) {
+        if (connectedIds.has(sid)) continue;
+        _connected.push({
+          serviceId: sid,
+          connectedAt: new Date().toISOString(),
+          toolCount: skill.tool_names?.length ?? 0,
+          status: 'connected',
+        });
+        connectedIds.add(sid);
+      }
+    }
   }
   renderIntegrations();
 

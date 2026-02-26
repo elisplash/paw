@@ -19,7 +19,7 @@ export function updateIntegrationsHeroStats(connected: ConnectedService[]): void
   if (totalEl) totalEl.textContent = String(SERVICE_CATALOG.length);
   if (connectedEl) connectedEl.textContent = String(connected.length);
   if (toolsEl) {
-    const total = connected.reduce((sum, c) => sum + c.toolCount, 0);
+    const total = connected.reduce((sum, c) => sum + (c.toolCount ?? 0), 0);
     toolsEl.textContent = String(total);
   }
 }
@@ -39,7 +39,7 @@ export function renderHealthList(connected: ConnectedService[]): void {
     .slice(0, 8)
     .map((c) => {
       const svc = SERVICE_CATALOG.find((s) => s.id === c.serviceId);
-      const name = svc?.name ?? c.serviceId;
+      const name = svc?.name ?? c.serviceId ?? 'Unknown';
       const dotClass =
         c.status === 'error' ? 'error' : c.status === 'expired' ? 'warning' : 'healthy';
       const statusLabel = c.status === 'error' ? 'ERR' : c.status === 'expired' ? 'EXP' : 'OK';
