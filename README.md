@@ -69,7 +69,7 @@ OpenPawz introduces two novel methods for scaling AI agent tool usage. Both were
 User: "Email John about the quarterly report"
   → Agent calls request_tools("email sending capabilities")   ← agent has intent
   → Librarian (local, free): embeds query → cosine search → email_send, email_read
-  → 12 tools loaded instead of 118 → 89% token savings
+  → Only relevant tools loaded instead of every available definition
 ```
 
 **Key insight:** The LLM forms the search query (it has parsed intent). A pre-filter on the raw user message would have to guess — the agent knows.
@@ -78,15 +78,15 @@ User: "Email John about the quarterly report"
 
 ### The Foreman Protocol — Zero-Cost Tool Execution
 
-**Problem:** When a cloud LLM executes tools, the reasoning around formatting and calling them burns expensive tokens. A single Slack message costs ~$1.60 through a typical agent loop — not because Slack is expensive, but because the LLM is.
+**Problem:** When a cloud LLM executes tools, the reasoning around formatting and calling them burns expensive tokens. The actual API calls (Slack, Trello, etc.) are free or cheap — but the LLM processing around them is not.
 
 **Solution:** A local Ollama model (`qwen2.5-coder:7b`) executes all MCP tool calls instead of the cloud LLM. The critical enabler is **MCP's self-describing schemas** — the MCP server tells the local model exactly how to call each tool. No pre-training. No configuration. Any new n8n community node is instantly executable.
 
 ```
 Architect (Cloud LLM): "Send hello to #general" → calls mcp_slack_send_message
   → Engine intercepts mcp_* call
-  → Foreman (local Ollama, $0): executes via MCP → n8n → Slack API
-  → Cost: ~$0.08 instead of ~$1.60 → 95% savings
+  → Foreman (local Ollama, free): executes via MCP → n8n → Slack API
+  → Tool execution ran locally — no cloud tokens burned
 ```
 
 **Key insight:** MCP servers are self-describing. The local model doesn't need to know how to use 25,000+ integrations — MCP tells it at runtime.

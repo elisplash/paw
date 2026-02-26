@@ -76,23 +76,22 @@ graph TD
 
 ```
 Round 1: User says "Email John about the quarterly report"
-  ┌─ Agent has: 10 core tools (memory, filesystem, identity, request_tools)
+  ┌─ Agent has: a small set of core tools (memory, filesystem, identity, request_tools)
   ├─ Agent understands intent: needs email capabilities
   └─ Agent calls: request_tools({"query": "email sending capabilities"})
 
-  ┌─ Librarian embeds "email sending capabilities" → 768-dim vector
+  ┌─ Librarian embeds "email sending capabilities" → vector
   ├─ Cosine similarity search against tool index
-  ├─ Top matches: email_send (0.91), email_read (0.87)
+  ├─ Top matches: email_send, email_read
   └─ Domain expansion: email_send → also returns email_read (siblings)
 
 Round 2: Tools hot-loaded into this round
-  ┌─ Agent now has: 10 core + email_send + email_read = 12 tools
+  ┌─ Agent now has: core tools + email_send + email_read
   ├─ Agent calls: email_send({to: "john@...", subject: "Q4 Report", ...})
   └─ Done ✅
 
-Token cost: ~800 tokens for 12 tool definitions
-  vs. ~7,500 tokens if all tools were loaded
-  = 89% token savings
+The agent used only the tools it needed instead of carrying
+every available tool definition in its context window.
 ```
 
 ---
@@ -151,18 +150,16 @@ The Librarian Method requires **zero training**. It uses off-the-shelf embedding
 
 ---
 
-## Token Economics
+## Why This Matters for Cost and Context
 
-| Metric | Without Librarian | With Librarian | Savings |
-|--------|-------------------|----------------|---------|
-| Tool definitions per request | 75–118 | 10–15 | ~87% |
-| Token cost (tool defs) | ~7,500 | ~800 | ~89% |
-| Context window freed | — | ~25% of 32K | — |
-| API cost per request (est.) | $0.015 | $0.002 | ~87% |
-| Embedding search cost | — | $0 (local Ollama) | — |
-| Search latency | — | ~50ms | — |
+Without the Librarian, every request carries the full set of available tool definitions in the context window. With the Librarian, only the tools relevant to the current task are loaded — typically a handful instead of dozens or hundreds.
 
-Over thousands of requests, the savings are substantial — both in direct API costs and in context window budget available for actual conversation, memory, and reasoning.
+This has two compounding effects:
+
+1. **Lower token usage** — Fewer tool definitions means fewer tokens consumed per request, which directly reduces API costs regardless of which provider or model you use.
+2. **More room for conversation** — Context window space freed from tool schemas is available for actual conversation, memory, reasoning, and skill instructions.
+
+The embedding search itself runs entirely on your machine via Ollama and costs nothing.
 
 ---
 
@@ -215,7 +212,7 @@ Then ask your agent to do something that requires a specific tool:
 
 > "Check my GitHub notifications"
 >
-> *The agent calls `request_tools("GitHub notifications")`, the Librarian finds `github_notifications` and `github_list_repos`, and the agent proceeds — using only 12 tool definitions instead of 118.*
+> *The agent calls `request_tools("GitHub notifications")`, the Librarian finds `github_notifications` and `github_list_repos`, and the agent proceeds — carrying only the tools it needs instead of every tool available.*
 
 ---
 
