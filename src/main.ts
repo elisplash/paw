@@ -182,9 +182,7 @@ async function connectEngine(): Promise<boolean> {
     // ── n8n integration engine auto-start (non-blocking) ─────────────────
     pawEngine
       .n8nEnsureReady()
-      .then((ep) =>
-        console.debug(`[main] n8n ready: ${ep.url} (mode=${ep.mode})`),
-      )
+      .then((ep) => console.debug(`[main] n8n ready: ${ep.url} (mode=${ep.mode})`))
       .catch((e) => console.debug('[main] n8n auto-start skipped:', e));
 
     return true;
