@@ -62,19 +62,44 @@ The built app will be in `src-tauri/target/release/bundle/` — platform-specifi
 
 After launching, OpenPawz opens to the Today dashboard. Go to **Settings → Providers** to configure your first AI provider, then create agents and start chatting.
 
-## Optional: Ollama (local AI)
+## Recommended: Ollama (local AI)
 
-For fully local AI with no API keys:
+Ollama powers three critical systems in OpenPawz: **zero-cost tool execution**, **semantic memory**, and **offline chat**. We strongly recommend installing it.
 
 ```bash
 # Install Ollama
 curl -fsSL https://ollama.com/install.sh | sh
 
-# Pull a model
-ollama pull llama3.1
+# Worker model — executes MCP tool calls locally at $0 cost
+ollama pull qwen2.5-coder:7b
 
-# Pull the embedding model (for memory)
+# Embedding model — semantic memory + tool discovery
 ollama pull nomic-embed-text
+
+# Chat fallback — offline conversations when no API is available
+ollama pull llama3.2:3b
 ```
 
-Pawz auto-detects Ollama on `localhost:11434` and will auto-pull the embedding model if needed.
+Pawz auto-detects Ollama on `localhost:11434`, auto-starts it if needed, and auto-pulls the embedding model on first launch.
+
+### Worker Model Setup
+
+The worker model (`worker-qwen`) is what makes tool execution free. When your cloud AI agent (Gemini, Claude, GPT) needs to run a tool via the [MCP Bridge](/guides/mcp-bridge), it delegates to the local worker instead of making additional API calls.
+
+To set up the worker:
+
+1. Go to **Settings → Advanced → Ollama**
+2. Click **Setup Worker Agent**
+3. This creates a custom `worker-qwen` model with the right system prompt
+
+Or from the command line:
+
+```bash
+ollama pull qwen2.5-coder:7b  # Base model (~4.7 GB)
+```
+
+The one-click setup in Settings creates the optimized `worker-qwen` variant automatically.
+
+<Note>
+Without Ollama, tool calls go through your paid AI provider. With Ollama, they're free. See the [MCP Bridge guide](/guides/mcp-bridge) for the full Architect/Worker architecture.
+</Note>

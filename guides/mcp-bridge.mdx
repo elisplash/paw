@@ -81,17 +81,17 @@ When an agent needs a tool that requires an n8n community package:
 
 ## The Architect/Worker Pattern
 
-Cloud LLMs (Gemini, Claude, GPT) act as **Architects** — they plan and orchestrate. A local Ollama model acts as the **Worker** — it executes MCP tool calls at zero cost.
+Cloud LLMs (Gemini, Claude, GPT) act as **Architects** — they plan and orchestrate. A local Ollama model acts as the **Worker** — it executes MCP tool calls at zero cost. This is wired directly into the main chat loop: every MCP tool call from your cloud AI is automatically intercepted and delegated to the local worker.
 
 ```mermaid actions={false}
 graph LR
     subgraph Cloud["Architect (Cloud LLM)"]
         A["Plans task"] --> B["Identifies needed tools"]
-        B --> C["Spawns worker"]
+        B --> C["Delegates to worker"]
     end
     subgraph Local["Worker (Ollama qwen2.5-coder:7b)"]
-        C --> D["Receives MCP tools"]
-        D --> E["Executes tool calls"]
+        C --> D["Receives task + MCP tool schemas"]
+        D --> E["Executes tool calls via MCP"]
         E --> F["Returns results"]
     end
     F --> G["Architect synthesizes\nfinal response"]
@@ -100,8 +100,36 @@ graph LR
 | Role | Model | Cost | Purpose |
 |------|-------|------|---------|
 | **Architect** | Gemini / Claude / GPT | Per-token | Planning, reasoning, user interaction |
-| **Worker** | Ollama `qwen2.5-coder:7b` (~4.7 GB) | $0 | MCP tool execution, structured I/O |
+| **Worker** | Ollama `worker-qwen` (~4.7 GB) | $0 | MCP tool execution, structured I/O |
 | **Librarian** | Ollama `nomic-embed-text` | $0 | Semantic tool discovery (embeddings) |
+
+### How It Works in Practice
+
+When you say *"Send a message to #general on Slack"*:
+
+1. **Architect** (Gemini/Claude) decides to call the `mcp_slack_send_message` tool
+2. The engine **intercepts** the MCP tool call before execution
+3. **Worker** (local Ollama, free) receives the task and the MCP tool schemas
+4. Worker connects to n8n's MCP bridge — **n8n tells the worker how to use the tool** (self-describing schemas)
+5. Worker executes the tool call via JSON-RPC → n8n → Slack API
+6. Result flows back: Worker → Engine → Architect → User
+
+The Architect never touches the MCP layer directly. The Worker doesn't need pre-built knowledge of Slack, Trello, or any integration — MCP provides the schemas at runtime.
+
+<Note>
+**This is the breakthrough:** The worker model doesn't need to know how to use 25,000+ integrations. MCP servers are self-describing — they tell the worker what tools are available and how to call them. Any new n8n community node is instantly usable with zero configuration, zero training, zero cost.
+</Note>
+
+### Fallback Behavior
+
+If no `worker_model` is configured in **Settings → Models → Model Routing**, MCP tool calls fall back to direct JSON-RPC execution (the engine calls MCP servers directly). This still works but means the Architect model handles tool call formatting, costing more tokens.
+
+### Setup
+
+1. Install Ollama and pull the base model: `ollama pull qwen2.5-coder:7b`
+2. Go to **Settings → Advanced → Ollama** and click **Setup Worker Agent**
+3. In **Settings → Models → Model Routing**, set `worker_model` to `worker-qwen`
+4. That's it — all MCP tool calls now route through the free local worker
 
 ---
 
