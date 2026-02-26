@@ -159,6 +159,21 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.mission-metrics-grid::-webkit-scrollbar {
+  width: 3px;
+}
+.mission-metrics-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mission-metrics-grid::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
 }
 
 .mission-metric {
@@ -194,8 +209,21 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 140px;
+  max-height: 160px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.mission-jobs-list::-webkit-scrollbar {
+  width: 3px;
+}
+.mission-jobs-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mission-jobs-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
 }
 
 .mission-jobs-empty {
@@ -245,6 +273,21 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.mission-actions-grid::-webkit-scrollbar {
+  width: 3px;
+}
+.mission-actions-grid::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mission-actions-grid::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
 }
 
 .mission-action-btn {
@@ -340,12 +383,27 @@
 
 .mission-card-collapsible {
   max-height: 300px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   transition: max-height 0.25s ease, opacity 0.2s ease;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.mission-card-collapsible::-webkit-scrollbar {
+  width: 3px;
+}
+.mission-card-collapsible::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mission-card-collapsible::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
 }
 
 .mission-card-collapsible.mission-collapsed {
   max-height: 0;
+  overflow: hidden;
   opacity: 0;
   pointer-events: none;
 }
