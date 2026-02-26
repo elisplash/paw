@@ -383,6 +383,18 @@ pub async fn engine_chat_send(
         &loaded_tools,
     );
 
+    // ── Foreman Protocol: inject MCP bridge awareness when MCP tools exist ──
+    {
+        let has_mcp_tools = tools.iter().any(|t| t.function.name.starts_with("mcp_"));
+        if has_mcp_tools {
+            if let Some(ref mut p) = full_system_prompt {
+                p.push_str("\n\n---\n\n");
+                p.push_str(chat_org::build_foreman_awareness());
+            }
+            info!("[engine] Foreman Protocol awareness injected (MCP tools present)");
+        }
+    }
+
     // ── Detect response loops (organism) ──────────────────────────────────
     chat_org::detect_response_loop(&mut messages);
 

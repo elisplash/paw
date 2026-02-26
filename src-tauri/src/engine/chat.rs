@@ -195,6 +195,16 @@ pub fn build_coding_guidelines() -> &'static str {
     include_str!("prompts/coding.md")
 }
 
+/// Build the MCP/Foreman Protocol awareness block.
+///
+/// Only injected when MCP tools are actually present — no point cluttering
+/// the system prompt when no MCP servers are connected.
+///
+/// Loaded from `prompts/foreman.md` at compile time.
+pub fn build_foreman_awareness() -> &'static str {
+    include_str!("prompts/foreman.md")
+}
+
 /// Build a lightweight agent roster showing known agents and their specialties.
 /// Injected into the system prompt so the agent can delegate tasks to the right agent
 /// without needing to call `agent_list` first.
