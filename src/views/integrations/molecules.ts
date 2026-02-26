@@ -3,9 +3,14 @@
 // Molecule-level: builds HTML, binds events, calls IPC.
 
 import {
-  escHtml, filterServices, sortServices, categoryLabel,
+  escHtml,
+  filterServices,
+  sortServices,
+  categoryLabel,
   CATEGORIES,
-  type ServiceDefinition, type ServiceCategory, type SortOption,
+  type ServiceDefinition,
+  type ServiceCategory,
+  type SortOption,
   type ConnectedService,
 } from './atoms';
 import { SERVICE_CATALOG } from './catalog';
@@ -30,7 +35,11 @@ let _state: MoleculesState = {
 };
 
 export function initMoleculesState(): { setMoleculesState: (s: MoleculesState) => void } {
-  return { setMoleculesState: (s) => { _state = s; } };
+  return {
+    setMoleculesState: (s) => {
+      _state = s;
+    },
+  };
 }
 
 // ── Native integrations (engine skills + MCP) ──────────────────────────
@@ -138,7 +147,9 @@ function _renderServicesTab(tabBody: HTMLElement): void {
     <div class="integrations-categories" id="integrations-categories">
       <button class="integrations-cat-pill ${_activeCategory === 'all' ? 'active' : ''}" data-cat="all">All</button>
       ${CATEGORIES.map(
-        (c) => `<button class="integrations-cat-pill ${_activeCategory === c.id ? 'active' : ''}" data-cat="${c.id}">
+        (
+          c,
+        ) => `<button class="integrations-cat-pill ${_activeCategory === c.id ? 'active' : ''}" data-cat="${c.id}">
           <span class="ms ms-sm">${c.icon}</span>${c.label}
         </button>`,
       ).join('')}
@@ -241,29 +252,33 @@ function _renderCards(): void {
   if (_viewMode === 'matrix') {
     grid.innerHTML = `
       <div class="matrix-grid">
-        ${ordered.map((s) => {
-          const isConnected = connectedIds.has(s.id);
-          const conn = connected.find((c) => c.serviceId === s.id);
-          return `<div class="matrix-row-card k-row k-spring${isConnected ? ` k-breathe k-status-${conn?.status === 'error' ? 'error' : conn?.status === 'expired' ? 'warning' : 'healthy'}` : ' k-status-idle'}" data-service-id="${s.id}">
+        ${ordered
+          .map((s) => {
+            const isConnected = connectedIds.has(s.id);
+            const conn = connected.find((c) => c.serviceId === s.id);
+            return `<div class="matrix-row-card k-row k-spring${isConnected ? ` k-breathe k-status-${conn?.status === 'error' ? 'error' : conn?.status === 'expired' ? 'warning' : 'healthy'}` : ' k-status-idle'}" data-service-id="${s.id}">
             <span class="ms matrix-row-icon" style="color:${s.color}">${s.icon}</span>
             <div class="matrix-row-info">
               <span class="matrix-row-name">${escHtml(s.name)}</span>
               <span class="matrix-row-cat">${categoryLabel(s.category)}</span>
             </div>
             <div class="matrix-row-status">
-              ${isConnected
-                ? `<span class="matrix-on">${kineticDot()} ON</span>`
-                : '<span class="matrix-off">OFF</span>'
+              ${
+                isConnected
+                  ? `<span class="matrix-on">${kineticDot()} ON</span>`
+                  : '<span class="matrix-off">OFF</span>'
               }
             </div>
             <div class="matrix-row-action">
-              ${isConnected
-                ? `<button class="btn btn-ghost btn-sm integrations-card-btn" data-service-id="${s.id}">▸</button>`
-                : `<button class="btn btn-ghost btn-sm integrations-connect-btn" data-service-id="${s.id}">Setup</button>`
+              ${
+                isConnected
+                  ? `<button class="btn btn-ghost btn-sm integrations-card-btn" data-service-id="${s.id}">▸</button>`
+                  : `<button class="btn btn-ghost btn-sm integrations-connect-btn" data-service-id="${s.id}">Setup</button>`
               }
             </div>
           </div>`;
-        }).join('')}
+          })
+          .join('')}
       </div>
       <div class="matrix-footer">Showing ${ordered.length} of ${SERVICE_CATALOG.length} services</div>`;
 
@@ -274,10 +289,11 @@ function _renderCards(): void {
   }
 
   // Grid / List card view (existing)
-  grid.innerHTML = ordered.map((s) => {
-    const isConnected = connectedIds.has(s.id);
-    const conn = connected.find((c) => c.serviceId === s.id);
-    return `
+  grid.innerHTML = ordered
+    .map((s) => {
+      const isConnected = connectedIds.has(s.id);
+      const conn = connected.find((c) => c.serviceId === s.id);
+      return `
       <div class="integrations-card k-row k-spring ${isConnected ? 'integrations-card-connected k-breathe k-oscillate k-status-healthy' : 'k-status-idle'}"
            data-service-id="${s.id}"
            style="--accent: ${s.color}">
@@ -290,18 +306,20 @@ function _renderCards(): void {
           <div class="integrations-card-desc">${escHtml(s.description)}</div>
         </div>
         <div class="integrations-card-footer">
-          ${isConnected
-            ? `<span class="integrations-status connected">
+          ${
+            isConnected
+              ? `<span class="integrations-status connected">
                 <span class="ms ms-sm">check_circle</span>
                 Connected${conn ? ` · ${conn.toolCount} tools` : ''}
               </span>`
-            : `<button class="btn btn-sm btn-ghost integrations-connect-btn" data-service-id="${s.id}">
+              : `<button class="btn btn-sm btn-ghost integrations-connect-btn" data-service-id="${s.id}">
                 Connect
               </button>`
           }
         </div>
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   // Apply staggered materialise to visible cards
   kineticStagger(grid, '.integrations-card');
@@ -328,9 +346,10 @@ function _renderDetail(service: ServiceDefinition): void {
       <h2>${escHtml(service.name)}</h2>
       <span class="integrations-card-cat">${categoryLabel(service.category)}</span>
       <p>${escHtml(service.description)}</p>
-      ${isConnected
-        ? '<span class="integrations-status connected"><span class="ms ms-sm">check_circle</span> Connected</span>'
-        : `<button class="btn btn-primary btn-sm" id="detail-connect-btn">
+      ${
+        isConnected
+          ? '<span class="integrations-status connected"><span class="ms ms-sm">check_circle</span> Connected</span>'
+          : `<button class="btn btn-primary btn-sm" id="detail-connect-btn">
             <span class="ms ms-sm">power</span> Connect ${escHtml(service.name)}
           </button>`
       }
@@ -351,12 +370,16 @@ function _renderDetail(service: ServiceDefinition): void {
           ${escHtml(service.setupGuide.estimatedTime)}
         </div>
         <ol class="integrations-guide-steps">
-          ${service.setupGuide.steps.map((step) => `
+          ${service.setupGuide.steps
+            .map(
+              (step) => `
             <li>
               ${step.link ? `<a href="${escHtml(step.link)}" target="_blank" rel="noopener">${escHtml(step.instruction)}</a>` : escHtml(step.instruction)}
               ${step.tip ? `<div class="integrations-guide-tip"><span class="ms ms-sm">lightbulb</span> ${escHtml(step.tip)}</div>` : ''}
             </li>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </ol>
       </div>
     </div>
@@ -371,12 +394,16 @@ function _renderDetail(service: ServiceDefinition): void {
       <div id="detail-svc-templates"></div>
     </div>
 
-    ${service.docsUrl ? `
+    ${
+      service.docsUrl
+        ? `
     <div class="integrations-detail-section">
       <a href="${escHtml(service.docsUrl)}" target="_blank" rel="noopener" class="integrations-docs-link">
         <span class="ms ms-sm">open_in_new</span> API Documentation
       </a>
-    </div>` : ''}
+    </div>`
+        : ''
+    }
   `;
 
   // Render service-specific query examples
@@ -436,7 +463,9 @@ function _wireEvents(): void {
     const btn = (e.target as HTMLElement).closest('.integrations-cat-pill') as HTMLElement;
     if (!btn) return;
     _activeCategory = (btn.dataset.cat ?? 'all') as ServiceCategory | 'all';
-    document.querySelectorAll('.integrations-cat-pill').forEach((p) => p.classList.remove('active'));
+    document
+      .querySelectorAll('.integrations-cat-pill')
+      .forEach((p) => p.classList.remove('active'));
     btn.classList.add('active');
     _renderCards();
   });
@@ -450,7 +479,9 @@ function _wireEvents(): void {
         grid.classList.toggle('integrations-list-mode', _viewMode === 'list');
         grid.classList.toggle('integrations-matrix-mode', _viewMode === 'matrix');
       }
-      document.querySelectorAll('.integrations-view-toggle button').forEach((b) => b.classList.remove('active'));
+      document
+        .querySelectorAll('.integrations-view-toggle button')
+        .forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       _renderCards(); // re-render for matrix vs card
     });
@@ -473,7 +504,8 @@ function _wireEvents(): void {
     }
 
     // Otherwise open the detail panel
-    const card = (target.closest('.integrations-card') ?? target.closest('.matrix-row-card')) as HTMLElement;
+    const card = (target.closest('.integrations-card') ??
+      target.closest('.matrix-row-card')) as HTMLElement;
     if (!card) return;
     const sid = card.dataset.serviceId;
     const service = SERVICE_CATALOG.find((s) => s.id === sid);

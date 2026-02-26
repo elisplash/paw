@@ -677,7 +677,8 @@ export function showStreamingMessage(): void {
   scrollToBottom();
 
   // Mission panel: show active job
-  const modelName = ($('chat-model-select') as HTMLSelectElement | null)?.selectedOptions?.[0]?.text ?? 'model';
+  const modelName =
+    ($('chat-model-select') as HTMLSelectElement | null)?.selectedOptions?.[0]?.text ?? 'model';
   addActiveJob(`Streaming · ${modelName}`);
 }
 

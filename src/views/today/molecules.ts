@@ -30,7 +30,12 @@ import {
 } from '../../features/integration-health';
 import { heatmapStrip } from '../../components/molecules/data-viz';
 import { isShowcaseActive, getShowcaseData } from '../../components/showcase';
-import { kineticRow, kineticStagger, kineticDot, type KineticStatus } from '../../components/kinetic-row';
+import {
+  kineticRow,
+  kineticStagger,
+  kineticDot,
+  type KineticStatus,
+} from '../../components/kinetic-row';
 
 // ── Tauri bridge (no pawEngine equivalent for these commands) ──────────
 interface TauriWindow {
@@ -286,14 +291,12 @@ export async function fetchActiveSkills() {
     container.innerHTML = `
       <div class="cmd-skills-grid k-stagger">
         ${shown
-          .map(
-            (s) => {
-              const kStatus: KineticStatus = s.is_ready ? 'healthy' : 'idle';
-              return `<span class="cmd-skill-chip k-row k-breathe k-materialise k-status-${kStatus}" title="${escHtml(s.name)}">
+          .map((s) => {
+            const kStatus: KineticStatus = s.is_ready ? 'healthy' : 'idle';
+            return `<span class="cmd-skill-chip k-row k-breathe k-materialise k-status-${kStatus}" title="${escHtml(s.name)}">
                 ${kineticDot()} ${escHtml(s.name)}
               </span>`;
-            },
-          )
+          })
           .join('')}
       </div>
       ${remaining > 0 ? `<div class="cmd-skills-more">+ ${remaining} more</div>` : ''}
@@ -818,20 +821,25 @@ async function loadIntegrationsDashboard() {
       try {
         const ids = await invoke<string[]>('engine_integrations_list_connected');
         if (ids && ids.length > 0) {
-          health = ids.map((id) => ({
-            service: id,
-            serviceName: id.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-            icon: 'extension',
-            status: 'ok',
-            lastChecked: new Date().toISOString(),
-            message: null,
-            tokenExpiry: null,
-            daysUntilExpiry: null,
-            recentFailures: 0,
-            todayActions: 0,
-          } as never));
+          health = ids.map(
+            (id) =>
+              ({
+                service: id,
+                serviceName: id.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+                icon: 'extension',
+                status: 'ok',
+                lastChecked: new Date().toISOString(),
+                message: null,
+                tokenExpiry: null,
+                daysUntilExpiry: null,
+                recentFailures: 0,
+                todayActions: 0,
+              }) as never,
+          );
         }
-      } catch { /* fallback failed, continue with empty */ }
+      } catch {
+        /* fallback failed, continue with empty */
+      }
     }
 
     const connectedIds = health.map((h: { service: string }) => h.service);

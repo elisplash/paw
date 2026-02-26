@@ -7,16 +7,16 @@
 /** A single trigger configuration for a template. */
 export interface TemplateTrigger {
   type: 'schedule' | 'webhook' | 'event' | 'manual';
-  label: string;           // "Every Friday at 5 PM", "On new deal"
-  cron?: string;           // "0 17 * * 5" for scheduled triggers
-  eventSource?: string;    // service id that fires the event
+  label: string; // "Every Friday at 5 PM", "On new deal"
+  cron?: string; // "0 17 * * 5" for scheduled triggers
+  eventSource?: string; // service id that fires the event
 }
 
 /** A step in the automation workflow. */
 export interface TemplateStep {
-  serviceId: string;       // "hubspot", "slack", etc.
-  action: string;          // "Get closed deals", "Post message"
-  icon: string;            // Material icon name
+  serviceId: string; // "hubspot", "slack", etc.
+  action: string; // "Get closed deals", "Post message"
+  icon: string; // Material icon name
 }
 
 /** A pre-built automation template. */
@@ -27,15 +27,15 @@ export interface AutomationTemplate {
   category: TemplateCategory;
   trigger: TemplateTrigger;
   steps: TemplateStep[];
-  requiredServices: string[];   // ["hubspot", "slack"]
-  tags: string[];               // ["popular", "sales"]
-  estimatedSetup: string;       // "30 seconds"
+  requiredServices: string[]; // ["hubspot", "slack"]
+  tags: string[]; // ["popular", "sales"]
+  estimatedSetup: string; // "30 seconds"
 }
 
 /** An active (deployed) automation. */
 export interface ActiveAutomation {
   id: string;
-  templateId?: string;     // null if custom-built
+  templateId?: string; // null if custom-built
   name: string;
   description: string;
   trigger: TemplateTrigger;
@@ -70,14 +70,14 @@ export interface TemplateCategoryMeta {
 }
 
 export const TEMPLATE_CATEGORIES: TemplateCategoryMeta[] = [
-  { id: 'alerts',        label: 'Alerts',       icon: 'notifications_active' },
-  { id: 'reporting',     label: 'Reporting',     icon: 'bar_chart' },
-  { id: 'sync',          label: 'Sync',          icon: 'sync' },
-  { id: 'onboarding',    label: 'Onboarding',    icon: 'waving_hand' },
-  { id: 'productivity',  label: 'Productivity',  icon: 'bolt' },
-  { id: 'devops',        label: 'DevOps',        icon: 'terminal' },
-  { id: 'marketing',     label: 'Marketing',     icon: 'campaign' },
-  { id: 'support',       label: 'Support',       icon: 'support_agent' },
+  { id: 'alerts', label: 'Alerts', icon: 'notifications_active' },
+  { id: 'reporting', label: 'Reporting', icon: 'bar_chart' },
+  { id: 'sync', label: 'Sync', icon: 'sync' },
+  { id: 'onboarding', label: 'Onboarding', icon: 'waving_hand' },
+  { id: 'productivity', label: 'Productivity', icon: 'bolt' },
+  { id: 'devops', label: 'DevOps', icon: 'terminal' },
+  { id: 'marketing', label: 'Marketing', icon: 'campaign' },
+  { id: 'support', label: 'Support', icon: 'support_agent' },
 ];
 
 // ── Pure helpers ───────────────────────────────────────────────────────
@@ -107,9 +107,7 @@ export function filterTemplates(
 ): AutomationTemplate[] {
   let result = templates;
   if (opts.serviceId) {
-    result = result.filter((t) =>
-      t.requiredServices.includes(opts.serviceId!),
-    );
+    result = result.filter((t) => t.requiredServices.includes(opts.serviceId!));
   }
   if (opts.category && opts.category !== 'all') {
     result = result.filter((t) => t.category === opts.category);
@@ -129,22 +127,32 @@ export function filterTemplates(
 /** Format a trigger label for display. */
 export function triggerLabel(trigger: TemplateTrigger): string {
   switch (trigger.type) {
-    case 'schedule': return `📅 ${trigger.label}`;
-    case 'webhook':  return `🔗 ${trigger.label}`;
-    case 'event':    return `⚡ ${trigger.label}`;
-    case 'manual':   return `▶️ ${trigger.label}`;
-    default:         return trigger.label;
+    case 'schedule':
+      return `📅 ${trigger.label}`;
+    case 'webhook':
+      return `🔗 ${trigger.label}`;
+    case 'event':
+      return `⚡ ${trigger.label}`;
+    case 'manual':
+      return `▶️ ${trigger.label}`;
+    default:
+      return trigger.label;
   }
 }
 
 /** Human-readable status badge. */
 export function statusBadge(status: AutomationStatus): { label: string; icon: string } {
   switch (status) {
-    case 'active':  return { label: 'Active',  icon: 'play_circle' };
-    case 'paused':  return { label: 'Paused',  icon: 'pause_circle' };
-    case 'error':   return { label: 'Error',   icon: 'error' };
-    case 'draft':   return { label: 'Draft',   icon: 'edit_note' };
-    default:        return { label: status,     icon: 'help' };
+    case 'active':
+      return { label: 'Active', icon: 'play_circle' };
+    case 'paused':
+      return { label: 'Paused', icon: 'pause_circle' };
+    case 'error':
+      return { label: 'Error', icon: 'error' };
+    case 'draft':
+      return { label: 'Draft', icon: 'edit_note' };
+    default:
+      return { label: status, icon: 'help' };
   }
 }
 

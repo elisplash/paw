@@ -76,9 +76,10 @@ export function renderFeed(
   }
 
   const entries = display.map((a) => _renderEntry(a, showAgent)).join('');
-  const moreHtml = actions.length > limit
-    ? `<div class="intfeed-more">+ ${actions.length - limit} more actions</div>`
-    : '';
+  const moreHtml =
+    actions.length > limit
+      ? `<div class="intfeed-more">+ ${actions.length - limit} more actions</div>`
+      : '';
 
   return `
     <div class="intfeed-list">
@@ -88,16 +89,14 @@ export function renderFeed(
 }
 
 function _renderEntry(action: IntegrationActionLog, showAgent: boolean): string {
-  const statusIcon = action.status === 'success'
-    ? 'check_circle'
-    : action.status === 'failed'
-      ? 'error'
-      : 'pending';
-  const statusColor = action.status === 'success'
-    ? 'var(--success, #22c55e)'
-    : action.status === 'failed'
-      ? 'var(--danger, #ef4444)'
-      : 'var(--warning, #f59e0b)';
+  const statusIcon =
+    action.status === 'success' ? 'check_circle' : action.status === 'failed' ? 'error' : 'pending';
+  const statusColor =
+    action.status === 'success'
+      ? 'var(--success, #22c55e)'
+      : action.status === 'failed'
+        ? 'var(--danger, #ef4444)'
+        : 'var(--warning, #f59e0b)';
 
   const agentHtml = showAgent
     ? `<span class="intfeed-entry-agent">via ${_esc(action.agent)}</span>`
@@ -108,9 +107,10 @@ function _renderEntry(action: IntegrationActionLog, showAgent: boolean): string 
   const linkHtml = action.externalUrl
     ? `<a class="intfeed-entry-link" href="${_esc(action.externalUrl)}" target="_blank" rel="noopener">Open <span class="ms" style="font-size:14px">open_in_new</span></a>`
     : '';
-  const durHtml = action.durationMs > 0
-    ? `<span class="intfeed-entry-dur">${formatDuration(action.durationMs)}</span>`
-    : '';
+  const durHtml =
+    action.durationMs > 0
+      ? `<span class="intfeed-entry-dur">${formatDuration(action.durationMs)}</span>`
+      : '';
 
   return `
     <div class="intfeed-entry intfeed-status-${action.status}" data-action-id="${action.id}">
@@ -155,16 +155,17 @@ export function renderReceipt(action: IntegrationActionLog): string {
 
 // ── Rich output card (table / summary / timeline / notification) ───────
 
-export function renderOutputCard(
-  action: IntegrationActionLog,
-  cardType?: OutputCardType,
-): string {
+export function renderOutputCard(action: IntegrationActionLog, cardType?: OutputCardType): string {
   const type = cardType ?? detectOutputType(action.action, action.output);
   switch (type) {
-    case 'table': return _renderTableCard(action);
-    case 'summary': return _renderSummaryCard(action);
-    case 'timeline': return _renderTimelineCard(action);
-    case 'notification': return _renderNotificationCard(action);
+    case 'table':
+      return _renderTableCard(action);
+    case 'summary':
+      return _renderSummaryCard(action);
+    case 'timeline':
+      return _renderTimelineCard(action);
+    case 'notification':
+      return _renderNotificationCard(action);
   }
 }
 
@@ -172,11 +173,15 @@ function _renderTableCard(action: IntegrationActionLog): string {
   const items = _extractItems(action.output);
   const columns = items.length > 0 ? Object.keys(items[0]).slice(0, 5) : [];
   const headerHtml = columns.map((c) => `<th>${_esc(_titleCase(c))}</th>`).join('');
-  const rowsHtml = items.slice(0, 8).map((item) => {
-    const cells = columns.map((c) => `<td>${_esc(String(item[c] ?? ''))}</td>`).join('');
-    return `<tr>${cells}</tr>`;
-  }).join('');
-  const moreHtml = items.length > 8 ? `<div class="intfeed-card-more">+ ${items.length - 8} more</div>` : '';
+  const rowsHtml = items
+    .slice(0, 8)
+    .map((item) => {
+      const cells = columns.map((c) => `<td>${_esc(String(item[c] ?? ''))}</td>`).join('');
+      return `<tr>${cells}</tr>`;
+    })
+    .join('');
+  const moreHtml =
+    items.length > 8 ? `<div class="intfeed-card-more">+ ${items.length - 8} more</div>` : '';
 
   return `
     <div class="intfeed-output-card intfeed-card-table">
@@ -209,15 +214,18 @@ function _renderSummaryCard(action: IntegrationActionLog): string {
 
 function _renderTimelineCard(action: IntegrationActionLog): string {
   const items = _extractItems(action.output);
-  const entriesHtml = items.slice(0, 10).map((item) => {
-    const ts = item.timestamp ?? item.date ?? item.created_at ?? '';
-    const text = item.text ?? item.message ?? item.description ?? item.title ?? '';
-    return `
+  const entriesHtml = items
+    .slice(0, 10)
+    .map((item) => {
+      const ts = item.timestamp ?? item.date ?? item.created_at ?? '';
+      const text = item.text ?? item.message ?? item.description ?? item.title ?? '';
+      return `
       <div class="intfeed-tl-entry">
         ${ts ? `<span class="intfeed-tl-time">${_esc(String(ts))}</span>` : ''}
         <span class="intfeed-tl-text">${_esc(String(text))}</span>
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   return `
     <div class="intfeed-output-card intfeed-card-timeline">
@@ -232,17 +240,20 @@ function _renderTimelineCard(action: IntegrationActionLog): string {
 
 function _renderNotificationCard(action: IntegrationActionLog): string {
   const items = _extractItems(action.output);
-  const messagesHtml = items.slice(0, 6).map((item) => {
-    const from = item.from ?? item.user ?? item.sender ?? '';
-    const text = item.text ?? item.message ?? item.content ?? '';
-    const ts = item.timestamp ?? item.date ?? '';
-    return `
+  const messagesHtml = items
+    .slice(0, 6)
+    .map((item) => {
+      const from = item.from ?? item.user ?? item.sender ?? '';
+      const text = item.text ?? item.message ?? item.content ?? '';
+      const ts = item.timestamp ?? item.date ?? '';
+      return `
       <div class="intfeed-notif-msg">
         ${from ? `<strong>${_esc(String(from))}</strong>: ` : ''}
         <span>${_esc(String(text))}</span>
         ${ts ? `<span class="intfeed-notif-time">${_esc(String(ts))}</span>` : ''}
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   return `
     <div class="intfeed-output-card intfeed-card-notification">
@@ -302,7 +313,11 @@ export async function loadActionStats(): Promise<ActionStats> {
 // ── Internal helpers ───────────────────────────────────────────────────
 
 function _esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function _titleCase(s: string): string {

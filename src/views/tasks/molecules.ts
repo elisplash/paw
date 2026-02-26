@@ -207,8 +207,7 @@ export function renderStats() {
   const active = $('tasks-stat-active');
   const cron = $('tasks-stat-cron');
   if (total) total.textContent = String(tasks.length);
-  if (active)
-    active.textContent = String(tasks.filter((t) => t.status === 'in_progress').length);
+  if (active) active.textContent = String(tasks.filter((t) => t.status === 'in_progress').length);
   if (cron) cron.textContent = String(tasks.filter((t) => t.cron_enabled).length);
 }
 

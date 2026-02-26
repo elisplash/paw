@@ -51,9 +51,7 @@ let _resolve: ((result: CredentialPromptResult) => void) | null = null;
  * Show the credential prompt modal. Returns a promise that resolves
  * when the user saves or dismisses the modal.
  */
-export function showCredentialPrompt(
-  request: CredentialRequest,
-): Promise<CredentialPromptResult> {
+export function showCredentialPrompt(request: CredentialRequest): Promise<CredentialPromptResult> {
   return new Promise((resolve) => {
     _activeRequest = request;
     _state = 'idle';
@@ -73,7 +71,13 @@ export function buildCredentialRequest(service: {
   name: string;
   icon: string;
   color: string;
-  credentialFields: { key: string; label: string; type: string; placeholder?: string; required: boolean }[];
+  credentialFields: {
+    key: string;
+    label: string;
+    type: string;
+    placeholder?: string;
+    required: boolean;
+  }[];
   setupGuide?: { steps: { instruction: string; link?: string; tip?: string }[] };
   docsUrl?: string;
 }): CredentialRequest {
@@ -119,20 +123,30 @@ function _render(): void {
         <p class="credential-prompt-desc">Enter your credentials to connect this service to your agent.</p>
       </div>
 
-      ${req.helpSteps && req.helpSteps.length > 0 ? `
+      ${
+        req.helpSteps && req.helpSteps.length > 0
+          ? `
         <div class="credential-prompt-steps">
           <h4><span class="ms ms-sm">menu_book</span> Setup Steps</h4>
           <ol>
             ${req.helpSteps.map((s) => `<li>${escHtml(s)}</li>`).join('')}
           </ol>
-          ${req.helpUrl ? `<a href="${escHtml(req.helpUrl)}" target="_blank" rel="noopener" class="credential-prompt-docs">
+          ${
+            req.helpUrl
+              ? `<a href="${escHtml(req.helpUrl)}" target="_blank" rel="noopener" class="credential-prompt-docs">
             <span class="ms ms-sm">open_in_new</span> Full documentation
-          </a>` : ''}
+          </a>`
+              : ''
+          }
         </div>
-      ` : ''}
+      `
+          : ''
+      }
 
       <div class="credential-prompt-fields" id="cred-prompt-fields">
-        ${req.fields.map((f) => `
+        ${req.fields
+          .map(
+            (f) => `
           <div class="credential-prompt-field">
             <label for="cred-field-${f.key}">${escHtml(f.label)}${f.required ? ' *' : ''}</label>
             <div class="credential-prompt-input-wrap">
@@ -145,31 +159,45 @@ function _render(): void {
                 ${f.required ? 'required' : ''}
                 autocomplete="off"
               />
-              ${f.type === 'password' ? `
+              ${
+                f.type === 'password'
+                  ? `
                 <button class="btn btn-ghost btn-xs cred-toggle-vis" data-field="${f.key}" title="Toggle visibility">
                   <span class="ms ms-sm">visibility</span>
                 </button>
-              ` : ''}
+              `
+                  : ''
+              }
             </div>
           </div>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
 
       <div class="credential-prompt-status" id="cred-prompt-status">
-        ${_state === 'testing' ? `
+        ${
+          _state === 'testing'
+            ? `
           <div class="credential-prompt-testing">
             <span class="ms ms-sm spin">progress_activity</span> Testing connection…
           </div>
-        ` : _state === 'success' ? `
+        `
+            : _state === 'success'
+              ? `
           <div class="credential-prompt-success">
             <span class="ms ms-sm">check_circle</span> Connected!
             ${_successDetails ? `<span class="credential-prompt-details">${escHtml(_successDetails)}</span>` : ''}
           </div>
-        ` : _state === 'error' ? `
+        `
+              : _state === 'error'
+                ? `
           <div class="credential-prompt-error">
             <span class="ms ms-sm">error</span> ${escHtml(_errorMessage || 'Connection failed')}
           </div>
-        ` : ''}
+        `
+                : ''
+        }
       </div>
 
       <div class="credential-prompt-actions">
@@ -270,10 +298,7 @@ function _wireEvents(overlay: HTMLElement, req: CredentialRequest): void {
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
-function _gatherCredentials(
-  overlay: HTMLElement,
-  req: CredentialRequest,
-): Record<string, string> {
+function _gatherCredentials(overlay: HTMLElement, req: CredentialRequest): Record<string, string> {
   const creds: Record<string, string> = {};
   for (const f of req.fields) {
     const input = overlay.querySelector(`#cred-field-${f.key}`) as HTMLInputElement;
@@ -287,20 +312,21 @@ function _updateStatus(overlay: HTMLElement): void {
   const testBtn = overlay.querySelector('#cred-prompt-test') as HTMLButtonElement;
   if (!statusEl) return;
 
-  statusEl.innerHTML = _state === 'testing'
-    ? `<div class="credential-prompt-testing">
+  statusEl.innerHTML =
+    _state === 'testing'
+      ? `<div class="credential-prompt-testing">
         <span class="ms ms-sm spin">progress_activity</span> Testing connection…
       </div>`
-    : _state === 'success'
-      ? `<div class="credential-prompt-success">
+      : _state === 'success'
+        ? `<div class="credential-prompt-success">
           <span class="ms ms-sm">check_circle</span> Connected!
           ${_successDetails ? `<span class="credential-prompt-details">${escHtml(_successDetails)}</span>` : ''}
         </div>`
-      : _state === 'error'
-        ? `<div class="credential-prompt-error">
+        : _state === 'error'
+          ? `<div class="credential-prompt-error">
             <span class="ms ms-sm">error</span> ${escHtml(_errorMessage || 'Connection failed')}
           </div>`
-        : '';
+          : '';
 
   if (testBtn) {
     testBtn.disabled = _state === 'testing';

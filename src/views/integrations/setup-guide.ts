@@ -42,10 +42,7 @@ export function openSetupGuide(
 
 // ── Render the full guide into a container ─────────────────────────────
 
-export function renderSetupGuide(
-  container: HTMLElement,
-  service: ServiceDefinition,
-): void {
+export function renderSetupGuide(container: HTMLElement, service: ServiceDefinition): void {
   _guideState = 'idle';
 
   const guide = service.setupGuide;
@@ -70,25 +67,33 @@ export function renderSetupGuide(
       </div>
 
       <ol class="setup-guide-steps">
-        ${guide.steps.map((step, i) => `
+        ${guide.steps
+          .map(
+            (step, i) => `
           <li class="setup-guide-step" data-step="${i + 1}">
             <div class="setup-guide-step-num">${i + 1}</div>
             <div class="setup-guide-step-body">
-              ${step.link
-                ? `<a href="${escHtml(step.link)}" target="_blank" rel="noopener" class="setup-guide-step-link">
+              ${
+                step.link
+                  ? `<a href="${escHtml(step.link)}" target="_blank" rel="noopener" class="setup-guide-step-link">
                     ${escHtml(step.instruction)}
                     <span class="ms ms-sm">open_in_new</span>
                   </a>`
-                : `<span>${escHtml(step.instruction)}</span>`}
-              ${step.tip
-                ? `<div class="setup-guide-tip">
+                  : `<span>${escHtml(step.instruction)}</span>`
+              }
+              ${
+                step.tip
+                  ? `<div class="setup-guide-tip">
                     <span class="ms ms-sm">lightbulb</span>
                     ${escHtml(step.tip)}
                   </div>`
-                : ''}
+                  : ''
+              }
             </div>
           </li>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </ol>
 
       <div class="setup-guide-credentials">
@@ -116,7 +121,9 @@ export function renderSetupGuide(
 // ── Credential input fields ────────────────────────────────────────────
 
 function _renderFields(fields: CredentialField[]): string {
-  return fields.map((f) => `
+  return fields
+    .map(
+      (f) => `
     <div class="setup-guide-field">
       <label class="setup-guide-label" for="cred-${f.key}">
         ${escHtml(f.label)}
@@ -134,15 +141,19 @@ function _renderFields(fields: CredentialField[]): string {
           autocomplete="off"
           spellcheck="false"
         />
-        ${f.type === 'password'
-          ? `<button class="btn btn-ghost btn-xs setup-guide-toggle-vis"
+        ${
+          f.type === 'password'
+            ? `<button class="btn btn-ghost btn-xs setup-guide-toggle-vis"
                     data-target="cred-${f.key}" title="Toggle visibility">
               <span class="ms ms-sm">visibility_off</span>
             </button>`
-          : ''}
+            : ''
+        }
       </div>
     </div>
-  `).join('');
+  `,
+    )
+    .join('');
 }
 
 // ── Feedback rendering ─────────────────────────────────────────────────
@@ -189,10 +200,7 @@ function _collectCredentials(container: HTMLElement): Record<string, string> {
   return creds;
 }
 
-function _validateCredentials(
-  container: HTMLElement,
-  fields: CredentialField[],
-): boolean {
+function _validateCredentials(container: HTMLElement, fields: CredentialField[]): boolean {
   let valid = true;
   for (const f of fields) {
     if (!f.required) continue;

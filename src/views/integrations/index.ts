@@ -10,18 +10,25 @@ import {
   renderCategoryBreakdown,
   initIntegrationsKinetic,
 } from '../../components/integrations-panel';
-import { pawEngine, type EngineSkillStatus, type McpServerConfig, type McpServerStatus } from '../../engine';
+import {
+  pawEngine,
+  type EngineSkillStatus,
+  type McpServerConfig,
+  type McpServerStatus,
+} from '../../engine';
 import { isEngineMode } from '../../engine-bridge';
 
 // ── Module state ───────────────────────────────────────────────────────
 
-let _connected: ConnectedService[] = [];
+const _connected: ConnectedService[] = [];
 let _selectedService: ServiceDefinition | null = null;
 
 const { setMoleculesState } = initMoleculesState();
 setMoleculesState({
   getConnected: () => _connected,
-  setSelectedService: (s) => { _selectedService = s; },
+  setSelectedService: (s) => {
+    _selectedService = s;
+  },
   getSelectedService: () => _selectedService,
 });
 
@@ -42,7 +49,8 @@ export async function loadIntegrations(): Promise<void> {
       ]);
       // Native integrations = skills with credentials (tier=integration) that are enabled
       nativeSkills = skills.filter(
-        (s) => s.tier === 'integration' || (s.required_credentials && s.required_credentials.length > 0),
+        (s) =>
+          s.tier === 'integration' || (s.required_credentials && s.required_credentials.length > 0),
       );
       mcpServers = servers;
       mcpStatuses = statuses;
@@ -82,12 +90,16 @@ function _wireQuickActions(): void {
 
   document.getElementById('integrations-qa-automations')?.addEventListener('click', () => {
     // Simulate clicking the Automations main tab
-    const btn = document.querySelector('.integrations-main-tab[data-main-tab="automations"]') as HTMLElement;
+    const btn = document.querySelector(
+      '.integrations-main-tab[data-main-tab="automations"]',
+    ) as HTMLElement;
     btn?.click();
   });
 
   document.getElementById('integrations-qa-queries')?.addEventListener('click', () => {
-    const btn = document.querySelector('.integrations-main-tab[data-main-tab="queries"]') as HTMLElement;
+    const btn = document.querySelector(
+      '.integrations-main-tab[data-main-tab="queries"]',
+    ) as HTMLElement;
     btn?.click();
   });
 }

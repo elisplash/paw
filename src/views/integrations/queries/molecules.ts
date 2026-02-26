@@ -3,8 +3,11 @@
 // Molecule-level: DOM rendering, event wiring.
 
 import {
-  filterQueries, isQueryReady, QUERY_CATEGORIES,
-  type ServiceQuery, type QueryCategory,
+  filterQueries,
+  isQueryReady,
+  QUERY_CATEGORIES,
+  type ServiceQuery,
+  type QueryCategory,
 } from './atoms';
 import { QUERY_CATALOG, getQueriesForService } from './catalog';
 import { svcName, svcIcon, svcColor } from './ipc';
@@ -24,7 +27,11 @@ let _state: MoleculesState = {
 export function initQueryMoleculesState(): {
   setQueryMoleculesState: (s: MoleculesState) => void;
 } {
-  return { setQueryMoleculesState: (s) => { _state = s; } };
+  return {
+    setQueryMoleculesState: (s) => {
+      _state = s;
+    },
+  };
 }
 
 // ── Filter state ───────────────────────────────────────────────────────
@@ -73,21 +80,25 @@ export function renderQueryPanel(container: HTMLElement): void {
     <div class="queries-cat-pills" id="queries-cat-pills">
       <button class="integrations-cat-pill ${_activeCategory === 'all' ? 'active' : ''}"
               data-cat="all">All</button>
-      ${QUERY_CATEGORIES.map((c) => `
+      ${QUERY_CATEGORIES.map(
+        (c) => `
         <button class="integrations-cat-pill ${_activeCategory === c.id ? 'active' : ''}"
                 data-cat="${c.id}">
           <span class="ms ms-sm">${c.icon}</span>${c.label}
         </button>
-      `).join('')}
+      `,
+      ).join('')}
     </div>
 
     <div class="queries-grid" id="queries-grid">
-      ${filtered.length === 0
-        ? `<div class="integrations-empty">
+      ${
+        filtered.length === 0
+          ? `<div class="integrations-empty">
             <span class="ms ms-lg">search_off</span>
             <p>No queries match your search</p>
           </div>`
-        : filtered.map((q) => _renderQueryCard(q, connectedIds)).join('')}
+          : filtered.map((q) => _renderQueryCard(q, connectedIds)).join('')
+      }
     </div>
   `;
 
@@ -104,24 +115,32 @@ function _renderQueryCard(q: ServiceQuery, connectedIds: Set<string>): string {
       <div class="query-card-header">
         <span class="query-card-icon"><span class="ms ms-sm">${q.icon}</span></span>
         <div class="query-card-services">
-          ${q.serviceIds.map((sid) => `
+          ${q.serviceIds
+            .map(
+              (sid) => `
             <span class="query-svc-dot ${connectedIds.has(sid) ? 'connected' : 'missing'}"
                   style="color: ${svcColor(sid)}" title="${svcName(sid)}">
               <span class="ms ms-xs">${svcIcon(sid)}</span>
             </span>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </div>
       </div>
       <p class="query-card-question">${escHtml(q.question)}</p>
       <p class="query-card-hint">${escHtml(q.resultHint)}</p>
       <div class="query-card-footer">
-        ${ready
-          ? `<button class="btn btn-primary btn-sm query-ask-btn" data-query-id="${q.id}">
+        ${
+          ready
+            ? `<button class="btn btn-primary btn-sm query-ask-btn" data-query-id="${q.id}">
               <span class="ms ms-sm">send</span> Ask
             </button>`
-          : `<span class="query-connect-hint">
+            : `<span class="query-connect-hint">
               <span class="ms ms-sm">link_off</span>
-              Connect ${q.serviceIds.filter((s) => !connectedIds.has(s)).map(svcName).join(', ')}
+              Connect ${q.serviceIds
+                .filter((s) => !connectedIds.has(s))
+                .map(svcName)
+                .join(', ')}
             </span>`
         }
       </div>
@@ -169,10 +188,7 @@ function _wireEvents(container: HTMLElement): void {
 
 // ── Render for service detail panel ────────────────────────────────────
 
-export function renderServiceQueries(
-  container: HTMLElement,
-  serviceId: string,
-): void {
+export function renderServiceQueries(container: HTMLElement, serviceId: string): void {
   const queries = getQueriesForService(serviceId);
   const connectedIds = _state.getConnectedIds();
 
@@ -187,7 +203,9 @@ export function renderServiceQueries(
 
   container.innerHTML = `
     <div class="query-svc-list">
-      ${queries.map((q) => `
+      ${queries
+        .map(
+          (q) => `
         <button class="query-example-chip ${isQueryReady(q, connectedIds) ? 'ready' : ''}"
                 data-question="${escHtml(q.question)}"
                 title="${escHtml(q.resultHint)}">
@@ -195,7 +213,9 @@ export function renderServiceQueries(
           <span class="query-example-text">"${escHtml(q.question)}"</span>
           <span class="ms ms-sm query-example-send">send</span>
         </button>
-      `).join('')}
+      `,
+        )
+        .join('')}
     </div>
   `;
 

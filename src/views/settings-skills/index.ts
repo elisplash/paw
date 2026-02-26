@@ -2,9 +2,7 @@
 // Shows installed community skills + skills.sh browser.
 // All native Rust tools moved to Built In page.
 
-import {
-  pawEngine,
-} from '../../engine';
+import { pawEngine } from '../../engine';
 import { isEngineMode } from '../../engine-bridge';
 import { $ } from '../../components/helpers';
 import { renderCommunitySection, setCommunityReload, bindCommunityEvents } from './community';
@@ -59,7 +57,9 @@ export async function loadSkillsSettings(): Promise<void> {
     // Quick actions in side panel
     $('skills-qa-refresh')?.addEventListener('click', () => loadSkillsSettings());
     $('skills-qa-browse-community')?.addEventListener('click', () => {
-      const searchInput = document.getElementById('community-skill-search') as HTMLInputElement | null;
+      const searchInput = document.getElementById(
+        'community-skill-search',
+      ) as HTMLInputElement | null;
       if (searchInput) {
         searchInput.focus();
         searchInput.scrollIntoView({ behavior: 'smooth', block: 'center' });

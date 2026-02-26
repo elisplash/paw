@@ -3,14 +3,15 @@
 // Molecule-level: builds HTML, binds events, calls IPC.
 
 import {
-  filterTemplates, sortAutomations, TEMPLATE_CATEGORIES,
-  type ActiveAutomation, type AutomationStatus, type TemplateCategory,
+  filterTemplates,
+  sortAutomations,
+  TEMPLATE_CATEGORIES,
+  type ActiveAutomation,
+  type AutomationStatus,
+  type TemplateCategory,
 } from './atoms';
 import { TEMPLATE_CATALOG, getTemplatesForService } from './templates';
-import {
-  svcName,
-  activateTemplate, toggleAutomation, deleteAutomation,
-} from './ipc';
+import { svcName, activateTemplate, toggleAutomation, deleteAutomation } from './ipc';
 import { renderTemplateCard, renderActiveCard } from './cards';
 import { escHtml } from '../atoms';
 
@@ -31,7 +32,11 @@ let _state: MoleculesState = {
 export function initAutomationsMoleculesState(): {
   setAutomationsMoleculesState: (s: MoleculesState) => void;
 } {
-  return { setAutomationsMoleculesState: (s) => { _state = s; } };
+  return {
+    setAutomationsMoleculesState: (s) => {
+      _state = s;
+    },
+  };
 }
 
 // ── Filter state ───────────────────────────────────────────────────────
@@ -104,20 +109,24 @@ function _renderTemplatesTab(body: HTMLElement): void {
 
     <div class="automations-cat-pills" id="auto-cat-pills">
       <button class="integrations-cat-pill ${_activeCategory === 'all' ? 'active' : ''}" data-cat="all">All</button>
-      ${TEMPLATE_CATEGORIES.map((c) => `
+      ${TEMPLATE_CATEGORIES.map(
+        (c) => `
         <button class="integrations-cat-pill ${_activeCategory === c.id ? 'active' : ''}" data-cat="${c.id}">
           <span class="ms ms-sm">${c.icon}</span>${c.label}
         </button>
-      `).join('')}
+      `,
+      ).join('')}
     </div>
 
     <div class="automations-template-grid" id="auto-template-grid">
-      ${filtered.length === 0
-        ? `<div class="integrations-empty">
+      ${
+        filtered.length === 0
+          ? `<div class="integrations-empty">
             <span class="ms ms-lg">search_off</span>
             <p>No templates match your search</p>
           </div>`
-        : filtered.map((t) => renderTemplateCard(t, connectedIds)).join('')}
+          : filtered.map((t) => renderTemplateCard(t, connectedIds)).join('')
+      }
     </div>
   `;
 
@@ -197,7 +206,9 @@ function _wireTemplateEvents(body: HTMLElement): void {
         _tab = 'active';
         const panel = document.querySelector('.automations-panel') as HTMLElement;
         if (panel) renderAutomations(panel);
-      } catch (err) { console.error('Failed to activate template:', err); }
+      } catch (err) {
+        console.error('Failed to activate template:', err);
+      }
     });
   });
 }
@@ -209,12 +220,18 @@ function _wireActiveEvents(body: HTMLElement): void {
       const action = (btn as HTMLElement).dataset.action as 'pause' | 'resume';
       try {
         await toggleAutomation(id, action);
-        const active = _state.getActive().map((a) =>
-          a.id !== id ? a : { ...a, status: (action === 'pause' ? 'paused' : 'active') as AutomationStatus },
-        );
+        const active = _state
+          .getActive()
+          .map((a) =>
+            a.id !== id
+              ? a
+              : { ...a, status: (action === 'pause' ? 'paused' : 'active') as AutomationStatus },
+          );
         _state.setActive(active);
         _renderActiveTab(body);
-      } catch (err) { console.error('Failed to toggle automation:', err); }
+      } catch (err) {
+        console.error('Failed to toggle automation:', err);
+      }
     });
   });
 
@@ -225,17 +242,16 @@ function _wireActiveEvents(body: HTMLElement): void {
         await deleteAutomation(id);
         _state.setActive(_state.getActive().filter((a) => a.id !== id));
         _renderActiveTab(body);
-      } catch (err) { console.error('Failed to delete automation:', err); }
+      } catch (err) {
+        console.error('Failed to delete automation:', err);
+      }
     });
   });
 }
 
 // ── Public: render templates for a specific service ────────────────────
 
-export function renderServiceTemplates(
-  container: HTMLElement,
-  serviceId: string,
-): void {
+export function renderServiceTemplates(container: HTMLElement, serviceId: string): void {
   const templates = getTemplatesForService(serviceId);
   const connectedIds = _state.getConnectedIds();
 
@@ -268,7 +284,9 @@ export function renderServiceTemplates(
         _tab = 'active';
         const panel = document.querySelector('.automations-panel') as HTMLElement;
         if (panel) renderAutomations(panel);
-      } catch (err) { console.error('Failed to activate template:', err); }
+      } catch (err) {
+        console.error('Failed to activate template:', err);
+      }
     });
   });
 }

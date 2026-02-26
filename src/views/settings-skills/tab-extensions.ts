@@ -16,7 +16,9 @@ export function renderExtensionsTab(
 ): string {
   // Extension-tier skills: has_widget OR has_view OR tier === 'extension'
   // Exclude integration-tier — those live on the Integrations page
-  const extensions = skills.filter((s) => (s.tier === 'extension' || s.has_widget) && s.tier !== 'integration');
+  const extensions = skills.filter(
+    (s) => (s.tier === 'extension' || s.has_widget) && s.tier !== 'integration',
+  );
 
   // Build extension tabs from TOML skills with [view] sections
   const viewTabs = buildExtensionTabs(tomlSkills);

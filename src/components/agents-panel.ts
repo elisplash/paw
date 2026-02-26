@@ -9,10 +9,17 @@ import { escHtml } from './helpers';
 export interface AgentTemplate {
   id: string;
   name: string;
-  icon: string;           // Material Symbol name
+  icon: string; // Material Symbol name
   desc: string;
-  category: 'productivity' | 'engineering' | 'creative' | 'data' | 'communication' | 'security' | 'trading';
-  model: string;          // Recommended model
+  category:
+    | 'productivity'
+    | 'engineering'
+    | 'creative'
+    | 'data'
+    | 'communication'
+    | 'security'
+    | 'trading';
+  model: string; // Recommended model
   skills: string[];
   systemPrompt: string;
   personality: { tone: string; initiative: string; detail: string };
@@ -28,8 +35,16 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     desc: 'Calendar management, email triage, meeting prep, and daily briefings',
     category: 'productivity',
     model: 'default',
-    skills: ['web_search', 'google_gmail_list', 'google_gmail_read', 'google_gmail_send', 'google_calendar_list', 'google_calendar_create'],
-    systemPrompt: 'You are an executive assistant. Manage calendars, draft emails, prepare meeting agendas, and provide daily briefings. Be proactive about scheduling conflicts and follow-ups.',
+    skills: [
+      'web_search',
+      'google_gmail_list',
+      'google_gmail_read',
+      'google_gmail_send',
+      'google_calendar_list',
+      'google_calendar_create',
+    ],
+    systemPrompt:
+      'You are an executive assistant. Manage calendars, draft emails, prepare meeting agendas, and provide daily briefings. Be proactive about scheduling conflicts and follow-ups.',
     personality: { tone: 'formal', initiative: 'proactive', detail: 'thorough' },
     popular: true,
   },
@@ -41,7 +56,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'productivity',
     model: 'default',
     skills: ['create_task', 'list_tasks', 'manage_task', 'web_search', 'read_file', 'write_file'],
-    systemPrompt: 'You are a project manager. Track tasks, identify blockers, manage deadlines, and generate status reports. Use structured formats for clarity.',
+    systemPrompt:
+      'You are a project manager. Track tasks, identify blockers, manage deadlines, and generate status reports. Use structured formats for clarity.',
     personality: { tone: 'balanced', initiative: 'proactive', detail: 'thorough' },
   },
   {
@@ -52,7 +68,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'productivity',
     model: 'default',
     skills: ['write_file', 'read_file', 'google_gmail_send'],
-    systemPrompt: 'You are a meeting note-taker. Summarize discussions, extract action items with owners and deadlines, and format notes clearly. Always ask for the meeting context first.',
+    systemPrompt:
+      'You are a meeting note-taker. Summarize discussions, extract action items with owners and deadlines, and format notes clearly. Always ask for the meeting context first.',
     personality: { tone: 'formal', initiative: 'reactive', detail: 'thorough' },
   },
 
@@ -65,7 +82,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'engineering',
     model: 'default',
     skills: ['read_file', 'list_directory', 'web_search', 'github_api', 'exec'],
-    systemPrompt: 'You are a senior code reviewer. Analyze code for bugs, security issues, performance problems, and style. Provide actionable suggestions with examples. Be thorough but constructive.',
+    systemPrompt:
+      'You are a senior code reviewer. Analyze code for bugs, security issues, performance problems, and style. Provide actionable suggestions with examples. Be thorough but constructive.',
     personality: { tone: 'balanced', initiative: 'proactive', detail: 'thorough' },
     popular: true,
   },
@@ -77,7 +95,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'engineering',
     model: 'default',
     skills: ['exec', 'read_file', 'write_file', 'list_directory', 'web_search'],
-    systemPrompt: 'You are a DevOps engineer specializing in CI/CD, containerization, and cloud infrastructure. Help with Docker, Kubernetes, Terraform, and deployment pipelines. Always consider security and scalability.',
+    systemPrompt:
+      'You are a DevOps engineer specializing in CI/CD, containerization, and cloud infrastructure. Help with Docker, Kubernetes, Terraform, and deployment pipelines. Always consider security and scalability.',
     personality: { tone: 'balanced', initiative: 'balanced', detail: 'thorough' },
   },
   {
@@ -88,7 +107,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'engineering',
     model: 'default',
     skills: ['read_file', 'write_file', 'exec', 'list_directory', 'web_search', 'web_read'],
-    systemPrompt: 'You are a full-stack developer. Write clean, tested, production-ready code. Use modern best practices. Explain architecture decisions. Handle both frontend (React, Vue, vanilla) and backend (Node, Python, Rust).',
+    systemPrompt:
+      'You are a full-stack developer. Write clean, tested, production-ready code. Use modern best practices. Explain architecture decisions. Handle both frontend (React, Vue, vanilla) and backend (Node, Python, Rust).',
     personality: { tone: 'balanced', initiative: 'balanced', detail: 'thorough' },
     popular: true,
   },
@@ -100,7 +120,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'engineering',
     model: 'default',
     skills: ['read_file', 'write_file', 'web_search', 'rest_api_call', 'exec'],
-    systemPrompt: 'You are an API architect. Design clean, well-documented APIs following REST or GraphQL best practices. Consider versioning, pagination, error handling, and authentication patterns.',
+    systemPrompt:
+      'You are an API architect. Design clean, well-documented APIs following REST or GraphQL best practices. Consider versioning, pagination, error handling, and authentication patterns.',
     personality: { tone: 'formal', initiative: 'balanced', detail: 'thorough' },
   },
 
@@ -113,7 +134,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'creative',
     model: 'default',
     skills: ['web_search', 'web_read', 'write_file', 'read_file'],
-    systemPrompt: 'You are a professional content writer. Create engaging, well-structured content for blogs, docs, and marketing. Adapt tone to the audience. Use storytelling techniques and clear CTAs where appropriate.',
+    systemPrompt:
+      'You are a professional content writer. Create engaging, well-structured content for blogs, docs, and marketing. Adapt tone to the audience. Use storytelling techniques and clear CTAs where appropriate.',
     personality: { tone: 'casual', initiative: 'proactive', detail: 'balanced' },
     popular: true,
   },
@@ -125,7 +147,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'creative',
     model: 'default',
     skills: ['web_search', 'web_read', 'web_screenshot', 'write_file'],
-    systemPrompt: 'You are a UX designer. Create user flows, suggest UI improvements, audit accessibility, and help build design systems. Focus on user-centered design principles and WCAG compliance.',
+    systemPrompt:
+      'You are a UX designer. Create user flows, suggest UI improvements, audit accessibility, and help build design systems. Focus on user-centered design principles and WCAG compliance.',
     personality: { tone: 'casual', initiative: 'proactive', detail: 'balanced' },
   },
   {
@@ -136,7 +159,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'creative',
     model: 'default',
     skills: ['read_file', 'write_file'],
-    systemPrompt: 'You are a professional copy editor. Proofread for grammar, spelling, punctuation, and style consistency. Improve clarity and readability. Flag ambiguous phrasing and suggest alternatives.',
+    systemPrompt:
+      'You are a professional copy editor. Proofread for grammar, spelling, punctuation, and style consistency. Improve clarity and readability. Flag ambiguous phrasing and suggest alternatives.',
     personality: { tone: 'formal', initiative: 'reactive', detail: 'thorough' },
   },
 
@@ -149,7 +173,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'data',
     model: 'default',
     skills: ['exec', 'read_file', 'write_file', 'web_search', 'google_sheets_read'],
-    systemPrompt: 'You are a data analyst. Write SQL queries, analyze datasets, create visualizations, and generate reports. Use statistical methods appropriately. Always explain your methodology and findings clearly.',
+    systemPrompt:
+      'You are a data analyst. Write SQL queries, analyze datasets, create visualizations, and generate reports. Use statistical methods appropriately. Always explain your methodology and findings clearly.',
     personality: { tone: 'formal', initiative: 'balanced', detail: 'thorough' },
     popular: true,
   },
@@ -161,7 +186,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'data',
     model: 'default',
     skills: ['web_search', 'web_read', 'web_browse', 'write_file', 'read_file'],
-    systemPrompt: 'You are a research analyst. Conduct thorough research, synthesize findings from multiple sources, and present structured reports. Always cite sources and distinguish facts from opinions.',
+    systemPrompt:
+      'You are a research analyst. Conduct thorough research, synthesize findings from multiple sources, and present structured reports. Always cite sources and distinguish facts from opinions.',
     personality: { tone: 'formal', initiative: 'proactive', detail: 'thorough' },
   },
 
@@ -174,7 +200,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'communication',
     model: 'default',
     skills: ['slack_read', 'slack_send', 'web_search', 'write_file'],
-    systemPrompt: 'You are a community manager. Monitor channels, engage with members, answer questions, moderate discussions, and track community health metrics. Be warm, inclusive, and proactive.',
+    systemPrompt:
+      'You are a community manager. Monitor channels, engage with members, answer questions, moderate discussions, and track community health metrics. Be warm, inclusive, and proactive.',
     personality: { tone: 'casual', initiative: 'proactive', detail: 'balanced' },
   },
   {
@@ -185,7 +212,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'communication',
     model: 'default',
     skills: ['google_gmail_list', 'google_gmail_read', 'google_gmail_send', 'web_search'],
-    systemPrompt: 'You are an email concierge. Triage incoming emails by priority, draft responses, schedule follow-ups, and maintain inbox zero. Be professional and concise in all drafts.',
+    systemPrompt:
+      'You are an email concierge. Triage incoming emails by priority, draft responses, schedule follow-ups, and maintain inbox zero. Be professional and concise in all drafts.',
     personality: { tone: 'formal', initiative: 'proactive', detail: 'balanced' },
   },
 
@@ -198,7 +226,8 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     category: 'security',
     model: 'default',
     skills: ['exec', 'read_file', 'list_directory', 'web_search', 'github_api'],
-    systemPrompt: 'You are a security auditor. Scan code for vulnerabilities, audit dependencies, check configurations, and recommend security best practices. Follow OWASP guidelines. Always prioritize findings by severity.',
+    systemPrompt:
+      'You are a security auditor. Scan code for vulnerabilities, audit dependencies, check configurations, and recommend security best practices. Follow OWASP guidelines. Always prioritize findings by severity.',
     personality: { tone: 'formal', initiative: 'proactive', detail: 'thorough' },
     popular: true,
   },
@@ -211,8 +240,16 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     desc: 'Market analysis, portfolio tracking, and trading strategy research',
     category: 'trading',
     model: 'default',
-    skills: ['coinbase_prices', 'coinbase_balance', 'sol_balance', 'sol_portfolio', 'web_search', 'web_read'],
-    systemPrompt: 'You are a trading analyst. Monitor markets, analyze price action, track portfolios, and research trading strategies. Always include risk disclaimers. Never give financial advice — present data and analysis only.',
+    skills: [
+      'coinbase_prices',
+      'coinbase_balance',
+      'sol_balance',
+      'sol_portfolio',
+      'web_search',
+      'web_read',
+    ],
+    systemPrompt:
+      'You are a trading analyst. Monitor markets, analyze price action, track portfolios, and research trading strategies. Always include risk disclaimers. Never give financial advice — present data and analysis only.',
     personality: { tone: 'balanced', initiative: 'proactive', detail: 'thorough' },
   },
   {
@@ -222,8 +259,16 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     desc: 'Monitor DeFi protocols, yield opportunities, and token launches',
     category: 'trading',
     model: 'default',
-    skills: ['dex_trending', 'dex_token_info', 'dex_check_token', 'sol_token_info', 'web_search', 'web_read'],
-    systemPrompt: 'You are a DeFi scout. Monitor decentralized finance protocols, track yield opportunities, analyze new token launches, and flag potential risks. Always verify contract safety before recommending.',
+    skills: [
+      'dex_trending',
+      'dex_token_info',
+      'dex_check_token',
+      'sol_token_info',
+      'web_search',
+      'web_read',
+    ],
+    systemPrompt:
+      'You are a DeFi scout. Monitor decentralized finance protocols, track yield opportunities, analyze new token launches, and flag potential risks. Always verify contract safety before recommending.',
     personality: { tone: 'casual', initiative: 'proactive', detail: 'thorough' },
   },
 ];
@@ -245,8 +290,10 @@ const CATEGORY_META: Record<string, { icon: string; label: string; color: string
 /** Render the hero stats counters */
 export function updateAgentsHeroStats(agents: { lastUsed?: string; model?: string }[]) {
   const total = agents.length;
-  const active = agents.filter(a => a.lastUsed && (Date.now() - new Date(a.lastUsed).getTime()) < 600000).length;
-  const models = new Set(agents.map(a => a.model).filter(Boolean)).size;
+  const active = agents.filter(
+    (a) => a.lastUsed && Date.now() - new Date(a.lastUsed).getTime() < 600000,
+  ).length;
+  const models = new Set(agents.map((a) => a.model).filter(Boolean)).size;
 
   const elTotal = document.getElementById('agents-stat-total');
   const elActive = document.getElementById('agents-stat-active');
@@ -264,25 +311,25 @@ export function renderCapabilitiesList(agents: { skills: string[] }[]) {
 
   // Count unique skills across all agents
   const skillCounts = new Map<string, number>();
-  agents.forEach(a => a.skills.forEach(s => skillCounts.set(s, (skillCounts.get(s) || 0) + 1)));
+  agents.forEach((a) => a.skills.forEach((s) => skillCounts.set(s, (skillCounts.get(s) || 0) + 1)));
 
-  const topSkills = [...skillCounts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
+  const topSkills = [...skillCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
 
   if (topSkills.length === 0) {
     el.innerHTML = '<div class="agents-cap-empty">No skills assigned yet</div>';
     return;
   }
 
-  el.innerHTML = topSkills.map(([skill, count]) => {
-    const pct = Math.round((count / agents.length) * 100);
-    return `<div class="agents-cap-row">
+  el.innerHTML = topSkills
+    .map(([skill, count]) => {
+      const pct = Math.round((count / agents.length) * 100);
+      return `<div class="agents-cap-row">
       <span class="agents-cap-name">${escHtml(_formatSkillName(skill))}</span>
       <div class="agents-cap-bar"><div class="agents-cap-fill" style="width:${pct}%"></div></div>
       <span class="agents-cap-count">${count}</span>
     </div>`;
-  }).join('');
+    })
+    .join('');
 }
 
 /** Render recent activity in side panel */
@@ -291,7 +338,7 @@ export function renderActivityList(agents: { name: string; lastUsed?: string }[]
   if (!el) return;
 
   const recent = agents
-    .filter(a => a.lastUsed)
+    .filter((a) => a.lastUsed)
     .sort((a, b) => new Date(b.lastUsed!).getTime() - new Date(a.lastUsed!).getTime())
     .slice(0, 5);
 
@@ -300,14 +347,16 @@ export function renderActivityList(agents: { name: string; lastUsed?: string }[]
     return;
   }
 
-  el.innerHTML = recent.map(a => {
-    const ago = _timeAgo(new Date(a.lastUsed!));
-    return `<div class="agents-activity-row">
+  el.innerHTML = recent
+    .map((a) => {
+      const ago = _timeAgo(new Date(a.lastUsed!));
+      return `<div class="agents-activity-row">
       <span class="ms agents-activity-icon">smart_toy</span>
       <span class="agents-activity-name">${escHtml(a.name)}</span>
       <span class="agents-activity-time">${ago}</span>
     </div>`;
-  }).join('');
+    })
+    .join('');
 }
 
 /** Render the template marketplace grid */
@@ -317,7 +366,7 @@ export function renderTemplateGrid(onInstall: (templateId: string) => void) {
 
   // Group by category
   const categories = new Map<string, AgentTemplate[]>();
-  AGENT_TEMPLATE_CATALOG.forEach(t => {
+  AGENT_TEMPLATE_CATALOG.forEach((t) => {
     const list = categories.get(t.category) || [];
     list.push(t);
     categories.set(t.category, list);
@@ -332,7 +381,9 @@ export function renderTemplateGrid(onInstall: (templateId: string) => void) {
         <span class="agents-tpl-cat-label">${meta.label}</span>
       </div>
       <div class="agents-tpl-cat-cards">
-        ${templates.map(t => `
+        ${templates
+          .map(
+            (t) => `
         <div class="agents-tpl-card k-row k-spring" data-template-id="${t.id}">
           ${t.popular ? '<span class="agents-tpl-popular">Popular</span>' : ''}
           <span class="ms agents-tpl-card-icon" style="color:${meta.color}">${t.icon}</span>
@@ -341,7 +392,9 @@ export function renderTemplateGrid(onInstall: (templateId: string) => void) {
           <button class="agents-tpl-install-btn" data-tpl-id="${t.id}">
             <span class="ms ms-sm">download</span> Install
           </button>
-        </div>`).join('')}
+        </div>`,
+          )
+          .join('')}
       </div>
     </div>`;
   });
@@ -349,7 +402,7 @@ export function renderTemplateGrid(onInstall: (templateId: string) => void) {
   el.innerHTML = html;
 
   // Bind install buttons
-  el.querySelectorAll('.agents-tpl-install-btn').forEach(btn => {
+  el.querySelectorAll('.agents-tpl-install-btn').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = (btn as HTMLElement).getAttribute('data-tpl-id');
@@ -358,7 +411,7 @@ export function renderTemplateGrid(onInstall: (templateId: string) => void) {
   });
 
   // Apply kinetic to template cards
-  el.querySelectorAll('.agents-tpl-card').forEach(card => {
+  el.querySelectorAll('.agents-tpl-card').forEach((card) => {
     kineticRow(card as HTMLElement, { spring: true });
   });
 }
@@ -370,17 +423,17 @@ export function initAgentsKinetic() {
   if (sidePanel) kineticStagger(sidePanel as HTMLElement, '.agents-panel-card');
 
   // Materialise the section cards
-  document.querySelectorAll('.agents-section.k-materialise').forEach(el => {
+  document.querySelectorAll('.agents-section.k-materialise').forEach((el) => {
     kineticRow(el as HTMLElement, { materialise: true });
   });
 
   // Spring on hero stats
-  document.querySelectorAll('.agents-hero-stat.k-spring').forEach(el => {
+  document.querySelectorAll('.agents-hero-stat.k-spring').forEach((el) => {
     kineticRow(el as HTMLElement, { spring: true });
   });
 
   // Spring on panel cards
-  document.querySelectorAll('.agents-panel-card.k-spring').forEach(el => {
+  document.querySelectorAll('.agents-panel-card.k-spring').forEach((el) => {
     kineticRow(el as HTMLElement, { spring: true, materialise: true });
   });
 }
@@ -388,7 +441,7 @@ export function initAgentsKinetic() {
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function _formatSkillName(id: string): string {
-  return id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return id.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function _timeAgo(d: Date): string {

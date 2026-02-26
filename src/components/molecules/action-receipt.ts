@@ -14,7 +14,7 @@ import {
 // ── Types ──────────────────────────────────────────────────────────────
 
 export interface ReceiptOptions {
-  compact?: boolean;        // ultra-compact (single line)
+  compact?: boolean; // ultra-compact (single line)
   showDuration?: boolean;
   showTimestamp?: boolean;
   showExternalLink?: boolean;
@@ -60,13 +60,16 @@ function _serviceIcon(service: string): string {
 /**
  * Render a compact receipt card for a single integration action.
  */
-export function renderReceipt(
-  log: IntegrationActionLog,
-  opts: ReceiptOptions = {},
-): string {
+export function renderReceipt(log: IntegrationActionLog, opts: ReceiptOptions = {}): string {
   const o = { ...DEFAULTS, ...opts };
-  const statusIcon = log.status === 'success' ? 'check_circle' : log.status === 'failed' ? 'error' : 'pending';
-  const statusColor = log.status === 'success' ? 'var(--success, #22c55e)' : log.status === 'failed' ? 'var(--danger, #ef4444)' : 'var(--warning, #f59e0b)';
+  const statusIcon =
+    log.status === 'success' ? 'check_circle' : log.status === 'failed' ? 'error' : 'pending';
+  const statusColor =
+    log.status === 'success'
+      ? 'var(--success, #22c55e)'
+      : log.status === 'failed'
+        ? 'var(--danger, #ef4444)'
+        : 'var(--warning, #f59e0b)';
   const svcIcon = _serviceIcon(log.service);
 
   if (o.compact) {
@@ -79,13 +82,15 @@ export function renderReceipt(
       </div>`;
   }
 
-  const externalLink = o.showExternalLink && log.externalUrl
-    ? `<a href="${_esc(log.externalUrl)}" target="_blank" rel="noopener" class="action-receipt-link" title="Open in ${_esc(log.serviceName)}"><span class="ms" style="font-size:14px">open_in_new</span></a>`
-    : '';
+  const externalLink =
+    o.showExternalLink && log.externalUrl
+      ? `<a href="${_esc(log.externalUrl)}" target="_blank" rel="noopener" class="action-receipt-link" title="Open in ${_esc(log.serviceName)}"><span class="ms" style="font-size:14px">open_in_new</span></a>`
+      : '';
 
-  const errorSection = log.status === 'failed' && log.errorMessage
-    ? `<div class="action-receipt-error"><span class="ms" style="font-size:13px">warning</span> ${_esc(log.errorMessage)}</div>`
-    : '';
+  const errorSection =
+    log.status === 'failed' && log.errorMessage
+      ? `<div class="action-receipt-error"><span class="ms" style="font-size:13px">warning</span> ${_esc(log.errorMessage)}</div>`
+      : '';
 
   return `
     <div class="action-receipt action-receipt--${log.status}">
@@ -152,7 +157,7 @@ export async function recordAndRenderReceipt(
   const summary = typeof output === 'string' ? output : '';
 
   const log: IntegrationActionLog = {
-    id: '',  // backend assigns
+    id: '', // backend assigns
     timestamp: new Date().toISOString(),
     service,
     serviceName: _serviceName(service),
@@ -170,7 +175,9 @@ export async function recordAndRenderReceipt(
   // Persist to backend
   try {
     await invoke('engine_action_log_record', { entry: log });
-  } catch { /* non-fatal */ }
+  } catch {
+    /* non-fatal */
+  }
 
   return renderReceipt(log);
 }
@@ -194,17 +201,34 @@ export function injectReceiptIntoChat(html: string): void {
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function _esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function _serviceName(service: string): string {
   const names: Record<string, string> = {
-    slack: 'Slack', discord: 'Discord', github: 'GitHub', gmail: 'Gmail',
-    hubspot: 'HubSpot', jira: 'Jira', linear: 'Linear', trello: 'Trello',
-    notion: 'Notion', 'google-sheets': 'Google Sheets', shopify: 'Shopify',
-    stripe: 'Stripe', salesforce: 'Salesforce', sendgrid: 'SendGrid',
-    twilio: 'Twilio', zendesk: 'Zendesk', telegram: 'Telegram',
-    'google-calendar': 'Google Calendar', 'google-drive': 'Google Drive',
+    slack: 'Slack',
+    discord: 'Discord',
+    github: 'GitHub',
+    gmail: 'Gmail',
+    hubspot: 'HubSpot',
+    jira: 'Jira',
+    linear: 'Linear',
+    trello: 'Trello',
+    notion: 'Notion',
+    'google-sheets': 'Google Sheets',
+    shopify: 'Shopify',
+    stripe: 'Stripe',
+    salesforce: 'Salesforce',
+    sendgrid: 'SendGrid',
+    twilio: 'Twilio',
+    zendesk: 'Zendesk',
+    telegram: 'Telegram',
+    'google-calendar': 'Google Calendar',
+    'google-drive': 'Google Drive',
   };
   return names[service] ?? service.charAt(0).toUpperCase() + service.slice(1);
 }

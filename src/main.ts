@@ -232,7 +232,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       collapseBtn.addEventListener('click', () => {
         sidebar.classList.toggle('collapsed');
-        localStorage.setItem('paw-sidebar-collapsed', String(sidebar.classList.contains('collapsed')));
+        localStorage.setItem(
+          'paw-sidebar-collapsed',
+          String(sidebar.classList.contains('collapsed')),
+        );
       });
     }
 

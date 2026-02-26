@@ -55,31 +55,46 @@ export interface ChainRule {
 
 export function statusIcon(status: HealthStatus): string {
   switch (status) {
-    case 'healthy': return 'check_circle';
-    case 'degraded': return 'warning';
-    case 'error': return 'error';
-    case 'expired': return 'lock_clock';
-    case 'unknown': return 'help';
+    case 'healthy':
+      return 'check_circle';
+    case 'degraded':
+      return 'warning';
+    case 'error':
+      return 'error';
+    case 'expired':
+      return 'lock_clock';
+    case 'unknown':
+      return 'help';
   }
 }
 
 export function statusColor(status: HealthStatus): string {
   switch (status) {
-    case 'healthy': return 'var(--success, #22c55e)';
-    case 'degraded': return 'var(--warning, #f59e0b)';
-    case 'error': return 'var(--danger, #ef4444)';
-    case 'expired': return 'var(--danger, #ef4444)';
-    case 'unknown': return 'var(--text-secondary)';
+    case 'healthy':
+      return 'var(--success, #22c55e)';
+    case 'degraded':
+      return 'var(--warning, #f59e0b)';
+    case 'error':
+      return 'var(--danger, #ef4444)';
+    case 'expired':
+      return 'var(--danger, #ef4444)';
+    case 'unknown':
+      return 'var(--text-secondary)';
   }
 }
 
 export function statusLabel(status: HealthStatus): string {
   switch (status) {
-    case 'healthy': return 'Connected';
-    case 'degraded': return 'Degraded';
-    case 'error': return 'Error';
-    case 'expired': return 'Token Expired';
-    case 'unknown': return 'Unknown';
+    case 'healthy':
+      return 'Connected';
+    case 'degraded':
+      return 'Degraded';
+    case 'error':
+      return 'Error';
+    case 'expired':
+      return 'Token Expired';
+    case 'unknown':
+      return 'Unknown';
   }
 }
 
@@ -93,11 +108,23 @@ export function computeHealthSummary(services: ServiceHealth[]): HealthSummary {
 
   for (const s of services) {
     switch (s.status) {
-      case 'healthy': healthy++; break;
-      case 'degraded': degraded++; needsAttention.push(s); break;
-      case 'error': error++; needsAttention.push(s); break;
-      case 'expired': expired++; needsAttention.push(s); break;
-      default: break;
+      case 'healthy':
+        healthy++;
+        break;
+      case 'degraded':
+        degraded++;
+        needsAttention.push(s);
+        break;
+      case 'error':
+        error++;
+        needsAttention.push(s);
+        break;
+      case 'expired':
+        expired++;
+        needsAttention.push(s);
+        break;
+      default:
+        break;
     }
   }
 
@@ -113,9 +140,7 @@ export function deriveHealthStatus(
   if (!hasCredentials) return 'unknown';
 
   if (tokenExpiry) {
-    const daysLeft = Math.floor(
-      (new Date(tokenExpiry).getTime() - Date.now()) / 86_400_000,
-    );
+    const daysLeft = Math.floor((new Date(tokenExpiry).getTime() - Date.now()) / 86_400_000);
     if (daysLeft <= 0) return 'expired';
     if (daysLeft <= 7) return 'degraded';
   }
@@ -128,15 +153,11 @@ export function deriveHealthStatus(
 
 /** Days until a token expires (negative if already expired). */
 export function daysUntilExpiry(expiryDate: string): number {
-  return Math.floor(
-    (new Date(expiryDate).getTime() - Date.now()) / 86_400_000,
-  );
+  return Math.floor((new Date(expiryDate).getTime() - Date.now()) / 86_400_000);
 }
 
 /** Generate smart suggestions based on connected services. */
-export function generateSuggestions(
-  connectedServices: string[],
-): IntegrationSuggestion[] {
+export function generateSuggestions(connectedServices: string[]): IntegrationSuggestion[] {
   const suggestions: IntegrationSuggestion[] = [];
 
   const SUGGESTION_TEMPLATES: Record<string, IntegrationSuggestion> = {

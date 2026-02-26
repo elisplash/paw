@@ -94,9 +94,8 @@ export function filterQueries(
   }
   if (opts.query) {
     const lower = opts.query.toLowerCase();
-    result = result.filter((q) =>
-      q.question.toLowerCase().includes(lower) ||
-      q.resultHint.toLowerCase().includes(lower),
+    result = result.filter(
+      (q) => q.question.toLowerCase().includes(lower) || q.resultHint.toLowerCase().includes(lower),
     );
   }
   return result;
@@ -108,10 +107,7 @@ export function getCrossServiceQueries(queries: ServiceQuery[]): ServiceQuery[] 
 }
 
 /** Check if all services required by a query are connected. */
-export function isQueryReady(
-  query: ServiceQuery,
-  connectedIds: Set<string>,
-): boolean {
+export function isQueryReady(query: ServiceQuery, connectedIds: Set<string>): boolean {
   return query.serviceIds.every((id) => connectedIds.has(id));
 }
 
@@ -122,8 +118,11 @@ export function highlightBadge(severity: QueryHighlight['severity']): {
   cssClass: string;
 } {
   switch (severity) {
-    case 'urgent': return { icon: 'error', label: 'Urgent', cssClass: 'highlight-urgent' };
-    case 'warning': return { icon: 'warning', label: 'Attention', cssClass: 'highlight-warning' };
-    default: return { icon: 'info', label: 'Info', cssClass: 'highlight-info' };
+    case 'urgent':
+      return { icon: 'error', label: 'Urgent', cssClass: 'highlight-urgent' };
+    case 'warning':
+      return { icon: 'warning', label: 'Attention', cssClass: 'highlight-warning' };
+    default:
+      return { icon: 'info', label: 'Info', cssClass: 'highlight-info' };
   }
 }

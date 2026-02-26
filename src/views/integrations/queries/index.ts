@@ -2,11 +2,7 @@
 //
 // Thin barrel: state bridge, re-exports.
 
-import {
-  renderQueryPanel,
-  renderServiceQueries,
-  initQueryMoleculesState,
-} from './molecules';
+import { renderQueryPanel, renderServiceQueries, initQueryMoleculesState } from './molecules';
 
 // ── Module state ───────────────────────────────────────────────────────
 
@@ -27,10 +23,7 @@ export function loadQueryPanel(container: HTMLElement): void {
   renderQueryPanel(container);
 }
 
-export function loadServiceQueries(
-  container: HTMLElement,
-  serviceId: string,
-): void {
+export function loadServiceQueries(container: HTMLElement, serviceId: string): void {
   renderServiceQueries(container, serviceId);
 }
 

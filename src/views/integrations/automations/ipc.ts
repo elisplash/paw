@@ -22,19 +22,14 @@ export function svcColor(id: string): string {
 
 // ── IPC calls ──────────────────────────────────────────────────────────
 
-export async function activateTemplate(
-  tpl: AutomationTemplate,
-): Promise<ActiveAutomation> {
-  return invoke<ActiveAutomation>(
-    'engine_automations_activate_template',
-    { templateId: tpl.id, template: tpl },
-  );
+export async function activateTemplate(tpl: AutomationTemplate): Promise<ActiveAutomation> {
+  return invoke<ActiveAutomation>('engine_automations_activate_template', {
+    templateId: tpl.id,
+    template: tpl,
+  });
 }
 
-export async function toggleAutomation(
-  id: string,
-  action: 'pause' | 'resume',
-): Promise<void> {
+export async function toggleAutomation(id: string, action: 'pause' | 'resume'): Promise<void> {
   await invoke('engine_automations_toggle', { automationId: id, action });
 }
 
@@ -59,5 +54,7 @@ export function formatDate(iso: string): string {
     const diffHr = Math.floor(diffMin / 60);
     if (diffHr < 24) return `${diffHr}h ago`;
     return d.toLocaleDateString();
-  } catch { return iso; }
+  } catch {
+    return iso;
+  }
 }

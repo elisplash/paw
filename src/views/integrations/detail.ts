@@ -6,8 +6,18 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import type { ServiceDefinition, ConnectedService } from './atoms';
-import { type IntegrationActionLog, formatDuration, timeAgo } from '../../engine/atoms/action-labels';
-import { type ServiceHealth, statusIcon, statusColor, statusLabel, daysUntilExpiry } from '../../features/integration-health/atoms';
+import {
+  type IntegrationActionLog,
+  formatDuration,
+  timeAgo,
+} from '../../engine/atoms/action-labels';
+import {
+  type ServiceHealth,
+  statusIcon,
+  statusColor,
+  statusLabel,
+  daysUntilExpiry,
+} from '../../features/integration-health/atoms';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -81,18 +91,23 @@ function _renderHealthCard(health: ServiceHealth): string {
 }
 
 function _renderRecentActions(actions: IntegrationActionLog[]): string {
-  const rows = actions.slice(0, 8).map((a) => {
-    const statusCls = a.status === 'success' ? 'success' : a.status === 'failed' ? 'failed' : 'running';
-    const statusMs = a.status === 'success' ? 'check_circle' : a.status === 'failed' ? 'error' : 'pending';
+  const rows = actions
+    .slice(0, 8)
+    .map((a) => {
+      const statusCls =
+        a.status === 'success' ? 'success' : a.status === 'failed' ? 'failed' : 'running';
+      const statusMs =
+        a.status === 'success' ? 'check_circle' : a.status === 'failed' ? 'error' : 'pending';
 
-    return `
+      return `
       <div class="svc-detail-action svc-detail-action--${statusCls}">
         <span class="ms" style="font-size:14px">${statusMs}</span>
         <span class="svc-detail-action-label">${_esc(a.actionLabel)}</span>
         <span class="svc-detail-action-time">${timeAgo(a.timestamp)}</span>
         ${a.durationMs > 0 ? `<span class="svc-detail-action-dur">${formatDuration(a.durationMs)}</span>` : ''}
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   return `
     <div class="integrations-detail-section">
@@ -102,12 +117,14 @@ function _renderRecentActions(actions: IntegrationActionLog[]): string {
 }
 
 function _renderConnectionInfo(conn: ConnectedService): string {
-  const statusMs = conn.status === 'connected' ? 'check_circle'
-    : conn.status === 'expired' ? 'error'
-    : 'warning';
-  const statusClr = conn.status === 'connected' ? 'var(--success, #22c55e)'
-    : conn.status === 'expired' ? 'var(--danger, #ef4444)'
-    : 'var(--warning, #f59e0b)';
+  const statusMs =
+    conn.status === 'connected' ? 'check_circle' : conn.status === 'expired' ? 'error' : 'warning';
+  const statusClr =
+    conn.status === 'connected'
+      ? 'var(--success, #22c55e)'
+      : conn.status === 'expired'
+        ? 'var(--danger, #ef4444)'
+        : 'var(--warning, #f59e0b)';
 
   return `
     <div class="integrations-detail-section">
@@ -121,11 +138,15 @@ function _renderConnectionInfo(conn: ConnectedService): string {
           <span class="ms" style="font-size:16px">calendar_today</span>
           <span>Connected: ${_formatDate(conn.connectedAt)}</span>
         </div>
-        ${conn.lastUsed ? `
+        ${
+          conn.lastUsed
+            ? `
         <div class="svc-detail-conn-row">
           <span class="ms" style="font-size:16px">access_time</span>
           <span>Last used: ${timeAgo(conn.lastUsed)}</span>
-        </div>` : ''}
+        </div>`
+            : ''
+        }
         <div class="svc-detail-conn-row">
           <span class="ms" style="font-size:16px">build</span>
           <span>${conn.toolCount} tool${conn.toolCount !== 1 ? 's' : ''} available</span>
@@ -138,11 +159,14 @@ function _renderQuickActions(service: ServiceDefinition, isConnected: boolean): 
   if (!isConnected) return '';
 
   const examples = service.queryExamples.slice(0, 3);
-  const queryButtons = examples.map((q) =>
-    `<button class="svc-detail-quick-btn" data-query="${_esc(q)}">
+  const queryButtons = examples
+    .map(
+      (q) =>
+        `<button class="svc-detail-quick-btn" data-query="${_esc(q)}">
       <span class="ms" style="font-size:14px">chat</span> ${_esc(q)}
-    </button>`
-  ).join('');
+    </button>`,
+    )
+    .join('');
 
   return `
     <div class="integrations-detail-section">
@@ -171,14 +195,18 @@ export async function loadDetailState(
   try {
     const allHealth: ServiceHealth[] = await invoke('engine_health_check_services');
     health = allHealth.find((h) => h.service === service.id) ?? null;
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 
   try {
     recentActions = await invoke('engine_action_log_list', {
       service: service.id,
       limit: 8,
     });
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 
   return { service, connected, health, recentActions };
 }
@@ -229,13 +257,19 @@ async function _handleDisconnect(serviceId: string): Promise<void> {
     // Refresh the view
     const event = new CustomEvent('integrations:refresh');
     document.dispatchEvent(event);
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function _esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function _formatDate(iso: string): string {

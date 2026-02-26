@@ -3,18 +3,18 @@
 // Atom-level: pure functions that return HTML strings, no DOM or IPC.
 
 import {
-  checkRequirements, triggerLabel, statusBadge,
-  type AutomationTemplate, type ActiveAutomation,
+  checkRequirements,
+  triggerLabel,
+  statusBadge,
+  type AutomationTemplate,
+  type ActiveAutomation,
 } from './atoms';
 import { svcName, svcIcon, svcColor, formatDate } from './ipc';
 import { escHtml } from '../atoms';
 
 // ── Template card ──────────────────────────────────────────────────────
 
-export function renderTemplateCard(
-  t: AutomationTemplate,
-  connectedIds: Set<string>,
-): string {
+export function renderTemplateCard(t: AutomationTemplate, connectedIds: Set<string>): string {
   const { met: _met, missing } = checkRequirements(t, connectedIds);
   const ready = missing.length === 0;
 
@@ -22,30 +22,39 @@ export function renderTemplateCard(
     <div class="automation-card" data-template-id="${t.id}">
       <div class="automation-card-header">
         <div class="automation-card-services">
-          ${t.requiredServices.map((sid) => `
+          ${t.requiredServices
+            .map(
+              (sid) => `
             <span class="automation-svc-dot ${connectedIds.has(sid) ? 'connected' : 'missing'}"
                   style="color: ${svcColor(sid)}" title="${svcName(sid)}">
               <span class="ms ms-sm">${svcIcon(sid)}</span>
             </span>
-          `).join('')}
+          `,
+            )
+            .join('')}
         </div>
         <span class="automation-card-trigger">${triggerLabel(t.trigger)}</span>
       </div>
       <h4 class="automation-card-name">${escHtml(t.name)}</h4>
       <p class="automation-card-desc">${escHtml(t.description)}</p>
       <div class="automation-card-steps">
-        ${t.steps.map((s) => `
+        ${t.steps
+          .map(
+            (s) => `
           <span class="automation-step-chip">
             <span class="ms ms-xs">${s.icon}</span> ${escHtml(s.action)}
           </span>
-        `).join('<span class="automation-step-arrow">→</span>')}
+        `,
+          )
+          .join('<span class="automation-step-arrow">→</span>')}
       </div>
       <div class="automation-card-footer">
-        ${ready
-          ? `<button class="btn btn-primary btn-sm automation-activate-btn" data-template-id="${t.id}">
+        ${
+          ready
+            ? `<button class="btn btn-primary btn-sm automation-activate-btn" data-template-id="${t.id}">
               <span class="ms ms-sm">play_arrow</span> Activate
             </button>`
-          : `<span class="automation-missing-label">
+            : `<span class="automation-missing-label">
               <span class="ms ms-sm">link_off</span>
               Connect ${missing.map(svcName).join(', ')} first
             </span>`
@@ -71,23 +80,31 @@ export function renderActiveCard(a: ActiveAutomation): string {
       <h4 class="automation-active-name">${escHtml(a.name)}</h4>
       <p class="automation-active-desc">${escHtml(a.description)}</p>
       <div class="automation-active-services">
-        ${a.services.map((sid) => `
+        ${a.services
+          .map(
+            (sid) => `
           <span class="automation-svc-chip" style="--svc-color: ${svcColor(sid)}">
             <span class="ms ms-sm">${svcIcon(sid)}</span> ${svcName(sid)}
           </span>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
       <div class="automation-active-footer">
         <span class="automation-active-stats">
-          ${a.lastRunAt
-            ? `Last run: ${formatDate(a.lastRunAt)}
-               ${a.lastRunResult === 'success'
-                 ? '<span class="ms ms-sm" style="color:var(--success)">check_circle</span>'
-                 : a.lastRunResult === 'error'
-                   ? '<span class="ms ms-sm" style="color:var(--danger)">error</span>'
-                   : ''}
+          ${
+            a.lastRunAt
+              ? `Last run: ${formatDate(a.lastRunAt)}
+               ${
+                 a.lastRunResult === 'success'
+                   ? '<span class="ms ms-sm" style="color:var(--success)">check_circle</span>'
+                   : a.lastRunResult === 'error'
+                     ? '<span class="ms ms-sm" style="color:var(--danger)">error</span>'
+                     : ''
+               }
                ${a.lastRunDetails ? `· ${escHtml(a.lastRunDetails)}` : ''}`
-            : 'Not yet run'}
+              : 'Not yet run'
+          }
           · ${a.runCount} runs
         </span>
         <div class="automation-active-actions">

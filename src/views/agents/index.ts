@@ -307,7 +307,7 @@ export function initAgents() {
 
 /** Install an agent from a template */
 function _installTemplate(templateId: string) {
-  const tpl = AGENT_TEMPLATE_CATALOG.find(t => t.id === templateId);
+  const tpl = AGENT_TEMPLATE_CATALOG.find((t) => t.id === templateId);
   if (!tpl) return;
 
   // Create a new agent from the template
@@ -374,7 +374,7 @@ function _importConfig() {
         if (Array.isArray(imported)) {
           let count = 0;
           for (const a of imported) {
-            if (a.id && a.name && !_agents.find(e => e.id === a.id)) {
+            if (a.id && a.name && !_agents.find((e) => e.id === a.id)) {
               _agents.push(a);
               count++;
             }

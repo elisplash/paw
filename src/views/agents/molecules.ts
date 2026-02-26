@@ -73,14 +73,14 @@ export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
         </tr>
       </thead>
       <tbody>
-        ${agents.map((agent) => {
-          const p = getAgentPolicy(agent.id);
-          const toolCount = p.mode === 'unrestricted' ? 'All' : String(p.allowed.length);
-          const lastUsed = agent.lastUsed
-            ? _timeAgo(new Date(agent.lastUsed))
-            : '—';
-          const isActive = agent.lastUsed && (Date.now() - new Date(agent.lastUsed).getTime()) < 600000;
-          return `<tr class="agents-roster-row" data-id="${agent.id}">
+        ${agents
+          .map((agent) => {
+            const p = getAgentPolicy(agent.id);
+            const toolCount = p.mode === 'unrestricted' ? 'All' : String(p.allowed.length);
+            const lastUsed = agent.lastUsed ? _timeAgo(new Date(agent.lastUsed)) : '—';
+            const isActive =
+              agent.lastUsed && Date.now() - new Date(agent.lastUsed).getTime() < 600000;
+            return `<tr class="agents-roster-row" data-id="${agent.id}">
             <td class="roster-stat">${isActive ? '<span class="roster-dot-active">◉</span>' : '<span class="roster-dot-idle">○</span>'}</td>
             <td class="roster-name">${escHtml(agent.name)}</td>
             <td class="roster-model">${escHtml(agent.model || '—')}</td>
@@ -91,7 +91,8 @@ export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
               <button class="btn btn-ghost btn-sm agent-edit-btn">Edit</button>
             </td>
           </tr>`;
-        }).join('')}
+          })
+          .join('')}
       </tbody>
       <tfoot>
         <tr class="agents-roster-footer-row">
@@ -150,7 +151,7 @@ export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
   }
 
   // Apply kinetic to grid cards (not roster rows — k-row breaks on <tr>)
-  grid.querySelectorAll('.agent-card.k-row').forEach(card => {
+  grid.querySelectorAll('.agent-card.k-row').forEach((card) => {
     kineticRow(card as HTMLElement, { spring: true, materialise: true });
   });
 

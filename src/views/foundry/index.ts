@@ -119,7 +119,9 @@ export function initFoundryEvents() {
   $('foundry-qa-new-mode')?.addEventListener('click', () => {
     // Switch to modes tab then open editor
     document.querySelectorAll('.foundry-tab').forEach((t) => t.classList.remove('active'));
-    const modesTab = document.querySelector('.foundry-tab[data-foundry-tab="modes"]') as HTMLElement;
+    const modesTab = document.querySelector(
+      '.foundry-tab[data-foundry-tab="modes"]',
+    ) as HTMLElement;
     if (modesTab) modesTab.classList.add('active');
     const modelsPanel = $('foundry-models-panel');
     const modesPanel = $('foundry-modes-panel');

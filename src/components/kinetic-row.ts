@@ -78,7 +78,13 @@ export function kineticRow(el: HTMLElement, opts: KineticRowOptions = {}) {
      */
     signal(color: SignalColor = 'accent') {
       // Remove existing signal classes
-      el.classList.remove('k-signal-fire', 'k-signal-accent', 'k-signal-success', 'k-signal-warning', 'k-signal-error');
+      el.classList.remove(
+        'k-signal-fire',
+        'k-signal-accent',
+        'k-signal-success',
+        'k-signal-warning',
+        'k-signal-error',
+      );
       // Force reflow to restart animation
       void el.offsetWidth;
       el.classList.add(`k-signal-${color}`, 'k-signal-fire');
@@ -106,7 +112,12 @@ export function kineticRow(el: HTMLElement, opts: KineticRowOptions = {}) {
 
     /** Update the status (changes breathing dot color + oscillation) */
     setStatus(status: KineticStatus) {
-      el.classList.remove('k-status-healthy', 'k-status-warning', 'k-status-error', 'k-status-idle');
+      el.classList.remove(
+        'k-status-healthy',
+        'k-status-warning',
+        'k-status-error',
+        'k-status-idle',
+      );
       el.classList.add(`k-status-${status}`);
 
       if (status === 'idle') {
@@ -119,11 +130,23 @@ export function kineticRow(el: HTMLElement, opts: KineticRowOptions = {}) {
     /** Remove all kinetic classes */
     destroy() {
       el.classList.remove(
-        'k-row', 'k-breathe', 'k-spring', 'k-spring-card',
-        'k-materialise', 'k-oscillate', 'k-halftone-pulse',
-        'k-signal-fire', 'k-signal-accent', 'k-signal-success',
-        'k-signal-warning', 'k-signal-error', 'k-halftone-fire',
-        'k-status-healthy', 'k-status-warning', 'k-status-error', 'k-status-idle',
+        'k-row',
+        'k-breathe',
+        'k-spring',
+        'k-spring-card',
+        'k-materialise',
+        'k-oscillate',
+        'k-halftone-pulse',
+        'k-signal-fire',
+        'k-signal-accent',
+        'k-signal-success',
+        'k-signal-warning',
+        'k-signal-error',
+        'k-halftone-fire',
+        'k-status-healthy',
+        'k-status-warning',
+        'k-status-error',
+        'k-status-idle',
       );
     },
   };
@@ -137,9 +160,7 @@ export function kineticRow(el: HTMLElement, opts: KineticRowOptions = {}) {
  */
 export function kineticStagger(parent: HTMLElement, childSelector?: string) {
   parent.classList.add('k-stagger');
-  const children = childSelector
-    ? parent.querySelectorAll(childSelector)
-    : parent.children;
+  const children = childSelector ? parent.querySelectorAll(childSelector) : parent.children;
 
   for (const child of children) {
     (child as HTMLElement).classList.add('k-materialise');

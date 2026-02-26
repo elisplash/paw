@@ -4,7 +4,10 @@
 // the credential prompt modal. After credentials are saved, optionally
 // retries the original agent action.
 
-import { showCredentialPrompt, buildCredentialRequest } from '../../components/molecules/credential-prompt';
+import {
+  showCredentialPrompt,
+  buildCredentialRequest,
+} from '../../components/molecules/credential-prompt';
 import { SERVICE_CATALOG } from '../../views/integrations/catalog';
 import { sendMessage } from '../organisms/chat_controller';
 
@@ -24,9 +27,7 @@ export interface CredentialRequiredEvent {
  * Handle a credential_required event from the engine.
  * Shows the credential prompt modal and optionally retries the action.
  */
-export async function handleCredentialRequired(
-  event: CredentialRequiredEvent,
-): Promise<void> {
+export async function handleCredentialRequired(event: CredentialRequiredEvent): Promise<void> {
   const serviceId = event.service;
   const serviceDef = SERVICE_CATALOG.find((s) => s.id === serviceId);
 
@@ -75,9 +76,7 @@ export async function handleCredentialRequired(
  * [CREDENTIAL_REQUIRED]{"service":"slack","retryAction":"post to #general"}
  * ```
  */
-export function parseCredentialSignal(
-  message: string,
-): CredentialRequiredEvent | null {
+export function parseCredentialSignal(message: string): CredentialRequiredEvent | null {
   const marker = '[CREDENTIAL_REQUIRED]';
   const idx = message.indexOf(marker);
   if (idx === -1) return null;

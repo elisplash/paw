@@ -1,7 +1,7 @@
 # Kinetic Intelligence Engine — Complete UI Transformation Plan
 
-> **Codename:** v4.6 "Kinetic"  
-> **Philosophy:** An industrial-grade intelligence workspace that feels like a control room for AI — not a dashboard, not a chat app. Every surface earns its place by surfacing information and enabling action.  
+> **Codename:** v4.6 "Kinetic"
+> **Philosophy:** An industrial-grade intelligence workspace that feels like a control room for AI — not a dashboard, not a chat app. Every surface earns its place by surfacing information and enabling action.
 > **Priority #1:** User interaction and ability to get information. Aesthetics serve function, never replace it.
 
 ---
@@ -181,11 +181,11 @@ The entire viewport becomes a CSS Grid with 1px borders — the "bento" layout.
 └─────────────────────────────────────────────┘
 ```
 
-- **1px `--border` lines** separate every panel, card, and section  
-- **No border-radius on the outer frame** — the app is a sharp rectangle  
-- **No gradient sidebar border** — replace with a single 1px `--border` right edge  
-- **Cards within views** use the bento-internal grid: 1px borders, no gaps, no shadows on most cards  
-- **Elevated elements** (modals, drawers, command palette) get `--shadow-lg` — the ONLY shadow users  
+- **1px `--border` lines** separate every panel, card, and section
+- **No border-radius on the outer frame** — the app is a sharp rectangle
+- **No gradient sidebar border** — replace with a single 1px `--border` right edge
+- **Cards within views** use the bento-internal grid: 1px borders, no gaps, no shadows on most cards
+- **Elevated elements** (modals, drawers, command palette) get `--shadow-lg` — the ONLY shadow users
 
 **2.2 Grain Overlay**
 An SVG `feTurbulence` filter applied as a `::after` pseudo-element on `#app`:
@@ -855,7 +855,7 @@ Replace horizontal tab bar with a vertical settings sidebar (200px left panel):
 
 Add a section under General for Kinetic-specific appearance controls:
 - **Grain overlay** toggle (on/off)
-- **Halftone accents** toggle (on/off) 
+- **Halftone accents** toggle (on/off)
 - **Compact mode** toggle (removes padding, tightens spacing)
 - **Pulse animations** toggle (Rust pulse bridge effects on/off)
 - **Rail mode**: Collapsed (icons) / Expanded (icons + text) / Auto (hover expand)
@@ -1255,7 +1255,7 @@ All modals in the Kinetic system follow the same pattern:
 - 320px right drawer
 - 1px left border (no shadow on drawer — bento style)
 - Each notification: 1px bottom border, no card wrapping
-- Unread: `●` red dot + bold title  
+- Unread: `●` red dot + bold title
 - Read: `○` dim dot + normal weight
 - Timestamp: right-aligned `--type-micro`
 - Click notification → navigates to relevant view
@@ -1524,139 +1524,139 @@ case 'stream_delta':
 ## 31. Implementation Sequence
 
 ### Phase K-0: Design System Foundation (Token Swap)
-**Files:** `src/styles.css`  
-**Scope:** Change all CSS custom property values in `:root` and `[data-theme='light']`  
-**Risk:** Low — pure CSS token swap, no structural changes  
-**Estimated lines:** ~200 changed  
+**Files:** `src/styles.css`
+**Scope:** Change all CSS custom property values in `:root` and `[data-theme='light']`
+**Risk:** Low — pure CSS token swap, no structural changes
+**Estimated lines:** ~200 changed
 **Commit:** `feat: kinetic design tokens — palette, typography, radius, shadows`
 
 ### Phase K-1: Global Frame & Textures
-**Files:** `src/styles.css`, `index.html` (minimal)  
+**Files:** `src/styles.css`, `index.html` (minimal)
 **Scope:**
 - Grain overlay pseudo-element
 - Remove CRT scanlines
 - Remove gradient sidebar border → 1px solid
 - Reduce border-radius globally
 - Remove card box-shadows → border-based cards
-**Risk:** Low-Medium — visual-only, but wide-reaching  
+**Risk:** Low-Medium — visual-only, but wide-reaching
 **Commit:** `feat: kinetic frame — grain overlay, sharp borders, bento cards`
 
 ### Phase K-2: Sidebar Rail
-**Files:** `src/styles.css`, `index.html` (nav structure), `src/views/router.ts` (active state)  
+**Files:** `src/styles.css`, `index.html` (nav structure), `src/views/router.ts` (active state)
 **Scope:**
 - Collapse sidebar to icon-only 48px rail
 - Hover-expand behavior
 - Active state: left-border accent
 - Remove section text labels → horizontal rules
-**Risk:** Medium — affects primary navigation UX  
+**Risk:** Medium — affects primary navigation UX
 **Commit:** `feat: kinetic rail — collapsed sidebar, hover expand`
 
 ### Phase K-3: Chat Terminal
-**Files:** `src/styles.css`, `src/views/chat/` (message rendering)  
+**Files:** `src/styles.css`, `src/views/chat/` (message rendering)
 **Scope:**
 - Remove message bubbles → prefix labels (YOU ›, AGENT ›)
 - Input area: left red border bar
 - Header: compact single row
 - Tool calls: inline status lines
-**Risk:** Medium — changes core chat interaction appearance  
+**Risk:** Medium — changes core chat interaction appearance
 **Commit:** `feat: kinetic terminal — chat view transformation`
 
 ### Phase K-4: Today / Mission Control
-**Files:** `src/styles.css`, `src/views/today/molecules.ts`  
+**Files:** `src/styles.css`, `src/views/today/molecules.ts`
 **Scope:**
 - Bento grid layout for Today cards
 - Compact agent fleet
 - Merge weather into greeting
 - Dense card styling
-**Risk:** Medium — layout restructuring  
+**Risk:** Medium — layout restructuring
 **Commit:** `feat: kinetic mission control — today view bento grid`
 
 ### Phase K-5: Table Views (Agents, Tasks, Integrations, Skills, Channels)
-**Files:** `src/styles.css`, view-specific CSS for each  
+**Files:** `src/styles.css`, view-specific CSS for each
 **Scope:**
 - Convert card grids → table/roster layouts
 - Matrix switchboard for integrations
 - Inline expand on click (replaces some modals)
-**Risk:** Medium-High — multiple views, interaction pattern changes  
+**Risk:** Medium-High — multiple views, interaction pattern changes
 **Commit (split into sub-phases):**
-- `K-5a`: Agents → Fleet Command roster  
-- `K-5b`: Tasks → Operations Board table  
-- `K-5c`: Integrations → Switchboard matrix  
-- `K-5d`: Skills → Armory table  
-- `K-5e`: Channels → Comms Array table  
+- `K-5a`: Agents → Fleet Command roster
+- `K-5b`: Tasks → Operations Board table
+- `K-5c`: Integrations → Switchboard matrix
+- `K-5d`: Skills → Armory table
+- `K-5e`: Channels → Comms Array table
 
 ### Phase K-6: Modal & Overlay System
-**Files:** `src/styles.css`, modal components  
+**Files:** `src/styles.css`, modal components
 **Scope:**
 - Sharp modal styling
 - Heavier backdrop
 - Consistent button patterns
 - Slide-in panel for agent editor
-**Risk:** Low — mostly CSS  
+**Risk:** Low — mostly CSS
 **Commit:** `feat: kinetic modals — sharp overlays, slide-in panels`
 
 ### Phase K-7: Settings Vertical Sidebar
-**Files:** `src/styles.css`, `src/views/settings-tabs.ts`, `index.html`  
+**Files:** `src/styles.css`, `src/views/settings-tabs.ts`, `index.html`
 **Scope:**
 - Convert horizontal tabs → vertical sidebar
 - Group settings into sections
 - Add Kinetic appearance controls
-**Risk:** Medium — layout restructuring  
+**Risk:** Medium — layout restructuring
 **Commit:** `feat: kinetic settings — vertical sidebar, appearance controls`
 
 ### Phase K-8: Notifications, Command Palette, Toast
-**Files:** `src/styles.css`, notification/command-palette components  
+**Files:** `src/styles.css`, notification/command-palette components
 **Scope:**
 - Notification drawer restyling
 - Command palette sharp styling
 - Toast left-border type indicators
-**Risk:** Low — mostly CSS  
+**Risk:** Low — mostly CSS
 **Commit:** `feat: kinetic signals — notifications, command palette, toasts`
 
 ### Phase K-9: Mini-Chat, Dock, Avatars
-**Files:** `src/styles.css`, `src/views/agents/dock.ts`, `src/views/agents/mini-chat.ts`  
+**Files:** `src/styles.css`, `src/views/agents/dock.ts`, `src/views/agents/mini-chat.ts`
 **Scope:**
 - Mini-chat terminal style
 - Dock avatar sizing/borders
 - Avatar frame system
-**Risk:** Low — CSS + avatar sizing  
+**Risk:** Low — CSS + avatar sizing
 **Commit:** `feat: kinetic hotline — mini-chat, dock, avatar frames`
 
 ### Phase K-10: Rust Pulse Bridge & Polish
-**Files:** `src/engine/molecules/bridge.ts`, `src/styles.css`  
+**Files:** `src/engine/molecules/bridge.ts`, `src/styles.css`
 **Scope:**
 - Add pulse CSS classes to bridge event handlers
 - Streaming pulse on agent prefix
 - Tool call flash effects
 - Settings toggle for pulse effects
-**Risk:** Low — additive only  
+**Risk:** Low — additive only
 **Commit:** `feat: kinetic pulse bridge — event-driven visual heartbeat`
 
 ### Phase K-11: Specialized Views (Trading, Research, Content, Orchestrator, Memory, Nodes)
-**Files:** Various view directories  
-**Scope:** Apply Kinetic patterns to less-trafficked views  
-**Risk:** Low-Medium — follows established patterns  
+**Files:** Various view directories
+**Scope:** Apply Kinetic patterns to less-trafficked views
+**Risk:** Low-Medium — follows established patterns
 **Commit (per view):**
-- `K-11a`: Trading → Market Wire  
-- `K-11b`: Research → Deep Scan  
-- `K-11c`: Content → Pressroom  
-- `K-11d`: Orchestrator → Mission Planner  
-- `K-11e`: Memory Palace → Vault  
-- `K-11f`: Nodes → Engine Room  
+- `K-11a`: Trading → Market Wire
+- `K-11b`: Research → Deep Scan
+- `K-11c`: Content → Pressroom
+- `K-11d`: Orchestrator → Mission Planner
+- `K-11e`: Memory Palace → Vault
+- `K-11f`: Nodes → Engine Room
 
 ### Phase K-12: Onboarding & Tour
-**Files:** `index.html`, `src/components/tour.ts`, `src/components/showcase.ts`  
+**Files:** `index.html`, `src/components/tour.ts`, `src/components/showcase.ts`
 **Scope:**
 - Welcome screen with new logo
 - Installation wizard step indicator
 - Tour overlay restyling
-**Risk:** Low  
+**Risk:** Low
 **Commit:** `feat: kinetic onboarding — welcome screen, wizard, tour`
 
 ### Phase K-13: Light Theme Calibration
-**Files:** `src/styles.css`  
-**Scope:** Fine-tune all light theme tokens for Kinetic palette  
-**Risk:** Low — token values only  
+**Files:** `src/styles.css`
+**Scope:** Fine-tune all light theme tokens for Kinetic palette
+**Risk:** Low — token values only
 **Commit:** `feat: kinetic light theme — warm cream palette`
 
 ---

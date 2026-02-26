@@ -21,23 +21,15 @@ function $(id: string): HTMLElement | null {
 
 // ── Context Gauge ──────────────────────────────────────────────────────
 
-export function updateMissionGauge(
-  tokensUsed: number,
-  contextLimit: number,
-): void {
+export function updateMissionGauge(tokensUsed: number, contextLimit: number): void {
   const gauge = $('mission-ctx-gauge');
   const usedEl = $('mission-ctx-used');
   const limitEl = $('mission-ctx-limit');
   if (!gauge) return;
 
-  const pct = contextLimit > 0
-    ? Math.min((tokensUsed / contextLimit) * 100, 100)
-    : 0;
+  const pct = contextLimit > 0 ? Math.min((tokensUsed / contextLimit) * 100, 100) : 0;
 
-  const color =
-    pct >= 80 ? 'var(--error)' :
-    pct >= 60 ? 'var(--warning)' :
-    'var(--accent)';
+  const color = pct >= 80 ? 'var(--error)' : pct >= 60 ? 'var(--warning)' : 'var(--accent)';
 
   gauge.innerHTML = progressRing(pct, color, 56);
 
@@ -121,16 +113,18 @@ function renderActiveJobs(): void {
     return;
   }
 
-  list.innerHTML = _activeJobs.map((job) => {
-    const elapsed = Math.round((Date.now() - job.startedAt) / 1000);
-    const timeStr = elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m${elapsed % 60}s`;
-    return `
+  list.innerHTML = _activeJobs
+    .map((job) => {
+      const elapsed = Math.round((Date.now() - job.startedAt) / 1000);
+      const timeStr = elapsed < 60 ? `${elapsed}s` : `${Math.floor(elapsed / 60)}m${elapsed % 60}s`;
+      return `
       <div class="mission-job-item k-row k-breathe k-status-healthy k-materialise">
         ${kineticDot()}
         <span class="mission-job-name">${escHtml(job.name)}</span>
         <span class="mission-job-time">${timeStr}</span>
       </div>`;
-  }).join('');
+    })
+    .join('');
 }
 
 // ── Composite update — call from chat_controller.updateTokenMeter ──
@@ -206,9 +200,22 @@ interface QuickPrompt {
 }
 
 const QUICK_PROMPTS: QuickPrompt[] = [
-  { label: 'Briefing', icon: 'wb_sunny', prompt: 'Give me a morning briefing: weather, any calendar events today, and summarize my unread emails.' },
-  { label: 'Inbox', icon: 'mail', prompt: 'Check my email inbox and summarize the important unread messages.' },
-  { label: 'Schedule', icon: 'event', prompt: 'What do I have scheduled for today? Check my calendar.' },
+  {
+    label: 'Briefing',
+    icon: 'wb_sunny',
+    prompt:
+      'Give me a morning briefing: weather, any calendar events today, and summarize my unread emails.',
+  },
+  {
+    label: 'Inbox',
+    icon: 'mail',
+    prompt: 'Check my email inbox and summarize the important unread messages.',
+  },
+  {
+    label: 'Schedule',
+    icon: 'event',
+    prompt: 'What do I have scheduled for today? Check my calendar.',
+  },
   { label: 'Status', icon: 'info', prompt: '/status', isSlash: true },
   { label: 'Web search', icon: 'travel_explore', prompt: '/web ', isSlash: true },
   { label: 'Memory', icon: 'psychology', prompt: '/recall ', isSlash: true },
@@ -220,12 +227,14 @@ function renderQuickPrompts(): void {
   const container = $('mission-prompt-pills');
   if (!container) return;
 
-  container.innerHTML = QUICK_PROMPTS.map((p) => `
+  container.innerHTML = QUICK_PROMPTS.map(
+    (p) => `
     <button class="mission-pill" data-prompt="${escHtml(p.prompt)}" data-slash="${p.isSlash ? '1' : ''}" title="${escHtml(p.prompt.slice(0, 80))}">
       <span class="ms" style="font-size:12px">${p.icon}</span>
       <span>${escHtml(p.label)}</span>
     </button>
-  `).join('');
+  `,
+  ).join('');
 }
 
 // ── Automations — popular templates, compact list ──────────────────────
@@ -243,9 +252,10 @@ function renderAutomations(): void {
     return;
   }
 
-  container.innerHTML = popular.map((t: AutomationTemplate) => {
-    const trigLabel = t.trigger.label;
-    return `
+  container.innerHTML = popular
+    .map((t: AutomationTemplate) => {
+      const trigLabel = t.trigger.label;
+      return `
       <button class="mission-compact-item k-row k-spring" data-auto-prompt="${escHtml(t.name)}" data-auto-desc="${escHtml(t.description)}" title="${escHtml(t.description)}">
         <span class="ms mission-compact-icon">${categoryIcon(t.category)}</span>
         <div class="mission-compact-text">
@@ -253,7 +263,8 @@ function renderAutomations(): void {
           <span class="mission-compact-sub">${escHtml(trigLabel)}</span>
         </div>
       </button>`;
-  }).join('');
+    })
+    .join('');
 }
 
 function categoryIcon(cat: string): string {
@@ -278,9 +289,7 @@ function renderQueries(): void {
 
   // Show popular cross-service queries + a sample from general catalog
   const popular = getPopularQueries();
-  const sample = QUERY_CATALOG
-    .filter((q) => q.category !== 'cross-service')
-    .slice(0, 4);
+  const sample = QUERY_CATALOG.filter((q) => q.category !== 'cross-service').slice(0, 4);
   const queries = [...popular.slice(0, 4), ...sample].slice(0, 8);
 
   if (!queries.length) {
@@ -288,7 +297,9 @@ function renderQueries(): void {
     return;
   }
 
-  container.innerHTML = queries.map((q: ServiceQuery) => `
+  container.innerHTML = queries
+    .map(
+      (q: ServiceQuery) => `
     <button class="mission-compact-item k-row k-spring" data-query-prompt="${escHtml(q.question)}" title="${escHtml(q.resultHint)}">
       <span class="ms mission-compact-icon">${q.icon}</span>
       <div class="mission-compact-text">
@@ -296,7 +307,9 @@ function renderQueries(): void {
         <span class="mission-compact-sub">${escHtml(q.resultHint)}</span>
       </div>
     </button>
-  `).join('');
+  `,
+    )
+    .join('');
 }
 
 // ── Collapsible card toggle + click-to-chat wiring ─────────────────────
@@ -376,5 +389,9 @@ function fmtK(n: number): string {
 }
 
 function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

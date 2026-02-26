@@ -185,10 +185,15 @@ export function bindActiveTabEvents(): void {
           row.remove();
           // Update count badge
           const remaining = document.querySelectorAll('.active-unavail-row').length;
-          const countEl = document.querySelector('#active-unavailable-toggle .active-section-count');
+          const countEl = document.querySelector(
+            '#active-unavailable-toggle .active-section-count',
+          );
           if (countEl) countEl.textContent = String(remaining);
           if (remaining === 0) {
-            document.querySelector('#active-unavailable-toggle')?.closest('.active-section')?.remove();
+            document
+              .querySelector('#active-unavailable-toggle')
+              ?.closest('.active-section')
+              ?.remove();
           }
         }
       } catch (e) {

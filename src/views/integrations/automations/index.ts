@@ -19,7 +19,9 @@ const { setAutomationsMoleculesState } = initAutomationsMoleculesState();
 setAutomationsMoleculesState({
   getConnectedIds: () => _connectedIds,
   getActive: () => _activeAutomations,
-  setActive: (a) => { _activeAutomations = a; },
+  setActive: (a) => {
+    _activeAutomations = a;
+  },
 });
 
 // ── Public API ─────────────────────────────────────────────────────────
@@ -33,10 +35,7 @@ export function loadAutomations(container: HTMLElement): void {
   renderAutomations(container);
 }
 
-export function loadServiceTemplates(
-  container: HTMLElement,
-  serviceId: string,
-): void {
+export function loadServiceTemplates(container: HTMLElement, serviceId: string): void {
   renderServiceTemplates(container, serviceId);
 }
 

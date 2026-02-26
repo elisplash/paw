@@ -27,18 +27,27 @@ export function renderConnectedStrip(services: ServiceHealth[]): string {
       </div>`;
   }
 
-  const chips = services.map((s) => {
-    const color = statusColor(s.status);
-    const icon = statusIcon(s.status);
-    const kStatus: KineticStatus = s.status === 'healthy' ? 'healthy' : s.status === 'degraded' ? 'warning' : (s.status === 'error' || s.status === 'expired') ? 'error' : 'idle';
-    return `
+  const chips = services
+    .map((s) => {
+      const color = statusColor(s.status);
+      const icon = statusIcon(s.status);
+      const kStatus: KineticStatus =
+        s.status === 'healthy'
+          ? 'healthy'
+          : s.status === 'degraded'
+            ? 'warning'
+            : s.status === 'error' || s.status === 'expired'
+              ? 'error'
+              : 'idle';
+      return `
       <div class="ihealth-chip ihealth-status-${s.status} k-row k-breathe k-materialise k-status-${kStatus}" title="${_esc(s.serviceName)}: ${statusLabel(s.status)}">
         ${kineticDot()}
         <span class="ms" style="font-size:16px">${_esc(s.icon)}</span>
         <span class="ihealth-chip-name">${_esc(s.serviceName)}</span>
         <span class="ms ihealth-chip-status" style="color:${color};font-size:12px">${icon}</span>
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   return `<div class="ihealth-strip k-stagger">${chips}</div>`;
 }
@@ -49,17 +58,20 @@ export function renderHealthWarning(summary: HealthSummary): string {
   if (!summary.needsAttention.length) return '';
 
   const count = summary.needsAttention.length;
-  const items = summary.needsAttention.slice(0, 3).map((s) => {
-    const color = statusColor(s.status);
-    const icon = statusIcon(s.status);
-    const msg = s.message ?? statusLabel(s.status);
-    return `
+  const items = summary.needsAttention
+    .slice(0, 3)
+    .map((s) => {
+      const color = statusColor(s.status);
+      const icon = statusIcon(s.status);
+      const msg = s.message ?? statusLabel(s.status);
+      return `
       <div class="ihealth-warn-item k-row k-materialise">
         <span class="ms" style="color:${color};font-size:16px">${icon}</span>
         <span><strong>${_esc(s.serviceName)}</strong>: ${_esc(msg)}</span>
         ${s.status === 'expired' ? `<button class="guardrail-btn guardrail-btn-approve ihealth-reauth-btn" data-service="${_esc(s.service)}"><span class="ms">refresh</span> Re-auth</button>` : ''}
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   return `
     <div class="ihealth-warning">
@@ -76,7 +88,9 @@ export function renderHealthWarning(summary: HealthSummary): string {
 export function renderSuggestions(suggestions: IntegrationSuggestion[]): string {
   if (!suggestions.length) return '';
 
-  const cards = suggestions.map((s) => `
+  const cards = suggestions
+    .map(
+      (s) => `
     <div class="ihealth-suggestion k-row k-spring k-materialise" data-suggestion-id="${s.id}" data-action="${_esc(s.action)}">
       <span class="ms" style="font-size:20px;color:var(--accent)">${_esc(s.icon)}</span>
       <div class="ihealth-suggestion-text">
@@ -85,7 +99,9 @@ export function renderSuggestions(suggestions: IntegrationSuggestion[]): string 
       <button class="guardrail-btn guardrail-btn-edit ihealth-suggestion-btn" data-action="${_esc(s.action)}">
         ${_esc(s.actionLabel)}
       </button>
-    </div>`).join('');
+    </div>`,
+    )
+    .join('');
 
   return `
     <div class="ihealth-suggestions k-stagger">
@@ -108,7 +124,9 @@ export function renderChainRules(rules: ChainRule[]): string {
       </div>`;
   }
 
-  const rows = rules.map((r) => `
+  const rows = rules
+    .map(
+      (r) => `
     <div class="ihealth-chain-row k-row k-spring k-materialise">
       <span class="ms" style="font-size:16px">link</span>
       <span class="ihealth-chain-name">${_esc(r.name)}</span>
@@ -119,7 +137,9 @@ export function renderChainRules(rules: ChainRule[]): string {
         <input type="checkbox" ${r.enabled ? 'checked' : ''} data-chain-id="${r.id}" />
         <span class="ihealth-chain-slider"></span>
       </label>
-    </div>`).join('');
+    </div>`,
+    )
+    .join('');
 
   return `
     <div class="ihealth-chains k-stagger">
@@ -152,7 +172,9 @@ export async function loadChainRules(): Promise<ChainRule[]> {
 export async function toggleChainRule(id: string, enabled: boolean): Promise<void> {
   try {
     await invoke('engine_health_toggle_chain', { chainId: id, enabled });
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 }
 
 // ── Wire events ────────────────────────────────────────────────────────
@@ -207,9 +229,7 @@ export function wireDashboardEvents(container: HTMLElement): void {
 
 // ── Composite: full dashboard integration section ──────────────────────
 
-export async function renderDashboardIntegrations(
-  connectedServiceIds: string[],
-): Promise<string> {
+export async function renderDashboardIntegrations(connectedServiceIds: string[]): Promise<string> {
   const health = await loadServiceHealth();
   const summary = computeHealthSummary(health);
   const suggestions = generateSuggestions(connectedServiceIds);
@@ -227,5 +247,9 @@ export async function renderDashboardIntegrations(
 // ── Internal helpers ───────────────────────────────────────────────────
 
 function _esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

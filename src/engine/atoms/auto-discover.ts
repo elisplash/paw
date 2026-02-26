@@ -9,17 +9,17 @@ export interface IntentMatch {
   service: string;
   serviceName: string;
   confidence: 'high' | 'medium' | 'low';
-  action: string;           // e.g. "send_email", "create_issue"
-  actionLabel: string;      // human-readable: "Send an email"
-  connected: boolean;       // is the service currently connected?
+  action: string; // e.g. "send_email", "create_issue"
+  actionLabel: string; // human-readable: "Send an email"
+  connected: boolean; // is the service currently connected?
 }
 
 export interface DiscoveryResult {
   matches: IntentMatch[];
-  hasConnectedMatch: boolean;    // at least one match is connected
+  hasConnectedMatch: boolean; // at least one match is connected
   hasDisconnectedMatch: boolean; // at least one match is NOT connected
   bestMatch: IntentMatch | null;
-  systemHint: string | null;     // system prompt addition
+  systemHint: string | null; // system prompt addition
 }
 
 export interface IntentPattern {
@@ -35,81 +35,354 @@ export interface IntentPattern {
 
 export const INTENT_PATTERNS: IntentPattern[] = [
   // Email / Gmail
-  { pattern: /\b(send|write|compose|draft|reply|forward)\b.*\b(email|mail|message)\b/i, service: 'gmail', serviceName: 'Gmail', action: 'send_email', actionLabel: 'Send an email', confidence: 'high' },
-  { pattern: /\b(check|read|summarize|inbox|unread)\b.*\b(email|mail|inbox)\b/i, service: 'gmail', serviceName: 'Gmail', action: 'read_inbox', actionLabel: 'Check inbox', confidence: 'high' },
-  { pattern: /\bemail\b/i, service: 'gmail', serviceName: 'Gmail', action: 'email', actionLabel: 'Email action', confidence: 'low' },
+  {
+    pattern: /\b(send|write|compose|draft|reply|forward)\b.*\b(email|mail|message)\b/i,
+    service: 'gmail',
+    serviceName: 'Gmail',
+    action: 'send_email',
+    actionLabel: 'Send an email',
+    confidence: 'high',
+  },
+  {
+    pattern: /\b(check|read|summarize|inbox|unread)\b.*\b(email|mail|inbox)\b/i,
+    service: 'gmail',
+    serviceName: 'Gmail',
+    action: 'read_inbox',
+    actionLabel: 'Check inbox',
+    confidence: 'high',
+  },
+  {
+    pattern: /\bemail\b/i,
+    service: 'gmail',
+    serviceName: 'Gmail',
+    action: 'email',
+    actionLabel: 'Email action',
+    confidence: 'low',
+  },
 
   // Slack
-  { pattern: /\b(send|post|message|write)\b.*\b(slack|channel|#\w+)\b/i, service: 'slack', serviceName: 'Slack', action: 'post_message', actionLabel: 'Send a Slack message', confidence: 'high' },
-  { pattern: /\b(check|read|summarize)\b.*\bslack\b/i, service: 'slack', serviceName: 'Slack', action: 'read_messages', actionLabel: 'Read Slack messages', confidence: 'high' },
-  { pattern: /\bslack\b/i, service: 'slack', serviceName: 'Slack', action: 'slack', actionLabel: 'Slack action', confidence: 'low' },
+  {
+    pattern: /\b(send|post|message|write)\b.*\b(slack|channel|#\w+)\b/i,
+    service: 'slack',
+    serviceName: 'Slack',
+    action: 'post_message',
+    actionLabel: 'Send a Slack message',
+    confidence: 'high',
+  },
+  {
+    pattern: /\b(check|read|summarize)\b.*\bslack\b/i,
+    service: 'slack',
+    serviceName: 'Slack',
+    action: 'read_messages',
+    actionLabel: 'Read Slack messages',
+    confidence: 'high',
+  },
+  {
+    pattern: /\bslack\b/i,
+    service: 'slack',
+    serviceName: 'Slack',
+    action: 'slack',
+    actionLabel: 'Slack action',
+    confidence: 'low',
+  },
 
   // GitHub
-  { pattern: /\b(create|open|file)\b.*\b(issue|bug|ticket)\b.*\bgithub\b/i, service: 'github', serviceName: 'GitHub', action: 'create_issue', actionLabel: 'Create a GitHub issue', confidence: 'high' },
-  { pattern: /\b(create|open)\b.*\b(pr|pull\s*request)\b/i, service: 'github', serviceName: 'GitHub', action: 'create_pr', actionLabel: 'Create a pull request', confidence: 'high' },
-  { pattern: /\b(github|repo|repository)\b.*\b(issue|pr|pull|commit|branch)\b/i, service: 'github', serviceName: 'GitHub', action: 'github_action', actionLabel: 'GitHub action', confidence: 'medium' },
-  { pattern: /\bgithub\b/i, service: 'github', serviceName: 'GitHub', action: 'github', actionLabel: 'GitHub action', confidence: 'low' },
+  {
+    pattern: /\b(create|open|file)\b.*\b(issue|bug|ticket)\b.*\bgithub\b/i,
+    service: 'github',
+    serviceName: 'GitHub',
+    action: 'create_issue',
+    actionLabel: 'Create a GitHub issue',
+    confidence: 'high',
+  },
+  {
+    pattern: /\b(create|open)\b.*\b(pr|pull\s*request)\b/i,
+    service: 'github',
+    serviceName: 'GitHub',
+    action: 'create_pr',
+    actionLabel: 'Create a pull request',
+    confidence: 'high',
+  },
+  {
+    pattern: /\b(github|repo|repository)\b.*\b(issue|pr|pull|commit|branch)\b/i,
+    service: 'github',
+    serviceName: 'GitHub',
+    action: 'github_action',
+    actionLabel: 'GitHub action',
+    confidence: 'medium',
+  },
+  {
+    pattern: /\bgithub\b/i,
+    service: 'github',
+    serviceName: 'GitHub',
+    action: 'github',
+    actionLabel: 'GitHub action',
+    confidence: 'low',
+  },
 
   // Discord
-  { pattern: /\b(send|post|message)\b.*\bdiscord\b/i, service: 'discord', serviceName: 'Discord', action: 'send_message', actionLabel: 'Send a Discord message', confidence: 'high' },
-  { pattern: /\bdiscord\b/i, service: 'discord', serviceName: 'Discord', action: 'discord', actionLabel: 'Discord action', confidence: 'low' },
+  {
+    pattern: /\b(send|post|message)\b.*\bdiscord\b/i,
+    service: 'discord',
+    serviceName: 'Discord',
+    action: 'send_message',
+    actionLabel: 'Send a Discord message',
+    confidence: 'high',
+  },
+  {
+    pattern: /\bdiscord\b/i,
+    service: 'discord',
+    serviceName: 'Discord',
+    action: 'discord',
+    actionLabel: 'Discord action',
+    confidence: 'low',
+  },
 
   // Telegram
-  { pattern: /\b(send|post|message)\b.*\btelegram\b/i, service: 'telegram', serviceName: 'Telegram', action: 'send_message', actionLabel: 'Send a Telegram message', confidence: 'high' },
-  { pattern: /\btelegram\b/i, service: 'telegram', serviceName: 'Telegram', action: 'telegram', actionLabel: 'Telegram action', confidence: 'low' },
+  {
+    pattern: /\b(send|post|message)\b.*\btelegram\b/i,
+    service: 'telegram',
+    serviceName: 'Telegram',
+    action: 'send_message',
+    actionLabel: 'Send a Telegram message',
+    confidence: 'high',
+  },
+  {
+    pattern: /\btelegram\b/i,
+    service: 'telegram',
+    serviceName: 'Telegram',
+    action: 'telegram',
+    actionLabel: 'Telegram action',
+    confidence: 'low',
+  },
 
   // Trello
-  { pattern: /\b(create|add|make)\b.*\b(card|trello)\b/i, service: 'trello', serviceName: 'Trello', action: 'create_card', actionLabel: 'Create a Trello card', confidence: 'high' },
-  { pattern: /\b(move|update|assign)\b.*\b(card|trello)\b/i, service: 'trello', serviceName: 'Trello', action: 'update_card', actionLabel: 'Update a Trello card', confidence: 'high' },
-  { pattern: /\btrello\b/i, service: 'trello', serviceName: 'Trello', action: 'trello', actionLabel: 'Trello action', confidence: 'low' },
+  {
+    pattern: /\b(create|add|make)\b.*\b(card|trello)\b/i,
+    service: 'trello',
+    serviceName: 'Trello',
+    action: 'create_card',
+    actionLabel: 'Create a Trello card',
+    confidence: 'high',
+  },
+  {
+    pattern: /\b(move|update|assign)\b.*\b(card|trello)\b/i,
+    service: 'trello',
+    serviceName: 'Trello',
+    action: 'update_card',
+    actionLabel: 'Update a Trello card',
+    confidence: 'high',
+  },
+  {
+    pattern: /\btrello\b/i,
+    service: 'trello',
+    serviceName: 'Trello',
+    action: 'trello',
+    actionLabel: 'Trello action',
+    confidence: 'low',
+  },
 
   // Jira
-  { pattern: /\b(create|file|open)\b.*\b(jira|ticket|issue)\b/i, service: 'jira', serviceName: 'Jira', action: 'create_issue', actionLabel: 'Create a Jira issue', confidence: 'high' },
-  { pattern: /\bjira\b/i, service: 'jira', serviceName: 'Jira', action: 'jira', actionLabel: 'Jira action', confidence: 'low' },
+  {
+    pattern: /\b(create|file|open)\b.*\b(jira|ticket|issue)\b/i,
+    service: 'jira',
+    serviceName: 'Jira',
+    action: 'create_issue',
+    actionLabel: 'Create a Jira issue',
+    confidence: 'high',
+  },
+  {
+    pattern: /\bjira\b/i,
+    service: 'jira',
+    serviceName: 'Jira',
+    action: 'jira',
+    actionLabel: 'Jira action',
+    confidence: 'low',
+  },
 
   // Linear
-  { pattern: /\b(create|file|add)\b.*\blinear\b/i, service: 'linear', serviceName: 'Linear', action: 'create_issue', actionLabel: 'Create a Linear issue', confidence: 'high' },
-  { pattern: /\blinear\b/i, service: 'linear', serviceName: 'Linear', action: 'linear', actionLabel: 'Linear action', confidence: 'low' },
+  {
+    pattern: /\b(create|file|add)\b.*\blinear\b/i,
+    service: 'linear',
+    serviceName: 'Linear',
+    action: 'create_issue',
+    actionLabel: 'Create a Linear issue',
+    confidence: 'high',
+  },
+  {
+    pattern: /\blinear\b/i,
+    service: 'linear',
+    serviceName: 'Linear',
+    action: 'linear',
+    actionLabel: 'Linear action',
+    confidence: 'low',
+  },
 
   // Notion
-  { pattern: /\b(create|add|write)\b.*\b(notion|page|doc)\b/i, service: 'notion', serviceName: 'Notion', action: 'create_page', actionLabel: 'Create a Notion page', confidence: 'medium' },
-  { pattern: /\bnotion\b/i, service: 'notion', serviceName: 'Notion', action: 'notion', actionLabel: 'Notion action', confidence: 'low' },
+  {
+    pattern: /\b(create|add|write)\b.*\b(notion|page|doc)\b/i,
+    service: 'notion',
+    serviceName: 'Notion',
+    action: 'create_page',
+    actionLabel: 'Create a Notion page',
+    confidence: 'medium',
+  },
+  {
+    pattern: /\bnotion\b/i,
+    service: 'notion',
+    serviceName: 'Notion',
+    action: 'notion',
+    actionLabel: 'Notion action',
+    confidence: 'low',
+  },
 
   // Google Sheets
-  { pattern: /\b(add|update|insert|append)\b.*\b(spreadsheet|sheet|row)\b/i, service: 'google-sheets', serviceName: 'Google Sheets', action: 'update_sheet', actionLabel: 'Update spreadsheet', confidence: 'medium' },
-  { pattern: /\bsheet(s)?\b/i, service: 'google-sheets', serviceName: 'Google Sheets', action: 'sheets', actionLabel: 'Sheets action', confidence: 'low' },
+  {
+    pattern: /\b(add|update|insert|append)\b.*\b(spreadsheet|sheet|row)\b/i,
+    service: 'google-sheets',
+    serviceName: 'Google Sheets',
+    action: 'update_sheet',
+    actionLabel: 'Update spreadsheet',
+    confidence: 'medium',
+  },
+  {
+    pattern: /\bsheet(s)?\b/i,
+    service: 'google-sheets',
+    serviceName: 'Google Sheets',
+    action: 'sheets',
+    actionLabel: 'Sheets action',
+    confidence: 'low',
+  },
 
   // HubSpot
-  { pattern: /\b(create|add|update)\b.*\b(contact|deal|hubspot)\b/i, service: 'hubspot', serviceName: 'HubSpot', action: 'crm_action', actionLabel: 'HubSpot CRM action', confidence: 'high' },
-  { pattern: /\b(deal|pipeline|contact)\b.*\bhubspot\b/i, service: 'hubspot', serviceName: 'HubSpot', action: 'crm_query', actionLabel: 'Query HubSpot', confidence: 'medium' },
-  { pattern: /\bhubspot\b/i, service: 'hubspot', serviceName: 'HubSpot', action: 'hubspot', actionLabel: 'HubSpot action', confidence: 'low' },
+  {
+    pattern: /\b(create|add|update)\b.*\b(contact|deal|hubspot)\b/i,
+    service: 'hubspot',
+    serviceName: 'HubSpot',
+    action: 'crm_action',
+    actionLabel: 'HubSpot CRM action',
+    confidence: 'high',
+  },
+  {
+    pattern: /\b(deal|pipeline|contact)\b.*\bhubspot\b/i,
+    service: 'hubspot',
+    serviceName: 'HubSpot',
+    action: 'crm_query',
+    actionLabel: 'Query HubSpot',
+    confidence: 'medium',
+  },
+  {
+    pattern: /\bhubspot\b/i,
+    service: 'hubspot',
+    serviceName: 'HubSpot',
+    action: 'hubspot',
+    actionLabel: 'HubSpot action',
+    confidence: 'low',
+  },
 
   // Salesforce
-  { pattern: /\bsalesforce\b/i, service: 'salesforce', serviceName: 'Salesforce', action: 'salesforce', actionLabel: 'Salesforce action', confidence: 'low' },
+  {
+    pattern: /\bsalesforce\b/i,
+    service: 'salesforce',
+    serviceName: 'Salesforce',
+    action: 'salesforce',
+    actionLabel: 'Salesforce action',
+    confidence: 'low',
+  },
 
   // Stripe
-  { pattern: /\b(create|send)\b.*\b(invoice|payment|charge|stripe)\b/i, service: 'stripe', serviceName: 'Stripe', action: 'create_invoice', actionLabel: 'Create an invoice', confidence: 'high' },
-  { pattern: /\bstripe\b/i, service: 'stripe', serviceName: 'Stripe', action: 'stripe', actionLabel: 'Stripe action', confidence: 'low' },
+  {
+    pattern: /\b(create|send)\b.*\b(invoice|payment|charge|stripe)\b/i,
+    service: 'stripe',
+    serviceName: 'Stripe',
+    action: 'create_invoice',
+    actionLabel: 'Create an invoice',
+    confidence: 'high',
+  },
+  {
+    pattern: /\bstripe\b/i,
+    service: 'stripe',
+    serviceName: 'Stripe',
+    action: 'stripe',
+    actionLabel: 'Stripe action',
+    confidence: 'low',
+  },
 
   // Shopify
-  { pattern: /\b(order|product|shopify|inventory)\b/i, service: 'shopify', serviceName: 'Shopify', action: 'shopify', actionLabel: 'Shopify action', confidence: 'low' },
+  {
+    pattern: /\b(order|product|shopify|inventory)\b/i,
+    service: 'shopify',
+    serviceName: 'Shopify',
+    action: 'shopify',
+    actionLabel: 'Shopify action',
+    confidence: 'low',
+  },
 
   // Zendesk
-  { pattern: /\b(create|open)\b.*\b(zendesk|ticket|support)\b/i, service: 'zendesk', serviceName: 'Zendesk', action: 'create_ticket', actionLabel: 'Create a support ticket', confidence: 'medium' },
-  { pattern: /\bzendesk\b/i, service: 'zendesk', serviceName: 'Zendesk', action: 'zendesk', actionLabel: 'Zendesk action', confidence: 'low' },
+  {
+    pattern: /\b(create|open)\b.*\b(zendesk|ticket|support)\b/i,
+    service: 'zendesk',
+    serviceName: 'Zendesk',
+    action: 'create_ticket',
+    actionLabel: 'Create a support ticket',
+    confidence: 'medium',
+  },
+  {
+    pattern: /\bzendesk\b/i,
+    service: 'zendesk',
+    serviceName: 'Zendesk',
+    action: 'zendesk',
+    actionLabel: 'Zendesk action',
+    confidence: 'low',
+  },
 
   // Twilio
-  { pattern: /\b(send|text)\b.*\b(sms|text|twilio)\b/i, service: 'twilio', serviceName: 'Twilio', action: 'send_sms', actionLabel: 'Send an SMS', confidence: 'high' },
-  { pattern: /\btwilio\b/i, service: 'twilio', serviceName: 'Twilio', action: 'twilio', actionLabel: 'Twilio action', confidence: 'low' },
+  {
+    pattern: /\b(send|text)\b.*\b(sms|text|twilio)\b/i,
+    service: 'twilio',
+    serviceName: 'Twilio',
+    action: 'send_sms',
+    actionLabel: 'Send an SMS',
+    confidence: 'high',
+  },
+  {
+    pattern: /\btwilio\b/i,
+    service: 'twilio',
+    serviceName: 'Twilio',
+    action: 'twilio',
+    actionLabel: 'Twilio action',
+    confidence: 'low',
+  },
 
   // SendGrid
-  { pattern: /\bsendgrid\b/i, service: 'sendgrid', serviceName: 'SendGrid', action: 'sendgrid', actionLabel: 'SendGrid action', confidence: 'low' },
+  {
+    pattern: /\bsendgrid\b/i,
+    service: 'sendgrid',
+    serviceName: 'SendGrid',
+    action: 'sendgrid',
+    actionLabel: 'SendGrid action',
+    confidence: 'low',
+  },
 
   // Google Calendar
-  { pattern: /\b(schedule|calendar|meeting|event)\b/i, service: 'google-calendar', serviceName: 'Google Calendar', action: 'calendar', actionLabel: 'Calendar action', confidence: 'medium' },
+  {
+    pattern: /\b(schedule|calendar|meeting|event)\b/i,
+    service: 'google-calendar',
+    serviceName: 'Google Calendar',
+    action: 'calendar',
+    actionLabel: 'Calendar action',
+    confidence: 'medium',
+  },
 
   // Google Drive
-  { pattern: /\b(upload|share|drive|folder)\b.*\b(file|document|drive)\b/i, service: 'google-drive', serviceName: 'Google Drive', action: 'drive', actionLabel: 'Google Drive action', confidence: 'medium' },
+  {
+    pattern: /\b(upload|share|drive|folder)\b.*\b(file|document|drive)\b/i,
+    service: 'google-drive',
+    serviceName: 'Google Drive',
+    action: 'drive',
+    actionLabel: 'Google Drive action',
+    confidence: 'medium',
+  },
 ];
 
 // ── Discovery Engine (Pure) ────────────────────────────────────────────
@@ -121,10 +394,7 @@ export const INTENT_PATTERNS: IntentPattern[] = [
  * @param connectedIds Set of service IDs that are currently connected
  * @returns DiscoveryResult with all matches ranked by confidence + connected status
  */
-export function discoverIntegrations(
-  message: string,
-  connectedIds: Set<string>,
-): DiscoveryResult {
+export function discoverIntegrations(message: string, connectedIds: Set<string>): DiscoveryResult {
   const seen = new Set<string>();
   const matches: IntentMatch[] = [];
 
@@ -167,10 +437,7 @@ export function discoverIntegrations(
  * Build a system prompt hint to inject into the agent context,
  * informing it about available integrations for the user's request.
  */
-export function buildSystemHint(
-  matches: IntentMatch[],
-  _connectedIds: Set<string>,
-): string | null {
+export function buildSystemHint(matches: IntentMatch[], _connectedIds: Set<string>): string | null {
   if (!matches.length) return null;
 
   const connected = matches.filter((m) => m.connected);
@@ -199,7 +466,9 @@ export function buildSystemHint(
  */
 export function mightNeedIntegration(message: string): boolean {
   // Quick keyword check — covers ~95% of integration-relevant messages
-  return /\b(email|mail|slack|github|discord|telegram|trello|jira|linear|notion|sheet|hubspot|salesforce|stripe|shopify|zendesk|twilio|sendgrid|calendar|drive|send|post|create|schedule|check|read|inbox|sms|text|invoice|ticket|issue|card|deal|contact|pipeline|pr|pull\s*request|repo|channel)\b/i.test(message);
+  return /\b(email|mail|slack|github|discord|telegram|trello|jira|linear|notion|sheet|hubspot|salesforce|stripe|shopify|zendesk|twilio|sendgrid|calendar|drive|send|post|create|schedule|check|read|inbox|sms|text|invoice|ticket|issue|card|deal|contact|pipeline|pr|pull\s*request|repo|channel)\b/i.test(
+    message,
+  );
 }
 
 /**

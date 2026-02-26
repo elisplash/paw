@@ -3,7 +3,11 @@
 // Molecule-level: renders hero stats, health list, category breakdown.
 
 import { SERVICE_CATALOG } from '../views/integrations/catalog';
-import { CATEGORIES, type ConnectedService, type ServiceCategory } from '../views/integrations/atoms';
+import {
+  CATEGORIES,
+  type ConnectedService,
+  type ServiceCategory,
+} from '../views/integrations/atoms';
 
 // ── Hero Stats ─────────────────────────────────────────────────────────
 
@@ -36,7 +40,8 @@ export function renderHealthList(connected: ConnectedService[]): void {
     .map((c) => {
       const svc = SERVICE_CATALOG.find((s) => s.id === c.serviceId);
       const name = svc?.name ?? c.serviceId;
-      const dotClass = c.status === 'error' ? 'error' : c.status === 'expired' ? 'warning' : 'healthy';
+      const dotClass =
+        c.status === 'error' ? 'error' : c.status === 'expired' ? 'warning' : 'healthy';
       const statusLabel = c.status === 'error' ? 'ERR' : c.status === 'expired' ? 'EXP' : 'OK';
       return `<div class="integrations-health-item">
         <span class="integrations-health-dot ${dotClass}"></span>
@@ -60,8 +65,7 @@ export function renderCategoryBreakdown(): void {
 
   const maxCount = Math.max(...counts.values(), 1);
 
-  container.innerHTML = CATEGORIES
-    .filter((cat) => (counts.get(cat.id) ?? 0) > 0)
+  container.innerHTML = CATEGORIES.filter((cat) => (counts.get(cat.id) ?? 0) > 0)
     .sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
     .map((cat) => {
       const count = counts.get(cat.id) ?? 0;

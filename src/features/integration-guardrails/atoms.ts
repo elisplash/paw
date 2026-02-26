@@ -21,34 +21,34 @@ export interface IntegrationAction {
  */
 export const ACTION_RISK_MAP: Record<string, IntegrationRiskLevel> = {
   // Read operations — auto-approve
-  'list': 'auto',
-  'get': 'auto',
-  'search': 'auto',
-  'read': 'auto',
-  'fetch': 'auto',
-  'count': 'auto',
-  'check': 'auto',
+  list: 'auto',
+  get: 'auto',
+  search: 'auto',
+  read: 'auto',
+  fetch: 'auto',
+  count: 'auto',
+  check: 'auto',
 
   // Write operations — soft confirm
-  'send': 'soft',
-  'create': 'soft',
-  'update': 'soft',
-  'post': 'soft',
-  'comment': 'soft',
-  'assign': 'soft',
-  'move': 'soft',
-  'upload': 'soft',
-  'pin': 'soft',
+  send: 'soft',
+  create: 'soft',
+  update: 'soft',
+  post: 'soft',
+  comment: 'soft',
+  assign: 'soft',
+  move: 'soft',
+  upload: 'soft',
+  pin: 'soft',
 
   // Destructive operations — hard confirm
-  'delete': 'hard',
-  'remove': 'hard',
-  'archive': 'hard',
-  'close': 'hard',
-  'bulk_send': 'hard',
-  'transfer': 'hard',
-  'modify_billing': 'hard',
-  'revoke': 'hard',
+  delete: 'hard',
+  remove: 'hard',
+  archive: 'hard',
+  close: 'hard',
+  bulk_send: 'hard',
+  transfer: 'hard',
+  modify_billing: 'hard',
+  revoke: 'hard',
 };
 
 /** Classify an action by its verb. */
@@ -68,9 +68,27 @@ export function riskMeta(level: IntegrationRiskLevel): {
   cssClass: string;
 } {
   switch (level) {
-    case 'auto': return { icon: 'check_circle', label: 'Auto-approved', color: 'var(--success, #22c55e)', cssClass: 'risk-auto' };
-    case 'soft': return { icon: 'visibility', label: 'Preview', color: 'var(--warning, #f59e0b)', cssClass: 'risk-soft' };
-    case 'hard': return { icon: 'warning', label: 'Confirm', color: 'var(--danger, #ef4444)', cssClass: 'risk-hard' };
+    case 'auto':
+      return {
+        icon: 'check_circle',
+        label: 'Auto-approved',
+        color: 'var(--success, #22c55e)',
+        cssClass: 'risk-auto',
+      };
+    case 'soft':
+      return {
+        icon: 'visibility',
+        label: 'Preview',
+        color: 'var(--warning, #f59e0b)',
+        cssClass: 'risk-soft',
+      };
+    case 'hard':
+      return {
+        icon: 'warning',
+        label: 'Confirm',
+        color: 'var(--danger, #ef4444)',
+        cssClass: 'risk-hard',
+      };
   }
 }
 
@@ -174,10 +192,7 @@ export interface AgentServicePermission {
 }
 
 /** Check if an access level allows a specific action verb. */
-export function isActionAllowed(
-  access: AccessLevel,
-  actionVerb: string,
-): boolean {
+export function isActionAllowed(access: AccessLevel, actionVerb: string): boolean {
   if (access === 'none') return false;
   if (access === 'full') return true;
 
@@ -194,10 +209,18 @@ export function accessMeta(level: AccessLevel): {
   color: string;
 } {
   switch (level) {
-    case 'none': return { icon: 'block', label: 'No Access', color: 'var(--text-tertiary)' };
-    case 'read': return { icon: 'visibility', label: 'Read Only', color: 'var(--success, #22c55e)' };
-    case 'write': return { icon: 'edit', label: 'Read & Write', color: 'var(--warning, #f59e0b)' };
-    case 'full': return { icon: 'admin_panel_settings', label: 'Full Access', color: 'var(--danger, #ef4444)' };
+    case 'none':
+      return { icon: 'block', label: 'No Access', color: 'var(--text-tertiary)' };
+    case 'read':
+      return { icon: 'visibility', label: 'Read Only', color: 'var(--success, #22c55e)' };
+    case 'write':
+      return { icon: 'edit', label: 'Read & Write', color: 'var(--warning, #f59e0b)' };
+    case 'full':
+      return {
+        icon: 'admin_panel_settings',
+        label: 'Full Access',
+        color: 'var(--danger, #ef4444)',
+      };
   }
 }
 

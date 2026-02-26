@@ -5,8 +5,8 @@
 // ── Types ──────────────────────────────────────────────────────────────
 
 export interface CredentialField {
-  key: string;        // "api_key"
-  label: string;      // "API Key"
+  key: string; // "api_key"
+  label: string; // "API Key"
   type: 'text' | 'password' | 'url' | 'select';
   placeholder?: string;
   required: boolean;
@@ -45,12 +45,12 @@ export type ServiceCategory =
 export interface ServiceDefinition {
   id: string;
   name: string;
-  icon: string;           // Material icon name
-  color: string;          // Brand accent color
+  icon: string; // Material icon name
+  color: string; // Brand accent color
   category: ServiceCategory;
   description: string;
   capabilities: string[];
-  n8nNodeType: string;    // e.g. "n8n-nodes-base.slack"
+  n8nNodeType: string; // e.g. "n8n-nodes-base.slack"
   credentialFields: CredentialField[];
   setupGuide: SetupGuide;
   queryExamples: string[];
@@ -77,20 +77,20 @@ export interface CategoryMeta {
 
 export const CATEGORIES: CategoryMeta[] = [
   { id: 'communication', label: 'Communication', icon: 'chat' },
-  { id: 'development',   label: 'Development',   icon: 'code' },
-  { id: 'productivity',  label: 'Productivity',   icon: 'edit_note' },
-  { id: 'crm',           label: 'CRM & Sales',    icon: 'handshake' },
-  { id: 'commerce',      label: 'Commerce',       icon: 'shopping_cart' },
-  { id: 'social',        label: 'Social Media',   icon: 'share' },
-  { id: 'cloud',         label: 'Cloud',          icon: 'cloud' },
-  { id: 'storage',       label: 'Storage & Files', icon: 'folder' },
-  { id: 'database',      label: 'Databases',      icon: 'database' },
-  { id: 'analytics',     label: 'Analytics',      icon: 'bar_chart' },
-  { id: 'security',      label: 'Security',       icon: 'shield' },
-  { id: 'ai',            label: 'AI & ML',        icon: 'psychology' },
-  { id: 'voice',         label: 'Voice & Video',  icon: 'call' },
-  { id: 'content',       label: 'Content & CMS',  icon: 'article' },
-  { id: 'utility',       label: 'Utilities',      icon: 'build' },
+  { id: 'development', label: 'Development', icon: 'code' },
+  { id: 'productivity', label: 'Productivity', icon: 'edit_note' },
+  { id: 'crm', label: 'CRM & Sales', icon: 'handshake' },
+  { id: 'commerce', label: 'Commerce', icon: 'shopping_cart' },
+  { id: 'social', label: 'Social Media', icon: 'share' },
+  { id: 'cloud', label: 'Cloud', icon: 'cloud' },
+  { id: 'storage', label: 'Storage & Files', icon: 'folder' },
+  { id: 'database', label: 'Databases', icon: 'database' },
+  { id: 'analytics', label: 'Analytics', icon: 'bar_chart' },
+  { id: 'security', label: 'Security', icon: 'shield' },
+  { id: 'ai', label: 'AI & ML', icon: 'psychology' },
+  { id: 'voice', label: 'Voice & Video', icon: 'call' },
+  { id: 'content', label: 'Content & CMS', icon: 'article' },
+  { id: 'utility', label: 'Utilities', icon: 'build' },
 ];
 
 // ── Sort options ───────────────────────────────────────────────────────
@@ -139,18 +139,19 @@ export function filterServices(
   return result;
 }
 
-export function sortServices(
-  services: ServiceDefinition[],
-  sort: SortOption,
-): ServiceDefinition[] {
+export function sortServices(services: ServiceDefinition[], sort: SortOption): ServiceDefinition[] {
   const copy = [...services];
   switch (sort) {
     case 'popular':
-      return copy.sort((a, b) => (b.popular ? 1 : 0) - (a.popular ? 1 : 0) || a.name.localeCompare(b.name));
+      return copy.sort(
+        (a, b) => (b.popular ? 1 : 0) - (a.popular ? 1 : 0) || a.name.localeCompare(b.name),
+      );
     case 'a-z':
       return copy.sort((a, b) => a.name.localeCompare(b.name));
     case 'category':
-      return copy.sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+      return copy.sort(
+        (a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name),
+      );
     default:
       return copy;
   }

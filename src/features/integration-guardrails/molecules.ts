@@ -55,10 +55,14 @@ export function renderConfirmationCard(req: ConfirmationRequest): string {
         <button class="guardrail-btn guardrail-btn-approve" data-action="approve" data-confirm-id="${req.id}">
           <span class="ms">check</span> Confirm
         </button>
-        ${req.risk === 'hard' ? '' : `
+        ${
+          req.risk === 'hard'
+            ? ''
+            : `
         <button class="guardrail-btn guardrail-btn-edit" data-action="edit" data-confirm-id="${req.id}">
           <span class="ms">edit</span> Edit
-        </button>`}
+        </button>`
+        }
         <button class="guardrail-btn guardrail-btn-cancel" data-action="cancel" data-confirm-id="${req.id}">
           <span class="ms">close</span> Cancel
         </button>
@@ -89,7 +93,9 @@ export function renderRateLimitWarning(
       <div class="guardrail-rate-info">
         ${remaining} / ${limit} actions remaining in window
       </div>
-      ${isExhausted ? `
+      ${
+        isExhausted
+          ? `
       <div class="guardrail-rate-actions">
         <button class="guardrail-btn guardrail-btn-approve" data-rate-service="${_esc(service)}" data-rate-action="bump">
           <span class="ms">add</span> Allow 20 more
@@ -97,7 +103,9 @@ export function renderRateLimitWarning(
         <button class="guardrail-btn guardrail-btn-cancel" data-rate-service="${_esc(service)}" data-rate-action="wait">
           <span class="ms">pause</span> Wait
         </button>
-      </div>` : ''}
+      </div>`
+          : ''
+      }
     </div>`;
 }
 
@@ -148,11 +156,19 @@ export function renderAuditLog(logs: CredentialUsageLog[]): string {
     </div>`;
   }
 
-  const rows = logs.slice(0, 100).map((log) => {
-    const resultIcon = log.result === 'success' ? 'check_circle' : log.result === 'denied' ? 'block' : 'error';
-    const resultColor = log.result === 'success' ? 'var(--success)' : log.result === 'denied' ? 'var(--warning)' : 'var(--danger)';
-    const ts = new Date(log.timestamp).toLocaleString();
-    return `
+  const rows = logs
+    .slice(0, 100)
+    .map((log) => {
+      const resultIcon =
+        log.result === 'success' ? 'check_circle' : log.result === 'denied' ? 'block' : 'error';
+      const resultColor =
+        log.result === 'success'
+          ? 'var(--success)'
+          : log.result === 'denied'
+            ? 'var(--warning)'
+            : 'var(--danger)';
+      const ts = new Date(log.timestamp).toLocaleString();
+      return `
       <tr class="guardrail-audit-row">
         <td>${_esc(ts)}</td>
         <td>${_esc(log.agent)}</td>
@@ -162,7 +178,8 @@ export function renderAuditLog(logs: CredentialUsageLog[]): string {
         <td>${log.approved ? 'Auto' : 'Manual'}</td>
         <td><span class="ms" style="color:${resultColor};font-size:16px">${resultIcon}</span></td>
       </tr>`;
-  }).join('');
+    })
+    .join('');
 
   return `
     <div class="guardrail-audit">
@@ -197,16 +214,20 @@ export function renderPermissionEditor(
   permissions: AgentServicePermission[],
   availableServices: string[],
 ): string {
-  const rows = availableServices.map((svc) => {
-    const perm = permissions.find((p) => p.service === svc);
-    const current: AccessLevel = perm?.access ?? 'read';
-    const meta = accessMeta(current);
+  const rows = availableServices
+    .map((svc) => {
+      const perm = permissions.find((p) => p.service === svc);
+      const current: AccessLevel = perm?.access ?? 'read';
+      const meta = accessMeta(current);
 
-    const options = (['none', 'read', 'write', 'full'] as AccessLevel[])
-      .map((level) => `<option value="${level}" ${level === current ? 'selected' : ''}>${accessMeta(level).label}</option>`)
-      .join('');
+      const options = (['none', 'read', 'write', 'full'] as AccessLevel[])
+        .map(
+          (level) =>
+            `<option value="${level}" ${level === current ? 'selected' : ''}>${accessMeta(level).label}</option>`,
+        )
+        .join('');
 
-    return `
+      return `
       <div class="guardrail-perm-row" data-agent="${_esc(agentId)}" data-service="${_esc(svc)}">
         <span class="ms" style="color:${meta.color}">${meta.icon}</span>
         <span class="guardrail-perm-service">${_esc(svc)}</span>
@@ -214,7 +235,8 @@ export function renderPermissionEditor(
           ${options}
         </select>
       </div>`;
-  }).join('');
+    })
+    .join('');
 
   return `
     <div class="guardrail-permissions">
@@ -240,9 +262,9 @@ export async function requestConfirmation(req: ConfirmationRequest): Promise<boo
   const rl = checkRateLimit(req.service);
   if (!rl.allowed) {
     // Inject rate limit warning into chat
-    _injectIntoChatArea(renderRateLimitWarning(
-      req.service, req.serviceName, rl.remaining, rl.limit,
-    ));
+    _injectIntoChatArea(
+      renderRateLimitWarning(req.service, req.serviceName, rl.remaining, rl.limit),
+    );
     return false;
   }
 
@@ -297,17 +319,21 @@ export function wireGuardrailEvents(container: HTMLElement): void {
         _removeCard(container, `[data-plan-id="${planId}"].guardrail-dryrun`);
       }
       // 'run-all' and 'step' events are emitted for the engine to handle
-      container.dispatchEvent(new CustomEvent('guardrail:plan', {
-        detail: { planId, action },
-        bubbles: true,
-      }));
+      container.dispatchEvent(
+        new CustomEvent('guardrail:plan', {
+          detail: { planId, action },
+          bubbles: true,
+        }),
+      );
     }
 
     // Audit clear
     if (auditBtn) {
       invoke('engine_guardrails_clear_audit').catch(() => {});
       const auditEl = container.querySelector('.guardrail-audit');
-      if (auditEl) auditEl.innerHTML = '<div class="guardrail-audit-empty"><span class="ms">history</span> Log cleared.</div>';
+      if (auditEl)
+        auditEl.innerHTML =
+          '<div class="guardrail-audit-empty"><span class="ms">history</span> Log cleared.</div>';
     }
   });
 
@@ -325,7 +351,11 @@ export function wireGuardrailEvents(container: HTMLElement): void {
 // ── Internal helpers ───────────────────────────────────────────────────
 
 function _esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function _injectIntoChatArea(html: string): void {
@@ -346,12 +376,10 @@ function _removeCard(container: HTMLElement, selector: string): void {
   }
 }
 
-async function _logAction(
-  service: string,
-  action: string,
-  result: string,
-): Promise<void> {
+async function _logAction(service: string, action: string, result: string): Promise<void> {
   try {
     await invoke('engine_guardrails_log_action', { service, action, result });
-  } catch { /* silent */ }
+  } catch {
+    /* silent */
+  }
 }

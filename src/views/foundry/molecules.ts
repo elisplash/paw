@@ -198,7 +198,11 @@ export function hideModeModal() {
 }
 
 // ── Hero stats ─────────────────────────────────────────────────────────────
-export function updateFoundryHeroStats(providerCount?: number, modelCount?: number, modeCount?: number) {
+export function updateFoundryHeroStats(
+  providerCount?: number,
+  modelCount?: number,
+  modeCount?: number,
+) {
   if (providerCount !== undefined) {
     const el = $('foundry-stat-providers');
     if (el) el.textContent = String(providerCount);

@@ -2,21 +2,15 @@
 // Shows all engine-compiled skills (EngineSkillStatus) categorised by readiness.
 // These are the low-level system tools that integrations/n8n cannot do.
 
-import {
-  pawEngine,
-  type EngineSkillStatus,
-} from '../../engine';
+import { pawEngine, type EngineSkillStatus } from '../../engine';
 import { isEngineMode } from '../../engine-bridge';
 import { $, escHtml } from '../../components/helpers';
-import {
-  renderSkillCard,
-  fromEngineSkill,
-} from '../../components/molecules/skill-card';
+import { renderSkillCard, fromEngineSkill } from '../../components/molecules/skill-card';
 
 // ── Atoms ──────────────────────────────────────────────────────────────
 
 function msIcon(name: string, cls = ''): string {
-  return `<span class="ms${cls ? ' ' + cls : ''}">${name}</span>`;
+  return `<span class="ms${cls ? ` ${cls}` : ''}">${name}</span>`;
 }
 
 // ── Hero stats ─────────────────────────────────────────────────────────
@@ -36,16 +30,23 @@ function renderBuiltIn(skills: EngineSkillStatus[]): string {
   // Categorise all engine skills by status
   const ready = skills.filter((s) => s.enabled && s.is_ready);
   const needsCreds = skills.filter(
-    (s) => s.enabled && !s.is_ready && s.missing_binaries.length === 0 && s.missing_credentials.length > 0,
+    (s) =>
+      s.enabled &&
+      !s.is_ready &&
+      s.missing_binaries.length === 0 &&
+      s.missing_credentials.length > 0,
   );
   const needsEnv = skills.filter(
     (s) =>
-      s.enabled && !s.is_ready &&
+      s.enabled &&
+      !s.is_ready &&
       s.missing_binaries.length === 0 &&
       s.missing_credentials.length === 0 &&
       s.missing_env_vars.length > 0,
   );
-  const missingBinaries = skills.filter((s) => s.enabled && !s.is_ready && s.missing_binaries.length > 0);
+  const missingBinaries = skills.filter(
+    (s) => s.enabled && !s.is_ready && s.missing_binaries.length > 0,
+  );
   const disabled = skills.filter((s) => !s.enabled);
   const needsSetup = [...needsCreds, ...needsEnv];
 
@@ -254,7 +255,9 @@ export async function loadBuiltIn(): Promise<void> {
     // Kinetic stagger on side panel cards
     const view = document.getElementById('builtin-view');
     if (view) {
-      const cards = view.querySelectorAll('.builtin-panel-card, .builtin-side-panel > .skills-panel-card');
+      const cards = view.querySelectorAll(
+        '.builtin-panel-card, .builtin-side-panel > .skills-panel-card',
+      );
       cards.forEach((card, i) => {
         (card as HTMLElement).style.animationDelay = `${i * 60}ms`;
       });

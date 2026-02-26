@@ -54,17 +54,32 @@ const SERVICE_LABELS: Record<string, LabelTemplate[]> = {
     { pattern: /list/i, label: () => 'Listed Discord resources' },
   ],
   github: [
-    { pattern: /create_?issue/i, label: (_m, i) => `Created issue '${_str(i, 'title')}' in ${_str(i, 'repo', 'repository')}` },
-    { pattern: /create_?pr|create_?pull/i, label: (_m, i) => `Created PR '${_str(i, 'title')}' in ${_str(i, 'repo', 'repository')}` },
-    { pattern: /list_?issues/i, label: (_m, i) => `Listed issues in ${_str(i, 'repo', 'repository')}` },
-    { pattern: /list_?prs|list_?pulls/i, label: (_m, i) => `Listed PRs in ${_str(i, 'repo', 'repository')}` },
+    {
+      pattern: /create_?issue/i,
+      label: (_m, i) => `Created issue '${_str(i, 'title')}' in ${_str(i, 'repo', 'repository')}`,
+    },
+    {
+      pattern: /create_?pr|create_?pull/i,
+      label: (_m, i) => `Created PR '${_str(i, 'title')}' in ${_str(i, 'repo', 'repository')}`,
+    },
+    {
+      pattern: /list_?issues/i,
+      label: (_m, i) => `Listed issues in ${_str(i, 'repo', 'repository')}`,
+    },
+    {
+      pattern: /list_?prs|list_?pulls/i,
+      label: (_m, i) => `Listed PRs in ${_str(i, 'repo', 'repository')}`,
+    },
     { pattern: /comment/i, label: (_m, i) => `Commented on #${_str(i, 'issue_number', 'number')}` },
     { pattern: /close/i, label: (_m, i) => `Closed #${_str(i, 'issue_number', 'number')}` },
     { pattern: /merge/i, label: (_m, i) => `Merged PR #${_str(i, 'number')}` },
     { pattern: /star/i, label: (_m, i) => `Starred ${_str(i, 'repo')}` },
   ],
   gmail: [
-    { pattern: /send/i, label: (_m, i) => `Sent email '${_str(i, 'subject')}' to ${_str(i, 'to')}` },
+    {
+      pattern: /send/i,
+      label: (_m, i) => `Sent email '${_str(i, 'subject')}' to ${_str(i, 'to')}`,
+    },
     { pattern: /list|search/i, label: () => 'Searched emails' },
     { pattern: /read|get/i, label: (_m, i) => `Read email: ${_str(i, 'subject')}` },
     { pattern: /draft/i, label: (_m, i) => `Created draft: ${_str(i, 'subject')}` },
@@ -77,9 +92,18 @@ const SERVICE_LABELS: Record<string, LabelTemplate[]> = {
     { pattern: /update/i, label: (_m, i) => `Updated ${_str(i, 'type', 'resource')}` },
   ],
   jira: [
-    { pattern: /create_?issue/i, label: (_m, i) => `Created ticket '${_str(i, 'summary', 'title')}'` },
-    { pattern: /list_?issues|search/i, label: (_m, i) => `Searched Jira: ${_str(i, 'jql', 'query')}` },
-    { pattern: /transition|update_?status/i, label: (_m, i) => `Moved ${_str(i, 'key')} to ${_str(i, 'status')}` },
+    {
+      pattern: /create_?issue/i,
+      label: (_m, i) => `Created ticket '${_str(i, 'summary', 'title')}'`,
+    },
+    {
+      pattern: /list_?issues|search/i,
+      label: (_m, i) => `Searched Jira: ${_str(i, 'jql', 'query')}`,
+    },
+    {
+      pattern: /transition|update_?status/i,
+      label: (_m, i) => `Moved ${_str(i, 'key')} to ${_str(i, 'status')}`,
+    },
     { pattern: /comment/i, label: (_m, i) => `Commented on ${_str(i, 'key')}` },
     { pattern: /assign/i, label: (_m, i) => `Assigned ${_str(i, 'key')}` },
   ],
@@ -101,7 +125,10 @@ const SERVICE_LABELS: Record<string, LabelTemplate[]> = {
   ],
   'google-sheets': [
     { pattern: /read|get/i, label: (_m, i) => `Read from ${_str(i, 'spreadsheetId', 'sheet')}` },
-    { pattern: /write|update|append/i, label: (_m, i) => `Updated ${_str(i, 'spreadsheetId', 'sheet')}` },
+    {
+      pattern: /write|update|append/i,
+      label: (_m, i) => `Updated ${_str(i, 'spreadsheetId', 'sheet')}`,
+    },
     { pattern: /create/i, label: (_m, i) => `Created spreadsheet '${_str(i, 'title')}'` },
   ],
   shopify: [
@@ -135,7 +162,10 @@ const SERVICE_LABELS: Record<string, LabelTemplate[]> = {
     { pattern: /update/i, label: (_m, i) => `Updated ticket #${_str(i, 'id')}` },
   ],
   telegram: [
-    { pattern: /send_?message/i, label: (_m, i) => `Sent message to ${_str(i, 'chat_id', 'chatId')}` },
+    {
+      pattern: /send_?message/i,
+      label: (_m, i) => `Sent message to ${_str(i, 'chat_id', 'chatId')}`,
+    },
     { pattern: /send_?photo/i, label: () => 'Sent photo' },
   ],
 };
@@ -165,13 +195,13 @@ export function translateAction(
 /**
  * Detect the OutputCardType for a result.
  */
-export function detectOutputType(
-  action: string,
-  result?: unknown,
-): OutputCardType {
+export function detectOutputType(action: string, result?: unknown): OutputCardType {
   const lower = action.toLowerCase();
   if (lower.includes('list') || lower.includes('search') || lower.includes('query')) {
-    if (Array.isArray(result) || (result && typeof result === 'object' && 'items' in (result as Record<string, unknown>))) {
+    if (
+      Array.isArray(result) ||
+      (result && typeof result === 'object' && 'items' in (result as Record<string, unknown>))
+    ) {
       return 'table';
     }
     return 'summary';
