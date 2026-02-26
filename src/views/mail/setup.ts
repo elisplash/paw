@@ -174,7 +174,7 @@ function showMailAccountForm(providerId: string): void {
         <li><strong>OS keychain</strong> — your password is stored in the system keychain (macOS Keychain / libsecret on Linux), not in any file.</li>
         <li><strong>Never sent to frontend</strong> — credential details are redacted before reaching the UI.</li>
         <li><strong>TLS in transit</strong> — connections to ${provider.imap || 'your mail server'} use TLS encryption</li>
-        <li><strong>No cloud</strong> — Paw and OpenClaw are fully self-hosted</li>
+        <li><strong>No cloud</strong> — OpenPawz is fully self-hosted, your data never leaves your machine</li>
         <li><strong>Permission-gated</strong> — the agent must pass your Credential Vault permissions before using email tools</li>
         <li><strong>Activity log</strong> — every agent email action is recorded in a local SQLite audit log</li>
         <li><strong>Revocable</strong> — ${needsAppPw ? "revoke the app password in your provider's security settings at any time" : 'change your password to instantly revoke access'}</li>

@@ -144,8 +144,7 @@ export type ContentBlock =
   | { type: 'tool_use'; id: string; name: string; input: unknown }
   | { type: 'tool_result'; tool_use_id: string; content: string | unknown };
 
-/** Attachment for chat messages (images, documents, etc.) */
-/** Attachment for chat.send - matches OpenClaw gateway format */
+/** Attachment for chat.send (images, documents, etc.) */
 export interface ChatAttachment {
   /** Type identifier (e.g., 'image', 'file') */
   type?: string;

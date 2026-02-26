@@ -96,7 +96,7 @@ pub async fn engine_tts_speak(
     match tts_config.provider.as_str() {
         "openai" => {
             let (api_key, base_url) = openai_provider_info
-                .ok_or("No OpenAI provider configured — add one in Settings → Models")?;
+                .ok_or("No OpenAI provider configured — add one in Settings → Providers")?;
             tts_openai(&api_key, &base_url, &text, &tts_config).await
         }
         "elevenlabs" => {
@@ -110,7 +110,7 @@ pub async fn engine_tts_speak(
         _ => {
             // Default: Google Cloud TTS
             let api_key =
-                google_key.ok_or("No Google provider configured — add one in Settings → Models")?;
+                google_key.ok_or("No Google provider configured — add one in Settings → Providers")?;
             tts_google(&api_key, &text, &tts_config).await
         }
     }
@@ -361,7 +361,7 @@ pub async fn engine_tts_transcribe(
         return stt_google_cloud(&api_key, &audio_base64, &mime_type).await;
     }
 
-    Err("No speech-to-text provider available. Add an OpenAI or Google provider in Settings → Models.".into())
+    Err("No speech-to-text provider available. Add an OpenAI or Google provider in Settings → Providers.".into())
 }
 
 /// OpenAI Whisper STT
