@@ -173,9 +173,7 @@ export async function fetchUnreadEmails() {
     try {
       const toml = await pawEngine.mailReadConfig();
       if (toml) {
-        const accountBlocks = toml.matchAll(
-          /\[accounts\.([^\]]+)\][\s\S]*?email\s*=\s*"([^"]+)"/g,
-        );
+        const accountBlocks = toml.matchAll(/\[accounts\.([^\]]+)\][\s\S]*?email\s*=\s*"([^"]+)"/g);
         for (const match of accountBlocks) {
           himalayaAccounts.push({ name: match[1], email: match[2] });
         }
@@ -187,7 +185,9 @@ export async function fetchUnreadEmails() {
       try {
         const raw = localStorage.getItem('mail-accounts-fallback');
         if (raw) himalayaAccounts = JSON.parse(raw);
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     if (himalayaAccounts.length > 0) {
@@ -205,7 +205,11 @@ export async function fetchUnreadEmails() {
           date: string;
         }
         let envelopes: EmailEnvelope[] = [];
-        try { envelopes = JSON.parse(jsonResult); } catch { /* ignore */ }
+        try {
+          envelopes = JSON.parse(jsonResult);
+        } catch {
+          /* ignore */
+        }
         for (const env of envelopes) {
           if (!env.flags?.includes('Seen')) {
             unreadItems.push({
@@ -230,7 +234,9 @@ export async function fetchUnreadEmails() {
           emailsEl.innerHTML = `<div class="today-section-empty"><span class="ms ms-sm">mark_email_read</span> No unread emails — you're all caught up!</div>`;
           return;
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
       emailsEl.innerHTML = `<div class="today-section-empty">Set up email in the <a href="#" class="today-link-mail">Mail</a> view to see messages here</div>`;
       emailsEl.querySelector('.today-link-mail')?.addEventListener('click', (e) => {
         e.preventDefault();
@@ -344,7 +350,8 @@ export async function fetchActiveSkills() {
     `;
   } catch (e) {
     console.warn('[today] Skills list fetch failed:', e);
-    if (container) container.innerHTML = `<div class="today-section-empty">Could not load skills</div>`;
+    if (container)
+      container.innerHTML = `<div class="today-section-empty">Could not load skills</div>`;
   }
 }
 
@@ -830,18 +837,19 @@ export async function reloadTodayTasks(inPlace = false) {
       const pendingTasks = mapped.filter((t) => !t.done);
       const completedToday = mapped.filter((t) => t.done && isToday(t.createdAt));
 
-      tasksContainer.innerHTML = pendingTasks.length === 0
-        ? `<div class="today-section-empty">No tasks yet. Add one to get started!</div>`
-        : pendingTasks
-            .map(
-              (task) => `
+      tasksContainer.innerHTML =
+        pendingTasks.length === 0
+          ? `<div class="today-section-empty">No tasks yet. Add one to get started!</div>`
+          : pendingTasks
+              .map(
+                (task) => `
             <div class="today-task" data-id="${task.id}">
               <input type="checkbox" class="today-task-check" ${task.done ? 'checked' : ''}>
               <span class="today-task-text">${escHtml(task.text)}</span>
               <button class="today-task-delete" title="Delete">×</button>
             </div>`,
-            )
-            .join('');
+              )
+              .join('');
 
       // Update count badge
       const countEl = tasksContainer.closest('.cmd-card')?.querySelector('.today-card-count');
@@ -852,7 +860,10 @@ export async function reloadTodayTasks(inPlace = false) {
       const existing = parent?.querySelector('.today-completed-label');
       if (existing) existing.remove();
       if (completedToday.length > 0 && parent) {
-        parent.insertAdjacentHTML('beforeend', `<div class="today-completed-label">${completedToday.length} completed today</div>`);
+        parent.insertAdjacentHTML(
+          'beforeend',
+          `<div class="today-completed-label">${completedToday.length} completed today</div>`,
+        );
       }
 
       // Re-bind task events
