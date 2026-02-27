@@ -1,14 +1,15 @@
-// Worker Delegation — Route MCP tool calls through a local Ollama worker model.
+// Worker Delegation — Route tool calls through a cheaper worker model.
 //
-// When a worker_model is configured (e.g. "worker-qwen"), MCP tool calls from
-// the brain model are delegated to the worker instead of being executed directly.
-// The worker receives the MCP tool schemas via the standard tool interface,
-// executes them, and returns the result — all locally, at zero API cost.
+// When a worker_model is configured in Model Routing, tool calls from
+// the boss model are delegated to the worker for cost-efficient execution.
+// The worker can be ANY model from ANY provider:
+//   - Cloud: gemini-2.0-flash, gpt-4o-mini, claude-haiku-4-5, deepseek-chat
+//   - Local: worker-qwen (Ollama), llama3.2:3b, phi3:mini
 //
-// Flow: Brain decides "call mcp_n8n_slack_post" →
-//       Worker-qwen receives task + MCP tool schemas →
-//       Worker calls MCP tools via JSON-RPC (local) →
-//       Result returned to brain as tool output.
+// Flow: Boss decides "call fetch" or "call mcp_n8n_slack_post" →
+//       Worker (cheap model) receives task + tool schemas →
+//       Worker executes tools (fetch, exec, MCP) →
+//       Result returned to boss as tool output.
 
 use crate::atoms::types::*;
 use crate::engine::providers::AnyProvider;
@@ -285,25 +286,22 @@ async fn run_worker_loop(
 }
 
 /// Resolve the provider config for the worker model.
-/// Handles Ollama-style names (worker-qwen), colon-style (qwen2.5:7b), and standard prefixes.
+/// Supports ANY provider — Gemini, Claude, GPT, Ollama, OpenRouter, etc.
+/// The worker model is just a model name; the resolver identifies the right provider.
 fn resolve_worker_provider(model: &str, providers: &[ProviderConfig]) -> Option<ProviderConfig> {
-    // 1. Exact match on default_model
-    if let Some(p) = providers
-        .iter()
-        .find(|p| p.default_model.as_deref() == Some(model))
-    {
-        return Some(p.clone());
+    // 1. Use the standard provider resolver (handles Gemini, Claude, GPT, DeepSeek, etc.)
+    //    This covers all cloud providers by model-name prefix matching.
+    if let Some(p) = crate::engine::state::resolve_provider_for_model(model, providers) {
+        return Some(p);
     }
 
-    // 2. Known Ollama model names (worker-qwen, custom Ollama models)
+    // 2. Ollama fallback — local model names that don't match cloud prefixes
+    //    (worker-qwen, qwen2.5:7b, llama3.2:3b, phi3:mini, etc.)
     if model.starts_with("worker-")
         || model.contains(':')
         || model.starts_with("llama")
         || model.starts_with("qwen")
         || model.starts_with("phi")
-        || model.starts_with("mistral")
-        || model.starts_with("codestral")
-        || model.starts_with("deepseek-coder")
         || model.starts_with("nomic")
         || model.starts_with("starcoder")
     {
@@ -315,8 +313,8 @@ fn resolve_worker_provider(model: &str, providers: &[ProviderConfig]) -> Option<
         }
     }
 
-    // 3. Fall back to the state.rs resolver
-    crate::engine::state::resolve_provider_for_model(model, providers)
+    // 3. Last resort — try first enabled provider
+    providers.first().cloned()
 }
 
 /// Execute a tool call from the worker agent.

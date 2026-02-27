@@ -1,6 +1,6 @@
 ---
 title: "The Foreman Protocol"
-description: "Zero-Cost Tool Execution via Local Models and Self-Describing MCP — a novel architecture for eliminating cloud API costs from agent tool execution."
+description: "Low-Cost Tool Execution via Worker Models and Self-Describing MCP — a novel architecture for reducing cloud API costs from agent tool execution."
 sidebarTitle: "The Foreman Protocol"
 ---
 
@@ -37,7 +37,7 @@ Even loading a subset means every tool call routes through the most expensive mo
 The Foreman Protocol splits the agent into two roles:
 
 - **Architect** (cloud LLM): Plans, reasons, talks to the user. Decides *what* needs to happen.
-- **Foreman** (local Ollama model): Interfaces with external services. Handles *how* it happens — both reading and writing. Runs locally at zero API cost.
+- **Foreman** (worker model): Interfaces with external services. Handles *how* it happens — both reading and writing. Can be a local Ollama model (zero cost) or a cheap cloud model (e.g. gemini-2.0-flash, gpt-4o-mini, claude-haiku — fraction of the Architect's cost).
 
 The critical enabler is **MCP's self-describing schemas**. When the Foreman connects to an MCP server (n8n), the server tells it exactly what tools are available and how to call them — parameter names, types, descriptions, examples. The Foreman doesn't need pre-trained knowledge of Slack, Trello, or any integration. MCP provides the instruction manual at runtime.
 
@@ -64,7 +64,7 @@ graph TD
         D["Detects mcp_* tool call"]
         E["Delegates to Foreman"]
     end
-    subgraph Foreman["Foreman (Local Ollama · free)"]
+    subgraph Foreman["Foreman (Worker Model · cheap or free)"]
         F["Receives task + MCP tool schemas"]
         G["MCP server describes available tools"]
         H["Reads from or writes to service"]
@@ -135,15 +135,15 @@ This means:
 
 In a traditional agent architecture, the cloud model handles everything — intent, planning, tool formatting, execution, response. You pay cloud rates for all of it.
 
-With the Foreman Protocol, the cloud model only handles intent and planning. All service interaction — reading and writing — runs locally. The Architect pays only for the tokens it actually needs frontier intelligence for — understanding the user and deciding what to do. The mechanical work of interfacing with external services shifts to a free local model.
+With the Foreman Protocol, the cloud model only handles intent and planning. All service interaction — reading and writing — is delegated to a cheaper worker model. The Architect pays only for the tokens it actually needs frontier intelligence for — understanding the user and deciding what to do. The mechanical work of interfacing with external services shifts to a model that costs a fraction of the price — or nothing at all if running locally on Ollama.
 
-The savings scale with usage. The more your agents interact with connected services, the more you save — because every read and every write that would have burned cloud tokens now runs locally at zero cost.
+The savings scale with usage. The more your agents interact with connected services, the more you save — because every read and every write that would have burned premium tokens is handled by the cheapest capable model in the stack.
 
 ### vs. Automation Platforms
 
 | Platform | AI-Driven? | Tool Execution Cost | Integrations | Bidirectional? |
 |----------|------------|---------------------|--------------|----------------|
-| **OpenPawz (Foreman)** | Yes — natural language | Free (local model) | 25,000+ | Yes — read + write, any time |
+| **OpenPawz (Foreman)** | Yes — natural language | Free (local) or cheap (cloud) | 25,000+ | Yes — read + write, any time |
 | **Zapier** | Partial | Per-task pricing | 7,000 | No — predefined flows |
 | **Make** | No | Per-operation pricing | 2,000 | No — predefined flows |
 | **n8n Standalone** | No — manual workflows | Free (self-hosted) | 400+ built-in | No — predefined flows |
@@ -229,26 +229,32 @@ Low temperature ensures structured, deterministic tool calls. The 7B parameter m
 
 ## Hardware Requirements
 
-The Foreman runs any Ollama-compatible model locally. The default `qwen2.5-coder:7b` requires approximately 5 GB of disk and runs comfortably on machines with 8+ GB of RAM (CPU inference) or 5+ GB of VRAM (GPU inference).
+The Foreman can run **any model from any provider**:
 
-On Apple Silicon (M1+), inference is fast enough that tool execution feels instant. On CPU-only systems, it's still typically faster than the round-trip latency of sending the same work to a cloud API and waiting for a response.
+- **Local (Ollama)**: The default `qwen2.5-coder:7b` requires approximately 5 GB of disk and runs comfortably on 8+ GB RAM (CPU) or 5+ GB VRAM (GPU). On Apple Silicon (M1+), inference is fast enough that tool execution feels instant. Zero API cost.
+- **Cloud (any provider)**: Use a cheap model from your existing provider — `gemini-2.0-flash`, `gpt-4o-mini`, `claude-haiku-4-5`, `deepseek-chat`. No local hardware needed. Ideal for enterprise environments that can't run Ollama.
 
 ---
 
 ## Try It
 
-### 1. Install the Worker Model
+### Option A: Local Worker (Ollama — Free)
 
 ```bash
 ollama pull qwen2.5-coder:7b
 ```
 
-### 2. Configure in OpenPawz
-
 1. Go to **Settings → Advanced → Ollama** and click **Setup Worker Agent**
-2. In **Settings → Models → Model Routing**, set `worker_model` to `worker-qwen`
+2. In **Settings → Models → Model Routing**, set Worker Model to `worker-qwen`
 
-### 3. Use It
+### Option B: Cloud Worker (Any Provider — Cheap)
+
+1. Go to **Settings → Models → Model Routing**
+2. Set your Boss Model (e.g. `gemini-3.1-pro-preview`, `gpt-4o`, `claude-opus-4-6`)
+3. Set your Worker Model to a cheaper model from the same or different provider (e.g. `gemini-2.0-flash`, `gpt-4o-mini`, `claude-haiku-4-5`)
+4. Use the preset chips for quick setup
+
+### Use It
 
 Just chat normally. When your agent calls any MCP tool, the Foreman handles execution automatically:
 
@@ -266,7 +272,7 @@ The Foreman Protocol and [The Librarian Method](/reference/librarian-method) are
 |---|---|---|
 | **Solves** | Tool discovery at scale | Service access cost and bidirectional reach |
 | **Question answered** | *Which* tool to use? | *How* to access any service without cloud costs? |
-| **Local model used** | Embedding model (e.g. `nomic-embed-text`) | Code model (e.g. `qwen2.5-coder:7b`) |
+| **Model used** | Embedding model (e.g. `nomic-embed-text`) | Any cheap model (local or cloud) |
 | **Works independently?** | Yes | Yes |
 | **Better together?** | The Librarian finds the right tool, then the Foreman executes it for free |
 

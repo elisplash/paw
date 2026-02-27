@@ -151,11 +151,13 @@ export async function loadAdvancedSettings() {
       workerSection.innerHTML = `
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
           <span class="ms ms-sm">precision_manufacturing</span>
-          <strong style="font-size:13px">Worker Agent (Foreman)</strong>
+          <strong style="font-size:13px">Local Worker via Ollama (Optional)</strong>
         </div>
         <p style="margin:0 0 8px;font-size:11px;color:var(--text-muted);line-height:1.4">
-          Create a local Qwen-based worker model (qwen2.5-coder:7b, ~4.7 GB) optimized for silent tool execution.
-          The Architect (cloud AI) delegates automation tasks to this local worker for fast, private execution via the n8n MCP bridge.
+          One-click setup for a local Ollama worker model (qwen2.5-coder:7b, ~4.7 GB).
+          This is <strong>optional</strong> — you can use any cheaper model from any provider as your worker
+          (e.g. gemini-2.0-flash, gpt-4o-mini, claude-haiku). Configure your worker model in
+          <strong>Settings → Models → Model Routing</strong>.
         </p>
       `;
 

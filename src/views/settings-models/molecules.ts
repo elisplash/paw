@@ -287,8 +287,8 @@ function buildModelRoutingSection(
 
   // Worker Model
   const workerRow = formRow(
-    'Worker / Sub-Agent Model',
-    'Cheaper/faster model for sub-agents executing tasks',
+    'Worker / Foreman Model',
+    'Cheaper/faster model that executes tool calls — any provider (cloud or local Ollama)',
   );
   const workerInp = textInput(routing.worker_model ?? '', 'e.g. gemini-2.0-flash');
   workerInp.style.maxWidth = '320px';
