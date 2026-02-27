@@ -92,7 +92,9 @@
               "guides/n8n",
               "guides/google-workspace",
               "guides/voice",
-              "guides/email"
+              "guides/email",
+              "guides/integration-guardrails",
+              "guides/integration-health"
             ]
           },
           {
