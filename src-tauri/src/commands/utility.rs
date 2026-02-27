@@ -164,6 +164,54 @@ pub fn check_keychain_health() -> KeychainHealth {
     }
 }
 
+/// Geocode a location string via Open-Meteo. Tries the full input first,
+/// then falls back to just the city name (before the first comma) since
+/// Open-Meteo doesn't understand "City, State" format well.
+pub async fn geocode_location(
+    client: &reqwest::Client,
+    location: &str,
+) -> Result<serde_json::Value, String> {
+    // Try full input first
+    let geo = _geocode_query(client, location).await?;
+    if let Some(place) = geo["results"].get(0) {
+        return Ok(place.clone());
+    }
+
+    // Fallback: try just the city name (before the comma)
+    if let Some(city) = location.split(',').next() {
+        let city = city.trim();
+        if city != location {
+            log::info!("[weather] Retrying geocode with city-only: {}", city);
+            let geo2 = _geocode_query(client, city).await?;
+            if let Some(place) = geo2["results"].get(0) {
+                return Ok(place.clone());
+            }
+        }
+    }
+
+    Err(format!("Location not found: {}", location))
+}
+
+pub async fn _geocode_query(
+    client: &reqwest::Client,
+    query: &str,
+) -> Result<serde_json::Value, String> {
+    let resp = client
+        .get("https://geocoding-api.open-meteo.com/v1/search")
+        .query(&[("name", query), ("count", "1"), ("language", "en"), ("format", "json")])
+        .send()
+        .await
+        .map_err(|e| format!("Geocoding failed: {}", e))?;
+    if !resp.status().is_success() {
+        return Err(format!("Geocoding API returned {}", resp.status()));
+    }
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read geocoding response: {}", e))?;
+    serde_json::from_str(&text).map_err(|e| format!("Invalid geocoding JSON: {}", e))
+}
+
 /// Fetch weather data via Open-Meteo (free, no API key, reliable).
 /// Two-step: geocode the location name → fetch forecast with lat/lon.
 #[tauri::command]
@@ -179,24 +227,7 @@ pub async fn fetch_weather(location: Option<String>) -> Result<String, String> {
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
     // Step 1: Geocode the location name to lat/lon
-    let geo_resp = client
-        .get("https://geocoding-api.open-meteo.com/v1/search")
-        .query(&[("name", loc.as_str()), ("count", "1"), ("language", "en"), ("format", "json")])
-        .send()
-        .await
-        .map_err(|e| format!("Geocoding failed: {}", e))?;
-    if !geo_resp.status().is_success() {
-        return Err(format!("Geocoding API returned {}", geo_resp.status()));
-    }
-    let geo_text = geo_resp
-        .text()
-        .await
-        .map_err(|e| format!("Failed to read geocoding response: {}", e))?;
-    let geo: serde_json::Value =
-        serde_json::from_str(&geo_text).map_err(|e| format!("Invalid geocoding JSON: {}", e))?;
-    let place = geo["results"]
-        .get(0)
-        .ok_or_else(|| format!("Location not found: {}", loc))?;
+    let place = geocode_location(&client, &loc).await?;
     let lat = place["latitude"]
         .as_f64()
         .ok_or("Missing latitude in geocoding result")?;
