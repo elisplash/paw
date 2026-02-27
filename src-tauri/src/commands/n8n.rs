@@ -1066,6 +1066,56 @@ pub async fn engine_integrations_test_credentials(
             let url = format!("https://{}.zendesk.com/api/v2/users/me.json", subdomain);
             _test_basic_auth(&client, &url, &format!("{}/token", email), &token, "Zendesk").await
         }
+        "weather-api" => {
+            let location = credentials.get("location").cloned().unwrap_or_default();
+            if location.is_empty() {
+                Ok(CredentialTestResult {
+                    success: false,
+                    message: "Location is empty".into(),
+                    details: None,
+                })
+            } else {
+                // Verify the location can be geocoded via Open-Meteo
+                match client
+                    .get("https://geocoding-api.open-meteo.com/v1/search")
+                    .query(&[("name", location.as_str()), ("count", "1"), ("language", "en"), ("format", "json")])
+                    .send()
+                    .await
+                {
+                    Ok(resp) => {
+                        let body = resp.text().await.unwrap_or_default();
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                            if let Some(place) = json["results"].get(0) {
+                                let name = place["name"].as_str().unwrap_or("Unknown");
+                                let country = place["country"].as_str().unwrap_or("");
+                                Ok(CredentialTestResult {
+                                    success: true,
+                                    message: format!("Location found: {}, {}", name, country),
+                                    details: None,
+                                })
+                            } else {
+                                Ok(CredentialTestResult {
+                                    success: false,
+                                    message: format!("Could not find location: {}", location),
+                                    details: Some("Try a different city name or add the country, e.g. 'London, UK'".into()),
+                                })
+                            }
+                        } else {
+                            Ok(CredentialTestResult {
+                                success: false,
+                                message: "Invalid response from geocoding service".into(),
+                                details: Some(body),
+                            })
+                        }
+                    }
+                    Err(e) => Ok(CredentialTestResult {
+                        success: false,
+                        message: "Could not reach weather service".into(),
+                        details: Some(e.to_string()),
+                    }),
+                }
+            }
+        }
         _ => {
             // Generic: try to invoke the n8n credential test if available
             Ok(CredentialTestResult {
