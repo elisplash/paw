@@ -64,6 +64,7 @@ import { initNotifications } from './components/notifications';
 import { initWebhookLog } from './components/webhook-log';
 import { isTourComplete, startTour } from './components/tour';
 import { restoreShowcase, enableShowcase } from './components/showcase';
+import { shouldShowWizard, initWizard } from './views/onboarding';
 
 // ── Tauri bridge ─────────────────────────────────────────────────────────
 interface TauriWindow {
@@ -452,34 +453,55 @@ document.addEventListener('DOMContentLoaded', async () => {
     initNotifications();
     initWebhookLog();
 
+    /** Post-setup tasks that run after the wizard (or immediately if returning user). */
+    function launchPostSetup() {
+      // First-run guided tour
+      if (!isTourComplete()) {
+        setTimeout(() => {
+          startTour(() => {
+            console.debug('[main] Tour completed');
+          });
+        }, 800);
+      }
+
+      // Listen for showcase exit to refresh Today
+      window.addEventListener('showcase-exit', () => {
+        switchView('today');
+      });
+
+      autoStartConfiguredChannels().catch((e) =>
+        console.warn('[main] Auto-start channels error:', e),
+      );
+    }
+
     console.debug('[main] Pawz engine mode — starting...');
     await connectEngine();
     // Ensure agents are loaded before rendering Today page
     await AgentsModule.loadAgents();
-    restoreShowcase();
-    switchView('today');
 
-    // First-run guided tour
-    if (!isTourComplete()) {
-      // Delay slightly so the Today view finishes rendering
-      setTimeout(() => {
-        startTour(() => {
-          console.debug('[main] Tour completed');
-        });
-      }, 800);
+    // ── Onboarding wizard gate ──────────────────────────────────────
+    const needsWizard = await shouldShowWizard();
+    if (needsWizard) {
+      console.debug('[main] First run — showing onboarding wizard');
+      initWizard();
+      showView('setup-view');
+
+      // Wait for wizard completion, then proceed to Today
+      window.addEventListener('wizard-complete', () => {
+        restoreShowcase();
+        switchView('today');
+        launchPostSetup();
+      }, { once: true });
+    } else {
+      restoreShowcase();
+      switchView('today');
+      launchPostSetup();
     }
 
-    // Listen for showcase exit to refresh Today
-    window.addEventListener('showcase-exit', () => {
-      switchView('today');
-    });
-
-    autoStartConfiguredChannels().catch((e) =>
-      console.warn('[main] Auto-start channels error:', e),
-    );
     console.debug('[main] Pawz initialized');
   } catch (e) {
     console.error('[main] Init error:', e);
+    initWizard();
     showView('setup-view');
   }
 });

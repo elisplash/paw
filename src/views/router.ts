@@ -21,8 +21,6 @@ import * as IntegrationsModule from './integrations';
 
 export const allViewIds = [
   'setup-view',
-  'manual-setup-view',
-  'install-view',
   'chat-view',
   'tasks-view',
   'code-view',

@@ -140,76 +140,128 @@
           </button>
         </div>
 
-        <!-- ═══ Onboarding ═══ -->
+        <!-- ═══ Onboarding Wizard ═══ -->
         <div class="view setup-view" id="setup-view">
-          <div class="setup-card">
-            <div class="setup-header">
-              <div class="setup-icon">
-                <span class="ms" style="font-size: 48px">layers</span>
-              </div>
-              <h1 class="setup-title">Welcome to Pawz</h1>
-              <p class="setup-subtitle">Configure your AI provider to get started</p>
+          <div class="setup-card wizard-card">
+            <!-- Progress bar -->
+            <div class="wizard-progress">
+              <div class="wizard-progress-fill" id="wizard-progress-fill"></div>
             </div>
 
-            <div class="setup-options">
-              <button class="setup-option" id="setup-new">
-                <div class="setup-option-icon">
-                  <span class="ms" style="font-size: 48px">add_circle</span>
+            <!-- Step 1: Welcome -->
+            <div class="wizard-step" id="wizard-step-1">
+              <div class="setup-header">
+                <div class="setup-icon">
+                  <span class="ms" style="font-size: 48px">layers</span>
                 </div>
-                <div class="setup-option-text">
-                  <div class="setup-option-title">New Setup</div>
-                  <div class="setup-option-desc">Set up Pawz from scratch</div>
+                <h1 class="setup-title">Welcome to OpenPawz</h1>
+                <p class="setup-subtitle">Your open-source AI agent platform. Let's get you set up in under a minute.</p>
+              </div>
+              <div class="wizard-features">
+                <div class="wizard-feature"><span class="ms ms-sm">smart_toy</span> Multi-agent fleet with custom personas</div>
+                <div class="wizard-feature"><span class="ms ms-sm">extension</span> 200+ integrations &amp; skills</div>
+                <div class="wizard-feature"><span class="ms ms-sm">lock</span> Runs locally — your data stays yours</div>
+              </div>
+              <div class="wizard-actions">
+                <button class="btn btn-primary wizard-btn-lg" id="wizard-start">Get Started</button>
+              </div>
+            </div>
+
+            <!-- Step 2: Choose Provider -->
+            <div class="wizard-step wizard-hidden" id="wizard-step-2">
+              <div class="setup-header">
+                <div class="setup-icon">
+                  <span class="ms" style="font-size: 48px">hub</span>
                 </div>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ═══ Install View ═══ -->
-        <div class="view setup-view" id="install-view">
-          <div class="setup-card">
-            <div class="setup-header">
-              <div class="setup-icon">
-                <span class="ms" style="font-size: 48px">download</span>
+                <h1 class="setup-title">Choose Your AI Provider</h1>
+                <p class="setup-subtitle">You need at least one AI provider to power your agents.</p>
               </div>
-              <h1 class="setup-title">Set Up Pawz</h1>
-              <p class="setup-subtitle">We'll configure everything for you</p>
+
+              <!-- Ollama recommendation -->
+              <div class="wizard-recommend" id="wizard-ollama-section">
+                <div class="wizard-recommend-badge">RECOMMENDED — FREE &amp; PRIVATE</div>
+                <div class="wizard-recommend-body">
+                  <div class="wizard-recommend-info">
+                    <div class="wizard-recommend-title"><span class="ms ms-sm">computer</span> Ollama (Local AI)</div>
+                    <div class="wizard-recommend-desc">Run AI models entirely on your machine. No API keys, no costs, complete privacy.</div>
+                  </div>
+                  <div class="wizard-ollama-status" id="wizard-ollama-status">
+                    <span class="today-loading">Checking…</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="wizard-divider"><span>or use a cloud provider</span></div>
+
+              <div class="wizard-providers">
+                <button class="wizard-provider-btn" data-provider="openai">
+                  <span class="wizard-provider-name">OpenAI</span>
+                  <span class="wizard-provider-models">GPT-4o, o1, o3</span>
+                </button>
+                <button class="wizard-provider-btn" data-provider="anthropic">
+                  <span class="wizard-provider-name">Anthropic</span>
+                  <span class="wizard-provider-models">Claude 4, Sonnet</span>
+                </button>
+                <button class="wizard-provider-btn" data-provider="google">
+                  <span class="wizard-provider-name">Google</span>
+                  <span class="wizard-provider-models">Gemini 2.5</span>
+                </button>
+                <button class="wizard-provider-btn" data-provider="deepseek">
+                  <span class="wizard-provider-name">DeepSeek</span>
+                  <span class="wizard-provider-models">DeepSeek R1, V3</span>
+                </button>
+                <button class="wizard-provider-btn" data-provider="openrouter">
+                  <span class="wizard-provider-name">OpenRouter</span>
+                  <span class="wizard-provider-models">All models, one key</span>
+                </button>
+                <button class="wizard-provider-btn" data-provider="grok">
+                  <span class="wizard-provider-name">Grok</span>
+                  <span class="wizard-provider-models">Grok 3</span>
+                </button>
+              </div>
+
+              <div class="wizard-actions">
+                <button class="btn btn-ghost" id="wizard-back-2">Back</button>
+              </div>
             </div>
 
-            <div class="install-requirements">
-              <div class="requirement-item" id="req-node">
-                <span class="ms ms-sm">radio_button_unchecked</span>
-                <span>Node.js runtime</span>
+            <!-- Step 3: API Key Entry (for cloud providers) -->
+            <div class="wizard-step wizard-hidden" id="wizard-step-3">
+              <div class="setup-header">
+                <div class="setup-icon">
+                  <span class="ms" style="font-size: 48px">vpn_key</span>
+                </div>
+                <h1 class="setup-title" id="wizard-key-title">Enter API Key</h1>
+                <p class="setup-subtitle" id="wizard-key-subtitle">Paste your API key below. It's stored locally and never leaves your machine.</p>
               </div>
-              <div class="requirement-item">
-                <span class="ms ms-sm">radio_button_unchecked</span>
-                <span>Pawz engine</span>
+
+              <div class="wizard-form">
+                <label class="wizard-label" for="wizard-api-key">API Key</label>
+                <input type="password" class="form-input wizard-input" id="wizard-api-key" placeholder="sk-..." autocomplete="off" spellcheck="false">
+                <div class="wizard-key-help" id="wizard-key-help"></div>
+              </div>
+
+              <div class="wizard-actions">
+                <button class="btn btn-ghost" id="wizard-back-3">Back</button>
+                <button class="btn btn-primary" id="wizard-save-key" disabled>Connect Provider</button>
               </div>
             </div>
 
-            <div class="install-progress">
-              <div class="progress-bar">
-                <div class="progress-fill" id="install-progress-bar"></div>
+            <!-- Step 4: All Done -->
+            <div class="wizard-step wizard-hidden" id="wizard-step-4">
+              <div class="setup-header">
+                <div class="setup-icon wizard-icon-success">
+                  <span class="ms" style="font-size: 48px">check_circle</span>
+                </div>
+                <h1 class="setup-title">You're All Set!</h1>
+                <p class="setup-subtitle" id="wizard-done-subtitle">OpenPawz is configured and ready to go.</p>
               </div>
-              <p class="progress-text" id="install-progress-text">Ready to install</p>
-            </div>
 
-            <div class="btn-group">
-              <button type="button" class="btn btn-secondary" id="install-back">Back</button>
-              <button type="button" class="btn btn-primary" id="start-install">Install Now</button>
-            </div>
-          </div>
-        </div>
+              <div class="wizard-summary" id="wizard-summary"></div>
 
-        <!-- ═══ Manual Config ═══ -->
-        <div class="view setup-view" id="manual-setup-view">
-          <div class="setup-card">
-            <div class="setup-header">
-              <div class="setup-icon">
-                <span class="ms" style="font-size: 48px">computer</span>
+              <div class="wizard-actions">
+                <button class="btn btn-primary wizard-btn-lg" id="wizard-finish">Launch Mission Control</button>
               </div>
-              <h1 class="setup-title">Engine Configuration</h1>
-              <p class="setup-subtitle">Enter your Pawz engine details</p>
             </div>
           </div>
         </div>
