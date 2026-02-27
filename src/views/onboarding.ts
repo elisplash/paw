@@ -29,38 +29,44 @@ const PROVIDER_META: Record<string, ProviderMeta> = {
   openai: {
     name: 'OpenAI',
     placeholder: 'sk-...',
-    helpHtml: 'Get your key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>',
+    helpHtml:
+      'Get your key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">platform.openai.com</a>',
     defaultModel: 'gpt-4o',
   },
   anthropic: {
     name: 'Anthropic',
     placeholder: 'sk-ant-...',
-    helpHtml: 'Get your key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>',
+    helpHtml:
+      'Get your key at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>',
     defaultModel: 'claude-sonnet-4-20250514',
   },
   google: {
     name: 'Google',
     placeholder: 'AIza...',
-    helpHtml: 'Get your key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a>',
+    helpHtml:
+      'Get your key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com</a>',
     defaultModel: 'gemini-2.5-flash',
   },
   deepseek: {
     name: 'DeepSeek',
     placeholder: 'sk-...',
-    helpHtml: 'Get your key at <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com</a>',
+    helpHtml:
+      'Get your key at <a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">platform.deepseek.com</a>',
     defaultModel: 'deepseek-chat',
   },
   openrouter: {
     name: 'OpenRouter',
     placeholder: 'sk-or-...',
-    helpHtml: 'Get your key at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai</a>',
+    helpHtml:
+      'Get your key at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai</a>',
     defaultModel: 'anthropic/claude-sonnet-4-20250514',
     baseUrl: 'https://openrouter.ai/api/v1',
   },
   grok: {
     name: 'Grok',
     placeholder: 'xai-...',
-    helpHtml: 'Get your key at <a href="https://console.x.ai" target="_blank" rel="noopener">console.x.ai</a>',
+    helpHtml:
+      'Get your key at <a href="https://console.x.ai" target="_blank" rel="noopener">console.x.ai</a>',
     defaultModel: 'grok-3',
     baseUrl: 'https://api.x.ai/v1',
   },
@@ -100,7 +106,7 @@ async function renderOllamaStatus() {
   // Check if providers already exist (autoSetup returns "providers_exist" if so)
   try {
     const cfg = await pawEngine.getConfig();
-    const hasOllama = cfg.providers?.some(p => p.kind === 'ollama');
+    const hasOllama = cfg.providers?.some((p) => p.kind === 'ollama');
 
     if (hasOllama) {
       statusEl.innerHTML = `
@@ -180,7 +186,9 @@ function showApiKeyStep(providerId: string) {
   const helpEl = $('wizard-key-help');
 
   if (titleEl) titleEl.textContent = `Connect ${meta.name}`;
-  if (subtitleEl) subtitleEl.textContent = 'Paste your API key below. It\'s stored locally and never leaves your machine.';
+  if (subtitleEl)
+    subtitleEl.textContent =
+      "Paste your API key below. It's stored locally and never leaves your machine.";
   if (input) {
     input.placeholder = meta.placeholder;
     input.value = '';
@@ -311,7 +319,7 @@ export function initWizard() {
   $('wizard-back-2')?.addEventListener('click', () => showStep(1));
 
   // Step 2: Cloud provider buttons
-  document.querySelectorAll('.wizard-provider-btn').forEach(btn => {
+  document.querySelectorAll('.wizard-provider-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const providerId = (btn as HTMLElement).dataset.provider;
       if (providerId) showApiKeyStep(providerId);

@@ -487,11 +487,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       showView('setup-view');
 
       // Wait for wizard completion, then proceed to Today
-      window.addEventListener('wizard-complete', () => {
-        restoreShowcase();
-        switchView('today');
-        launchPostSetup();
-      }, { once: true });
+      window.addEventListener(
+        'wizard-complete',
+        () => {
+          restoreShowcase();
+          switchView('today');
+          launchPostSetup();
+        },
+        { once: true },
+      );
     } else {
       restoreShowcase();
       switchView('today');
