@@ -39,6 +39,12 @@ src-tauri/.env
 # Private planning docs
 LAUNCH_PLAN.md
 N8N_INTEGRATION_PLAN.md
+MINI_HUB_PLAN.md
+KINETIC_DESIGN_PLAN.md
+DASHBOARD_OVERHAUL_PLAN.md
+SKILLS_WORKSPACE_PLAN.md
+ZERO_GAP_PLAN.md
+ENTERPRISE_PLAN.md
 launch-content/
 
 # Docusaurus build cache
