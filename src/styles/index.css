@@ -58,6 +58,7 @@
 @import './_log-viewer.css';    /* Log viewer */
 @import './_extensions.css';    /* Extensions view */
 @import './_squads.css';        /* Squads view */
+@import './_flows.css';         /* Flow visualization engine */
 
 /* ── Overlays & Wizards ─────────────────────────────────── */
 @import './_command-palette.css';    /* Command palette, keyboard shortcuts */

@@ -18,6 +18,7 @@ import * as TodayModule from './today';
 // PawzHub removed — n8n integration marketplace replaces it
 // import * as PawzHubModule from './pawzhub';
 import * as IntegrationsModule from './integrations';
+import * as FlowsModule from './flows';
 
 export const allViewIds = [
   'setup-view',
@@ -40,6 +41,7 @@ export const allViewIds = [
   'squads-view',
   // 'pawzhub-view', // removed — redirects to integrations
   'integrations-view',
+  'flows-view',
 ];
 
 const viewMap: Record<string, string> = {
@@ -65,6 +67,7 @@ const viewMap: Record<string, string> = {
   squads: 'tasks-view',
   pawzhub: 'integrations-view', // PawzHub merged into Integrations
   integrations: 'integrations-view',
+  flows: 'flows-view',
 };
 
 /** Check whether the app has been initialised (engine mode active). */
@@ -207,6 +210,9 @@ export function switchView(viewName: string) {
       break;
     case 'integrations':
       IntegrationsModule.loadIntegrations();
+      break;
+    case 'flows':
+      FlowsModule.loadFlows();
       break;
     default:
       break;

@@ -13,6 +13,8 @@ import {
 } from './atoms';
 
 import { pawEngine } from '../../engine';
+import { parseFlowText } from '../../views/flows/parser';
+import { createFlowFromText } from '../../views/flows/index';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -299,6 +301,9 @@ async function executeCommand(cmd: ParsedCommand, ctx: CommandContext): Promise<
         preventDefault: false,
       };
 
+    case 'flow':
+      return executeFlow(cmd);
+
     // ── Config ─────────────────────────────────────────────────────
     case 'help':
       return {
@@ -435,6 +440,26 @@ function executeDebugToggle(): CommandResult {
   return {
     handled: true,
     systemMessage: `Debug mode **${next ? 'enabled' : 'disabled'}**.`,
+    preventDefault: true,
+  };
+}
+
+function executeFlow(cmd: ParsedCommand): CommandResult {
+  const result = parseFlowText(cmd.args);
+  createFlowFromText(cmd.args);
+
+  const nodeList = result.graph.nodes.map((n) => `  • ${n.kind}: **${n.label}**`).join('\n');
+
+  return {
+    handled: true,
+    systemMessage: [
+      `**Flow created: ${result.graph.name}**`,
+      `Nodes: ${result.graph.nodes.length} · Edges: ${result.graph.edges.length}`,
+      '',
+      nodeList,
+      '',
+      '_Navigate to **Flows** view to see and edit it._',
+    ].join('\n'),
     preventDefault: true,
   };
 }

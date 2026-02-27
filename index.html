@@ -61,6 +61,10 @@
               <span class="ms nav-icon">task_alt</span>
               <span class="nav-label">Tasks</span>
             </div>
+            <div class="nav-item" data-view="flows">
+              <span class="ms nav-icon">account_tree</span>
+              <span class="nav-label">Flows</span>
+            </div>
           </div>
 
           <div class="nav-section">
@@ -2758,6 +2762,25 @@
         <!-- ═══ PawzHub View — REMOVED (n8n replaces marketplace) ═══ -->
         <!-- PawzHub view kept hidden — code not deleted yet, redirect goes to Integrations -->
         <div class="view" id="pawzhub-view" style="display:none !important"></div>
+
+        <!-- ═══ Flows View — Flow Visualization Engine ═══ -->
+        <div class="view flows-view" id="flows-view">
+          <div class="flows-hero">
+            <div>
+              <h1 class="flows-hero-title">Flows</h1>
+              <p class="flows-hero-sub">Visualize and build AI workflows</p>
+            </div>
+            <div class="flows-hero-text-input">
+              <input type="text" class="flows-text-box" id="flows-text-input"
+                placeholder="Describe a flow… e.g. webhook → agent → send email"
+                autocomplete="off" />
+            </div>
+          </div>
+          <div id="flows-list"></div>
+          <div id="flows-toolbar"></div>
+          <div id="flows-canvas"></div>
+          <div id="flows-panel"></div>
+        </div>
 
         <!-- ═══ Foundry View — Models & Modes ═══ -->
         <div class="view foundry-view" id="foundry-view">

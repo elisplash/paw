@@ -148,6 +148,15 @@ export const COMMANDS: SlashCommandDef[] = [
     category: 'tools',
   },
 
+  // Tools (continued)
+  {
+    name: 'flow',
+    description: 'Visualize a workflow from text',
+    usage: '/flow <description>',
+    requiresArg: true,
+    category: 'tools',
+  },
+
   // Config
   {
     name: 'help',
