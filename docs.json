@@ -100,6 +100,7 @@
           {
             "group": "Workflows",
             "pages": [
+              "guides/flows",
               "guides/orchestrator",
               "guides/research",
               "guides/trading",

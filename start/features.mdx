@@ -6,7 +6,7 @@ sidebarTitle: "Features"
 
 ## Platform features
 
-OpenPawz ships with **more capabilities than any other AI agent platform** — open source or commercial. No other tool combines 25,000+ integrations (via MCP bridge to n8n), multi-agent orchestration, 11 simultaneous chat channels, multi-chain DeFi trading, semantic memory with hybrid retrieval, voice, a visual node editor, and a three-tier extension marketplace — all running locally on your desktop with zero cloud dependency.
+OpenPawz ships with **more capabilities than any other AI agent platform** — open source or commercial. No other tool combines 25,000+ integrations (via MCP bridge to n8n), multi-agent orchestration, 11 simultaneous chat channels, multi-chain DeFi trading, semantic memory with hybrid retrieval, voice, a visual flow builder, and a three-tier extension marketplace — all running locally on your desktop with zero cloud dependency.
 
 This is the complete feature inventory.
 
@@ -449,11 +449,38 @@ OpenPawz was designed from the ground up with a **zero-trust, local-first securi
 
 ---
 
-## Visual node editor
+## Flows — visual workflow builder
 
-**Unique to OpenPawz.** A visual, drag-and-drop workflow editor for building agent pipelines without writing code. Connect nodes — triggers, agents, tools, conditions, outputs — to create complex automation flows visually.
+**Unique to OpenPawz.** A drag-and-drop visual workflow engine for building multi-step AI pipelines. Wire together integrations — triggers, agents, tools, conditions, code, data transforms, and outputs — on an SVG canvas with real-time execution feedback.
 
-→ Deep dive: [Projects guide](/guides/projects)
+<Columns cols={2}>
+  <Card title="9 integration types">
+    Trigger, Agent, Tool, Condition, Data, Code, Output, Error, and Group. Each has its own icon, color, and configuration panel.
+  </Card>
+  <Card title="Text-to-flow">
+    Type a natural-language description — `webhook → agent → send email` — and the parser builds the flow automatically with correct integration types and edges.
+  </Card>
+  <Card title="Debug mode">
+    Step through flows one integration at a time. Set breakpoints, inspect intermediate data on edges, and watch the execution cursor move across the canvas.
+  </Card>
+  <Card title="Code integrations">
+    Run sandboxed JavaScript inline. Access `input` from the previous step and `context` for flow metadata. Return values flow downstream.
+  </Card>
+  <Card title="Templates">
+    30+ pre-built flow patterns across 10 categories — AI, Communication, DevOps, Productivity, Data, Research, Social, Finance, Support, and Custom.
+  </Card>
+  <Card title="Schedule & cron">
+    Attach cron expressions to any flow. The scheduler fires every 30 seconds. Hero stats show active schedule count.
+  </Card>
+  <Card title="Folder organization">
+    Organize flows into folders with collapsible sidebar groups. Drag-and-drop between folders.
+  </Card>
+  <Card title="Chat reporter">
+    Every execution posts a live flow report into chat — progress bar, per-step status, timing, and a final summary.
+  </Card>
+</Columns>
+
+→ Deep dive: [Flows guide](/guides/flows)
 
 ---
 
@@ -555,7 +582,7 @@ Not a toy integration — a complete email client. IMAP/SMTP via himalaya bridge
 | **Voice (TTS/STT)** | 3 providers | None | None | None | None |
 | **Extension marketplace** | 3 tiers + PawzHub | None | Plugin store | None | LangSmith |
 | **Self-installing skills** | Agents install their own | No | No | No | No |
-| **Visual node editor** | Built-in | No | No | No | LangGraph Studio |
+| **Visual flow builder** | Built-in (9 integration types, debug, templates) | No | No | No | LangGraph Studio |
 | **Session compaction** | Automatic, 40–60% savings | No | No | No | No |
 | **Daily budget caps** | Built-in USD cap | No | No | No | No |
 | **Security audit trail** | Full + export | Basic | None | None | None |
@@ -566,4 +593,4 @@ Not a toy integration — a complete email client. IMAP/SMTP via himalaya bridge
 | **Credential security** | OS keychain + AES-256 | Config files | Config files | Env vars | Env vars |
 | **Open source** | MIT | Proprietary | MIT | MIT | MIT |
 
-**OpenPawz is the first AI agent operating system** that combines 25,000+ integrations (via MCP bridge), multi-agent orchestration, 11 channels, DeFi trading, memory, voice, a node editor, and a three-tier marketplace in a single, native, open-source desktop application. Nothing else comes close.
+**OpenPawz is the first AI agent operating system** that combines 25,000+ integrations (via MCP bridge), multi-agent orchestration, 11 channels, DeFi trading, memory, voice, a visual flow builder, and a three-tier marketplace in a single, native, open-source desktop application. Nothing else comes close.
