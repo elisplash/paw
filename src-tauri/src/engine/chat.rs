@@ -329,8 +329,11 @@ pub fn compose_chat_system_prompt(
 ///    messages — the model is repeating itself with minor rewording.
 /// 2. **Question loop**: Both last assistant messages end in `?` — the model
 ///    keeps asking clarifying questions instead of acting.
-/// 3. **Topic-ignoring**: The last user message shares < 25% keywords with the
-///    model's response — the model is ignoring what the user asked about.
+/// 3. **Topic divergence**: The user changed topic but the model's response
+///    still addresses the old topic — detected via keyword overlap between
+///    the user's message and the assistant's previous response.
+/// 4. **Topic-ignoring**: The last user message has very low keyword overlap
+///    with the model's response while the model keeps repeating itself.
 ///
 /// In all cases, a system-role redirect is injected telling the model to
 /// stop repeating itself and respond to the user's actual request.
@@ -381,8 +384,12 @@ pub fn detect_response_loop(messages: &mut Vec<Message>) {
         return;
     }
 
-    // ── Check 3: assistant ignoring the user's topic ───────────────────
-    // Find last user message and check if assistant response addresses it.
+    // ── Check 3: topic divergence — user changed topic, model didn't ──
+    // Compare what the user asked about vs what the model responded about.
+    // If the user's keywords don't overlap with the response at all, the
+    // model is stuck on a previous topic (refusal, error, or anything).
+    // This is the most common "stuck" pattern: user says "tell me about X"
+    // and the model keeps talking about Y from 5 messages ago.
     let last_user = messages
         .iter()
         .rev()
@@ -428,13 +435,28 @@ pub fn detect_response_loop(messages: &mut Vec<Message>) {
             return;
         }
 
-        if !user_keywords.is_empty() && !asst_keywords.is_empty() {
+        if user_keywords.len() >= 2 && !asst_keywords.is_empty() {
             let topic_overlap = user_keywords.intersection(&asst_keywords).count();
             let topic_ratio = topic_overlap as f64 / user_keywords.len() as f64;
 
-            // Also check: are the two assistant messages MORE similar to each
-            // other than the assistant is to the user? That's a strong loop signal.
-            if topic_ratio < 0.15 && similarity > 0.30 {
+            // ── Check 3a: near-zero topic overlap = topic change ignored ──
+            // The user introduced new keywords the model didn't address at all.
+            // This fires even without inter-response similarity — one bad
+            // response is enough if the model clearly ignored the user's words.
+            if topic_ratio < 0.10 {
+                warn!(
+                    "[engine] Topic divergence: user keywords overlap={:.0}% — \
+                    model is not addressing the user's current topic",
+                    topic_ratio * 100.0
+                );
+                inject_topic_redirect(messages);
+                return;
+            }
+
+            // ── Check 3b: low overlap + model repeating itself ────────────
+            // Weaker topic drift combined with the model parroting its last
+            // response — still a stuck loop, just subtler.
+            if topic_ratio < 0.20 && similarity > 0.25 {
                 warn!(
                     "[engine] Topic-ignoring loop: user keywords overlap={:.0}%, \
                     inter-response similarity={:.0}% — injecting redirect",
@@ -442,6 +464,7 @@ pub fn detect_response_loop(messages: &mut Vec<Message>) {
                     similarity * 100.0
                 );
                 inject_loop_break(messages);
+                return;
             }
         }
     }
@@ -449,7 +472,6 @@ pub fn detect_response_loop(messages: &mut Vec<Message>) {
 
 /// Inject a system message that breaks the agent out of a response loop.
 fn inject_loop_break(messages: &mut Vec<Message>) {
-    // Find the last user message to echo it back
     let last_user_text = messages
         .iter()
         .rev()
@@ -464,14 +486,47 @@ fn inject_loop_break(messages: &mut Vec<Message>) {
             .to_string()
     } else {
         format!(
-            "CRITICAL: You are stuck asking clarifying questions instead of acting. STOP asking. \
+            "CRITICAL: You are stuck repeating yourself instead of acting. STOP. \
             The user's actual request is: \"{}\"\n\n\
             Take action NOW. Use your tools to do what the user asked. \
-            If they said 'yes', 'both', 'do it', 'go ahead', or similar — that means proceed with ALL \
+            If they said 'yes', 'both', 'do it', 'go ahead', or similar — proceed with ALL \
             the options you mentioned. Do NOT ask another question. Call the relevant tools immediately.",
             &last_user_text[..last_user_text.len().min(300)]
         )
     };
+
+    messages.push(Message {
+        role: Role::System,
+        content: MessageContent::Text(redirect),
+        tool_calls: None,
+        tool_call_id: None,
+        name: None,
+    });
+}
+
+/// Inject a system message specifically for topic-change situations.
+///
+/// Distinct from `inject_loop_break` because the model isn't necessarily
+/// repeating itself — it may be giving a perfectly fine response, just to
+/// the *wrong* topic. The redirect needs to explicitly tell it to drop the
+/// previous topic and address the new one.
+fn inject_topic_redirect(messages: &mut Vec<Message>) {
+    let last_user_text = messages
+        .iter()
+        .rev()
+        .find(|m| m.role == Role::User)
+        .map(|m| m.content.as_text_ref().to_string())
+        .unwrap_or_default();
+
+    let redirect = format!(
+        "IMPORTANT — TOPIC CHANGE: The user has moved on to a new topic. \
+        Their previous requests are no longer relevant. \
+        Completely disregard all earlier topics in this conversation and respond ONLY to \
+        the user's latest message: \"{}\"\n\n\
+        Do NOT reference, continue, or circle back to anything discussed earlier. \
+        Treat this as a fresh question on a new subject.",
+        &last_user_text[..last_user_text.len().min(300)]
+    );
 
     messages.push(Message {
         role: Role::System,

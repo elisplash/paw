@@ -439,6 +439,8 @@ pub async fn run_agent_turn(
                             let t = m.content.as_text_ref();
                             t.contains("stuck in a tool-calling loop")
                                 || t.contains("stuck in a response loop")
+                                || t.contains("stuck repeating yourself")
+                                || t.contains("TOPIC CHANGE")
                                 || t.contains("stuck asking clarifying questions")
                         }
                     });

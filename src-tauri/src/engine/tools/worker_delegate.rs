@@ -28,7 +28,7 @@ pub fn has_worker(app_handle: &tauri::AppHandle) -> bool {
         cfg.model_routing
             .worker_model
             .as_ref()
-            .map_or(false, |m| !m.is_empty())
+            .is_some_and(|m| !m.is_empty())
     } else {
         false
     }
