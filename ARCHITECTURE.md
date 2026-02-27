@@ -348,7 +348,7 @@ Auto-recall injects relevant memories into agent context. Auto-capture extracts 
 
 ### Tool RAG — "The Librarian Method" (`tool_index.rs`)
 
-> *Invented by Eli Bury. [Full case study →](reference/librarian-method.mdx)*
+> *[Full case study →](reference/librarian-method.mdx)*
 
 Pawz uses **Tool RAG** (Retrieval-Augmented Generation for tools) to solve the "tool bloat" problem. Instead of dumping all 25,000+ tool definitions into every LLM request, the agent discovers tools on demand via semantic search — like a library patron asking a librarian for the right book.
 
@@ -425,7 +425,7 @@ Round 3: Done ✅  (used 12 tools total, not 75)
 
 ### MCP Bridge — "The Foreman Protocol" (`mcp/`)
 
-> *Invented by Eli Bury. [Full case study →](reference/foreman-protocol.mdx)*
+> *[Full case study →](reference/foreman-protocol.mdx)*
 
 The MCP Bridge is the breakthrough that connects OpenPawz to **25,000+ integrations** via an embedded n8n engine. Instead of hard-coding tools, agents discover and execute any of n8n's community node types through the Model Context Protocol (MCP). A worker model (the "Foreman") executes all MCP tool calls using self-describing MCP schemas — any model from any provider works, with local Ollama models recommended for zero cost.
 

@@ -1,14 +1,14 @@
 # Default code owners for all files
-* @elisplash
+* @OpenPawz/core
 
 # Frontend (TypeScript)
-/src/ @elisplash
+/src/ @OpenPawz/core
 
 # Rust backend
-/src-tauri/ @elisplash
+/src-tauri/ @OpenPawz/core
 
 # CI / DevOps
-/.github/ @elisplash
+/.github/ @OpenPawz/core
 
 # Documentation
-/docs/ @elisplash
+/docs/ @OpenPawz/core

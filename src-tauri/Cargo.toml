@@ -2,7 +2,7 @@
 name = "openpawz"
 version = "0.1.0"
 description = "Multi-agent AI desktop app — 10 providers, 11 channels, hybrid memory, 10 security layers. Fully local, open source."
-authors = ["Eli Bury <eli@openpawz.com>"]
+authors = ["OpenPawz Contributors"]
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/OpenPawz/openpawz"

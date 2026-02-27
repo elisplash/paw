@@ -63,7 +63,7 @@ OpenPawz is a native Tauri v2 application with a pure Rust backend engine. It ru
 
 ## Original Research
 
-OpenPawz introduces two novel methods for scaling AI agent tool usage. Both were invented by [Eli Bury](https://github.com/OpenPawz) and are open source under the MIT License.
+OpenPawz introduces two novel methods for scaling AI agent tool usage. Both are open source under the MIT License.
 
 ### The Librarian Method — Intent-Stated Tool Discovery
 
