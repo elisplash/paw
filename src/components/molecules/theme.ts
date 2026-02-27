@@ -39,97 +39,68 @@ export function setTheme(theme: PawTheme) {
   }
   localStorage.setItem(THEME_KEY, theme);
 
-  // Update settings page label if present
-  const label = document.getElementById('theme-label');
-  if (label) {
-    const meta = THEMES.find(t => t.id === theme);
-    label.textContent = meta?.label ?? theme;
-  }
+  // Sync settings grid active state
+  updateSettingsGrid(theme);
 
-  // Sync sidebar picker swatch
-  updateSidebarPicker(theme);
+  // Sync sidebar icon
+  updateSidebarIcon(theme);
 }
 
 export function initTheme() {
   setTheme(getTheme());
 
-  // Legacy settings page toggle — treat as dark/light flip
-  document.getElementById('theme-toggle')?.addEventListener('click', () => {
+  // Build settings page theme grid (if the container exists)
+  buildSettingsGrid();
+
+  // Wire sidebar button as quick dark/light toggle
+  document.getElementById('sidebar-theme-toggle')?.addEventListener('click', () => {
     const cur = getTheme();
-    // If on a dark variant, go light; if on light/arctic, go dark
     const isLight = cur === 'light' || cur === 'arctic';
     setTheme(isLight ? 'dark' : 'light');
   });
-
-  // Build sidebar theme picker
-  buildSidebarPicker();
 }
 
-// ── Sidebar theme picker ─────────────────────────────────────────────────
+// ── Settings page theme grid ─────────────────────────────────────────────
 
-function buildSidebarPicker() {
-  const btn = document.getElementById('sidebar-theme-toggle');
-  if (!btn) return;
+/** Build the theme picker grid inside #theme-grid on the settings page. */
+export function buildSettingsGrid() {
+  const container = document.getElementById('theme-grid');
+  if (!container) return;
 
   const current = getTheme();
 
-  // Replace button innards with swatch + dropdown
-  btn.innerHTML = `
-    <span class="theme-swatch" style="background:${ACCENT_MAP[current]}"></span>
-    <span class="ms nav-icon" style="font-size:14px">expand_more</span>
-  `;
-  btn.style.position = 'relative';
-
-  // Build dropdown
-  const dropdown = document.createElement('div');
-  dropdown.className = 'theme-picker-dropdown';
-  dropdown.style.display = 'none';
-  dropdown.innerHTML = THEMES.map(t => `
-    <button class="theme-picker-item${t.id === current ? ' active' : ''}" data-theme="${t.id}">
-      <span class="theme-picker-swatch" style="background:${t.swatch};box-shadow:inset 0 0 0 1px ${ACCENT_MAP[t.id]}"></span>
-      <span class="theme-picker-label">${t.label}</span>
+  container.innerHTML = THEMES.map(t => `
+    <button class="theme-grid-item${t.id === current ? ' active' : ''}" data-theme="${t.id}">
+      <span class="theme-grid-swatch" style="background:${t.swatch};box-shadow:inset 0 0 0 2px ${ACCENT_MAP[t.id]}"></span>
+      <span class="theme-grid-label">${t.label}</span>
+      <span class="theme-grid-icon ms" style="font-size:16px">${t.icon}</span>
     </button>
   `).join('');
 
-  btn.parentElement?.appendChild(dropdown);
-
-  // Toggle dropdown on button click
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const open = dropdown.style.display !== 'none';
-    dropdown.style.display = open ? 'none' : 'flex';
-  });
-
-  // Theme selection
-  dropdown.addEventListener('click', (e) => {
-    const item = (e.target as HTMLElement).closest('.theme-picker-item') as HTMLElement | null;
+  container.addEventListener('click', (e) => {
+    const item = (e.target as HTMLElement).closest('.theme-grid-item') as HTMLElement | null;
     if (!item) return;
-    e.stopPropagation();
     const theme = item.dataset.theme as PawTheme;
     setTheme(theme);
-    dropdown.querySelectorAll('.theme-picker-item').forEach(el => el.classList.remove('active'));
-    item.classList.add('active');
-    dropdown.style.display = 'none';
-  });
-
-  // Close on outside click
-  document.addEventListener('click', () => {
-    dropdown.style.display = 'none';
   });
 }
 
-function updateSidebarPicker(theme: PawTheme) {
+function updateSettingsGrid(theme: PawTheme) {
+  const container = document.getElementById('theme-grid');
+  if (!container) return;
+  container.querySelectorAll('.theme-grid-item').forEach(el => {
+    el.classList.toggle('active', (el as HTMLElement).dataset.theme === theme);
+  });
+}
+
+// ── Sidebar icon sync ────────────────────────────────────────────────────
+
+function updateSidebarIcon(theme: PawTheme) {
   const btn = document.getElementById('sidebar-theme-toggle');
   if (!btn) return;
-  const swatch = btn.querySelector('.theme-swatch') as HTMLElement | null;
-  if (swatch) {
-    swatch.style.background = ACCENT_MAP[theme];
-  }
-  // Update active state in dropdown
-  const dropdown = btn.parentElement?.querySelector('.theme-picker-dropdown');
-  if (dropdown) {
-    dropdown.querySelectorAll('.theme-picker-item').forEach(el => {
-      el.classList.toggle('active', (el as HTMLElement).dataset.theme === theme);
-    });
+  const icon = btn.querySelector('.nav-icon');
+  if (icon) {
+    const isLight = theme === 'light' || theme === 'arctic';
+    icon.textContent = isLight ? 'light_mode' : 'dark_mode';
   }
 }
