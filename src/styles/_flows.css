@@ -459,6 +459,228 @@
   color: var(--text-muted);
 }
 
+/* ── Execution Toolbar ───────────────────────────────────────────────────── */
+
+.flow-toolbar-exec {
+  gap: 2px;
+}
+
+.flow-tb-btn-run {
+  color: var(--success, #4caf50);
+}
+
+.flow-tb-btn-run:hover {
+  background: rgba(76, 175, 80, 0.1);
+  color: var(--success, #4caf50);
+  border-color: var(--success, #4caf50);
+}
+
+.flow-tb-btn-run.active {
+  color: var(--accent);
+  animation: flowPulse 1.5s ease-in-out infinite;
+}
+
+.flow-tb-btn-danger {
+  color: var(--text-muted);
+}
+
+@keyframes flowPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ── Node Config Panel Fields ───────────────────────────────────────────── */
+
+.flow-panel-textarea {
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 8px;
+  background: var(--bg-input, var(--bg-tertiary));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--type-body);
+  font-family: var(--font-mono);
+  resize: vertical;
+}
+
+.flow-panel-textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.flow-panel-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 0;
+}
+
+.flow-panel-section-label {
+  font-size: var(--type-label);
+  font-family: var(--font-pixel);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ── Flow Report (Chat Reporter) ────────────────────────────────────────── */
+
+.flow-report {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.flow-report-header {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+
+.flow-report-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--type-body);
+}
+
+.flow-report-step-count {
+  color: var(--text-muted);
+  font-size: var(--type-label);
+  margin-left: auto;
+}
+
+.flow-report-progress {
+  margin-top: 6px;
+  height: 3px;
+  background: var(--bg-tertiary);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.flow-report-progress-bar {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.flow-report-steps {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.flow-report-step {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.04));
+}
+
+.flow-report-step:last-child {
+  border-bottom: none;
+}
+
+.flow-report-step-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--type-body);
+}
+
+.flow-report-step-status {
+  font-size: 16px;
+}
+
+.flow-report-step-icon {
+  font-size: 14px;
+}
+
+.flow-report-step-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.flow-report-step-kind {
+  color: var(--text-muted);
+  font-size: var(--type-label);
+  font-family: var(--font-mono);
+}
+
+.flow-report-step-duration {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--type-label);
+  font-family: var(--font-mono);
+}
+
+.flow-report-step-output {
+  margin-top: 4px;
+  padding: 4px 8px;
+  font-size: var(--type-label);
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.flow-report-step-output:empty {
+  display: none;
+}
+
+.flow-report-step-running {
+  background: rgba(var(--accent-rgb, 100, 100, 255), 0.04);
+}
+
+.flow-report-step-success .flow-report-step-output {
+  color: var(--text-secondary);
+}
+
+.flow-report-step-error .flow-report-step-output {
+  color: var(--error);
+}
+
+.flow-report-error {
+  color: var(--error);
+}
+
+.flow-report-summary {
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-tertiary, var(--bg-secondary));
+}
+
+.flow-report-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--type-body);
+}
+
+.flow-report-summary-duration {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--type-label);
+  font-family: var(--font-mono);
+}
+
+.flow-report-summary-stats {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: var(--type-label);
+}
+
+.flow-report-stat-ok {
+  color: var(--success);
+}
+
+.flow-report-stat-err {
+  color: var(--error);
+}
+
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
 @media (max-width: 900px) {

@@ -580,9 +580,26 @@ function clearEdgePreview() {
 
 // ── Toolbar Rendering ──────────────────────────────────────────────────────
 
-export function renderToolbar(container: HTMLElement) {
+export function renderToolbar(container: HTMLElement, runState?: { isRunning: boolean; isPaused: boolean }) {
+  const isRunning = runState?.isRunning ?? false;
+  const isPaused = runState?.isPaused ?? false;
+
   container.innerHTML = `
     <div class="flow-toolbar">
+      <div class="flow-toolbar-group flow-toolbar-exec">
+        <button class="flow-tb-btn flow-tb-btn-run${isRunning ? ' active' : ''}" data-action="run-flow" title="${isRunning ? 'Running…' : 'Run Flow'}">
+          <span class="ms">${isRunning ? 'hourglass_top' : 'play_arrow'}</span>
+        </button>
+        ${isRunning ? `
+          <button class="flow-tb-btn${isPaused ? ' active' : ''}" data-action="pause-flow" title="${isPaused ? 'Resume' : 'Pause'}">
+            <span class="ms">${isPaused ? 'play_arrow' : 'pause'}</span>
+          </button>
+          <button class="flow-tb-btn flow-tb-btn-danger" data-action="stop-flow" title="Stop">
+            <span class="ms">stop</span>
+          </button>
+        ` : ''}
+      </div>
+      <div class="flow-toolbar-divider"></div>
       <div class="flow-toolbar-group">
         <button class="flow-tb-btn" data-action="add-trigger" title="Add Trigger">
           <span class="ms">${NODE_DEFAULTS.trigger.icon}</span>
@@ -790,6 +807,79 @@ export function renderNodePanel(container: HTMLElement, node: FlowNode | null, o
   }
 
   const defaults = NODE_DEFAULTS[node.kind];
+  const config = node.config ?? {};
+  const promptVal = escAttr((config.prompt as string) ?? '');
+  const agentIdVal = escAttr((config.agentId as string) ?? '');
+  const modelVal = escAttr((config.model as string) ?? '');
+  const conditionVal = escAttr((config.conditionExpr as string) ?? '');
+  const transformVal = escAttr((config.transform as string) ?? '');
+  const outputTarget = (config.outputTarget as string) ?? 'chat';
+  const timeoutVal = (config.timeoutMs as number) ?? 120000;
+
+  // Build kind-specific config fields
+  let configFieldsHtml = '';
+
+  if (node.kind === 'agent' || node.kind === 'tool' || node.kind === 'data' || node.kind === 'trigger') {
+    configFieldsHtml += `
+      <label class="flow-panel-field">
+        <span>Prompt</span>
+        <textarea class="flow-panel-textarea" data-config="prompt" rows="3" placeholder="Instructions for this step…">${promptVal}</textarea>
+      </label>
+    `;
+  }
+
+  if (node.kind === 'agent' || node.kind === 'tool') {
+    configFieldsHtml += `
+      <label class="flow-panel-field">
+        <span>Agent ID</span>
+        <input type="text" class="flow-panel-input" data-config="agentId" value="${agentIdVal}" placeholder="default" />
+      </label>
+      <label class="flow-panel-field">
+        <span>Model</span>
+        <input type="text" class="flow-panel-input" data-config="model" value="${modelVal}" placeholder="inherit from agent" />
+      </label>
+    `;
+  }
+
+  if (node.kind === 'condition') {
+    configFieldsHtml += `
+      <label class="flow-panel-field">
+        <span>Condition</span>
+        <textarea class="flow-panel-textarea" data-config="conditionExpr" rows="2" placeholder="e.g. Does the input contain valid data?">${conditionVal}</textarea>
+      </label>
+    `;
+  }
+
+  if (node.kind === 'data') {
+    configFieldsHtml += `
+      <label class="flow-panel-field">
+        <span>Transform</span>
+        <textarea class="flow-panel-textarea" data-config="transform" rows="2" placeholder="e.g. Extract the top 3 results">${transformVal}</textarea>
+      </label>
+    `;
+  }
+
+  if (node.kind === 'output') {
+    configFieldsHtml += `
+      <label class="flow-panel-field">
+        <span>Output Target</span>
+        <select class="flow-panel-select" data-config="outputTarget">
+          ${['chat', 'log', 'store'].map((t) => `<option value="${t}"${outputTarget === t ? ' selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </label>
+    `;
+  }
+
+  // Timeout field for agent/tool/condition/data nodes
+  if (['agent', 'tool', 'condition', 'data'].includes(node.kind)) {
+    configFieldsHtml += `
+      <label class="flow-panel-field">
+        <span>Timeout (s)</span>
+        <input type="number" class="flow-panel-input" data-config="timeoutMs" value="${timeoutVal / 1000}" min="5" max="600" step="5" />
+      </label>
+    `;
+  }
+
   container.innerHTML = `
     <div class="flow-panel">
       <div class="flow-panel-header">
@@ -804,28 +894,37 @@ export function renderNodePanel(container: HTMLElement, node: FlowNode | null, o
         <span>Description</span>
         <input type="text" class="flow-panel-input" data-field="description" value="${escAttr(node.description ?? '')}" />
       </label>
-      <label class="flow-panel-field">
-        <span>Status</span>
-        <select class="flow-panel-select" data-field="status">
-          ${['idle', 'running', 'success', 'error', 'paused'].map((s) => `<option value="${s}"${node.status === s ? ' selected' : ''}>${s}</option>`).join('')}
-        </select>
-      </label>
+      ${configFieldsHtml ? `<div class="flow-panel-divider"></div><div class="flow-panel-section"><span class="flow-panel-section-label">Execution Config</span></div>${configFieldsHtml}` : ''}
+      <div class="flow-panel-divider"></div>
       <div class="flow-panel-section">
-        <span class="flow-panel-section-label">Position</span>
+        <span class="flow-panel-section-label">Info</span>
         <div class="flow-panel-pos">
-          <span>x: ${node.x}</span>
-          <span>y: ${node.y}</span>
+          <span>Status: <strong>${node.status}</strong></span>
+          <span>x: ${node.x}  y: ${node.y}</span>
           <span>${node.width}×${node.height}</span>
         </div>
       </div>
     </div>
   `;
 
-  container.querySelectorAll('.flow-panel-input, .flow-panel-select').forEach((el) => {
+  // Bind direct node fields
+  container.querySelectorAll('[data-field]').forEach((el) => {
     el.addEventListener('change', () => {
       const field = (el as HTMLElement).dataset.field!;
       const value = (el as HTMLInputElement).value;
       onUpdate({ [field]: value } as Partial<FlowNode>);
+    });
+  });
+
+  // Bind config fields — merge into node.config
+  container.querySelectorAll('[data-config]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const key = (el as HTMLElement).dataset.config!;
+      let value: unknown = (el as HTMLInputElement).value;
+      // Convert timeoutMs from seconds to ms
+      if (key === 'timeoutMs') value = Number(value) * 1000;
+      const newConfig = { ...node.config, [key]: value };
+      onUpdate({ config: newConfig });
     });
   });
 }

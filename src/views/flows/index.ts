@@ -20,6 +20,8 @@ import {
   renderNodePanel,
 } from './molecules';
 import { parseFlowText } from './parser';
+import { createFlowExecutor, type FlowExecutorController } from './executor';
+import { createFlowChatReporter, type FlowChatReporterController } from './chat-reporter';
 
 // ── Module State ───────────────────────────────────────────────────────────
 
@@ -27,6 +29,8 @@ let _graphs: FlowGraph[] = [];
 let _activeGraphId: string | null = null;
 let _selectedNodeId: string | null = null;
 let _mounted = false;
+let _executor: FlowExecutorController | null = null;
+let _reporter: FlowChatReporterController | null = null;
 
 const STORAGE_KEY = 'openpawz-flows';
 
@@ -158,11 +162,32 @@ export function setActiveFlow(id: string) {
 
 function mount() {
   const canvasContainer = el('flows-canvas');
-  const toolbarContainer = el('flows-toolbar');
   const textInput = el('flows-text-input') as HTMLInputElement | null;
 
   if (canvasContainer) mountCanvas(canvasContainer);
-  if (toolbarContainer) renderToolbar(toolbarContainer);
+
+  // Create executor
+  _executor = createFlowExecutor({
+    onEvent: (event) => {
+      _reporter?.handleEvent(event);
+      if (event.type === 'run-complete' || event.type === 'run-aborted') {
+        updateToolbar();
+      }
+    },
+    onNodeStatusChange: (nodeId, status) => {
+      const graph = _graphs.find((g) => g.id === _activeGraphId);
+      if (graph) {
+        const node = graph.nodes.find((n) => n.id === nodeId);
+        if (node) node.status = status as FlowGraph['nodes'][0]['status'];
+        renderGraph();
+      }
+    },
+    onEdgeActive: (_edgeId, _active) => {
+      renderGraph();
+    },
+  });
+
+  updateToolbar();
 
   // Text-to-flow input
   if (textInput) {
@@ -316,6 +341,87 @@ function onKeyDown(e: KeyboardEvent) {
       }
       break;
   }
+}
+
+// ── Toolbar & Execution ────────────────────────────────────────────────────
+
+function updateToolbar() {
+  const toolbarContainer = el('flows-toolbar');
+  if (!toolbarContainer) return;
+
+  const isRunning = _executor?.isRunning() ?? false;
+  const runState = _executor?.getRunState();
+  const isPaused = runState?.status === 'paused';
+
+  renderToolbar(toolbarContainer, { isRunning, isPaused });
+
+  // Wire toolbar action buttons
+  toolbarContainer.querySelectorAll('[data-action]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const action = (btn as HTMLElement).dataset.action;
+      if (action) handleToolbarAction(action);
+    });
+  });
+}
+
+function handleToolbarAction(action: string) {
+  switch (action) {
+    case 'run-flow':
+      runActiveFlow();
+      break;
+    case 'pause-flow':
+      if (_executor?.getRunState()?.status === 'paused') {
+        _executor.resume();
+      } else {
+        _executor?.pause();
+      }
+      updateToolbar();
+      break;
+    case 'stop-flow':
+      _executor?.abort();
+      updateToolbar();
+      break;
+  }
+}
+
+async function runActiveFlow() {
+  const graph = _graphs.find((g) => g.id === _activeGraphId);
+  if (!graph) {
+    const { showToast } = await import('../../components/toast');
+    showToast('No flow selected to run', 'error');
+    return;
+  }
+
+  if (!_executor) return;
+  if (_executor.isRunning()) return;
+
+  // Create a fresh chat reporter
+  _reporter?.destroy();
+  _reporter = createFlowChatReporter();
+
+  // Append reporter element into the chat messages area
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) {
+    chatMessages.appendChild(_reporter.getElement());
+    // Scroll to show the report
+    _reporter.getElement().scrollIntoView({ behavior: 'smooth' });
+  }
+
+  updateToolbar();
+
+  try {
+    await _executor.run(graph);
+  } catch (err) {
+    console.error('[flows] Execution error:', err);
+  }
+
+  // Reset node statuses to idle after run
+  for (const node of graph.nodes) {
+    node.status = 'idle';
+  }
+  renderGraph();
+  updateToolbar();
+  persist();
 }
 
 // ── Text Input (for the text-to-flow box in the UI) ────────────────────────
