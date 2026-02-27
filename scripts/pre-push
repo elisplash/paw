@@ -1,0 +1,22 @@
+#!/bin/sh
+# pre-push hook — runs prek --all-files on the file-hygiene hooks
+# before pushing, catching issues that per-file pre-commit missed.
+#
+# Installed by scripts/prepare-hooks.js
+
+set -e
+
+echo "[pre-push] Running file-hygiene checks on all files…"
+
+# Run only the fast file-hygiene hooks (not the full build/test suite)
+prek run \
+  trailing-whitespace \
+  end-of-file-fixer \
+  check-yaml \
+  check-json \
+  check-toml \
+  check-merge-conflict \
+  mixed-line-ending \
+  --all-files
+
+echo "[pre-push] All checks passed ✓"

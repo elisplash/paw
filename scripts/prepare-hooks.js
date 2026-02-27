@@ -3,7 +3,7 @@
 // Skipped in CI (no .git directory) and production installs.
 
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, copyFileSync, chmodSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = new URL("..", import.meta.url).pathname;
@@ -47,4 +47,17 @@ try {
 } catch (err) {
   console.warn("prek install failed:", err.message);
   process.exit(0); // non-fatal
+}
+
+// ── 3. Install the pre-push hook ─────────────────────────────────
+const prePushSrc = join(ROOT, "scripts", "pre-push");
+const prePushDst = join(GIT_DIR, "hooks", "pre-push");
+
+try {
+  copyFileSync(prePushSrc, prePushDst);
+  chmodSync(prePushDst, 0o755);
+  console.log("Pre-push hook installed.");
+} catch (err) {
+  console.warn("Could not install pre-push hook:", err.message);
+  // non-fatal
 }
