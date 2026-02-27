@@ -88,7 +88,10 @@ export type FlowExecEvent =
   | { type: 'step-error'; runId: string; nodeId: string; error: string; durationMs: number }
   | { type: 'run-complete'; runId: string; status: FlowStatus; totalDurationMs: number; outputLog: FlowOutputEntry[] }
   | { type: 'run-paused'; runId: string; stepIndex: number }
-  | { type: 'run-aborted'; runId: string };
+  | { type: 'run-aborted'; runId: string }
+  | { type: 'debug-cursor'; runId: string; nodeId: string; stepIndex: number }
+  | { type: 'debug-breakpoint-hit'; runId: string; nodeId: string; stepIndex: number }
+  | { type: 'debug-edge-value'; runId: string; edgeId: string; value: string };
 
 // ── Execution Plan Builder ─────────────────────────────────────────────────
 

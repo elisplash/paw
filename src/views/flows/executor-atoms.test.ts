@@ -316,3 +316,81 @@ describe('summarizeRun', () => {
     expect(summary).toContain('Research');
   });
 });
+
+// ── Debug Mode Tests ─────────────────────────────────────────────────────
+
+describe('debug event types', () => {
+  it('debug-cursor event has correct shape', () => {
+    const event: import('./executor-atoms').FlowExecEvent = {
+      type: 'debug-cursor',
+      runId: 'run_1',
+      nodeId: 'node_1',
+      stepIndex: 0,
+    };
+    expect(event.type).toBe('debug-cursor');
+    expect(event.nodeId).toBe('node_1');
+    expect(event.stepIndex).toBe(0);
+  });
+
+  it('debug-breakpoint-hit event has correct shape', () => {
+    const event: import('./executor-atoms').FlowExecEvent = {
+      type: 'debug-breakpoint-hit',
+      runId: 'run_1',
+      nodeId: 'node_2',
+      stepIndex: 1,
+    };
+    expect(event.type).toBe('debug-breakpoint-hit');
+  });
+
+  it('debug-edge-value event has correct shape', () => {
+    const event: import('./executor-atoms').FlowExecEvent = {
+      type: 'debug-edge-value',
+      runId: 'run_1',
+      edgeId: 'edge_1',
+      value: 'Hello world',
+    };
+    expect(event.type).toBe('debug-edge-value');
+    expect(event.value).toBe('Hello world');
+  });
+});
+
+describe('createFlowRunState for debug', () => {
+  it('starts with idle status and step 0', () => {
+    const g = linearGraph();
+    const plan = buildExecutionPlan(g);
+    const state = createFlowRunState(g.id, plan);
+    expect(state.status).toBe('idle');
+    expect(state.currentStep).toBe(0);
+    expect(state.plan).toHaveLength(4);
+  });
+
+  it('nodeStates map supports input/output inspection', () => {
+    const g = linearGraph();
+    const plan = buildExecutionPlan(g);
+    const state = createFlowRunState(g.id, plan);
+
+    const ns = createNodeRunState(plan[0]);
+    ns.input = 'test input';
+    ns.output = 'test output';
+    ns.status = 'success';
+    state.nodeStates.set(plan[0], ns);
+
+    const retrieved = state.nodeStates.get(plan[0]);
+    expect(retrieved?.input).toBe('test input');
+    expect(retrieved?.output).toBe('test output');
+    expect(retrieved?.status).toBe('success');
+  });
+
+  it('plan preserves order for step-by-step traversal', () => {
+    const g = linearGraph();
+    const plan = buildExecutionPlan(g);
+    // Trigger → Research → Summarize → Report
+    expect(plan[0]).toBe(g.nodes[0].id); // trigger
+    expect(plan[plan.length - 1]).toBe(g.nodes[3].id); // output
+    // Each step can be iterated individually
+    for (let i = 0; i < plan.length; i++) {
+      const node = g.nodes.find((n) => n.id === plan[i]);
+      expect(node).toBeDefined();
+    }
+  });
+});

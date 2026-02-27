@@ -39,6 +39,10 @@ export interface FlowExecutorCallbacks {
 export interface FlowExecutorController {
   /** Start executing the active flow */
   run: (graph: FlowGraph, defaultAgentId?: string) => Promise<FlowRunState>;
+  /** Initialize debug mode without executing (sets up plan + cursor at step 0) */
+  startDebug: (graph: FlowGraph, defaultAgentId?: string) => void;
+  /** Execute only the next node in the plan (debug mode) */
+  stepNext: () => Promise<void>;
   /** Pause execution after current step completes */
   pause: () => void;
   /** Resume a paused execution */
@@ -47,8 +51,18 @@ export interface FlowExecutorController {
   abort: () => void;
   /** Whether a flow is currently running */
   isRunning: () => boolean;
+  /** Whether the executor is in debug/step mode */
+  isDebugMode: () => boolean;
   /** Get the current run state */
   getRunState: () => FlowRunState | null;
+  /** Get the next node ID to be executed (debug cursor) */
+  getNextNodeId: () => string | null;
+  /** Toggle a breakpoint on a node */
+  toggleBreakpoint: (nodeId: string) => void;
+  /** Get the set of breakpoint node IDs */
+  getBreakpoints: () => ReadonlySet<string>;
+  /** Get data values flowing on edges (edge ID → truncated value) */
+  getEdgeValues: () => ReadonlyMap<string, string>;
 }
 
 // ── Factory ────────────────────────────────────────────────────────────────
@@ -59,9 +73,16 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
   let _paused = false;
   let _pauseResolve: (() => void) | null = null;
   let _running = false;
+  let _debugMode = false;
+  let _debugGraph: FlowGraph | null = null;
+  let _debugAgentId: string | undefined;
 
   // Nodes that should be skipped (e.g. due to condition branching)
   let _skipNodes = new Set<string>();
+  // Breakpoints — node IDs where execution should auto-pause
+  const _breakpoints = new Set<string>();
+  // Edge data values — edge ID → value flowing through (debug inspection)
+  const _edgeValues = new Map<string, string>();
 
   async function run(graph: FlowGraph, defaultAgentId?: string): Promise<FlowRunState> {
     // Validate
@@ -117,11 +138,25 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
       // Skip nodes that were excluded by condition branching
       if (_skipNodes.has(nodeId)) continue;
 
+      // Breakpoint check — auto-pause before executing this node
+      if (_breakpoints.has(nodeId) && i > 0) {
+        _paused = true;
+        _runState.status = 'paused';
+        callbacks.onEvent({ type: 'debug-breakpoint-hit', runId: _runState.runId, nodeId, stepIndex: i });
+        callbacks.onEvent({ type: 'debug-cursor', runId: _runState.runId, nodeId, stepIndex: i });
+        await new Promise<void>((resolve) => { _pauseResolve = resolve; });
+        _runState.status = 'running';
+        _paused = false;
+      }
+
       _runState.currentStep = i;
       const node = graph.nodes.find((n) => n.id === nodeId);
       if (!node) continue;
 
       await executeNode(graph, node, defaultAgentId);
+
+      // Record edge values for debug inspection
+      recordEdgeValues(graph, nodeId);
     }
 
     // Finalize
@@ -434,6 +469,187 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
     }
   }
 
+  /**
+   * Record the data value flowing on outgoing edges from a completed node.
+   * Used for debug visualization of data on edges.
+   */
+  function recordEdgeValues(graph: FlowGraph, nodeId: string): void {
+    if (!_runState) return;
+    const nodeState = _runState.nodeStates.get(nodeId);
+    if (!nodeState?.output) return;
+
+    const truncatedValue = nodeState.output.length > 80
+      ? `${nodeState.output.slice(0, 77)}…`
+      : nodeState.output;
+
+    const outEdges = graph.edges.filter((e) => e.from === nodeId);
+    for (const edge of outEdges) {
+      _edgeValues.set(edge.id, truncatedValue);
+      callbacks.onEvent({
+        type: 'debug-edge-value',
+        runId: _runState.runId,
+        edgeId: edge.id,
+        value: truncatedValue,
+      });
+    }
+  }
+
+  // ── Debug Mode ─────────────────────────────────────────────────────────
+
+  /**
+   * Initialize debug/step mode. Sets up the execution plan and places
+   * the cursor at step 0 without executing anything.
+   */
+  function startDebug(graph: FlowGraph, defaultAgentId?: string): void {
+    const errors = validateFlowForExecution(graph);
+    const blocking = errors.filter((e) => e.message.includes('no nodes'));
+    if (blocking.length > 0) {
+      showToast(blocking[0].message, 'error');
+      return;
+    }
+
+    const plan = buildExecutionPlan(graph);
+    _runState = createFlowRunState(graph.id, plan);
+    _aborted = false;
+    _paused = false;
+    _running = false;
+    _debugMode = true;
+    _debugGraph = graph;
+    _debugAgentId = defaultAgentId;
+    _skipNodes = new Set();
+    _edgeValues.clear();
+
+    _runState.startedAt = Date.now();
+    _runState.status = 'paused';
+    _runState.currentStep = 0;
+
+    // Mark all nodes idle
+    for (const node of graph.nodes) {
+      node.status = 'idle';
+      callbacks.onNodeStatusChange(node.id, 'idle');
+    }
+
+    callbacks.onEvent({
+      type: 'run-start',
+      runId: _runState.runId,
+      graphName: graph.name,
+      totalSteps: plan.length,
+    });
+
+    // Emit cursor for the first executable node
+    const firstNodeId = findNextExecutableNode(0);
+    if (firstNodeId) {
+      callbacks.onEvent({
+        type: 'debug-cursor',
+        runId: _runState.runId,
+        nodeId: firstNodeId,
+        stepIndex: 0,
+      });
+    }
+  }
+
+  /**
+   * Find the next non-skipped node starting from stepIndex.
+   */
+  function findNextExecutableNode(fromIndex: number): string | null {
+    if (!_runState) return null;
+    for (let i = fromIndex; i < _runState.plan.length; i++) {
+      const nodeId = _runState.plan[i];
+      if (!_skipNodes.has(nodeId)) return nodeId;
+    }
+    return null;
+  }
+
+  /**
+   * Execute exactly one node in the plan (debug step).
+   * Advances the cursor after completion.
+   */
+  async function stepNext(): Promise<void> {
+    if (!_runState || !_debugMode || !_debugGraph) return;
+    if (_runState.currentStep >= _runState.plan.length) return;
+
+    _running = true;
+    _runState.status = 'running';
+
+    // Find next executable node
+    let stepIdx = _runState.currentStep;
+    while (stepIdx < _runState.plan.length && _skipNodes.has(_runState.plan[stepIdx])) {
+      stepIdx++;
+    }
+
+    if (stepIdx >= _runState.plan.length) {
+      // All remaining nodes are skipped — finalize
+      finalizeDebugRun();
+      return;
+    }
+
+    const nodeId = _runState.plan[stepIdx];
+    const node = _debugGraph.nodes.find((n) => n.id === nodeId);
+    if (!node) {
+      _runState.currentStep = stepIdx + 1;
+      _running = false;
+      _runState.status = 'paused';
+      return;
+    }
+
+    _runState.currentStep = stepIdx;
+    await executeNode(_debugGraph, node, _debugAgentId);
+    recordEdgeValues(_debugGraph, nodeId);
+
+    // Advance cursor
+    _runState.currentStep = stepIdx + 1;
+    _running = false;
+    _runState.status = 'paused';
+
+    // Check if there are more nodes
+    const nextId = findNextExecutableNode(_runState.currentStep);
+    if (nextId) {
+      callbacks.onEvent({
+        type: 'debug-cursor',
+        runId: _runState.runId,
+        nodeId: nextId,
+        stepIndex: _runState.currentStep,
+      });
+    } else {
+      // Done
+      finalizeDebugRun();
+    }
+  }
+
+  function finalizeDebugRun(): void {
+    if (!_runState) return;
+    _runState.finishedAt = Date.now();
+    _runState.totalDurationMs = _runState.finishedAt - _runState.startedAt;
+    _runState.status = 'success';
+    _running = false;
+    _debugMode = false;
+
+    callbacks.onEvent({
+      type: 'run-complete',
+      runId: _runState.runId,
+      status: _runState.status,
+      totalDurationMs: _runState.totalDurationMs,
+      outputLog: _runState.outputLog,
+    });
+  }
+
+  function getNextNodeId(): string | null {
+    if (!_runState || !_debugMode) return null;
+    return findNextExecutableNode(_runState.currentStep);
+  }
+
+  // ── Breakpoints ────────────────────────────────────────────────────────
+
+  function toggleBreakpoint(nodeId: string): void {
+    if (_breakpoints.has(nodeId)) {
+      _breakpoints.delete(nodeId);
+    } else {
+      _breakpoints.add(nodeId);
+    }
+  }
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────
+
   function pause(): void {
     _paused = true;
   }
@@ -449,6 +665,8 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
   function abort(): void {
     _aborted = true;
     _paused = false;
+    _debugMode = false;
+    _debugGraph = null;
     if (_pauseResolve) {
       _pauseResolve();
       _pauseResolve = null;
@@ -457,10 +675,17 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
 
   return {
     run,
+    startDebug,
+    stepNext,
     pause,
     resume,
     abort,
     isRunning: () => _running,
+    isDebugMode: () => _debugMode,
     getRunState: () => _runState,
+    getNextNodeId,
+    toggleBreakpoint,
+    getBreakpoints: () => _breakpoints,
+    getEdgeValues: () => _edgeValues,
   };
 }

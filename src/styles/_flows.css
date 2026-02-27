@@ -1123,3 +1123,173 @@
     max-height: 200px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Phase 3: Debug Mode — Step-by-step execution UI
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Breakpoint Indicator ───────────────────────────────────────────────── */
+
+.flow-node-bp-dot {
+  filter: drop-shadow(0 0 3px var(--kinetic-red, #FF4D4D));
+  animation: k-bp-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes k-bp-pulse {
+  0%, 100% { r: 5; opacity: 1; }
+  50% { r: 6; opacity: 0.7; }
+}
+
+.flow-node-breakpoint .flow-node-body {
+  stroke-dasharray: 4 2;
+}
+
+/* ── Execution Cursor ───────────────────────────────────────────────────── */
+
+.flow-node-cursor-ring {
+  animation: k-cursor-breathe 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes k-cursor-breathe {
+  0%, 100% {
+    stroke-opacity: 1;
+    stroke-width: 2;
+  }
+  50% {
+    stroke-opacity: 0.5;
+    stroke-width: 3;
+  }
+}
+
+.flow-node-cursor .flow-node-body {
+  stroke: var(--kinetic-gold, #D4A853) !important;
+  stroke-width: 2 !important;
+}
+
+/* ── Debug Toolbar Buttons ──────────────────────────────────────────────── */
+
+.flow-tb-btn-debug {
+  color: var(--kinetic-gold, #D4A853) !important;
+}
+
+.flow-tb-btn-debug.active {
+  background: rgba(212, 168, 83, 0.15);
+  color: var(--kinetic-gold, #D4A853) !important;
+  border-color: var(--kinetic-gold, #D4A853);
+}
+
+.flow-tb-btn-step {
+  color: var(--kinetic-sage, #8FB0A0) !important;
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
+}
+
+.flow-tb-btn-step:hover {
+  background: rgba(143, 176, 160, 0.15);
+}
+
+/* ── Edge Data Values ───────────────────────────────────────────────────── */
+
+.flow-edge-value-bg {
+  animation: k-edge-value-in 0.3s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+}
+
+.flow-edge-value-text {
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
+  animation: k-edge-value-in 0.3s var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+  animation-delay: 0.05s;
+}
+
+@keyframes k-edge-value-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Debug Inspector Panel ──────────────────────────────────────────────── */
+
+.flow-debug-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.flow-debug-badge-success {
+  background: rgba(143, 176, 160, 0.15);
+  color: var(--kinetic-sage, #8FB0A0);
+  border: 1px solid var(--kinetic-sage, #8FB0A0);
+}
+
+.flow-debug-badge-running {
+  background: rgba(255, 77, 77, 0.15);
+  color: var(--kinetic-red, #FF4D4D);
+  border: 1px solid var(--kinetic-red, #FF4D4D);
+  animation: k-breathe-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes k-breathe-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 77, 77, 0.2); }
+  50% { box-shadow: 0 0 8px rgba(255, 77, 77, 0.5); }
+}
+
+.flow-debug-badge-error {
+  background: rgba(255, 77, 77, 0.15);
+  color: var(--kinetic-red, #FF4D4D);
+  border: 1px solid var(--kinetic-red, #FF4D4D);
+}
+
+.flow-debug-badge-idle {
+  background: rgba(122, 139, 154, 0.15);
+  color: var(--kinetic-steel, #7A8B9A);
+  border: 1px solid var(--kinetic-steel, #7A8B9A);
+}
+
+.flow-debug-badge-paused {
+  background: rgba(212, 168, 83, 0.15);
+  color: var(--kinetic-gold, #D4A853);
+  border: 1px solid var(--kinetic-gold, #D4A853);
+}
+
+.flow-panel-debug-status {
+  margin-bottom: 4px;
+}
+
+.flow-panel-debug-block {
+  margin-bottom: 8px;
+}
+
+.flow-panel-debug-label {
+  display: block;
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 3px;
+}
+
+.flow-panel-debug-pre {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+  margin: 0;
+  line-height: 1.5;
+}

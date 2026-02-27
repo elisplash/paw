@@ -22,6 +22,7 @@ import {
   renderNodePanel,
   renderTemplateBrowser,
   markNodeNew,
+  setDebugState,
 } from './molecules';
 import { parseFlowText } from './parser';
 import { FLOW_TEMPLATES } from './templates';
@@ -185,10 +186,12 @@ function mount() {
       if (graph) {
         const node = graph.nodes.find((n) => n.id === nodeId);
         if (node) node.status = status as FlowGraph['nodes'][0]['status'];
+        syncDebugState();
         renderGraph();
       }
     },
     onEdgeActive: (_edgeId, _active) => {
+      syncDebugState();
       renderGraph();
     },
   });
@@ -214,6 +217,15 @@ function mount() {
     _selectedNodeId = e.detail.nodeId;
     updateNodePanel();
     renderGraph();
+  }) as EventListener);
+
+  // Breakpoint toggle (Shift+click on canvas nodes)
+  document.addEventListener('flow:toggle-breakpoint', ((e: CustomEvent) => {
+    if (_executor) {
+      _executor.toggleBreakpoint(e.detail.nodeId);
+      syncDebugState();
+      renderGraph();
+    }
   }) as EventListener);
 
   // Keyboard shortcuts
@@ -400,8 +412,9 @@ function updateToolbar() {
   const isRunning = _executor?.isRunning() ?? false;
   const runState = _executor?.getRunState();
   const isPaused = runState?.status === 'paused';
+  const isDebug = _executor?.isDebugMode() ?? false;
 
-  renderToolbar(toolbarContainer, { isRunning, isPaused });
+  renderToolbar(toolbarContainer, { isRunning, isPaused, isDebug });
 
   // Wire toolbar action buttons
   toolbarContainer.querySelectorAll('[data-action]').forEach((btn) => {
@@ -417,6 +430,12 @@ function handleToolbarAction(action: string) {
     case 'run-flow':
       runActiveFlow();
       break;
+    case 'debug-flow':
+      startDebugMode();
+      break;
+    case 'step-next':
+      debugStepNext();
+      break;
     case 'pause-flow':
       if (_executor?.getRunState()?.status === 'paused') {
         _executor.resume();
@@ -427,7 +446,9 @@ function handleToolbarAction(action: string) {
       break;
     case 'stop-flow':
       _executor?.abort();
+      syncDebugState();
       updateToolbar();
+      renderGraph();
       break;
   }
 }
@@ -467,9 +488,85 @@ async function runActiveFlow() {
   for (const node of graph.nodes) {
     node.status = 'idle';
   }
+  syncDebugState();
   renderGraph();
   updateToolbar();
   persist();
+}
+
+// ── Debug Mode ─────────────────────────────────────────────────────────────
+
+async function startDebugMode() {
+  const graph = _graphs.find((g) => g.id === _activeGraphId);
+  if (!graph) {
+    const { showToast } = await import('../../components/toast');
+    showToast('No flow selected to debug', 'error');
+    return;
+  }
+
+  if (!_executor) return;
+  if (_executor.isRunning() || _executor.isDebugMode()) return;
+
+  // Create a fresh chat reporter for debug session
+  _reporter?.destroy();
+  _reporter = createFlowChatReporter();
+
+  const chatMessages = document.getElementById('chat-messages');
+  if (chatMessages) {
+    chatMessages.appendChild(_reporter.getElement());
+    _reporter.getElement().scrollIntoView({ behavior: 'smooth' });
+  }
+
+  _executor.startDebug(graph);
+  syncDebugState();
+  renderGraph();
+  updateToolbar();
+}
+
+async function debugStepNext() {
+  if (!_executor || !_executor.isDebugMode()) return;
+
+  await _executor.stepNext();
+  syncDebugState();
+  renderGraph();
+  updateToolbar();
+  updateNodePanel();
+}
+
+/**
+ * Synchronize debug state from the executor to molecules for rendering.
+ * This pushes breakpoints, cursor position, edge values, and node
+ * execution states into the molecules layer.
+ */
+function syncDebugState() {
+  if (!_executor) {
+    setDebugState({
+      breakpoints: new Set(),
+      cursorNodeId: null,
+      edgeValues: new Map(),
+    });
+    return;
+  }
+
+  // Build node states map for the debug inspector
+  const debugNodeStates = new Map<string, { input: string; output: string; status: string }>();
+  const runState = _executor.getRunState();
+  if (runState) {
+    for (const [nodeId, ns] of runState.nodeStates) {
+      debugNodeStates.set(nodeId, {
+        input: ns.input,
+        output: ns.output,
+        status: ns.status,
+      });
+    }
+  }
+
+  setDebugState({
+    breakpoints: _executor.getBreakpoints(),
+    cursorNodeId: _executor.getNextNodeId(),
+    edgeValues: _executor.getEdgeValues(),
+    nodeStates: debugNodeStates,
+  });
 }
 
 // ── Text Input (for the text-to-flow box in the UI) ────────────────────────

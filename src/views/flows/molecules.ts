@@ -76,6 +76,25 @@ export function markNodeNew(id: string) {
   _newNodeIds.add(id);
 }
 
+// Debug mode state (set by index.ts)
+let _breakpoints: ReadonlySet<string> = new Set();
+let _debugCursorNodeId: string | null = null;
+let _edgeValues: ReadonlyMap<string, string> = new Map();
+let _debugNodeStates: Map<string, { input: string; output: string; status: string }> = new Map();
+
+/** Update debug visuals from index.ts */
+export function setDebugState(opts: {
+  breakpoints: ReadonlySet<string>;
+  cursorNodeId: string | null;
+  edgeValues: ReadonlyMap<string, string>;
+  nodeStates?: Map<string, { input: string; output: string; status: string }>;
+}) {
+  _breakpoints = opts.breakpoints;
+  _debugCursorNodeId = opts.cursorNodeId;
+  _edgeValues = opts.edgeValues;
+  if (opts.nodeStates) _debugNodeStates = opts.nodeStates;
+}
+
 // ── Mount / Unmount ────────────────────────────────────────────────────────
 
 export function mountCanvas(container: HTMLElement) {
@@ -211,7 +230,9 @@ export function renderGraph() {
 function renderNode(node: FlowNode, selected: boolean): SVGGElement {
   const g = svgEl('g') as SVGGElement;
   const isNew = _newNodeIds.has(node.id);
-  g.setAttribute('class', `flow-node flow-node-${node.kind}${selected ? ' flow-node-selected' : ''}${node.status !== 'idle' ? ` flow-node-${node.status}` : ''}${isNew ? ' flow-node-new' : ''}`);
+  const hasBreakpoint = _breakpoints.has(node.id);
+  const isCursor = _debugCursorNodeId === node.id;
+  g.setAttribute('class', `flow-node flow-node-${node.kind}${selected ? ' flow-node-selected' : ''}${node.status !== 'idle' ? ` flow-node-${node.status}` : ''}${isNew ? ' flow-node-new' : ''}${hasBreakpoint ? ' flow-node-breakpoint' : ''}${isCursor ? ' flow-node-cursor' : ''}`);
   g.setAttribute('data-node-id', node.id);
   g.setAttribute('transform', `translate(${node.x}, ${node.y})`);
   // Set CSS custom properties for materialise animation
@@ -292,6 +313,32 @@ function renderNode(node: FlowNode, selected: boolean): SVGGElement {
     halftone.setAttribute('pointer-events', 'none');
     g.appendChild(halftone);
     g.classList.add('flow-node-executing');
+  }
+
+  // Breakpoint indicator — red dot on the left edge
+  if (hasBreakpoint) {
+    const bpDot = svgEl('circle');
+    bpDot.setAttribute('class', 'flow-node-bp-dot');
+    bpDot.setAttribute('cx', '-4');
+    bpDot.setAttribute('cy', String(node.height / 2));
+    bpDot.setAttribute('r', '5');
+    bpDot.setAttribute('fill', 'var(--kinetic-red, #FF4D4D)');
+    g.appendChild(bpDot);
+  }
+
+  // Execution cursor — pulsing border ring when this is the next node
+  if (isCursor) {
+    const cursorRing = svgEl('rect');
+    cursorRing.setAttribute('class', 'flow-node-cursor-ring');
+    cursorRing.setAttribute('x', '-3');
+    cursorRing.setAttribute('y', '-3');
+    cursorRing.setAttribute('width', String(node.width + 6));
+    cursorRing.setAttribute('height', String(node.height + 6));
+    cursorRing.setAttribute('rx', '8');
+    cursorRing.setAttribute('fill', 'none');
+    cursorRing.setAttribute('stroke', 'var(--kinetic-gold, #D4A853)');
+    cursorRing.setAttribute('stroke-width', '2');
+    g.appendChild(cursorRing);
   }
 
   // Kind icon (left side)
@@ -443,6 +490,37 @@ function renderEdge(edge: FlowEdge, fromNode: FlowNode, toNode: FlowNode): SVGGE
     g.appendChild(labelText);
   }
 
+  // Debug: data value on edge (shown when executor has recorded values)
+  const edgeValue = _edgeValues.get(edge.id);
+  if (edgeValue) {
+    const mid = { x: (fromPt.x + toPt.x) / 2, y: (fromPt.y + toPt.y) / 2 + (edge.label ? 12 : 0) };
+    const truncVal = edgeValue.length > 40 ? `${edgeValue.slice(0, 37)}…` : edgeValue;
+
+    const valBg = svgEl('rect');
+    valBg.setAttribute('class', 'flow-edge-value-bg');
+    valBg.setAttribute('x', String(mid.x - 70));
+    valBg.setAttribute('y', String(mid.y - 6));
+    valBg.setAttribute('width', '140');
+    valBg.setAttribute('height', '14');
+    valBg.setAttribute('rx', '3');
+    valBg.setAttribute('fill', 'var(--bg-tertiary, var(--bg-secondary))');
+    valBg.setAttribute('stroke', 'var(--kinetic-gold, #D4A853)');
+    valBg.setAttribute('stroke-width', '0.5');
+    valBg.setAttribute('opacity', '0.9');
+    g.appendChild(valBg);
+
+    const valText = svgEl('text');
+    valText.setAttribute('class', 'flow-edge-value-text');
+    valText.setAttribute('x', String(mid.x));
+    valText.setAttribute('y', String(mid.y + 1));
+    valText.setAttribute('text-anchor', 'middle');
+    valText.setAttribute('dominant-baseline', 'central');
+    valText.setAttribute('fill', 'var(--kinetic-gold, #D4A853)');
+    valText.setAttribute('font-size', '8');
+    valText.textContent = truncVal;
+    g.appendChild(valText);
+  }
+
   return g;
 }
 
@@ -486,6 +564,13 @@ function onMouseDown(e: MouseEvent) {
   // Check for node hit (start drag)
   const node = hitTestNode(graph, pt.x, pt.y);
   if (node) {
+    // Shift+click toggles breakpoint
+    if (e.shiftKey) {
+      const event = new CustomEvent('flow:toggle-breakpoint', { detail: { nodeId: node.id } });
+      document.dispatchEvent(event);
+      e.preventDefault();
+      return;
+    }
     _state.setSelectedNodeId(node.id);
     _dragging = { nodeId: node.id, offsetX: pt.x - node.x, offsetY: pt.y - node.y };
     renderGraph();
@@ -638,9 +723,10 @@ function clearEdgePreview() {
 
 // ── Toolbar Rendering ──────────────────────────────────────────────────────
 
-export function renderToolbar(container: HTMLElement, runState?: { isRunning: boolean; isPaused: boolean }) {
+export function renderToolbar(container: HTMLElement, runState?: { isRunning: boolean; isPaused: boolean; isDebug?: boolean }) {
   const isRunning = runState?.isRunning ?? false;
   const isPaused = runState?.isPaused ?? false;
+  const isDebug = runState?.isDebug ?? false;
 
   container.innerHTML = `
     <div class="flow-toolbar">
@@ -648,7 +734,15 @@ export function renderToolbar(container: HTMLElement, runState?: { isRunning: bo
         <button class="flow-tb-btn flow-tb-btn-run${isRunning ? ' active' : ''}" data-action="run-flow" title="${isRunning ? 'Running…' : 'Run Flow'}">
           <span class="ms">${isRunning ? 'hourglass_top' : 'play_arrow'}</span>
         </button>
-        ${isRunning ? `
+        <button class="flow-tb-btn flow-tb-btn-debug${isDebug ? ' active' : ''}" data-action="debug-flow" title="${isDebug ? 'Debugging…' : 'Debug (Step-by-Step)'}">
+          <span class="ms">bug_report</span>
+        </button>
+        ${isDebug ? `
+          <button class="flow-tb-btn flow-tb-btn-step" data-action="step-next" title="Step to Next Node">
+            <span class="ms">skip_next</span>
+          </button>
+        ` : ''}
+        ${isRunning || isDebug ? `
           <button class="flow-tb-btn${isPaused ? ' active' : ''}" data-action="pause-flow" title="${isPaused ? 'Resume' : 'Pause'}">
             <span class="ms">${isPaused ? 'play_arrow' : 'pause'}</span>
           </button>
@@ -939,6 +1033,30 @@ export function renderNodePanel(container: HTMLElement, node: FlowNode | null, o
     `;
   }
 
+  // Build debug output inspector if node has execution state
+  const debugState = _debugNodeStates.get(node.id);
+  const debugHtml = debugState ? `
+    <div class="flow-panel-divider"></div>
+    <div class="flow-panel-section">
+      <span class="flow-panel-section-label">Debug Inspector</span>
+      <div class="flow-panel-debug-status">
+        <span class="flow-debug-badge flow-debug-badge-${debugState.status}">${debugState.status.toUpperCase()}</span>
+      </div>
+      ${debugState.input ? `
+        <div class="flow-panel-debug-block">
+          <span class="flow-panel-debug-label">Input</span>
+          <pre class="flow-panel-debug-pre">${escAttr(debugState.input)}</pre>
+        </div>
+      ` : ''}
+      ${debugState.output ? `
+        <div class="flow-panel-debug-block">
+          <span class="flow-panel-debug-label">Output</span>
+          <pre class="flow-panel-debug-pre">${escAttr(debugState.output)}</pre>
+        </div>
+      ` : ''}
+    </div>
+  ` : '';
+
   container.innerHTML = `
     <div class="flow-panel">
       <div class="flow-panel-header">
@@ -963,6 +1081,7 @@ export function renderNodePanel(container: HTMLElement, node: FlowNode | null, o
           <span>${node.width}×${node.height}</span>
         </div>
       </div>
+      ${debugHtml}
     </div>
   `;
 
