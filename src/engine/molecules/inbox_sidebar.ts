@@ -242,7 +242,7 @@ export function createInboxSidebar(
 
 function card(title: string, withBorder: boolean, icon?: string): HTMLElement {
   const el = document.createElement('div');
-  el.className = 'inbox-sidebar-card' + (withBorder ? ' inbox-sidebar-card-bordered' : '');
+  el.className = `inbox-sidebar-card${withBorder ? ' inbox-sidebar-card-bordered' : ''}`;
   if (title) {
     const header = document.createElement('div');
     header.className = 'inbox-sidebar-card-header';

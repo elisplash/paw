@@ -107,7 +107,7 @@ export function truncatePreview(content: string, maxLen = 60): string {
   // Cut at word boundary
   const cut = cleaned.slice(0, maxLen);
   const lastSpace = cut.lastIndexOf(' ');
-  return (lastSpace > maxLen * 0.6 ? cut.slice(0, lastSpace) : cut) + '…';
+  return `${lastSpace > maxLen * 0.6 ? cut.slice(0, lastSpace) : cut}…`;
 }
 
 /** Format a timestamp as a relative string ("2m", "1h", "Yesterday", "Jan 15"). */

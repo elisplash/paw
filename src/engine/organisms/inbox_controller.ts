@@ -375,7 +375,7 @@ async function handleRename(): Promise<void> {
     if (session) session.label = name;
     showToast('Session renamed', 'success');
     refreshConversationList();
-  } catch (e) {
+  } catch {
     showToast('Rename failed', 'error');
   }
 }
@@ -393,7 +393,7 @@ async function handleDelete(): Promise<void> {
     _thread?.showEmpty();
     showToast('Session deleted', 'success');
     refreshConversationList();
-  } catch (e) {
+  } catch {
     showToast('Delete failed', 'error');
   }
 }
@@ -410,7 +410,7 @@ async function handleClear(): Promise<void> {
     resetTokenMeter();
     showToast('History cleared', 'success');
     refreshConversationList();
-  } catch (e) {
+  } catch {
     showToast('Clear failed', 'error');
   }
 }
@@ -422,7 +422,7 @@ async function handleCompact(): Promise<void> {
     await pawEngine.sessionCompact(key);
     showToast('Session compacted', 'success');
     await loadChatHistory(key);
-  } catch (e) {
+  } catch {
     showToast('Compact failed', 'error');
   }
 }
