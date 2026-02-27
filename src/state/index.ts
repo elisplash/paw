@@ -258,3 +258,26 @@ export function persistAgentSessionMap(): void {
     /* ignore */
   }
 }
+
+// ── Per-session group metadata ─────────────────────────────────────────────
+// Persisted to localStorage so group kind/members survive loadSessions overwrites.
+export interface GroupMeta { name: string; members: string[]; kind: 'group' }
+
+export const groupSessionMap: Map<string, GroupMeta> = (() => {
+  try {
+    const stored = localStorage.getItem('paw_group_sessions');
+    return stored
+      ? new Map<string, GroupMeta>(JSON.parse(stored) as [string, GroupMeta][])
+      : new Map<string, GroupMeta>();
+  } catch {
+    return new Map<string, GroupMeta>();
+  }
+})();
+
+export function persistGroupSessionMap(): void {
+  try {
+    localStorage.setItem('paw_group_sessions', JSON.stringify([...groupSessionMap.entries()]));
+  } catch {
+    /* ignore */
+  }
+}

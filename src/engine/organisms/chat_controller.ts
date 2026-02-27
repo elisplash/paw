@@ -9,6 +9,8 @@ import {
   appState,
   agentSessionMap,
   persistAgentSessionMap,
+  groupSessionMap,
+  persistGroupSessionMap,
   MODEL_COST_PER_TOKEN,
   createStreamState,
   sweepStaleStreams,
@@ -479,6 +481,19 @@ function handleSendResult(
         s.label = gm.name;
         s.displayName = gm.name;
       }
+
+      // Remove any pending-group placeholder session
+      const pendingIdx = appState.sessions.findIndex((s2) => s2.key.startsWith('pending-group_'));
+      if (pendingIdx >= 0) {
+        const pendingKey = appState.sessions[pendingIdx].key;
+        appState.sessions.splice(pendingIdx, 1);
+        groupSessionMap.delete(pendingKey);
+      }
+
+      // Persist group metadata under the real session key
+      groupSessionMap.set(result.sessionKey, { name: gm.name, members: gm.members, kind: 'group' });
+      persistGroupSessionMap();
+
       // Auto-label with group name
       pawEngine.sessionRename(result.sessionKey, gm.name).catch(() => {});
       appState._pendingGroupMeta = null;

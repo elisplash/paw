@@ -5,7 +5,7 @@
 // Reads session/agent state from appState and the pawEngine IPC.
 
 import { pawEngine } from '../../engine';
-import { appState, agentSessionMap, persistAgentSessionMap } from '../../state/index';
+import { appState, agentSessionMap, persistAgentSessionMap, groupSessionMap, persistGroupSessionMap } from '../../state/index';
 import { showToast } from '../../components/toast';
 import { confirmModal, promptModal } from '../../components/helpers';
 import * as AgentsModule from '../../views/agents';
@@ -430,72 +430,60 @@ async function handleNewGroup(): Promise<void> {
         return;
       }
 
-      // Create a new group session immediately
       const memberIds = Array.from(selected);
       const primaryAgentId = memberIds[0];
 
       // Switch to primary agent
       await switchToAgent(primaryAgentId);
 
-      try {
-        // Create the session on the backend right away
-        const newKey = `group_${Date.now()}`;
-        const result = await pawEngine.chatSend({ session_id: newKey, message: '', model: '' });
-        const sessionKey = result.session_id || newKey;
+      // Use a pending key — the real session gets created when the first message is sent
+      const pendingKey = `pending-group_${Date.now()}`;
 
-        // Rename it with the group name
-        await pawEngine.sessionRename(sessionKey, name);
+      // Clear current session so sendMessage creates a new one
+      appState.currentSessionKey = null;
+      appState.messages = [];
+      resetTokenMeter();
 
-        // Set current session
-        appState.currentSessionKey = sessionKey;
-        appState.messages = [];
-        resetTokenMeter();
+      // Store group metadata so sendMessage applies it to the new session
+      appState._pendingGroupMeta = {
+        name,
+        members: memberIds,
+        kind: 'group' as const,
+      };
 
-        // Push session into local state with group metadata
-        const existingIdx = appState.sessions.findIndex((s) => s.key === sessionKey);
-        if (existingIdx >= 0) {
-          appState.sessions[existingIdx].kind = 'group';
-          appState.sessions[existingIdx].members = memberIds;
-          appState.sessions[existingIdx].label = name;
-          appState.sessions[existingIdx].displayName = name;
-          appState.sessions[existingIdx].agentId = primaryAgentId;
-        } else {
-          appState.sessions.unshift({
-            key: sessionKey,
-            kind: 'group',
-            agentId: primaryAgentId,
-            label: name,
-            displayName: name,
-            members: memberIds,
-            updatedAt: Date.now(),
-          });
-        }
+      // Also add a local-only session entry so the sidebar shows it immediately
+      appState.sessions.unshift({
+        key: pendingKey,
+        kind: 'group',
+        agentId: primaryAgentId,
+        label: name,
+        displayName: name,
+        members: memberIds,
+        updatedAt: Date.now(),
+      });
 
-        agentSessionMap.set(primaryAgentId, sessionKey);
-        persistAgentSessionMap();
+      // Persist group metadata so it survives across reloads
+      groupSessionMap.set(pendingKey, { name, members: memberIds, kind: 'group' });
+      persistGroupSessionMap();
 
-        const chatMessages = $('chat-messages');
-        if (chatMessages) chatMessages.innerHTML = '';
-        const chatEmpty = $('chat-empty');
-        if (chatEmpty) chatEmpty.style.display = '';
+      const chatMessages = $('chat-messages');
+      if (chatMessages) chatMessages.innerHTML = '';
+      const chatEmpty = $('chat-empty');
+      if (chatEmpty) chatEmpty.style.display = '';
 
-        if (_thread) {
-          _thread.showThread();
-          const memberNames = memberIds
-            .map((id) => agents.find((a) => a.id === id)?.name ?? id)
-            .join(', ');
-          _thread.setAgent(name, agents.find((a) => a.id === primaryAgentId)?.avatar ?? '5',
-            agents.find((a) => a.id === primaryAgentId)?.color ?? 'var(--accent)',
-            `Group: ${memberNames}`);
-        }
-
-        cleanup();
-        showToast(`Group "${name}" created`, 'success');
-        refreshConversationList();
-      } catch (e) {
-        console.error('[inbox] Failed to create group session:', e);
-        showToast('Failed to create group chat', 'error');
+      if (_thread) {
+        _thread.showThread();
+        const memberNames = memberIds
+          .map((id) => agents.find((a) => a.id === id)?.name ?? id)
+          .join(', ');
+        _thread.setAgent(name, agents.find((a) => a.id === primaryAgentId)?.avatar ?? '5',
+          agents.find((a) => a.id === primaryAgentId)?.color ?? 'var(--accent)',
+          `Group: ${memberNames}`);
       }
+
+      cleanup();
+      showToast(`Group "${name}" created — send a message to start`, 'success');
+      refreshConversationList();
     });
   });
 }
