@@ -18,6 +18,7 @@ import {
   renderToolbar,
   renderFlowList,
   renderNodePanel,
+  markNodeNew,
 } from './molecules';
 import { parseFlowText } from './parser';
 import { createFlowExecutor, type FlowExecutorController } from './executor';
@@ -297,6 +298,7 @@ function onAddNodeAtPosition(x: number, y: number) {
   }
 
   const node = createNodeFn('tool', `Step ${graph.nodes.length + 1}`, x, y);
+  markNodeNew(node.id);
   graph.nodes.push(node);
   _selectedNodeId = node.id;
   graph.updatedAt = new Date().toISOString();

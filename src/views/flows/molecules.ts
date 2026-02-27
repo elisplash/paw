@@ -64,6 +64,14 @@ let _panStartY = 0;
 // Edge drawing state
 let _drawingEdge: { fromNodeId: string; fromPort: string; cursorX: number; cursorY: number } | null = null;
 
+// Track recently-added nodes for materialise entrance animation
+const _newNodeIds = new Set<string>();
+
+/** Mark a node ID as new so it gets the materialise entrance animation */
+export function markNodeNew(id: string) {
+  _newNodeIds.add(id);
+}
+
 // ── Mount / Unmount ────────────────────────────────────────────────────────
 
 export function mountCanvas(container: HTMLElement) {
@@ -100,6 +108,15 @@ export function mountCanvas(container: HTMLElement) {
     <pattern id="flow-grid" width="${GRID_SIZE}" height="${GRID_SIZE}" patternUnits="userSpaceOnUse">
       <circle cx="${GRID_SIZE / 2}" cy="${GRID_SIZE / 2}" r="0.5" fill="var(--border-subtle)"/>
     </pattern>
+    <pattern id="flow-halftone" width="6" height="6" patternUnits="userSpaceOnUse">
+      <circle cx="3" cy="3" r="0.5" fill="var(--kinetic-red, #FF4D4D)"/>
+    </pattern>
+    <filter id="flow-kinetic-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feFlood flood-color="var(--kinetic-red, #FF4D4D)" flood-opacity="0.15" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   `;
   _svg.appendChild(defs);
 
@@ -189,9 +206,20 @@ export function renderGraph() {
 
 function renderNode(node: FlowNode, selected: boolean): SVGGElement {
   const g = svgEl('g') as SVGGElement;
-  g.setAttribute('class', `flow-node flow-node-${node.kind}${selected ? ' flow-node-selected' : ''}${node.status !== 'idle' ? ` flow-node-${node.status}` : ''}`);
+  const isNew = _newNodeIds.has(node.id);
+  g.setAttribute('class', `flow-node flow-node-${node.kind}${selected ? ' flow-node-selected' : ''}${node.status !== 'idle' ? ` flow-node-${node.status}` : ''}${isNew ? ' flow-node-new' : ''}`);
   g.setAttribute('data-node-id', node.id);
   g.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+  // Set CSS custom properties for materialise animation
+  (g as unknown as HTMLElement).style.setProperty('--node-tx', `${node.x}px`);
+  (g as unknown as HTMLElement).style.setProperty('--node-ty', `${node.y}px`);
+
+  // Clear new flag after animation frame
+  if (isNew) {
+    requestAnimationFrame(() => {
+      setTimeout(() => _newNodeIds.delete(node.id), 600);
+    });
+  }
 
   const defaults = NODE_DEFAULTS[node.kind];
 
@@ -215,10 +243,10 @@ function renderNode(node: FlowNode, selected: boolean): SVGGElement {
   body.setAttribute('stroke', selected ? 'var(--accent)' : defaults.color);
   body.setAttribute('stroke-width', selected ? '2' : '1.5');
   if (selected) body.setAttribute('filter', 'url(#flow-selected-glow)');
-  if (node.status === 'running') body.setAttribute('filter', 'url(#flow-glow)');
+  if (node.status === 'running') body.setAttribute('filter', 'url(#flow-kinetic-glow)');
   g.appendChild(body);
 
-  // Status bar (top 3px)
+  // Status bar (top 3px) — Kinetic 4-color system
   if (node.status !== 'idle') {
     const statusBar = svgEl('rect');
     statusBar.setAttribute('class', 'flow-node-status');
@@ -226,13 +254,40 @@ function renderNode(node: FlowNode, selected: boolean): SVGGElement {
     statusBar.setAttribute('height', '3');
     statusBar.setAttribute('rx', '6');
     const statusColors: Record<string, string> = {
-      running: 'var(--accent)',
-      success: 'var(--success)',
-      error: 'var(--error)',
-      paused: 'var(--warning)',
+      running: 'var(--kinetic-red, #FF4D4D)',
+      success: 'var(--kinetic-sage, #8FB0A0)',
+      error: 'var(--kinetic-red, #FF4D4D)',
+      paused: 'var(--kinetic-gold, #D4A853)',
     };
-    statusBar.setAttribute('fill', statusColors[node.status] ?? 'var(--text-muted)');
+    statusBar.setAttribute('fill', statusColors[node.status] ?? 'var(--kinetic-steel, #7A8B9A)');
     g.appendChild(statusBar);
+  }
+
+  // Breathing indicator dot — Kinetic heartbeat on running/paused nodes
+  if (node.status === 'running' || node.status === 'paused') {
+    const breathDot = svgEl('circle');
+    breathDot.setAttribute('class', 'flow-node-breathe');
+    breathDot.setAttribute('cx', String(node.width - 12));
+    breathDot.setAttribute('cy', '12');
+    breathDot.setAttribute('r', '4');
+    breathDot.setAttribute('fill', node.status === 'running'
+      ? 'var(--kinetic-red, #FF4D4D)'
+      : 'var(--kinetic-gold, #D4A853)');
+    g.appendChild(breathDot);
+  }
+
+  // Halftone overlay — on running nodes during execution
+  if (node.status === 'running') {
+    const halftone = svgEl('rect');
+    halftone.setAttribute('class', 'flow-node-halftone');
+    halftone.setAttribute('width', String(node.width));
+    halftone.setAttribute('height', String(node.height));
+    halftone.setAttribute('rx', '6');
+    halftone.setAttribute('fill', 'url(#flow-halftone)');
+    halftone.setAttribute('opacity', String(0.03));
+    halftone.setAttribute('pointer-events', 'none');
+    g.appendChild(halftone);
+    g.classList.add('flow-node-executing');
   }
 
   // Kind icon (left side)
@@ -272,15 +327,14 @@ function renderNode(node: FlowNode, selected: boolean): SVGGElement {
     g.appendChild(desc);
   }
 
-  // Kind badge (top-right)
+  // Kind badge (top-right) — Pixel font (Share Tech Mono)
   const badge = svgEl('text');
   badge.setAttribute('class', 'flow-node-badge');
   badge.setAttribute('x', String(node.width - 8));
   badge.setAttribute('y', '14');
   badge.setAttribute('text-anchor', 'end');
-  badge.setAttribute('fill', 'var(--text-tertiary)');
+  badge.setAttribute('fill', defaults.color);
   badge.setAttribute('font-size', '8');
-  badge.setAttribute('text-transform', 'uppercase');
   badge.textContent = node.kind.toUpperCase();
   g.appendChild(badge);
 
@@ -672,6 +726,7 @@ function handleToolbarAction(action: string) {
     const cx = (-_panX + 400) / _zoom;
     const cy = (-_panY + 200) / _zoom;
     const node = createNode(kind, `${kind.charAt(0).toUpperCase() + kind.slice(1)} ${graph.nodes.length + 1}`, snapToGrid(cx), snapToGrid(cy));
+    _newNodeIds.add(node.id);
     graph.nodes.push(node);
     _state.setSelectedNodeId(node.id);
     _state.onGraphChanged();

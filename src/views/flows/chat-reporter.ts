@@ -5,8 +5,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { FlowExecEvent, FlowOutputEntry } from './executor-atoms';
-import type { FlowNodeKind } from './atoms';
-import { NODE_DEFAULTS } from './atoms';
+import { type FlowNodeKind, NODE_DEFAULTS } from './atoms';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

@@ -32,6 +32,7 @@
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.03em;
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
 }
 
 .flows-hero-sub {
@@ -116,6 +117,7 @@
   padding: 4px 0;
 }
 
+/* Staggered entrance — Kinetic materialise on list items */
 .flow-list-item {
   display: flex;
   align-items: center;
@@ -123,11 +125,33 @@
   padding: 8px 12px;
   cursor: pointer;
   border-left: 2px solid transparent;
-  transition: all var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease;
+  animation: k-materialise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Stagger delays for first 12 items */
+.flow-list-item:nth-child(1)  { animation-delay: 0ms; }
+.flow-list-item:nth-child(2)  { animation-delay: 40ms; }
+.flow-list-item:nth-child(3)  { animation-delay: 80ms; }
+.flow-list-item:nth-child(4)  { animation-delay: 120ms; }
+.flow-list-item:nth-child(5)  { animation-delay: 160ms; }
+.flow-list-item:nth-child(6)  { animation-delay: 200ms; }
+.flow-list-item:nth-child(7)  { animation-delay: 240ms; }
+.flow-list-item:nth-child(8)  { animation-delay: 280ms; }
+.flow-list-item:nth-child(9)  { animation-delay: 320ms; }
+.flow-list-item:nth-child(10) { animation-delay: 360ms; }
+.flow-list-item:nth-child(11) { animation-delay: 400ms; }
+.flow-list-item:nth-child(12) { animation-delay: 440ms; }
+
+/* Spring hover — scale up with overshoot */
 .flow-list-item:hover {
   background: var(--bg-hover);
+  transform: scale(1.015) translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .flow-list-item.active {
@@ -174,7 +198,7 @@
 }
 
 .flow-list-del:hover {
-  color: var(--error);
+  color: var(--kinetic-red, #FF4D4D);
 }
 
 .flow-list-del .ms {
@@ -193,9 +217,9 @@
   background: var(--bg-hover);
   padding: 1px 5px;
   border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
   font-size: var(--type-micro);
-  color: var(--accent);
+  color: var(--kinetic-red, #FF4D4D);
 }
 
 /* ── Toolbar ────────────────────────────────────────────────────────────── */
@@ -234,13 +258,25 @@
   padding: 4px 6px;
   display: flex;
   align-items: center;
-  transition: all var(--transition-fast);
+  /* Spring hover — Kinetic overshoot */
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow 0.3s ease;
 }
 
 .flow-tb-btn:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
   border-color: var(--border);
+  transform: scale(1.08) translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.flow-tb-btn:active {
+  transform: scale(0.95);
 }
 
 .flow-tb-btn .ms {
@@ -249,6 +285,7 @@
 
 .flow-tb-btn-danger:hover {
   color: var(--error);
+  box-shadow: 0 2px 8px rgba(255, 77, 77, 0.15);
 }
 
 /* ── Canvas ─────────────────────────────────────────────────────────────── */
@@ -261,6 +298,19 @@
   position: relative;
 }
 
+/* Grain texture overlay — Kinetic Intelligence */
+#flows-canvas::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  background-image: radial-gradient(circle, var(--kinetic-cream, #E8E0D4) 0.4px, transparent 0.4px);
+  background-size: 5px 5px;
+  opacity: var(--grain-opacity, 0.04);
+  mix-blend-mode: overlay;
+}
+
 #flows-canvas:active {
   cursor: grabbing;
 }
@@ -271,15 +321,45 @@
   display: block;
 }
 
-/* ── SVG Nodes ──────────────────────────────────────────────────────────── */
+/* ── SVG Nodes — Kinetic Motion Primitives ──────────────────────────────── */
+
+/* Materialise entrance — new nodes fade in with scale + contrast shift */
+@keyframes flow-materialise {
+  0% {
+    opacity: 0;
+    transform: translate(var(--node-tx, 0), var(--node-ty, 0)) scale(0.92);
+    filter: contrast(0.6) brightness(0.7);
+  }
+  40% {
+    filter: contrast(1.15) brightness(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(var(--node-tx, 0), var(--node-ty, 0)) scale(1);
+    filter: contrast(1) brightness(1);
+  }
+}
 
 .flow-node {
   cursor: pointer;
-  transition: opacity var(--transition-fast);
+  transition:
+    opacity var(--transition-fast),
+    filter 0.3s ease;
+  /* Default: no animation. .flow-node-new triggers materialise */
+}
+
+.flow-node-new {
+  animation: flow-materialise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Spring hover — subtle scale-up with overshoot spring curve */
+.flow-node:hover {
+  filter: brightness(1.06);
 }
 
 .flow-node:hover .flow-node-body {
-  stroke-width: 2;
+  stroke-width: 2.5;
+  transition: stroke-width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .flow-node-selected .flow-node-body {
@@ -287,13 +367,54 @@
   stroke-width: 2.5;
 }
 
-.flow-node-running .flow-node-body {
-  animation: flow-node-pulse 1.5s ease-in-out infinite;
+/* Breathing indicator — animated dot on running nodes */
+@keyframes flow-breathe-dot {
+  0%, 100% { r: 4; opacity: 1; fill-opacity: 1; }
+  50%      { r: 6; opacity: 0.65; fill-opacity: 0.7; }
 }
 
-@keyframes flow-node-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+.flow-node-breathe {
+  animation: flow-breathe-dot 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Running status — Kinetic red glow pulse */
+.flow-node-running .flow-node-body {
+  animation: flow-kinetic-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes flow-kinetic-pulse {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 0 transparent); }
+  50% { opacity: 0.85; filter: drop-shadow(0 0 6px var(--kinetic-red, #FF4D4D)); }
+}
+
+/* Halftone pulse overlay — on executing nodes */
+@keyframes flow-halftone {
+  0%   { opacity: 0; }
+  50%  { opacity: var(--halftone-opacity, 0.03); }
+  100% { opacity: 0; }
+}
+
+.flow-node-executing .flow-node-halftone {
+  animation: flow-halftone 2s ease-in-out infinite;
+}
+
+/* Oscillating border — connected/active nodes */
+@keyframes flow-oscillate {
+  0%, 100% { stroke-opacity: 1; }
+  50%      { stroke-opacity: 0.5; }
+}
+
+.flow-node-success .flow-node-body {
+  stroke: var(--kinetic-sage, #8FB0A0) !important;
+}
+
+.flow-node-error .flow-node-body {
+  stroke: var(--kinetic-red, #FF4D4D) !important;
+}
+
+.flow-node-paused .flow-node-body {
+  stroke: var(--kinetic-gold, #D4A853) !important;
+  animation: flow-oscillate 4s ease-in-out infinite;
 }
 
 .flow-node-label {
@@ -308,11 +429,12 @@
   user-select: none;
 }
 
+/* Badge — Pixel font (Share Tech Mono) for industrial feel */
 .flow-node-badge {
-  font-family: var(--font-mono);
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
   pointer-events: none;
   user-select: none;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 .flow-node-icon {
@@ -332,7 +454,7 @@
   fill: var(--accent) !important;
 }
 
-/* ── SVG Edges ──────────────────────────────────────────────────────────── */
+/* ── SVG Edges — Kinetic Signal Wave ────────────────────────────────────── */
 
 .flow-edge-path {
   transition: stroke-width var(--transition-fast);
@@ -341,15 +463,30 @@
 
 .flow-edge:hover .flow-edge-path {
   stroke-width: 3;
+  filter: drop-shadow(0 0 3px var(--kinetic-red, #FF4D4D));
+}
+
+/* Signal sweep — animated dash offset, the Kinetic way */
+@keyframes flow-signal-sweep {
+  0%   { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
 }
 
 .flow-edge-active .flow-edge-path {
-  animation: flow-edge-pulse 2s ease-in-out infinite;
+  stroke-dasharray: 8 4;
+  animation: flow-signal-sweep 0.6s linear infinite;
+  filter: drop-shadow(0 0 4px var(--kinetic-red, #FF4D4D));
 }
 
-@keyframes flow-edge-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+/* Data flowing — particles along the edge */
+@keyframes flow-edge-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 transparent); }
+  50% { filter: drop-shadow(0 0 6px var(--kinetic-sage, #8FB0A0)); }
+}
+
+.flow-edge-success .flow-edge-path {
+  stroke: var(--kinetic-sage, #8FB0A0);
+  animation: flow-edge-glow 2s ease-in-out infinite;
 }
 
 /* ── Node Properties Panel ──────────────────────────────────────────────── */
@@ -399,8 +536,8 @@
 
 .flow-panel-kind {
   font-size: var(--type-micro);
-  font-family: var(--font-mono);
-  color: var(--text-muted);
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
+  color: var(--kinetic-red, #FF4D4D);
   letter-spacing: 0.08em;
   font-weight: 600;
 }
@@ -445,9 +582,10 @@
 
 .flow-panel-section-label {
   font-size: var(--type-micro);
-  color: var(--text-tertiary);
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
   margin-bottom: 6px;
 }
 
@@ -455,38 +593,40 @@
   display: flex;
   gap: 12px;
   font-size: var(--type-micro);
-  font-family: var(--font-mono);
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
   color: var(--text-muted);
 }
 
-/* ── Execution Toolbar ───────────────────────────────────────────────────── */
+/* ── Execution Toolbar — Kinetic Status Colors ─────────────────────────── */
 
 .flow-toolbar-exec {
   gap: 2px;
 }
 
 .flow-tb-btn-run {
-  color: var(--success, #4caf50);
+  color: var(--kinetic-sage, #8FB0A0);
 }
 
 .flow-tb-btn-run:hover {
-  background: rgba(76, 175, 80, 0.1);
-  color: var(--success, #4caf50);
-  border-color: var(--success, #4caf50);
+  background: rgba(143, 176, 160, 0.1);
+  color: var(--kinetic-sage, #8FB0A0);
+  border-color: var(--kinetic-sage, #8FB0A0);
+  box-shadow: 0 0 8px rgba(143, 176, 160, 0.2);
 }
 
+/* Running state — breathing pulse with Kinetic red */
 .flow-tb-btn-run.active {
-  color: var(--accent);
-  animation: flowPulse 1.5s ease-in-out infinite;
+  color: var(--kinetic-red, #FF4D4D);
+  animation: flow-btn-breathe 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes flow-btn-breathe {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--kinetic-red, #FF4D4D); }
+  50%      { opacity: 0.7; box-shadow: 0 0 8px 2px rgba(255, 77, 77, 0.25); }
 }
 
 .flow-tb-btn-danger {
   color: var(--text-muted);
-}
-
-@keyframes flowPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
 }
 
 /* ── Node Config Panel Fields ───────────────────────────────────────────── */
@@ -562,7 +702,7 @@
 .flow-report-progress-bar {
   height: 100%;
   width: 0;
-  background: var(--accent);
+  background: linear-gradient(90deg, var(--kinetic-red, #FF4D4D), var(--kinetic-sage, #8FB0A0));
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -604,14 +744,15 @@
 .flow-report-step-kind {
   color: var(--text-muted);
   font-size: var(--type-label);
-  font-family: var(--font-mono);
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
+  letter-spacing: 0.05em;
 }
 
 .flow-report-step-duration {
   margin-left: auto;
   color: var(--text-muted);
   font-size: var(--type-label);
-  font-family: var(--font-mono);
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
 }
 
 .flow-report-step-output {
@@ -643,7 +784,7 @@
 }
 
 .flow-report-error {
-  color: var(--error);
+  color: var(--kinetic-red, #FF4D4D);
 }
 
 .flow-report-summary {
@@ -663,7 +804,7 @@
   margin-left: auto;
   color: var(--text-muted);
   font-size: var(--type-label);
-  font-family: var(--font-mono);
+  font-family: var(--font-pixel, 'Share Tech Mono', monospace);
 }
 
 .flow-report-summary-stats {
@@ -674,11 +815,11 @@
 }
 
 .flow-report-stat-ok {
-  color: var(--success);
+  color: var(--kinetic-sage, #8FB0A0);
 }
 
 .flow-report-stat-err {
-  color: var(--error);
+  color: var(--kinetic-red, #FF4D4D);
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
