@@ -18,6 +18,7 @@ import {
   recordTokenUsage,
   updateContextLimitFromModel,
 } from './engine/organisms/chat_controller';
+import { mountInbox } from './engine/organisms/inbox_controller';
 import { registerStreamHandlers, registerResearchRouter } from './engine/molecules/event_bus';
 import { setLogTransport, flushBufferToTransport, type LogEntry } from './logger';
 import * as ResearchModule from './views/research';
@@ -443,6 +444,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     OrchestratorModule.initOrchestrator();
     initChannels();
     initChatListeners();
+    mountInbox();
     initHILModal();
     initCommandPalette({
       getAgents: AgentsModule.getAgents,

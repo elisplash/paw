@@ -29,6 +29,7 @@
 @import './_chat.css';          /* Chat view, messages, input, bubbles */
 @import './_chat-mission.css';  /* Chat mission control side panel */
 @import './_mini-chat.css';     /* Mini-chat popups, agent dock */
+@import './_inbox.css';         /* Inbox three-panel layout */
 @import './_channels.css';      /* Channel views */
 @import './_mail.css';          /* Mail/email view */
 

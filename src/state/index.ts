@@ -5,6 +5,7 @@
 import type { AppConfig, Session, ToolCall } from '../types';
 import type { ModelPricingRow } from '../db';
 import type { MiniHubRegistry } from './mini-hub';
+import { createInboxState } from '../engine/atoms/inbox';
 
 // ── Extended message type ──────────────────────────────────────────────────
 export interface ChatAttachmentLocal {
@@ -229,6 +230,9 @@ export const appState = {
     activeHubId: null,
     maxHubs: 8,
   } as MiniHubRegistry,
+
+  // Inbox (Phase 11)
+  inbox: createInboxState(),
 };
 
 // ── Per-agent session map ──────────────────────────────────────────────────
