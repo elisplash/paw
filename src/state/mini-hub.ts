@@ -33,6 +33,10 @@ export interface MiniHubInstance {
   position: { x: number; y: number };
   /** When the hub was created (epoch ms) */
   createdAt: number;
+  /** Squad id when operating in multi-agent mode. */
+  squadId?: string;
+  /** Squad member metadata for rendering. */
+  squadMembers?: Array<{ id: string; name: string; avatar?: string; color: string }>;
 }
 
 /**

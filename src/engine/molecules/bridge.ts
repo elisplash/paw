@@ -226,6 +226,7 @@ function translateEngineEvent(event: EngineEvent): Record<string, unknown> | nul
         data: { delta: event.text },
         runId: event.run_id,
         sessionKey: event.session_id,
+        agentId: event.agent_id,
       };
 
     case 'tool_request':
@@ -238,6 +239,7 @@ function translateEngineEvent(event: EngineEvent): Record<string, unknown> | nul
         },
         runId: event.run_id,
         sessionKey: event.session_id,
+        agentId: event.agent_id,
       };
 
     case 'tool_result':
@@ -270,6 +272,7 @@ function translateEngineEvent(event: EngineEvent): Record<string, unknown> | nul
         },
         runId: event.run_id,
         sessionKey: event.session_id,
+        agentId: event.agent_id,
       };
 
     case 'error':
@@ -286,6 +289,7 @@ function translateEngineEvent(event: EngineEvent): Record<string, unknown> | nul
         data: { delta: event.text },
         runId: event.run_id,
         sessionKey: event.session_id,
+        agentId: event.agent_id,
       };
 
     case 'tool_auto_approved':

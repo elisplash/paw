@@ -151,12 +151,19 @@ export function renderSingleMessage(
   contentEl.className = 'message-content';
 
   // Terminal-style prefix: YOU › or AGENT ›
+  // For multi-agent (squad) messages, use per-agent name and color from agentMap
   const prefix = document.createElement('span');
   prefix.className = 'message-prefix';
   if (msg.role === 'user') {
     prefix.textContent = 'YOU ›';
   } else if (msg.role === 'assistant') {
-    prefix.textContent = `${(opts.agentName ?? 'AGENT').toUpperCase()} ›`;
+    const agentInfo = msg.agentId && opts.agentMap?.get(msg.agentId);
+    if (agentInfo) {
+      prefix.textContent = `${(agentInfo.name ?? msg.agentId).toUpperCase()} ›`;
+      if (agentInfo.color) prefix.style.color = agentInfo.color;
+    } else {
+      prefix.textContent = `${(msg.agentName ?? opts.agentName ?? 'AGENT').toUpperCase()} ›`;
+    }
   } else {
     prefix.textContent = 'SYS ›';
   }

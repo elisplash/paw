@@ -442,6 +442,10 @@ export interface Message {
   toolCalls?: ToolCall[];
   attachments?: Array<{ name?: string; mimeType: string; data?: string; url?: string }>;
   thinkingContent?: string;
+  /** Which agent produced this message (for multi-agent / squad sessions). */
+  agentId?: string;
+  /** Agent display name at time of message. */
+  agentName?: string;
 }
 
 // ── Paw Frontend Agent Profile ───────────────────────────────────────────

@@ -22,6 +22,10 @@ export interface MessageWithAttachments {
   toolCalls?: ToolCall[];
   attachments?: ChatAttachmentLocal[];
   thinkingContent?: string;
+  /** Which agent produced this message (for multi-agent / squad sessions). */
+  agentId?: string;
+  /** Agent display name at time of message. */
+  agentName?: string;
 }
 
 // ── Token metering constants ───────────────────────────────────────────────

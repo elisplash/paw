@@ -16,6 +16,18 @@ export interface StreamHandlers {
   onThinking: (text: string) => void;
   onToken: (usage: Record<string, unknown> | undefined) => void;
   onModel: (model: string) => void;
+  /** Called when the stream completes (lifecycle:end). Content is accumulated text. */
+  onStreamEnd?: (content: string) => void;
+  /** Called when the stream errors. */
+  onStreamError?: (error: string) => void;
+  /** Called when a tool call starts. */
+  onToolStart?: (toolName: string) => void;
+  /** Called when a tool call ends. */
+  onToolEnd?: (toolName: string) => void;
+  /** Called on delta with agent identity (for squad/multi-agent sessions). */
+  onAgentDelta?: (agentId: string, text: string) => void;
+  /** Called on lifecycle:start with agent identity (for squad sessions). */
+  onAgentStart?: (agentId: string) => void;
 }
 
 export interface ResearchRouter {
@@ -139,6 +151,7 @@ function handleAgentEvent(payload: unknown): void {
     const data = evt.data as Record<string, unknown> | undefined;
     const runId = evt.runId as string | undefined;
     const evtSession = evt.sessionKey as string | undefined;
+    const evtAgentId = evt.agentId as string | undefined;
 
     if (stream !== 'assistant') {
       console.debug(
@@ -167,16 +180,6 @@ function handleAgentEvent(payload: unknown): void {
       return;
     }
 
-    // ── Drop background task events unless the user is viewing that session
-    //    OR a mini-hub subscriber is listening ──
-    if (
-      evtSession &&
-      evtSession.startsWith('eng-task-') &&
-      evtSession !== appState.currentSessionKey &&
-      !_sessionSubscribers.has(evtSession)
-    )
-      return;
-
     // ── Drop other paw-* internal sessions ──
     if (evtSession && evtSession.startsWith('paw-')) return;
 
@@ -191,31 +194,41 @@ function handleAgentEvent(payload: unknown): void {
     )
       return;
 
-    // ── Guard: only process while streaming is active ──
-    // Look up the stream for this event's session (or current session)
+    // ── Phase 4.1: Route to session subscriber BEFORE stream guard ──
+    // Mini-hub subscribers always receive their events regardless of main chat
+    // streaming state. Background hub sessions don't create activeStream entries,
+    // so the stream guard below would block them.
+    const subscriber = evtSession ? _sessionSubscribers.get(evtSession) : undefined;
+    if (subscriber) {
+      subscriber.lastEventAt = Date.now();
+      const subStream = appState.activeStreams.get(evtSession!);
+      routeToHandlers(subscriber.handlers, stream, data, runId, subStream, true, evtAgentId);
+    }
+
+    // ── Drop background task events not for current session & without subscriber ──
+    if (
+      evtSession &&
+      evtSession.startsWith('eng-task-') &&
+      evtSession !== appState.currentSessionKey &&
+      !_sessionSubscribers.has(evtSession)
+    )
+      return;
+
+    // ── Guard: only process for main chat while streaming is active ──
     const streamKey = evtSession ?? appState.currentSessionKey ?? '';
     const stream_s: StreamState | undefined = appState.activeStreams.get(streamKey);
 
     if (!stream_s && !appState.isLoading) return;
     if (stream_s?.runId && runId && runId !== stream_s.runId) return;
 
-    // ── Phase 2: Route to session subscriber if one exists ──
-    // Mini-hub subscribers get ALL events for their session (no filtering).
-    const subscriber = evtSession ? _sessionSubscribers.get(evtSession) : undefined;
-    if (subscriber) {
-      subscriber.lastEventAt = Date.now();
-      routeToHandlers(subscriber.handlers, stream, data, runId, stream_s);
-    }
-
-    // ── Main chat view handler: only process events for the current session ──
-    // Allow lifecycle:end and error events through for non-visible sessions
-    // so abort/complete can resolve their stream promises even if the user
-    // switched away. Only filter out delta/tool events for other sessions.
+    // ── Main chat view handler ──
+    // Terminal events (lifecycle:end, error) always pass through so abort/complete
+    // can resolve stream promises even if the user switched sessions.
     const isTerminal = stream === 'lifecycle' || stream === 'error';
     const isCurrentSession = !evtSession || !appState.currentSessionKey || evtSession === appState.currentSessionKey;
     if (!isTerminal && !isCurrentSession) return;
 
-    routeToHandlers(_streamHandlers, stream, data, runId, stream_s);
+    routeToHandlers(_streamHandlers, stream, data, runId, stream_s, false, evtAgentId);
   } catch (e) {
     console.warn('[event_bus] Handler error:', e);
   }
@@ -224,6 +237,11 @@ function handleAgentEvent(payload: unknown): void {
 /**
  * Route a parsed event to a set of StreamHandlers.
  * Extracted to avoid duplicating dispatch logic between main chat and mini-hub subscribers.
+ *
+ * @param isBackground  When true (subscriber routing), skips global counter
+ *                      increments, stream promise resolution, and always
+ *                      forwards tool/error deltas regardless of stream_s.el.
+ * @param agentId       Agent that produced this event (for squad/multi-agent sessions).
  */
 function routeToHandlers(
   handlers: StreamHandlers | null,
@@ -231,12 +249,17 @@ function routeToHandlers(
   data: Record<string, unknown> | undefined,
   runId: string | undefined,
   stream_s: StreamState | undefined,
+  isBackground = false,
+  agentId?: string,
 ): void {
   if (!handlers || !data) return;
 
   if (stream === 'assistant') {
     const delta = data.delta as string | undefined;
-    if (delta) handlers.onDelta(delta);
+    if (delta) {
+      handlers.onDelta(delta);
+      if (agentId) handlers.onAgentDelta?.(agentId, delta);
+    }
   } else if (stream === 'thinking') {
     const delta = data.delta as string | undefined;
     if (delta) handlers.onThinking(delta);
@@ -244,16 +267,25 @@ function routeToHandlers(
     const phase = data.phase as string | undefined;
     if (phase === 'start') {
       if (stream_s && !stream_s.runId && runId) stream_s.runId = runId;
-      console.debug(`[event_bus] Agent run started: ${runId}`);
+      if (!isBackground) console.debug(`[event_bus] Agent run started: ${runId}`);
+      if (agentId) handlers.onAgentStart?.(agentId);
     } else if (phase === 'end') {
-      console.debug(
-        `[event_bus] Agent run ended: ${runId} chars=${stream_s?.content.length ?? 0}`,
-      );
+      if (!isBackground) {
+        console.debug(
+          `[event_bus] Agent run ended: ${runId} chars=${stream_s?.content.length ?? 0}`,
+        );
+      }
       const dAny = data as Record<string, unknown>;
       const dNested = dAny.response as Record<string, unknown> | undefined;
 
-      // D-3.3: Deduplicate token recording — only fire once per run
-      if (stream_s && !stream_s.tokenRecorded) {
+      // D-3.3: Deduplicate token recording — only fire once per run (main handler)
+      if (isBackground) {
+        // Background subscribers always receive token data (no dedup)
+        const agentUsage = (dAny.usage ?? dNested?.usage ?? data) as
+          | Record<string, unknown>
+          | undefined;
+        handlers.onToken(agentUsage);
+      } else if (stream_s && !stream_s.tokenRecorded) {
         stream_s.tokenRecorded = true;
         // Prefer nested usage over top-level to avoid double-count
         const agentUsage = (dAny.usage ?? dNested?.usage ?? data) as
@@ -265,8 +297,7 @@ function routeToHandlers(
       // Update model selector with API-confirmed model name (main chat only)
       const confirmedModel = dAny.model as string | undefined;
       if (confirmedModel) {
-        // Only update the main chat model selector if these are the main handlers
-        if (handlers === _streamHandlers) {
+        if (!isBackground && handlers === _streamHandlers) {
           const modelSel = document.getElementById('chat-model-select') as HTMLSelectElement | null;
           if (modelSel) {
             const exists = Array.from(modelSel.options).some((o) => o.value === confirmedModel);
@@ -283,7 +314,8 @@ function routeToHandlers(
         handlers.onModel(confirmedModel);
       }
 
-      if (stream_s?.resolve) {
+      // Stream promise resolution — main handler only
+      if (!isBackground && stream_s?.resolve) {
         if (stream_s.content) {
           stream_s.resolve(stream_s.content);
           stream_s.resolve = null;
@@ -299,25 +331,43 @@ function routeToHandlers(
           }, 3000);
         }
       }
+
+      // Notify background subscriber of stream completion
+      if (isBackground) {
+        handlers.onStreamEnd?.(stream_s?.content ?? '');
+      }
     }
   } else if (stream === 'tool') {
     const tool = (data.name ?? data.tool) as string | undefined;
     const phase = data.phase as string | undefined;
     if (phase === 'start' && tool) {
-      console.debug(`[event_bus] Tool: ${tool}`);
-      appState.sessionToolCallCount++;
-      if (stream_s?.el) handlers.onDelta(`\n\n▶ ${tool}...`);
-    } else if (phase === 'end' && data.output) {
-      const outputLen = String(data.output).length;
-      appState.sessionToolResultTokens += Math.ceil(outputLen / 4) + 4;
+      if (!isBackground) {
+        console.debug(`[event_bus] Tool: ${tool}`);
+        appState.sessionToolCallCount++;
+      }
+      if (stream_s?.el || isBackground) handlers.onDelta(`\n\n▶ ${tool}...`);
+      handlers.onToolStart?.(tool);
+    } else if (phase === 'end') {
+      if (!isBackground && data.output) {
+        const outputLen = String(data.output).length;
+        appState.sessionToolResultTokens += Math.ceil(outputLen / 4) + 4;
+      }
+      handlers.onToolEnd?.(tool ?? '');
     }
   } else if (stream === 'error') {
     const error = (data.message ?? data.error ?? '') as string;
-    console.error(`[event_bus] Agent error: ${error}`);
-    if (error && stream_s?.el) handlers.onDelta(`\n\nError: ${error}`);
-    if (stream_s?.resolve) {
+    if (!isBackground) console.error(`[event_bus] Agent error: ${error}`);
+    if (error && (stream_s?.el || isBackground)) handlers.onDelta(`\n\nError: ${error}`);
+
+    // Stream promise resolution — main handler only
+    if (!isBackground && stream_s?.resolve) {
       stream_s.resolve(stream_s.content);
       stream_s.resolve = null;
+    }
+
+    // Notify background subscriber of error
+    if (isBackground && error) {
+      handlers.onStreamError?.(error);
     }
   }
 }

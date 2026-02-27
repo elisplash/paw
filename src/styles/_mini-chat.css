@@ -366,3 +366,174 @@
   border: 2px solid var(--bg-primary);
   pointer-events: none;
 }
+
+/* ═══ Agent Dock — Streaming Indicator ═══ */
+.agent-dock-streaming .agent-dock-avatar {
+  animation: dockBreathe 2s ease-in-out infinite;
+}
+@keyframes dockBreathe {
+  0%, 100% { box-shadow: 0 0 0 0 var(--accent); }
+  50% { box-shadow: 0 0 8px 3px var(--accent); }
+}
+
+/* ═══ Mini-Hub Windows (Phase 3+) ═══ */
+.mini-hub {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(16px) scale(0.97);
+  animation: miniHubAppear 0.2s ease forwards;
+}
+@keyframes miniHubAppear {
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Minimized state */
+.mini-hub-minimized {
+  height: 0 !important;
+  width: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ── Titlebar ── */
+.mini-hub-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  cursor: grab;
+  user-select: none;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  flex-shrink: 0;
+}
+.mini-hub-titlebar:active {
+  cursor: grabbing;
+}
+.mini-hub-avatar {
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.mini-hub-avatar img {
+  image-rendering: auto;
+}
+.mini-hub-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Streaming pulsing dot in titlebar */
+.mini-hub-streaming-dot {
+  display: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-on-accent);
+  flex-shrink: 0;
+}
+.mini-hub-streaming-dot.active {
+  display: inline-block;
+  animation: miniHubPulse 1.2s ease-in-out infinite;
+}
+@keyframes miniHubPulse {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+/* Model selector in titlebar */
+.mini-hub-model-select {
+  font-size: 11px;
+  padding: 1px 4px;
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-on-accent);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  max-width: 80px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.mini-hub-model-select option {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Unread badge in titlebar */
+.mini-hub-unread-badge {
+  background: var(--status-error);
+  color: var(--text-on-accent);
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: var(--radius-pill);
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Titlebar buttons */
+.mini-hub-minimize,
+.mini-hub-maximize,
+.mini-hub-close {
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: var(--text-on-accent);
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.mini-hub-minimize:hover,
+.mini-hub-maximize:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+.mini-hub-close:hover {
+  background: var(--status-error);
+}
+
+/* ── Messages ── */
+.mini-hub-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+/* ── Input area ── */
+.mini-hub-input-area {
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* ── Streaming border glow ── */
+.mini-hub-streaming {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 8px 32px rgba(0, 0, 0, 0.25);
+}

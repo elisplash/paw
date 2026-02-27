@@ -105,6 +105,8 @@ export interface EngineStoredMessage {
   tool_call_id?: string;
   name?: string;
   created_at: string;
+  /** Agent that produced this message (populated by backend for squad sessions). */
+  agent_id?: string;
 }
 
 // ── Events ───────────────────────────────────────────────────────────
@@ -136,6 +138,8 @@ export interface EngineEvent {
   message?: string;
   // tool_auto_approved
   tool_name?: string;
+  // multi-agent: which agent produced this event
+  agent_id?: string;
 }
 
 export interface EngineStatus {
