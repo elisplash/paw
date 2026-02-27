@@ -474,3 +474,118 @@ describe('executeCodeSandboxed', () => {
     expect(result.output).toBe('Code executed (no output)');
   });
 });
+
+// ── Schedule / Cron Tests ──────────────────────────────────────────────────
+
+import { nextCronFire, validateCron, describeCron, CRON_PRESETS } from './executor-atoms';
+
+describe('validateCron', () => {
+  it('accepts valid 5-field expressions', () => {
+    expect(validateCron('* * * * *')).toBeNull();
+    expect(validateCron('*/5 * * * *')).toBeNull();
+    expect(validateCron('0 9 * * 1-5')).toBeNull();
+    expect(validateCron('0 0 1 * *')).toBeNull();
+    expect(validateCron('30 14 * * 1,3,5')).toBeNull();
+  });
+
+  it('rejects expressions with wrong field count', () => {
+    expect(validateCron('* * *')).toContain('5 fields');
+    expect(validateCron('* * * * * *')).toContain('5 fields');
+    expect(validateCron('')).toContain('5 fields');
+  });
+
+  it('rejects invalid field values', () => {
+    const result = validateCron('abc * * * *');
+    expect(result).toContain('minute');
+  });
+});
+
+describe('describeCron', () => {
+  it('returns preset description for known expressions', () => {
+    expect(describeCron('* * * * *')).toBe('Runs every 60 seconds');
+    expect(describeCron('0 9 * * 1-5')).toBe('Mon–Fri at 09:00');
+    expect(describeCron('0 0 1 * *')).toBe('First day of every month at 00:00');
+  });
+
+  it('returns raw schedule string for unknown expressions', () => {
+    expect(describeCron('23 4 * * *')).toBe('Schedule: 23 4 * * *');
+  });
+});
+
+describe('nextCronFire', () => {
+  it('returns null for invalid expressions', () => {
+    expect(nextCronFire('bad')).toBeNull();
+    expect(nextCronFire('* * *')).toBeNull();
+  });
+
+  it('finds next minute for "* * * * *"', () => {
+    const from = new Date('2025-01-15T10:30:00');
+    const next = nextCronFire('* * * * *', from);
+    expect(next).not.toBeNull();
+    expect(next!.getMinutes()).toBe(31);
+    expect(next!.getHours()).toBe(10);
+  });
+
+  it('finds next 5-minute mark for "*/5 * * * *"', () => {
+    const from = new Date('2025-01-15T10:32:00');
+    const next = nextCronFire('*/5 * * * *', from);
+    expect(next).not.toBeNull();
+    expect(next!.getMinutes()).toBe(35);
+  });
+
+  it('finds next occurrence for hourly "0 * * * *"', () => {
+    const from = new Date('2025-01-15T10:30:00');
+    const next = nextCronFire('0 * * * *', from);
+    expect(next).not.toBeNull();
+    expect(next!.getMinutes()).toBe(0);
+    expect(next!.getHours()).toBe(11);
+  });
+
+  it('finds next weekday for "0 9 * * 1-5"', () => {
+    // 2025-01-18 is a Saturday
+    const from = new Date('2025-01-18T08:00:00');
+    const next = nextCronFire('0 9 * * 1-5', from);
+    expect(next).not.toBeNull();
+    // Should be Monday Jan 20 at 09:00
+    expect(next!.getDay()).toBe(1); // Monday
+    expect(next!.getHours()).toBe(9);
+    expect(next!.getMinutes()).toBe(0);
+  });
+
+  it('handles list fields "0 9 * * 1,3,5"', () => {
+    // 2025-01-14 is a Tuesday
+    const from = new Date('2025-01-14T10:00:00');
+    const next = nextCronFire('0 9 * * 1,3,5', from);
+    expect(next).not.toBeNull();
+    // Next is Wednesday (3)
+    expect(next!.getDay()).toBe(3);
+  });
+
+  it('handles monthly "0 0 1 * *"', () => {
+    const from = new Date('2025-01-15T10:00:00');
+    const next = nextCronFire('0 0 1 * *', from);
+    expect(next).not.toBeNull();
+    expect(next!.getDate()).toBe(1);
+    expect(next!.getMonth()).toBe(1); // February
+  });
+});
+
+describe('CRON_PRESETS', () => {
+  it('has 10 entries', () => {
+    expect(CRON_PRESETS).toHaveLength(10);
+  });
+
+  it('all presets have valid cron expressions', () => {
+    for (const preset of CRON_PRESETS) {
+      expect(validateCron(preset.value)).toBeNull();
+    }
+  });
+
+  it('all presets have label, value, and description', () => {
+    for (const preset of CRON_PRESETS) {
+      expect(preset.label).toBeTruthy();
+      expect(preset.value).toBeTruthy();
+      expect(preset.description).toBeTruthy();
+    }
+  });
+});

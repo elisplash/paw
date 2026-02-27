@@ -28,6 +28,7 @@ import { parseFlowText } from './parser';
 import { FLOW_TEMPLATES } from './templates';
 import { createFlowExecutor, type FlowExecutorController } from './executor';
 import { createFlowChatReporter, type FlowChatReporterController } from './chat-reporter';
+import { type FlowSchedule, type ScheduleFireLog, nextCronFire } from './executor-atoms';
 
 // ── Module State ───────────────────────────────────────────────────────────
 
@@ -38,6 +39,12 @@ let _mounted = false;
 let _executor: FlowExecutorController | null = null;
 let _reporter: FlowChatReporterController | null = null;
 let _sidebarTab: 'flows' | 'templates' = 'flows';
+
+// Schedule state
+let _scheduleTimerId: ReturnType<typeof setInterval> | null = null;
+let _scheduleRegistry: FlowSchedule[] = [];
+const _scheduleFireLog: ScheduleFireLog[] = [];
+const SCHEDULE_TICK_MS = 30_000; // Check every 30 seconds
 
 const STORAGE_KEY = 'openpawz-flows';
 
@@ -72,6 +79,8 @@ function persist() {
   try {
     const data = _graphs.map(serializeGraph);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    // Rebuild schedule registry on any graph change
+    rebuildScheduleRegistry();
   } catch (e) {
     console.error('[flows] Persist failed:', e);
   }
@@ -233,10 +242,14 @@ function mount() {
 
   updateFlowList();
   updateNodePanel();
+
+  // Start schedule ticker
+  startScheduleTicker();
 }
 
 export function unmountFlows() {
   unmountCanvas();
+  stopScheduleTicker();
   document.removeEventListener('keydown', onKeyDown);
   _mounted = false;
 }
@@ -567,6 +580,125 @@ function syncDebugState() {
     edgeValues: _executor.getEdgeValues(),
     nodeStates: debugNodeStates,
   });
+}
+
+// ── Schedule Registry ──────────────────────────────────────────────────────
+
+/**
+ * Scan all flows for trigger nodes with active schedules and build the registry.
+ */
+function rebuildScheduleRegistry() {
+  _scheduleRegistry = [];
+  for (const graph of _graphs) {
+    for (const node of graph.nodes) {
+      if (node.kind !== 'trigger') continue;
+      const schedule = (node.config?.schedule as string) ?? '';
+      const enabled = (node.config?.scheduleEnabled as boolean) ?? false;
+      if (!schedule || !enabled) continue;
+
+      const next = nextCronFire(schedule);
+      _scheduleRegistry.push({
+        flowId: graph.id,
+        flowName: graph.name,
+        nodeId: node.id,
+        schedule,
+        enabled,
+        lastFiredAt: null,
+        nextFireAt: next ? next.getTime() : null,
+      });
+    }
+  }
+}
+
+/**
+ * Start the schedule ticker. Checks every 30 seconds for due schedules.
+ */
+function startScheduleTicker() {
+  if (_scheduleTimerId) return;
+  rebuildScheduleRegistry();
+
+  _scheduleTimerId = setInterval(() => {
+    scheduleTickCheck();
+  }, SCHEDULE_TICK_MS);
+}
+
+/**
+ * Stop the schedule ticker.
+ */
+function stopScheduleTicker() {
+  if (_scheduleTimerId) {
+    clearInterval(_scheduleTimerId);
+    _scheduleTimerId = null;
+  }
+}
+
+/**
+ * Check all schedules for any that are due and fire them.
+ */
+async function scheduleTickCheck() {
+  const now = Date.now();
+  for (const entry of _scheduleRegistry) {
+    if (!entry.enabled || !entry.nextFireAt) continue;
+    if (entry.nextFireAt > now) continue;
+
+    // This schedule is due — fire it
+    console.debug(`[flows] Schedule fired: ${entry.flowName} (${entry.schedule})`);
+    entry.lastFiredAt = now;
+
+    const graph = _graphs.find((g) => g.id === entry.flowId);
+    if (!graph) continue;
+
+    // Don't run if executor is busy
+    if (_executor?.isRunning()) {
+      _scheduleFireLog.push({
+        flowId: entry.flowId,
+        flowName: entry.flowName,
+        firedAt: now,
+        status: 'error',
+        error: 'Executor busy — skipped',
+      });
+      continue;
+    }
+
+    try {
+      // Switch to this flow and run it
+      _activeGraphId = entry.flowId;
+      await runActiveFlow();
+
+      _scheduleFireLog.push({
+        flowId: entry.flowId,
+        flowName: entry.flowName,
+        firedAt: now,
+        status: 'success',
+      });
+    } catch (err) {
+      _scheduleFireLog.push({
+        flowId: entry.flowId,
+        flowName: entry.flowName,
+        firedAt: now,
+        status: 'error',
+        error: String(err),
+      });
+    }
+
+    // Recalculate next fire time
+    const next = nextCronFire(entry.schedule);
+    entry.nextFireAt = next ? next.getTime() : null;
+  }
+}
+
+/**
+ * Get the schedule fire log (for UI display).
+ */
+export function getScheduleFireLog(): ScheduleFireLog[] {
+  return [..._scheduleFireLog];
+}
+
+/**
+ * Get the active schedule registry (for UI display).
+ */
+export function getScheduleRegistry(): FlowSchedule[] {
+  return [..._scheduleRegistry];
 }
 
 // ── Text Input (for the text-to-flow box in the UI) ────────────────────────

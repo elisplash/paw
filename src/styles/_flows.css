@@ -1344,3 +1344,100 @@
 .flow-node-code .flow-node-badge {
   color: var(--kinetic-steel, #7A8B9A);
 }
+
+/* ── ═══════════════════════════════════════════════════════════════════════
+   Phase 5: Schedule Trigger Wiring
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.flow-panel-schedule {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--kinetic-steel-20, rgba(122, 139, 154, 0.2));
+  border-radius: 8px;
+  background: var(--kinetic-midnight-10, rgba(30, 30, 30, 0.5));
+}
+
+.flow-panel-schedule-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--kinetic-chalk, #E8E4DD);
+}
+
+.flow-panel-schedule-header .flow-panel-toggle {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.flow-panel-toggle input[type="checkbox"] {
+  appearance: none;
+  width: 32px;
+  height: 18px;
+  border-radius: 9px;
+  background: var(--kinetic-steel-40, rgba(122, 139, 154, 0.4));
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.flow-panel-toggle input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--kinetic-chalk, #E8E4DD);
+  transition: transform 0.2s ease;
+}
+
+.flow-panel-toggle input[type="checkbox"]:checked {
+  background: var(--kinetic-sage, #4A7C59);
+}
+
+.flow-panel-toggle input[type="checkbox"]:checked::after {
+  transform: translateX(14px);
+}
+
+.flow-panel-cron-input {
+  font-family: 'Berkeley Mono', 'JetBrains Mono', monospace !important;
+  letter-spacing: 0.5px;
+}
+
+.flow-panel-cron-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--kinetic-red, #D64045);
+  animation: k-materialise 0.3s ease;
+}
+
+.flow-panel-cron-desc {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--kinetic-sage, #4A7C59);
+  animation: k-materialise 0.3s ease;
+}
+
+.flow-panel-cron-next {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--kinetic-sage-10, rgba(74, 124, 89, 0.1));
+  font-size: 11px;
+  color: var(--kinetic-sage, #4A7C59);
+  animation: k-materialise 0.4s ease;
+}

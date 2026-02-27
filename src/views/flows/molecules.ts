@@ -27,6 +27,7 @@ import {
   applyLayout,
   filterTemplates,
 } from './atoms';
+import { CRON_PRESETS, validateCron, describeCron, nextCronFire } from './executor-atoms';
 
 // ── State Bridge ───────────────────────────────────────────────────────────
 
@@ -986,6 +987,47 @@ export function renderNodePanel(container: HTMLElement, node: FlowNode | null, o
     `;
   }
 
+  // Schedule section for trigger nodes
+  if (node.kind === 'trigger') {
+    const scheduleVal = (config.schedule as string) ?? '';
+    const scheduleEnabled = (config.scheduleEnabled as boolean) ?? false;
+    const cronError = scheduleVal ? validateCron(scheduleVal) : null;
+    const cronDesc = scheduleVal && !cronError ? describeCron(scheduleVal) : '';
+    const nextFire = scheduleVal && !cronError ? nextCronFire(scheduleVal) : null;
+    const nextFireStr = nextFire ? nextFire.toLocaleString() : '';
+
+    const presetOptionsHtml = CRON_PRESETS.map(
+      (p) => `<option value="${p.value}"${scheduleVal === p.value ? ' selected' : ''}>${p.label}</option>`
+    ).join('');
+
+    configFieldsHtml += `
+      <div class="flow-panel-schedule">
+        <div class="flow-panel-schedule-header">
+          <span class="ms" style="font-size:16px">schedule</span>
+          <span>Schedule</span>
+          <label class="flow-panel-toggle">
+            <input type="checkbox" data-config="scheduleEnabled" ${scheduleEnabled ? 'checked' : ''} />
+            <span>${scheduleEnabled ? 'On' : 'Off'}</span>
+          </label>
+        </div>
+        <label class="flow-panel-field">
+          <span>Preset</span>
+          <select class="flow-panel-select" data-schedule-preset>
+            <option value="">Custom…</option>
+            ${presetOptionsHtml}
+          </select>
+        </label>
+        <label class="flow-panel-field">
+          <span>Cron Expression</span>
+          <input type="text" class="flow-panel-input flow-panel-cron-input" data-config="schedule" value="${escAttr(scheduleVal)}" placeholder="* * * * *" spellcheck="false" />
+          ${cronError ? `<span class="flow-panel-cron-error">${cronError}</span>` : ''}
+          ${cronDesc ? `<span class="flow-panel-cron-desc">${cronDesc}</span>` : ''}
+        </label>
+        ${nextFireStr ? `<div class="flow-panel-cron-next"><span class="ms" style="font-size:14px">event_upcoming</span> Next: ${nextFireStr}</div>` : ''}
+      </div>
+    `;
+  }
+
   if (node.kind === 'agent' || node.kind === 'tool') {
     configFieldsHtml += `
       <label class="flow-panel-field">
@@ -1118,10 +1160,26 @@ return input.toUpperCase();">${codeVal}</textarea>
       let value: unknown = (el as HTMLInputElement).value;
       // Convert timeoutMs from seconds to ms
       if (key === 'timeoutMs') value = Number(value) * 1000;
+      // Checkbox → boolean
+      if ((el as HTMLInputElement).type === 'checkbox') value = (el as HTMLInputElement).checked;
       const newConfig = { ...node.config, [key]: value };
       onUpdate({ config: newConfig });
     });
   });
+
+  // Schedule preset dropdown → sets cron input + triggers config update
+  const presetSelect = container.querySelector('[data-schedule-preset]') as HTMLSelectElement | null;
+  if (presetSelect) {
+    presetSelect.addEventListener('change', () => {
+      const val = presetSelect.value;
+      if (!val) return;
+      const cronInput = container.querySelector('[data-config="schedule"]') as HTMLInputElement | null;
+      if (cronInput) {
+        cronInput.value = val;
+        cronInput.dispatchEvent(new Event('change'));
+      }
+    });
+  }
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
