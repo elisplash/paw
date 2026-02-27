@@ -1,0 +1,135 @@
+/* ─── Inbox Context Sidebar (Right Panel) ─── */
+
+.inbox-sidebar {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  background: var(--bg-secondary);
+  overflow: hidden;
+  gap: 0;
+}
+
+/* When mission panel lives inside sidebar, fill and scroll */
+.inbox-sidebar .chat-mission-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  min-height: 0;
+}
+
+/* Flatten mission cards inside sidebar */
+.inbox-sidebar .mission-card {
+  margin: 0;
+  border-radius: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-left: none;
+  border-right: none;
+  border-top: none;
+}
+
+/* ─── Approvals card ─── */
+.mission-approval-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+}
+
+.mission-approval-icon {
+  font-size: 16px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+.mission-approval-label {
+  flex: 1;
+  font-size: var(--type-label);
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.mission-approval-desc {
+  font-size: var(--type-micro);
+  color: var(--text-muted);
+  display: block;
+  line-height: 1.3;
+}
+
+/* Toggle switch */
+.mission-approval-toggle {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.mission-approval-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.mission-approval-toggle .toggle-track {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.mission-approval-toggle .toggle-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  transition: transform var(--transition-fast), background var(--transition-fast);
+}
+
+.mission-approval-toggle input:checked + .toggle-track {
+  background: var(--accent-subtle);
+  border-color: var(--accent-muted);
+}
+
+.mission-approval-toggle input:checked + .toggle-track::after {
+  transform: translateX(14px);
+  background: var(--accent);
+}
+
+/* ─── Search in Conversation ─── */
+.mission-search-conv-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+.mission-search-conv-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: var(--type-body);
+  outline: none;
+}
+
+.mission-search-conv-input::placeholder {
+  color: var(--text-muted);
+}
