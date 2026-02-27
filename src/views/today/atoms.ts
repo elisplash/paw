@@ -51,16 +51,19 @@ export function getWeatherIcon(code: string): string {
   if (c >= 95 && c <= 99) return ms('thunderstorm');
 
   // ── WWO / wttr.in codes (100+) ──────────────────────────────────────
-  if (c === 113) return ms('light_mode');            // Clear / Sunny
-  if (c === 116) return ms('partly_cloudy_day');     // Partly cloudy
-  if (c === 119 || c === 122) return ms('cloud');    // Cloudy / Overcast
+  if (c === 113) return ms('light_mode'); // Clear / Sunny
+  if (c === 116) return ms('partly_cloudy_day'); // Partly cloudy
+  if (c === 119 || c === 122) return ms('cloud'); // Cloudy / Overcast
   if (c === 143 || c === 248 || c === 260) return ms('mist'); // Fog
   if ([176, 263, 266, 281, 284, 293, 296, 299, 302, 305, 308, 311, 314, 353, 356, 359].includes(c))
-    return ms('rainy');                               // Rain / drizzle variants
-  if ([179, 182, 185, 227, 230, 317, 320, 323, 326, 329, 332, 335, 338, 362, 365, 368, 371, 374, 377].includes(c))
-    return ms('weather_snowy');                        // Snow / sleet / ice variants
-  if ([200, 386, 389, 392, 395].includes(c))
-    return ms('thunderstorm');                         // Thunder variants
+    return ms('rainy'); // Rain / drizzle variants
+  if (
+    [
+      179, 182, 185, 227, 230, 317, 320, 323, 326, 329, 332, 335, 338, 362, 365, 368, 371, 374, 377,
+    ].includes(c)
+  )
+    return ms('weather_snowy'); // Snow / sleet / ice variants
+  if ([200, 386, 389, 392, 395].includes(c)) return ms('thunderstorm'); // Thunder variants
 
   return ms('partly_cloudy_day');
 }
