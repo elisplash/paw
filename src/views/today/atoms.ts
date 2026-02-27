@@ -38,20 +38,14 @@ export function toggledStatus(current: TaskStatus): TaskStatus {
 export function getWeatherIcon(code: string): string {
   const c = parseInt(code);
   const ms = (name: string) => `<span class="ms ms-lg">${name}</span>`;
-  if (c === 113) return ms('light_mode');
-  if (c === 116) return ms('partly_cloudy_day');
-  if ([119, 122].includes(c)) return ms('cloud');
-  if ([143, 248, 260].includes(c)) return ms('mist');
-  if ([176, 263, 266, 293, 296, 299, 302, 305, 308, 311, 314, 353, 356, 359].includes(c))
-    return ms('rainy');
-  if (
-    [
-      179, 182, 185, 281, 284, 317, 320, 323, 326, 329, 332, 335, 338, 350, 362, 365, 368, 371, 374,
-      377,
-    ].includes(c)
-  )
-    return ms('weather_snowy');
-  if ([200, 386, 389, 392, 395].includes(c)) return ms('thunderstorm');
+  if (c === 0) return ms('light_mode');
+  if (c >= 1 && c <= 2) return ms('partly_cloudy_day');
+  if (c === 3) return ms('cloud');
+  if ([45, 48].includes(c)) return ms('mist');
+  if (c >= 51 && c <= 67) return ms('rainy');
+  if ((c >= 71 && c <= 77) || c === 85 || c === 86) return ms('weather_snowy');
+  if (c >= 80 && c <= 82) return ms('rainy');
+  if (c >= 95 && c <= 99) return ms('thunderstorm');
   return ms('partly_cloudy_day');
 }
 

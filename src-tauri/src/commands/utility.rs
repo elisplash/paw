@@ -164,25 +164,69 @@ pub fn check_keychain_health() -> KeychainHealth {
     }
 }
 
-/// Fetch weather data via wttr.in (bypasses the browser CSP for the frontend).
+/// Fetch weather data via Open-Meteo (free, no API key, reliable).
+/// Two-step: geocode the location name → fetch forecast with lat/lon.
 #[tauri::command]
 pub async fn fetch_weather(location: Option<String>) -> Result<String, String> {
     let loc = location.unwrap_or_default();
-    let url = format!("https://wttr.in/{}?format=j1", loc);
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(8))
+        .timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| format!("HTTP client error: {}", e))?;
-    let resp = client
-        .get(&url)
-        .header("User-Agent", "curl")
+
+    // Step 1: Geocode the location name to lat/lon
+    let geo_resp = client
+        .get("https://geocoding-api.open-meteo.com/v1/search")
+        .query(&[("name", loc.as_str()), ("count", "1"), ("language", "en"), ("format", "json")])
+        .send()
+        .await
+        .map_err(|e| format!("Geocoding failed: {}", e))?;
+    if !geo_resp.status().is_success() {
+        return Err(format!("Geocoding API returned {}", geo_resp.status()));
+    }
+    let geo_text = geo_resp
+        .text()
+        .await
+        .map_err(|e| format!("Failed to read geocoding response: {}", e))?;
+    let geo: serde_json::Value =
+        serde_json::from_str(&geo_text).map_err(|e| format!("Invalid geocoding JSON: {}", e))?;
+    let place = geo["results"]
+        .get(0)
+        .ok_or_else(|| format!("Location not found: {}", loc))?;
+    let lat = place["latitude"]
+        .as_f64()
+        .ok_or("Missing latitude in geocoding result")?;
+    let lon = place["longitude"]
+        .as_f64()
+        .ok_or("Missing longitude in geocoding result")?;
+    let place_name = place["name"].as_str().unwrap_or("");
+    let country = place["country"].as_str().unwrap_or("");
+
+    // Step 2: Fetch current weather from Open-Meteo
+    let weather_url = format!(
+        "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&wind_speed_unit=kmh",
+        lat, lon
+    );
+    let wx_resp = client
+        .get(&weather_url)
         .send()
         .await
         .map_err(|e| format!("Weather fetch failed: {}", e))?;
-    if !resp.status().is_success() {
-        return Err(format!("Weather API returned {}", resp.status()));
+    if !wx_resp.status().is_success() {
+        return Err(format!("Weather API returned {}", wx_resp.status()));
     }
-    resp.text()
+    let wx_text = wx_resp
+        .text()
         .await
-        .map_err(|e| format!("Failed to read weather response: {}", e))
+        .map_err(|e| format!("Failed to read weather response: {}", e))?;
+    let mut wx: serde_json::Value =
+        serde_json::from_str(&wx_text).map_err(|e| format!("Invalid weather JSON: {}", e))?;
+
+    // Merge location info into the response
+    wx["location"] = serde_json::json!({
+        "name": place_name,
+        "country": country,
+    });
+
+    serde_json::to_string(&wx).map_err(|e| format!("JSON serialization error: {}", e))
 }

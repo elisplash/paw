@@ -485,6 +485,10 @@ mod tests {
 
     #[test]
     fn pinned_client_builds_successfully() {
+        // Install the ring CryptoProvider for the test environment —
+        // in the real app this happens implicitly via the rustls feature,
+        // but test binaries may not auto-detect the provider.
+        let _ = rustls::crypto::ring::default_provider().install_default();
         let _client = pinned_client();
         // If this doesn't panic, the TLS config is valid
     }

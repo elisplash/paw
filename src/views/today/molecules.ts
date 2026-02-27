@@ -89,32 +89,57 @@ export async function fetchWeather() {
     if (invoke) {
       json = await invoke<string>('fetch_weather', { location: savedLocation });
     } else {
+      // Browser fallback — geocode then fetch from Open-Meteo directly
       const loc = savedLocation ? encodeURIComponent(savedLocation) : '';
-      const response = await fetch(`https://wttr.in/${loc}?format=j1`, {
-        headers: { 'User-Agent': 'curl' },
-        signal: AbortSignal.timeout(8000),
-      });
-      json = await response.text();
+      const geoResp = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${loc}&count=1&language=en&format=json`,
+        { signal: AbortSignal.timeout(8000) },
+      );
+      const geo = await geoResp.json();
+      const place = geo.results?.[0];
+      if (!place) throw new Error('Location not found');
+      const wxResp = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,relative_humidity_2m&wind_speed_unit=kmh`,
+        { signal: AbortSignal.timeout(8000) },
+      );
+      const wx = await wxResp.json();
+      wx.location = { name: place.name, country: place.country };
+      json = JSON.stringify(wx);
     }
 
     if (!json) throw new Error('No weather data');
 
     const data = JSON.parse(json);
-    const current = data.current_condition?.[0];
+    const current = data.current;
     if (!current) throw new Error('No current weather');
 
-    const tempC = current.temp_C ?? '--';
-    const tempF = current.temp_F ?? '--';
-    const desc = current.weatherDesc?.[0]?.value ?? '';
-    const code = current.weatherCode ?? '';
-    const feelsLikeC = current.FeelsLikeC;
-    const humidity = current.humidity;
-    const windKmph = current.windspeedKmph;
+    const tempC = current.temperature_2m ?? '--';
+    const tempF = tempC !== '--' ? Math.round(tempC * 9 / 5 + 32) : '--';
+    const code = String(current.weather_code ?? '');
+    const feelsLikeC = current.apparent_temperature;
+    const humidity = current.relative_humidity_2m;
+    const windKmph = current.wind_speed_10m;
     const icon = getWeatherIcon(code);
 
-    const area = data.nearest_area?.[0];
-    const location = area
-      ? `${area.areaName?.[0]?.value ?? ''}${area.country?.[0]?.value ? `, ${area.country[0].value}` : ''}`
+    // WMO weather code to human-readable description
+    const wmoDesc: Record<number, string> = {
+      0: 'Clear sky', 1: 'Mainly clear', 2: 'Partly cloudy', 3: 'Overcast',
+      45: 'Fog', 48: 'Depositing rime fog',
+      51: 'Light drizzle', 53: 'Moderate drizzle', 55: 'Dense drizzle',
+      56: 'Freezing drizzle', 57: 'Dense freezing drizzle',
+      61: 'Slight rain', 63: 'Moderate rain', 65: 'Heavy rain',
+      66: 'Light freezing rain', 67: 'Heavy freezing rain',
+      71: 'Slight snow', 73: 'Moderate snow', 75: 'Heavy snow',
+      77: 'Snow grains',
+      80: 'Slight rain showers', 81: 'Moderate rain showers', 82: 'Violent rain showers',
+      85: 'Slight snow showers', 86: 'Heavy snow showers',
+      95: 'Thunderstorm', 96: 'Thunderstorm with slight hail', 99: 'Thunderstorm with heavy hail',
+    };
+    const desc = wmoDesc[current.weather_code] ?? '';
+
+    const loc = data.location;
+    const location = loc
+      ? `${loc.name ?? ''}${loc.country ? `, ${loc.country}` : ''}`
       : '';
 
     weatherEl.innerHTML = `
