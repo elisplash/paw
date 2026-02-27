@@ -18,6 +18,7 @@ import {
   type RenderOpts,
 } from './chat_renderer';
 import { createChatInput, type ChatInputController } from './chat_input';
+import { createTalkMode, type TalkModeController } from './tts';
 import { findLastIndex } from '../atoms/chat';
 
 // ── Constants ────────────────────────────────────────────────────────────
@@ -175,7 +176,7 @@ export function createMiniHub(
   const chatInput: ChatInputController = createChatInput({
     placeholder: `Message ${config.agentName}…`,
     showAttachBtn: true,
-    showTalkBtn: false, // keep mini-hubs compact
+    showTalkBtn: true,
     maxHeight: 80,
   });
   chatInput.el.classList.add('mini-hub-input-area');
@@ -185,6 +186,36 @@ export function createMiniHub(
     chatInput.clear();
   };
   root.appendChild(chatInput.el);
+
+  // ── Voice-to-text (Talk Mode) ──────────────────────────────────────────
+
+  const talkMode: TalkModeController = createTalkMode(
+    () => chatInput.el.querySelector('.chat-input') as HTMLTextAreaElement | null,
+    () => chatInput.el.querySelector('.chat-talk-btn') as HTMLElement | null,
+    30_000,
+  );
+  chatInput.onTalk = () => {
+    talkMode.toggle();
+  };
+
+  // ── Drag-and-drop files on messages area ───────────────────────────────
+
+  messagesContainer.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    messagesContainer.classList.add('drag-active');
+  });
+  messagesContainer.addEventListener('dragleave', () => {
+    messagesContainer.classList.remove('drag-active');
+  });
+  messagesContainer.addEventListener('drop', (e) => {
+    e.preventDefault();
+    messagesContainer.classList.remove('drag-active');
+    const files = Array.from(e.dataTransfer?.files ?? []);
+    if (files.length) {
+      const existing = chatInput.getAttachments();
+      chatInput.setAttachments([...existing, ...files]);
+    }
+  });
 
   // ── Drag-to-reposition ───────────────────────────────────────────────
 
@@ -398,6 +429,7 @@ export function createMiniHub(
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      talkMode.cleanup();
       titlebar.removeEventListener('mousedown', onDragStart);
       document.removeEventListener('mousemove', onDragMove);
       document.removeEventListener('mouseup', onDragEnd);
