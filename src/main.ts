@@ -444,7 +444,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     OrchestratorModule.initOrchestrator();
     initChannels();
     initChatListeners();
-    mountInbox();
+    // mountInbox deferred — must run after connectEngine sets wsConnected
     initHILModal();
     initCommandPalette({
       getAgents: AgentsModule.getAgents,
@@ -480,6 +480,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await connectEngine();
     // Ensure agents are loaded before rendering Today page
     await AgentsModule.loadAgents();
+    // Mount inbox AFTER engine is connected so sessions can load
+    mountInbox();
 
     // ── Onboarding wizard gate ──────────────────────────────────────
     const needsWizard = await shouldShowWizard();

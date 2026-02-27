@@ -163,8 +163,8 @@ export async function refreshConversationList(): Promise<void> {
   if (!_list || !_mounted) return;
 
   try {
-    // Ensure sessions are loaded
-    if (!appState.sessions.length && appState.wsConnected) {
+    // Ensure sessions are loaded (engine mode uses IPC, not WS)
+    if (!appState.sessions.length) {
       await loadSessions({ skipHistory: true });
     }
 
