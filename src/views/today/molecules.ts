@@ -1190,7 +1190,7 @@ async function loadIntegrationsDashboard() {
     body.innerHTML = `
       <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)">
         <span class="ms ms-sm">hub</span>
-        <span>400+ services available · <a href="#" class="integ-browse" style="color:var(--accent);text-decoration:none">Browse all</a></span>
+        <span>25,000+ integrations available · <a href="#" class="integ-browse" style="color:var(--accent);text-decoration:none">Browse all</a></span>
       </div>`;
     body.querySelector('.integ-browse')?.addEventListener('click', (e) => {
       e.preventDefault();

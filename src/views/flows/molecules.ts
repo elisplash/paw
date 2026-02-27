@@ -1157,7 +1157,7 @@ export function renderNodePanel(
           <div class="flow-panel-section">
             <div class="flow-panel-section-label">Stats</div>
             <div class="flow-panel-pos">
-              <span>${activeGraph.nodes.length} nodes</span>
+              <span>${activeGraph.nodes.length} integrations</span>
               <span>${activeGraph.edges.length} edges</span>
             </div>
           </div>
@@ -1545,7 +1545,7 @@ export function renderTemplateBrowser(
               <p class="flow-tpl-card-desc">${tpl.description}</p>
               <div class="flow-tpl-card-tags">
                 ${tpl.tags.slice(0, 3).map((t) => `<span class="flow-tpl-tag">${t}</span>`).join('')}
-                <span class="flow-tpl-card-nodes">${tpl.nodes.length} nodes</span>
+                <span class="flow-tpl-card-nodes">${tpl.nodes.length} integrations</span>
               </div>
               <button class="flow-tpl-use-btn" data-tpl-id="${tpl.id}">Use Template</button>
             </div>

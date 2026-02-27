@@ -1,4 +1,4 @@
-// src/views/integrations/catalog.ts — Full service catalog (400+ services)
+// src/views/integrations/catalog.ts — Full service catalog (25,000+ services)
 //
 // Atom-level: pure data, no DOM, no IPC.
 // Top services are hand-curated with setup guides; remaining are auto-generated.
@@ -582,7 +582,7 @@ const CURATED: ServiceDefinition[] = [
   ),
 ];
 
-// ── Auto-generated entries (remaining 400+ services) ───────────────────
+// ── Auto-generated entries (remaining 25,000+ services) ───────────────────
 
 const AUTO: ServiceDefinition[] = [
   // Communication

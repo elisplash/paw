@@ -270,13 +270,13 @@ export function unmountFlows() {
 /** Update the hero stat counters to reflect current state. */
 function updateHeroStats() {
   const totalEl = el('flows-stat-total');
-  const nodesEl = el('flows-stat-nodes');
+  const integEl = el('flows-stat-integrations');
   const schedEl = el('flows-stat-scheduled');
 
   if (totalEl) totalEl.textContent = String(_graphs.length);
-  if (nodesEl) {
+  if (integEl) {
     const total = _graphs.reduce((sum, g) => sum + g.nodes.length, 0);
-    nodesEl.textContent = String(total);
+    integEl.textContent = String(total);
   }
   if (schedEl) {
     schedEl.textContent = String(_scheduleRegistry.length);
