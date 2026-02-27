@@ -26,7 +26,7 @@ A native desktop AI platform that runs fully offline, connects to any provider, 
 
 **OpenPawz in Action**
 
-https://github.com/OpenPawz/openpawz/raw/main/images/screenshots/Video_Generation_Complete.mp4
+https://github.com/user-attachments/assets/9bee2c08-ca86-4483-89a1-3eae847054b4
 
 <br>
 
