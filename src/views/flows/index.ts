@@ -122,7 +122,9 @@ export function loadFlows() {
       const agents = JSON.parse(agentStore) as { id: string; name: string }[];
       setAvailableAgents(agents.map((a) => ({ id: a.id, name: a.name })));
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   if (!_mounted) {
     mount();
@@ -443,9 +445,15 @@ function onKeyDown(e: KeyboardEvent) {
   switch (e.key) {
     case 'Delete':
     case 'Backspace':
-      if (_selectedNodeId && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+      if (
+        _selectedNodeId &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
         graph.nodes = graph.nodes.filter((n) => n.id !== _selectedNodeId);
-        graph.edges = graph.edges.filter((ee) => ee.from !== _selectedNodeId && ee.to !== _selectedNodeId);
+        graph.edges = graph.edges.filter(
+          (ee) => ee.from !== _selectedNodeId && ee.to !== _selectedNodeId,
+        );
         _selectedNodeId = null;
         graph.updatedAt = new Date().toISOString();
         persist();

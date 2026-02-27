@@ -6,21 +6,21 @@
 // ── Node Kinds ─────────────────────────────────────────────────────────────
 
 export type FlowNodeKind =
-  | 'trigger'    // Event that starts the flow (webhook, cron, user input)
-  | 'agent'      // AI agent processing step
-  | 'tool'       // MCP tool invocation
-  | 'condition'  // If/else branch
-  | 'data'       // Data transform / mapping
-  | 'code'       // Inline JavaScript evaluation (sandboxed)
-  | 'output'     // Terminal output (log, send, store)
-  | 'error'      // Error handler (logs, alerts, notifications)
-  | 'group';     // Sub-flow / compound node
+  | 'trigger' // Event that starts the flow (webhook, cron, user input)
+  | 'agent' // AI agent processing step
+  | 'tool' // MCP tool invocation
+  | 'condition' // If/else branch
+  | 'data' // Data transform / mapping
+  | 'code' // Inline JavaScript evaluation (sandboxed)
+  | 'output' // Terminal output (log, send, store)
+  | 'error' // Error handler (logs, alerts, notifications)
+  | 'group'; // Sub-flow / compound node
 
 export type EdgeKind =
-  | 'forward'       // Normal A → B
-  | 'reverse'       // Pull: B ← A (data request)
+  | 'forward' // Normal A → B
+  | 'reverse' // Pull: B ← A (data request)
   | 'bidirectional' // Handshake: A ↔ B
-  | 'error';        // Error path: A --err--> B (fallback)
+  | 'error'; // Error path: A --err--> B (fallback)
 
 export type FlowStatus = 'idle' | 'running' | 'success' | 'error' | 'paused';
 
@@ -103,23 +103,41 @@ export interface FlowTemplate {
   /** Icon name (Material Symbols) */
   icon: string;
   /** Node definitions (will be cloned with fresh IDs on instantiation) */
-  nodes: Array<{ kind: FlowNodeKind; label: string; description?: string; config?: Record<string, unknown> }>;
+  nodes: Array<{
+    kind: FlowNodeKind;
+    label: string;
+    description?: string;
+    config?: Record<string, unknown>;
+  }>;
   /** Edge definitions (by index: from nodes[fromIdx] → nodes[toIdx]) */
-  edges: Array<{ fromIdx: number; toIdx: number; kind?: EdgeKind; label?: string; condition?: string }>;
+  edges: Array<{
+    fromIdx: number;
+    toIdx: number;
+    kind?: EdgeKind;
+    label?: string;
+    condition?: string;
+  }>;
 }
 
 /** Category display metadata */
-export const TEMPLATE_CATEGORIES: Record<FlowTemplateCategory, { label: string; icon: string; color: string }> = {
-  ai:            { label: 'AI & Agents',       icon: 'psychology',      color: 'var(--kinetic-red, #FF4D4D)' },
-  communication: { label: 'Communication',     icon: 'forum',           color: 'var(--kinetic-sage, #8FB0A0)' },
-  devops:        { label: 'DevOps & CI',       icon: 'build_circle',    color: 'var(--kinetic-steel, #7A8B9A)' },
-  productivity:  { label: 'Productivity',      icon: 'task_alt',        color: 'var(--kinetic-gold, #D4A853)' },
-  data:          { label: 'Data & Transform',  icon: 'data_object',     color: 'var(--kinetic-steel, #7A8B9A)' },
-  research:      { label: 'Research',          icon: 'science',         color: 'var(--kinetic-sage, #8FB0A0)' },
-  social:        { label: 'Social & Content',  icon: 'share',           color: 'var(--kinetic-gold, #D4A853)' },
-  finance:       { label: 'Finance & Trading', icon: 'trending_up',     color: 'var(--kinetic-red, #FF4D4D)' },
-  support:       { label: 'Support',           icon: 'support_agent',   color: 'var(--kinetic-sage, #8FB0A0)' },
-  custom:        { label: 'Custom',            icon: 'tune',            color: 'var(--text-muted)' },
+export const TEMPLATE_CATEGORIES: Record<
+  FlowTemplateCategory,
+  { label: string; icon: string; color: string }
+> = {
+  ai: { label: 'AI & Agents', icon: 'psychology', color: 'var(--kinetic-red, #FF4D4D)' },
+  communication: { label: 'Communication', icon: 'forum', color: 'var(--kinetic-sage, #8FB0A0)' },
+  devops: { label: 'DevOps & CI', icon: 'build_circle', color: 'var(--kinetic-steel, #7A8B9A)' },
+  productivity: { label: 'Productivity', icon: 'task_alt', color: 'var(--kinetic-gold, #D4A853)' },
+  data: { label: 'Data & Transform', icon: 'data_object', color: 'var(--kinetic-steel, #7A8B9A)' },
+  research: { label: 'Research', icon: 'science', color: 'var(--kinetic-sage, #8FB0A0)' },
+  social: { label: 'Social & Content', icon: 'share', color: 'var(--kinetic-gold, #D4A853)' },
+  finance: {
+    label: 'Finance & Trading',
+    icon: 'trending_up',
+    color: 'var(--kinetic-red, #FF4D4D)',
+  },
+  support: { label: 'Support', icon: 'support_agent', color: 'var(--kinetic-sage, #8FB0A0)' },
+  custom: { label: 'Custom', icon: 'tune', color: 'var(--text-muted)' },
 };
 
 /**
@@ -174,16 +192,19 @@ export function filterTemplates(
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-export const NODE_DEFAULTS: Record<FlowNodeKind, { width: number; height: number; color: string; icon: string }> = {
-  trigger:   { width: 160, height: 64, color: 'var(--warning)',      icon: 'bolt' },
-  agent:     { width: 180, height: 72, color: 'var(--accent)',       icon: 'smart_toy' },
-  tool:      { width: 180, height: 64, color: 'var(--kinetic-sage)', icon: 'build' },
-  condition: { width: 140, height: 64, color: 'var(--status-info)',  icon: 'call_split' },
-  data:      { width: 160, height: 56, color: 'var(--kinetic-gold)', icon: 'data_object' },
-  code:      { width: 180, height: 72, color: 'var(--kinetic-steel)', icon: 'code' },
-  output:    { width: 160, height: 64, color: 'var(--success)',      icon: 'output' },
-  error:     { width: 180, height: 72, color: 'var(--kinetic-red, #D64045)', icon: 'error' },
-  group:     { width: 240, height: 120, color: 'var(--border)',      icon: 'folder' },
+export const NODE_DEFAULTS: Record<
+  FlowNodeKind,
+  { width: number; height: number; color: string; icon: string }
+> = {
+  trigger: { width: 160, height: 64, color: 'var(--warning)', icon: 'bolt' },
+  agent: { width: 180, height: 72, color: 'var(--accent)', icon: 'smart_toy' },
+  tool: { width: 180, height: 64, color: 'var(--kinetic-sage)', icon: 'build' },
+  condition: { width: 140, height: 64, color: 'var(--status-info)', icon: 'call_split' },
+  data: { width: 160, height: 56, color: 'var(--kinetic-gold)', icon: 'data_object' },
+  code: { width: 180, height: 72, color: 'var(--kinetic-steel)', icon: 'code' },
+  output: { width: 160, height: 64, color: 'var(--success)', icon: 'output' },
+  error: { width: 180, height: 72, color: 'var(--kinetic-red, #D64045)', icon: 'error' },
+  group: { width: 240, height: 120, color: 'var(--border)', icon: 'folder' },
 };
 
 export const GRID_SIZE = 20;
@@ -242,7 +263,11 @@ export function createEdge(
   };
 }
 
-export function createGraph(name: string, nodes: FlowNode[] = [], edges: FlowEdge[] = []): FlowGraph {
+export function createGraph(
+  name: string,
+  nodes: FlowNode[] = [],
+  edges: FlowEdge[] = [],
+): FlowGraph {
   const now = new Date().toISOString();
   return {
     id: genId('flow'),
@@ -333,7 +358,8 @@ export function applyLayout(graph: FlowGraph): { width: number; height: number }
     const colHeight = layerCount * MIN_NODE_SPACING_Y;
 
     node.x = CANVAS_PADDING + pos.layer * MIN_NODE_SPACING_X;
-    node.y = CANVAS_PADDING + pos.order * MIN_NODE_SPACING_Y + (MIN_NODE_SPACING_Y - node.height) / 2;
+    node.y =
+      CANVAS_PADDING + pos.order * MIN_NODE_SPACING_Y + (MIN_NODE_SPACING_Y - node.height) / 2;
 
     // Center small layers vertically
     if (layerCount < (layerCounts.get(0) ?? 1)) {
@@ -357,7 +383,10 @@ export function snapToGrid(val: number): number {
 
 // ── Edge Path Geometry ─────────────────────────────────────────────────────
 
-export interface Point { x: number; y: number; }
+export interface Point {
+  x: number;
+  y: number;
+}
 
 /**
  * Compute the output port position for a node.

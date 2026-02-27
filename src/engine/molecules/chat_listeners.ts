@@ -3,11 +3,7 @@
 // Extracted from chat_controller.ts to respect atomic boundaries.
 
 import { pawEngine } from '../../engine';
-import {
-  appState,
-  agentSessionMap,
-  persistAgentSessionMap,
-} from '../../state/index';
+import { appState, agentSessionMap, persistAgentSessionMap } from '../../state/index';
 import { escHtml, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import * as AgentsModule from '../../views/agents';

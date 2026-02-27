@@ -75,9 +75,7 @@ describe('renderSingleMessage', () => {
   });
 
   it('renders multi-agent prefix with colour from agentMap', () => {
-    const agentMap = new Map([
-      ['bot-1', { name: 'Scout', color: '#ff0000' }],
-    ]);
+    const agentMap = new Map([['bot-1', { name: 'Scout', color: '#ff0000' }]]);
     const msg = makeMessage({
       role: 'assistant',
       content: 'Reply from Scout',
@@ -167,9 +165,7 @@ describe('renderSingleMessage', () => {
 
   it('renders attachments when present', () => {
     const msg = makeMessage({
-      attachments: [
-        { name: 'doc.pdf', mimeType: 'application/pdf' },
-      ],
+      attachments: [{ name: 'doc.pdf', mimeType: 'application/pdf' }],
     });
     const el = renderSingleMessage(container, msg, 0, 0, -1, defaultOpts);
     expect(el.querySelector('.message-attachments')).not.toBeNull();
@@ -239,9 +235,7 @@ describe('renderAttachmentStrip', () => {
   });
 
   it('renders non-image attachments as doc chips', () => {
-    const strip = renderAttachmentStrip([
-      { name: 'readme.txt', mimeType: 'text/plain' },
-    ]);
+    const strip = renderAttachmentStrip([{ name: 'readme.txt', mimeType: 'text/plain' }]);
     expect(strip.querySelector('.message-attachment-doc')).not.toBeNull();
     expect(strip.querySelector('span')!.textContent).toBe('readme.txt');
   });
@@ -256,9 +250,7 @@ describe('renderAttachmentStrip', () => {
   });
 
   it('uses base64 data for image src when url is absent', () => {
-    const strip = renderAttachmentStrip([
-      { name: 'img.png', mimeType: 'image/png', data: 'AAAA' },
-    ]);
+    const strip = renderAttachmentStrip([{ name: 'img.png', mimeType: 'image/png', data: 'AAAA' }]);
     const img = strip.querySelector('img')!;
     expect(img.src).toContain('data:image/png;base64,AAAA');
   });

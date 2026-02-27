@@ -22,7 +22,11 @@ export interface ConversationListController {
   /** Root DOM element */
   el: HTMLElement;
   /** Re-render the agent list from current conversation state */
-  render(conversations: ConversationEntry[], activeAgentId: string | null, filter: InboxState['filter']): void;
+  render(
+    conversations: ConversationEntry[],
+    activeAgentId: string | null,
+    filter: InboxState['filter'],
+  ): void;
   /** Update search query and re-filter */
   setSearch(query: string): void;
   /** Set streaming state on an agent row (by agentId) */

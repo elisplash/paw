@@ -63,7 +63,7 @@ export function createSessionManager(deps: SessionManagerDeps): SessionManager {
         const gm = groupSessionMap.get(s.id);
         return {
           key: s.id,
-          kind: gm ? 'group' as const : 'direct' as const,
+          kind: gm ? ('group' as const) : ('direct' as const),
           label: s.label ?? undefined,
           displayName: s.label ?? s.id,
           updatedAt: s.updated_at ? new Date(s.updated_at).getTime() : undefined,
@@ -74,7 +74,10 @@ export function createSessionManager(deps: SessionManagerDeps): SessionManager {
 
       // Re-add pending group sessions (not yet backed by a real session) from localStorage
       for (const [pendingKey, gm] of groupSessionMap) {
-        if (pendingKey.startsWith('pending-group_') && !appState.sessions.some((s) => s.key === pendingKey)) {
+        if (
+          pendingKey.startsWith('pending-group_') &&
+          !appState.sessions.some((s) => s.key === pendingKey)
+        ) {
           appState.sessions.unshift({
             key: pendingKey,
             kind: 'group',

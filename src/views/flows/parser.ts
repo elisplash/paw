@@ -102,7 +102,10 @@ function parseArrowSyntax(text: string, name: string, warnings: string[]): Parse
     .replace(/[<>]/g, (m) => (m === '>' ? '→' : '←'));
 
   // Split by lines (multi-line flows)
-  const lines = normalized.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = normalized
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
 
   const nodes: FlowNode[] = [];
   const edges: FlowEdge[] = [];
@@ -206,8 +209,12 @@ function parsePipeSyntax(text: string, name: string, warnings: string[]): ParseR
 
 function parseProse(text: string, name: string, warnings: string[]): ParseResult {
   // Split on transition phrases
-  const splitPattern = /\s*(?:,\s*then\b|,\s*and\s+then\b|\bthen\b|,\s*next\b|\bnext\b|,\s*after\s+that\b|\bafter\s+that\b|,\s*finally\b|\bfinally\b|;\s*|\.\s+)/i;
-  const segments = text.split(splitPattern).map((s) => s.trim()).filter(Boolean);
+  const splitPattern =
+    /\s*(?:,\s*then\b|,\s*and\s+then\b|\bthen\b|,\s*next\b|\bnext\b|,\s*after\s+that\b|\bafter\s+that\b|,\s*finally\b|\bfinally\b|;\s*|\.\s+)/i;
+  const segments = text
+    .split(splitPattern)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   if (segments.length < 2) {
     // Can't parse as flow — create single node

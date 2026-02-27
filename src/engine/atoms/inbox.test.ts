@@ -131,7 +131,8 @@ describe('truncatePreview', () => {
   });
 
   it('truncates long strings with ellipsis', () => {
-    const long = 'This is a very long message that should definitely be truncated at sixty characters';
+    const long =
+      'This is a very long message that should definitely be truncated at sixty characters';
     const result = truncatePreview(long);
     expect(result.endsWith('…')).toBe(true);
     expect(result.length).toBeLessThanOrEqual(61); // 60 + ellipsis

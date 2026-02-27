@@ -84,16 +84,16 @@ export interface ScheduleFireLog {
  * Common cron presets for the UI picker.
  */
 export const CRON_PRESETS: Array<{ label: string; value: string; description: string }> = [
-  { label: 'Every minute',      value: '* * * * *',    description: 'Runs every 60 seconds' },
-  { label: 'Every 5 minutes',   value: '*/5 * * * *',  description: 'Runs every 5 minutes' },
-  { label: 'Every 15 minutes',  value: '*/15 * * * *', description: 'Runs every 15 minutes' },
-  { label: 'Every hour',        value: '0 * * * *',    description: 'Runs at the start of every hour' },
-  { label: 'Every 6 hours',     value: '0 */6 * * *',  description: 'Runs every 6 hours' },
-  { label: 'Daily at midnight', value: '0 0 * * *',    description: 'Runs once a day at 00:00' },
-  { label: 'Daily at 9 AM',     value: '0 9 * * *',    description: 'Runs once a day at 09:00' },
-  { label: 'Weekdays at 9 AM',  value: '0 9 * * 1-5',  description: 'Mon–Fri at 09:00' },
-  { label: 'Every Monday',      value: '0 9 * * 1',    description: 'Every Monday at 09:00' },
-  { label: 'Monthly (1st)',     value: '0 0 1 * *',    description: 'First day of every month at 00:00' },
+  { label: 'Every minute', value: '* * * * *', description: 'Runs every 60 seconds' },
+  { label: 'Every 5 minutes', value: '*/5 * * * *', description: 'Runs every 5 minutes' },
+  { label: 'Every 15 minutes', value: '*/15 * * * *', description: 'Runs every 15 minutes' },
+  { label: 'Every hour', value: '0 * * * *', description: 'Runs at the start of every hour' },
+  { label: 'Every 6 hours', value: '0 */6 * * *', description: 'Runs every 6 hours' },
+  { label: 'Daily at midnight', value: '0 0 * * *', description: 'Runs once a day at 00:00' },
+  { label: 'Daily at 9 AM', value: '0 9 * * *', description: 'Runs once a day at 09:00' },
+  { label: 'Weekdays at 9 AM', value: '0 9 * * 1-5', description: 'Mon–Fri at 09:00' },
+  { label: 'Every Monday', value: '0 9 * * 1', description: 'Every Monday at 09:00' },
+  { label: 'Monthly (1st)', value: '0 0 1 * *', description: 'First day of every month at 00:00' },
 ];
 
 /**
@@ -215,11 +215,24 @@ export interface FlowOutputEntry {
 /** Events emitted during flow execution. */
 export type FlowExecEvent =
   | { type: 'run-start'; runId: string; graphName: string; totalSteps: number }
-  | { type: 'step-start'; runId: string; stepIndex: number; nodeId: string; nodeLabel: string; nodeKind: FlowNodeKind }
+  | {
+      type: 'step-start';
+      runId: string;
+      stepIndex: number;
+      nodeId: string;
+      nodeLabel: string;
+      nodeKind: FlowNodeKind;
+    }
   | { type: 'step-progress'; runId: string; nodeId: string; delta: string }
   | { type: 'step-complete'; runId: string; nodeId: string; output: string; durationMs: number }
   | { type: 'step-error'; runId: string; nodeId: string; error: string; durationMs: number }
-  | { type: 'run-complete'; runId: string; status: FlowStatus; totalDurationMs: number; outputLog: FlowOutputEntry[] }
+  | {
+      type: 'run-complete';
+      runId: string;
+      status: FlowStatus;
+      totalDurationMs: number;
+      outputLog: FlowOutputEntry[];
+    }
   | { type: 'run-paused'; runId: string; stepIndex: number }
   | { type: 'run-aborted'; runId: string }
   | { type: 'debug-cursor'; runId: string; nodeId: string; stepIndex: number }
@@ -291,18 +304,14 @@ export function buildExecutionPlan(graph: FlowGraph): string[] {
  * Get the immediate upstream node IDs for a given node.
  */
 export function getUpstreamNodes(graph: FlowGraph, nodeId: string): string[] {
-  return graph.edges
-    .filter((e) => e.to === nodeId && e.kind !== 'reverse')
-    .map((e) => e.from);
+  return graph.edges.filter((e) => e.to === nodeId && e.kind !== 'reverse').map((e) => e.from);
 }
 
 /**
  * Get the immediate downstream node IDs for a given node.
  */
 export function getDownstreamNodes(graph: FlowGraph, nodeId: string): string[] {
-  return graph.edges
-    .filter((e) => e.from === nodeId && e.kind !== 'reverse')
-    .map((e) => e.to);
+  return graph.edges.filter((e) => e.from === nodeId && e.kind !== 'reverse').map((e) => e.to);
 }
 
 /**
@@ -566,12 +575,16 @@ export function validateFlowForExecution(graph: FlowGraph): FlowValidationError[
 export function summarizeRun(runState: FlowRunState, graph: FlowGraph): string {
   const lines: string[] = [];
   lines.push(`**Flow Run: ${graph.name}**`);
-  lines.push(`Status: ${runState.status} | Steps: ${runState.plan.length} | Duration: ${formatMs(runState.totalDurationMs)}`);
+  lines.push(
+    `Status: ${runState.status} | Steps: ${runState.plan.length} | Duration: ${formatMs(runState.totalDurationMs)}`,
+  );
   lines.push('');
 
   for (const entry of runState.outputLog) {
     const icon = entry.status === 'success' ? '✓' : entry.status === 'error' ? '✗' : '…';
-    lines.push(`${icon} **${entry.nodeLabel}** (${entry.nodeKind}) — ${formatMs(entry.durationMs)}`);
+    lines.push(
+      `${icon} **${entry.nodeLabel}** (${entry.nodeKind}) — ${formatMs(entry.durationMs)}`,
+    );
     if (entry.output) {
       const preview = entry.output.length > 200 ? `${entry.output.slice(0, 200)}…` : entry.output;
       lines.push(`  ${preview}`);
@@ -614,9 +627,18 @@ export function executeCodeSandboxed(
 
   // Block dangerous patterns
   const forbidden = [
-    /\bwindow\b/, /\bdocument\b/, /\bfetch\b/, /\bXMLHttpRequest\b/,
-    /\bimport\s*\(/, /\brequire\s*\(/, /\beval\s*\(/, /\bnew\s+Function\b/,
-    /\bglobalThis\b/, /\bprocess\b/, /\b__proto__\b/, /\bconstructor\s*\[/,
+    /\bwindow\b/,
+    /\bdocument\b/,
+    /\bfetch\b/,
+    /\bXMLHttpRequest\b/,
+    /\bimport\s*\(/,
+    /\brequire\s*\(/,
+    /\beval\s*\(/,
+    /\bnew\s+Function\b/,
+    /\bglobalThis\b/,
+    /\bprocess\b/,
+    /\b__proto__\b/,
+    /\bconstructor\s*\[/,
   ];
   for (const pattern of forbidden) {
     if (pattern.test(code)) {
@@ -630,9 +652,28 @@ export function executeCodeSandboxed(
     // Shadow dangerous globals by declaring them as undefined parameters
     // eslint-disable-next-line no-new-func -- intentional: sandboxed execution with blocked globals
     const sandboxFn = new Function(
-      'input', 'data', 'console', 'JSON', 'Math', 'Date', 'Array', 'Object', 'String', 'Number', 'Boolean', 'RegExp', 'Map', 'Set',
+      'input',
+      'data',
+      'console',
+      'JSON',
+      'Math',
+      'Date',
+      'Array',
+      'Object',
+      'String',
+      'Number',
+      'Boolean',
+      'RegExp',
+      'Map',
+      'Set',
       // Shadow dangerous globals (cannot use reserved words as params)
-      'window', 'document', 'fetch', 'XMLHttpRequest', 'globalThis', 'process', 'require',
+      'window',
+      'document',
+      'fetch',
+      'XMLHttpRequest',
+      'globalThis',
+      'process',
+      'require',
       `"use strict";\n${code}`,
     );
 
@@ -646,9 +687,28 @@ export function executeCodeSandboxed(
     // Execute with timeout via synchronous execution (no async support in sandbox)
     const start = Date.now();
     const result = sandboxFn(
-      input, parsedData, safeConsole, JSON, Math, Date, Array, Object, String, Number, Boolean, RegExp, Map, Set,
+      input,
+      parsedData,
+      safeConsole,
+      JSON,
+      Math,
+      Date,
+      Array,
+      Object,
+      String,
+      Number,
+      Boolean,
+      RegExp,
+      Map,
+      Set,
       // Shadowed as undefined
-      undefined, undefined, undefined, undefined, undefined, undefined, undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
     );
 
     const elapsed = Date.now() - start;

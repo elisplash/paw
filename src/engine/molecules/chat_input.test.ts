@@ -185,9 +185,7 @@ describe('onSend', () => {
     ctrl.onSend = spy;
     ctrl.setValue('Test');
     const textarea = ctrl.el.querySelector('textarea')!;
-    textarea.dispatchEvent(
-      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
-    );
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     expect(spy).toHaveBeenCalledWith('Test', []);
   });
 

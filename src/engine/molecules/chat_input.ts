@@ -6,9 +6,7 @@
 
 import { icon, escHtml } from '../../components/helpers';
 import { fileTypeIcon } from '../atoms/chat';
-import {
-  getAutocompleteSuggestions,
-} from '../../features/slash-commands';
+import { getAutocompleteSuggestions } from '../../features/slash-commands';
 
 // ── Types ────────────────────────────────────────────────────────────────
 

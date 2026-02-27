@@ -20,10 +20,7 @@ import {
 // helpers & toast moved to chat_listeners molecule
 import * as AgentsModule from '../../views/agents';
 import * as SettingsModule from '../../views/settings-main';
-import {
-  addActiveJob,
-  clearActiveJobs,
-} from '../../components/chat-mission-panel';
+import { addActiveJob, clearActiveJobs } from '../../components/chat-mission-panel';
 import {
   interceptSlashCommand,
   getSessionOverrides as getSlashOverrides,
@@ -34,11 +31,7 @@ import { parseCredentialSignal, handleCredentialRequired } from '../molecules/cr
 import type { Agent, ToolCall, Message } from '../../types';
 
 // ── Molecule imports ─────────────────────────────────────────────────────
-import {
-  generateSessionLabel,
-  extractContent,
-  findLastIndex,
-} from '../atoms/chat';
+import { generateSessionLabel, extractContent, findLastIndex } from '../atoms/chat';
 import {
   renderMessages as rendererRenderMessages,
   showStreamingMessage as rendererShowStreaming,
@@ -47,7 +40,11 @@ import {
   scrollToBottom as rendererScrollToBottom,
   type RenderOpts,
 } from '../molecules/chat_renderer';
-import { createTokenMeter, type TokenMeterController, type TokenMeterState } from '../molecules/token_meter';
+import {
+  createTokenMeter,
+  type TokenMeterController,
+  type TokenMeterState,
+} from '../molecules/token_meter';
 import { speakMessage, autoSpeakIfEnabled, type TtsState } from '../molecules/tts';
 import { createSessionManager, type SessionManager } from '../molecules/chat_sessions';
 import {

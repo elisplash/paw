@@ -9,10 +9,7 @@ import {
   MODEL_COST_PER_TOKEN,
   COMPACTION_WARN_THRESHOLD,
 } from '../../state/index';
-import {
-  refreshMissionPanel,
-  initMissionPanel,
-} from '../../components/chat-mission-panel';
+import { refreshMissionPanel, initMissionPanel } from '../../components/chat-mission-panel';
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -43,10 +40,7 @@ export interface TokenMeterController {
     getBudgetLimit: () => number | null,
   ): void;
   /** Update context limit when model changes. */
-  updateContextLimitFromModel(
-    modelName: string,
-    state: TokenMeterState,
-  ): void;
+  updateContextLimitFromModel(modelName: string, state: TokenMeterState): void;
   /** Update the context breakdown popover. */
   updateBreakdownPopover(state: TokenMeterState): void;
   /** Toggle the breakdown popover visibility. */

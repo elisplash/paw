@@ -3,17 +3,25 @@
 
 const THEME_KEY = 'paw-theme';
 
-export type PawTheme = 'dark' | 'light' | 'midnight' | 'hacker' | 'ember' | 'arctic' | 'violet' | 'solarized';
+export type PawTheme =
+  | 'dark'
+  | 'light'
+  | 'midnight'
+  | 'hacker'
+  | 'ember'
+  | 'arctic'
+  | 'violet'
+  | 'solarized';
 
 export const THEMES: { id: PawTheme; label: string; icon: string; swatch: string }[] = [
-  { id: 'dark',      label: 'Dark',          icon: 'dark_mode',      swatch: '#050505' },
-  { id: 'light',     label: 'Light',         icon: 'light_mode',     swatch: '#F5F0EB' },
-  { id: 'midnight',  label: 'Midnight Blue', icon: 'nights_stay',    swatch: '#0B1120' },
-  { id: 'hacker',    label: 'Hacker',        icon: 'terminal',       swatch: '#000000' },
-  { id: 'ember',     label: 'Ember',         icon: 'local_fire_department', swatch: '#1A1210' },
-  { id: 'arctic',    label: 'Arctic',        icon: 'ac_unit',        swatch: '#EFF4F8' },
-  { id: 'violet',    label: 'Violet Void',   icon: 'auto_awesome',   swatch: '#100818' },
-  { id: 'solarized', label: 'Solarized',     icon: 'wb_twilight',    swatch: '#002B36' },
+  { id: 'dark', label: 'Dark', icon: 'dark_mode', swatch: '#050505' },
+  { id: 'light', label: 'Light', icon: 'light_mode', swatch: '#F5F0EB' },
+  { id: 'midnight', label: 'Midnight Blue', icon: 'nights_stay', swatch: '#0B1120' },
+  { id: 'hacker', label: 'Hacker', icon: 'terminal', swatch: '#000000' },
+  { id: 'ember', label: 'Ember', icon: 'local_fire_department', swatch: '#1A1210' },
+  { id: 'arctic', label: 'Arctic', icon: 'ac_unit', swatch: '#EFF4F8' },
+  { id: 'violet', label: 'Violet Void', icon: 'auto_awesome', swatch: '#100818' },
+  { id: 'solarized', label: 'Solarized', icon: 'wb_twilight', swatch: '#002B36' },
 ];
 
 const ACCENT_MAP: Record<PawTheme, string> = {
@@ -69,13 +77,15 @@ export function buildSettingsGrid() {
 
   const current = getTheme();
 
-  container.innerHTML = THEMES.map(t => `
+  container.innerHTML = THEMES.map(
+    (t) => `
     <button class="theme-grid-item${t.id === current ? ' active' : ''}" data-theme="${t.id}">
       <span class="theme-grid-swatch" style="background:${t.swatch};box-shadow:inset 0 0 0 2px ${ACCENT_MAP[t.id]}"></span>
       <span class="theme-grid-label">${t.label}</span>
       <span class="theme-grid-icon ms" style="font-size:16px">${t.icon}</span>
     </button>
-  `).join('');
+  `,
+  ).join('');
 
   container.addEventListener('click', (e) => {
     const item = (e.target as HTMLElement).closest('.theme-grid-item') as HTMLElement | null;
@@ -88,7 +98,7 @@ export function buildSettingsGrid() {
 function updateSettingsGrid(theme: PawTheme) {
   const container = document.getElementById('theme-grid');
   if (!container) return;
-  container.querySelectorAll('.theme-grid-item').forEach(el => {
+  container.querySelectorAll('.theme-grid-item').forEach((el) => {
     el.classList.toggle('active', (el as HTMLElement).dataset.theme === theme);
   });
 }

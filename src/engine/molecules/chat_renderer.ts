@@ -218,7 +218,12 @@ export function renderSingleMessage(
   }
 
   // TTS button
-  if (msg.role === 'assistant' && msg.content && !msg.content.startsWith('Error:') && opts.onSpeak) {
+  if (
+    msg.role === 'assistant' &&
+    msg.content &&
+    !msg.content.startsWith('Error:') &&
+    opts.onSpeak
+  ) {
     const ttsBtn = document.createElement('button');
     ttsBtn.className = 'message-tts-btn';
     ttsBtn.title = 'Read aloud';
@@ -275,10 +280,7 @@ export function renderMessages(
  * Insert a streaming placeholder message into the container.
  * Returns the content element that deltas should be appended to.
  */
-export function showStreamingMessage(
-  container: HTMLElement,
-  agentName: string,
-): HTMLElement {
+export function showStreamingMessage(container: HTMLElement, agentName: string): HTMLElement {
   const div = document.createElement('div');
   div.className = 'message assistant';
   div.id = 'streaming-message';
@@ -318,10 +320,7 @@ export function appendStreamingDelta(el: HTMLElement, content: string): void {
  * Append a thinking/reasoning delta to the streaming message.
  * Renders inside a collapsible `<details>` block above the main response.
  */
-export function appendThinkingDelta(
-  streamingMsg: HTMLElement,
-  thinkingContent: string,
-): void {
+export function appendThinkingDelta(streamingMsg: HTMLElement, thinkingContent: string): void {
   let thinkingEl = streamingMsg.querySelector('.thinking-block') as HTMLElement | null;
   if (!thinkingEl) {
     thinkingEl = document.createElement('details');

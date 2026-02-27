@@ -13,9 +13,9 @@ describe('parseFlowText', () => {
       const { graph } = parseFlowText('webhook → agent → send email');
       expect(graph.nodes).toHaveLength(3);
       expect(graph.edges).toHaveLength(2);
-      expect(graph.nodes[0].kind).toBe('trigger');   // webhook
-      expect(graph.nodes[1].kind).toBe('agent');      // agent
-      expect(graph.nodes[2].kind).toBe('output');     // send email
+      expect(graph.nodes[0].kind).toBe('trigger'); // webhook
+      expect(graph.nodes[1].kind).toBe('agent'); // agent
+      expect(graph.nodes[2].kind).toBe('output'); // send email
     });
 
     it('parses ASCII arrows (->)', () => {

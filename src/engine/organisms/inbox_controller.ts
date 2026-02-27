@@ -5,7 +5,13 @@
 // Reads session/agent state from appState and the pawEngine IPC.
 
 import { pawEngine } from '../../engine';
-import { appState, agentSessionMap, persistAgentSessionMap, groupSessionMap, persistGroupSessionMap } from '../../state/index';
+import {
+  appState,
+  agentSessionMap,
+  persistAgentSessionMap,
+  groupSessionMap,
+  persistGroupSessionMap,
+} from '../../state/index';
 import { showToast } from '../../components/toast';
 import { confirmModal, promptModal } from '../../components/helpers';
 import * as AgentsModule from '../../views/agents';
@@ -15,7 +21,10 @@ import {
   truncatePreview,
   persistConvlistPref,
 } from '../atoms/inbox';
-import { createConversationList, type ConversationListController } from '../molecules/conversation_list';
+import {
+  createConversationList,
+  type ConversationListController,
+} from '../molecules/conversation_list';
 import { createInboxThread, type InboxThreadController } from '../molecules/inbox_thread';
 import { createInboxSidebar, type InboxSidebarController } from '../molecules/inbox_sidebar';
 import {
@@ -147,11 +156,7 @@ export function mountInbox(): void {
       appState.inbox.activeSessionKey = appState.currentSessionKey;
       _thread.showThread();
       updateThreadHeader();
-      _list?.render(
-        appState.inbox.conversations,
-        currentAgent.id,
-        appState.inbox.filter,
-      );
+      _list?.render(appState.inbox.conversations, currentAgent.id, appState.inbox.filter);
       updateSwapAgents();
       renderSessionSelect();
     }
@@ -191,7 +196,7 @@ export async function refreshConversationList(): Promise<void> {
         const msgs = await pawEngine.chatHistory(session.key, 1);
         if (msgs.length) {
           lastMessage = truncatePreview(msgs[0].content ?? '');
-          lastRole = (msgs[0].role === 'assistant' ? 'assistant' : 'user');
+          lastRole = msgs[0].role === 'assistant' ? 'assistant' : 'user';
           lastTs = new Date(msgs[0].created_at).getTime() || lastTs;
         }
       } catch {
@@ -215,7 +220,7 @@ export async function refreshConversationList(): Promise<void> {
       } satisfies ConversationEntry;
     });
 
-    entries.push(...await Promise.all(previewBatch));
+    entries.push(...(await Promise.all(previewBatch)));
 
     // Remaining sessions (>20) get entries without previews
     for (let i = 20; i < appState.sessions.length; i++) {
@@ -321,11 +326,7 @@ async function handleSelectAgent(agentId: string): Promise<void> {
 
   // Determine active agent ID and refresh list
   const activeAgent = AgentsModule.getCurrentAgent();
-  _list?.render(
-    appState.inbox.conversations,
-    activeAgent?.id ?? null,
-    appState.inbox.filter,
-  );
+  _list?.render(appState.inbox.conversations, activeAgent?.id ?? null, appState.inbox.filter);
 
   // Clear unread for all conversations belonging to this agent
   for (const conv of appState.inbox.conversations) {
@@ -483,9 +484,12 @@ async function handleNewGroup(): Promise<void> {
         const memberNames = memberIds
           .map((id) => agents.find((a) => a.id === id)?.name ?? id)
           .join(', ');
-        _thread.setAgent(name, agents.find((a) => a.id === primaryAgentId)?.avatar ?? '5',
+        _thread.setAgent(
+          name,
+          agents.find((a) => a.id === primaryAgentId)?.avatar ?? '5',
           agents.find((a) => a.id === primaryAgentId)?.color ?? 'var(--accent)',
-          `Group: ${memberNames}`);
+          `Group: ${memberNames}`,
+        );
       }
 
       cleanup();
@@ -643,8 +647,6 @@ async function handleCompact(): Promise<void> {
   }
 }
 
-
-
 function handleSearchInConversation(query: string): void {
   // Highlight matching messages in the thread
   const chatMessages = $('chat-messages');
@@ -708,7 +710,6 @@ function updateThreadHeader(): void {
     appState.activeModelKey || '',
   );
   _thread.setStreaming(conv.isStreaming);
-
 }
 
 /**
@@ -743,5 +744,3 @@ export function notifyNewMessage(sessionKey: string): void {
     _list.setUnread(conv.agentId, agentUnread);
   }
 }
-
-

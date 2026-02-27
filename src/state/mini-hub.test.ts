@@ -310,8 +310,20 @@ describe('restoreHubs', () => {
   it('creates hubs from persisted entries', () => {
     const reg = createRegistry();
     const count = restoreHubs(reg, [
-      { id: 'h1', agentId: 'aria', sessionKey: 'sess_1', modelOverride: null, position: { x: 0, y: 0 } },
-      { id: 'h2', agentId: 'bot', sessionKey: 'sess_2', modelOverride: 'gpt-4o', position: { x: 100, y: 100 } },
+      {
+        id: 'h1',
+        agentId: 'aria',
+        sessionKey: 'sess_1',
+        modelOverride: null,
+        position: { x: 0, y: 0 },
+      },
+      {
+        id: 'h2',
+        agentId: 'bot',
+        sessionKey: 'sess_2',
+        modelOverride: 'gpt-4o',
+        position: { x: 100, y: 100 },
+      },
     ]);
     expect(count).toBe(2);
     expect(reg.hubs.size).toBe(2);

@@ -130,7 +130,9 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
       if (_paused) {
         _runState.status = 'paused';
         callbacks.onEvent({ type: 'run-paused', runId: _runState.runId, stepIndex: i });
-        await new Promise<void>((resolve) => { _pauseResolve = resolve; });
+        await new Promise<void>((resolve) => {
+          _pauseResolve = resolve;
+        });
         _runState.status = 'running';
       }
 
@@ -143,9 +145,16 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
       if (_breakpoints.has(nodeId) && i > 0) {
         _paused = true;
         _runState.status = 'paused';
-        callbacks.onEvent({ type: 'debug-breakpoint-hit', runId: _runState.runId, nodeId, stepIndex: i });
+        callbacks.onEvent({
+          type: 'debug-breakpoint-hit',
+          runId: _runState.runId,
+          nodeId,
+          stepIndex: i,
+        });
         callbacks.onEvent({ type: 'debug-cursor', runId: _runState.runId, nodeId, stepIndex: i });
-        await new Promise<void>((resolve) => { _pauseResolve = resolve; });
+        await new Promise<void>((resolve) => {
+          _pauseResolve = resolve;
+        });
         _runState.status = 'running';
         _paused = false;
       }
@@ -244,7 +253,11 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
           if (!codeSource.trim()) {
             output = 'No code to execute.';
           } else {
-            const codeResult = executeCodeSandboxed(codeSource, upstreamInput, config.timeoutMs ?? 5000);
+            const codeResult = executeCodeSandboxed(
+              codeSource,
+              upstreamInput,
+              config.timeoutMs ?? 5000,
+            );
             if (codeResult.error) {
               throw new Error(`Code error: ${codeResult.error}`);
             }
@@ -307,7 +320,6 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
         durationMs: nodeState.durationMs,
         timestamp: Date.now(),
       });
-
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
 
@@ -320,7 +332,9 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
       if (maxRetries > 0) {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
           const delay = retryDelay * Math.pow(backoff, attempt - 1);
-          console.debug(`[flow-exec] Retry ${attempt}/${maxRetries} for "${node.label}" in ${delay}ms`);
+          console.debug(
+            `[flow-exec] Retry ${attempt}/${maxRetries} for "${node.label}" in ${delay}ms`,
+          );
           await new Promise((r) => setTimeout(r, delay));
 
           try {
@@ -337,7 +351,13 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
                 break;
               }
               default:
-                retryOutput = await executeAgentStep(graph, node, retryInput, config, defaultAgentId);
+                retryOutput = await executeAgentStep(
+                  graph,
+                  node,
+                  retryInput,
+                  config,
+                  defaultAgentId,
+                );
                 break;
             }
 
@@ -349,13 +369,20 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
             node.status = 'success';
             callbacks.onNodeStatusChange(node.id, 'success');
             callbacks.onEvent({
-              type: 'step-complete', runId: _runState.runId, nodeId: node.id,
-              output: retryOutput, durationMs: nodeState.durationMs,
+              type: 'step-complete',
+              runId: _runState.runId,
+              nodeId: node.id,
+              output: retryOutput,
+              durationMs: nodeState.durationMs,
             });
             _runState.outputLog.push({
-              nodeId: node.id, nodeLabel: node.label, nodeKind: node.kind,
-              status: 'success', output: retryOutput,
-              durationMs: nodeState.durationMs, timestamp: Date.now(),
+              nodeId: node.id,
+              nodeLabel: node.label,
+              nodeKind: node.kind,
+              status: 'success',
+              output: retryOutput,
+              durationMs: nodeState.durationMs,
+              timestamp: Date.now(),
             });
             retried = true;
             break;
@@ -375,14 +402,22 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
         callbacks.onNodeStatusChange(node.id, 'error');
 
         callbacks.onEvent({
-          type: 'step-error', runId: _runState.runId, nodeId: node.id,
-          error: errorMsg, durationMs: nodeState.durationMs,
+          type: 'step-error',
+          runId: _runState.runId,
+          nodeId: node.id,
+          error: errorMsg,
+          durationMs: nodeState.durationMs,
         });
 
         _runState.outputLog.push({
-          nodeId: node.id, nodeLabel: node.label, nodeKind: node.kind,
-          status: 'error', output: '', error: errorMsg,
-          durationMs: nodeState.durationMs, timestamp: Date.now(),
+          nodeId: node.id,
+          nodeLabel: node.label,
+          nodeKind: node.kind,
+          status: 'error',
+          output: '',
+          error: errorMsg,
+          durationMs: nodeState.durationMs,
+          timestamp: Date.now(),
         });
 
         // ── Error Edge Routing ─────────────────────────────────────────────
@@ -394,7 +429,11 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
 
         // Provide error info as input for error-path nodes
         if (errorEdges.length > 0) {
-          const errorPayload = JSON.stringify({ error: errorMsg, nodeId: node.id, nodeLabel: node.label });
+          const errorPayload = JSON.stringify({
+            error: errorMsg,
+            nodeId: node.id,
+            nodeLabel: node.label,
+          });
           const errNodeState = createNodeRunState(`${node.id}_err_output`);
           errNodeState.output = errorPayload;
           errNodeState.status = 'success';
@@ -456,9 +495,15 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
           });
         }
       },
-      onThinking: () => { /* ignore thinking deltas for flow execution */ },
-      onToken: () => { /* ignore token counts */ },
-      onModel: () => { /* ignore model changes */ },
+      onThinking: () => {
+        /* ignore thinking deltas for flow execution */
+      },
+      onToken: () => {
+        /* ignore token counts */
+      },
+      onModel: () => {
+        /* ignore model changes */
+      },
     });
 
     try {
@@ -467,13 +512,15 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
       const agents = getAgents();
       const agent = agents.find((a) => a.id === agentId) ?? agents[0];
 
-      const agentProfile = agent ? {
-        id: agent.id,
-        name: agent.name,
-        bio: agent.bio,
-        systemPrompt: agent.systemPrompt,
-        model: config.model || agent.model,
-      } : undefined;
+      const agentProfile = agent
+        ? {
+            id: agent.id,
+            name: agent.name,
+            bio: agent.bio,
+            systemPrompt: agent.systemPrompt,
+            model: config.model || agent.model,
+          }
+        : undefined;
 
       // Send via engine
       const result = await engineChatSend(sessionKey, prompt, {
@@ -499,7 +546,9 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
             if (accumulated.length > 0) {
               resolve(); // Got partial response, use it
             } else {
-              reject(new Error(`Timeout after ${timeout}ms waiting for response from "${node.label}"`));
+              reject(
+                new Error(`Timeout after ${timeout}ms waiting for response from "${node.label}"`),
+              );
             }
           }
         }, 250);
@@ -539,9 +588,7 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
     const activeTargets = new Set(activeEdges.map((e) => e.to));
 
     // All downstream edges that are NOT active should have their targets skipped
-    const allDownstream = graph.edges
-      .filter((e) => e.from === condNode.id)
-      .map((e) => e.to);
+    const allDownstream = graph.edges.filter((e) => e.from === condNode.id).map((e) => e.to);
 
     for (const targetId of allDownstream) {
       if (!activeTargets.has(targetId)) {
@@ -556,9 +603,7 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
    * Recursively mark all downstream nodes as skipped.
    */
   function skipSubtree(graph: FlowGraph, nodeId: string): void {
-    const downstream = graph.edges
-      .filter((e) => e.from === nodeId)
-      .map((e) => e.to);
+    const downstream = graph.edges.filter((e) => e.from === nodeId).map((e) => e.to);
     for (const dId of downstream) {
       if (!_skipNodes.has(dId)) {
         _skipNodes.add(dId);
@@ -576,9 +621,8 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
     const nodeState = _runState.nodeStates.get(nodeId);
     if (!nodeState?.output) return;
 
-    const truncatedValue = nodeState.output.length > 80
-      ? `${nodeState.output.slice(0, 77)}…`
-      : nodeState.output;
+    const truncatedValue =
+      nodeState.output.length > 80 ? `${nodeState.output.slice(0, 77)}…` : nodeState.output;
 
     const outEdges = graph.edges.filter((e) => e.from === nodeId);
     for (const edge of outEdges) {

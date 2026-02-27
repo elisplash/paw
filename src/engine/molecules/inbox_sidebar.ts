@@ -27,9 +27,7 @@ export interface InboxSidebarCallbacks {
 
 // ── Factory ──────────────────────────────────────────────────────────────
 
-export function createInboxSidebar(
-  callbacks: InboxSidebarCallbacks,
-): InboxSidebarController {
+export function createInboxSidebar(callbacks: InboxSidebarCallbacks): InboxSidebarController {
   let destroyed = false;
 
   // Create the grid-column wrapper
@@ -53,10 +51,22 @@ export function createInboxSidebar(
   const clearBtn = document.getElementById('session-clear-btn');
   const compactBtn = document.getElementById('session-compact-btn');
 
-  const onRename = (e: Event) => { e.preventDefault(); callbacks.onRename(); };
-  const onDelete = (e: Event) => { e.preventDefault(); callbacks.onDelete(); };
-  const onClear = (e: Event) => { e.preventDefault(); callbacks.onClear(); };
-  const onCompact = (e: Event) => { e.preventDefault(); callbacks.onCompact(); };
+  const onRename = (e: Event) => {
+    e.preventDefault();
+    callbacks.onRename();
+  };
+  const onDelete = (e: Event) => {
+    e.preventDefault();
+    callbacks.onDelete();
+  };
+  const onClear = (e: Event) => {
+    e.preventDefault();
+    callbacks.onClear();
+  };
+  const onCompact = (e: Event) => {
+    e.preventDefault();
+    callbacks.onCompact();
+  };
 
   renameBtn?.addEventListener('click', onRename);
   deleteBtn?.addEventListener('click', onDelete);

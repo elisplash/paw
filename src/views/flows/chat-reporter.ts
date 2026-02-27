@@ -71,7 +71,13 @@ export function createFlowChatReporter(): FlowChatReporterController {
         renderRunStart(event.graphName, event.totalSteps);
         break;
       case 'step-start':
-        renderStepStart(event.nodeId, event.nodeLabel, event.nodeKind, event.stepIndex, event.runId);
+        renderStepStart(
+          event.nodeId,
+          event.nodeLabel,
+          event.nodeKind,
+          event.stepIndex,
+          event.runId,
+        );
         break;
       case 'step-progress':
         renderStepProgress(event.nodeId, event.delta);

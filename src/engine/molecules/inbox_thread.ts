@@ -48,9 +48,7 @@ export interface InboxThreadCallbacks {
 
 // ── Factory ──────────────────────────────────────────────────────────────
 
-export function createInboxThread(
-  callbacks: InboxThreadCallbacks,
-): InboxThreadController {
+export function createInboxThread(callbacks: InboxThreadCallbacks): InboxThreadController {
   let destroyed = false;
 
   // ── Build DOM ──────────────────────────────────────────────────────────

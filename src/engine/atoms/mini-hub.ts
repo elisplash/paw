@@ -152,14 +152,14 @@ export interface AgentDockEntry {
  * Assigned by member index in the squad definition.
  */
 export const SQUAD_COLORS = [
-  'var(--accent)',         // red — coordinator
-  'var(--kinetic-sage)',   // sage green
-  '#6BA5E7',              // blue
-  '#E7A76B',              // amber
-  '#B56BE7',              // purple
-  '#E76B8A',              // pink
-  '#6BE7C4',              // teal
-  '#E7D76B',              // gold
+  'var(--accent)', // red — coordinator
+  'var(--kinetic-sage)', // sage green
+  '#6BA5E7', // blue
+  '#E7A76B', // amber
+  '#B56BE7', // purple
+  '#E76B8A', // pink
+  '#6BE7C4', // teal
+  '#E7D76B', // gold
 ] as const;
 
 /**

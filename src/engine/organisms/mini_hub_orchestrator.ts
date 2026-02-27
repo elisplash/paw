@@ -70,11 +70,15 @@ export function initMiniHubSystem(
   _getAgents = getAgents;
 
   // Create dock
-  _dock = createAgentDock(dockContainer, (agentId) => {
-    openMiniHub(agentId);
-  }, () => {
-    openGroupCreationFromDock();
-  });
+  _dock = createAgentDock(
+    dockContainer,
+    (agentId) => {
+      openMiniHub(agentId);
+    },
+    () => {
+      openGroupCreationFromDock();
+    },
+  );
 
   // Initial dock refresh
   refreshDock();
@@ -252,7 +256,8 @@ async function openGroupCreationFromDock(): Promise<void> {
     `;
     const checkbox = row.querySelector('input')!;
     checkbox.addEventListener('change', () => {
-      if (checkbox.checked) selected.add(agent.id); else selected.delete(agent.id);
+      if (checkbox.checked) selected.add(agent.id);
+      else selected.delete(agent.id);
     });
     agentListEl.appendChild(row);
   }
@@ -267,12 +272,20 @@ async function openGroupCreationFromDock(): Promise<void> {
   const cleanup = () => overlay.remove();
 
   cancelBtn.addEventListener('click', cleanup);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) cleanup();
+  });
 
   createBtn.addEventListener('click', async () => {
     const name = nameInput.value.trim();
-    if (selected.size < 2) { showToast('Select at least 2 agents', 'error'); return; }
-    if (!name) { showToast('Enter a group name', 'error'); return; }
+    if (selected.size < 2) {
+      showToast('Select at least 2 agents', 'error');
+      return;
+    }
+    if (!name) {
+      showToast('Enter a group name', 'error');
+      return;
+    }
 
     try {
       // Create a squad on the backend
@@ -441,11 +454,7 @@ function _spawnController(
 
 // ── Internal: event bus subscription ─────────────────────────────────────
 
-function _subscribeHub(
-  _hubId: string,
-  sessionKey: string,
-  ctrl: MiniHubController,
-): () => void {
+function _subscribeHub(_hubId: string, sessionKey: string, ctrl: MiniHubController): () => void {
   // Resolve the agent id for dock streaming indicators
   const hub = getHub(appState.miniHubs, _hubId);
   const agentId = hub?.agentId;
@@ -483,7 +492,8 @@ function _subscribeHub(
       _currentStreamingAgentId = undefined;
     },
     onToolStart(toolName: string) {
-      const memberName = _currentStreamingAgentId && squadMemberMap?.get(_currentStreamingAgentId)?.name;
+      const memberName =
+        _currentStreamingAgentId && squadMemberMap?.get(_currentStreamingAgentId)?.name;
       console.debug(`[mini-hub] Tool started: ${memberName ? `${memberName} → ` : ''}${toolName}`);
     },
     onToolEnd(_toolName: string) {
@@ -610,14 +620,9 @@ async function _handleSend(hubId: string, content: string, attachments: File[]) 
     persistHubs(appState.miniHubs);
   } catch (e) {
     console.error('[mini-hub] Send error:', e);
-    live.ctrl.finalizeStream(
-      `Error: ${e instanceof Error ? e.message : 'Failed to send message'}`,
-    );
+    live.ctrl.finalizeStream(`Error: ${e instanceof Error ? e.message : 'Failed to send message'}`);
     _dock?.setStreaming(hub.agentId, false);
-    showToast(
-      `Mini-hub error: ${e instanceof Error ? e.message : 'Failed to send'}`,
-      'error',
-    );
+    showToast(`Mini-hub error: ${e instanceof Error ? e.message : 'Failed to send'}`, 'error');
   }
 }
 

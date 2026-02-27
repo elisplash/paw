@@ -126,13 +126,17 @@ function makeBranchGraph(): FlowGraph {
   const yes = createNode('agent', 'Yes');
   const no = createNode('agent', 'No');
   const end = createNode('output', 'End');
-  return createGraph('Branch', [start, cond, yes, no, end], [
-    createEdge(start.id, cond.id),
-    createEdge(cond.id, yes.id),
-    createEdge(cond.id, no.id),
-    createEdge(yes.id, end.id),
-    createEdge(no.id, end.id),
-  ]);
+  return createGraph(
+    'Branch',
+    [start, cond, yes, no, end],
+    [
+      createEdge(start.id, cond.id),
+      createEdge(cond.id, yes.id),
+      createEdge(cond.id, no.id),
+      createEdge(yes.id, end.id),
+      createEdge(no.id, end.id),
+    ],
+  );
 }
 
 describe('computeLayers', () => {
@@ -187,16 +191,16 @@ describe('applyLayout', () => {
 
 describe('snapToGrid', () => {
   it('snaps to nearest grid point', () => {
-    expect(snapToGrid(12)).toBe(GRID_SIZE);       // 12/20=0.6 → round=1 → 20
+    expect(snapToGrid(12)).toBe(GRID_SIZE); // 12/20=0.6 → round=1 → 20
     expect(snapToGrid(0)).toBe(0);
-    expect(snapToGrid(30)).toBe(GRID_SIZE * 2);   // 30/20=1.5 → round=2 → 40
-    expect(snapToGrid(31)).toBe(GRID_SIZE * 2);   // 31/20=1.55 → round=2 → 40
-    expect(snapToGrid(25)).toBe(GRID_SIZE);        // 25/20=1.25 → round=1 → 20
+    expect(snapToGrid(30)).toBe(GRID_SIZE * 2); // 30/20=1.5 → round=2 → 40
+    expect(snapToGrid(31)).toBe(GRID_SIZE * 2); // 31/20=1.55 → round=2 → 40
+    expect(snapToGrid(25)).toBe(GRID_SIZE); // 25/20=1.25 → round=1 → 20
   });
 
   it('handles negative values', () => {
-    expect(snapToGrid(-5)).toBe(-0);               // -5/20=-0.25 → round=-0
-    expect(snapToGrid(-15)).toBe(-GRID_SIZE);      // -15/20=-0.75 → round=-1 → -20
+    expect(snapToGrid(-5)).toBe(-0); // -5/20=-0.25 → round=-0
+    expect(snapToGrid(-15)).toBe(-GRID_SIZE); // -15/20=-0.75 → round=-1 → -20
   });
 });
 
@@ -291,7 +295,18 @@ describe('hitTestPort', () => {
 
 describe('TEMPLATE_CATEGORIES', () => {
   it('has entries for all categories', () => {
-    const cats = ['ai', 'communication', 'devops', 'productivity', 'data', 'research', 'social', 'finance', 'support', 'custom'];
+    const cats = [
+      'ai',
+      'communication',
+      'devops',
+      'productivity',
+      'data',
+      'research',
+      'social',
+      'finance',
+      'support',
+      'custom',
+    ];
     for (const cat of cats) {
       expect(TEMPLATE_CATEGORIES[cat as keyof typeof TEMPLATE_CATEGORIES]).toBeDefined();
       expect(TEMPLATE_CATEGORIES[cat as keyof typeof TEMPLATE_CATEGORIES].label).toBeTruthy();
@@ -365,9 +380,36 @@ describe('instantiateTemplate', () => {
 
 describe('filterTemplates', () => {
   const templates: FlowTemplate[] = [
-    { id: 'a', name: 'Daily Digest', description: 'Summarize channels', category: 'ai', tags: ['summary', 'daily'], icon: 'a', nodes: [], edges: [] },
-    { id: 'b', name: 'Email Responder', description: 'Auto-reply emails', category: 'communication', tags: ['email', 'reply'], icon: 'b', nodes: [], edges: [] },
-    { id: 'c', name: 'PR Reviewer', description: 'Review pull requests', category: 'devops', tags: ['github', 'review'], icon: 'c', nodes: [], edges: [] },
+    {
+      id: 'a',
+      name: 'Daily Digest',
+      description: 'Summarize channels',
+      category: 'ai',
+      tags: ['summary', 'daily'],
+      icon: 'a',
+      nodes: [],
+      edges: [],
+    },
+    {
+      id: 'b',
+      name: 'Email Responder',
+      description: 'Auto-reply emails',
+      category: 'communication',
+      tags: ['email', 'reply'],
+      icon: 'b',
+      nodes: [],
+      edges: [],
+    },
+    {
+      id: 'c',
+      name: 'PR Reviewer',
+      description: 'Review pull requests',
+      category: 'devops',
+      tags: ['github', 'review'],
+      icon: 'c',
+      nodes: [],
+      edges: [],
+    },
   ];
 
   it('returns all templates when category=all and no query', () => {

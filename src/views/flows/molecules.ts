@@ -31,7 +31,10 @@ import { CRON_PRESETS, validateCron, describeCron, nextCronFire } from './execut
 
 // ── Available Agents (injected from index.ts) ──────────────────────────────
 
-interface AgentRef { id: string; name: string }
+interface AgentRef {
+  id: string;
+  name: string;
+}
 let _availableAgents: AgentRef[] = [];
 
 /** Set the list of agents available for agent-node dropdowns. */
@@ -77,7 +80,12 @@ let _panStartX = 0;
 let _panStartY = 0;
 
 // Edge drawing state
-let _drawingEdge: { fromNodeId: string; fromPort: string; cursorX: number; cursorY: number } | null = null;
+let _drawingEdge: {
+  fromNodeId: string;
+  fromPort: string;
+  cursorX: number;
+  cursorY: number;
+} | null = null;
 
 // Track recently-added nodes for materialise entrance animation
 const _newNodeIds = new Set<string>();
@@ -243,7 +251,10 @@ function renderNode(node: FlowNode, selected: boolean): SVGGElement {
   const isNew = _newNodeIds.has(node.id);
   const hasBreakpoint = _breakpoints.has(node.id);
   const isCursor = _debugCursorNodeId === node.id;
-  g.setAttribute('class', `flow-node flow-node-${node.kind}${selected ? ' flow-node-selected' : ''}${node.status !== 'idle' ? ` flow-node-${node.status}` : ''}${isNew ? ' flow-node-new' : ''}${hasBreakpoint ? ' flow-node-breakpoint' : ''}${isCursor ? ' flow-node-cursor' : ''}`);
+  g.setAttribute(
+    'class',
+    `flow-node flow-node-${node.kind}${selected ? ' flow-node-selected' : ''}${node.status !== 'idle' ? ` flow-node-${node.status}` : ''}${isNew ? ' flow-node-new' : ''}${hasBreakpoint ? ' flow-node-breakpoint' : ''}${isCursor ? ' flow-node-cursor' : ''}`,
+  );
   g.setAttribute('data-node-id', node.id);
   g.setAttribute('transform', `translate(${node.x}, ${node.y})`);
   // Set CSS custom properties for materialise animation
@@ -306,9 +317,10 @@ function renderNode(node: FlowNode, selected: boolean): SVGGElement {
     breathDot.setAttribute('cx', String(node.width - 12));
     breathDot.setAttribute('cy', '12');
     breathDot.setAttribute('r', '4');
-    breathDot.setAttribute('fill', node.status === 'running'
-      ? 'var(--kinetic-red, #FF4D4D)'
-      : 'var(--kinetic-gold, #D4A853)');
+    breathDot.setAttribute(
+      'fill',
+      node.status === 'running' ? 'var(--kinetic-red, #FF4D4D)' : 'var(--kinetic-gold, #D4A853)',
+    );
     g.appendChild(breathDot);
   }
 
@@ -368,7 +380,10 @@ function renderNode(node: FlowNode, selected: boolean): SVGGElement {
   const label = svgEl('text');
   label.setAttribute('class', 'flow-node-label');
   label.setAttribute('x', '36');
-  label.setAttribute('y', node.description ? String(node.height / 2 - 6) : String(node.height / 2 + 1));
+  label.setAttribute(
+    'y',
+    node.description ? String(node.height / 2 - 6) : String(node.height / 2 + 1),
+  );
   label.setAttribute('dominant-baseline', 'central');
   label.setAttribute('fill', 'var(--text-primary)');
   label.setAttribute('font-size', '12');
@@ -410,7 +425,10 @@ function renderPorts(node: FlowNode) {
     const pos = getOutputPort(node, p);
     const isErrPort = p === 'err';
     const circle = svgEl('circle');
-    circle.setAttribute('class', `flow-port flow-port-output${isErrPort ? ' flow-port-error' : ''}`);
+    circle.setAttribute(
+      'class',
+      `flow-port flow-port-output${isErrPort ? ' flow-port-error' : ''}`,
+    );
     circle.setAttribute('cx', String(pos.x));
     circle.setAttribute('cy', String(pos.y));
     circle.setAttribute('r', String(PORT_RADIUS));
@@ -444,7 +462,10 @@ function renderPorts(node: FlowNode) {
 
 function renderEdge(edge: FlowEdge, fromNode: FlowNode, toNode: FlowNode): SVGGElement {
   const g = svgEl('g') as SVGGElement;
-  g.setAttribute('class', `flow-edge flow-edge-${edge.kind}${edge.active ? ' flow-edge-active' : ''}`);
+  g.setAttribute(
+    'class',
+    `flow-edge flow-edge-${edge.kind}${edge.active ? ' flow-edge-active' : ''}`,
+  );
   g.setAttribute('data-edge-id', edge.id);
 
   const fromPt = getOutputPort(fromNode, edge.fromPort);
@@ -473,7 +494,10 @@ function renderEdge(edge: FlowEdge, fromNode: FlowNode, toNode: FlowNode): SVGGE
       path.setAttribute('marker-start', 'url(#flow-arrow-bi-start)');
       break;
     case 'error':
-      path.setAttribute('stroke', edge.active ? 'var(--kinetic-red)' : 'var(--kinetic-red-60, rgba(214, 64, 69, 0.6))');
+      path.setAttribute(
+        'stroke',
+        edge.active ? 'var(--kinetic-red)' : 'var(--kinetic-red-60, rgba(214, 64, 69, 0.6))',
+      );
       path.setAttribute('stroke-dasharray', '8 4');
       path.setAttribute('marker-end', 'url(#flow-arrow-fwd)');
       break;
@@ -573,7 +597,12 @@ function onMouseDown(e: MouseEvent) {
   // Check for port hit (start drawing edge)
   const portHit = hitTestPort(graph, pt.x, pt.y);
   if (portHit && portHit.kind === 'output') {
-    _drawingEdge = { fromNodeId: portHit.node.id, fromPort: portHit.port, cursorX: pt.x, cursorY: pt.y };
+    _drawingEdge = {
+      fromNodeId: portHit.node.id,
+      fromPort: portHit.port,
+      cursorX: pt.x,
+      cursorY: pt.y,
+    };
     e.preventDefault();
     return;
   }
@@ -715,7 +744,9 @@ function onDoubleClick(e: MouseEvent) {
   }
 
   // Double-click empty space → add node at cursor
-  const event = new CustomEvent('flow:add-node', { detail: { x: snapToGrid(pt.x), y: snapToGrid(pt.y) } });
+  const event = new CustomEvent('flow:add-node', {
+    detail: { x: snapToGrid(pt.x), y: snapToGrid(pt.y) },
+  });
   document.dispatchEvent(event);
 }
 
@@ -750,7 +781,10 @@ function clearEdgePreview() {
 
 // ── Toolbar Rendering ──────────────────────────────────────────────────────
 
-export function renderToolbar(container: HTMLElement, runState?: { isRunning: boolean; isPaused: boolean; isDebug?: boolean }) {
+export function renderToolbar(
+  container: HTMLElement,
+  runState?: { isRunning: boolean; isPaused: boolean; isDebug?: boolean },
+) {
   const isRunning = runState?.isRunning ?? false;
   const isPaused = runState?.isPaused ?? false;
   const isDebug = runState?.isDebug ?? false;
@@ -764,19 +798,27 @@ export function renderToolbar(container: HTMLElement, runState?: { isRunning: bo
         <button class="flow-tb-btn flow-tb-btn-debug${isDebug ? ' active' : ''}" data-action="debug-flow" title="${isDebug ? 'Debugging…' : 'Debug (Step-by-Step)'}">
           <span class="ms">bug_report</span>
         </button>
-        ${isDebug ? `
+        ${
+          isDebug
+            ? `
           <button class="flow-tb-btn flow-tb-btn-step" data-action="step-next" title="Step to Next Node">
             <span class="ms">skip_next</span>
           </button>
-        ` : ''}
-        ${isRunning || isDebug ? `
+        `
+            : ''
+        }
+        ${
+          isRunning || isDebug
+            ? `
           <button class="flow-tb-btn${isPaused ? ' active' : ''}" data-action="pause-flow" title="${isPaused ? 'Resume' : 'Pause'}">
             <span class="ms">${isPaused ? 'play_arrow' : 'pause'}</span>
           </button>
           <button class="flow-tb-btn flow-tb-btn-danger" data-action="stop-flow" title="Stop">
             <span class="ms">stop</span>
           </button>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
       <div class="flow-toolbar-divider"></div>
       <div class="flow-toolbar-group">
@@ -858,7 +900,12 @@ function handleToolbarAction(action: string) {
     // Place at center of visible area
     const cx = (-_panX + 400) / _zoom;
     const cy = (-_panY + 200) / _zoom;
-    const node = createNode(kind, `${kind.charAt(0).toUpperCase() + kind.slice(1)} ${graph.nodes.length + 1}`, snapToGrid(cx), snapToGrid(cy));
+    const node = createNode(
+      kind,
+      `${kind.charAt(0).toUpperCase() + kind.slice(1)} ${graph.nodes.length + 1}`,
+      snapToGrid(cx),
+      snapToGrid(cy),
+    );
     _newNodeIds.add(node.id);
     graph.nodes.push(node);
     _state.setSelectedNodeId(node.id);
@@ -897,7 +944,10 @@ function fitView() {
   const graph = _state.getGraph();
   if (!graph || !graph.nodes.length) return;
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const n of graph.nodes) {
     minX = Math.min(minX, n.x);
     minY = Math.min(minY, n.y);
@@ -1003,9 +1053,12 @@ export function renderFlowList(
   }
 
   // Build root flows HTML
-  const rootHtml = rootFlows.length > 0
-    ? rootFlows.map((g) => renderFlowItem(g, activeId)).join('')
-    : (sortedFolders.length === 0 ? '<div class="flow-list-empty">No flows yet.<br>Create one or use <code>/flow</code> in Chat.</div>' : '');
+  const rootHtml =
+    rootFlows.length > 0
+      ? rootFlows.map((g) => renderFlowItem(g, activeId)).join('')
+      : sortedFolders.length === 0
+        ? '<div class="flow-list-empty">No flows yet.<br>Create one or use <code>/flow</code> in Chat.</div>'
+        : '';
 
   container.innerHTML = `
     <div class="flow-list-header">
@@ -1022,7 +1075,9 @@ export function renderFlowList(
   `;
 
   // Wire new flow button
-  container.querySelector('.flow-list-new-btn:not([data-action])')?.addEventListener('click', onNew);
+  container
+    .querySelector('.flow-list-new-btn:not([data-action])')
+    ?.addEventListener('click', onNew);
 
   // Wire new folder button
   container.querySelector('[data-action="new-folder"]')?.addEventListener('click', () => {
@@ -1071,7 +1126,9 @@ export function renderFlowList(
     });
     item.addEventListener('dragend', () => {
       (item as HTMLElement).classList.remove('flow-list-dragging');
-      container.querySelectorAll('.flow-folder-drop-target').forEach((f) => f.classList.remove('flow-folder-drop-target'));
+      container
+        .querySelectorAll('.flow-folder-drop-target')
+        .forEach((f) => f.classList.remove('flow-folder-drop-target'));
     });
   });
 
@@ -1183,7 +1240,8 @@ export function renderNodePanel(
       return;
     }
 
-    container.innerHTML = '<div class="flow-panel-empty"><span class="ms">touch_app</span><p>Select a node to edit</p></div>';
+    container.innerHTML =
+      '<div class="flow-panel-empty"><span class="ms">touch_app</span><p>Select a node to edit</p></div>';
     return;
   }
 
@@ -1200,7 +1258,12 @@ export function renderNodePanel(
   // Build kind-specific config fields
   let configFieldsHtml = '';
 
-  if (node.kind === 'agent' || node.kind === 'tool' || node.kind === 'data' || node.kind === 'trigger') {
+  if (
+    node.kind === 'agent' ||
+    node.kind === 'tool' ||
+    node.kind === 'data' ||
+    node.kind === 'trigger'
+  ) {
     configFieldsHtml += `
       <label class="flow-panel-field">
         <span>Prompt</span>
@@ -1219,7 +1282,8 @@ export function renderNodePanel(
     const nextFireStr = nextFire ? nextFire.toLocaleString() : '';
 
     const presetOptionsHtml = CRON_PRESETS.map(
-      (p) => `<option value="${p.value}"${scheduleVal === p.value ? ' selected' : ''}>${p.label}</option>`
+      (p) =>
+        `<option value="${p.value}"${scheduleVal === p.value ? ' selected' : ''}>${p.label}</option>`,
     ).join('');
 
     configFieldsHtml += `
@@ -1253,11 +1317,19 @@ export function renderNodePanel(
   if (node.kind === 'agent' || node.kind === 'tool') {
     // Build agent dropdown from availableAgents
     const rawAgentId = (config.agentId as string) ?? '';
-    const agentOptions = _availableAgents.length > 0
-      ? [{ id: '', name: '— Select Agent —' }, { id: 'default', name: 'Default' }, ..._availableAgents]
-          .map((a) => `<option value="${escAttr(a.id)}"${a.id === rawAgentId ? ' selected' : ''}>${a.name}</option>`)
-          .join('')
-      : `<option value="">default</option>`;
+    const agentOptions =
+      _availableAgents.length > 0
+        ? [
+            { id: '', name: '— Select Agent —' },
+            { id: 'default', name: 'Default' },
+            ..._availableAgents,
+          ]
+            .map(
+              (a) =>
+                `<option value="${escAttr(a.id)}"${a.id === rawAgentId ? ' selected' : ''}>${a.name}</option>`,
+            )
+            .join('')
+        : `<option value="">default</option>`;
 
     configFieldsHtml += `
       <label class="flow-panel-field">
@@ -1326,12 +1398,16 @@ return input.toUpperCase();">${codeVal}</textarea>
         <label class="flow-panel-field">
           <span>Notify via</span>
           <div class="flow-panel-error-targets">
-            ${['log', 'toast', 'chat'].map((t) => `
+            ${['log', 'toast', 'chat']
+              .map(
+                (t) => `
               <label class="flow-panel-error-target">
                 <input type="checkbox" data-error-target="${t}" ${errorTargets.includes(t) ? 'checked' : ''} />
                 <span>${t === 'log' ? 'Console Log' : t === 'toast' ? 'Toast Alert' : 'Chat Message'}</span>
               </label>
-            `).join('')}
+            `,
+              )
+              .join('')}
           </div>
         </label>
         <label class="flow-panel-field">
@@ -1381,27 +1457,37 @@ return input.toUpperCase();">${codeVal}</textarea>
 
   // Build debug output inspector if node has execution state
   const debugState = _debugNodeStates.get(node.id);
-  const debugHtml = debugState ? `
+  const debugHtml = debugState
+    ? `
     <div class="flow-panel-divider"></div>
     <div class="flow-panel-section">
       <span class="flow-panel-section-label">Debug Inspector</span>
       <div class="flow-panel-debug-status">
         <span class="flow-debug-badge flow-debug-badge-${debugState.status}">${debugState.status.toUpperCase()}</span>
       </div>
-      ${debugState.input ? `
+      ${
+        debugState.input
+          ? `
         <div class="flow-panel-debug-block">
           <span class="flow-panel-debug-label">Input</span>
           <pre class="flow-panel-debug-pre">${escAttr(debugState.input)}</pre>
         </div>
-      ` : ''}
-      ${debugState.output ? `
+      `
+          : ''
+      }
+      ${
+        debugState.output
+          ? `
         <div class="flow-panel-debug-block">
           <span class="flow-panel-debug-label">Output</span>
           <pre class="flow-panel-debug-pre">${escAttr(debugState.output)}</pre>
         </div>
-      ` : ''}
+      `
+          : ''
+      }
     </div>
-  ` : '';
+  `
+    : '';
 
   container.innerHTML = `
     <div class="flow-panel">
@@ -1455,12 +1541,16 @@ return input.toUpperCase();">${codeVal}</textarea>
   });
 
   // Schedule preset dropdown → sets cron input + triggers config update
-  const presetSelect = container.querySelector('[data-schedule-preset]') as HTMLSelectElement | null;
+  const presetSelect = container.querySelector(
+    '[data-schedule-preset]',
+  ) as HTMLSelectElement | null;
   if (presetSelect) {
     presetSelect.addEventListener('change', () => {
       const val = presetSelect.value;
       if (!val) return;
-      const cronInput = container.querySelector('[data-config="schedule"]') as HTMLInputElement | null;
+      const cronInput = container.querySelector(
+        '[data-config="schedule"]',
+      ) as HTMLInputElement | null;
       if (cronInput) {
         cronInput.value = val;
         cronInput.dispatchEvent(new Event('change'));
@@ -1509,7 +1599,10 @@ export function renderTemplateBrowser(
   onInstantiate: (tpl: FlowTemplate) => void,
 ) {
   const filtered = filterTemplates(templates, _templateCategory, _templateQuery);
-  const categories = Object.entries(TEMPLATE_CATEGORIES) as [FlowTemplateCategory, { label: string; icon: string; color: string }][];
+  const categories = Object.entries(TEMPLATE_CATEGORIES) as [
+    FlowTemplateCategory,
+    { label: string; icon: string; color: string },
+  ][];
 
   container.innerHTML = `
     <div class="flow-tpl-browser">
@@ -1523,17 +1616,25 @@ export function renderTemplateBrowser(
       </div>
       <div class="flow-tpl-categories">
         <button class="flow-tpl-cat-btn${_templateCategory === 'all' ? ' active' : ''}" data-cat="all">All</button>
-        ${categories.map(([key, meta]) => `
+        ${categories
+          .map(
+            ([key, meta]) => `
           <button class="flow-tpl-cat-btn${_templateCategory === key ? ' active' : ''}" data-cat="${key}" title="${meta.label}">
             <span class="ms" style="font-size:14px;color:${meta.color}">${meta.icon}</span>
             ${meta.label}
           </button>
-        `).join('')}
+        `,
+          )
+          .join('')}
       </div>
       <div class="flow-tpl-list">
-        ${filtered.length === 0 ? '<div class="flow-tpl-empty">No templates match</div>' : filtered.map((tpl) => {
-          const catMeta = TEMPLATE_CATEGORIES[tpl.category];
-          return `
+        ${
+          filtered.length === 0
+            ? '<div class="flow-tpl-empty">No templates match</div>'
+            : filtered
+                .map((tpl) => {
+                  const catMeta = TEMPLATE_CATEGORIES[tpl.category];
+                  return `
             <div class="flow-tpl-card" data-tpl-id="${tpl.id}">
               <div class="flow-tpl-card-header">
                 <span class="ms flow-tpl-card-icon" style="color:${catMeta.color}">${tpl.icon}</span>
@@ -1544,13 +1645,18 @@ export function renderTemplateBrowser(
               </div>
               <p class="flow-tpl-card-desc">${tpl.description}</p>
               <div class="flow-tpl-card-tags">
-                ${tpl.tags.slice(0, 3).map((t) => `<span class="flow-tpl-tag">${t}</span>`).join('')}
+                ${tpl.tags
+                  .slice(0, 3)
+                  .map((t) => `<span class="flow-tpl-tag">${t}</span>`)
+                  .join('')}
                 <span class="flow-tpl-card-nodes">${tpl.nodes.length} integrations</span>
               </div>
               <button class="flow-tpl-use-btn" data-tpl-id="${tpl.id}">Use Template</button>
             </div>
           `;
-        }).join('')}
+                })
+                .join('')
+        }
       </div>
     </div>
   `;

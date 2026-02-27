@@ -134,7 +134,20 @@ export function formatRelativeTime(ts: number, now = Date.now()): string {
   if (ts >= yesterday.getTime() && ts < today.getTime()) return 'Yesterday';
 
   const thisYear = today.getFullYear();
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
   const monthStr = months[date.getMonth()];
   if (date.getFullYear() === thisYear) return `${monthStr} ${date.getDate()}`;
   return `${monthStr} ${date.getDate()}, ${date.getFullYear()}`;

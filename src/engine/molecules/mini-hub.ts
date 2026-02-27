@@ -439,7 +439,7 @@ export function createMiniHub(
     },
 
     focus() {
-      root.style.zIndex = `${9000 + Date.now() % 1000}`;
+      root.style.zIndex = `${9000 + (Date.now() % 1000)}`;
       chatInput.focus();
     },
 
@@ -460,7 +460,7 @@ export function createMiniHub(
   // Bring to front on click
   root.addEventListener('mousedown', () => {
     if (!destroyed) {
-      root.style.zIndex = `${9000 + Date.now() % 1000}`;
+      root.style.zIndex = `${9000 + (Date.now() % 1000)}`;
     }
   });
 

@@ -80,7 +80,9 @@ export function createHub(
     id?: string;
   },
 ): MiniHubInstance {
-  const hubId = opts?.id ?? `hub-${agentId}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const hubId =
+    opts?.id ??
+    `hub-${agentId}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
   return {
     id: hubId,
     sessionKey: opts?.sessionKey ?? null,
@@ -168,10 +170,7 @@ export function getHubByAgent(
 /**
  * Get a hub by its id.
  */
-export function getHub(
-  registry: MiniHubRegistry,
-  hubId: string,
-): MiniHubInstance | undefined {
+export function getHub(registry: MiniHubRegistry, hubId: string): MiniHubInstance | undefined {
   return registry.hubs.get(hubId);
 }
 
@@ -270,10 +269,7 @@ export function clearPersistedHubs(): void {
  * Restore hubs from persisted entries into a registry.
  * Returns the number of hubs restored.
  */
-export function restoreHubs(
-  registry: MiniHubRegistry,
-  entries: PersistedHubEntry[],
-): number {
+export function restoreHubs(registry: MiniHubRegistry, entries: PersistedHubEntry[]): number {
   let restored = 0;
   for (const entry of entries) {
     if (registry.hubs.size >= registry.maxHubs) break;

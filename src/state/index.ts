@@ -261,7 +261,11 @@ export function persistAgentSessionMap(): void {
 
 // ── Per-session group metadata ─────────────────────────────────────────────
 // Persisted to localStorage so group kind/members survive loadSessions overwrites.
-export interface GroupMeta { name: string; members: string[]; kind: 'group' }
+export interface GroupMeta {
+  name: string;
+  members: string[];
+  kind: 'group';
+}
 
 export const groupSessionMap: Map<string, GroupMeta> = (() => {
   try {

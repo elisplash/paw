@@ -29,11 +29,11 @@ function linearGraph(): FlowGraph {
   const n2 = createNode('agent', 'Research', 200, 0, { description: 'Research the topic' });
   const n3 = createNode('agent', 'Summarize', 400, 0, { description: 'Summarize findings' });
   const n4 = createNode('output', 'Report', 600, 0);
-  const g = createGraph('Test Flow', [n1, n2, n3, n4], [
-    createEdge(n1.id, n2.id),
-    createEdge(n2.id, n3.id),
-    createEdge(n3.id, n4.id),
-  ]);
+  const g = createGraph(
+    'Test Flow',
+    [n1, n2, n3, n4],
+    [createEdge(n1.id, n2.id), createEdge(n2.id, n3.id), createEdge(n3.id, n4.id)],
+  );
   return g;
 }
 
@@ -42,11 +42,15 @@ function branchingGraph(): FlowGraph {
   const n2 = createNode('condition', 'Is Valid?', 200, 0);
   const n3 = createNode('agent', 'Process', 400, 0);
   const n4 = createNode('output', 'Error', 400, 100);
-  const g = createGraph('Branch Flow', [n1, n2, n3, n4], [
-    createEdge(n1.id, n2.id),
-    createEdge(n2.id, n3.id, 'forward', { label: 'true' }),
-    createEdge(n2.id, n4.id, 'forward', { label: 'false' }),
-  ]);
+  const g = createGraph(
+    'Branch Flow',
+    [n1, n2, n3, n4],
+    [
+      createEdge(n1.id, n2.id),
+      createEdge(n2.id, n3.id, 'forward', { label: 'true' }),
+      createEdge(n2.id, n4.id, 'forward', { label: 'false' }),
+    ],
+  );
   return g;
 }
 
@@ -140,13 +144,16 @@ describe('collectNodeInput', () => {
     const n1 = createNode('agent', 'A', 0, 0);
     const n2 = createNode('agent', 'B', 0, 100);
     const n3 = createNode('output', 'Out', 200, 50);
-    const g = createGraph('Multi', [n1, n2, n3], [
-      createEdge(n1.id, n3.id),
-      createEdge(n2.id, n3.id),
-    ]);
+    const g = createGraph(
+      'Multi',
+      [n1, n2, n3],
+      [createEdge(n1.id, n3.id), createEdge(n2.id, n3.id)],
+    );
     const states = new Map<string, NodeRunState>();
-    const s1 = createNodeRunState(n1.id); s1.output = 'From A';
-    const s2 = createNodeRunState(n2.id); s2.output = 'From B';
+    const s1 = createNodeRunState(n1.id);
+    s1.output = 'From A';
+    const s2 = createNodeRunState(n2.id);
+    s2.output = 'From B';
     states.set(n1.id, s1);
     states.set(n2.id, s2);
     expect(collectNodeInput(g, n3.id, states)).toBe('From A\n\nFrom B');
@@ -195,7 +202,8 @@ describe('evaluateCondition', () => {
   it('returns false for "false"', () => expect(evaluateCondition('false')).toBe(false));
   it('returns false for "no"', () => expect(evaluateCondition('no')).toBe(false));
   it('returns false for "0"', () => expect(evaluateCondition('0')).toBe(false));
-  it('returns true for verbose "The answer is true"', () => expect(evaluateCondition('The answer is true')).toBe(true));
+  it('returns true for verbose "The answer is true"', () =>
+    expect(evaluateCondition('The answer is true')).toBe(true));
   it('returns false for garbage', () => expect(evaluateCondition('maybe')).toBe(false));
 });
 
@@ -304,12 +312,31 @@ describe('validateFlowForExecution', () => {
 describe('summarizeRun', () => {
   it('produces readable output', () => {
     const g = linearGraph();
-    const state = createFlowRunState(g.id, g.nodes.map((n) => n.id));
+    const state = createFlowRunState(
+      g.id,
+      g.nodes.map((n) => n.id),
+    );
     state.status = 'success';
     state.totalDurationMs = 5000;
     state.outputLog = [
-      { nodeId: g.nodes[0].id, nodeLabel: 'Start', nodeKind: 'trigger', status: 'success', output: 'started', durationMs: 100, timestamp: Date.now() },
-      { nodeId: g.nodes[1].id, nodeLabel: 'Research', nodeKind: 'agent', status: 'success', output: 'Found data', durationMs: 2000, timestamp: Date.now() },
+      {
+        nodeId: g.nodes[0].id,
+        nodeLabel: 'Start',
+        nodeKind: 'trigger',
+        status: 'success',
+        output: 'started',
+        durationMs: 100,
+        timestamp: Date.now(),
+      },
+      {
+        nodeId: g.nodes[1].id,
+        nodeLabel: 'Research',
+        nodeKind: 'agent',
+        status: 'success',
+        output: 'Found data',
+        durationMs: 2000,
+        timestamp: Date.now(),
+      },
     ];
     const summary = summarizeRun(state, g);
     expect(summary).toContain('Test Flow');
@@ -416,7 +443,10 @@ describe('executeCodeSandboxed', () => {
   });
 
   it('handles data as null for non-JSON input', () => {
-    const result = executeCodeSandboxed('return data === null ? "null" : "not null";', 'plain text');
+    const result = executeCodeSandboxed(
+      'return data === null ? "null" : "not null";',
+      'plain text',
+    );
     expect(result.output).toBe('null');
   });
 

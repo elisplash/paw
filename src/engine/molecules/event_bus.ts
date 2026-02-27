@@ -79,10 +79,7 @@ const MAX_SUBSCRIBERS = 8;
  * Used by mini-hub instances to receive their own session's events
  * without interfering with the main chat view.
  */
-export function subscribeSession(
-  sessionKey: string,
-  handlers: StreamHandlers,
-): () => void {
+export function subscribeSession(sessionKey: string, handlers: StreamHandlers): () => void {
   // Enforce max subscribers cap
   if (_sessionSubscribers.size >= MAX_SUBSCRIBERS) {
     sweepStaleSubscribers();
@@ -111,12 +108,16 @@ export function subscribeSession(
     lastEventAt: now,
   });
 
-  console.debug(`[event_bus] Session subscribed: ${sessionKey} (total: ${_sessionSubscribers.size})`);
+  console.debug(
+    `[event_bus] Session subscribed: ${sessionKey} (total: ${_sessionSubscribers.size})`,
+  );
 
   // Return unsubscribe function
   return () => {
     _sessionSubscribers.delete(sessionKey);
-    console.debug(`[event_bus] Session unsubscribed: ${sessionKey} (total: ${_sessionSubscribers.size})`);
+    console.debug(
+      `[event_bus] Session unsubscribed: ${sessionKey} (total: ${_sessionSubscribers.size})`,
+    );
   };
 }
 
@@ -225,7 +226,8 @@ function handleAgentEvent(payload: unknown): void {
     // Terminal events (lifecycle:end, error) always pass through so abort/complete
     // can resolve stream promises even if the user switched sessions.
     const isTerminal = stream === 'lifecycle' || stream === 'error';
-    const isCurrentSession = !evtSession || !appState.currentSessionKey || evtSession === appState.currentSessionKey;
+    const isCurrentSession =
+      !evtSession || !appState.currentSessionKey || evtSession === appState.currentSessionKey;
     if (!isTerminal && !isCurrentSession) return;
 
     routeToHandlers(_streamHandlers, stream, data, runId, stream_s, false, evtAgentId);
