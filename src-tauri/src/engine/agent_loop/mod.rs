@@ -45,11 +45,12 @@ pub async fn run_agent_turn(
     let mut total_output_tokens: u64 = 0; // Sum of all rounds' output tokens
 
     // Circuit breaker: track consecutive failures per tool name.
-    // After 2 consecutive failures of the same tool, inject a system nudge
-    // telling the model to stop retrying and use a different approach.
+    // After MAX_CONSECUTIVE_TOOL_FAILS of the same tool, inject a system nudge.
+    // After HARD_STOP_TOOL_FAILS, block further execution of that tool entirely.
     let mut tool_fail_counter: std::collections::HashMap<String, u32> =
         std::collections::HashMap::new();
     const MAX_CONSECUTIVE_TOOL_FAILS: u32 = 3;
+    const HARD_STOP_TOOL_FAILS: u32 = 5;
 
     // Repetition detector: track the tool-call "signature" (hashed tool names
     // + args) for each round.  If the same signature appears consecutively
@@ -503,6 +504,7 @@ pub async fn run_agent_turn(
                 "web_browse",
                 "list_tasks",
                 "email_read",
+                "email_send",  // redirects to google_gmail_send internally
                 "slack_read",
                 "telegram_read",
                 // ── Agent memory / profile ──
@@ -578,6 +580,27 @@ pub async fn run_agent_turn(
                 "coinbase_transfer",
                 "coinbase_wallet_create",
             ];
+
+            // ── Circuit breaker: block tools that already hit HARD_STOP ──
+            if let Some(count) = tool_fail_counter.get(&tc.function.name) {
+                if *count >= HARD_STOP_TOOL_FAILS {
+                    warn!(
+                        "[engine] Circuit breaker: blocking '{}' (already failed {} times)",
+                        tc.function.name, count
+                    );
+                    messages.push(Message {
+                        role: Role::Tool,
+                        content: MessageContent::Text(format!(
+                            "Error: Tool '{}' is blocked after {} consecutive failures. Use a different tool or tell the user.",
+                            tc.function.name, count
+                        )),
+                        tool_calls: None,
+                        tool_call_id: Some(tc.id.clone()),
+                        name: Some(tc.function.name.clone()),
+                    });
+                    continue;
+                }
+            }
 
             let skip_hil = if auto_approve_all
                 || auto_approved_tools.contains(&tc.function.name.as_str())
@@ -716,7 +739,25 @@ pub async fn run_agent_turn(
                     .entry(tc.function.name.clone())
                     .or_insert(0);
                 *count += 1;
-                if *count >= MAX_CONSECUTIVE_TOOL_FAILS {
+                if *count >= HARD_STOP_TOOL_FAILS {
+                    warn!(
+                        "[engine] Circuit breaker HARD STOP: tool '{}' failed {} consecutive times. Blocking further calls.",
+                        tc.function.name, count
+                    );
+                    messages.push(Message {
+                        role: Role::System,
+                        content: MessageContent::Text(format!(
+                            "[SYSTEM] HARD STOP: The tool '{}' has failed {} times in a row and is now BLOCKED. \
+                            Do NOT call '{}' again — it will not work. \
+                            Instead, tell the user what happened and suggest they check their \
+                            skill configuration or try a different approach. Provide a text summary now.",
+                            tc.function.name, count, tc.function.name
+                        )),
+                        tool_calls: None,
+                        tool_call_id: None,
+                        name: None,
+                    });
+                } else if *count >= MAX_CONSECUTIVE_TOOL_FAILS {
                     warn!(
                         "[engine] Circuit breaker: tool '{}' failed {} consecutive times. Injecting stop-retry nudge.",
                         tc.function.name, count

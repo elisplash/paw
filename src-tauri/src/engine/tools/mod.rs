@@ -123,7 +123,18 @@ pub async fn execute_tool(
         &args_str[..args_str.len().min(200)]
     );
 
-    let args: serde_json::Value = serde_json::from_str(args_str).unwrap_or(serde_json::json!({}));
+    let args: serde_json::Value = match serde_json::from_str(args_str) {
+        Ok(v) => v,
+        Err(parse_err) => {
+            log::warn!(
+                "[engine] Malformed tool args for '{}' — JSON parse failed: {}. Args: {}",
+                name,
+                parse_err,
+                &args_str[..args_str.len().min(300)]
+            );
+            serde_json::json!({})
+        }
+    };
 
     // fetch & exec: When a worker model is configured, delegate these to the
     // worker (Foreman) so the main model doesn't spend API tokens on
