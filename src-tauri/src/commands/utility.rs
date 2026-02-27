@@ -168,7 +168,11 @@ pub fn check_keychain_health() -> KeychainHealth {
 /// Two-step: geocode the location name → fetch forecast with lat/lon.
 #[tauri::command]
 pub async fn fetch_weather(location: Option<String>) -> Result<String, String> {
-    let loc = location.unwrap_or_default();
+    let loc = location.clone().unwrap_or_default();
+    log::info!("[weather] Fetching weather for location: {:?}", location);
+    if loc.is_empty() {
+        return Err("No location configured — set your city in Settings → Integrations → Weather API".into());
+    }
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()
@@ -228,5 +232,6 @@ pub async fn fetch_weather(location: Option<String>) -> Result<String, String> {
         "country": country,
     });
 
+    log::info!("[weather] Successfully fetched weather for {}, {}", place_name, country);
     serde_json::to_string(&wx).map_err(|e| format!("JSON serialization error: {}", e))
 }

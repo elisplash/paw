@@ -4885,7 +4885,7 @@ const AUTO: ServiceDefinition[] = [
     {
       title: 'Set Your Location',
       steps: [
-        { instruction: 'No API key needed — weather is free via wttr.in.' },
+        { instruction: 'No API key needed — weather is free via Open-Meteo.' },
         { instruction: 'Just enter your city below and hit Save.' },
       ],
       estimatedTime: '10 seconds',
