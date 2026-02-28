@@ -64,6 +64,33 @@ pub async fn detect_local_n8n(url: &str) -> Option<N8nEndpoint> {
 
 // ── Version ────────────────────────────────────────────────────────────
 
+/// Check if the running n8n instance supports MCP (has /rest/mcp/settings endpoint).
+/// Returns false if n8n is an old version that predates MCP support.
+pub async fn has_mcp_support(base_url: &str) -> bool {
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+
+    // The /mcp-server/http endpoint exists only on n8n versions with MCP.
+    // A 405 (Method Not Allowed) or 401 (Unauthorized) means the endpoint
+    // exists (wrong method / missing auth), so MCP is supported.
+    // A 404 means the endpoint doesn't exist — old n8n.
+    let url = format!("{}/mcp-server/http", base_url.trim_end_matches('/'));
+    match client.get(&url).send().await {
+        Ok(resp) => {
+            let status = resp.status().as_u16();
+            // 404 = endpoint doesn't exist = no MCP support
+            // Anything else (401, 405, 200, etc.) = endpoint exists
+            status != 404
+        }
+        Err(_) => false,
+    }
+}
+
 /// Fetch the n8n version from the API.
 pub async fn get_n8n_version(base_url: &str, api_key: &str) -> Option<String> {
     let client = reqwest::Client::builder()
