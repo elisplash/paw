@@ -34,6 +34,7 @@ import {
   setAvailableAgents,
 } from './molecules';
 import { parseFlowText } from './parser';
+import { fitView } from './canvas-molecules';
 import { FLOW_TEMPLATES } from './templates';
 import { createFlowExecutor, type FlowExecutorController } from './executor';
 import { createFlowChatReporter, type FlowChatReporterController } from './chat-reporter';
@@ -231,6 +232,7 @@ export function setActiveFlow(id: string) {
   _selectedNodeId = null;
   renderActiveGraph();
   updateFlowList();
+  requestAnimationFrame(() => fitView());
 }
 
 // ── Mount ──────────────────────────────────────────────────────────────────
@@ -882,6 +884,9 @@ export function handleFlowTextInput(text: string) {
   persist();
   renderActiveGraph();
   updateFlowList();
+
+  // Auto-zoom so the new flow is visible on the canvas
+  requestAnimationFrame(() => fitView());
 }
 
 // ── Re-exports from sub-modules ────────────────────────────────────────────
