@@ -31,7 +31,7 @@
     "@tauri-apps/cli": "^2",
     "@types/jsdom": "^28.0.0",
     "@typescript-eslint/eslint-plugin": "^8.56.0",
-    "@typescript-eslint/parser": "^8.56.0",
+    "@typescript-eslint/parser": "^8.56.1",
     "eslint": "^10.0.1",
     "jsdom": "^28.1.0",
     "prettier": "^3.8.1",
