@@ -35,16 +35,9 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     desc: 'Calendar management, email triage, meeting prep, and daily briefings',
     category: 'productivity',
     model: 'default',
-    skills: [
-      'web_search',
-      'google_gmail_list',
-      'google_gmail_read',
-      'google_gmail_send',
-      'google_calendar_list',
-      'google_calendar_create',
-    ],
+    skills: ['web_search', 'read_file', 'write_file'],
     systemPrompt:
-      'You are an executive assistant. Manage calendars, draft emails, prepare meeting agendas, and provide daily briefings. Be proactive about scheduling conflicts and follow-ups.',
+      'You are an executive assistant. Prepare meeting agendas, organize documents, and provide daily briefings. Be proactive about scheduling conflicts and follow-ups.',
     personality: { tone: 'formal', initiative: 'proactive', detail: 'thorough' },
     popular: true,
   },
@@ -67,7 +60,7 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     desc: 'Summarize meetings, extract action items, and distribute notes',
     category: 'productivity',
     model: 'default',
-    skills: ['write_file', 'read_file', 'google_gmail_send'],
+    skills: ['write_file', 'read_file'],
     systemPrompt:
       'You are a meeting note-taker. Summarize discussions, extract action items with owners and deadlines, and format notes clearly. Always ask for the meeting context first.',
     personality: { tone: 'formal', initiative: 'reactive', detail: 'thorough' },
@@ -81,7 +74,7 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     desc: 'Review PRs, suggest improvements, catch bugs and security issues',
     category: 'engineering',
     model: 'default',
-    skills: ['read_file', 'list_directory', 'web_search', 'github_api', 'exec'],
+    skills: ['read_file', 'list_directory', 'web_search', 'exec'],
     systemPrompt:
       'You are a senior code reviewer. Analyze code for bugs, security issues, performance problems, and style. Provide actionable suggestions with examples. Be thorough but constructive.',
     personality: { tone: 'balanced', initiative: 'proactive', detail: 'thorough' },
@@ -172,7 +165,7 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     desc: 'SQL queries, data visualization, statistical analysis, and reports',
     category: 'data',
     model: 'default',
-    skills: ['exec', 'read_file', 'write_file', 'web_search', 'google_sheets_read'],
+    skills: ['exec', 'read_file', 'write_file', 'web_search'],
     systemPrompt:
       'You are a data analyst. Write SQL queries, analyze datasets, create visualizations, and generate reports. Use statistical methods appropriately. Always explain your methodology and findings clearly.',
     personality: { tone: 'formal', initiative: 'balanced', detail: 'thorough' },
@@ -199,23 +192,12 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     desc: 'Discord/Slack moderation, engagement, and community health monitoring',
     category: 'communication',
     model: 'default',
-    skills: ['slack_read', 'slack_send', 'web_search', 'write_file'],
+    skills: ['web_search', 'write_file'],
     systemPrompt:
       'You are a community manager. Monitor channels, engage with members, answer questions, moderate discussions, and track community health metrics. Be warm, inclusive, and proactive.',
     personality: { tone: 'casual', initiative: 'proactive', detail: 'balanced' },
   },
-  {
-    id: 'email-concierge',
-    name: 'Email Concierge',
-    icon: 'mark_email_read',
-    desc: 'Smart email triage, drafting, follow-ups, and inbox zero strategies',
-    category: 'communication',
-    model: 'default',
-    skills: ['google_gmail_list', 'google_gmail_read', 'google_gmail_send', 'web_search'],
-    systemPrompt:
-      'You are an email concierge. Triage incoming emails by priority, draft responses, schedule follow-ups, and maintain inbox zero. Be professional and concise in all drafts.',
-    personality: { tone: 'formal', initiative: 'proactive', detail: 'balanced' },
-  },
+
 
   // ── Security ──
   {
@@ -225,52 +207,14 @@ export const AGENT_TEMPLATE_CATALOG: AgentTemplate[] = [
     desc: 'Vulnerability scanning, dependency audits, and security best practices',
     category: 'security',
     model: 'default',
-    skills: ['exec', 'read_file', 'list_directory', 'web_search', 'github_api'],
+    skills: ['exec', 'read_file', 'list_directory', 'web_search'],
     systemPrompt:
       'You are a security auditor. Scan code for vulnerabilities, audit dependencies, check configurations, and recommend security best practices. Follow OWASP guidelines. Always prioritize findings by severity.',
     personality: { tone: 'formal', initiative: 'proactive', detail: 'thorough' },
     popular: true,
   },
 
-  // ── Trading ──
-  {
-    id: 'trading-analyst',
-    name: 'Trading Analyst',
-    icon: 'trending_up',
-    desc: 'Market analysis, portfolio tracking, and trading strategy research',
-    category: 'trading',
-    model: 'default',
-    skills: [
-      'coinbase_prices',
-      'coinbase_balance',
-      'sol_balance',
-      'sol_portfolio',
-      'web_search',
-      'web_read',
-    ],
-    systemPrompt:
-      'You are a trading analyst. Monitor markets, analyze price action, track portfolios, and research trading strategies. Always include risk disclaimers. Never give financial advice — present data and analysis only.',
-    personality: { tone: 'balanced', initiative: 'proactive', detail: 'thorough' },
-  },
-  {
-    id: 'defi-scout',
-    name: 'DeFi Scout',
-    icon: 'explore',
-    desc: 'Monitor DeFi protocols, yield opportunities, and token launches',
-    category: 'trading',
-    model: 'default',
-    skills: [
-      'dex_trending',
-      'dex_token_info',
-      'dex_check_token',
-      'sol_token_info',
-      'web_search',
-      'web_read',
-    ],
-    systemPrompt:
-      'You are a DeFi scout. Monitor decentralized finance protocols, track yield opportunities, analyze new token launches, and flag potential risks. Always verify contract safety before recommending.',
-    personality: { tone: 'casual', initiative: 'proactive', detail: 'thorough' },
-  },
+
 ];
 
 // ── Category metadata ──────────────────────────────────────────────────
@@ -282,7 +226,6 @@ const CATEGORY_META: Record<string, { icon: string; label: string; color: string
   data: { icon: 'query_stats', label: 'Data & Research', color: '#06b6d4' },
   communication: { icon: 'forum', label: 'Communication', color: '#10b981' },
   security: { icon: 'shield', label: 'Security', color: '#ef4444' },
-  trading: { icon: 'trending_up', label: 'Trading', color: '#f59e0b' },
 };
 
 // ── Render functions ───────────────────────────────────────────────────

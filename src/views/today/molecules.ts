@@ -254,31 +254,11 @@ export async function fetchUnreadEmails() {
       from: string;
       subject: string;
       date: Date | null;
-      source: 'google' | 'himalaya';
+      source: 'himalaya';
     }
     const unreadItems: UnreadItem[] = [];
 
-    // ── 1. Google OAuth emails ──────────────────────────────────────────
-    try {
-      const googleEmail = await pawEngine.googleOAuthStatus();
-      if (googleEmail) {
-        const gmailMsgs = await pawEngine.googleGmailList('is:unread', 10);
-        for (const gm of gmailMsgs) {
-          if (!gm.read) {
-            unreadItems.push({
-              from: gm.from || 'Unknown',
-              subject: gm.subject || '(No subject)',
-              date: gm.date ? new Date(gm.date) : null,
-              source: 'google',
-            });
-          }
-        }
-      }
-    } catch {
-      /* Google OAuth not available or not connected */
-    }
-
-    // ── 2. Himalaya IMAP emails ─────────────────────────────────────────
+    // ── Himalaya IMAP emails ─────────────────────────────────────────
     let himalayaAccounts: { name: string; email: string }[] = [];
     try {
       const toml = await pawEngine.mailReadConfig();
@@ -335,18 +315,8 @@ export async function fetchUnreadEmails() {
       }
     }
 
-    // ── 3. No email sources configured at all ───────────────────────────
+    // ── No email sources configured ───────────────────────────────
     if (unreadItems.length === 0 && himalayaAccounts.length === 0) {
-      // Check if we had a Google OAuth — if so, they just have 0 unread
-      try {
-        const googleEmail = await pawEngine.googleOAuthStatus();
-        if (googleEmail) {
-          emailsEl.innerHTML = `<div class="today-section-empty"><span class="ms ms-sm">mark_email_read</span> No unread emails — you're all caught up!</div>`;
-          return;
-        }
-      } catch {
-        /* ignore */
-      }
       emailsEl.innerHTML = `<div class="today-section-empty">Set up email in the <a href="#" class="today-link-mail">Mail</a> view to see messages here</div>`;
       emailsEl.querySelector('.today-link-mail')?.addEventListener('click', (e) => {
         e.preventDefault();
@@ -396,70 +366,11 @@ export async function fetchCalendarEvents() {
   if (!calEl) return;
 
   try {
-    const googleEmail = await pawEngine.googleOAuthStatus();
-    if (!googleEmail) {
-      calEl.innerHTML = `<div class="today-section-empty">Connect Google in <a href="#" class="today-link-integrations">Integrations</a> to see your calendar</div>`;
-      calEl.querySelector('.today-link-integrations')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        switchView('integrations');
-      });
-      return;
-    }
-
-    const events = await pawEngine.googleCalendarList(10);
-
-    if (!events || events.length === 0) {
-      calEl.innerHTML = `<div class="today-section-empty"><span class="ms ms-sm">event_available</span> No upcoming events this week</div>`;
-      return;
-    }
-
-    const now = new Date();
-
-    calEl.innerHTML = events
-      .slice(0, 6)
-      .map((ev) => {
-        const start = new Date(ev.start);
-        const isToday = start.toDateString() === now.toDateString();
-        const isTomorrow =
-          start.toDateString() === new Date(now.getTime() + 86400000).toDateString();
-
-        let dayLabel = '';
-        if (ev.all_day) {
-          dayLabel = isToday
-            ? 'Today'
-            : isTomorrow
-              ? 'Tomorrow'
-              : start.toLocaleDateString('en-US', {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                });
-        } else {
-          const timeStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-          if (isToday) dayLabel = timeStr;
-          else if (isTomorrow) dayLabel = `Tomorrow ${timeStr}`;
-          else
-            dayLabel = `${start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} ${timeStr}`;
-        }
-
-        const locationHtml = ev.location
-          ? `<div class="today-cal-location"><span class="ms ms-xs">location_on</span> ${escHtml(ev.location)}</div>`
-          : '';
-
-        return `
-          <div class="today-cal-event${isToday ? ' today-cal-today' : ''}">
-            <div class="today-cal-time">${escHtml(dayLabel)}</div>
-            <div class="today-cal-details">
-              <div class="today-cal-summary">${escHtml(ev.summary)}</div>
-              ${locationHtml}
-            </div>
-          </div>`;
-      })
-      .join('');
-
-    if (events.length > 6) {
-      calEl.innerHTML += `<div class="today-cal-more">+${events.length - 6} more events</div>`;
-    }
+    calEl.innerHTML = `<div class="today-section-empty">Connect a calendar integration via <a href="#" class="today-link-integrations">Integrations</a> to see events here</div>`;
+    calEl.querySelector('.today-link-integrations')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      switchView('integrations');
+    });
   } catch (e) {
     console.warn('[today] Calendar fetch failed:', e);
     calEl.innerHTML = `<div class="today-section-empty">Could not load calendar</div>`;

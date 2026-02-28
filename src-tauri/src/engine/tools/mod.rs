@@ -14,16 +14,10 @@ use tauri::Manager;
 
 pub mod agent_comms;
 pub mod agents;
-pub mod coinbase;
-pub mod dex;
 pub mod discord;
-pub mod email;
 pub mod exec;
 pub mod fetch;
 pub mod filesystem;
-pub mod github;
-pub mod google;
-pub mod google_oauth;
 pub mod integrations;
 pub mod memory;
 pub mod n8n;
@@ -31,13 +25,10 @@ pub mod request_tools;
 pub mod skill_output;
 pub mod skill_storage;
 pub mod skills_tools;
-pub mod slack;
-pub mod solana;
 pub mod soul;
 pub mod squads;
 pub mod tasks;
 pub mod telegram;
-pub mod trello;
 pub mod web;
 pub mod worker_delegate;
 
@@ -85,19 +76,11 @@ impl ToolDefinition {
         let mut tools = Vec::new();
         for id in enabled_skill_ids {
             match id.as_str() {
-                "email" => tools.extend(email::definitions()),
-                "slack" => tools.extend(slack::definitions()),
                 "telegram" => tools.extend(telegram::definitions()),
-                "github" => tools.extend(github::definitions()),
                 "rest_api" => tools.extend(integrations::definitions_for("rest_api")),
                 "webhook" => tools.extend(integrations::definitions_for("webhook")),
                 "image_gen" => tools.extend(integrations::definitions_for("image_gen")),
-                "coinbase" => tools.extend(coinbase::definitions()),
-                "dex" => tools.extend(dex::definitions()),
-                "solana_dex" => tools.extend(solana::definitions()),
-                "google_workspace" => tools.extend(google::definitions()),
                 "discord" => tools.extend(discord::definitions()),
-                "trello" => tools.extend(trello::definitions()),
                 _ => {}
             }
         }
@@ -169,18 +152,10 @@ pub async fn execute_tool(
         .or(agent_comms::execute(name, &args, app_handle, agent_id).await)
         .or(squads::execute(name, &args, app_handle, agent_id).await)
         .or(request_tools::execute(name, &args, app_handle, agent_id).await)
-        .or(email::execute(name, &args, app_handle).await)
         .or(telegram::execute(name, &args, app_handle).await)
-        .or(slack::execute(name, &args, app_handle).await)
-        .or(github::execute(name, &args, app_handle).await)
         .or(integrations::execute(name, &args, app_handle).await)
         .or(n8n::execute(name, &args, app_handle).await)
-        .or(coinbase::execute(name, &args, app_handle).await)
-        .or(dex::execute(name, &args, app_handle).await)
-        .or(solana::execute(name, &args, app_handle).await)
-        .or(google::execute(name, &args, app_handle).await)
-        .or(discord::execute(name, &args, app_handle).await)
-        .or(trello::execute(name, &args, app_handle).await);
+        .or(discord::execute(name, &args, app_handle).await);
 
     // Try MCP tools (prefixed with `mcp_`) if no built-in handled it.
     // When a worker_model is configured, delegate MCP calls to the local

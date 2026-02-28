@@ -89,10 +89,6 @@
               <span class="ms nav-icon">auto_stories</span>
               <span class="nav-label">Skills</span>
             </div>
-            <div class="nav-item" data-view="builtin">
-              <span class="ms nav-icon">memory</span>
-              <span class="nav-label">Built In</span>
-            </div>
             <div class="nav-item" data-view="foundry">
               <span class="ms nav-icon">precision_manufacturing</span>
               <span class="nav-label">Foundry</span>
@@ -276,7 +272,7 @@
           <div class="integrations-hero">
             <div class="integrations-hero-left">
               <h1 class="integrations-hero-title">Integration Hub</h1>
-              <p class="integrations-hero-sub">Native integrations, n8n services, and MCP servers — all your agent's tools in one place.</p>
+              <p class="integrations-hero-sub">25,000+ services via n8n, MCP servers, and community packages — all your agent's tools in one place.</p>
             </div>
             <div class="integrations-hero-right">
               <div class="integrations-hero-stat k-row k-spring">
@@ -2637,122 +2633,6 @@
                   <button class="skills-quick-btn" id="skills-qa-browse-community">
                     <span class="ms">explore</span> Browse skills.sh
                   </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ═══ Built In View — Native Rust Engine Tools ═══ -->
-        <div class="view builtin-view" id="builtin-view">
-          <!-- Hero header -->
-          <div class="builtin-hero">
-            <div class="builtin-hero-left">
-              <h1 class="builtin-hero-title">Built In</h1>
-              <p class="builtin-hero-sub">Native Rust tools compiled into the engine — system access, file I/O, and platform capabilities</p>
-            </div>
-            <div class="builtin-hero-right">
-              <div class="builtin-hero-stat k-row k-spring">
-                <span class="ms builtin-hero-stat-icon">memory</span>
-                <div>
-                  <div class="builtin-hero-stat-val" id="builtin-stat-total">0</div>
-                  <div class="builtin-hero-stat-lbl">Total</div>
-                </div>
-              </div>
-              <div class="builtin-hero-stat k-row k-spring">
-                <span class="ms builtin-hero-stat-icon">check_circle</span>
-                <div>
-                  <div class="builtin-hero-stat-val" id="builtin-stat-ready">0</div>
-                  <div class="builtin-hero-stat-lbl">Ready</div>
-                </div>
-              </div>
-              <div class="builtin-hero-stat k-row k-spring">
-                <span class="ms builtin-hero-stat-icon">warning</span>
-                <div>
-                  <div class="builtin-hero-stat-val" id="builtin-stat-issues">0</div>
-                  <div class="builtin-hero-stat-lbl">Issues</div>
-                </div>
-              </div>
-              <button class="btn btn-primary" id="refresh-builtin-btn">
-                <span class="ms ms-sm">sync</span>
-                Refresh
-              </button>
-            </div>
-          </div>
-
-          <!-- Two-column body -->
-          <div class="builtin-body">
-            <!-- Main column -->
-            <div class="builtin-main-col">
-              <div class="builtin-section k-row k-materialise">
-                <div id="builtin-content">
-                  <div
-                    id="builtin-loading"
-                    style="color: var(--text-muted); font-size: 13px; padding: 12px 0"
-                  >
-                    Loading built-in tools...
-                  </div>
-                  <div id="builtin-list"></div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Side panel -->
-            <div class="builtin-side-panel k-stagger">
-              <!-- What Are Built In Tools? -->
-              <div class="builtin-panel-card k-row k-spring k-materialise">
-                <div class="skills-panel-card-header">
-                  <span class="ms skills-panel-card-icon">info</span>
-                  <span class="skills-panel-card-title">What Are These?</span>
-                </div>
-                <div class="skills-panel-card-body">
-                  <p>Built-in tools are <strong>native Rust capabilities</strong> compiled directly into the Pawz engine. They provide low-level system access that external integrations cannot.</p>
-                  <p>Some require platform-specific binaries (e.g. macOS apps) and may not work on all systems.</p>
-                </div>
-              </div>
-
-              <!-- Status Guide -->
-              <div class="builtin-panel-card k-row k-spring k-materialise">
-                <div class="skills-panel-card-header">
-                  <span class="ms skills-panel-card-icon">category</span>
-                  <span class="skills-panel-card-title">Status Guide</span>
-                </div>
-                <div class="skills-panel-card-body">
-                  <div class="skills-type-list">
-                    <div class="skills-type-row">
-                      <span class="skills-type-dot" style="background:var(--success, #8FB0A0)"></span>
-                      <div>
-                        <strong>Ready</strong>
-                        <span>All dependencies met — tool works on this system</span>
-                      </div>
-                    </div>
-                    <div class="skills-type-row">
-                      <span class="skills-type-dot" style="background:var(--accent-warning, #D4A853)"></span>
-                      <div>
-                        <strong>Needs Setup</strong>
-                        <span>Missing credentials or environment variables</span>
-                      </div>
-                    </div>
-                    <div class="skills-type-row">
-                      <span class="skills-type-dot" style="background:var(--text-muted)"></span>
-                      <div>
-                        <strong>Unavailable</strong>
-                        <span>Missing binaries — not available on this platform</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- vs Integrations -->
-              <div class="builtin-panel-card k-row k-spring k-materialise">
-                <div class="skills-panel-card-header">
-                  <span class="ms skills-panel-card-icon">compare_arrows</span>
-                  <span class="skills-panel-card-title">vs Integrations</span>
-                </div>
-                <div class="skills-panel-card-body">
-                  <p><strong>Built In</strong> tools run natively inside the engine — direct file access, system commands, clipboard, screenshots.</p>
-                  <p><strong>Integrations</strong> connect to external services via APIs — Slack, GitHub, Google, and 25,000+ more via n8n workflows.</p>
                 </div>
               </div>
             </div>

@@ -23,21 +23,21 @@ const WIZARD_CATEGORIES: WizardCategory[] = [
     id: 'communication',
     label: 'Communication',
     icon: 'chat',
-    description: 'Email, Slack, Discord, Telegram, WhatsApp, iMessage',
+    description: 'Discord, Telegram, WhatsApp, iMessage',
     backendCategories: ['vault', 'communication'],
   },
   {
     id: 'productivity',
     label: 'Productivity',
     icon: 'task_alt',
-    description: 'Notes, reminders, Trello, Notion, Google Workspace',
+    description: 'Notes, reminders, Notion',
     backendCategories: ['productivity', 'api'],
   },
   {
     id: 'development',
     label: 'Development',
     icon: 'code',
-    description: 'GitHub, tmux, session logs, terminal tools',
+    description: 'tmux, session logs, terminal tools',
     backendCategories: ['development'],
   },
   {
@@ -58,7 +58,7 @@ const WIZARD_CATEGORIES: WizardCategory[] = [
     id: 'finance',
     label: 'Finance & Trading',
     icon: 'account_balance',
-    description: 'Coinbase, DEX trading, Uniswap, Solana',
+    description: 'Trading integrations via n8n',
     backendCategories: [], // Handled by specific skill IDs
   },
   {
@@ -72,12 +72,10 @@ const WIZARD_CATEGORIES: WizardCategory[] = [
 
 // Finance skills don't have their own backend category — they're under "vault"
 // so we use explicit IDs.
-const FINANCE_SKILL_IDS = ['coinbase', 'dex', 'solana_dex'];
+const FINANCE_SKILL_IDS: string[] = [];
 
 // Communication is also under "vault" but we distinguish by skill IDs
 const COMMUNICATION_SKILL_IDS = [
-  'email',
-  'slack',
   'telegram',
   'discord',
   'whatsapp',

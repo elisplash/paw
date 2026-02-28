@@ -260,17 +260,6 @@ pub fn run() {
             commands::skill_wizard::engine_wizard_publish_url,
             // ── Skill Storage (Phase F.6) ──
             commands::skills::engine_skill_store_list,
-            // ── Google OAuth2 ──
-            commands::skills::engine_google_oauth_connect,
-            commands::skills::engine_google_oauth_status,
-            commands::skills::engine_google_oauth_disconnect,
-            commands::skills::engine_google_oauth_has_bundled,
-            // ── Google Gmail (Mail UI) ──
-            commands::skills::engine_google_gmail_list,
-            commands::skills::engine_google_gmail_read,
-            commands::skills::engine_google_gmail_send,
-            // ── Google Calendar (Today widget) ──
-            commands::skills::engine_google_calendar_list,
             // ── Trading ──
             commands::trade::engine_trading_history,
             commands::trade::engine_trading_summary,
