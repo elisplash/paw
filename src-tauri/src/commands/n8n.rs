@@ -673,7 +673,7 @@ pub async fn engine_n8n_community_packages_list(
         .send()
         .await;
 
-    // Try REST API first
+    // Try REST API first (may fail with 404 or connection error)
     if let Ok(r) = resp {
         if r.status().is_success() {
             if let Ok(packages) = r.json::<Vec<CommunityPackage>>().await {
@@ -689,7 +689,17 @@ pub async fn engine_n8n_community_packages_list(
     }
 
     // Fallback: read package.json from the container to discover installed packages
-    list_packages_from_container().await
+    // If the container doesn't exist either, return an empty list (n8n not provisioned yet)
+    match list_packages_from_container().await {
+        Ok(pkgs) => Ok(pkgs),
+        Err(e) => {
+            info!(
+                "[n8n] Cannot list packages (container may not exist yet): {}",
+                e
+            );
+            Ok(vec![])
+        }
+    }
 }
 
 /// Fallback for listing community packages by reading the container's package.json.
@@ -1181,6 +1191,14 @@ pub async fn engine_n8n_community_packages_install(
     app_handle: tauri::AppHandle,
     package_name: String,
 ) -> Result<CommunityPackage, String> {
+    // Ensure n8n is running before attempting install (provisions container if needed)
+    engine_n8n_ensure_ready(app_handle.clone()).await.map_err(|e| {
+        format!(
+            "Integration engine is not ready — please wait for it to start. ({})",
+            e
+        )
+    })?;
+
     let (base_url, api_key) = get_n8n_endpoint(&app_handle)?;
 
     info!("[n8n] Installing community package: {}", package_name);
