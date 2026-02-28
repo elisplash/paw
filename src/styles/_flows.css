@@ -18,6 +18,39 @@
   gap: 0;
 }
 
+/* Panel collapsed — hide right panel, expand canvas */
+.flows-view.active.flows-panel-collapsed {
+  grid-template-columns: 220px 1fr;
+  grid-template-areas:
+    "hero   hero"
+    "list   toolbar"
+    "list   canvas";
+}
+.flows-view.active.flows-panel-collapsed #flows-panel {
+  display: none;
+}
+
+/* List collapsed — hide left sidebar, expand canvas */
+.flows-view.active.flows-list-collapsed {
+  grid-template-columns: 1fr 240px;
+  grid-template-areas:
+    "hero   hero"
+    "toolbar panel"
+    "canvas  panel";
+}
+.flows-view.active.flows-list-collapsed #flows-list {
+  display: none;
+}
+
+/* Both collapsed */
+.flows-view.active.flows-panel-collapsed.flows-list-collapsed {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "hero"
+    "toolbar"
+    "canvas";
+}
+
 .flows-hero {
   grid-area: hero;
   display: flex;
@@ -1228,6 +1261,54 @@
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
+
+/* Medium screens: auto-collapse panel */
+@media (max-width: 1200px) {
+  .flows-view.active:not(.flows-panel-shown) {
+    grid-template-columns: 220px 1fr;
+    grid-template-areas:
+      "hero   hero"
+      "list   toolbar"
+      "list   canvas";
+  }
+  .flows-view.active:not(.flows-panel-shown) #flows-panel {
+    display: none;
+  }
+}
+
+/* Narrow screens: also collapse list */
+@media (max-width: 1000px) {
+  .flows-view.active:not(.flows-list-shown) {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "hero"
+      "toolbar"
+      "canvas";
+  }
+  .flows-view.active:not(.flows-list-shown) #flows-list {
+    display: none;
+  }
+  .flows-view.active:not(.flows-list-shown):not(.flows-panel-shown) #flows-panel {
+    display: none;
+  }
+  /* If panel forced shown at this width, overlay it */
+  .flows-view.active.flows-panel-shown {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "hero"
+      "toolbar"
+      "canvas";
+  }
+  .flows-view.active.flows-panel-shown #flows-panel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: 200;
+    box-shadow: var(--shadow-lg, -4px 0 12px rgba(0,0,0,0.15));
+  }
+}
 
 @media (max-width: 900px) {
   .flows-view.active {

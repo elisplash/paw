@@ -239,6 +239,9 @@ function mount() {
   const canvasContainer = el('flows-canvas');
   const textInput = el('flows-text-input') as HTMLInputElement | null;
 
+  // Restore collapsed panel/list states before canvas mount
+  restorePanelStates();
+
   if (canvasContainer) mountCanvas(canvasContainer);
 
   // Create executor
@@ -304,6 +307,13 @@ function mount() {
     }
   }) as EventListener);
 
+  // Panel / list toggle from toolbar
+  document.addEventListener('flow:toolbar', ((e: CustomEvent) => {
+    const action = e.detail?.action;
+    if (action === 'toggle-panel') togglePanel();
+    else if (action === 'toggle-list') toggleList();
+  }) as EventListener);
+
   // Keyboard shortcuts
   document.addEventListener('keydown', onKeyDown);
 
@@ -322,6 +332,48 @@ export function unmountFlows() {
 }
 
 // ── Internal Actions ───────────────────────────────────────────────────────
+
+/** Toggle the right-hand properties panel. */
+function togglePanel() {
+  const view = el('flows-view');
+  if (!view) return;
+  const isCollapsed = view.classList.toggle('flows-panel-collapsed');
+  // For responsive override: explicit "shown" class
+  view.classList.toggle('flows-panel-shown', !isCollapsed);
+  // Update toggle button icon
+  const btn = document.querySelector('[data-action="toggle-panel"] .ms');
+  if (btn) btn.textContent = isCollapsed ? 'right_panel_open' : 'right_panel_close';
+  localStorage.setItem('paw-flows-panel-collapsed', String(isCollapsed));
+}
+
+/** Toggle the left-hand flow list sidebar. */
+function toggleList() {
+  const view = el('flows-view');
+  if (!view) return;
+  const isCollapsed = view.classList.toggle('flows-list-collapsed');
+  // For responsive override: explicit "shown" class
+  view.classList.toggle('flows-list-shown', !isCollapsed);
+  // Update toggle button icon
+  const btn = document.querySelector('[data-action="toggle-list"] .ms');
+  if (btn) btn.textContent = isCollapsed ? 'left_panel_open' : 'left_panel_close';
+  localStorage.setItem('paw-flows-list-collapsed', String(isCollapsed));
+}
+
+/** Restore panel/list collapsed states from localStorage. */
+function restorePanelStates() {
+  const view = el('flows-view');
+  if (!view) return;
+  if (localStorage.getItem('paw-flows-panel-collapsed') === 'true') {
+    view.classList.add('flows-panel-collapsed');
+  } else {
+    view.classList.add('flows-panel-shown');
+  }
+  if (localStorage.getItem('paw-flows-list-collapsed') === 'true') {
+    view.classList.add('flows-list-collapsed');
+  } else {
+    view.classList.add('flows-list-shown');
+  }
+}
 
 /** Update the hero stat counters to reflect current state. */
 function updateHeroStats() {
@@ -598,6 +650,15 @@ function updateToolbar() {
   const isDebug = _executor?.isDebugMode() ?? false;
 
   renderToolbar(toolbarContainer, { isRunning, isPaused, isDebug });
+
+  // Sync toggle button icons with current collapsed state
+  const view = el('flows-view');
+  if (view) {
+    const panelBtn = toolbarContainer.querySelector('[data-action="toggle-panel"] .ms');
+    if (panelBtn) panelBtn.textContent = view.classList.contains('flows-panel-collapsed') ? 'right_panel_open' : 'right_panel_close';
+    const listBtn = toolbarContainer.querySelector('[data-action="toggle-list"] .ms');
+    if (listBtn) listBtn.textContent = view.classList.contains('flows-list-collapsed') ? 'left_panel_open' : 'left_panel_close';
+  }
 
   // Wire toolbar action buttons
   toolbarContainer.querySelectorAll('[data-action]').forEach((btn) => {

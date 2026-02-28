@@ -139,6 +139,9 @@ export function renderToolbar(
       </div>
       <div class="flow-toolbar-divider"></div>
       <div class="flow-toolbar-group flow-toolbar-view">
+        <button class="flow-tb-btn" data-action="toggle-list" title="Toggle Flow List (Ctrl+B)">
+          <span class="ms">left_panel_close</span>
+        </button>
         <button class="flow-tb-btn" data-action="toggle-minimap" title="Toggle Minimap (M)">
           <span class="ms">map</span>
         </button>
@@ -147,6 +150,9 @@ export function renderToolbar(
         </button>
         <button class="flow-tb-btn" data-action="show-shortcuts" title="Keyboard Shortcuts (?)">
           <span class="ms">keyboard</span>
+        </button>
+        <button class="flow-tb-btn" data-action="toggle-panel" title="Toggle Properties Panel (Ctrl+P)">
+          <span class="ms">right_panel_close</span>
         </button>
       </div>
     </div>
@@ -230,6 +236,8 @@ function handleToolbarAction(action: string) {
     case 'toggle-minimap':
     case 'toggle-data-labels':
     case 'show-shortcuts':
+    case 'toggle-panel':
+    case 'toggle-list':
       // Handled by UI orchestrator in index.ts
       document.dispatchEvent(new CustomEvent('flow:toolbar', { detail: { action } }));
       break;
