@@ -13,6 +13,7 @@
   height: 100%;
   overflow: hidden;
   background: var(--bg-primary);
+  position: relative;
 }
 
 .inbox-layout.sidebar-collapsed {
@@ -32,6 +33,57 @@
 }
 .inbox-layout.convlist-collapsed .inbox-conv-list {
   display: none;
+}
+
+/* ─── Edge-tab expand buttons ─── */
+/* Visible only when the corresponding panel is collapsed */
+
+.inbox-edge-tab {
+  display: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  width: 28px;
+  height: 72px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.inbox-edge-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover, var(--bg-tertiary));
+  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0,0,0,.2));
+}
+
+.inbox-edge-tab .ms {
+  font-size: 18px;
+}
+
+.inbox-edge-tab-left {
+  left: 0;
+  border-radius: 0 6px 6px 0;
+  border-left: none;
+}
+
+.inbox-edge-tab-right {
+  right: 0;
+  border-radius: 6px 0 0 6px;
+  border-right: none;
+}
+
+/* Show edge tabs when panels are collapsed */
+.inbox-layout.convlist-collapsed .inbox-edge-tab-left {
+  display: flex;
+}
+.inbox-layout.sidebar-collapsed .inbox-edge-tab-right {
+  display: flex;
 }
 
 /* ─── Responsive ─── */

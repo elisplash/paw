@@ -20,6 +20,7 @@ import {
   filterConversations,
   truncatePreview,
   persistConvlistPref,
+  persistSidebarPref,
 } from '../atoms/inbox';
 import {
   createConversationList,
@@ -100,6 +101,21 @@ export function mountInbox(): void {
   layout.appendChild(_list.el);
   layout.appendChild(_thread.el);
   layout.appendChild(_sidebar.el);
+
+  // Edge-tab expand buttons (visible when respective panel is collapsed)
+  const expandConvlist = document.createElement('button');
+  expandConvlist.className = 'inbox-edge-tab inbox-edge-tab-left';
+  expandConvlist.title = 'Show conversations';
+  expandConvlist.innerHTML = `<span class="ms">left_panel_open</span>`;
+  expandConvlist.addEventListener('click', handleToggleConvlist);
+  layout.appendChild(expandConvlist);
+
+  const expandSidebar = document.createElement('button');
+  expandSidebar.className = 'inbox-edge-tab inbox-edge-tab-right';
+  expandSidebar.title = 'Show sidebar';
+  expandSidebar.innerHTML = `<span class="ms">right_panel_open</span>`;
+  expandSidebar.addEventListener('click', handleToggleSidebar);
+  layout.appendChild(expandSidebar);
 
   // Move existing chat DOM elements into the thread body
   const chatMessages = $('chat-messages');
@@ -594,6 +610,7 @@ function handleToggleSidebar(): void {
   }
   _sidebar?.toggle(appState.inbox.sidebarOpen);
   _thread?.updatePanelStates(appState.inbox.convlistOpen, appState.inbox.sidebarOpen);
+  persistSidebarPref(appState.inbox.sidebarOpen);
 }
 
 async function handleRename(): Promise<void> {
