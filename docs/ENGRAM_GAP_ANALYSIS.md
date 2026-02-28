@@ -12,11 +12,12 @@
 |---|---|
 | **Fully Implemented** | 34 items |
 | **Partially Implemented** | 10 items |
-| **Not Started** | 18 items |
+| **Not Started** | 26 items |
 
 The core architecture, search, consolidation, security, and integration wiring are complete.
 Remaining work is primarily: advanced intelligence (proposition decomposition, smart compression),
-concurrency architecture, pluggable vector backends, and some security hardening.
+concurrency architecture, pluggable vector backends, some security hardening, and the **8 frontier
+memory capabilities** added from cutting-edge research analysis (§37-§44).
 
 ---
 
@@ -164,6 +165,19 @@ flow `MEMORY_CATEGORY_OPTIONS`, and auto-capture paths. Unknown categories fall 
 - Research → memory bridge (§15)
 - n8n/MCP memory context injection (§22)
 
+### Frontier Memory Capabilities (§37-§44)
+- Emotional Memory Dimension — affective scoring pipeline (valence/arousal/dominance/surprise), emotional decay modulation, arousal-weighted retrieval boost (§37)
+- Reflective Meta-Cognition Layer — knowledge confidence map, per-domain self-assessment, confidence-guided anticipatory loading (§38)
+- Temporal-Axis Retrieval — B-tree temporal index, temporal range/proximity/pattern queries, recency-weighted RRF fusion signal (§39)
+- Intent-Aware Multi-Dimensional Retrieval — 6-intent classifier, dynamic signal weighting per intent class (§40)
+- Entity Lifecycle Tracking — canonical name resolution, entity profiles, entity-centric queries, relationship emergence (§41)
+- Hierarchical Semantic Compression (Abstraction Tree) — multi-level clustering (memories → clusters → super-clusters → domain summaries), meta-summary recall under extreme pressure (§42)
+- Multi-Agent Memory Sync Protocol — CRDT-inspired memory bus, publish/subscribe, vector-clock conflict resolution, trust inheritance (§43)
+- Memory Replay & Dream Consolidation — idle-time replay engine, re-embedding with updated context, latent connection discovery, interference detection (§44)
+
+### Cross-Section Integration
+- Cross-section integration contracts for §37-§44 interdependencies (§45)
+
 ---
 
 ## Priority Matrix
@@ -175,3 +189,8 @@ flow `MEMORY_CATEGORY_OPTIONS`, and auto-capture paths. Unknown categories fall 
 | **P2** | Process hardening, momentum vectors, trust score decay | Medium |
 | **P3** | Anticipatory pre-loading, recursive reasoning, encrypted export | Large |
 | **P3** | n8n access, RAM budget, pluggable backends, cross-agent ACL | Large |
+| **P1** | Temporal-axis retrieval (§39), intent-aware retrieval (§40) | Medium |
+| **P1** | Emotional memory dimension (§37), entity lifecycle tracking (§41) | Medium |
+| **P2** | Meta-cognition layer (§38), abstraction tree (§42) | Large |
+| **P2** | Multi-agent memory sync (§43), dream consolidation (§44) | Large |
+| **P2** | Cross-section integration contracts (§45) | Medium |

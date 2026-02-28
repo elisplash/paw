@@ -441,6 +441,40 @@ impl SessionStore {
         Ok(rows > 0)
     }
 
+    /// §7: Add a negative context to an episodic memory for context-aware suppression.
+    /// When this memory is recalled in a context similar to the negative context,
+    /// it will be suppressed (ranked lower) rather than globally penalized.
+    pub fn engram_add_negative_context(&self, id: &str, context: &str) -> EngineResult<()> {
+        let conn = self.conn.lock();
+
+        // Read existing negative_contexts JSON array
+        let existing: String = conn
+            .query_row(
+                "SELECT COALESCE(negative_contexts, '[]') FROM episodic_memories WHERE id = ?1",
+                params![id],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| "[]".to_string());
+
+        // Parse, append, serialize
+        let mut contexts: Vec<String> = serde_json::from_str(&existing).unwrap_or_default();
+        contexts.push(context.to_string());
+
+        // Cap at 20 negative contexts to prevent bloat
+        if contexts.len() > 20 {
+            contexts = contexts[contexts.len() - 20..].to_vec();
+        }
+
+        let updated = serde_json::to_string(&contexts).unwrap_or_else(|_| "[]".to_string());
+
+        conn.execute(
+            "UPDATE episodic_memories SET negative_contexts = ?2 WHERE id = ?1",
+            params![id, updated],
+        )?;
+
+        Ok(())
+    }
+
     /// List episodic memories with scope and optional category filtering.
     pub fn engram_list_episodic(
         &self,
@@ -1006,6 +1040,11 @@ impl SessionStore {
     }
 
     /// Spreading activation: 1-hop neighbors with summed weighted edges.
+    /// Spreading activation through memory graph (§5: 2-hop traversal).
+    ///
+    /// Starting from seed memory IDs, traverses 1-hop and 2-hop neighbors
+    /// through typed edges. 2-hop neighbors receive attenuated activation
+    /// (weight × decay_factor) to model cognitive distance.
     pub fn engram_spreading_activation(
         &self,
         seed_ids: &[String],
@@ -1013,7 +1052,10 @@ impl SessionStore {
     ) -> EngineResult<Vec<(String, f32)>> {
         let conn = self.conn.lock();
         let mut result: std::collections::HashMap<String, f32> = std::collections::HashMap::new();
+        let decay_factor: f32 = 0.5; // 2-hop neighbors get half activation
 
+        // ── Hop 1: direct neighbors of seeds ──────────────────────────
+        let mut hop1_ids: Vec<String> = Vec::new();
         for seed in seed_ids {
             let mut stmt = conn.prepare(
                 "SELECT source_id, target_id, weight
@@ -1034,7 +1076,36 @@ impl SessionStore {
 
             for (neighbor, weight) in neighbors {
                 if !seed_ids.contains(&neighbor) {
-                    *result.entry(neighbor).or_insert(0.0) += weight;
+                    *result.entry(neighbor.clone()).or_insert(0.0) += weight;
+                    hop1_ids.push(neighbor);
+                }
+            }
+        }
+
+        // ── Hop 2: neighbors of hop-1 neighbors ──────────────────────
+        hop1_ids.dedup();
+        for hop1_id in &hop1_ids {
+            let mut stmt = conn.prepare(
+                "SELECT source_id, target_id, weight
+                 FROM memory_edges
+                 WHERE (source_id = ?1 OR target_id = ?1) AND weight >= ?2",
+            )?;
+
+            let neighbors: Vec<(String, f32)> = stmt
+                .query_map(params![hop1_id, min_weight], |row| {
+                    let src: String = row.get(0)?;
+                    let tgt: String = row.get(1)?;
+                    let w: f32 = row.get(2)?;
+                    let neighbor = if src == *hop1_id { tgt } else { src };
+                    Ok((neighbor, w))
+                })?
+                .filter_map(|r| r.ok())
+                .collect();
+
+            for (neighbor, weight) in neighbors {
+                // Skip seeds and hop-1 nodes (only add truly new 2-hop neighbors)
+                if !seed_ids.contains(&neighbor) && !hop1_ids.contains(&neighbor) {
+                    *result.entry(neighbor).or_insert(0.0) += weight * decay_factor;
                 }
             }
         }

@@ -34,6 +34,18 @@ pub fn run_engram_migrations(conn: &Connection) -> EngineResult<()> {
         [],
     );
 
+    // §7: Negative contexts for context-aware suppression (JSON array of strings)
+    let _ = conn.execute(
+        "ALTER TABLE episodic_memories ADD COLUMN negative_contexts TEXT DEFAULT '[]'",
+        [],
+    );
+
+    // §34.2: Embedding model tracking for version migration
+    let _ = conn.execute(
+        "ALTER TABLE episodic_memories ADD COLUMN embedding_model TEXT DEFAULT ''",
+        [],
+    );
+
     // ── Anti-forensic padding (KDBX-equivalent vault-size quantization) ──
     // Inflate the database to the next PADDING_BUCKET boundary so the
     // file size only reveals a coarse bucket, not the exact row count.

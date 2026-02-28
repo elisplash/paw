@@ -1,6 +1,6 @@
 # Engram Implementation Gap Analysis
 
-> Comprehensive comparison of `MEMORY_OVERHAUL_PLAN.md` (9,435 lines, 36 sections) against the
+> Comprehensive comparison of `MEMORY_OVERHAUL_PLAN.md` (11,000+ lines, 46 sections) against the
 > current Rust implementation in `src-tauri/src/engine/engram/` (14 files, ~6,500 lines),
 > `atoms/engram_types.rs` (1,137 lines), and `engine/sessions/engram.rs` (1,201 lines).
 
@@ -12,9 +12,9 @@
 |---|---|
 | **Fully Implemented** | 26 items |
 | **Partially Implemented** | 12 items |
-| **Not Implemented** | 31 items |
+| **Not Implemented** | 40 items |
 
-The **foundation is solid**: the three-tier memory model, DB schema, hybrid search, consolidation pipeline, model capability registry, reranking, retrieval quality metrics, working memory, sensory buffer, tokenizer, and metadata inference are all built. What remains is primarily: **security hardening** (§10), **integration wiring** (§14–§17), **advanced intelligence** (§6, §8.6–8.9, §15.6), **concurrency architecture** (§20), and **pluggable vector backends** (§36).
+The **foundation is solid**: the three-tier memory model, DB schema, hybrid search, consolidation pipeline, model capability registry, reranking, retrieval quality metrics, working memory, sensory buffer, tokenizer, and metadata inference are all built. What remains is primarily: **security hardening** (§10), **integration wiring** (§14–§17), **advanced intelligence** (§6, §8.6–8.9, §15.6), **concurrency architecture** (§20), **pluggable vector backends** (§36), and the **8 frontier memory capabilities** from cutting-edge research analysis (§37–§44 + §45 cross-section contracts + §46 out-of-scope acknowledgments).
 
 ---
 
@@ -278,7 +278,7 @@ The **foundation is solid**: the three-tier memory model, DB schema, hybrid sear
 | Search degradation levels (Full/BM25Only/Degraded) | §32.3 | P0 | 1 day |
 | Graceful shutdown with anti-forensic cleanup | §33.2 | P0 | 1 day |
 | Crash recovery detection + WAL checkpoint | §33.3 | P0 | 0.5 day |
-| Auto-backup on startup (3-rotation) | §34.14 | P1 | 0.5 day |
+| Auto-backup on startup (3-rotation) | §32.4 | P1 | 0.5 day |
 
 ---
 
@@ -389,3 +389,17 @@ The following items were implemented to close critical integration and security 
 | P4 | Deniable encryption (hidden volume) | Large |
 | P4 | RAM budget and pressure management | Large |
 | P4 | Graceful degradation / offline mode | Medium |
+
+### Frontier Memory Capabilities (§37-§44, Not Implemented)
+
+| Priority | Item | Effort |
+|---|---|---|
+| P1 | Emotional Memory Dimension — AffectiveScorer pipeline (§37) | Medium (5 days) |
+| P1 | Reflective Meta-Cognition Layer — KnowledgeConfidenceMap (§38) | Medium (6 days) |
+| P0 | Temporal-Axis Retrieval — B-tree temporal index (§39) | Medium (6 days) |
+| P1 | Intent-Aware Multi-Dimensional Retrieval — 6-intent classifier (§40) | Medium (5 days) |
+| P1 | Entity Lifecycle Tracking — EntityRegistry (§41) | Medium (5.5 days) |
+| P2 | Hierarchical Semantic Compression — AbstractionTree (§42) | Large (6 days) |
+| P2 | Multi-Agent Memory Sync Protocol — MemoryBus (§43) | Large (7.5 days) |
+| P2 | Memory Replay & Dream Consolidation — ReplayEngine (§44) | Large (7 days) |
+| P2 | Cross-Section Integration Contracts (§45) | Medium (2 days) |

@@ -9,7 +9,6 @@
 
 use crate::engine::agent_loop;
 use crate::engine::chat as chat_org;
-use crate::engine::engram;
 use crate::engine::providers::AnyProvider;
 use crate::engine::skills;
 use crate::engine::state::{normalize_model_name, resolve_provider_for_model, EngineState};
@@ -281,7 +280,7 @@ async fn run_swarm_turn(
 
     // ── Auto-recall memories for the swarm agent (squad + agent scoped) ────
     let todays_memories = {
-        let squad_mem_scope =
+        let _squad_mem_scope =
             crate::atoms::engram_types::MemoryScope::squad(squad_id, recipient_id);
         let emb_client = state.embedding_client();
         match crate::engine::engram::bridge::search(

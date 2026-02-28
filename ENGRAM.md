@@ -12,7 +12,7 @@
 
 Project Engram is a three-tier memory architecture for desktop AI agents. It replaces flat key-value memory stores with a biologically-inspired system modeled on how human memory works: incoming information flows through a sensory buffer, gets prioritized in working memory, and consolidates into long-term storage with automatic clustering, contradiction detection, and strength decay. The result is agents that remember context across sessions, learn from patterns, and forget gracefully.
 
-This document describes the architecture as implemented in OpenPawz —a Tauri v2 desktop AI platform. All code is open source under the MIT License.
+This document describes the architecture as implemented in OpenPawz — a Tauri v2 desktop AI platform. All code is open source under the MIT License.
 
 ---
 
@@ -32,6 +32,7 @@ This document describes the architecture as implemented in OpenPawz —a Tauri v
 12. [Configuration](#configuration)
 13. [Current Limitations](#current-limitations)
 14. [Future Directions](#future-directions)
+15. [Frontier Capabilities](#frontier-capabilities-designed-implementation-phase-7)
 
 ---
 
@@ -594,6 +595,21 @@ These are areas we're exploring. No commitments — just interesting problems.
 - **Process memory hardening** — `mlock` to prevent swapping, core dump prevention, `zeroize` Drop implementations on all memory structs
 - **SQLCipher integration** — Full database encryption at rest
 
+### Frontier Capabilities
+
+These 8 capabilities were identified through analysis of cutting-edge memory research (Cognee, OpenMemory/HMD, HEMA, SHIMI, IMDMR, MemoriesDB) and represent the next evolution of Engram beyond any existing system:
+
+- **Emotional memory dimension** (§37) — Affective scoring pipeline (valence/arousal/dominance/surprise) modulates decay rates, consolidation priority, and retrieval boost. Emotionally charged memories decay 40% slower.
+- **Reflective meta-cognition layer** (§38) — Periodic self-assessment of knowledge confidence per domain, generating "I know / I don't know" maps that guide anticipatory pre-loading.
+- **Temporal-axis retrieval** (§39) — Time as a first-class retrieval signal with B-tree temporal index, range queries, proximity scoring, and pattern detection. "What happened last week?" resolved natively.
+- **Intent-aware multi-dimensional retrieval** (§40) — 6-intent classifier (informational/procedural/comparative/debugging/exploratory/confirmatory) dynamically weights all retrieval signals per query.
+- **Entity lifecycle tracking** (§41) — Canonical name resolution, evolving entity profiles, entity-centric queries, and relationship emergence detection across all memory types.
+- **Hierarchical semantic compression** (§42) — Multi-level abstraction tree (memories → clusters → super-clusters → domain summaries). Navigate knowledge at any zoom level.
+- **Multi-agent memory sync protocol** (§43) — CRDT-inspired memory bus for peer-to-peer knowledge sharing between agents with vector-clock conflict resolution.
+- **Memory replay & dream consolidation** (§44) — Idle-time hippocampal-inspired replay strengthens memories, discovers latent connections, and re-embeds with evolved context.
+
+These capabilities are connected by 13 formal integration contracts (§45) ensuring they form a synergistic network rather than isolated features.
+
 ---
 
 ## References
@@ -602,6 +618,12 @@ These are areas we're exploring. No commitments — just interesting problems.
 - Anderson, J. R. (1983). *A Spreading Activation Theory of Memory.* Journal of Verbal Learning and Verbal Behavior, 22(3), 261-295.
 - Robertson, S. E., & Zaragoza, H. (2009). *The Probabilistic Relevance Framework: BM25 and Beyond.* Foundations and Trends in Information Retrieval, 3(4), 333-389.
 - Carbonell, J., & Goldstein, J. (1998). *The Use of MMR, Diversity-Based Reranking for Reordering Documents and Producing Summaries.* SIGIR '98.
+- Cahill, L., & McGaugh, J. L. (1995). *A Novel Demonstration of Enhanced Memory Associated with Emotional Arousal.* Consciousness and Cognition, 4(4), 410-421.
+- Flavell, J. H. (1979). *Metacognition and Cognitive Monitoring.* American Psychologist, 34(10), 906-911.
+- Wilson, M. A., & McNaughton, B. L. (1994). *Reactivation of Hippocampal Ensemble Memories During Sleep.* Science, 265(5172), 676-679.
+- Diekelmann, S., & Born, J. (2010). *The Memory Function of Sleep.* Nature Reviews Neuroscience, 11(2), 114-126.
+- Shapiro, M. et al. (2011). *Conflict-Free Replicated Data Types.* SSS 2011.
+- Getoor, L., & Machanavajjhala, A. (2012). *Entity Resolution: Theory, Practice & Open Challenges.* VLDB Tutorial.
 
 ---
 

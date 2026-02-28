@@ -410,32 +410,32 @@ pub async fn execute_task(
                 let temp_store = crate::engine::sessions::SessionStore {
                     conn: parking_lot::Mutex::new(conn),
                 };
-                let temp_conn = temp_store.conn.lock();
 
-                match &result {
-                    Ok(text) => {
-                        let msg_id = uuid::Uuid::new_v4().to_string();
-                        temp_conn.execute(
-                            "INSERT INTO messages (id, session_id, role, content) VALUES (?1, ?2, 'assistant', ?3)",
-                            rusqlite::params![msg_id, session_id, text],
-                        ).ok();
-                        let aid = uuid::Uuid::new_v4().to_string();
-                        temp_conn.execute(
-                            "INSERT INTO task_activity (id, task_id, kind, agent, content) VALUES (?1, ?2, 'agent_completed', ?3, ?4)",
-                            rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} completed. Summary: {}", agent_id, truncate_utf8(text, 200))],
-                        ).ok();
+                // Scope the MutexGuard so it's dropped before any .await
+                {
+                    let temp_conn = temp_store.conn.lock();
+                    match &result {
+                        Ok(text) => {
+                            let msg_id = uuid::Uuid::new_v4().to_string();
+                            temp_conn.execute(
+                                "INSERT INTO messages (id, session_id, role, content) VALUES (?1, ?2, 'assistant', ?3)",
+                                rusqlite::params![msg_id, session_id, text],
+                            ).ok();
+                            let aid = uuid::Uuid::new_v4().to_string();
+                            temp_conn.execute(
+                                "INSERT INTO task_activity (id, task_id, kind, agent, content) VALUES (?1, ?2, 'agent_completed', ?3, ?4)",
+                                rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} completed. Summary: {}", agent_id, truncate_utf8(text, 200))],
+                            ).ok();
+                        }
+                        Err(err) => {
+                            let aid = uuid::Uuid::new_v4().to_string();
+                            temp_conn.execute(
+                                "INSERT INTO task_activity (id, task_id, kind, agent, content) VALUES (?1, ?2, 'agent_error', ?3, ?4)",
+                                rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} error: {}", agent_id, err)],
+                            ).ok();
+                        }
                     }
-                    Err(err) => {
-                        let aid = uuid::Uuid::new_v4().to_string();
-                        temp_conn.execute(
-                            "INSERT INTO task_activity (id, task_id, kind, agent, content) VALUES (?1, ?2, 'agent_error', ?3, ?4)",
-                            rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} error: {}", agent_id, err)],
-                        ).ok();
-                    }
-                }
-
-                // Release the lock before async Engram bridge call
-                drop(temp_conn);
+                } // MutexGuard dropped here, before .await
 
                 // §15 Post-capture: store task result in Engram memory
                 // Uses bridge for proper PII encryption, dedup, and embedding generation.

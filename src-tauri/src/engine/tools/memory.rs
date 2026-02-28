@@ -120,6 +120,43 @@ pub fn definitions() -> Vec<ToolDefinition> {
                 }),
             },
         },
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "memory_feedback".into(),
+                description: "Provide feedback on a recalled memory — mark it as helpful or unhelpful. This adjusts the memory's trust score so it ranks higher or lower in future searches. Use after memory_search to improve recall quality over time.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "memory_id": { "type": "string", "description": "The ID of the memory to provide feedback on" },
+                        "helpful": { "type": "boolean", "description": "true if the memory was helpful/relevant, false if it was unhelpful/wrong" },
+                        "context": { "type": "string", "description": "Optional: describe the context where this memory was unhelpful (enables context-aware suppression)" }
+                    },
+                    "required": ["memory_id", "helpful"]
+                }),
+            },
+        },
+        ToolDefinition {
+            tool_type: "function".into(),
+            function: FunctionDefinition {
+                name: "memory_relate".into(),
+                description: "Create a relationship between two memories. This strengthens the memory graph and improves multi-hop retrieval. Use when you discover that two memories are related, contradictory, or one supports/supersedes the other.".into(),
+                parameters: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "source_id": { "type": "string", "description": "The ID of the first memory" },
+                        "target_id": { "type": "string", "description": "The ID of the second memory" },
+                        "relation": {
+                            "type": "string",
+                            "description": "Type of relationship",
+                            "enum": ["related_to", "supports", "contradicts", "supersedes", "caused_by", "example_of", "part_of", "inferred_from"]
+                        },
+                        "weight": { "type": "number", "description": "Relationship strength (0.0-1.0, default: 0.7)" }
+                    },
+                    "required": ["source_id", "target_id", "relation"]
+                }),
+            },
+        },
     ]
 }
 
@@ -155,6 +192,10 @@ pub async fn execute(
         "memory_list" => {
             Some(execute_memory_list(args, app_handle, agent_id).map_err(|e| e.to_string()))
         }
+        "memory_feedback" => {
+            Some(execute_memory_feedback(args, app_handle).map_err(|e| e.to_string()))
+        }
+        "memory_relate" => Some(execute_memory_relate(args, app_handle).map_err(|e| e.to_string())),
         _ => None,
     }
 }
@@ -198,7 +239,7 @@ async fn execute_memory_store(
     .await?;
 
     // Also store in legacy system for backward compatibility
-    let legacy_importance = (importance * 10.0).round() as i32;
+    let legacy_importance = (importance * 10.0).round().clamp(0.0, 255.0) as u8;
     let _ = memory::store_memory(
         &state.store,
         content,
@@ -481,10 +522,128 @@ fn execute_memory_list(
             "{}. [{}] {} (id: {}, strength: {:.2})\n",
             i + 1,
             mem.category,
-            mem.content.full_text(),
+            mem.content.full,
             &mem.id[..mem.id.len().min(8)],
             mem.strength,
         ));
     }
     Ok(output)
+}
+
+/// §14: memory_feedback — adjust trust score based on user/agent feedback.
+/// Positive feedback boosts utility; negative feedback records contextual suppression.
+fn execute_memory_feedback(
+    args: &serde_json::Value,
+    app_handle: &tauri::AppHandle,
+) -> EngineResult<String> {
+    let memory_id = args["memory_id"]
+        .as_str()
+        .ok_or("memory_feedback: missing 'memory_id' argument")?;
+    let helpful = args["helpful"]
+        .as_bool()
+        .ok_or("memory_feedback: missing 'helpful' argument")?;
+    let context = args["context"].as_str();
+
+    info!(
+        "[engine] memory_feedback: id={} helpful={} context={:?}",
+        &memory_id[..memory_id.len().min(8)],
+        helpful,
+        context.map(|c| &c[..c.len().min(50)])
+    );
+
+    let state = app_handle
+        .try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    if helpful {
+        // Positive feedback: boost importance and utility trust dimension
+        let trust = crate::atoms::engram_types::TrustScore {
+            relevance: 0.0, // don't modify
+            accuracy: 0.0,  // don't modify
+            freshness: 0.0, // don't modify
+            utility: 0.1,   // boost utility
+        };
+        state.store.engram_update_trust(memory_id, &trust)?;
+        // Also boost importance/strength
+        state.store.engram_record_access(memory_id, 0.1)?;
+
+        Ok(format!(
+            "Positive feedback recorded for memory {}. It will rank higher in future searches.",
+            &memory_id[..memory_id.len().min(8)]
+        ))
+    } else {
+        // Negative feedback: reduce importance
+        // If context is provided, add to negative_contexts for contextual suppression (§7)
+        if let Some(ctx) = context {
+            // Store the negative context for this memory
+            state.store.engram_add_negative_context(memory_id, ctx)?;
+            Ok(format!(
+                "Negative feedback recorded for memory {} in context '{}'. It will be suppressed when similar context arises.",
+                &memory_id[..memory_id.len().min(8)],
+                &ctx[..ctx.len().min(50)]
+            ))
+        } else {
+            // General negative feedback — reduce strength
+            state.store.engram_record_access(memory_id, -0.15)?;
+            Ok(format!(
+                "Negative feedback recorded for memory {}. It will rank lower in future searches.",
+                &memory_id[..memory_id.len().min(8)]
+            ))
+        }
+    }
+}
+
+/// §14: memory_relate — create a typed edge between two memories.
+fn execute_memory_relate(
+    args: &serde_json::Value,
+    app_handle: &tauri::AppHandle,
+) -> EngineResult<String> {
+    let source_id = args["source_id"]
+        .as_str()
+        .ok_or("memory_relate: missing 'source_id' argument")?;
+    let target_id = args["target_id"]
+        .as_str()
+        .ok_or("memory_relate: missing 'target_id' argument")?;
+    let relation = args["relation"]
+        .as_str()
+        .ok_or("memory_relate: missing 'relation' argument")?;
+    let weight = args["weight"]
+        .as_f64()
+        .map(|v| v as f32)
+        .unwrap_or(0.7)
+        .clamp(0.0, 1.0);
+
+    info!(
+        "[engine] memory_relate: {}--[{}]--> {} (w={:.2})",
+        &source_id[..source_id.len().min(8)],
+        relation,
+        &target_id[..target_id.len().min(8)],
+        weight,
+    );
+
+    let state = app_handle
+        .try_state::<EngineState>()
+        .ok_or("Engine state not available")?;
+
+    // Parse the relation string to EdgeType
+    let edge_type = match relation {
+        "related_to" => crate::atoms::engram_types::EdgeType::RelatedTo,
+        "supports" => crate::atoms::engram_types::EdgeType::SupportedBy,
+        "contradicts" => crate::atoms::engram_types::EdgeType::Contradicts,
+        "supersedes" => crate::atoms::engram_types::EdgeType::Supersedes,
+        "caused_by" => crate::atoms::engram_types::EdgeType::CausedBy,
+        "example_of" => crate::atoms::engram_types::EdgeType::ExampleOf,
+        "part_of" => crate::atoms::engram_types::EdgeType::PartOf,
+        "inferred_from" => crate::atoms::engram_types::EdgeType::InferredFrom,
+        _ => crate::atoms::engram_types::EdgeType::RelatedTo,
+    };
+
+    engram::graph::relate(&state.store, source_id, target_id, edge_type, weight)?;
+
+    Ok(format!(
+        "Relationship created: {} --[{}]--> {}. This strengthens multi-hop retrieval.",
+        &source_id[..source_id.len().min(8)],
+        relation,
+        &target_id[..target_id.len().min(8)]
+    ))
 }

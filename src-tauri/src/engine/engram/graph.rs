@@ -186,6 +186,10 @@ pub fn store_procedural(store: &SessionStore, mem: &ProceduralMemory) -> EngineR
 /// Uses BM25 + vector similarity, fused with Reciprocal Rank Fusion (RRF).
 /// Results are scored, trust-weighted, reranked, deduped, and sorted by composite score.
 ///
+/// `momentum_embeddings` — optional recent query embeddings from WorkingMemory.
+/// When provided, the current query embedding is blended with the weighted average
+/// of momentum vectors (§8.6 trajectory-aware recall). Blend ratio: 0.7 current, 0.3 momentum.
+///
 /// Returns a `RecallResult` containing both the memories and retrieval quality metrics.
 pub async fn search(
     store: &SessionStore,
@@ -194,6 +198,7 @@ pub async fn search(
     config: &MemorySearchConfig,
     embedding_client: Option<&EmbeddingClient>,
     budget_tokens: usize,
+    momentum_embeddings: Option<&[Vec<f32>]>,
 ) -> EngineResult<RecallResult> {
     let search_start = std::time::Instant::now();
     let mut all_results: Vec<RetrievedMemory> = Vec::new();
@@ -204,12 +209,26 @@ pub async fn search(
     let bm25_semantic = store.engram_search_semantic_bm25(query, scope, search_limit)?;
 
     // ── Vector search (if embedding client available) ────────────────
+    // §8.6 Momentum blending: when momentum embeddings are available,
+    // blend the current query embedding with the weighted average of
+    // recent momentum vectors. This biases recall toward conversation trajectory.
     let mut vec_episodic: Vec<(EpisodicMemory, f64)> = Vec::new();
     if let Some(client) = embedding_client {
         match client.embed(query).await {
             Ok(query_emb) => {
+                // Apply momentum blending if we have trajectory history
+                let search_emb = if let Some(mom) = momentum_embeddings {
+                    if !mom.is_empty() && !query_emb.is_empty() {
+                        blend_momentum(&query_emb, mom, 0.7)
+                    } else {
+                        query_emb
+                    }
+                } else {
+                    query_emb
+                };
+
                 vec_episodic = store.engram_search_episodic_vector(
-                    &query_emb,
+                    &search_emb,
                     scope,
                     search_limit,
                     config.similarity_threshold as f64,
@@ -647,6 +666,52 @@ fn budget_trim(results: Vec<RetrievedMemory>, budget_tokens: usize) -> Vec<Retri
     trimmed
 }
 
+/// §8.6 Momentum blending: combine current query embedding with the weighted
+/// average of recent momentum embeddings to produce a trajectory-aware vector.
+///
+/// `current_weight` controls how much of the current query is retained (0.0–1.0).
+/// The remainder (1.0 – current_weight) comes from the exponentially-weighted
+/// average of momentum vectors (most recent → highest weight).
+fn blend_momentum(current: &[f32], momentum: &[Vec<f32>], current_weight: f32) -> Vec<f32> {
+    if momentum.is_empty() || current.is_empty() {
+        return current.to_vec();
+    }
+
+    let dim = current.len();
+    let momentum_weight = 1.0 - current_weight;
+
+    // Exponentially-weighted average: most recent vector gets highest weight.
+    // Weights: [0.5^n, 0.5^(n-1), ..., 0.5^1] for n momentum vectors,
+    // then normalized so they sum to 1.
+    let n = momentum.len();
+    let raw_weights: Vec<f32> = (0..n).map(|i| 0.5_f32.powi((n - i) as i32)).collect();
+    let weight_sum: f32 = raw_weights.iter().sum();
+
+    // Compute weighted average of momentum vectors
+    let mut mom_avg = vec![0.0_f32; dim];
+    for (vec, &w) in momentum.iter().zip(raw_weights.iter()) {
+        let norm_w = w / weight_sum;
+        for (j, &v) in vec.iter().enumerate().take(dim) {
+            mom_avg[j] += v * norm_w;
+        }
+    }
+
+    // Blend: blended = current_weight * current + momentum_weight * mom_avg
+    let blended: Vec<f32> = current
+        .iter()
+        .zip(mom_avg.iter())
+        .map(|(&c, &m)| current_weight * c + momentum_weight * m)
+        .collect();
+
+    // L2-normalize the blended vector for cosine similarity
+    let norm: f32 = blended.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if norm > 1e-8 {
+        blended.iter().map(|x| x / norm).collect()
+    } else {
+        current.to_vec()
+    }
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // Tests
 // ═════════════════════════════════════════════════════════════════════════════
@@ -723,5 +788,25 @@ mod tests {
 
         let (_, level10) = choose_compression(&content, 10000, 10);
         assert_eq!(level10, CompressionLevel::KeyFact);
+    }
+
+    #[test]
+    fn test_blend_momentum_identity_when_empty() {
+        let current = vec![1.0, 0.0, 0.0];
+        let result = blend_momentum(&current, &[], 0.7);
+        assert_eq!(result, current);
+    }
+
+    #[test]
+    fn test_blend_momentum_shifts_direction() {
+        let current = vec![1.0, 0.0, 0.0]; // pointing along x
+        let momentum = vec![vec![0.0, 1.0, 0.0]]; // pointing along y
+        let blended = blend_momentum(&current, &momentum, 0.7);
+        // Blended should have both x and y components, L2-normalized
+        assert!(blended[0] > 0.5, "should retain x component");
+        assert!(blended[1] > 0.1, "should gain y momentum");
+        // Check L2 normalization
+        let norm: f32 = blended.iter().map(|x| x * x).sum::<f32>().sqrt();
+        assert!((norm - 1.0).abs() < 1e-5, "should be unit-normalized");
     }
 }

@@ -278,6 +278,14 @@ impl<'a> ContextBuilder<'a> {
         let mut recalled_memories = Vec::new();
         if let (Some(store), Some(query)) = (self.store, &self.user_query) {
             let config = self.recall_config.clone().unwrap_or_default();
+
+            // §8.6 Pass momentum embeddings from working memory for trajectory-aware recall
+            let momentum: Option<Vec<Vec<f32>>> = self
+                .working_memory
+                .filter(|wm| !wm.momentum().is_empty())
+                .map(|wm| wm.momentum().to_vec());
+            let mom_ref = momentum.as_ref().map(|v| v.as_slice());
+
             match super::graph::search(
                 store,
                 query,
@@ -285,6 +293,7 @@ impl<'a> ContextBuilder<'a> {
                 &config,
                 self.embedding_client,
                 max_system, // budget hint
+                mom_ref,
             )
             .await
             {

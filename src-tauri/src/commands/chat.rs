@@ -341,7 +341,7 @@ pub async fn engine_chat_send(
     // Build the assembled context
     let assembled = builder.build().await;
 
-    let (full_system_prompt, mut messages, _budget_report) = match assembled {
+    let (_full_system_prompt, mut messages, _budget_report) = match assembled {
         Ok(ctx) => {
             info!(
                 "[engram:chat] Context assembled: sys={}tok hist={}tok reply={}tok mem={} msgs={}/{}",

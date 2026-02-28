@@ -473,6 +473,8 @@ pub enum EdgeType {
     Contradicts,
     /// Source supports / reinforces target.
     SupportedBy,
+    /// Source supersedes target (updated version).
+    Supersedes,
     /// Source is causally related to target.
     CausedBy,
     /// Source is temporally adjacent to target.
@@ -483,6 +485,10 @@ pub enum EdgeType {
     InferredFrom,
     /// Procedural memory linked to the episodic event that spawned it.
     LearnedFrom,
+    /// Source is an example of target.
+    ExampleOf,
+    /// Source is a part of target (compositional).
+    PartOf,
 }
 
 impl std::fmt::Display for EdgeType {
@@ -491,11 +497,14 @@ impl std::fmt::Display for EdgeType {
             EdgeType::ConsolidatedInto => write!(f, "consolidated_into"),
             EdgeType::Contradicts => write!(f, "contradicts"),
             EdgeType::SupportedBy => write!(f, "supported_by"),
+            EdgeType::Supersedes => write!(f, "supersedes"),
             EdgeType::CausedBy => write!(f, "caused_by"),
             EdgeType::TemporallyAdjacent => write!(f, "temporally_adjacent"),
             EdgeType::RelatedTo => write!(f, "related_to"),
             EdgeType::InferredFrom => write!(f, "inferred_from"),
             EdgeType::LearnedFrom => write!(f, "learned_from"),
+            EdgeType::ExampleOf => write!(f, "example_of"),
+            EdgeType::PartOf => write!(f, "part_of"),
         }
     }
 }
@@ -506,12 +515,15 @@ impl std::str::FromStr for EdgeType {
         match s {
             "consolidated_into" => Ok(EdgeType::ConsolidatedInto),
             "contradicts" => Ok(EdgeType::Contradicts),
-            "supported_by" => Ok(EdgeType::SupportedBy),
+            "supported_by" | "supports" => Ok(EdgeType::SupportedBy),
+            "supersedes" => Ok(EdgeType::Supersedes),
             "caused_by" => Ok(EdgeType::CausedBy),
             "temporally_adjacent" => Ok(EdgeType::TemporallyAdjacent),
             "related_to" => Ok(EdgeType::RelatedTo),
             "inferred_from" => Ok(EdgeType::InferredFrom),
             "learned_from" => Ok(EdgeType::LearnedFrom),
+            "example_of" => Ok(EdgeType::ExampleOf),
+            "part_of" => Ok(EdgeType::PartOf),
             _ => Err(format!("Unknown edge type: {}", s)),
         }
     }

@@ -196,6 +196,7 @@ pub async fn search(
         &config,
         embedding_client,
         limit * 100,
+        None, // No momentum blending from bridge (callers with WorkingMemory can pass it)
     )
     .await?;
 
