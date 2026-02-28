@@ -63,7 +63,7 @@ OpenPawz is a native Tauri v2 application with a pure Rust backend engine. It ru
 
 ## Original Research
 
-OpenPawz introduces two novel methods for scaling AI agent tool usage. Both are open source under the MIT License.
+OpenPawz introduces three novel methods for scaling AI agent tool usage and workflow execution. All are open source under the MIT License.
 
 ### The Librarian Method — Intent-Stated Tool Discovery
 
@@ -98,6 +98,26 @@ Architect (Cloud LLM): "Send hello to #general" → calls mcp_slack_send_message
 **Key insight:** MCP servers are self-describing. The worker model doesn't need to know how to use 25,000+ integrations — MCP tells it at runtime.
 
 📄 [Full case study: The Foreman Protocol](reference/foreman-protocol.mdx)
+
+### The Conductor Protocol — AI-Compiled Flow Execution
+
+**Problem:** Every workflow platform — n8n, Zapier, Make, Airflow — walks the graph node by node: sequential, synchronous, one LLM call per agent step. A 10-node AI pipeline with 6 agent steps takes 24+ seconds and 6 LLM calls. Cycles (feedback loops, agent debates) are structurally impossible — all require DAGs.
+
+**Solution:** The Conductor treats flow graphs as **blueprints of intent** and compiles them into optimized execution strategies before a single node runs. Four primitives — Collapse (merge N agents → 1 LLM call), Extract (deterministic nodes bypass LLM entirely), Parallelize (independent branches run concurrently), and Converge (cyclic subgraphs iterate until outputs stabilize) — reduce a 10-node flow from 24s/6 calls to 4–8s/2–3 calls.
+
+```
+10-node flow, 6 agent steps:
+  n8n / Zapier / Make: sequential walk → 24s+, 6 LLM calls
+  OpenPawz Conductor:  compiled strategy → 4–8s, 2–3 LLM calls
+
+Convergent Mesh (agent debate until consensus):
+  n8n / Zapier / Make: impossible — DAG required
+  OpenPawz Conductor:  bidirectional edges → iterative rounds → convergence
+```
+
+**Key insight:** 25,000+ n8n community nodes were designed for manual sequential automation. The Conductor makes them AI-orchestrable — describe a workflow in natural language, the NLP parser builds the graph, the Conductor compiles it, and the agents execute it. The entire n8n ecosystem becomes an AI-native automation engine.
+
+📄 [Full case study: The Conductor Protocol](reference/conductor-protocol.mdx)
 
 ---
 

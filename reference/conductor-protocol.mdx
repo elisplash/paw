@@ -392,6 +392,67 @@ The result: a 20-node flow that would take 2+ minutes on n8n executes in under 2
 
 ---
 
+## 25,000 Nodes, Reimagined
+
+n8n has over 25,000 community-contributed integration nodes — Slack, Jira, GitHub, Stripe, Airtable, Google Sheets, thousands more. Every one of them was designed for the same paradigm: a human drags nodes onto a canvas, manually wires them together, and builds a sequential automation. The nodes are powerful. The paradigm is limited.
+
+The Conductor Protocol transforms what those nodes can do.
+
+When n8n nodes are exposed via MCP (Model Context Protocol), they become available as tool, HTTP, and MCP-tool nodes inside OpenPawz flows. But they're no longer confined to sequential, human-designed automations. The Conductor can:
+
+- **Collapse** three sequential n8n-backed agent steps into a single LLM call
+- **Extract** n8n tool invocations and run them directly via Rust — no LLM needed
+- **Parallelize** independent n8n operations across branches automatically
+- **Converge** n8n-connected agents in iterative feedback loops that n8n itself cannot express
+
+This is not a wrapper around n8n. It is a fundamentally new execution model that uses n8n's integration ecosystem as building blocks for AI-compiled workflows.
+
+### What this means in practice
+
+A user types:
+
+> *"When a webhook fires, have an agent classify the data, then in parallel: summarize it and store it in Airtable, and if it's urgent, post to Slack #alerts"*
+
+The NLP parser builds a 7-node flow graph. The Conductor compiles it:
+
+- **Phase 0:** Trigger (passthrough)
+- **Phase 1:** Agent classify (single LLM call)
+- **Phase 2:** Agent summarize ‖ Airtable store ‖ Condition check — all concurrent
+- **Phase 3:** Slack post (direct, no LLM)
+
+The Airtable and Slack operations are n8n nodes. They execute via Extract — direct MCP calls, zero LLM cost. The agent steps that need AI intelligence get Collapsed where possible. Independent branches Parallelize automatically.
+
+The 25,000 n8n nodes didn't change. What changed is the engine that orchestrates them.
+
+---
+
+## Natural Language to Compiled Flow
+
+Traditional workflow platforms require users to manually construct automations — drag nodes, configure each one, wire connections. The Conductor Protocol sits at the end of a pipeline that eliminates this entirely:
+
+```mermaid actions={false}
+graph LR
+    A["User types: 'webhook → agent → send email'"] --> B["NLP Parser"]
+    B --> C["Flow Graph"]
+    C --> D["Conductor Compiler"]
+    D --> E["Execution Strategy"]
+    E --> F["Optimized Execution"]
+```
+
+1. **Natural language input** — The user describes a workflow in plain English in the Flows text box
+2. **NLP parsing** — The text-to-flow parser identifies node types, relationships, and configurations from the description
+3. **Graph construction** — A complete `FlowGraph` is built with nodes, edges, positions, and default configurations
+4. **Conductor compilation** — The graph is analyzed and compiled into an optimized `ExecutionStrategy`
+5. **Execution** — The strategy runs with all four primitives applied
+
+The entire path from "I want a webhook that classifies incoming data and posts urgent items to Slack" to compiled, optimized, executing flow happens without the user ever dragging a node or wiring a connection.
+
+This collapses the gap between **intent** and **execution** in a way no other platform achieves. Zapier requires manual Zap construction. n8n requires manual node wiring. Make requires manual scenario building. Even AI-assisted tools like Zapier's AI only help *configure* individual steps — they don't compile the execution.
+
+The Conductor compiles. That is the difference.
+
+---
+
 ## Implementation
 
 The Conductor Protocol is implemented in TypeScript as part of the OpenPawz flow engine:
