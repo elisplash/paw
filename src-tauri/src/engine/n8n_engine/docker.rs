@@ -73,8 +73,22 @@ pub async fn provision_docker_container(
     cleanup_stale_container(&docker).await;
 
     let port = find_available_port(DEFAULT_PORT);
-    let api_key = generate_random_key();
-    let encryption_key = generate_random_key();
+
+    // Reuse encryption key and API key from previous config if they exist.
+    // The n8n data directory is a persistent bind mount — if we generate a
+    // new encryption key on re-provision, n8n will see a mismatch between
+    // the env var and the key saved in /home/node/.n8n/config and crash.
+    let prev_config = super::load_config(app_handle).ok();
+    let api_key = prev_config
+        .as_ref()
+        .filter(|c| !c.api_key.is_empty())
+        .map(|c| c.api_key.clone())
+        .unwrap_or_else(generate_random_key);
+    let encryption_key = prev_config
+        .as_ref()
+        .and_then(|c| c.encryption_key.clone())
+        .filter(|k| !k.is_empty())
+        .unwrap_or_else(generate_random_key);
 
     // Determine data volume path
     let data_dir = super::app_data_dir(app_handle).join("n8n-data");
@@ -244,17 +258,30 @@ pub async fn restart_existing_container(
         .ok_or_else(|| EngineError::Other("No container ID stored".into()))?;
 
     // Check if the container actually exists before wasting time polling
-    match docker.inspect_container(container_id, None).await {
-        Ok(_) => {}
+    let container_info = match docker.inspect_container(container_id, None).await {
+        Ok(info) => Some(info),
         Err(_) => {
             // Also check by name in case the ID changed
             match docker.inspect_container(CONTAINER_NAME, None).await {
-                Ok(_) => {}
+                Ok(info) => Some(info),
                 Err(_) => {
                     return Err(EngineError::Other(
                         "Container no longer exists — will re-provision".into(),
                     ));
                 }
+            }
+        }
+    };
+
+    // Detect crash-looping container (e.g. encryption key mismatch).
+    // If the container is in "restarting" state, it will never become
+    // healthy — fail fast so we can re-provision with correct config.
+    if let Some(info) = &container_info {
+        if let Some(state) = &info.state {
+            if state.restarting == Some(true) {
+                return Err(EngineError::Other(
+                    "Container is crash-looping — will re-provision".into(),
+                ));
             }
         }
     }

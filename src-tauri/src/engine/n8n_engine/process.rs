@@ -24,8 +24,21 @@ pub fn is_node_available() -> bool {
 /// Start n8n as a managed child process via `npx n8n`.
 pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8nEndpoint> {
     let port = find_available_port(DEFAULT_PORT);
-    let api_key = generate_random_key();
-    let encryption_key = generate_random_key();
+
+    // Reuse encryption key and API key from previous config if they exist.
+    // The n8n data directory persists — generating a new encryption key on
+    // re-provision causes a mismatch with the key saved in the data dir.
+    let prev_config = super::load_config(app_handle).ok();
+    let api_key = prev_config
+        .as_ref()
+        .filter(|c| !c.api_key.is_empty())
+        .map(|c| c.api_key.clone())
+        .unwrap_or_else(generate_random_key);
+    let encryption_key = prev_config
+        .as_ref()
+        .and_then(|c| c.encryption_key.clone())
+        .filter(|k| !k.is_empty())
+        .unwrap_or_else(generate_random_key);
 
     let data_dir = super::app_data_dir(app_handle).join("n8n-data");
     std::fs::create_dir_all(&data_dir)
