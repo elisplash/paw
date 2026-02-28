@@ -280,6 +280,31 @@ pub fn resolve_provider_for_model(
                 p.id == "mistral" || p.base_url.as_deref().is_some_and(|u| u.contains("mistral"))
             })
             .cloned()
+    } else if model.starts_with("worker-")
+        || model.contains(':')
+        || model.starts_with("llama")
+        || model.starts_with("qwen")
+        || model.starts_with("phi")
+        || model.starts_with("gemma")
+        || model.starts_with("nomic")
+        || model.starts_with("starcoder")
+        || model.starts_with("codellama")
+        || model.starts_with("codegemma")
+        || model.starts_with("yi-")
+        || model.starts_with("orca")
+        || model.starts_with("neural-")
+        || model.starts_with("wizard")
+        || model.starts_with("solar")
+        || model.starts_with("nous-")
+        || model.starts_with("falcon")
+        || model.starts_with("vicuna")
+    {
+        // Ollama models: local model names that don't match cloud provider prefixes.
+        // Detected by Ollama-style name:tag format (contains ':') or known model families.
+        providers
+            .iter()
+            .find(|p| p.kind == ProviderKind::Ollama)
+            .cloned()
     } else {
         None
     }

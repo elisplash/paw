@@ -274,7 +274,7 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
         return Err(format!(
             "MCP API key creation failed (HTTP {}): {}",
             mcp_status,
-            &body[..body.len().min(200)]
+            &body[..body.len().min(500)]
         ));
     }
 
@@ -282,6 +282,11 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
         .json()
         .await
         .map_err(|e| format!("Parse MCP API key response: {}", e))?;
+
+    log::debug!(
+        "[n8n] MCP API key response: {}",
+        serde_json::to_string(&mcp_data).unwrap_or_default()
+    );
 
     // Extract the JWT from data.apiKey
     if let Some(token) = mcp_data

@@ -582,7 +582,7 @@ async fn get_or_retrieve_mcp_token(app_handle: &tauri::AppHandle) -> Option<Stri
             Some(token)
         }
         Err(e) => {
-            log::debug!("[n8n] MCP token retrieval failed (non-fatal): {}", e);
+            log::warn!("[n8n] MCP token retrieval failed: {}", e);
             None
         }
     }
