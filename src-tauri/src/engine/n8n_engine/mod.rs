@@ -99,13 +99,25 @@ pub async fn ensure_n8n_ready(app_handle: &tauri::AppHandle) -> EngineResult<N8n
             let port = config.process_port.unwrap_or(DEFAULT_PORT);
             let url = format!("http://127.0.0.1:{}", port);
             if health::probe_n8n(&url, &config.api_key).await {
-                return Ok(N8nEndpoint {
-                    url,
-                    api_key: config.api_key,
-                    mode: N8nMode::Process,
-                });
+                // Verify the running n8n version supports MCP (requires 1.x+).
+                // An old cached npx version may still be running without MCP.
+                if health::has_mcp_support(&url).await {
+                    return Ok(N8nEndpoint {
+                        url,
+                        api_key: config.api_key,
+                        mode: N8nMode::Process,
+                    });
+                }
+                // Old n8n without MCP — kill it and fall through to re-provision
+                log::warn!(
+                    "[n8n] Running n8n on port {} lacks MCP support — restarting with latest version",
+                    port
+                );
+                kill_port(port);
+                // Brief pause for the process to fully exit
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
             }
-            // Process died — will re-start below
+            // Process died or outdated — will re-start below
         }
         _ => {}
     }
@@ -156,6 +168,35 @@ pub async fn ensure_n8n_ready(app_handle: &tauri::AppHandle) -> EngineResult<N8n
 }
 
 // ── Shutdown ───────────────────────────────────────────────────────────
+
+/// Kill any process listening on the given port (used to evict stale n8n).
+fn kill_port(port: u16) {
+    #[cfg(unix)]
+    {
+        // lsof -ti :<port> gives PIDs of all processes on the port
+        if let Ok(output) = std::process::Command::new("lsof")
+            .args(["-ti", &format!(":{}", port)])
+            .output()
+        {
+            let pids = String::from_utf8_lossy(&output.stdout);
+            for pid in pids.split_whitespace() {
+                let _ = std::process::Command::new("kill")
+                    .args(["-9", pid])
+                    .status();
+            }
+        }
+    }
+    #[cfg(windows)]
+    {
+        // On Windows, use netstat + taskkill
+        if let Ok(output) = std::process::Command::new("cmd")
+            .args(["/C", &format!("for /f \"tokens=5\" %a in ('netstat -aon ^| findstr :{} ^| findstr LISTENING') do @taskkill /PID %a /F", port)])
+            .output()
+        {
+            let _ = output; // best-effort
+        }
+    }
+}
 
 /// Gracefully stop the n8n engine (called on app quit).
 pub async fn shutdown(app_handle: &tauri::AppHandle) {
