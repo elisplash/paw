@@ -119,6 +119,25 @@ export function getCanvasCenter(): { x: number; y: number } {
   return { x: (-_panX + 400) / _zoom, y: (-_panY + 200) / _zoom };
 }
 
+/** Return current viewport state for minimap synchronisation. */
+export function getCanvasViewport(): { panX: number; panY: number; zoom: number; width: number; height: number } {
+  return {
+    panX: _panX,
+    panY: _panY,
+    zoom: _zoom,
+    width: _svg?.clientWidth ?? 800,
+    height: _svg?.clientHeight ?? 600,
+  };
+}
+
+/** Programmatically set pan / zoom (used by minimap drag). */
+export function setPanZoom(panX: number, panY: number, zoom: number): void {
+  _panX = panX;
+  _panY = panY;
+  _zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+  applyTransform();
+}
+
 /** Zoom in one step. */
 export function zoomIn(): void {
   _zoom = Math.min(MAX_ZOOM, _zoom * 1.2);

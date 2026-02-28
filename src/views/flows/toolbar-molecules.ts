@@ -137,6 +137,18 @@ export function renderToolbar(
           <span class="ms">delete</span>
         </button>
       </div>
+      <div class="flow-toolbar-divider"></div>
+      <div class="flow-toolbar-group flow-toolbar-view">
+        <button class="flow-tb-btn" data-action="toggle-minimap" title="Toggle Minimap (M)">
+          <span class="ms">map</span>
+        </button>
+        <button class="flow-tb-btn" data-action="toggle-data-labels" title="Toggle Data Labels (Ctrl+L)">
+          <span class="ms">label</span>
+        </button>
+        <button class="flow-tb-btn" data-action="show-shortcuts" title="Keyboard Shortcuts (?)">
+          <span class="ms">keyboard</span>
+        </button>
+      </div>
     </div>
   `;
 
@@ -214,6 +226,12 @@ function handleToolbarAction(action: string) {
       break;
     case 'import-flow':
       _state.onImport?.();
+      break;
+    case 'toggle-minimap':
+    case 'toggle-data-labels':
+    case 'show-shortcuts':
+      // Handled by UI orchestrator in index.ts
+      document.dispatchEvent(new CustomEvent('flow:toolbar', { detail: { action } }));
       break;
   }
 }
