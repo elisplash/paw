@@ -91,8 +91,8 @@ pub async fn get_n8n_version(base_url: &str, api_key: &str) -> Option<String> {
 // ── Headless owner setup ───────────────────────────────────────────────
 
 /// The owner credentials used for headless n8n operation.
-const OWNER_EMAIL: &str = "paw@localhost";
-const OWNER_PASSWORD: &str = "paw-headless-owner-do-not-use";
+const OWNER_EMAIL: &str = "agent@paw.local";
+const OWNER_PASSWORD: &str = "PawAgent2026!";
 
 /// Set up the n8n owner account if one doesn't exist yet.
 ///
@@ -167,7 +167,7 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
     // Step 1: Sign in to get session
     let login_url = format!("{}/rest/login", base);
     let login_body = serde_json::json!({
-        "email": OWNER_EMAIL,
+        "emailOrLdapLoginId": OWNER_EMAIL,
         "password": OWNER_PASSWORD
     });
 
