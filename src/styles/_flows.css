@@ -16,6 +16,7 @@
   height: 100%;
   overflow: hidden;
   gap: 0;
+  position: relative;
 }
 
 /* Panel collapsed — hide right panel, expand canvas */
@@ -433,6 +434,14 @@
   align-items: center;
   gap: 4px;
   padding: 6px 12px;
+  flex-wrap: wrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none; /* Firefox */
+  min-height: 36px;
+}
+.flow-toolbar::-webkit-scrollbar {
+  display: none;
 }
 
 .flow-toolbar-group {
@@ -1261,9 +1270,13 @@
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
+/* Breakpoints account for the 200px app sidebar — so 1400px viewport
+   means only ~1200px for the flows view content area.  On a typical
+   1366px laptop the flows area is ~1166px. */
 
-/* Medium screens: auto-collapse panel */
-@media (max-width: 1200px) {
+/* Auto-collapse properties panel when viewport ≤ 1400px
+   (flows area ≈ 1200px — tight for 220 list + canvas + 240 panel) */
+@media (max-width: 1400px) {
   .flows-view.active:not(.flows-panel-shown) {
     grid-template-columns: 220px 1fr;
     grid-template-areas:
@@ -1274,10 +1287,22 @@
   .flows-view.active:not(.flows-panel-shown) #flows-panel {
     display: none;
   }
+  /* When user explicitly opens panel on narrow, overlay it */
+  .flows-view.active.flows-panel-shown #flows-panel {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 260px;
+    z-index: 200;
+    box-shadow: var(--shadow-lg, -4px 0 12px rgba(0,0,0,0.15));
+    background: var(--bg-sidebar);
+  }
 }
 
-/* Narrow screens: also collapse list */
-@media (max-width: 1000px) {
+/* Also collapse flow list when viewport ≤ 1100px
+   (flows area ≈ 900px — too narrow for 220px list + canvas) */
+@media (max-width: 1100px) {
   .flows-view.active:not(.flows-list-shown) {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -1288,64 +1313,94 @@
   .flows-view.active:not(.flows-list-shown) #flows-list {
     display: none;
   }
-  .flows-view.active:not(.flows-list-shown):not(.flows-panel-shown) #flows-panel {
-    display: none;
-  }
-  /* If panel forced shown at this width, overlay it */
-  .flows-view.active.flows-panel-shown {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "hero"
-      "toolbar"
-      "canvas";
-  }
-  .flows-view.active.flows-panel-shown #flows-panel {
+  /* If list forced shown, overlay it */
+  .flows-view.active.flows-list-shown #flows-list {
     position: absolute;
-    right: 0;
+    left: 0;
     top: 0;
     bottom: 0;
     width: 260px;
     z-index: 200;
-    box-shadow: var(--shadow-lg, -4px 0 12px rgba(0,0,0,0.15));
+    box-shadow: var(--shadow-lg, 4px 0 12px rgba(0,0,0,0.15));
   }
 }
 
+/* Very narrow: compact hero */
 @media (max-width: 900px) {
-  .flows-view.active {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto 1fr;
-    grid-template-areas:
-      "hero"
-      "toolbar"
-      "canvas"
-      "panel";
-  }
-
   .flows-hero {
     flex-direction: column;
     align-items: flex-start;
     padding: 20px 16px 14px;
   }
-
   .flows-hero-right {
     width: 100%;
     flex-wrap: wrap;
     gap: 8px;
   }
-
   .flows-hero-stat {
     padding: 6px 10px;
     min-width: 60px;
   }
+}
 
-  #flows-list {
-    display: none;
+/* ── Edge-tab expand buttons (flows) ─────────────────────────────────────── */
+/* Visible only when the corresponding panel is collapsed */
+
+.flows-edge-tab {
+  display: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  width: 28px;
+  height: 72px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-muted);
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.flows-edge-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover, var(--bg-tertiary));
+  box-shadow: var(--shadow-sm, 0 1px 4px rgba(0,0,0,.2));
+}
+
+.flows-edge-tab .ms {
+  font-size: 18px;
+}
+
+.flows-edge-tab-left {
+  left: 0;
+  border-radius: 0 6px 6px 0;
+  border-left: none;
+}
+
+.flows-edge-tab-right {
+  right: 0;
+  border-radius: 6px 0 0 6px;
+  border-right: none;
+}
+
+/* Show edge tabs when panels are collapsed (either explicit or responsive) */
+.flows-view.active.flows-panel-collapsed .flows-edge-tab-right,
+.flows-view.active.flows-list-collapsed .flows-edge-tab-left {
+  display: flex;
+}
+
+/* Also show at responsive breakpoints when panels auto-hide */
+@media (max-width: 1400px) {
+  .flows-view.active:not(.flows-panel-shown) .flows-edge-tab-right {
+    display: flex;
   }
-
-  #flows-panel {
-    border-left: none;
-    border-top: 1px solid var(--border);
-    max-height: 200px;
+}
+@media (max-width: 1100px) {
+  .flows-view.active:not(.flows-list-shown) .flows-edge-tab-left {
+    display: flex;
   }
 }
 

@@ -314,6 +314,12 @@ function mount() {
     else if (action === 'toggle-list') toggleList();
   }) as EventListener);
 
+  // Edge-tab expand buttons (appear when panels are collapsed)
+  const edgeTabLeft = el('flows-edge-tab-left');
+  const edgeTabRight = el('flows-edge-tab-right');
+  if (edgeTabLeft) edgeTabLeft.addEventListener('click', () => toggleList());
+  if (edgeTabRight) edgeTabRight.addEventListener('click', () => togglePanel());
+
   // Keyboard shortcuts
   document.addEventListener('keydown', onKeyDown);
 
