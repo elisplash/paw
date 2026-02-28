@@ -616,10 +616,7 @@ impl StreamableHttpTransport {
     ///
     /// `url` is the full endpoint URL (e.g., `http://127.0.0.1:5678/mcp-server/http`).
     /// `headers` contains auth headers (e.g., `Authorization: Bearer <token>`).
-    pub async fn connect(
-        url: &str,
-        headers: &HashMap<String, String>,
-    ) -> Result<Self, String> {
+    pub async fn connect(url: &str, headers: &HashMap<String, String>) -> Result<Self, String> {
         info!("[mcp:http] Connecting to {}", url);
 
         let mut default_headers = reqwest::header::HeaderMap::new();
@@ -652,8 +649,7 @@ impl StreamableHttpTransport {
         request: JsonRpcRequest,
         timeout_secs: u64,
     ) -> Result<JsonRpcResponse, String> {
-        let body =
-            serde_json::to_vec(&request).map_err(|e| format!("Serialize error: {}", e))?;
+        let body = serde_json::to_vec(&request).map_err(|e| format!("Serialize error: {}", e))?;
 
         let mut req = self
             .http
@@ -734,8 +730,7 @@ impl StreamableHttpTransport {
             "method": method,
             "params": params.unwrap_or(serde_json::json!({})),
         });
-        let body =
-            serde_json::to_vec(&notif).map_err(|e| format!("Serialize error: {}", e))?;
+        let body = serde_json::to_vec(&notif).map_err(|e| format!("Serialize error: {}", e))?;
 
         let mut req = self
             .http
@@ -814,9 +809,7 @@ impl McpTransportHandle {
         match self {
             McpTransportHandle::Stdio(t) => t.send_request(request, timeout_secs).await,
             McpTransportHandle::Sse(t) => t.send_request(request, timeout_secs).await,
-            McpTransportHandle::StreamableHttp(t) => {
-                t.send_request(request, timeout_secs).await
-            }
+            McpTransportHandle::StreamableHttp(t) => t.send_request(request, timeout_secs).await,
         }
     }
 
@@ -829,9 +822,7 @@ impl McpTransportHandle {
         match self {
             McpTransportHandle::Stdio(t) => t.send_notification(method, params).await,
             McpTransportHandle::Sse(t) => t.send_notification(method, params).await,
-            McpTransportHandle::StreamableHttp(t) => {
-                t.send_notification(method, params).await
-            }
+            McpTransportHandle::StreamableHttp(t) => t.send_notification(method, params).await,
         }
     }
 

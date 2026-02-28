@@ -158,10 +158,7 @@ impl McpRegistry {
                 );
 
                 let mut headers = HashMap::new();
-                headers.insert(
-                    "Authorization".to_string(),
-                    format!("Bearer {}", token),
-                );
+                headers.insert("Authorization".to_string(), format!("Bearer {}", token));
 
                 let config = McpServerConfig {
                     id: N8N_MCP_SERVER_ID.to_string(),
@@ -196,16 +193,10 @@ impl McpRegistry {
 
         // ── Strategy 2: Streamable HTTP with API key ───────────────────
         if !api_key.is_empty() {
-            info!(
-                "[mcp] Trying Streamable HTTP at {} (API key)",
-                mcp_http_url
-            );
+            info!("[mcp] Trying Streamable HTTP at {} (API key)", mcp_http_url);
 
             let mut headers = HashMap::new();
-            headers.insert(
-                "Authorization".to_string(),
-                format!("Bearer {}", api_key),
-            );
+            headers.insert("Authorization".to_string(), format!("Bearer {}", api_key));
 
             let config = McpServerConfig {
                 id: N8N_MCP_SERVER_ID.to_string(),
@@ -239,25 +230,16 @@ impl McpRegistry {
 
         // ── Strategy 3: SSE at /mcp/sse (legacy/older n8n) ─────────────
         let mcp_sse_url = format!("{}/mcp", base);
-        info!(
-            "[mcp] Trying legacy SSE transport at {}/sse",
-            mcp_sse_url
-        );
+        info!("[mcp] Trying legacy SSE transport at {}/sse", mcp_sse_url);
 
         let mut sse_env = HashMap::new();
         if !api_key.is_empty() {
             sse_env.insert("X-N8N-API-KEY".to_string(), api_key.to_string());
-            sse_env.insert(
-                "Authorization".to_string(),
-                format!("Bearer {}", api_key),
-            );
+            sse_env.insert("Authorization".to_string(), format!("Bearer {}", api_key));
         }
         if let Some(token) = mcp_token {
             if !token.is_empty() {
-                sse_env.insert(
-                    "Authorization".to_string(),
-                    format!("Bearer {}", token),
-                );
+                sse_env.insert("Authorization".to_string(), format!("Bearer {}", token));
             }
         }
 

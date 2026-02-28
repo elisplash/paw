@@ -365,7 +365,10 @@ pub async fn engine_n8n_ensure_ready(
             let mut reg = state.mcp_registry.lock().await;
             if !reg.is_n8n_registered() {
                 let mcp_token = get_or_retrieve_mcp_token(&app_handle).await;
-                match reg.register_n8n(&endpoint.url, &endpoint.api_key, mcp_token.as_deref()).await {
+                match reg
+                    .register_n8n(&endpoint.url, &endpoint.api_key, mcp_token.as_deref())
+                    .await
+                {
                     Ok(tool_count) => {
                         log::info!(
                             "[n8n] MCP bridge registered — {} tools available to agents",
@@ -786,8 +789,7 @@ async fn list_packages_from_container() -> Result<Vec<CommunityPackage>, String>
             } else {
                 name.as_str()
             };
-            if unscoped.starts_with("n8n-nodes-") || name.contains("-n8n-")
-            {
+            if unscoped.starts_with("n8n-nodes-") || name.contains("-n8n-") {
                 packages.push(CommunityPackage {
                     package_name: name.clone(),
                     installed_version: version
@@ -1146,7 +1148,7 @@ fn display_name_for_pkg(package_name: &str) -> String {
     let stripped = package_name
         .trim_start_matches("@")
         .split('/')
-        .last()
+        .next_back()
         .unwrap_or(package_name)
         .trim_start_matches("n8n-nodes-");
     stripped
@@ -1244,12 +1246,14 @@ pub async fn engine_n8n_community_packages_install(
     package_name: String,
 ) -> Result<CommunityPackage, String> {
     // Ensure n8n is running before attempting install (provisions container if needed)
-    engine_n8n_ensure_ready(app_handle.clone()).await.map_err(|e| {
-        format!(
-            "Integration engine is not ready — please wait for it to start. ({})",
-            e
-        )
-    })?;
+    engine_n8n_ensure_ready(app_handle.clone())
+        .await
+        .map_err(|e| {
+            format!(
+                "Integration engine is not ready — please wait for it to start. ({})",
+                e
+            )
+        })?;
 
     let (base_url, api_key) = get_n8n_endpoint(&app_handle)?;
 
@@ -1592,7 +1596,10 @@ async fn refresh_mcp_after_install(app_handle: &tauri::AppHandle) {
     let tool_count = {
         let mut reg = state.mcp_registry.lock().await;
         reg.disconnect_n8n().await;
-        match reg.register_n8n(&endpoint_url, &api_key, mcp_token.as_deref()).await {
+        match reg
+            .register_n8n(&endpoint_url, &api_key, mcp_token.as_deref())
+            .await
+        {
             Ok(count) => count,
             Err(e) => {
                 log::warn!("[n8n] MCP bridge reconnection failed after install: {}", e);

@@ -61,8 +61,7 @@ impl McpClient {
                     return Err("Streamable HTTP transport requires a URL".to_string());
                 }
                 // Pass env vars as headers (e.g., Authorization: Bearer <token>)
-                let http =
-                    StreamableHttpTransport::connect(&config.url, &config.env).await?;
+                let http = StreamableHttpTransport::connect(&config.url, &config.env).await?;
                 McpTransportHandle::StreamableHttp(http)
             }
         };

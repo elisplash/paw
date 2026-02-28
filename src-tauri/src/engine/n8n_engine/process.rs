@@ -90,9 +90,10 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
             "error",
             "Integration engine failed to start. Check that Node.js 18+ is installed.",
         );
-        return Err(EngineError::Other(
-            "npx n8n started but failed to become healthy within 60s".into(),
-        ));
+        return Err(EngineError::Other(format!(
+            "npx n8n started but failed to become healthy within {}s",
+            super::types::STARTUP_TIMEOUT_SECS
+        )));
     }
 
     // Set up the owner account for headless operation.

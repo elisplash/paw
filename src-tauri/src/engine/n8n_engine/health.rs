@@ -64,8 +64,15 @@ pub async fn detect_local_n8n(url: &str) -> Option<N8nEndpoint> {
 
 // ── Version ────────────────────────────────────────────────────────────
 
-/// Check if the running n8n instance supports MCP (has /rest/mcp/settings endpoint).
+/// Check if the running n8n instance supports MCP (has /rest/mcp/api-key endpoint).
 /// Returns false if n8n is an old version that predates MCP support.
+///
+/// Detection strategy: POST to `/rest/mcp/api-key` without auth.
+///   - Old n8n: route doesn't exist → Express returns 404 HTML "Cannot POST"
+///   - New n8n: route exists, auth required → returns 401 JSON
+///   - The `/mcp-server/http` endpoint is NOT reliable for this check because
+///     old n8n's auth middleware returns 401 for ALL unauthenticated requests,
+///     regardless of whether the route exists.
 pub async fn has_mcp_support(base_url: &str) -> bool {
     let client = match reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
@@ -75,17 +82,26 @@ pub async fn has_mcp_support(base_url: &str) -> bool {
         Err(_) => return false,
     };
 
-    // The /mcp-server/http endpoint exists only on n8n versions with MCP.
-    // A 405 (Method Not Allowed) or 401 (Unauthorized) means the endpoint
-    // exists (wrong method / missing auth), so MCP is supported.
-    // A 404 means the endpoint doesn't exist — old n8n.
-    let url = format!("{}/mcp-server/http", base_url.trim_end_matches('/'));
-    match client.get(&url).send().await {
+    let url = format!("{}/rest/mcp/api-key", base_url.trim_end_matches('/'));
+    match client
+        .post(&url)
+        .header("Content-Type", "application/json")
+        .body("{}")
+        .send()
+        .await
+    {
         Ok(resp) => {
             let status = resp.status().as_u16();
-            // 404 = endpoint doesn't exist = no MCP support
-            // Anything else (401, 405, 200, etc.) = endpoint exists
-            status != 404
+            if status == 404 {
+                // Confirm it's the Express "Cannot POST" page, not a JSON 404
+                let body = resp.text().await.unwrap_or_default();
+                if body.contains("Cannot POST") {
+                    log::debug!("[n8n] MCP not supported: /rest/mcp/api-key returns 'Cannot POST'");
+                    return false;
+                }
+            }
+            // 401 (auth required) or any non-404 = endpoint exists = MCP supported
+            true
         }
         Err(_) => false,
     }

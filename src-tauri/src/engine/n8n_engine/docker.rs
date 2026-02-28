@@ -187,12 +187,10 @@ pub async fn provision_docker_container(
             "error",
             "Integration engine started but isn't responding. Check Docker logs.",
         );
-        return Err(EngineError::Other(
-            format!(
-                "n8n container started but failed to become healthy within {}s",
-                STARTUP_TIMEOUT_SECS
-            ),
-        ));
+        return Err(EngineError::Other(format!(
+            "n8n container started but failed to become healthy within {}s",
+            STARTUP_TIMEOUT_SECS
+        )));
     }
 
     // Set up the owner account for headless operation.
