@@ -135,9 +135,6 @@ pub async fn provision_docker_container(
         "N8N_REINSTALL_MISSING_PACKAGES=true".to_string(),
         // Allow community packages to be used as tools in workflows
         "N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true".to_string(),
-        // Enable the native MCP server endpoint at /mcp so Paw can
-        // discover all node operations as tools without creating workflows.
-        "N8N_MCP_SERVER_ENABLED=true".to_string(),
     ];
 
     let host_config = HostConfig {
@@ -196,6 +193,12 @@ pub async fn provision_docker_container(
                 STARTUP_TIMEOUT_SECS
             ),
         ));
+    }
+
+    // Set up the owner account for headless operation.
+    // n8n requires this before MCP and other features are usable.
+    if let Err(e) = super::health::setup_owner_if_needed(&url).await {
+        log::warn!("[n8n] Owner setup failed (non-fatal): {}", e);
     }
 
     // Persist config
@@ -297,6 +300,8 @@ pub async fn restart_existing_container(
     let url = format!("http://127.0.0.1:{}", port);
 
     if poll_n8n_ready(&url, &config.api_key).await {
+        // Ensure owner account exists (idempotent)
+        let _ = super::health::setup_owner_if_needed(&url).await;
         super::emit_status(app_handle, "ready", "Integration engine ready.");
         Ok(N8nEndpoint {
             url,

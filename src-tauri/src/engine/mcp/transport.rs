@@ -591,6 +591,209 @@ impl SseTransport {
 }
 
 // ══════════════════════════════════════════════════════════════════════
+// Streamable HTTP Transport — single POST endpoint for MCP (2025 spec)
+// ══════════════════════════════════════════════════════════════════════
+//
+// Protocol flow (MCP Streamable HTTP spec):
+//   1. POST {url}  body: {jsonrpc request}  → JSON or SSE response
+//   2. Server may return Mcp-Session-Id header (must be echoed back)
+//   3. Server may respond with Content-Type: text/event-stream for
+//      streaming responses, or application/json for direct responses.
+//
+// Used by n8n's instance-level MCP server at /mcp-server/http.
+
+pub struct StreamableHttpTransport {
+    /// HTTP client for POSTing requests.
+    http: reqwest::Client,
+    /// The single endpoint URL.
+    url: String,
+    /// Session ID returned by the server (echoed in subsequent requests).
+    session_id: Arc<Mutex<Option<String>>>,
+}
+
+impl StreamableHttpTransport {
+    /// Connect to an MCP server via Streamable HTTP transport.
+    ///
+    /// `url` is the full endpoint URL (e.g., `http://127.0.0.1:5678/mcp-server/http`).
+    /// `headers` contains auth headers (e.g., `Authorization: Bearer <token>`).
+    pub async fn connect(
+        url: &str,
+        headers: &HashMap<String, String>,
+    ) -> Result<Self, String> {
+        info!("[mcp:http] Connecting to {}", url);
+
+        let mut default_headers = reqwest::header::HeaderMap::new();
+        for (k, v) in headers {
+            if let (Ok(name), Ok(val)) = (
+                reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                reqwest::header::HeaderValue::from_str(v),
+            ) {
+                default_headers.insert(name, val);
+            }
+        }
+
+        let http = reqwest::Client::builder()
+            .default_headers(default_headers)
+            .build()
+            .map_err(|e| format!("HTTP client error: {}", e))?;
+
+        Ok(StreamableHttpTransport {
+            http,
+            url: url.to_string(),
+            session_id: Arc::new(Mutex::new(None)),
+        })
+    }
+
+    /// Send a JSON-RPC request via POST and parse the response.
+    ///
+    /// The server may respond with direct JSON or SSE stream — we handle both.
+    pub async fn send_request(
+        &self,
+        request: JsonRpcRequest,
+        timeout_secs: u64,
+    ) -> Result<JsonRpcResponse, String> {
+        let body =
+            serde_json::to_vec(&request).map_err(|e| format!("Serialize error: {}", e))?;
+
+        let mut req = self
+            .http
+            .post(&self.url)
+            .header("Content-Type", "application/json")
+            .header("Accept", "application/json, text/event-stream");
+
+        // Include session ID if we have one
+        {
+            let session = self.session_id.lock().await;
+            if let Some(sid) = session.as_ref() {
+                req = req.header("Mcp-Session-Id", sid);
+            }
+        }
+
+        let resp = tokio::time::timeout(
+            std::time::Duration::from_secs(timeout_secs),
+            req.body(body).send(),
+        )
+        .await
+        .map_err(|_| format!("Request timed out after {}s", timeout_secs))?
+        .map_err(|e| format!("HTTP request failed: {}", e))?;
+
+        // Store session ID from response
+        if let Some(sid) = resp.headers().get("mcp-session-id") {
+            if let Ok(sid_str) = sid.to_str() {
+                let mut session = self.session_id.lock().await;
+                *session = Some(sid_str.to_string());
+            }
+        }
+
+        if !resp.status().is_success() {
+            return Err(format!("HTTP {} from {}", resp.status(), self.url));
+        }
+
+        // Check content type to determine response format
+        let content_type = resp
+            .headers()
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("application/json")
+            .to_string();
+
+        if content_type.contains("text/event-stream") {
+            // Parse SSE response — extract JSON-RPC response from SSE events
+            let text = resp
+                .text()
+                .await
+                .map_err(|e| format!("Read SSE response: {}", e))?;
+            // Find the last "data:" line containing a JSON-RPC response
+            for line in text.lines().rev() {
+                if let Some(data) = line.strip_prefix("data:") {
+                    let data = data.trim();
+                    if let Ok(rpc_resp) = serde_json::from_str::<JsonRpcResponse>(data) {
+                        return Ok(rpc_resp);
+                    }
+                }
+            }
+            Err("No valid JSON-RPC response in SSE stream".to_string())
+        } else {
+            // Direct JSON response
+            let rpc_resp: JsonRpcResponse = resp
+                .json()
+                .await
+                .map_err(|e| format!("Parse JSON-RPC response: {}", e))?;
+            Ok(rpc_resp)
+        }
+    }
+
+    /// Send a JSON-RPC notification via POST (no response expected).
+    pub async fn send_notification(
+        &self,
+        method: &str,
+        params: Option<serde_json::Value>,
+    ) -> Result<(), String> {
+        let notif = serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": method,
+            "params": params.unwrap_or(serde_json::json!({})),
+        });
+        let body =
+            serde_json::to_vec(&notif).map_err(|e| format!("Serialize error: {}", e))?;
+
+        let mut req = self
+            .http
+            .post(&self.url)
+            .header("Content-Type", "application/json");
+
+        {
+            let session = self.session_id.lock().await;
+            if let Some(sid) = session.as_ref() {
+                req = req.header("Mcp-Session-Id", sid);
+            }
+        }
+
+        let resp = req
+            .body(body)
+            .send()
+            .await
+            .map_err(|e| format!("POST notification failed: {}", e))?;
+
+        if !resp.status().is_success()
+            && resp.status().as_u16() != 202
+            && resp.status().as_u16() != 204
+        {
+            warn!("[mcp:http] Notification POST returned {}", resp.status());
+        }
+
+        // Store session ID from notification response too
+        if let Some(sid) = resp.headers().get("mcp-session-id") {
+            if let Ok(sid_str) = sid.to_str() {
+                let mut session = self.session_id.lock().await;
+                *session = Some(sid_str.to_string());
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Shut down the Streamable HTTP connection by sending DELETE.
+    pub async fn shutdown(&self) {
+        info!("[mcp:http] Shutting down Streamable HTTP transport");
+        let session = self.session_id.lock().await;
+        if let Some(sid) = session.as_ref() {
+            let _ = self
+                .http
+                .delete(&self.url)
+                .header("Mcp-Session-Id", sid)
+                .send()
+                .await;
+        }
+    }
+
+    /// Streamable HTTP is stateless per-request, always considered "alive".
+    pub fn is_alive(&self) -> bool {
+        true
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════
 // Unified Transport Handle — wraps Stdio or SSE
 // ══════════════════════════════════════════════════════════════════════
 
@@ -598,6 +801,7 @@ impl SseTransport {
 pub enum McpTransportHandle {
     Stdio(StdioTransport),
     Sse(SseTransport),
+    StreamableHttp(StreamableHttpTransport),
 }
 
 impl McpTransportHandle {
@@ -610,6 +814,9 @@ impl McpTransportHandle {
         match self {
             McpTransportHandle::Stdio(t) => t.send_request(request, timeout_secs).await,
             McpTransportHandle::Sse(t) => t.send_request(request, timeout_secs).await,
+            McpTransportHandle::StreamableHttp(t) => {
+                t.send_request(request, timeout_secs).await
+            }
         }
     }
 
@@ -622,6 +829,9 @@ impl McpTransportHandle {
         match self {
             McpTransportHandle::Stdio(t) => t.send_notification(method, params).await,
             McpTransportHandle::Sse(t) => t.send_notification(method, params).await,
+            McpTransportHandle::StreamableHttp(t) => {
+                t.send_notification(method, params).await
+            }
         }
     }
 
@@ -630,6 +840,7 @@ impl McpTransportHandle {
         match self {
             McpTransportHandle::Stdio(t) => t.shutdown().await,
             McpTransportHandle::Sse(t) => t.shutdown().await,
+            McpTransportHandle::StreamableHttp(t) => t.shutdown().await,
         }
     }
 
@@ -638,6 +849,7 @@ impl McpTransportHandle {
         match self {
             McpTransportHandle::Stdio(t) => t.is_alive().await,
             McpTransportHandle::Sse(t) => t.is_alive(),
+            McpTransportHandle::StreamableHttp(t) => t.is_alive(),
         }
     }
 }

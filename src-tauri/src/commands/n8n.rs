@@ -733,8 +733,15 @@ async fn list_packages_from_container() -> Result<Vec<CommunityPackage>, String>
 
     if let Some(deps) = pkg_json.get("dependencies").and_then(|d| d.as_object()) {
         for (name, version) in deps {
-            // Only include n8n community packages (npm packages for n8n nodes)
-            if name.starts_with("n8n-nodes-") || name.starts_with("@n8n/") || name.contains("-n8n-")
+            // Only include n8n community packages.
+            // Naming conventions: n8n-nodes-*, @scope/n8n-nodes-*, *-n8n-*
+            // For scoped packages, check the part after the scope prefix.
+            let unscoped = if let Some(pos) = name.find('/') {
+                &name[pos + 1..]
+            } else {
+                name.as_str()
+            };
+            if unscoped.starts_with("n8n-nodes-") || name.contains("-n8n-")
             {
                 packages.push(CommunityPackage {
                     package_name: name.clone(),

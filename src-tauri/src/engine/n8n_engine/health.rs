@@ -87,3 +87,55 @@ pub async fn get_n8n_version(base_url: &str, api_key: &str) -> Option<String> {
         .and_then(|v| v.to_str().ok())
         .map(String::from)
 }
+
+// ── Headless owner setup ───────────────────────────────────────────────
+
+/// Set up the n8n owner account if one doesn't exist yet.
+///
+/// n8n requires an owner account before certain features (like MCP)
+/// become available. In headless mode, we create a service account
+/// automatically. This is idempotent — if an owner already exists,
+/// n8n returns 400 and we simply continue.
+pub async fn setup_owner_if_needed(base_url: &str) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("HTTP client error: {}", e))?;
+
+    let setup_url = format!("{}/rest/owner/setup", base_url.trim_end_matches('/'));
+
+    let body = serde_json::json!({
+        "email": "paw@localhost",
+        "firstName": "Paw",
+        "lastName": "Agent",
+        "password": "paw-headless-owner-do-not-use"
+    });
+
+    let resp = client
+        .post(&setup_url)
+        .header("Content-Type", "application/json")
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| format!("Owner setup request failed: {}", e))?;
+
+    match resp.status().as_u16() {
+        200 | 201 => {
+            log::info!("[n8n] Owner account created for headless operation");
+            Ok(())
+        }
+        400 => {
+            // Owner already exists — this is fine
+            log::debug!("[n8n] Owner account already exists");
+            Ok(())
+        }
+        status => {
+            let body = resp.text().await.unwrap_or_default();
+            Err(format!(
+                "Owner setup returned HTTP {}: {}",
+                status,
+                &body[..body.len().min(200)]
+            ))
+        }
+    }
+}

@@ -130,33 +130,89 @@ impl McpRegistry {
         client.refresh_tools().await
     }
 
-    /// Register the embedded n8n engine as an SSE-based MCP server.
+    /// Register the embedded n8n engine as an MCP server.
     ///
-    /// This is called automatically when n8n starts and `mcp_mode` is enabled.
-    /// The n8n MCP endpoint is at `{n8n_url}/mcp`.
+    /// n8n's instance-level MCP endpoint is at `{n8n_url}/mcp-server/http`
+    /// using the Streamable HTTP transport. We try multiple auth strategies:
+    ///   1. Bearer token from the provided API key
+    ///   2. Falling back to SSE at `/mcp/sse` for older n8n versions
+    ///
     /// After connecting, all n8n-provided tools appear as `mcp_n8n_{tool_name}`.
     pub async fn register_n8n(&mut self, n8n_url: &str, api_key: &str) -> Result<usize, String> {
-        let mcp_url = format!("{}/mcp", n8n_url.trim_end_matches('/'));
-        info!("[mcp] Auto-registering n8n as MCP server at {}", mcp_url);
+        let base = n8n_url.trim_end_matches('/');
 
-        let mut env = HashMap::new();
+        // ── Strategy 1: Streamable HTTP at /mcp-server/http ────────────
+        let mcp_http_url = format!("{}/mcp-server/http", base);
+        info!(
+            "[mcp] Auto-registering n8n as MCP server at {}",
+            mcp_http_url
+        );
+
+        let mut headers = HashMap::new();
         if !api_key.is_empty() {
-            // n8n expects the API key as a header
-            env.insert("X-N8N-API-KEY".to_string(), api_key.to_string());
+            headers.insert(
+                "Authorization".to_string(),
+                format!("Bearer {}", api_key),
+            );
         }
 
-        let config = McpServerConfig {
+        let http_config = McpServerConfig {
+            id: N8N_MCP_SERVER_ID.to_string(),
+            name: "n8n Integrations".to_string(),
+            transport: McpTransport::StreamableHttp,
+            command: String::new(),
+            args: vec![],
+            env: headers.clone(),
+            url: mcp_http_url,
+            enabled: true,
+        };
+
+        match self.connect(http_config).await {
+            Ok(()) => {
+                let tool_count = self
+                    .clients
+                    .get(N8N_MCP_SERVER_ID)
+                    .map(|c| c.tools.len())
+                    .unwrap_or(0);
+                info!(
+                    "[mcp] n8n MCP server registered via Streamable HTTP — {} tools discovered",
+                    tool_count
+                );
+                return Ok(tool_count);
+            }
+            Err(e) => {
+                info!("[mcp] Streamable HTTP at /mcp-server/http failed: {}", e);
+            }
+        }
+
+        // ── Strategy 2: SSE at /mcp/sse (legacy/older n8n) ─────────────
+        let mcp_sse_url = format!("{}/mcp", base);
+        info!(
+            "[mcp] Trying legacy SSE transport at {}/sse",
+            mcp_sse_url
+        );
+
+        let mut sse_env = HashMap::new();
+        if !api_key.is_empty() {
+            sse_env.insert("X-N8N-API-KEY".to_string(), api_key.to_string());
+            sse_env.insert(
+                "Authorization".to_string(),
+                format!("Bearer {}", api_key),
+            );
+        }
+
+        let sse_config = McpServerConfig {
             id: N8N_MCP_SERVER_ID.to_string(),
             name: "n8n Integrations".to_string(),
             transport: McpTransport::Sse,
             command: String::new(),
             args: vec![],
-            env,
-            url: mcp_url,
+            env: sse_env,
+            url: mcp_sse_url,
             enabled: true,
         };
 
-        self.connect(config).await?;
+        self.connect(sse_config).await?;
 
         let tool_count = self
             .clients
@@ -165,7 +221,7 @@ impl McpRegistry {
             .unwrap_or(0);
 
         info!(
-            "[mcp] n8n MCP server registered — {} tools discovered",
+            "[mcp] n8n MCP server registered via SSE — {} tools discovered",
             tool_count
         );
 

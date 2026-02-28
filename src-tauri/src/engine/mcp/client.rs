@@ -55,6 +55,16 @@ impl McpClient {
                 let sse = SseTransport::connect(&config.url, &config.env).await?;
                 McpTransportHandle::Sse(sse)
             }
+            McpTransport::StreamableHttp => {
+                use super::transport::StreamableHttpTransport;
+                if config.url.is_empty() {
+                    return Err("Streamable HTTP transport requires a URL".to_string());
+                }
+                // Pass env vars as headers (e.g., Authorization: Bearer <token>)
+                let http =
+                    StreamableHttpTransport::connect(&config.url, &config.env).await?;
+                McpTransportHandle::StreamableHttp(http)
+            }
         };
 
         let mut client = McpClient {

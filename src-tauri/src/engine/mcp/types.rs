@@ -45,6 +45,10 @@ pub enum McpTransport {
     #[default]
     Stdio,
     Sse,
+    /// MCP Streamable HTTP transport — single POST endpoint.
+    /// Used by n8n's instance-level MCP server (`/mcp-server/http`).
+    #[serde(alias = "streamable_http", alias = "http")]
+    StreamableHttp,
 }
 
 // ── JSON-RPC 2.0 Framing ──────────────────────────────────────────────

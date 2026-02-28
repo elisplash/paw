@@ -94,6 +94,11 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
         ));
     }
 
+    // Set up the owner account for headless operation.
+    if let Err(e) = super::health::setup_owner_if_needed(&url).await {
+        log::warn!("[n8n] Owner setup failed (non-fatal): {}", e);
+    }
+
     // Persist config
     let new_config = N8nEngineConfig {
         mode: N8nMode::Process,
