@@ -21,20 +21,20 @@ graph LR
 
 ## The Integration Inversion
 
-Unlike every other automation platform, OpenPawz does not lock integrations inside workflows. Every integration — including all 25,000+ n8n community packages — is **simultaneously** a direct agent tool and a visual workflow node.
+Unlike every other automation platform, OpenPawz does not lock integrations inside manual workflow builders. Every integration — including all 25,000+ n8n community packages — is **simultaneously** a direct agent tool and a visual workflow node.
 
 <Tip>
-When you install a community package (e.g. `n8n-nodes-slack`), your agents can use it **immediately in chat** — no workflow required. Just ask: *"Hey Pawz, send hello to #general."* The MCP bridge handles tool discovery, schema resolution, and execution automatically.
+When you install a community package (e.g. `n8n-nodes-slack`), Paw auto-deploys a workflow that your agents can execute **immediately in chat** — just ask: *"Hey Pawz, send hello to #general."* The MCP bridge handles workflow discovery, execution, and result delivery automatically.
 </Tip>
 
 | | Zapier / Make / n8n (standalone) | OpenPawz |
 |---|---|---|
-| **Tool availability** | Locked inside workflows | Available in chat AND in workflows |
-| **To use a tool** | Build trigger → action chain | Just ask your agent |
+| **Tool availability** | Locked inside manual workflows | Available in chat AND in visual flows |
+| **To use an integration** | Build trigger → action chain | Just ask your agent |
 | **AI's role** | One node inside the pipeline | The pipeline lives inside the agent |
-| **Install a new package** | Workflow node only | Instant chat tool + workflow node |
+| **Install a new package** | Manual workflow building | Auto-deployed workflow + instant chat access |
 
-**How it works:** OpenPawz embeds n8n as an [MCP server](/guides/mcp-bridge). Every node is automatically exposed as a callable tool via the Model Context Protocol. When your agent needs a tool, the [Librarian](/reference/librarian-method) finds it via semantic search, and the [Foreman](/reference/foreman-protocol) executes it at minimal cost. The visual [Flow Builder](/guides/flows) is there for when you need multi-step orchestration with branching, loops, or scheduling — but for single actions, just chat.
+**How it works:** OpenPawz embeds n8n as an [MCP server](/guides/mcp-bridge). n8n's MCP exposes three workflow-level tools (`search_workflows`, `execute_workflow`, `get_workflow_details`). When you install a community package, Paw auto-deploys a per-service workflow and indexes it. The [Librarian](/reference/librarian-method) finds workflows via semantic search, and the [Foreman](/reference/foreman-protocol) executes them at minimal cost. The visual [Flow Builder](/guides/flows) is there for when you need multi-step orchestration with branching, loops, or scheduling — but for single actions, just chat.
 
 ---
 

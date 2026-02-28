@@ -304,9 +304,11 @@ impl McpRegistry {
 /// Convert an MCP tool definition to a Paw ToolDefinition.
 /// The tool name is prefixed with `mcp_{server_id}_` to namespace it.
 ///
-/// For n8n tools, applies extra remapping to produce cleaner names:
-///   Raw:   `Gmail_SendEmail`  → `mcp_n8n_gmail_send_email`
-///   Raw:   `Slack_SendMessage` → `mcp_n8n_slack_send_message`
+/// For n8n tools, applies extra remapping to produce cleaner names.
+/// n8n's MCP exposes workflow-level tools (search_workflows, execute_workflow,
+/// get_workflow_details) which become:
+///   Raw:   `search_workflows`  → `mcp_n8n_search_workflows`
+///   Raw:   `execute_workflow`  → `mcp_n8n_execute_workflow`
 fn mcp_tool_to_paw_def(server_id: &str, tool: &McpToolDef) -> ToolDefinition {
     let (clean_name, description) = if server_id == N8N_MCP_SERVER_ID {
         // n8n tool names are often PascalCase like "Gmail_SendEmail" or "SendSlackMessage"
@@ -440,6 +442,8 @@ mod tests {
             input_schema: serde_json::json!({"type": "object"}),
         };
         let def = mcp_tool_to_paw_def("n8n", &tool);
+        // n8n MCP uses snake_case tool names (search_workflows, execute_workflow)
+        // so pascal_to_snake is a no-op, prefix is just mcp_n8n_
         assert_eq!(def.function.name, "mcp_n8n_gmail_send_email");
         assert!(def.function.description.contains("[n8n automation]"));
     }

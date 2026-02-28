@@ -1570,13 +1570,13 @@ async fn restart_n8n_container(base_url: &str, api_key: &str) {
 }
 
 /// After a community package install + container restart, reconnect the MCP
-/// bridge and invalidate the tool index so the Librarian discovers new tools.
+/// bridge and invalidate the tool index so the Librarian discovers new workflows.
 ///
 /// Per the Conductor Protocol / Librarian Method architecture:
-///   1. n8n is a headless MCP service — no workflows needed
-///   2. Community packages add node types that appear as MCP tools
-///   3. After restart the SSE connection is stale — must reconnect
-///   4. Tool index must rebuild so request_tools() finds the new tools
+///   1. n8n is a headless MCP service exposing workflow-level tools
+///   2. Community packages are composed into auto-deployed workflows
+///   3. After restart the MCP connection is stale — must reconnect
+///   4. Tool index must rebuild so request_tools() finds the new workflows
 async fn refresh_mcp_after_install(app_handle: &tauri::AppHandle) {
     let state = match app_handle.try_state::<EngineState>() {
         Some(s) => s,
@@ -1920,8 +1920,8 @@ async fn find_mcp_workflow(
 /// The workflow structure:
 ///   [MCP Server Trigger] → [Service Node (e.g. Slack)]
 ///
-/// The MCP trigger exposes the service node's operations as MCP tools.
-/// When an agent calls a tool via MCP, the trigger fires, routes to the
+/// The MCP trigger exposes the service node's operations as workflow-level tools.
+/// When an agent calls execute_workflow via MCP, the trigger fires, routes to the
 /// service node, executes the operation, and returns the result.
 fn build_mcp_workflow(
     name: &str,

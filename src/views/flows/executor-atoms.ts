@@ -56,7 +56,7 @@ export interface NodeExecConfig {
   httpHeaders?: string;
   /** For http nodes: request body */
   httpBody?: string;
-  /** For mcp-tool nodes: MCP tool name (e.g. mcp_n8n_slack_post) */
+  /** For mcp-tool nodes: MCP tool name (e.g. mcp_n8n_execute_workflow) */
   mcpToolName?: string;
   /** For mcp-tool nodes: MCP tool arguments (JSON string) */
   mcpToolArgs?: string;

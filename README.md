@@ -77,13 +77,13 @@ Every other automation platform locks integrations inside workflows. You must bu
 Install "@n8n/n8n-nodes-slack":
 
   n8n standalone:  available as a workflow node → must build a workflow to use it
-  OpenPawz:        available as a workflow node AND a direct agent tool
-                   → "Hey Pawz, send hello to #general" — done, no workflow needed
+  OpenPawz:        auto-deploys a workflow + indexes it for agent discovery
+                   → "Hey Pawz, send hello to #general" — done
 ```
 
-**How it works:** OpenPawz embeds n8n as an MCP server. Every node — including all 25,000+ community packages — is automatically exposed as a callable tool via the Model Context Protocol. When you install a community package, the agent can use it in conversation immediately. No workflow required. No configuration. The MCP bridge handles tool discovery, schema resolution, and execution.
+**How it works:** OpenPawz embeds n8n as an MCP server. n8n's MCP exposes three workflow-level tools: `search_workflows`, `execute_workflow`, and `get_workflow_details`. When you install a community package, Paw auto-deploys a per-service workflow (e.g. "OpenPawz MCP — Slack") that encapsulates the integration logic. The agent discovers workflows via semantic search and executes them via `execute_workflow` — all through the MCP bridge.
 
-**The insight:** n8n's 25,000 community nodes were designed for manual automation. OpenPawz makes them AI-native — the agent decides which tools to use based on your intent, calls them directly via MCP, and only needs a visual workflow when you want multi-step orchestration with branching, loops, or scheduling.
+**The insight:** n8n's 25,000 community nodes were designed for manual automation. OpenPawz makes them AI-native — Paw auto-deploys workflows that compose n8n nodes with credential binding, error handling, and retries. The agent decides which workflow to execute based on your intent, and only needs the visual Flow Builder when you want multi-step orchestration with branching, loops, or scheduling.
 
 ---
 
@@ -93,9 +93,9 @@ OpenPawz introduces three novel methods for scaling AI agent tool usage and work
 
 ### The Librarian Method — Intent-Stated Tool Discovery
 
-**Problem:** AI agents break when they have too many tools. Loading 25,000+ tool definitions into context is impossible, and keyword pre-filters guess wrong because they lack intent.
+**Problem:** AI agents break when they have too many tools. Loading thousands of workflow definitions into context is impossible, and keyword pre-filters guess wrong because they lack intent.
 
-**Solution:** The agent itself requests tools after understanding the user's intent. An embedding model performs semantic search over the entire tool index and returns only the relevant tools — on demand, per round. We recommend a local Ollama model like `nomic-embed-text` for zero cost, but any embedding model works.
+**Solution:** The agent itself requests tools after understanding the user's intent. An embedding model performs semantic search over the workflow index and returns only the relevant workflows — on demand, per round. We recommend a local Ollama model like `nomic-embed-text` for zero cost, but any embedding model works.
 
 ```
 User: "Email John about the quarterly report"
@@ -208,7 +208,7 @@ See [SECURITY.md](SECURITY.md) for the complete security architecture.
 
 ### 25,000+ Integrations — Zero-Gap Automation
 
-OpenPawz ships with **400+ built-in integrations** compiled into the Rust binary. But the real breakthrough is the **MCP Bridge** — an embedded n8n engine that connects your agents to **25,000+ community node types** via the Model Context Protocol. No plugins to install, no marketplace to browse. Your agent discovers and installs integrations at runtime, on demand.
+OpenPawz ships with **400+ built-in integrations** compiled into the Rust binary. But the real breakthrough is the **MCP Bridge** — an embedded n8n engine that connects your agents to **25,000+ community integrations** via the Model Context Protocol. No plugins to install, no marketplace to browse. Your agent discovers and installs integrations at runtime, auto-deploys per-service workflows, and executes them on demand.
 
 #### How It Works
 
@@ -243,9 +243,10 @@ User: "Generate a QR code for my website"
 | Layer | What It Does |
 |-------|-------------|
 | **Embedded n8n** | Auto-provisioned via Docker or npx — starts at launch, zero config |
-| **MCP Transport** | SSE + Stdio transports connect to n8n's MCP server |
-| **Community Nodes** | 1,000+ npm packages with 25,000+ node types — auto-installed on demand |
-| **Tool RAG** | Embedding model discovers the right integration via semantic search (local Ollama recommended) |
+| **MCP Transport** | Streamable HTTP at `/mcp-server/http` with JWT auth |
+| **Workflow-Level MCP** | Three tools: `search_workflows`, `execute_workflow`, `get_workflow_details` |
+| **Auto-Deploy** | Per-service workflows created automatically when community packages are installed |
+| **Workflow RAG** | Embedding model discovers the right workflow via semantic search (local Ollama recommended) |
 | **Local Worker** | Ollama `qwen2.5-coder:7b` executes MCP tool calls — no cloud costs |
 
 ### 10 AI Providers
@@ -275,7 +276,7 @@ Each bridge includes user approval flows, per-agent routing, and uniform start/s
 - Memory Palace visualization UI
 
 ### Built-in Tools & Skills
-- 25,000+ integrations (400+ native + 25K community nodes via MCP bridge) with encrypted credential injection
+- 25,000+ integrations (400+ native + 25K community integrations via MCP bridge workflows) with encrypted credential injection
 - Community skills from the [skills.sh](https://skills.sh) ecosystem and PawzHub marketplace
 - Three-tier extensibility: Skills (SKILL.md) → Integrations (pawz-skill.toml) → Extensions (custom views + storage)
 - Kanban task board with agent assignment, cron scheduling, and event-driven triggers
@@ -291,8 +292,8 @@ Each bridge includes user approval flows, per-agent routing, and uniform start/s
 
 ### Webhooks & MCP Bridge
 - **Embedded n8n engine** — auto-provisioned at launch via Docker or npx, zero configuration
-- **MCP Bridge** — SSE + Stdio transports connect to n8n's MCP server, exposing 25,000+ community node types as agent tools
-- **On-demand auto-install** — agents discover and install n8n community packages at runtime via semantic search
+- **MCP Bridge** — Streamable HTTP transport connects to n8n's MCP server, exposing workflow-level tools (`search_workflows`, `execute_workflow`, `get_workflow_details`)
+- **Workflow auto-deploy** — agents install community packages, Paw auto-deploys per-service workflows, discoverable via semantic search
 - **Local MCP workers** — Ollama `qwen2.5-coder:7b` executes MCP tool calls locally, $0 cost
 - Generic webhook server — receive external events and route to agents
 - MCP (Model Context Protocol) client — connect to any MCP server for additional tools

@@ -115,17 +115,17 @@ The Architect never sees MCP schemas. The Foreman never reasons about user inten
 
 The Foreman Protocol would not work without self-describing tool schemas. Here's why:
 
-**Traditional tool execution:** The LLM must have the tool's schema in its context to know how to call it. If you have 25,000 tools, you need 25,000 schemas in context — impossible.
+**Traditional tool execution:** The LLM must have the tool's schema in its context to know how to call it. With thousands of potential integrations, you can't fit all their schemas into any context window.
 
-**With MCP:** The Foreman connects to the MCP server and asks *"What tools do you have?"* The server responds with complete schemas for every available tool — parameter names, types, descriptions, required fields, examples. The Foreman uses these schemas to format its call correctly.
+**With MCP:** The Foreman connects to the MCP server and asks *"What tools do you have?"* n8n's MCP server responds with workflow-level tools (`search_workflows`, `execute_workflow`, `get_workflow_details`) along with their complete schemas. The Foreman uses these to find and execute the right workflow.
 
 No pre-training. No static configuration. No context window overflow.
 
 This means:
-- **Any new n8n community node is instantly accessible** — install the npm package, the MCP server exposes it, the Foreman can read from or write to it
+- **Any new n8n community node is accessible** — install the npm package, Paw auto-deploys a workflow, the Foreman can execute it
 - **Zero configuration per service** — no prompt engineering, no few-shot examples, no fine-tuning
 - **Any model works** — the Foreman just needs to follow JSON-RPC formatting, which any code-capable model can do
-- **Reads are as natural as writes** — querying a database and sending a Slack message go through the same path
+- **Reads are as natural as writes** — querying a database and sending a Slack message go through the same `execute_workflow` path
 
 ---
 
@@ -276,7 +276,7 @@ The Foreman Protocol and [The Librarian Method](/reference/librarian-method) are
 | **Works independently?** | Yes | Yes |
 | **Better together?** | The Librarian finds the right tool, then the Foreman executes it for free |
 
-Together, they enable an agent to discover and execute any of 25,000+ integrations at near-zero cost — something no other AI agent platform achieves.
+Together, they enable an agent to discover and execute any of 25,000+ integrations at near-zero cost via auto-deployed workflows — something no other AI agent platform achieves.
 
 ---
 
