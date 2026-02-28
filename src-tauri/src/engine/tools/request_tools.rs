@@ -187,7 +187,10 @@ async fn execute_request_tools(
 /// Build the complete list of tools for indexing.
 /// This includes builtins + skill tools + MCP tools (e.g. mcp_n8n_*).
 /// MCP tools are passed in because we need them from the registry (separate lock).
-fn build_all_tools_for_index(state: &EngineState, mcp_tools: &[ToolDefinition]) -> Vec<ToolDefinition> {
+fn build_all_tools_for_index(
+    state: &EngineState,
+    mcp_tools: &[ToolDefinition],
+) -> Vec<ToolDefinition> {
     let mut tools = ToolDefinition::builtins();
 
     // Include ALL skill tools for indexing (even disabled ones)
@@ -212,7 +215,10 @@ fn build_all_tools_for_index(state: &EngineState, mcp_tools: &[ToolDefinition]) 
     // Include MCP tools (n8n integrations, custom MCP servers, etc.)
     // so the Librarian can discover mcp_n8n_* tools via semantic search.
     if !mcp_tools.is_empty() {
-        info!("[tool-rag] Including {} MCP tools in index", mcp_tools.len());
+        info!(
+            "[tool-rag] Including {} MCP tools in index",
+            mcp_tools.len()
+        );
         tools.extend(mcp_tools.iter().cloned());
     }
 

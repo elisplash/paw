@@ -716,17 +716,15 @@ async fn list_packages_from_container() -> Result<Vec<CommunityPackage>, String>
     }
 
     let content = String::from_utf8_lossy(&output.stdout);
-    let pkg_json: serde_json::Value =
-        serde_json::from_str(&content).map_err(|e| format!("Failed to parse package.json: {}", e))?;
+    let pkg_json: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse package.json: {}", e))?;
 
     let mut packages = Vec::new();
 
     if let Some(deps) = pkg_json.get("dependencies").and_then(|d| d.as_object()) {
         for (name, version) in deps {
             // Only include n8n community packages (npm packages for n8n nodes)
-            if name.starts_with("n8n-nodes-")
-                || name.starts_with("@n8n/")
-                || name.contains("-n8n-")
+            if name.starts_with("n8n-nodes-") || name.starts_with("@n8n/") || name.contains("-n8n-")
             {
                 packages.push(CommunityPackage {
                     package_name: name.clone(),
@@ -1512,10 +1510,7 @@ async fn refresh_mcp_after_install(app_handle: &tauri::AppHandle) {
         match reg.register_n8n(&endpoint_url, &api_key).await {
             Ok(count) => count,
             Err(e) => {
-                log::warn!(
-                    "[n8n] MCP bridge reconnection failed after install: {}",
-                    e
-                );
+                log::warn!("[n8n] MCP bridge reconnection failed after install: {}", e);
                 return;
             }
         }
