@@ -190,7 +190,8 @@
             "group": "Original Research",
             "pages": [
               "reference/librarian-method",
-              "reference/foreman-protocol"
+              "reference/foreman-protocol",
+              "reference/conductor-protocol"
             ]
           }
         ]
