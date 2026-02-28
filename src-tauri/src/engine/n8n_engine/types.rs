@@ -14,7 +14,8 @@ pub const HEALTH_ENDPOINT: &str = "/healthz";
 pub const API_PROBE_ENDPOINT: &str = "/api/v1/workflows?limit=1";
 
 /// Maximum time (seconds) to wait for n8n to become healthy after start.
-pub const STARTUP_TIMEOUT_SECS: u64 = 60;
+/// Fresh provisioning (image pull + package reinstall) can take 2-3 minutes.
+pub const STARTUP_TIMEOUT_SECS: u64 = 180;
 /// Interval between readiness polls.
 pub const POLL_INTERVAL_SECS: u64 = 2;
 
