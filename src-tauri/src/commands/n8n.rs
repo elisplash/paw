@@ -832,12 +832,15 @@ pub async fn engine_n8n_package_credential_schema(
     };
 
     // Step 2: For each installed node type, discover its credential requirements
-    // n8n exposes /types/credentials.json which lists all credential type schemas
+    // n8n's /types/ endpoints require session-based auth (not API key),
+    // so we try multiple approaches:
+    //   a) /types/credentials.json with API key header (works in some n8n versions)
+    //   b) /types/nodes.json with API key header (same)
+    //   c) /api/v1/credentials/schema/{type} per-credential REST API fallback
     let cred_types_url = format!("{}/types/credentials.json", base);
     let cred_resp = client
         .get(&cred_types_url)
         .header("X-N8N-API-KEY", &api_key)
-        .header("Cookie", format!("n8n-auth={}", api_key))
         .send()
         .await
         .map_err(|e| format!("Failed to fetch credential types: {}", e))?;
@@ -849,7 +852,7 @@ pub async fn engine_n8n_package_credential_schema(
             .unwrap_or(serde_json::Value::Array(vec![]))
     } else {
         info!(
-            "[n8n] /types/credentials.json returned HTTP {} — falling back to schema API",
+            "[n8n] /types/credentials.json returned HTTP {} — will use per-credential API fallback",
             cred_resp.status().as_u16()
         );
         serde_json::Value::Array(vec![])
@@ -860,7 +863,6 @@ pub async fn engine_n8n_package_credential_schema(
     let nodes_resp = client
         .get(&node_types_url)
         .header("X-N8N-API-KEY", &api_key)
-        .header("Cookie", format!("n8n-auth={}", api_key))
         .send()
         .await;
 
@@ -1291,6 +1293,7 @@ pub async fn engine_n8n_community_packages_install(
     for attempt in 1..=5 {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
+        // Try REST API first
         let list_resp = client
             .get(format!(
                 "{}/api/v1/community-packages",
@@ -1305,7 +1308,7 @@ pub async fn engine_n8n_community_packages_install(
                 if let Ok(pkgs) = r.json::<Vec<CommunityPackage>>().await {
                     if let Some(pkg) = pkgs.into_iter().find(|p| p.package_name == package_name) {
                         info!(
-                            "[n8n] Confirmed {} v{} ({} nodes) via fallback (attempt {})",
+                            "[n8n] Confirmed {} v{} ({} nodes) via REST API (attempt {})",
                             pkg.package_name,
                             pkg.installed_version,
                             pkg.installed_nodes.len(),
@@ -1314,6 +1317,17 @@ pub async fn engine_n8n_community_packages_install(
                         return Ok(pkg);
                     }
                 }
+            }
+        }
+
+        // Fallback: check package.json in container
+        if let Ok(pkgs) = list_packages_from_container().await {
+            if let Some(pkg) = pkgs.into_iter().find(|p| p.package_name == package_name) {
+                info!(
+                    "[n8n] Confirmed {} v{} via container package.json (attempt {})",
+                    pkg.package_name, pkg.installed_version, attempt
+                );
+                return Ok(pkg);
             }
         }
 
