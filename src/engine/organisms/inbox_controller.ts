@@ -139,12 +139,19 @@ export function mountInbox(): void {
   if (!appState.inbox.sidebarOpen) {
     layout.classList.add('sidebar-collapsed');
     _sidebar.toggle(false);
+  } else {
+    layout.classList.add('sidebar-open');
   }
 
   // Convlist (left panel) state from preferences
   if (!appState.inbox.convlistOpen) {
     layout.classList.add('convlist-collapsed');
+  } else {
+    layout.classList.add('convlist-open');
   }
+
+  // Sync toggle button icons with initial state
+  _thread.updatePanelStates(appState.inbox.convlistOpen, appState.inbox.sidebarOpen);
 
   _mounted = true;
 
@@ -570,7 +577,10 @@ function handleToggleConvlist(): void {
   const layout = $('inbox-layout');
   if (layout) {
     layout.classList.toggle('convlist-collapsed', !appState.inbox.convlistOpen);
+    // Responsive overlay class (used at narrow viewports)
+    layout.classList.toggle('convlist-open', appState.inbox.convlistOpen);
   }
+  _thread?.updatePanelStates(appState.inbox.convlistOpen, appState.inbox.sidebarOpen);
   persistConvlistPref(appState.inbox.convlistOpen);
 }
 
@@ -579,8 +589,11 @@ function handleToggleSidebar(): void {
   const layout = $('inbox-layout');
   if (layout) {
     layout.classList.toggle('sidebar-collapsed', !appState.inbox.sidebarOpen);
+    // Responsive overlay class (used at narrow viewports)
+    layout.classList.toggle('sidebar-open', appState.inbox.sidebarOpen);
   }
   _sidebar?.toggle(appState.inbox.sidebarOpen);
+  _thread?.updatePanelStates(appState.inbox.convlistOpen, appState.inbox.sidebarOpen);
 }
 
 async function handleRename(): Promise<void> {

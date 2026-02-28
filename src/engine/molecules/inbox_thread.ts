@@ -27,6 +27,8 @@ export interface InboxThreadController {
   }): void;
   /** Update the agent swap dropdown options */
   setSwapAgents(agents: Array<{ id: string; name: string; avatar: string; color: string }>): void;
+  /** Update panel toggle button icons to reflect open/closed state */
+  updatePanelStates(convlistOpen: boolean, sidebarOpen: boolean): void;
   /** Destroy + cleanup */
   destroy(): void;
 }
@@ -80,8 +82,8 @@ export function createInboxThread(callbacks: InboxThreadCallbacks): InboxThreadC
   // Toggle conv-list button (left panel)
   const convlistToggle = document.createElement('button');
   convlistToggle.className = 'inbox-convlist-toggle';
-  convlistToggle.title = 'Toggle agents panel';
-  convlistToggle.innerHTML = `<span class="ms" style="font-size:16px">left_panel_open</span>`;
+  convlistToggle.title = 'Toggle conversations panel';
+  convlistToggle.innerHTML = `<span class="ms" style="font-size:16px">left_panel_close</span>`;
   convlistToggle.addEventListener('click', () => callbacks.onToggleConvlist?.());
 
   identity.appendChild(convlistToggle);
@@ -142,8 +144,9 @@ export function createInboxThread(callbacks: InboxThreadCallbacks): InboxThreadC
 
   // Toggle sidebar
   const sidebarToggle = document.createElement('button');
+  sidebarToggle.className = 'inbox-sidebar-toggle';
   sidebarToggle.title = 'Toggle sidebar';
-  sidebarToggle.innerHTML = `<span class="ms" style="font-size:16px">right_panel_open</span>`;
+  sidebarToggle.innerHTML = `<span class="ms" style="font-size:16px">right_panel_close</span>`;
   sidebarToggle.addEventListener('click', () => callbacks.onToggleSidebar());
   actions.appendChild(sidebarToggle);
 
@@ -242,6 +245,16 @@ export function createInboxThread(callbacks: InboxThreadCallbacks): InboxThreadC
         });
         swapDropdown.appendChild(item);
       }
+    },
+
+    updatePanelStates(convOpen, sideOpen) {
+      const convIcon = convlistToggle.querySelector('.ms');
+      if (convIcon) convIcon.textContent = convOpen ? 'left_panel_close' : 'left_panel_open';
+      convlistToggle.title = convOpen ? 'Hide conversations' : 'Show conversations';
+
+      const sideIcon = sidebarToggle.querySelector('.ms');
+      if (sideIcon) sideIcon.textContent = sideOpen ? 'right_panel_close' : 'right_panel_open';
+      sidebarToggle.title = sideOpen ? 'Hide sidebar' : 'Show sidebar';
     },
 
     destroy() {

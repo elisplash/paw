@@ -29,7 +29,8 @@
 }
 
 /* Convlist toggle button in thread header */
-.inbox-convlist-toggle {
+.inbox-convlist-toggle,
+.inbox-sidebar-toggle {
   background: none;
   border: none;
   cursor: pointer;
@@ -41,7 +42,8 @@
   transition: color 0.15s, background 0.15s;
   flex-shrink: 0;
 }
-.inbox-convlist-toggle:hover {
+.inbox-convlist-toggle:hover,
+.inbox-sidebar-toggle:hover {
   color: var(--text-primary);
   background: var(--bg-hover);
 }
