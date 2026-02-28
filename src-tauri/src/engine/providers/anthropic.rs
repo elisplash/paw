@@ -409,13 +409,10 @@ impl AnthropicProvider {
         // gives ~90% discount on input tokens for the cached portion.
         Self::add_turn_cache_breakpoints(&mut formatted_messages);
 
-        // Model-aware max_tokens: claude-3-haiku caps at 4096,
-        // most other Anthropic models support 8192+.
-        let max_tokens = if model.contains("claude-3-haiku") {
-            4096
-        } else {
-            8192
-        };
+        // Model-aware max_tokens via the Engram model capability registry.
+        // Replaces the hardcoded 4096/8192 split with accurate per-model values.
+        // e.g. claude-opus-4-6 → 32768, claude-3-haiku → 4096, claude-sonnet → 8192.
+        let max_tokens = crate::engine::engram::model_caps::resolve_max_output_tokens(model);
 
         let mut body = json!({
             "model": model,

@@ -25,6 +25,7 @@ mod agent_files;
 mod agent_messages;
 mod config;
 pub(crate) mod embedding;
+mod engram;
 mod flows;
 mod memories;
 mod messages;
@@ -66,6 +67,16 @@ impl SessionStore {
         let conn = Connection::open(&path)?;
 
         conn.execute_batch("PRAGMA journal_mode=WAL;").ok();
+
+        // ── Anti-forensic: reduce file-size side-channel leakage ────────
+        // Use 8KB pages (vs default 4KB) so the DB grows in coarser
+        // quanta, reducing the precision of a vault-size oracle attack.
+        // Also enable secure_delete so freed pages are zeroed, preventing
+        // deleted memory content from lingering in unallocated pages.
+        // See: KDBX inner-content padding (analogous threat model).
+        conn.execute_batch("PRAGMA page_size = 8192;").ok();
+        conn.execute_batch("PRAGMA secure_delete = ON;").ok();
+        conn.execute_batch("PRAGMA auto_vacuum = INCREMENTAL;").ok();
 
         schema::run_migrations(&conn)?;
 

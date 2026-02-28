@@ -162,7 +162,7 @@ graph LR
     E --> F
 ```
 
-### Sequential (traditional): 
+### Sequential (traditional):
 ```
 trigger → classify → summarize → fetch metrics → parse data → output
 Total: 6 steps, ~16 seconds
@@ -475,21 +475,21 @@ The Conductor Protocol is implemented in TypeScript as part of the OpenPawz flow
 function compileStrategy(graph: FlowGraph): ExecutionStrategy {
   // 1. Classify every node
   const classifications = graph.nodes.map(n => classifyNode(n));
-  
+
   // 2. Detect collapsible agent chains
   const collapseGroups = detectCollapseChains(graph);
-  
+
   // 3. Detect convergent meshes (cyclic subgraphs)
   const meshes = buildMeshConfigs(graph);
-  
+
   // 4. Compute depth levels for parallelization
   const depths = groupByDepth(graph, collapseGroups, meshes);
-  
+
   // 5. Split each depth level into independent groups
   const phases = depths.map(level => ({
     units: splitIntoIndependentGroups(level)
   }));
-  
+
   return {
     phases,
     estimatedLlmCalls: countAgentUnits(phases),

@@ -129,7 +129,10 @@ pub async fn engine_flow_direct_http(
         builder = builder.body(body.clone());
     }
 
-    let response = builder.send().await.map_err(|e| format!("HTTP error: {}", e))?;
+    let response = builder
+        .send()
+        .await
+        .map_err(|e| format!("HTTP error: {}", e))?;
     let duration_ms = start.elapsed().as_millis() as u64;
     let status = response.status().as_u16();
 

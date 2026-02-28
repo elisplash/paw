@@ -157,6 +157,41 @@ pub fn run() {
                     tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                 }
             });
+
+            // ── Engram memory maintenance (consolidation + decay + GC) ─────
+            // Runs every 5 minutes in the background. Consolidates episodic
+            // memories into semantic triples, applies Ebbinghaus decay, and
+            // garbage-collects weak memories.
+            let app_handle_engram = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                // Wait 30 seconds for app to stabilize before first maintenance
+                tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                log::info!("[engram] Memory maintenance started (300s interval)");
+                loop {
+                    if let Some(state) = app_handle_engram.try_state::<crate::commands::state::EngineState>() {
+                        let emb_client = state.embedding_client();
+                        match engine::engram::bridge::run_maintenance(
+                            &state.store,
+                            emb_client.as_ref(),
+                            7.0,   // half_life_days
+                            1,     // gc_importance_threshold
+                        ).await {
+                            Ok(report) => {
+                                log::info!(
+                                    "[engram] Maintenance complete: {} triples, {} decayed, {} GC'd",
+                                    report.consolidation.triples_created,
+                                    report.memories_decayed,
+                                    report.memories_gc,
+                                );
+                            }
+                            Err(e) => {
+                                log::warn!("[engram] Maintenance failed (non-fatal): {}", e);
+                            }
+                        }
+                    }
+                    tokio::time::sleep(std::time::Duration::from_secs(300)).await;
+                }
+            });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -224,6 +259,9 @@ pub fn run() {
             commands::memory::engine_embedding_pull_model,
             commands::memory::engine_ensure_embedding_ready,
             commands::memory::engine_memory_backfill,
+            commands::memory::engine_working_memory_save,
+            commands::memory::engine_working_memory_restore,
+            commands::memory::engine_memory_purge_user,
             // ── Skill Vault ──
             commands::skills::engine_skills_list,
             commands::skills::engine_skill_set_enabled,

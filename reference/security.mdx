@@ -232,6 +232,89 @@ When a provider is dropped (e.g. user switches providers, session ends, or the a
 | Drop behavior | Memory zeroed on `Drop` via `zeroize` crate |
 | Compiler optimization | `zeroize` uses `core::ptr::write_volatile` to prevent dead-store elimination |
 
+## Engram memory content encryption
+
+Project Engram adds **field-level PII encryption** for memory content. Unlike credential zeroing (above), this protects the actual memories stored by agents — not just API keys.
+
+### PII detection
+
+Before storage, every memory passes through a PII scanner with 9 regex patterns:
+
+| Pattern | Example |
+|---------|---------|
+| Email addresses | `user@example.com` |
+| Phone numbers | `+1-555-0123` |
+| Social Security numbers | `123-45-6789` |
+| Credit card numbers | `4111-1111-1111-1111` |
+| IP addresses | `192.168.1.1` |
+| Dates of birth | `1990-01-15` |
+| Passport numbers | `AB1234567` |
+| Driver's license | State-specific patterns |
+| Bank account / routing | `0123456789` |
+
+### Encryption details
+
+| Property | Detail |
+|----------|--------|
+| Algorithm | AES-256-GCM (authenticated encryption) |
+| Key storage | OS keychain via `keyring` crate (service: `paw-memory-vault`) |
+| Granularity | Field-level — only PII-containing content is encrypted |
+| Format | `enc:base64(nonce ‖ ciphertext ‖ tag)` |
+| Decryption | Transparent on retrieval — callers see plaintext |
+| Tier classification | Cleartext (no PII) / Sensitive (encrypted) / Confidential (encrypted) |
+
+### Query sanitization
+
+All search queries are sanitized before reaching SQLite FTS5 to prevent injection:
+- FTS5 operators (`AND`, `OR`, `NOT`, `NEAR`, `*`, `"`, `(`, `)`) are stripped
+- Column filter syntax (`:`) is removed
+- Empty queries after sanitization are rejected
+
+### Prompt injection scanning
+
+Memory content is scanned against 10 known prompt injection patterns before storage. Matches are flagged and can be rejected based on agent policy. This prevents poisoned memories from manipulating agent behavior on future recalls.
+
+### GDPR Article 17 — Right to erasure
+
+The `gdpr_purge` command performs a complete data erasure for a user:
+
+1. All memory content rows deleted
+2. All vector embeddings deleted
+3. FTS5 index entries removed
+4. Graph edges removed
+5. Padding table repacked to prevent file-size leakage
+6. `PRAGMA secure_delete` ensures freed pages are zeroed
+
+## Anti-forensic vault-size quantization
+
+The Engram memory store mitigates **vault-size oracle attacks** — a side-channel where an attacker can infer how many memories are stored by observing the SQLite database file size. This is the same threat class addressed by KDBX inner-content padding.
+
+### What this prevents
+
+An attacker with read-only access to the filesystem (malware, backup exfiltration, shared-machine forensics) cannot determine:
+- Exact number of stored memories
+- Whether memories were recently deleted (no file-size drop)
+- Growth rate of the knowledge store over time
+
+### Implementation
+
+| Mitigation | Detail |
+|-----------|--------|
+| **Bucket padding** | DB padded to 512KB boundaries via `_engram_padding` table (zeroblob rows). Re-padded after every GC cycle. |
+| **Secure erasure** | Two-phase delete: content fields overwritten with empty values → row deleted. Prevents plaintext recovery from freed pages or WAL replay. |
+| **8KB page size** | `PRAGMA page_size = 8192` reduces file-size measurement granularity |
+| **Secure delete** | `PRAGMA secure_delete = ON` zeroes freed B-tree pages at the SQLite layer |
+| **Incremental auto-vacuum** | `PRAGMA auto_vacuum = INCREMENTAL` prevents immediate file-size shrinkage after deletions |
+
+### Threat model comparison
+
+| Property | KDBX (KeePass 4.x) | Engram (SQLite) |
+|----------|-------------------|-----------------|
+| Content encryption | File-level (ChaCha20/AES-256) | Field-level (AES-256-GCM) |
+| Size padding | Inner XML padded to block boundary | DB padded to 512KB bucket |
+| Delete forensics | Zeroed inner stream | Two-phase overwrite + secure_delete |
+| Metadata leakage | Fixed-size header | Quantized file size |
+
 ## Tool execution security
 
 Tool execution is governed by multiple safety mechanisms in the engine's central tool executor.

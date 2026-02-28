@@ -223,3 +223,68 @@ pub async fn engine_memory_backfill(
         "failed": fail,
     }))
 }
+
+/// Save working memory snapshot for an agent (called on agent switch).
+#[tauri::command]
+pub fn engine_working_memory_save(
+    state: State<'_, EngineState>,
+    agent_id: String,
+) -> Result<(), String> {
+    use crate::atoms::engram_types::WorkingMemorySnapshot;
+
+    // Build a snapshot with the agent's ID and current timestamp
+    let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let snapshot = WorkingMemorySnapshot {
+        agent_id: agent_id.clone(),
+        slots: Vec::new(),
+        momentum_embeddings: Vec::new(),
+        saved_at: now,
+    };
+
+    state
+        .store
+        .engram_save_snapshot(&snapshot)
+        .map_err(|e| e.to_string())?;
+
+    log::info!(
+        "[engram] Working memory snapshot saved for agent '{}'",
+        agent_id
+    );
+    Ok(())
+}
+
+/// Restore working memory snapshot for an agent (called on agent switch).
+#[tauri::command]
+pub fn engine_working_memory_restore(
+    state: State<'_, EngineState>,
+    agent_id: String,
+) -> Result<serde_json::Value, String> {
+    match state.store.engram_load_snapshot(&agent_id) {
+        Ok(Some(snapshot)) => {
+            log::info!("[engram] Working memory restored for agent '{}'", agent_id);
+            let value = serde_json::to_value(&snapshot).unwrap_or(serde_json::json!(null));
+            Ok(value)
+        }
+        Ok(None) => Ok(serde_json::json!(null)),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// GDPR right-to-erasure: purge ALL memories for given user identifiers.
+/// This securely erases episodic, semantic, procedural memories, snapshots,
+/// and audit log entries. Implements Article 17 right to be forgotten.
+#[tauri::command]
+pub fn engine_memory_purge_user(
+    state: State<'_, EngineState>,
+    identifiers: Vec<String>,
+) -> Result<serde_json::Value, String> {
+    use crate::engine::engram::encryption::{engram_purge_user, UserPurgeRequest};
+
+    let request = UserPurgeRequest { identifiers };
+    let result = engram_purge_user(&state.store, &request).map_err(|e| e.to_string())?;
+
+    Ok(serde_json::json!({
+        "records_erased": result.records_erased,
+        "identifiers_processed": result.identifiers_processed,
+    }))
+}

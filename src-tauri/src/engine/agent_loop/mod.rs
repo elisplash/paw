@@ -511,6 +511,8 @@ pub async fn run_agent_turn(
                 // ── Agent memory / profile ──
                 "soul_write",
                 "memory_store",
+                "memory_knowledge",
+                "memory_stats",
                 "update_profile",
                 // ── Task management ──
                 "create_task",

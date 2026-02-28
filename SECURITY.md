@@ -174,6 +174,69 @@ The following hardening measures were applied as part of a systematic enterprise
 - **TLS certificate pinning**: All provider connections use a custom `rustls::ClientConfig` pinned to Mozilla root certificates only. The OS trust store is explicitly excluded — a compromised or rogue system CA cannot intercept API traffic.
 - **Outbound request signing**: Every AI provider request is SHA-256 signed before transmission (`provider ‖ model ‖ timestamp ‖ body`). Hashes are logged to an in-memory ring buffer (500 entries) for tamper detection and compliance auditing.
 - **Memory encryption (secure zeroing)**: API keys in provider structs are wrapped in `Zeroizing<String>` from the `zeroize` crate. When a provider is dropped, the key memory is immediately zeroed using `write_volatile` to prevent dead-store elimination by the compiler.
+- **Anti-forensic vault-size quantization (KDBX-equivalent)**: The Engram memory store uses three mitigations to prevent file-size side-channel leakage:
+  1. **Bucket padding** — The SQLite database is padded to 512KB bucket boundaries (via `_engram_padding` table) so an attacker observing the file can only determine a coarse size bucket, not the exact memory count. Re-padded after every GC cycle. This is the SQLite equivalent of KDBX inner-content padding.
+  2. **Secure erasure** — Memory deletion is two-phase: content fields are overwritten with empty values *before* the row is deleted, preventing plaintext recovery from freed SQLite pages or WAL replay. Complements `PRAGMA secure_delete = ON`.
+  3. **8KB pages + incremental auto-vacuum** — Larger page size reduces file-size granularity; incremental vacuum prevents the file from shrinking immediately after deletions (which would reveal deletion count).
+
+---
+
+## Engram Memory Security
+
+The Engram memory subsystem applies defense-in-depth to all stored agent memories (episodic, semantic, and procedural). This protects user data even if an attacker gains access to the SQLite database file.
+
+### Field-Level Encryption
+
+Memories containing personally identifiable information (PII) are automatically encrypted before storage using **AES-256-GCM** with a dedicated keychain key (`paw-memory-vault`), separate from the credential vault key.
+
+**Automatic PII detection** scans memory content for 9 pattern types before storage:
+- Social Security Numbers, credit card numbers, phone numbers
+- Email addresses, physical addresses
+- Person names, geographic locations
+- Credentials (passwords, API keys, tokens)
+- Government IDs
+
+**Three security tiers:**
+
+| Tier | Content | Treatment |
+|------|---------|-----------|
+| **Cleartext** | No PII detected | Stored as-is |
+| **Sensitive** | PII detected (email, name, phone) | AES-256-GCM encrypted, `enc:` prefix |
+| **Confidential** | High-sensitivity PII (SSN, credit card, credentials) | AES-256-GCM encrypted, `enc:` prefix |
+
+Encrypted content uses the format `enc:<base64(nonce ‖ ciphertext ‖ tag)>`. A fresh 96-bit nonce is generated per encryption. Decryption is automatic on retrieval.
+
+### Query Sanitization
+
+- **FTS5 injection prevention** — All user-supplied search queries are sanitized before reaching SQLite's full-text search engine. FTS5 operators (`AND`, `OR`, `NOT`, `NEAR`, `*`, `"`, `{`, `}`, `^`) are stripped or escaped.
+- **Input validation** — Memory content is capped at 256 KB. Null bytes are rejected. Category strings are validated against the 18-variant enum with graceful fallback to `general`.
+
+### Prompt Injection Scanning
+
+Recalled memories are scanned for 10 prompt injection patterns before being returned to the agent context:
+- System prompt overrides (`ignore previous instructions`, `you are now`)
+- Data exfiltration attempts (`output all`, `dump`, `show me the`)
+- Role manipulation (`act as`, `pretend to be`)
+- Instruction injection (`new instruction`, `from now on`)
+- Delimiter attacks and encoding bypass attempts
+
+Suspicious memories are flagged in logs with redacted previews.
+
+### Log Redaction
+
+Memory content in log output is automatically redacted:
+- PII patterns are replaced with type-specific placeholders (e.g., `[EMAIL]`, `[SSN]`, `[CREDIT_CARD]`)
+- Log previews are truncated to 80 characters
+- Full content never appears in log files
+
+### GDPR Right to Erasure
+
+Article 17 compliance via the `engine_memory_purge_user` Tauri command:
+- Accepts a list of user identifiers (names, emails, usernames)
+- Securely erases all matching records across episodic, semantic, and procedural memory tables
+- Purges working memory snapshots and audit log entries
+- Two-phase deletion: content zeroed before row deletion
+- Returns a count of erased records for compliance reporting
 
 ---
 

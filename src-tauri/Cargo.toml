@@ -92,6 +92,9 @@ aes-gcm = "0.10"
 # ── Secure memory zeroing ───────────────────────────────────────
 zeroize = { version = "1", features = ["derive"] }
 
+# ── PII detection (memory encryption / GDPR) ────────────────────
+regex = "1"
+
 # ── Solana DEX Trading ───────────────────────────────────────
 bs58 = "0.5"
 

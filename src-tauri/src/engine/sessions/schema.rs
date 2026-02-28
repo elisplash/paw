@@ -434,6 +434,9 @@ pub(crate) fn run_migrations(conn: &Connection) -> EngineResult<()> {
         ).ok();
     }
 
+    // ── Engram: Three-tier memory system tables ─────────────────────
+    crate::engine::engram::schema::run_engram_migrations(conn)?;
+
     Ok(())
 }
 

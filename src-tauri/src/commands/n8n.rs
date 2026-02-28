@@ -4,7 +4,7 @@ use crate::engine::channels;
 use crate::engine::n8n_engine;
 use crate::engine::skills;
 use crate::engine::state::EngineState;
-use log::{info, error};
+use log::{error, info};
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
@@ -696,7 +696,9 @@ pub async fn engine_n8n_community_packages_install(
     let pkg: CommunityPackage = serde_json::from_str(&body_text).map_err(|e| {
         error!(
             "[n8n] Failed to parse install response for {}: {} — body: {}",
-            package_name, e, &body_text[..body_text.len().min(500)]
+            package_name,
+            e,
+            &body_text[..body_text.len().min(500)]
         );
         format!("Failed to parse response: {}", e)
     })?;

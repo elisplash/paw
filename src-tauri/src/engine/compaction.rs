@@ -3,6 +3,7 @@
 // with a compact summary to free context window space.
 
 use crate::atoms::error::EngineResult;
+use crate::engine::engram;
 use crate::engine::providers::AnyProvider;
 use crate::engine::sessions::SessionStore;
 use crate::engine::types::*;
@@ -221,6 +222,35 @@ pub async fn compact_session(
         created_at: chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     };
     store.add_message(&summary_msg)?;
+
+    // 5b. Store compaction summary in Engram memory (§13 bridge)
+    // This ensures session learnings are preserved for long-term recall
+    // even after the original messages are deleted.
+    {
+        let emb_client = None; // No embedding client in this context — deferred to backfill
+        match engram::bridge::store_auto_capture(
+            store,
+            &summary_text,
+            "session",
+            emb_client,
+            None, // agent_id not available at compaction time
+            Some(session_id),
+            None, // no channel
+            None, // no channel user
+        )
+        .await
+        {
+            Ok(Some(id)) => info!(
+                "[compaction] Compaction summary stored in Engram (id={})",
+                &id[..id.len().min(8)]
+            ),
+            Ok(None) => info!("[compaction] Compaction summary skipped (near-duplicate)"),
+            Err(e) => warn!(
+                "[compaction] Failed to store compaction summary in Engram: {}",
+                e
+            ),
+        }
+    }
 
     // 6. Calculate final stats
     let remaining = store.get_messages(session_id, 10_000)?;

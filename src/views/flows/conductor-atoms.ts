@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // The Conductor Protocol — Atoms Hub (Re-exports + Strategy Compiler)
 // AI-compiled flow execution: Collapse, Extract, Parallelize, Converge.
-// 
+//
 // Sub-modules:
 //   conductor-graph.ts    — Node classification, adjacency, cycles, depths
 //   conductor-collapse.ts — Collapse chain detection & prompt merging

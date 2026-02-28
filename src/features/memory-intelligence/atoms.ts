@@ -60,12 +60,22 @@ export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
 export const MEMORY_CATEGORIES = [
   'general',
   'preference',
-  'instruction',
-  'context',
   'fact',
+  'skill',
+  'context',
+  'instruction',
+  'correction',
+  'feedback',
   'project',
   'person',
   'technical',
+  'session',
+  'task_result',
+  'summary',
+  'conversation',
+  'insight',
+  'error_log',
+  'procedure',
 ] as const;
 
 export type MemoryCategory = (typeof MEMORY_CATEGORIES)[number];

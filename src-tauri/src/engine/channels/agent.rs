@@ -6,6 +6,7 @@
 use crate::atoms::error::EngineResult;
 use crate::engine::agent_loop;
 use crate::engine::chat as chat_org;
+use crate::engine::engram;
 use crate::engine::injection;
 use crate::engine::memory;
 use crate::engine::providers::AnyProvider;
@@ -252,12 +253,19 @@ pub async fn run_channel_agent(
     };
 
     // Load conversation history.
-    // With the lean system prompt (~3K chars vs ~28K), we can afford a larger
-    // context window for channel bridges. This gives multi-step tasks (like
-    // creating 15+ channels) room to remember earlier results.
+    // Use the model capability registry to determine the actual context window
+    // for this model, instead of a hardcoded 16K cap. Channel bridges benefit
+    // from larger windows for multi-step tasks (e.g., creating 15+ channels).
     let context_window = {
         let cfg = engine_state.config.lock();
-        std::cmp::min(cfg.context_window_tokens, 16_000)
+        let model_window = crate::engine::engram::model_caps::resolve_context_window(
+            &model,
+            cfg.context_window_tokens,
+        );
+        // Use the smaller of user config and model capability.
+        // For channel bridges, cap at 50% of model window to leave room for tools.
+        let channel_cap = model_window / 2;
+        std::cmp::min(cfg.context_window_tokens, channel_cap.max(16_000))
     };
     let mut messages = engine_state.store.load_conversation(
         &session_id,
@@ -511,6 +519,7 @@ pub async fn run_channel_agent(
             if !facts.is_empty() {
                 let emb_client = engine_state.embedding_client();
                 for (content, category) in &facts {
+                    // Legacy memory store
                     match memory::store_memory_dedup(
                         &engine_state.store,
                         content,
@@ -525,6 +534,19 @@ pub async fn run_channel_agent(
                         Ok(None) => info!("[channel-agent] Skipped duplicate memory"),
                         Err(e) => warn!("[channel-agent] Memory store failed: {}", e),
                     }
+
+                    // Engram three-tier store (with channel/user scope)
+                    let _ = engram::bridge::store_auto_capture(
+                        &engine_state.store,
+                        content,
+                        category,
+                        emb_client.as_ref(),
+                        Some(agent_id),
+                        Some(&session_id),
+                        Some(channel_prefix),
+                        Some(user_id),
+                    )
+                    .await;
                 }
             }
         }
