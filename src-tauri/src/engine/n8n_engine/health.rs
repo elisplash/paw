@@ -150,10 +150,10 @@ pub async fn setup_owner_if_needed(base_url: &str) -> Result<(), String> {
 ///
 /// Flow:
 ///   1. Sign in as owner → get session cookie
-///   2. Fetch MCP settings → get the access token
+///   2. POST /rest/mcp/api-key → create MCP API key (returns data.apiKey)
 ///
-/// This token is separate from N8N_API_KEY and is required for
-/// authenticating to `/mcp-server/http`.
+/// The MCP API key is a JWT with audience "mcp-server-api", separate from
+/// N8N_API_KEY. It is required for Bearer auth on `/mcp-server/http`.
 pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
     let base = base_url.trim_end_matches('/');
 
@@ -164,7 +164,7 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
         .build()
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
-    // Step 1: Sign in to get session
+    // Step 1: Sign in to get session cookie
     let login_url = format!("{}/rest/login", base);
     let login_body = serde_json::json!({
         "emailOrLdapLoginId": OWNER_EMAIL,
@@ -189,101 +189,48 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
         ));
     }
 
-    // Parse login response — may contain the MCP token directly,
-    // or we may need to fetch it from settings
-    let login_data: serde_json::Value = login_resp
-        .json()
-        .await
-        .map_err(|e| format!("Parse login response: {}", e))?;
+    log::info!("[n8n] Login successful, creating MCP API key");
 
-    log::debug!("[n8n] Login successful, fetching MCP settings");
-
-    // Step 2: Try to get MCP settings (with session cookie from login)
-    // n8n's internal API for MCP settings
-    let mcp_settings_url = format!("{}/rest/mcp", base);
+    // Step 2: Create MCP API key via POST /rest/mcp/api-key
+    // Response: { "data": { "apiKey": "<jwt>", "audience": "mcp-server-api", ... } }
+    let mcp_key_url = format!("{}/rest/mcp/api-key", base);
     let mcp_resp = client
-        .get(&mcp_settings_url)
+        .post(&mcp_key_url)
         .send()
         .await
-        .map_err(|e| format!("MCP settings request failed: {}", e))?;
+        .map_err(|e| format!("MCP API key request failed: {}", e))?;
 
-    if mcp_resp.status().is_success() {
-        let mcp_data: serde_json::Value = mcp_resp
-            .json()
-            .await
-            .map_err(|e| format!("Parse MCP settings: {}", e))?;
-
-        // Look for access token / API key in the response
-        if let Some(token) = mcp_data
-            .get("data")
-            .and_then(|d| d.get("accessToken"))
-            .and_then(|t| t.as_str())
-        {
-            log::info!("[n8n] Retrieved MCP access token from settings");
-            return Ok(token.to_string());
-        }
-
-        // Also check mcp_token, token, apiKey fields
-        for field in &["accessToken", "mcp_token", "token", "apiKey"] {
-            if let Some(token) = mcp_data.get(field).and_then(|t| t.as_str()) {
-                log::info!("[n8n] Retrieved MCP token from field '{}'", field);
-                return Ok(token.to_string());
-            }
-            // Check nested under "data"
-            if let Some(token) = mcp_data
-                .get("data")
-                .and_then(|d| d.get(field))
-                .and_then(|t| t.as_str())
-            {
-                log::info!("[n8n] Retrieved MCP token from data.{}", field);
-                return Ok(token.to_string());
-            }
-        }
-
-        log::debug!(
-            "[n8n] MCP settings response (no token found): {}",
-            &serde_json::to_string(&mcp_data).unwrap_or_default()[..200.min(
-                serde_json::to_string(&mcp_data)
-                    .unwrap_or_default()
-                    .len()
-            )]
-        );
-    } else {
-        let status = mcp_resp.status();
-        log::debug!("[n8n] MCP settings endpoint returned HTTP {}", status);
+    let mcp_status = mcp_resp.status();
+    if !mcp_status.is_success() {
+        let body = mcp_resp.text().await.unwrap_or_default();
+        return Err(format!(
+            "MCP API key creation failed (HTTP {}): {}",
+            mcp_status,
+            &body[..body.len().min(200)]
+        ));
     }
 
-    // Step 3: Fallback — try the user's settings/API page
-    let settings_url = format!("{}/rest/mcp/api-key", base);
-    let settings_resp = client.get(&settings_url).send().await;
+    let mcp_data: serde_json::Value = mcp_resp
+        .json()
+        .await
+        .map_err(|e| format!("Parse MCP API key response: {}", e))?;
 
-    if let Ok(resp) = settings_resp {
-        if resp.status().is_success() {
-            if let Ok(data) = resp.json::<serde_json::Value>().await {
-                for field in &["apiKey", "key", "token", "data"] {
-                    if let Some(token) = data.get(field).and_then(|t| t.as_str()) {
-                        if !token.is_empty() {
-                            log::info!("[n8n] Retrieved MCP token from api-key endpoint");
-                            return Ok(token.to_string());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Step 4: Try using the login response itself — some n8n versions
-    // return an API key in the login response that works for MCP
-    if let Some(token) = login_data
+    // Extract the JWT from data.apiKey
+    if let Some(token) = mcp_data
         .get("data")
         .and_then(|d| d.get("apiKey"))
         .and_then(|t| t.as_str())
     {
         if !token.is_empty() {
-            log::info!("[n8n] Using apiKey from login response for MCP auth");
+            log::info!("[n8n] Retrieved MCP API key (audience: mcp-server-api)");
             return Ok(token.to_string());
         }
     }
 
-    Err("Could not retrieve MCP access token from n8n settings".to_string())
+    // Log the response shape for debugging if apiKey wasn't found
+    let resp_str = serde_json::to_string(&mcp_data).unwrap_or_default();
+    Err(format!(
+        "MCP API key response missing data.apiKey: {}",
+        &resp_str[..resp_str.len().min(300)]
+    ))
 }
