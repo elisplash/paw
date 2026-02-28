@@ -414,6 +414,132 @@ return input.toUpperCase();">${codeVal}</textarea>
     `;
   }
 
+  // Squad node config
+  if (node.kind === ('squad' as typeof node.kind)) {
+    const squadId = escAttr((config.squadId as string) ?? '');
+    const squadObj = escAttr((config.squadObjective as string) ?? '');
+    const squadTimeout = ((config.squadTimeoutMs as number) ?? 300000) / 1000;
+    const squadRounds = (config.squadMaxRounds as number) ?? 5;
+    configFieldsHtml += `
+      <div class="flow-panel-retry-config" style="margin-top: 8px">
+        <div class="flow-panel-retry-header">
+          <span class="ms" style="font-size:14px;color:var(--kinetic-purple, #A855F7)">groups</span>
+          <span>Squad</span>
+        </div>
+        <label class="flow-panel-field">
+          <span>Squad ID</span>
+          <input type="text" class="flow-panel-input" data-config="squadId" value="${squadId}" placeholder="Select or enter squad ID" />
+        </label>
+        <label class="flow-panel-field">
+          <span>Objective</span>
+          <textarea class="flow-panel-textarea" data-config="squadObjective" rows="2" placeholder="Task or goal for the squad (uses upstream input if empty)">${squadObj}</textarea>
+        </label>
+        <label class="flow-panel-field">
+          <span>Timeout (s)</span>
+          <input type="number" class="flow-panel-input" data-config="squadTimeoutMs" value="${squadTimeout}" min="10" max="600" step="10" />
+        </label>
+        <label class="flow-panel-field">
+          <span>Max Rounds</span>
+          <input type="number" class="flow-panel-input" data-config="squadMaxRounds" value="${squadRounds}" min="1" max="20" step="1" />
+        </label>
+        <span class="flow-panel-hint">The squad will discuss and converge on a result within the round limit.</span>
+      </div>
+    `;
+  }
+
+  // Memory-write node config
+  if (node.kind === ('memory' as typeof node.kind)) {
+    const memSrc = (config.memorySource as string) ?? 'output';
+    const memContent = escAttr((config.memoryContent as string) ?? '');
+    const memCat = (config.memoryCategory as string) ?? 'insight';
+    const memImp = (config.memoryImportance as number) ?? 0.5;
+    const memAgent = escAttr((config.memoryAgentId as string) ?? '');
+    const categories = ['insight', 'fact', 'preference', 'summary', 'conversation', 'task_result', 'error_log', 'custom'];
+    configFieldsHtml += `
+      <div class="flow-panel-retry-config" style="margin-top: 8px">
+        <div class="flow-panel-retry-header">
+          <span class="ms" style="font-size:14px;color:var(--kinetic-sage, #6B8E6B)">save</span>
+          <span>Memory Write</span>
+        </div>
+        <label class="flow-panel-field">
+          <span>Content Source</span>
+          <select class="flow-panel-select" data-config="memorySource">
+            <option value="output"${memSrc === 'output' ? ' selected' : ''}>Node Output</option>
+            <option value="custom"${memSrc === 'custom' ? ' selected' : ''}>Custom Text</option>
+          </select>
+        </label>
+        <label class="flow-panel-field">
+          <span>Custom Content</span>
+          <textarea class="flow-panel-textarea" data-config="memoryContent" rows="2" placeholder="Custom content to store (when source is Custom)">${memContent}</textarea>
+        </label>
+        <label class="flow-panel-field">
+          <span>Category</span>
+          <select class="flow-panel-select" data-config="memoryCategory">
+            ${categories.map((c) => `<option value="${c}"${memCat === c ? ' selected' : ''}>${c.replace('_', ' ')}</option>`).join('')}
+          </select>
+        </label>
+        <label class="flow-panel-field">
+          <span>Importance (0–1)</span>
+          <input type="number" class="flow-panel-input" data-config="memoryImportance" value="${memImp}" min="0" max="1" step="0.1" />
+        </label>
+        <label class="flow-panel-field">
+          <span>Agent ID (scope)</span>
+          <input type="text" class="flow-panel-input" data-config="memoryAgentId" value="${memAgent}" placeholder="Optional — scopes memory to agent" />
+        </label>
+        <span class="flow-panel-hint">Stores information in long-term memory for future recall.</span>
+      </div>
+    `;
+  }
+
+  // Memory-recall node config
+  if (node.kind === ('memory-recall' as typeof node.kind)) {
+    const mqSrc = (config.memoryQuerySource as string) ?? 'input';
+    const mqQuery = escAttr((config.memoryQuery as string) ?? '');
+    const mqLimit = (config.memoryLimit as number) ?? 5;
+    const mqThreshold = (config.memoryThreshold as number) ?? 0.3;
+    const mqFormat = (config.memoryOutputFormat as string) ?? 'text';
+    const mqAgent = escAttr((config.memoryAgentId as string) ?? '');
+    configFieldsHtml += `
+      <div class="flow-panel-retry-config" style="margin-top: 8px">
+        <div class="flow-panel-retry-header">
+          <span class="ms" style="font-size:14px;color:var(--kinetic-gold, #DAA520)">manage_search</span>
+          <span>Memory Recall</span>
+        </div>
+        <label class="flow-panel-field">
+          <span>Query Source</span>
+          <select class="flow-panel-select" data-config="memoryQuerySource">
+            <option value="input"${mqSrc === 'input' ? ' selected' : ''}>Upstream Input</option>
+            <option value="custom"${mqSrc === 'custom' ? ' selected' : ''}>Custom Query</option>
+          </select>
+        </label>
+        <label class="flow-panel-field">
+          <span>Custom Query</span>
+          <input type="text" class="flow-panel-input" data-config="memoryQuery" value="${mqQuery}" placeholder="Search query (when source is Custom)" />
+        </label>
+        <label class="flow-panel-field">
+          <span>Max Results</span>
+          <input type="number" class="flow-panel-input" data-config="memoryLimit" value="${mqLimit}" min="1" max="50" step="1" />
+        </label>
+        <label class="flow-panel-field">
+          <span>Min Relevance (0–1)</span>
+          <input type="number" class="flow-panel-input" data-config="memoryThreshold" value="${mqThreshold}" min="0" max="1" step="0.05" />
+        </label>
+        <label class="flow-panel-field">
+          <span>Output Format</span>
+          <select class="flow-panel-select" data-config="memoryOutputFormat">
+            <option value="text"${mqFormat === 'text' ? ' selected' : ''}>Text (numbered list)</option>
+            <option value="json"${mqFormat === 'json' ? ' selected' : ''}>JSON (array)</option>
+          </select>
+        </label>
+        <label class="flow-panel-field">
+          <span>Agent ID (scope)</span>
+          <input type="text" class="flow-panel-input" data-config="memoryAgentId" value="${mqAgent}" placeholder="Optional — scopes search to agent" />
+        </label>
+        <span class="flow-panel-hint">Searches long-term memory and provides results to downstream nodes.</span>
+      </div>
+    `;
+  }
+
   // Variable assignment — available on all node kinds
   {
     const setVarKey = escAttr((config.setVariableKey as string) ?? '');
@@ -470,7 +596,7 @@ return input.toUpperCase();">${codeVal}</textarea>
   }
 
   // Retry config
-  if (['agent', 'tool', 'data', 'code', 'http', 'mcp-tool', 'loop'].includes(node.kind)) {
+  if (['agent', 'tool', 'data', 'code', 'http', 'mcp-tool', 'loop', 'squad', 'memory', 'memory-recall'].includes(node.kind)) {
     const maxRetries = (config.maxRetries as number) ?? 0;
     const retryDelay = (config.retryDelayMs as number) ?? 1000;
     const retryBackoff = (config.retryBackoff as number) ?? 2;
@@ -497,7 +623,7 @@ return input.toUpperCase();">${codeVal}</textarea>
   }
 
   // Timeout field
-  if (['agent', 'tool', 'condition', 'data', 'code', 'http', 'mcp-tool', 'loop'].includes(node.kind)) {
+  if (['agent', 'tool', 'condition', 'data', 'code', 'http', 'mcp-tool', 'loop', 'squad', 'memory', 'memory-recall'].includes(node.kind)) {
     configFieldsHtml += `
       <label class="flow-panel-field">
         <span>Timeout (s)</span>

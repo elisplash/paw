@@ -705,6 +705,21 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
           // Group/sub-flow nodes: execute the referenced sub-flow
           output = await executeSubFlow(node, upstreamInput, config, defaultAgentId);
           break;
+
+        case 'squad' as FlowNode['kind']:
+          // Squad nodes: invoke multi-agent team
+          output = await executeSquadNode(node, upstreamInput, config);
+          break;
+
+        case 'memory' as FlowNode['kind']:
+          // Memory-write nodes: store data to long-term memory
+          output = await executeMemoryWriteNode(node, upstreamInput, config);
+          break;
+
+        case 'memory-recall' as FlowNode['kind']:
+          // Memory-recall nodes: search/retrieve from long-term memory
+          output = await executeMemoryRecallNode(node, upstreamInput, config);
+          break;
       }
 
       // Success
@@ -1069,7 +1084,7 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
         body: response.body,
         duration_ms: response.duration_ms,
       });
-    } catch (err) {
+    } catch (_err) {
       // Fallback: try in-browser fetch (for dev mode without Tauri)
       const resp = await fetch(url, {
         method,
@@ -1333,6 +1348,164 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
       return subOutput;
     } finally {
       _subFlowDepth--;
+    }
+  }
+
+  // ── Phase 4: Squad / Memory / Memory-Recall Node Handlers ────────────────
+
+  /**
+   * Execute a squad node — invoke a multi-agent team via the squad API.
+   * Sends a task to the squad and returns the combined result.
+   */
+  async function executeSquadNode(
+    node: FlowNode,
+    upstreamInput: string,
+    config: NodeExecConfig,
+  ): Promise<string> {
+    const squadId = config.squadId;
+    if (!squadId) {
+      throw new Error('Squad node: no squad selected. Configure a squad ID.');
+    }
+
+    const objective = config.squadObjective || upstreamInput || node.label;
+    const timeoutMs = config.squadTimeoutMs ?? 300_000;
+
+    callbacks.onEvent({
+      type: 'step-progress' as FlowExecEvent['type'],
+      runId: _runState!.runId,
+      nodeId: node.id,
+      delta: `Dispatching to squad ${squadId}…`,
+    } as FlowExecEvent);
+
+    // Use engineChatSend to orchestrate the squad task
+    // The squad profile routes to squad-handling in the Rust backend
+    const sessionKey = `flow-squad-${_runState!.runId}-${node.id}`;
+    let result = '';
+
+    try {
+      const response = await Promise.race([
+        engineChatSend(
+          sessionKey,
+          `[Squad Task] ${objective}\n\n[Context]\n${upstreamInput}`,
+          {
+            agentProfile: {
+              id: squadId,
+              name: `Squad ${squadId}`,
+              bio: `Multi-agent squad executing: ${node.label}`,
+              systemPrompt: `You are coordinating a squad of agents. Objective: ${objective}`,
+              model: config.model || '',
+              personality: { tone: 'focused' },
+              boundaries: [],
+              autoApproveAll: true,
+            },
+          },
+        ),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Squad timeout after ${timeoutMs / 1000}s`)), timeoutMs),
+        ),
+      ]);
+      result = response?.text ?? 'Squad completed with no output.';
+    } catch (err) {
+      throw new Error(`Squad execution failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Execute a memory-write node — store data to long-term memory via IPC.
+   */
+  async function executeMemoryWriteNode(
+    node: FlowNode,
+    upstreamInput: string,
+    config: NodeExecConfig,
+  ): Promise<string> {
+    const category = config.memoryCategory ?? 'insight';
+    const importance = config.memoryImportance ?? 0.5;
+    const agentId = config.memoryAgentId;
+
+    // Determine what to store
+    let content: string;
+    if (config.memorySource === 'custom' && config.memoryContent) {
+      content = config.memoryContent;
+    } else {
+      content = upstreamInput || 'No content to store.';
+    }
+
+    // Prefix with node context
+    const contextContent = `[Flow: ${node.label}] ${content}`;
+
+    callbacks.onEvent({
+      type: 'step-progress' as FlowExecEvent['type'],
+      runId: _runState!.runId,
+      nodeId: node.id,
+      delta: `Storing to memory (${category})…`,
+    } as FlowExecEvent);
+
+    try {
+      await pawEngine.memoryStore(contextContent, category, importance, agentId);
+    } catch (err) {
+      throw new Error(`Memory store failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+
+    return `Stored to memory [${category}] (importance: ${importance}): ${content.slice(0, 100)}${content.length > 100 ? '…' : ''}`;
+  }
+
+  /**
+   * Execute a memory-recall node — search long-term memory via IPC.
+   */
+  async function executeMemoryRecallNode(
+    node: FlowNode,
+    upstreamInput: string,
+    config: NodeExecConfig,
+  ): Promise<string> {
+    const limit = config.memoryLimit ?? 5;
+    const agentId = config.memoryAgentId;
+    const outputFormat = config.memoryOutputFormat ?? 'text';
+
+    // Determine the search query
+    let query: string;
+    if (config.memoryQuerySource === 'custom' && config.memoryQuery) {
+      query = config.memoryQuery;
+    } else {
+      query = upstreamInput || node.label;
+    }
+
+    if (!query.trim()) {
+      return outputFormat === 'json' ? '[]' : 'No query provided for memory recall.';
+    }
+
+    callbacks.onEvent({
+      type: 'step-progress' as FlowExecEvent['type'],
+      runId: _runState!.runId,
+      nodeId: node.id,
+      delta: `Searching memory: "${query.slice(0, 50)}"…`,
+    } as FlowExecEvent);
+
+    try {
+      const results = await pawEngine.memorySearch(query, limit, agentId);
+
+      if (!results || results.length === 0) {
+        return outputFormat === 'json' ? '[]' : 'No relevant memories found.';
+      }
+
+      // Filter by threshold
+      const threshold = config.memoryThreshold ?? 0.3;
+      const filtered = results.filter((m: { score?: number }) => (m.score ?? 1) >= threshold);
+
+      if (outputFormat === 'json') {
+        return JSON.stringify(filtered, null, 2);
+      }
+
+      // Text format: numbered list
+      return filtered
+        .map((m: { content: string; category?: string; score?: number }, i: number) => {
+          const scoreStr = m.score !== undefined ? ` (${(m.score * 100).toFixed(0)}% match)` : '';
+          return `${i + 1}. [${m.category ?? 'memory'}] ${m.content}${scoreStr}`;
+        })
+        .join('\n');
+    } catch (err) {
+      throw new Error(`Memory search failed: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

@@ -17,7 +17,10 @@ export type FlowNodeKind =
   | 'group' // Sub-flow / compound node
   | 'http' // Direct HTTP request (no LLM — Conductor Extract)
   | 'mcp-tool' // Direct MCP tool call (no LLM — Conductor Extract)
-  | 'loop'; // ForEach iterator over arrays
+  | 'loop' // ForEach iterator over arrays
+  | 'squad' // Multi-agent squad invocation
+  | 'memory' // Write to agent memory (Librarian)
+  | 'memory-recall'; // Search/read agent memory (Librarian)
 
 export type EdgeKind =
   | 'forward' // Normal A → B
@@ -213,6 +216,9 @@ export const NODE_DEFAULTS: Record<
   http: { width: 180, height: 72, color: 'var(--kinetic-sage, #5BA08C)', icon: 'http' },
   'mcp-tool': { width: 180, height: 72, color: 'var(--kinetic-steel, #7A8B9A)', icon: 'integration_instructions' },
   loop: { width: 180, height: 80, color: 'var(--kinetic-gold, #D4A853)', icon: 'repeat' },
+  squad: { width: 200, height: 80, color: 'var(--kinetic-purple, #A855F7)', icon: 'groups' },
+  memory: { width: 180, height: 72, color: 'var(--kinetic-sage, #5BA08C)', icon: 'save' },
+  'memory-recall': { width: 180, height: 72, color: 'var(--kinetic-gold, #D4A853)', icon: 'manage_search' },
 };
 
 export const GRID_SIZE = 20;

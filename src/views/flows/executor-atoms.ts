@@ -84,6 +84,37 @@ export interface NodeExecConfig {
   retryBackoff?: number;
   /** Timeout in ms */
   timeoutMs?: number;
+  // ── Phase 4: Squad / Memory / Memory-Recall fields ───────────────────────
+  /** For squad nodes: squad ID to invoke */
+  squadId?: string;
+  /** For squad nodes: objective / task description */
+  squadObjective?: string;
+  /** For squad nodes: timeout in ms (default 300000) */
+  squadTimeoutMs?: number;
+  /** For squad nodes: max discussion rounds */
+  squadMaxRounds?: number;
+  /** For memory nodes: content source ('output' | 'custom') */
+  memorySource?: 'output' | 'custom';
+  /** For memory nodes: custom content to store */
+  memoryContent?: string;
+  /** For memory/memory-recall nodes: agent ID to scope by */
+  memoryAgentId?: string;
+  /** For memory nodes: category */
+  memoryCategory?: string;
+  /** For memory nodes: importance 0–1 */
+  memoryImportance?: number;
+  /** For memory-recall nodes: query source ('input' | 'custom') */
+  memoryQuerySource?: 'input' | 'custom';
+  /** For memory-recall nodes: custom search query */
+  memoryQuery?: string;
+  /** For memory-recall nodes: max results */
+  memoryLimit?: number;
+  /** For memory-recall nodes: min relevance threshold 0–1 */
+  memoryThreshold?: number;
+  /** For memory-recall nodes: output format */
+  memoryOutputFormat?: 'text' | 'json';
+  /** Whether self-healing is enabled on this node */
+  selfHealEnabled?: boolean;
 }
 
 /** Full execution state for a flow run. */
@@ -457,6 +488,22 @@ export function getNodeExecConfig(node: FlowNode): NodeExecConfig {
     retryDelayMs: (c.retryDelayMs as number) ?? 1000,
     retryBackoff: (c.retryBackoff as number) ?? 2,
     timeoutMs: (c.timeoutMs as number) ?? 120_000,
+    // Phase 4: Squad / Memory
+    squadId: (c.squadId as string) ?? undefined,
+    squadObjective: (c.squadObjective as string) ?? undefined,
+    squadTimeoutMs: (c.squadTimeoutMs as number) ?? 300_000,
+    squadMaxRounds: (c.squadMaxRounds as number) ?? 5,
+    memorySource: (c.memorySource as 'output' | 'custom') ?? 'output',
+    memoryContent: (c.memoryContent as string) ?? undefined,
+    memoryAgentId: (c.memoryAgentId as string) ?? undefined,
+    memoryCategory: (c.memoryCategory as string) ?? 'insight',
+    memoryImportance: (c.memoryImportance as number) ?? 0.5,
+    memoryQuerySource: (c.memoryQuerySource as 'input' | 'custom') ?? 'input',
+    memoryQuery: (c.memoryQuery as string) ?? undefined,
+    memoryLimit: (c.memoryLimit as number) ?? 5,
+    memoryThreshold: (c.memoryThreshold as number) ?? 0.3,
+    memoryOutputFormat: (c.memoryOutputFormat as 'text' | 'json') ?? 'text',
+    selfHealEnabled: (c.selfHealEnabled as boolean) ?? false,
   };
 }
 

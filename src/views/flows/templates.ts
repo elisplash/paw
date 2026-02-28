@@ -1313,4 +1313,163 @@ export const FLOW_TEMPLATES: FlowTemplate[] = [
       { fromIdx: 3, toIdx: 4 },
     ],
   },
+
+  // ── Phase 4: AI Superpowers Templates ────────────────────────────────────
+
+  {
+    id: 'tpl-squad-research',
+    name: 'Squad Research Team',
+    description: 'A multi-agent squad collaborates to research a topic and produce a comprehensive report.',
+    category: 'ai',
+    tags: ['squad', 'research', 'multi-agent', 'collaboration'],
+    icon: 'groups',
+    nodes: [
+      {
+        kind: 'trigger',
+        label: 'Research Topic',
+        description: 'User provides topic',
+        config: { prompt: 'Enter a research topic or question' },
+      },
+      {
+        kind: 'memory-recall' as 'trigger',
+        label: 'Recall Prior Research',
+        description: 'Check for existing knowledge',
+        config: { memoryQuerySource: 'input', memoryLimit: 5, memoryOutputFormat: 'text' },
+      },
+      {
+        kind: 'squad' as 'trigger',
+        label: 'Research Squad',
+        description: 'Multi-agent research team',
+        config: { squadObjective: 'Research the topic thoroughly, considering multiple perspectives', squadMaxRounds: 5 },
+      },
+      {
+        kind: 'memory' as 'trigger',
+        label: 'Save Findings',
+        description: 'Store research results',
+        config: { memorySource: 'output', memoryCategory: 'insight', memoryImportance: 0.8 },
+      },
+      {
+        kind: 'output',
+        label: 'Research Report',
+        description: 'Deliver findings',
+        config: { outputTarget: 'chat' },
+      },
+    ],
+    edges: [
+      { fromIdx: 0, toIdx: 1 },
+      { fromIdx: 1, toIdx: 2 },
+      { fromIdx: 2, toIdx: 3 },
+      { fromIdx: 3, toIdx: 4 },
+    ],
+  },
+
+  {
+    id: 'tpl-memory-qa',
+    name: 'Memory-Augmented Q&A',
+    description: 'Answer questions using long-term memory for context, then store new insights.',
+    category: 'ai',
+    tags: ['memory', 'question-answering', 'context', 'learning'],
+    icon: 'manage_search',
+    nodes: [
+      {
+        kind: 'trigger',
+        label: 'User Question',
+        description: 'Incoming question',
+        config: { prompt: 'User asks a question' },
+      },
+      {
+        kind: 'memory-recall' as 'trigger',
+        label: 'Recall Context',
+        description: 'Search memory',
+        config: { memoryQuerySource: 'input', memoryLimit: 10, memoryThreshold: 0.3, memoryOutputFormat: 'text' },
+      },
+      {
+        kind: 'agent',
+        label: 'Answer with Context',
+        description: 'Generate informed answer',
+        config: {
+          prompt: 'Answer the user\'s question using the recalled context above. Cite specific memories when relevant. If no relevant memories exist, answer from general knowledge.',
+        },
+      },
+      {
+        kind: 'memory' as 'trigger',
+        label: 'Save Insight',
+        description: 'Remember this Q&A',
+        config: { memorySource: 'output', memoryCategory: 'fact', memoryImportance: 0.6 },
+      },
+      {
+        kind: 'output',
+        label: 'Send Answer',
+        description: 'Deliver to user',
+        config: { outputTarget: 'chat' },
+      },
+    ],
+    edges: [
+      { fromIdx: 0, toIdx: 1 },
+      { fromIdx: 1, toIdx: 2 },
+      { fromIdx: 2, toIdx: 3 },
+      { fromIdx: 3, toIdx: 4 },
+    ],
+  },
+
+  {
+    id: 'tpl-self-healing-pipeline',
+    name: 'Self-Healing Data Pipeline',
+    description: 'Fetch data from an API with automatic error recovery and retries.',
+    category: 'ai',
+    tags: ['self-healing', 'api', 'pipeline', 'error-recovery'],
+    icon: 'healing',
+    nodes: [
+      {
+        kind: 'trigger',
+        label: 'Schedule / Event',
+        description: 'Pipeline trigger',
+        config: { prompt: 'Pipeline triggered' },
+      },
+      {
+        kind: 'http' as 'trigger',
+        label: 'Fetch Data',
+        description: 'API request with retry',
+        config: { httpMethod: 'GET', httpUrl: 'https://api.example.com/data', maxRetries: 3, retryDelayMs: 2000, selfHealEnabled: true },
+      },
+      {
+        kind: 'code' as 'trigger',
+        label: 'Transform',
+        description: 'Parse & clean data',
+        config: { code: '// Transform the API response\nconst data = JSON.parse(input);\nreturn JSON.stringify(data.results || data, null, 2);' },
+      },
+      {
+        kind: 'condition',
+        label: 'Valid Data?',
+        description: 'Check quality',
+        config: { conditionExpr: 'input.length > 10' },
+      },
+      {
+        kind: 'memory' as 'trigger',
+        label: 'Cache Result',
+        description: 'Store for later use',
+        config: { memorySource: 'output', memoryCategory: 'task_result', memoryImportance: 0.7 },
+      },
+      {
+        kind: 'output',
+        label: 'Pipeline Result',
+        description: 'Deliver data',
+        config: { outputTarget: 'store' },
+      },
+      {
+        kind: 'error',
+        label: 'Log Failure',
+        description: 'Handle pipeline errors',
+        config: { errorTargets: ['log', 'toast'] },
+      },
+    ],
+    edges: [
+      { fromIdx: 0, toIdx: 1 },
+      { fromIdx: 1, toIdx: 2 },
+      { fromIdx: 2, toIdx: 3 },
+      { fromIdx: 3, toIdx: 4, label: 'true' },
+      { fromIdx: 4, toIdx: 5 },
+      { fromIdx: 3, toIdx: 6, label: 'false' },
+    ],
+  },
 ];

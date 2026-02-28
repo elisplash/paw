@@ -81,6 +81,8 @@ const DIRECT_KINDS: Set<FlowNodeKind> = new Set([
   'mcp-tool' as FlowNodeKind,
   'loop' as FlowNodeKind,
   'group',
+  'memory' as FlowNodeKind,
+  'memory-recall' as FlowNodeKind,
 ]);
 
 /** Kinds that are passthrough (no real execution). */
@@ -95,6 +97,9 @@ const PASSTHROUGH_KINDS: Set<FlowNodeKind> = new Set(['trigger']);
 export function classifyNode(node: FlowNode): NodeExecClassification {
   if (PASSTHROUGH_KINDS.has(node.kind)) return 'passthrough';
   if (DIRECT_KINDS.has(node.kind)) return 'direct';
+
+  // Squad nodes invoke multi-agent teams — always agent, never collapse
+  if (node.kind === ('squad' as FlowNodeKind)) return 'agent';
 
   // Tool nodes with no prompt are direct (action-only)
   if (node.kind === 'tool') {

@@ -246,7 +246,7 @@ async function migrateLocalStorageFlows(backendFlows: EngineFlow[]) {
     }
 
     if (migrated > 0) {
-      console.info(`[flows] Migrated ${migrated} flow(s) from localStorage to backend`);
+      console.debug(`[flows] Migrated ${migrated} flow(s) from localStorage to backend`);
     }
   } catch {
     // Migration is best-effort
