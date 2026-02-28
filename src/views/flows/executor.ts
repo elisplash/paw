@@ -23,7 +23,6 @@ import {
 import { engineChatSend } from '../../engine/molecules/bridge';
 import { pawEngine } from '../../engine/molecules/ipc_client';
 import { subscribeSession } from '../../engine/molecules/event_bus';
-import { appState } from '../../state/index';
 import { showToast } from '../../components/toast';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -481,7 +480,16 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
     // Accumulate streamed text
     let accumulated = '';
 
-    // Subscribe to session events to capture the response
+    // ── Phase 0.1: Event-driven stream completion ─────────────────────────
+    // Instead of polling every 250ms, we resolve/reject directly from the
+    // session subscriber's onStreamEnd / onStreamError callbacks.  This
+    // eliminates 250ms–1s of artificial latency per node.
+
+    // Promise hooks — filled in the await below, called by subscriber callbacks.
+    let streamResolve: (() => void) | null = null;
+    let streamReject: ((err: Error) => void) | null = null;
+    let streamSettled = false;
+
     const unsubscribe = subscribeSession(sessionKey, {
       onDelta: (text: string) => {
         accumulated += text;
@@ -503,6 +511,20 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
       },
       onModel: () => {
         /* ignore model changes */
+      },
+      onStreamEnd: () => {
+        // Stream completed — resolve immediately (no polling delay)
+        if (!streamSettled && streamResolve) {
+          streamSettled = true;
+          streamResolve();
+        }
+      },
+      onStreamError: (error: string) => {
+        // Stream errored — reject immediately
+        if (!streamSettled && streamReject) {
+          streamSettled = true;
+          streamReject(new Error(error || `Stream error for "${node.label}"`));
+        }
       },
     });
 
@@ -528,21 +550,31 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
         agentProfile,
       });
 
-      // Wait for stream to complete with a timeout
+      // Wait for stream to complete — event-driven, no polling
       const timeout = config.timeoutMs ?? 120_000;
-      const start = Date.now();
 
-      // Poll for completion (engine events are async)
       await new Promise<void>((resolve, reject) => {
-        const checkInterval = setInterval(() => {
-          // Check if we've accumulated a response
-          if (accumulated.length > 0 && !appState.activeStreams.has(sessionKey)) {
-            clearInterval(checkInterval);
-            resolve();
-          }
-          // Timeout
-          if (Date.now() - start > timeout) {
-            clearInterval(checkInterval);
+        streamResolve = resolve;
+        streamReject = reject;
+
+        // If the subscriber already fired before we got here, resolve now
+        if (streamSettled) {
+          resolve();
+          return;
+        }
+
+        // Sync response shortcut — if engine returned text directly
+        if (result.text && !accumulated) {
+          accumulated = result.text;
+          streamSettled = true;
+          resolve();
+          return;
+        }
+
+        // Timeout guard — only safety net, not the primary completion path
+        setTimeout(() => {
+          if (!streamSettled) {
+            streamSettled = true;
             if (accumulated.length > 0) {
               resolve(); // Got partial response, use it
             } else {
@@ -551,19 +583,7 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
               );
             }
           }
-        }, 250);
-
-        // Also resolve quickly if stream was never started (sync response)
-        setTimeout(() => {
-          if (!appState.activeStreams.has(sessionKey) && accumulated.length === 0) {
-            // Check if result had a text field
-            if (result.text) {
-              accumulated = result.text;
-              clearInterval(checkInterval);
-              resolve();
-            }
-          }
-        }, 1000);
+        }, timeout);
       });
 
       // Clean up the temporary session

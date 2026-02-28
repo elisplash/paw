@@ -87,6 +87,46 @@ let _drawingEdge: {
   cursorY: number;
 } | null = null;
 
+// ── Phase 0.2: rAF render throttle ──────────────────────────────────────
+// During drag/interaction we schedule one render per animation frame instead
+// of one per mouse event.  Eliminates SVG rebuild jank.
+let _renderScheduled = false;
+
+/** Schedule a single renderGraph() call on the next animation frame.
+ *  Useful for non-drag interactions that still benefit from coalescing.
+ */
+export function scheduleRender(): void {
+  if (_renderScheduled) return;
+  _renderScheduled = true;
+  requestAnimationFrame(() => {
+    _renderScheduled = false;
+    renderGraph();
+  });
+}
+
+// ── Phase 0.3: Node & edge index maps ───────────────────────────────────
+// O(1) lookups instead of O(n) linear scans.  Rebuilt on every renderGraph()
+// call (which is the authoritative "graph changed" signal in molecules).
+let _nodeMap: Map<string, FlowNode> = new Map();
+/** Adjacency list: nodeId → outgoing edges */
+let _outEdges: Map<string, FlowEdge[]> = new Map();
+/** Adjacency list: nodeId → incoming edges */
+let _inEdges: Map<string, FlowEdge[]> = new Map();
+
+function rebuildIndexes(graph: FlowGraph): void {
+  _nodeMap = new Map(graph.nodes.map((n) => [n.id, n]));
+  _outEdges = new Map();
+  _inEdges = new Map();
+  for (const n of graph.nodes) {
+    _outEdges.set(n.id, []);
+    _inEdges.set(n.id, []);
+  }
+  for (const e of graph.edges) {
+    _outEdges.get(e.from)?.push(e);
+    _inEdges.get(e.to)?.push(e);
+  }
+}
+
 // Track recently-added nodes for materialise entrance animation
 const _newNodeIds = new Set<string>();
 
@@ -217,20 +257,58 @@ export function unmountCanvas() {
   _dragPreviewGroup = null;
 }
 
+// ── Phase 0.2b: Dirty-region rendering during drag ─────────────────────────
+// Instead of full innerHTML clear + rebuild, update only the dragged node's
+// transform, its ports, and connected edges.  O(degree) instead of O(|V|+|E|).
+
+function updateDraggedNodePosition(nodeId: string): void {
+  if (!_nodesGroup || !_edgesGroup || !_portsGroup || !_state) return;
+  const node = _nodeMap.get(nodeId);
+  if (!node) return;
+
+  // 1. Update node group transform (O(1) DOM attribute write)
+  const nodeG = _nodesGroup.querySelector(`[data-node-id="${nodeId}"]`) as SVGGElement | null;
+  if (nodeG) {
+    nodeG.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+    (nodeG as unknown as HTMLElement).style.setProperty('--node-tx', `${node.x}px`);
+    (nodeG as unknown as HTMLElement).style.setProperty('--node-ty', `${node.y}px`);
+  }
+
+  // 2. Update ports — remove old, add new (ports use absolute coords)
+  const oldPorts = _portsGroup.querySelectorAll(`[data-node-id="${nodeId}"]`);
+  oldPorts.forEach((p) => p.remove());
+  renderPorts(node);
+
+  // 3. Update only connected edges (O(degree) instead of O(|E|))
+  const connectedEdges = [...(_outEdges.get(nodeId) ?? []), ...(_inEdges.get(nodeId) ?? [])];
+  for (const edge of connectedEdges) {
+    const oldEdgeEl = _edgesGroup.querySelector(`[data-edge-id="${edge.id}"]`);
+    if (oldEdgeEl) oldEdgeEl.remove();
+    const fromNode = _nodeMap.get(edge.from);
+    const toNode = _nodeMap.get(edge.to);
+    if (fromNode && toNode) {
+      _edgesGroup.appendChild(renderEdge(edge, fromNode, toNode));
+    }
+  }
+}
+
 // ── Full Render ────────────────────────────────────────────────────────────
 
 export function renderGraph() {
   const graph = _state?.getGraph();
   if (!graph || !_nodesGroup || !_edgesGroup || !_portsGroup) return;
 
+  // Phase 0.3: rebuild O(1) lookup indexes
+  rebuildIndexes(graph);
+
   _edgesGroup.innerHTML = '';
   _nodesGroup.innerHTML = '';
   _portsGroup.innerHTML = '';
 
-  // Edges first (below nodes)
+  // Edges first (below nodes) — use index maps for O(1) lookups
   for (const edge of graph.edges) {
-    const fromNode = graph.nodes.find((n) => n.id === edge.from);
-    const toNode = graph.nodes.find((n) => n.id === edge.to);
+    const fromNode = _nodeMap.get(edge.from);
+    const toNode = _nodeMap.get(edge.to);
     if (fromNode && toNode) {
       _edgesGroup.appendChild(renderEdge(edge, fromNode, toNode));
     }
@@ -643,16 +721,18 @@ function onMouseMove(e: MouseEvent) {
     return;
   }
 
-  // Drag node
+  // Drag node — Phase 0.2b: dirty-region update (only dragged node + edges)
   if (_dragging) {
     const graph = _state.getGraph();
     if (!graph) return;
     const pt = canvasCoords(e);
-    const node = graph.nodes.find((n) => n.id === _dragging!.nodeId);
+    const node =
+      _nodeMap.get(_dragging.nodeId) ?? graph.nodes.find((n) => n.id === _dragging!.nodeId);
     if (node) {
       node.x = snapToGrid(pt.x - _dragging.offsetX);
       node.y = snapToGrid(pt.y - _dragging.offsetY);
-      renderGraph();
+      // Dirty-region: update only this node instead of full rebuild
+      updateDraggedNodePosition(_dragging.nodeId);
     }
     return;
   }
@@ -758,7 +838,9 @@ function renderEdgePreview() {
   if (!graph) return;
 
   _dragPreviewGroup.innerHTML = '';
-  const fromNode = graph.nodes.find((n) => n.id === _drawingEdge!.fromNodeId);
+  const fromNode =
+    _nodeMap.get(_drawingEdge.fromNodeId) ??
+    graph.nodes.find((n) => n.id === _drawingEdge!.fromNodeId);
   if (!fromNode) return;
 
   const fromPt = getOutputPort(fromNode, _drawingEdge.fromPort);
