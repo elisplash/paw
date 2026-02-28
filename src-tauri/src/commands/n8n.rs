@@ -4,7 +4,7 @@ use crate::engine::channels;
 use crate::engine::n8n_engine;
 use crate::engine::skills;
 use crate::engine::state::EngineState;
-use log::info;
+use log::{info, error};
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
@@ -656,7 +656,7 @@ pub async fn engine_n8n_community_packages_install(
     info!("[n8n] Installing community package: {}", package_name);
 
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(120)) // npm install can be slow
+        .timeout(std::time::Duration::from_secs(300)) // npm install can be very slow in Docker
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -670,18 +670,37 @@ pub async fn engine_n8n_community_packages_install(
         .json(&serde_json::json!({ "name": package_name }))
         .send()
         .await
-        .map_err(|e| format!("Failed to install package: {}", e))?;
+        .map_err(|e| {
+            error!("[n8n] Install request failed for {}: {}", package_name, e);
+            format!("Failed to install package (request error): {}", e)
+        })?;
 
     if !resp.status().is_success() {
         let status = resp.status().as_u16();
         let body = resp.text().await.unwrap_or_default();
+        error!(
+            "[n8n] Install '{}' failed (HTTP {}): {}",
+            package_name, status, body
+        );
         return Err(format!(
             "Install '{}' failed (HTTP {}): {}",
             package_name, status, body
         ));
     }
 
-    let pkg: CommunityPackage = resp.json().await.map_err(|e| e.to_string())?;
+    let body_text = resp.text().await.map_err(|e| {
+        error!("[n8n] Failed to read install response body: {}", e);
+        format!("Failed to read response: {}", e)
+    })?;
+
+    let pkg: CommunityPackage = serde_json::from_str(&body_text).map_err(|e| {
+        error!(
+            "[n8n] Failed to parse install response for {}: {} — body: {}",
+            package_name, e, &body_text[..body_text.len().min(500)]
+        );
+        format!("Failed to parse response: {}", e)
+    })?;
+
     info!(
         "[n8n] Installed {} v{} ({} nodes)",
         pkg.package_name,

@@ -268,6 +268,9 @@ async function _installPackage(packageName: string): Promise<void> {
   _installing.add(packageName);
   _render();
 
+  // Show persistent toast since npm install in Docker can take minutes
+  showToast(`Installing ${packageName}… this may take a minute or two.`, 'info');
+
   try {
     await invoke('engine_n8n_community_packages_install', { packageName });
     showToast(`Installed ${packageName}`, 'success');
@@ -283,6 +286,7 @@ async function _installPackage(packageName: string): Promise<void> {
     await _fetchInstalled();
   } catch (e) {
     const err = e instanceof Error ? e.message : String(e);
+    console.error(`[community] Install failed for ${packageName}:`, err);
     showToast(`Install failed: ${err}`, 'error');
   } finally {
     _installing.delete(packageName);
