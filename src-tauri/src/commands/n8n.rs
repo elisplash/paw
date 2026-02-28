@@ -6,7 +6,14 @@ use crate::engine::skills;
 use crate::engine::state::EngineState;
 use log::{info, error};
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tauri::Manager;
+
+/// Mutex that serialises direct (docker exec / npm) community-package installs
+/// so concurrent requests don't race and one restart doesn't kill another's install.
+static INSTALL_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+/// Counter of in-flight direct installs — restart is deferred until this hits 0.
+static PENDING_INSTALLS: AtomicUsize = AtomicUsize::new(0);
 
 // ── Config ─────────────────────────────────────────────────────────────
 
@@ -722,7 +729,23 @@ pub async fn engine_n8n_community_packages_install(
     let config = n8n_engine::load_config(&app_handle).map_err(|e| e.to_string())?;
     match config.mode {
         n8n_engine::N8nMode::Embedded => {
-            direct_npm_install_docker(&package_name).await?;
+            // Serialise docker-exec installs so a concurrent restart can't
+            // kill a still-running npm install.
+            let _guard = INSTALL_LOCK.lock().await;
+            PENDING_INSTALLS.fetch_add(1, Ordering::SeqCst);
+            let result = direct_npm_install_docker(&package_name).await;
+            let remaining = PENDING_INSTALLS.fetch_sub(1, Ordering::SeqCst) - 1;
+            result?;
+
+            // Only restart the container when no other installs are in flight
+            if remaining == 0 {
+                restart_n8n_container().await;
+            } else {
+                info!(
+                    "[n8n] Deferring container restart — {} install(s) still in flight",
+                    remaining
+                );
+            }
         }
         n8n_engine::N8nMode::Process => {
             let data_dir = app_data_dir_for(&app_handle).join("n8n-data");
@@ -821,7 +844,24 @@ async fn verify_npm_package_exists(package_name: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Build env-var flags needed for specific packages.
+/// For example, puppeteer packages try to download ~280 MB of Chromium
+/// during `npm install`, which will fail in the slim Alpine n8n image.
+fn extra_env_for_package(package_name: &str) -> Vec<(&'static str, &'static str)> {
+    let lower = package_name.to_lowercase();
+    let mut env = Vec::new();
+    if lower.contains("puppeteer") || lower.contains("playwright") {
+        env.push(("PUPPETEER_SKIP_CHROMIUM_DOWNLOAD", "true"));
+        env.push(("PUPPETEER_SKIP_DOWNLOAD", "true"));
+        env.push(("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1"));
+    }
+    env
+}
+
 /// Install a community node package directly via `docker exec` in the managed container.
+///
+/// Does NOT restart the container — the caller decides when to restart
+/// (after all concurrent installs have finished).
 async fn direct_npm_install_docker(package_name: &str) -> Result<(), String> {
     use tokio::process::Command;
 
@@ -831,16 +871,26 @@ async fn direct_npm_install_docker(package_name: &str) -> Result<(), String> {
         n8n_engine::types::CONTAINER_NAME
     );
 
+    // Build the env export prefix for the shell command
+    let extras = extra_env_for_package(package_name);
+    let env_prefix: String = extras
+        .iter()
+        .map(|(k, v)| format!("export {}={} && ", k, v))
+        .collect();
+
+    let shell_cmd = format!(
+        "{}cd /home/node/.n8n && npm install --save '{}' 2>&1",
+        env_prefix,
+        package_name.replace('\'', "'\\''")
+    );
+
     let output = Command::new("docker")
         .args([
             "exec",
             n8n_engine::types::CONTAINER_NAME,
             "sh",
             "-c",
-            &format!(
-                "cd /home/node/.n8n && npm install --save '{}' 2>&1",
-                package_name.replace('\'', "'\\''")
-            ),
+            &shell_cmd,
         ])
         .output()
         .await
@@ -850,18 +900,29 @@ async fn direct_npm_install_docker(package_name: &str) -> Result<(), String> {
     let stderr = String::from_utf8_lossy(&output.stderr);
 
     if !output.status.success() {
+        let exit_code = output
+            .status
+            .code()
+            .map(|c| c.to_string())
+            .unwrap_or_else(|| "signal".into());
+        let detail = if stdout.is_empty() && stderr.is_empty() {
+            format!(
+                "process exited with code {} (no output — the container may have \
+                 been restarted or run out of memory)",
+                exit_code
+            )
+        } else if stderr.is_empty() {
+            stdout.to_string()
+        } else {
+            stderr.to_string()
+        };
         error!(
-            "[n8n] docker exec npm install failed for {}: stdout={}, stderr={}",
-            package_name, stdout, stderr
+            "[n8n] docker exec npm install failed for {} (exit {}): stdout={}, stderr={}",
+            package_name, exit_code, stdout, stderr
         );
         return Err(format!(
             "Direct npm install of '{}' failed inside container: {}",
-            package_name,
-            if stderr.is_empty() {
-                stdout.to_string()
-            } else {
-                stderr.to_string()
-            }
+            package_name, detail
         ));
     }
 
@@ -871,7 +932,13 @@ async fn direct_npm_install_docker(package_name: &str) -> Result<(), String> {
         stdout.lines().last().unwrap_or("")
     );
 
-    // Restart the container so n8n picks up the new nodes
+    Ok(())
+}
+
+/// Restart the managed n8n container so it picks up newly installed nodes.
+async fn restart_n8n_container() {
+    use tokio::process::Command;
+
     info!("[n8n] Restarting container to load new nodes…");
     let _ = Command::new("docker")
         .args(["restart", n8n_engine::types::CONTAINER_NAME])
@@ -880,7 +947,6 @@ async fn direct_npm_install_docker(package_name: &str) -> Result<(), String> {
 
     // Brief wait for n8n to come back up
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    Ok(())
 }
 
 /// Install a community node package directly via npm in the process-mode data directory.
@@ -902,9 +968,16 @@ async fn direct_npm_install_process(
         let _ = std::fs::write(&pkg_json, r#"{"name":"n8n-custom-nodes","private":true}"#);
     }
 
-    let output = Command::new("npm")
-        .args(["install", "--save", package_name])
-        .current_dir(data_dir)
+    let mut cmd = Command::new("npm");
+    cmd.args(["install", "--save", package_name])
+        .current_dir(data_dir);
+
+    // Set env vars for packages that need special handling (e.g. skip Chromium download)
+    for (k, v) in extra_env_for_package(package_name) {
+        cmd.env(k, v);
+    }
+
+    let output = cmd
         .output()
         .await
         .map_err(|e| format!("npm install failed: {}", e))?;
