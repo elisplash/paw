@@ -177,7 +177,10 @@ pub async fn provision_docker_container(
             "Integration engine started but isn't responding. Check Docker logs.",
         );
         return Err(EngineError::Other(
-            "n8n container started but failed to become healthy within 60s".into(),
+            format!(
+                "n8n container started but failed to become healthy within {}s",
+                STARTUP_TIMEOUT_SECS
+            ),
         ));
     }
 
@@ -239,6 +242,22 @@ pub async fn restart_existing_container(
         .container_id
         .as_deref()
         .ok_or_else(|| EngineError::Other("No container ID stored".into()))?;
+
+    // Check if the container actually exists before wasting time polling
+    match docker.inspect_container(container_id, None).await {
+        Ok(_) => {}
+        Err(_) => {
+            // Also check by name in case the ID changed
+            match docker.inspect_container(CONTAINER_NAME, None).await {
+                Ok(_) => {}
+                Err(_) => {
+                    return Err(EngineError::Other(
+                        "Container no longer exists — will re-provision".into(),
+                    ));
+                }
+            }
+        }
+    }
 
     super::emit_status(app_handle, "starting", "Restarting integration engine...");
 
