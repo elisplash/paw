@@ -61,6 +61,32 @@ OpenPawz is a native Tauri v2 application with a pure Rust backend engine. It ru
 
 ---
 
+## The Integration Inversion
+
+Every other automation platform locks integrations inside workflows. You must build a workflow before any tool is usable. OpenPawz inverts this — every integration is **simultaneously** a direct agent tool and a visual workflow node.
+
+| | Zapier / Make / n8n (standalone) | OpenPawz |
+|---|---|---|
+| **Tool availability** | Locked inside workflows | Available directly in chat AND in workflows |
+| **To use a tool** | Build trigger → action chain first | Just ask your agent |
+| **AI's role** | One node inside the pipeline | The pipeline lives inside the agent |
+| **Install a new package** | Workflow node only | Instant chat tool + workflow node |
+| **25,000+ community nodes** | Manual sequential automation | AI-orchestrable via MCP bridge |
+
+```
+Install "@n8n/n8n-nodes-slack":
+
+  n8n standalone:  available as a workflow node → must build a workflow to use it
+  OpenPawz:        available as a workflow node AND a direct agent tool
+                   → "Hey Pawz, send hello to #general" — done, no workflow needed
+```
+
+**How it works:** OpenPawz embeds n8n as an MCP server. Every node — including all 25,000+ community packages — is automatically exposed as a callable tool via the Model Context Protocol. When you install a community package, the agent can use it in conversation immediately. No workflow required. No configuration. The MCP bridge handles tool discovery, schema resolution, and execution.
+
+**The insight:** n8n's 25,000 community nodes were designed for manual automation. OpenPawz makes them AI-native — the agent decides which tools to use based on your intent, calls them directly via MCP, and only needs a visual workflow when you want multi-step orchestration with branching, loops, or scheduling.
+
+---
+
 ## Original Research
 
 OpenPawz introduces three novel methods for scaling AI agent tool usage and workflow execution. All are open source under the MIT License.

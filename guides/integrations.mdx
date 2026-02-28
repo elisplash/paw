@@ -19,6 +19,25 @@ graph LR
 
 ---
 
+## The Integration Inversion
+
+Unlike every other automation platform, OpenPawz does not lock integrations inside workflows. Every integration — including all 25,000+ n8n community packages — is **simultaneously** a direct agent tool and a visual workflow node.
+
+<Tip>
+When you install a community package (e.g. `n8n-nodes-slack`), your agents can use it **immediately in chat** — no workflow required. Just ask: *"Hey Pawz, send hello to #general."* The MCP bridge handles tool discovery, schema resolution, and execution automatically.
+</Tip>
+
+| | Zapier / Make / n8n (standalone) | OpenPawz |
+|---|---|---|
+| **Tool availability** | Locked inside workflows | Available in chat AND in workflows |
+| **To use a tool** | Build trigger → action chain | Just ask your agent |
+| **AI's role** | One node inside the pipeline | The pipeline lives inside the agent |
+| **Install a new package** | Workflow node only | Instant chat tool + workflow node |
+
+**How it works:** OpenPawz embeds n8n as an [MCP server](/guides/mcp-bridge). Every node is automatically exposed as a callable tool via the Model Context Protocol. When your agent needs a tool, the [Librarian](/reference/librarian-method) finds it via semantic search, and the [Foreman](/reference/foreman-protocol) executes it at minimal cost. The visual [Flow Builder](/guides/flows) is there for when you need multi-step orchestration with branching, loops, or scheduling — but for single actions, just chat.
+
+---
+
 ## How Integrations Work
 
 1. **Author** creates a `pawz-skill.toml` manifest declaring what the integration does, what credentials it needs, and how the agent should use it
