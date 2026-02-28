@@ -1,6 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Flow Visualization Engine — Index (Orchestrator)
-// Owns module state, wires state bridge, handles persistence, exports public API.
+// Owns module state, wires state bridge, exports public API.
+// Sub-modules: flows-persistence, flows-scheduler, flows-keybindings.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
@@ -10,7 +11,6 @@ import {
   type FlowTemplate,
   createGraph,
   createNode as createNodeFn,
-  createEdge,
   serializeGraph,
   deserializeGraph,
   instantiateTemplate,
@@ -37,9 +37,18 @@ import { parseFlowText } from './parser';
 import { FLOW_TEMPLATES } from './templates';
 import { createFlowExecutor, type FlowExecutorController } from './executor';
 import { createFlowChatReporter, type FlowChatReporterController } from './chat-reporter';
-import { type FlowSchedule, type ScheduleFireLog, nextCronFire } from './executor-atoms';
 import { pawEngine } from '../../engine/molecules/ipc_client';
-import type { EngineFlow, EngineFlowRun } from '../../engine/atoms/types';
+import type { EngineFlowRun } from '../../engine/atoms/types';
+import { initFlowsPersistence, persist, restore, deleteFromBackend } from './flows-persistence';
+import {
+  initFlowsScheduler,
+  rebuildScheduleRegistry,
+  startScheduleTicker,
+  stopScheduleTicker,
+  getScheduleFireLog,
+  getScheduleRegistry,
+} from './flows-scheduler';
+import { initFlowsKeybindings, onKeyDown } from './flows-keybindings';
 
 // ── Module State ───────────────────────────────────────────────────────────
 
@@ -56,14 +65,6 @@ let _sidebarTab: 'flows' | 'templates' = 'flows';
 
 // Undo/redo stack — one per active graph
 const _undoStacks: Map<string, UndoStack> = new Map();
-
-// Schedule state
-let _scheduleTimerId: ReturnType<typeof setInterval> | null = null;
-let _scheduleRegistry: FlowSchedule[] = [];
-const _scheduleFireLog: ScheduleFireLog[] = [];
-const SCHEDULE_TICK_MS = 30_000; // Check every 30 seconds
-
-const STORAGE_KEY = 'openpawz-flows';
 
 // ── State Bridge ───────────────────────────────────────────────────────────
 
@@ -108,155 +109,46 @@ function initStateBridge() {
   });
 }
 
-// ── Persistence (SQLite backend via Tauri IPC, localStorage fallback) ──────
-
-let _persistTimer: ReturnType<typeof setTimeout> | null = null;
-let _backendAvailable = true; // assume Tauri is present until first failure
-const PERSIST_DEBOUNCE_MS = 1_000; // debounce writes by 1 second
-
-/** Debounced persist — coalesces rapid mutations into a single backend write. */
-function persist() {
-  // Always keep localStorage in sync (fast, synchronous, offline fallback)
-  try {
-    const data = _graphs.map(serializeGraph);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.error('[flows] localStorage persist failed:', e);
-  }
-
-  // Rebuild schedule registry on any graph change
-  rebuildScheduleRegistry();
-
-  // Debounce backend save
-  if (_persistTimer) clearTimeout(_persistTimer);
-  _persistTimer = setTimeout(() => {
-    _persistTimer = null;
-    persistToBackend();
-  }, PERSIST_DEBOUNCE_MS);
-}
-
-/** Non-debounced: save all graphs to the Rust SQLite backend. */
-async function persistToBackend() {
-  if (!_backendAvailable) return;
-  try {
-    for (const graph of _graphs) {
-      const flow: EngineFlow = {
-        id: graph.id,
-        name: graph.name,
-        description: graph.description,
-        folder: graph.folder,
-        graph_json: serializeGraph(graph),
-        created_at: graph.createdAt,
-        updated_at: graph.updatedAt,
-      };
-      await pawEngine.flowsSave(flow);
-    }
-  } catch (e) {
-    // Tauri not available (browser dev mode) — localStorage only
-    console.warn('[flows] Backend persist unavailable, using localStorage only:', e);
-    _backendAvailable = false;
-  }
-}
-
-/** Save a single graph to backend (used for targeted saves like auto-save on change). */
-async function persistSingleToBackend(graph: FlowGraph) {
-  if (!_backendAvailable) return;
-  try {
-    const flow: EngineFlow = {
-      id: graph.id,
-      name: graph.name,
-      description: graph.description,
-      folder: graph.folder,
-      graph_json: serializeGraph(graph),
-      created_at: graph.createdAt,
-      updated_at: graph.updatedAt,
-    };
-    await pawEngine.flowsSave(flow);
-  } catch {
-    // Silently fall back — localStorage is already up to date
-  }
-}
-
-/** Delete a flow from the backend. */
-async function deleteFromBackend(flowId: string) {
-  if (!_backendAvailable) return;
-  try {
-    await pawEngine.flowsDelete(flowId);
-  } catch {
-    // Silently fall back
-  }
-}
-
-async function restore() {
-  // Try backend first
-  try {
-    const backendFlows = await pawEngine.flowsList();
-    if (backendFlows && backendFlows.length > 0) {
-      _graphs = backendFlows
-        .map((f) => deserializeGraph(f.graph_json))
-        .filter(Boolean) as FlowGraph[];
-      _backendAvailable = true;
-
-      // Migrate any localStorage-only flows that aren't in the backend
-      migrateLocalStorageFlows(backendFlows);
-      return;
-    }
-  } catch {
-    // Tauri not available — fall through to localStorage
-    _backendAvailable = false;
-  }
-
-  // Fallback: localStorage
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const arr = JSON.parse(raw) as string[];
-    _graphs = arr.map((s) => deserializeGraph(s)).filter(Boolean) as FlowGraph[];
-
-    // If backend just became available, migrate localStorage flows up
-    if (_backendAvailable && _graphs.length > 0) {
-      persistToBackend();
-    }
-  } catch (e) {
-    console.error('[flows] Restore failed:', e);
-    _graphs = [];
-  }
-}
-
-/** One-time migration: push localStorage flows to backend if they don't exist there. */
-async function migrateLocalStorageFlows(backendFlows: EngineFlow[]) {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const arr = JSON.parse(raw) as string[];
-    const localGraphs = arr.map((s) => deserializeGraph(s)).filter(Boolean) as FlowGraph[];
-    const backendIds = new Set(backendFlows.map((f) => f.id));
-
-    let migrated = 0;
-    for (const graph of localGraphs) {
-      if (!backendIds.has(graph.id)) {
-        // This flow exists in localStorage but not in the backend — migrate it
-        await persistSingleToBackend(graph);
-        // Also add to in-memory state if not already present
-        if (!_graphs.find((g) => g.id === graph.id)) {
-          _graphs.push(graph);
-        }
-        migrated++;
-      }
-    }
-
-    if (migrated > 0) {
-      console.debug(`[flows] Migrated ${migrated} flow(s) from localStorage to backend`);
-    }
-  } catch {
-    // Migration is best-effort
-  }
-}
-
 // ── DOM References ─────────────────────────────────────────────────────────
 
 function el(id: string): HTMLElement | null {
   return document.getElementById(id);
+}
+
+// ── Module Initialization ──────────────────────────────────────────────────
+
+function initModules() {
+  initStateBridge();
+  initFlowsPersistence({
+    getGraphs: () => _graphs,
+    setGraphs: (g) => { _graphs = g; },
+    afterPersist: () => rebuildScheduleRegistry(),
+  });
+  initFlowsScheduler({
+    getGraphs: () => _graphs,
+    getActiveGraphId: () => _activeGraphId,
+    setActiveGraphId: (id) => { _activeGraphId = id; },
+    getExecutor: () => _executor,
+    runActiveFlow: () => runActiveFlow(),
+  });
+  initFlowsKeybindings({
+    el,
+    getGraph: () => _graphs.find((g) => g.id === _activeGraphId),
+    getSelectedNodeId: () => _selectedNodeId,
+    setSelectedNodeId: (id) => { _selectedNodeId = id; },
+    getSelectedNodeIds: () => _selectedNodeIds,
+    setSelectedNodeIds: (ids) => { _selectedNodeIds = ids; },
+    getSelectedEdgeId: () => _selectedEdgeId,
+    setSelectedEdgeId: (id) => { _selectedEdgeId = id; },
+    getClipboard: () => _clipboard,
+    setClipboard: (c) => { _clipboard = c; },
+    getUndoStack,
+    persist,
+    updateFlowList,
+    updateNodePanel,
+    performUndo,
+    performRedo,
+  });
 }
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -265,7 +157,7 @@ function el(id: string): HTMLElement | null {
  * Called when the Flows view is activated (from router.ts switchView).
  */
 export async function loadFlows() {
-  initStateBridge();
+  initModules();
   await restore();
 
   // Inject available agents from the agents module for agent node dropdowns
@@ -299,7 +191,7 @@ export async function loadFlows() {
  * Returns the created graph.
  */
 export async function createFlowFromText(text: string, name?: string): Promise<FlowGraph> {
-  initStateBridge();
+  initModules();
   await restore();
 
   const result = parseFlowText(text, name);
@@ -443,7 +335,7 @@ function updateHeroStats() {
     integEl.textContent = String(total);
   }
   if (schedEl) {
-    schedEl.textContent = String(_scheduleRegistry.length);
+    schedEl.textContent = String(getScheduleRegistry().length);
   }
 }
 
@@ -694,162 +586,6 @@ function importFlow() {
   input.click();
 }
 
-function onKeyDown(e: KeyboardEvent) {
-  // Only handle when flows view is active
-  const flowsView = el('flows-view');
-  if (!flowsView?.classList.contains('active')) return;
-
-  const graph = _graphs.find((g) => g.id === _activeGraphId);
-  if (!graph) return;
-
-  switch (e.key) {
-    case 'Delete':
-    case 'Backspace':
-      if (
-        !(e.target instanceof HTMLInputElement) &&
-        !(e.target instanceof HTMLTextAreaElement)
-      ) {
-        // Collect nodes to delete: multi-select or single
-        const idsToDelete = _selectedNodeIds.size > 0
-          ? new Set(_selectedNodeIds)
-          : (_selectedNodeId ? new Set([_selectedNodeId]) : new Set<string>());
-        if (idsToDelete.size > 0) {
-          const stack = getUndoStack(graph.id);
-          pushUndo(stack, graph);
-          graph.nodes = graph.nodes.filter((n) => !idsToDelete.has(n.id));
-          graph.edges = graph.edges.filter(
-            (ee) => !idsToDelete.has(ee.from) && !idsToDelete.has(ee.to),
-          );
-          _selectedNodeId = null;
-          _selectedNodeIds = new Set();
-          _selectedEdgeId = null;
-          graph.updatedAt = new Date().toISOString();
-          persist();
-          renderGraph();
-          updateFlowList();
-          updateNodePanel();
-          e.preventDefault();
-        } else if (_selectedEdgeId) {
-          // Delete selected edge
-          const stack = getUndoStack(graph.id);
-          pushUndo(stack, graph);
-          graph.edges = graph.edges.filter((ee) => ee.id !== _selectedEdgeId);
-          _selectedEdgeId = null;
-          graph.updatedAt = new Date().toISOString();
-          persist();
-          renderGraph();
-          updateNodePanel();
-          e.preventDefault();
-        }
-      }
-      break;
-    case 'Escape':
-      _selectedNodeId = null;
-      _selectedNodeIds = new Set();
-      _selectedEdgeId = null;
-      renderGraph();
-      updateNodePanel();
-      break;
-    case 'z':
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
-        performUndo();
-        e.preventDefault();
-      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
-        performRedo();
-        e.preventDefault();
-      }
-      break;
-    case 'Z':
-      // Shift+Ctrl+Z (capital Z on some keyboards)
-      if (e.ctrlKey || e.metaKey) {
-        performRedo();
-        e.preventDefault();
-      }
-      break;
-    case 'y':
-      // Ctrl+Y as alternative redo
-      if (e.ctrlKey || e.metaKey) {
-        performRedo();
-        e.preventDefault();
-      }
-      break;
-    case 'a':
-      if (e.ctrlKey || e.metaKey) {
-        // Select all nodes
-        _selectedNodeIds = new Set(graph.nodes.map((n) => n.id));
-        _selectedNodeId = null;
-        renderGraph();
-        e.preventDefault();
-      }
-      break;
-    case 'c':
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
-        // Copy selected nodes to clipboard
-        const copyIds = _selectedNodeIds.size > 0
-          ? _selectedNodeIds
-          : (_selectedNodeId ? new Set([_selectedNodeId]) : new Set<string>());
-        if (copyIds.size > 0) {
-          const copiedNodes = graph.nodes
-            .filter((n) => copyIds.has(n.id))
-            .map((n) => JSON.parse(JSON.stringify(n)) as FlowNode);
-          const copiedEdges = graph.edges
-            .filter((ee) => copyIds.has(ee.from) && copyIds.has(ee.to))
-            .map((ee) => JSON.parse(JSON.stringify(ee)) as FlowEdge);
-          _clipboard = { nodes: copiedNodes, edges: copiedEdges };
-          e.preventDefault();
-        }
-      }
-      break;
-    case 'v':
-      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && _clipboard && _clipboard.nodes.length > 0) {
-        // Paste from clipboard with new IDs and offset positions
-        const stack = getUndoStack(graph.id);
-        pushUndo(stack, graph);
-
-        const idMap = new Map<string, string>();
-        const PASTE_OFFSET = 40;
-        const newIds = new Set<string>();
-
-        for (const srcNode of _clipboard.nodes) {
-          const newNode = createNodeFn(
-            srcNode.kind,
-            srcNode.label,
-            srcNode.x + PASTE_OFFSET,
-            srcNode.y + PASTE_OFFSET,
-          );
-          newNode.config = JSON.parse(JSON.stringify(srcNode.config ?? {}));
-          newNode.width = srcNode.width;
-          newNode.height = srcNode.height;
-          idMap.set(srcNode.id, newNode.id);
-          newIds.add(newNode.id);
-          graph.nodes.push(newNode);
-        }
-
-        for (const srcEdge of _clipboard.edges) {
-          const newFrom = idMap.get(srcEdge.from);
-          const newTo = idMap.get(srcEdge.to);
-          if (newFrom && newTo) {
-            const newEdge = createEdge(newFrom, newTo, srcEdge.kind, {
-              fromPort: srcEdge.fromPort,
-              toPort: srcEdge.toPort,
-              label: srcEdge.label,
-            });
-            graph.edges.push(newEdge);
-          }
-        }
-
-        _selectedNodeIds = newIds;
-        _selectedNodeId = newIds.size === 1 ? [...newIds][0] : null;
-        graph.updatedAt = new Date().toISOString();
-        persist();
-        renderGraph();
-        updateFlowList();
-        e.preventDefault();
-      }
-      break;
-  }
-}
-
 // ── Toolbar & Execution ────────────────────────────────────────────────────
 
 function updateToolbar() {
@@ -1067,125 +803,6 @@ function syncDebugState() {
   });
 }
 
-// ── Schedule Registry ──────────────────────────────────────────────────────
-
-/**
- * Scan all flows for trigger nodes with active schedules and build the registry.
- */
-function rebuildScheduleRegistry() {
-  _scheduleRegistry = [];
-  for (const graph of _graphs) {
-    for (const node of graph.nodes) {
-      if (node.kind !== 'trigger') continue;
-      const schedule = (node.config?.schedule as string) ?? '';
-      const enabled = (node.config?.scheduleEnabled as boolean) ?? false;
-      if (!schedule || !enabled) continue;
-
-      const next = nextCronFire(schedule);
-      _scheduleRegistry.push({
-        flowId: graph.id,
-        flowName: graph.name,
-        nodeId: node.id,
-        schedule,
-        enabled,
-        lastFiredAt: null,
-        nextFireAt: next ? next.getTime() : null,
-      });
-    }
-  }
-}
-
-/**
- * Start the schedule ticker. Checks every 30 seconds for due schedules.
- */
-function startScheduleTicker() {
-  if (_scheduleTimerId) return;
-  rebuildScheduleRegistry();
-
-  _scheduleTimerId = setInterval(() => {
-    scheduleTickCheck();
-  }, SCHEDULE_TICK_MS);
-}
-
-/**
- * Stop the schedule ticker.
- */
-function stopScheduleTicker() {
-  if (_scheduleTimerId) {
-    clearInterval(_scheduleTimerId);
-    _scheduleTimerId = null;
-  }
-}
-
-/**
- * Check all schedules for any that are due and fire them.
- */
-async function scheduleTickCheck() {
-  const now = Date.now();
-  for (const entry of _scheduleRegistry) {
-    if (!entry.enabled || !entry.nextFireAt) continue;
-    if (entry.nextFireAt > now) continue;
-
-    // This schedule is due — fire it
-    console.debug(`[flows] Schedule fired: ${entry.flowName} (${entry.schedule})`);
-    entry.lastFiredAt = now;
-
-    const graph = _graphs.find((g) => g.id === entry.flowId);
-    if (!graph) continue;
-
-    // Don't run if executor is busy
-    if (_executor?.isRunning()) {
-      _scheduleFireLog.push({
-        flowId: entry.flowId,
-        flowName: entry.flowName,
-        firedAt: now,
-        status: 'error',
-        error: 'Executor busy — skipped',
-      });
-      continue;
-    }
-
-    try {
-      // Switch to this flow and run it
-      _activeGraphId = entry.flowId;
-      await runActiveFlow();
-
-      _scheduleFireLog.push({
-        flowId: entry.flowId,
-        flowName: entry.flowName,
-        firedAt: now,
-        status: 'success',
-      });
-    } catch (err) {
-      _scheduleFireLog.push({
-        flowId: entry.flowId,
-        flowName: entry.flowName,
-        firedAt: now,
-        status: 'error',
-        error: String(err),
-      });
-    }
-
-    // Recalculate next fire time
-    const next = nextCronFire(entry.schedule);
-    entry.nextFireAt = next ? next.getTime() : null;
-  }
-}
-
-/**
- * Get the schedule fire log (for UI display).
- */
-export function getScheduleFireLog(): ScheduleFireLog[] {
-  return [..._scheduleFireLog];
-}
-
-/**
- * Get the active schedule registry (for UI display).
- */
-export function getScheduleRegistry(): FlowSchedule[] {
-  return [..._scheduleRegistry];
-}
-
 // ── Text Input (for the text-to-flow box in the UI) ────────────────────────
 
 export function handleFlowTextInput(text: string) {
@@ -1199,3 +816,7 @@ export function handleFlowTextInput(text: string) {
   renderActiveGraph();
   updateFlowList();
 }
+
+// ── Re-exports from sub-modules ────────────────────────────────────────────
+
+export { getScheduleFireLog, getScheduleRegistry };
