@@ -646,6 +646,14 @@ pub async fn engine_n8n_community_packages_list(
 ///
 /// `package_name` is the npm package name, e.g. "n8n-nodes-puppeteer"
 /// or "@n8n/n8n-nodes-langchain".
+///
+/// Strategy:
+///   1. Verify the package exists on npm (fast, from host).
+///   2. Try the n8n REST API `POST /api/v1/community-packages`.
+///   3. If the REST API returns 404 (common in newer n8n versions that
+///      gate on a verified-packages registry), fall back to direct
+///      `npm install` inside the container/process data directory and
+///      restart n8n so it picks up the new nodes.
 #[tauri::command]
 pub async fn engine_n8n_community_packages_install(
     app_handle: tauri::AppHandle,
@@ -655,6 +663,10 @@ pub async fn engine_n8n_community_packages_install(
 
     info!("[n8n] Installing community package: {}", package_name);
 
+    // ── Step 1: verify the package exists on npm ───────────────────
+    verify_npm_package_exists(&package_name).await?;
+
+    // ── Step 2: try the n8n REST API ───────────────────────────────
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(300)) // npm install can be very slow in Docker
         .build()
@@ -675,40 +687,263 @@ pub async fn engine_n8n_community_packages_install(
             format!("Failed to install package (request error): {}", e)
         })?;
 
+    if resp.status().is_success() {
+        let body_text = resp.text().await.map_err(|e| {
+            error!("[n8n] Failed to read install response body: {}", e);
+            format!("Failed to read response: {}", e)
+        })?;
+
+        let pkg: CommunityPackage = serde_json::from_str(&body_text).map_err(|e| {
+            error!(
+                "[n8n] Failed to parse install response for {}: {} — body: {}",
+                package_name, e, &body_text[..body_text.len().min(500)]
+            );
+            format!("Failed to parse response: {}", e)
+        })?;
+
+        info!(
+            "[n8n] Installed {} v{} ({} nodes)",
+            pkg.package_name,
+            pkg.installed_version,
+            pkg.installed_nodes.len()
+        );
+
+        return Ok(pkg);
+    }
+
+    // ── Step 3: REST API failed — try direct npm fallback ──────────
+    let status = resp.status().as_u16();
+    let body = resp.text().await.unwrap_or_default();
+    info!(
+        "[n8n] REST API install returned HTTP {} for '{}', attempting direct npm fallback…",
+        status, package_name
+    );
+
+    let config = n8n_engine::load_config(&app_handle).map_err(|e| e.to_string())?;
+    match config.mode {
+        n8n_engine::N8nMode::Embedded => {
+            direct_npm_install_docker(&package_name).await?;
+        }
+        n8n_engine::N8nMode::Process => {
+            let data_dir = app_data_dir_for(&app_handle).join("n8n-data");
+            direct_npm_install_process(&package_name, &data_dir).await?;
+        }
+        _ => {
+            // Remote / Local mode — we can't do a direct install, surface original error
+            error!(
+                "[n8n] Install '{}' failed (HTTP {}): {} — direct fallback unavailable in {:?} mode",
+                package_name, status, body, config.mode
+            );
+            return Err(format!(
+                "Install '{}' failed (HTTP {}): {}. \
+                 The n8n instance may not have community packages enabled. \
+                 Set N8N_COMMUNITY_PACKAGES_ENABLED=true and \
+                 N8N_COMMUNITY_PACKAGES_ALLOW_UNVERIFIED=true in the n8n environment.",
+                package_name, status, body
+            ));
+        }
+    }
+
+    // After fallback install, query the list endpoint to confirm success
+    info!("[n8n] Direct npm install done, waiting for n8n to reload…");
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+    // Try to find the package in the installed list
+    let list_resp = client
+        .get(format!(
+            "{}/api/v1/community-packages",
+            base_url.trim_end_matches('/')
+        ))
+        .header("X-N8N-API-KEY", &api_key)
+        .send()
+        .await;
+
+    if let Ok(r) = list_resp {
+        if r.status().is_success() {
+            if let Ok(pkgs) = r.json::<Vec<CommunityPackage>>().await {
+                if let Some(pkg) = pkgs.into_iter().find(|p| p.package_name == package_name) {
+                    info!(
+                        "[n8n] Confirmed {} v{} ({} nodes) via fallback",
+                        pkg.package_name, pkg.installed_version, pkg.installed_nodes.len()
+                    );
+                    return Ok(pkg);
+                }
+            }
+        }
+    }
+
+    // Package was npm-installed but n8n hasn't registered it yet — return a synthetic result
+    info!(
+        "[n8n] Package {} installed via npm fallback (n8n may need restart to register nodes)",
+        package_name
+    );
+    Ok(CommunityPackage {
+        package_name: package_name.clone(),
+        installed_version: "latest".into(),
+        installed_nodes: vec![],
+    })
+}
+
+// ── Helpers for fallback install ───────────────────────────────────────
+
+/// Verify a package exists on npm before attempting install.
+async fn verify_npm_package_exists(package_name: &str) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let url = format!(
+        "https://registry.npmjs.org/{}",
+        url::form_urlencoded::byte_serialize(package_name.as_bytes()).collect::<String>()
+    );
+
+    let resp = client
+        .head(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Cannot verify package on npm: {}", e))?;
+
+    if resp.status().as_u16() == 404 {
+        return Err(format!(
+            "Package '{}' does not exist on npm — check the package name for typos.",
+            package_name
+        ));
+    }
     if !resp.status().is_success() {
-        let status = resp.status().as_u16();
-        let body = resp.text().await.unwrap_or_default();
+        // Non-404 failure (rate limit, etc.) — let the install attempt proceed
+        info!(
+            "[n8n] npm registry check returned {} for '{}', proceeding anyway",
+            resp.status().as_u16(),
+            package_name
+        );
+    }
+    Ok(())
+}
+
+/// Install a community node package directly via `docker exec` in the managed container.
+async fn direct_npm_install_docker(package_name: &str) -> Result<(), String> {
+    use tokio::process::Command;
+
+    info!(
+        "[n8n] Fallback: installing '{}' via docker exec in container '{}'",
+        package_name,
+        n8n_engine::types::CONTAINER_NAME
+    );
+
+    let output = Command::new("docker")
+        .args([
+            "exec",
+            n8n_engine::types::CONTAINER_NAME,
+            "sh",
+            "-c",
+            &format!(
+                "cd /home/node/.n8n && npm install --save '{}' 2>&1",
+                package_name.replace('\'', "'\\''")
+            ),
+        ])
+        .output()
+        .await
+        .map_err(|e| format!("docker exec failed: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if !output.status.success() {
         error!(
-            "[n8n] Install '{}' failed (HTTP {}): {}",
-            package_name, status, body
+            "[n8n] docker exec npm install failed for {}: stdout={}, stderr={}",
+            package_name, stdout, stderr
         );
         return Err(format!(
-            "Install '{}' failed (HTTP {}): {}",
-            package_name, status, body
+            "Direct npm install of '{}' failed inside container: {}",
+            package_name,
+            if stderr.is_empty() {
+                stdout.to_string()
+            } else {
+                stderr.to_string()
+            }
         ));
     }
 
-    let body_text = resp.text().await.map_err(|e| {
-        error!("[n8n] Failed to read install response body: {}", e);
-        format!("Failed to read response: {}", e)
-    })?;
-
-    let pkg: CommunityPackage = serde_json::from_str(&body_text).map_err(|e| {
-        error!(
-            "[n8n] Failed to parse install response for {}: {} — body: {}",
-            package_name, e, &body_text[..body_text.len().min(500)]
-        );
-        format!("Failed to parse response: {}", e)
-    })?;
-
     info!(
-        "[n8n] Installed {} v{} ({} nodes)",
-        pkg.package_name,
-        pkg.installed_version,
-        pkg.installed_nodes.len()
+        "[n8n] docker exec npm install succeeded for {}: {}",
+        package_name,
+        stdout.lines().last().unwrap_or("")
     );
 
-    Ok(pkg)
+    // Restart the container so n8n picks up the new nodes
+    info!("[n8n] Restarting container to load new nodes…");
+    let _ = Command::new("docker")
+        .args(["restart", n8n_engine::types::CONTAINER_NAME])
+        .output()
+        .await;
+
+    // Brief wait for n8n to come back up
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    Ok(())
+}
+
+/// Install a community node package directly via npm in the process-mode data directory.
+async fn direct_npm_install_process(
+    package_name: &str,
+    data_dir: &std::path::Path,
+) -> Result<(), String> {
+    use tokio::process::Command;
+
+    info!(
+        "[n8n] Fallback: installing '{}' via npm in {}",
+        package_name,
+        data_dir.display()
+    );
+
+    // Ensure the data directory has a package.json
+    let pkg_json = data_dir.join("package.json");
+    if !pkg_json.exists() {
+        let _ = std::fs::write(&pkg_json, r#"{"name":"n8n-custom-nodes","private":true}"#);
+    }
+
+    let output = Command::new("npm")
+        .args(["install", "--save", package_name])
+        .current_dir(data_dir)
+        .output()
+        .await
+        .map_err(|e| format!("npm install failed: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if !output.status.success() {
+        error!(
+            "[n8n] npm install failed for {}: stdout={}, stderr={}",
+            package_name, stdout, stderr
+        );
+        return Err(format!(
+            "Direct npm install of '{}' failed: {}",
+            package_name,
+            if stderr.is_empty() {
+                stdout.to_string()
+            } else {
+                stderr.to_string()
+            }
+        ));
+    }
+
+    info!(
+        "[n8n] npm install succeeded for {}: {}",
+        package_name,
+        stdout.lines().last().unwrap_or("")
+    );
+
+    Ok(())
+}
+
+/// Get the application data directory (mirrors n8n_engine helper).
+fn app_data_dir_for(app_handle: &tauri::AppHandle) -> std::path::PathBuf {
+    use tauri::Manager;
+    app_handle
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."))
 }
 
 /// Uninstall a community node package from the n8n engine.

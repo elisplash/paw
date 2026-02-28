@@ -49,6 +49,9 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
         .env("N8N_PERSONALIZATION_ENABLED", "false")
         // Enable community node installation (required for 25K+ packages)
         .env("N8N_COMMUNITY_PACKAGES_ENABLED", "true")
+        // Allow installation of packages not in n8n's verified registry
+        .env("N8N_COMMUNITY_PACKAGES_ALLOW_UNVERIFIED", "true")
+        .env("N8N_REINSTALL_MISSING_PACKAGES", "true")
         .env("N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE", "true")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

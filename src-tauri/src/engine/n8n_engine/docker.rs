@@ -115,6 +115,10 @@ pub async fn provision_docker_container(
         "N8N_PERSONALIZATION_ENABLED=false".to_string(),
         // Enable community node installation (required for 25K+ packages)
         "N8N_COMMUNITY_PACKAGES_ENABLED=true".to_string(),
+        // Allow installation of packages not in n8n's verified registry
+        "N8N_COMMUNITY_PACKAGES_ALLOW_UNVERIFIED=true".to_string(),
+        // Reinstall previously installed packages on startup
+        "N8N_REINSTALL_MISSING_PACKAGES=true".to_string(),
         // Enable MCP server so workflows can expose tools via MCP
         "N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true".to_string(),
     ];
@@ -129,6 +133,8 @@ pub async fn provision_docker_container(
             name: Some(RestartPolicyNameEnum::UNLESS_STOPPED),
             maximum_retry_count: None,
         }),
+        // Explicit DNS servers so npm registry is always reachable inside the container
+        dns: Some(vec!["8.8.8.8".to_string(), "1.1.1.1".to_string()]),
         ..Default::default()
     };
 
