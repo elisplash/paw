@@ -19,6 +19,16 @@
   position: relative;
 }
 
+/* Agent panel open — split canvas row into canvas + agent */
+.flows-view.active.flows-agent-open {
+  grid-template-rows: auto auto 1fr 260px;
+  grid-template-areas:
+    "hero   hero   hero"
+    "list   toolbar panel"
+    "list   canvas  panel"
+    "list   agent   panel";
+}
+
 /* Panel collapsed — hide right panel, expand canvas */
 .flows-view.active.flows-panel-collapsed {
   grid-template-columns: 220px 1fr;
@@ -26,6 +36,14 @@
     "hero   hero"
     "list   toolbar"
     "list   canvas";
+}
+.flows-view.active.flows-panel-collapsed.flows-agent-open {
+  grid-template-rows: auto auto 1fr 260px;
+  grid-template-areas:
+    "hero   hero"
+    "list   toolbar"
+    "list   canvas"
+    "list   agent";
 }
 .flows-view.active.flows-panel-collapsed #flows-panel {
   display: none;
@@ -39,6 +57,14 @@
     "toolbar panel"
     "canvas  panel";
 }
+.flows-view.active.flows-list-collapsed.flows-agent-open {
+  grid-template-rows: auto auto 1fr 260px;
+  grid-template-areas:
+    "hero   hero"
+    "toolbar panel"
+    "canvas  panel"
+    "agent   panel";
+}
 .flows-view.active.flows-list-collapsed #flows-list {
   display: none;
 }
@@ -50,6 +76,14 @@
     "hero"
     "toolbar"
     "canvas";
+}
+.flows-view.active.flows-panel-collapsed.flows-list-collapsed.flows-agent-open {
+  grid-template-rows: auto auto 1fr 260px;
+  grid-template-areas:
+    "hero"
+    "toolbar"
+    "canvas"
+    "agent";
 }
 
 .flows-hero {
@@ -2239,6 +2273,284 @@
   user-select: none;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Flow Architect Agent Panel
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Hidden by default — shown via .flows-agent-open on .flows-view */
+.flows-agent-panel {
+  grid-area: agent;
+  display: none;
+  flex-direction: column;
+  background: var(--bg-sidebar);
+  border-top: 1px solid var(--border-color);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.flows-view.active.flows-agent-open .flows-agent-panel {
+  display: flex;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────── */
+
+.flows-agent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  min-height: 36px;
+}
+
+.flows-agent-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flows-agent-icon {
+  font-size: 18px;
+  color: var(--kinetic-cyan, #06b6d4);
+}
+
+.flows-agent-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+}
+
+.flows-agent-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.flows-agent-close {
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.flows-agent-close:hover {
+  opacity: 1;
+}
+
+/* ── Suggestion chips ─────────────────────────────────────────────────── */
+
+.flows-agent-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.flows-agent-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.flows-agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.flows-agent-chip:hover {
+  color: var(--text-primary);
+  background: var(--bg-active);
+  border-color: var(--kinetic-cyan, #06b6d4);
+}
+
+.flows-agent-chip .ms {
+  font-size: 13px;
+}
+
+/* ── Message feed ─────────────────────────────────────────────────────── */
+
+.flows-agent-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  scrollbar-width: thin;
+}
+
+.flows-agent-messages .message {
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 100%;
+}
+
+.flows-agent-messages .message.user {
+  background: var(--bg-active);
+  align-self: flex-end;
+  border-bottom-right-radius: 2px;
+  max-width: 85%;
+}
+
+.flows-agent-messages .message.assistant {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  align-self: flex-start;
+  border-bottom-left-radius: 2px;
+  max-width: 95%;
+}
+
+.flows-agent-messages .message-prefix {
+  font-weight: 700;
+  color: var(--kinetic-cyan, #06b6d4);
+  margin-right: 6px;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.flows-agent-messages .message-content {
+  word-break: break-word;
+}
+
+.flows-agent-messages .message-content p {
+  margin: 0 0 4px;
+}
+
+.flows-agent-messages .message-content p:last-child {
+  margin-bottom: 0;
+}
+
+.flows-agent-messages .message-content code {
+  font-size: 12px;
+  background: var(--bg-hover);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.flows-agent-messages .message-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+
+.flows-agent-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.flows-agent-empty .ms {
+  font-size: 32px;
+  opacity: 0.3;
+}
+
+.flows-agent-empty-text {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ── Input row ────────────────────────────────────────────────────────── */
+
+.flows-agent-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.flows-agent-input {
+  flex: 1;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.flows-agent-input:focus {
+  border-color: var(--kinetic-cyan, #06b6d4);
+}
+
+.flows-agent-input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.flows-agent-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--kinetic-cyan, #06b6d4);
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.flows-agent-send .ms {
+  font-size: 16px;
+  color: #000;
+}
+
+.flows-agent-send:hover {
+  opacity: 0.85;
+}
+
+.flows-agent-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Resize handle ────────────────────────────────────────────────────── */
+
+.flows-agent-resize {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  cursor: ns-resize;
+  z-index: 5;
+}
+
+.flows-agent-resize:hover {
+  background: var(--kinetic-cyan, #06b6d4);
+  opacity: 0.3;
 }
 
 /* Node-level horizon ring (on the node itself) */

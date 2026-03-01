@@ -2801,6 +2801,29 @@
           <div id="flows-list"></div>
           <div id="flows-toolbar"></div>
           <div id="flows-canvas"></div>
+          <div id="flows-agent" class="flows-agent-panel">
+            <div class="flows-agent-header">
+              <div class="flows-agent-header-left">
+                <span class="ms flows-agent-icon">smart_toy</span>
+                <span class="flows-agent-title">Flow Architect</span>
+              </div>
+              <div class="flows-agent-header-right">
+                <div class="flows-agent-chips" id="flows-agent-chips"></div>
+                <button class="flow-tb-btn flows-agent-close" id="flows-agent-close" title="Close (Ctrl+J)">
+                  <span class="ms">close</span>
+                </button>
+              </div>
+            </div>
+            <div class="flows-agent-messages" id="flows-agent-messages"></div>
+            <div class="flows-agent-input-row">
+              <input type="text" class="flows-agent-input" id="flows-agent-input"
+                placeholder="Ask about this flow, or tell me what to build…"
+                autocomplete="off" />
+              <button class="flows-agent-send" id="flows-agent-send" title="Send">
+                <span class="ms">send</span>
+              </button>
+            </div>
+          </div>
           <div id="flows-panel"></div>
           <button class="flows-edge-tab flows-edge-tab-left" id="flows-edge-tab-left" title="Show flow list">
             <span class="ms">left_panel_open</span>

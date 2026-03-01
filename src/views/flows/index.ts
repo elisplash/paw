@@ -50,6 +50,14 @@ import {
   getScheduleRegistry,
 } from './flows-scheduler';
 import { initFlowsKeybindings, onKeyDown } from './flows-keybindings';
+import {
+  initFlowAgent,
+  toggleFlowAgent,
+  restoreFlowAgentState,
+  onGraphChanged,
+  unmountFlowAgent,
+  isFlowAgentOpen,
+} from './flow-agent-molecules';
 
 // ── Module State ───────────────────────────────────────────────────────────
 
@@ -163,6 +171,7 @@ function initModules() {
     performRedo,
     togglePanel,
     toggleList,
+    toggleAgent: () => toggleFlowAgent(),
   });
 }
 
@@ -258,6 +267,10 @@ function mount() {
   // Restore collapsed panel/list states before canvas mount
   restorePanelStates();
 
+  // Initialize flow agent panel
+  initFlowAgent(() => _graphs.find((g) => g.id === _activeGraphId));
+  restoreFlowAgentState();
+
   if (canvasContainer) mountCanvas(canvasContainer);
 
   // Create executor
@@ -323,11 +336,12 @@ function mount() {
     }
   }) as EventListener);
 
-  // Panel / list toggle from toolbar
+  // Panel / list / agent toggle from toolbar
   document.addEventListener('flow:toolbar', ((e: CustomEvent) => {
     const action = e.detail?.action;
     if (action === 'toggle-panel') togglePanel();
     else if (action === 'toggle-list') toggleList();
+    else if (action === 'toggle-agent') toggleFlowAgent();
   }) as EventListener);
 
   // Edge-tab expand buttons (appear when panels are collapsed)
@@ -348,6 +362,7 @@ function mount() {
 
 export function unmountFlows() {
   unmountCanvas();
+  unmountFlowAgent();
   stopScheduleTicker();
   document.removeEventListener('keydown', onKeyDown);
   _mounted = false;
@@ -417,6 +432,10 @@ function renderActiveGraph() {
   initStateBridge();
   renderGraph();
   updateNodePanel();
+
+  // Notify flow agent of graph change
+  const graph = _graphs.find((g) => g.id === _activeGraphId);
+  if (graph && isFlowAgentOpen()) onGraphChanged(graph);
 }
 
 function updateFlowList() {

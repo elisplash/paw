@@ -148,6 +148,9 @@ export function renderToolbar(
         <button class="flow-tb-btn" data-action="show-shortcuts" title="Keyboard Shortcuts (?)">
           <span class="ms">keyboard</span>
         </button>
+        <button class="flow-tb-btn" data-action="toggle-agent" title="Flow Architect Agent (Ctrl+J)">
+          <span class="ms">smart_toy</span>
+        </button>
         <button class="flow-tb-btn" data-action="toggle-panel" title="Toggle Properties Panel (Ctrl+P)">
           <span class="ms">right_panel_close</span>
         </button>
