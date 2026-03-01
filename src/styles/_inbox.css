@@ -114,6 +114,9 @@
   .inbox-conv-list {
     display: none;
   }
+  .inbox-thread {
+    grid-column: 1;
+  }
   .inbox-layout.convlist-open .inbox-conv-list {
     display: flex;
     position: absolute;
