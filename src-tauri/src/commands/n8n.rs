@@ -553,14 +553,20 @@ fn get_n8n_endpoint(app_handle: &tauri::AppHandle) -> Result<(String, String), S
 
 /// Get the MCP token from config, or attempt to retrieve it from n8n.
 /// Returns None (not an error) if retrieval fails — MCP is optional.
+///
+/// If a cached token exists, we validate it's not stale by checking
+/// that it's a plausible JWT (has `.` separators and is not redacted).
+/// If stale, we retrieve a fresh one.
 async fn get_or_retrieve_mcp_token(app_handle: &tauri::AppHandle) -> Option<String> {
     let config = n8n_engine::load_config(app_handle).ok()?;
 
-    // If we already have a token, use it
+    // If we already have a token that looks like a valid JWT, use it
     if let Some(ref token) = config.mcp_token {
-        if !token.is_empty() {
+        if !token.is_empty() && token.contains('.') && !token.contains('*') {
             return Some(token.clone());
         }
+        // Stale or redacted token — will re-fetch below
+        log::info!("[n8n] Cached MCP token looks stale, retrieving fresh one");
     }
 
     // Try to retrieve the token from n8n
@@ -574,24 +580,39 @@ async fn get_or_retrieve_mcp_token(app_handle: &tauri::AppHandle) -> Option<Stri
         }
     };
 
-    // Ensure owner exists and MCP access is enabled
+    // Ensure owner exists and MCP access is enabled before retrieving token.
+    // These are idempotent — safe to call every time.
     let _ = n8n_engine::health::setup_owner_if_needed(&url).await;
     let _ = n8n_engine::health::enable_mcp_access(&url).await;
 
-    match n8n_engine::health::retrieve_mcp_token(&url).await {
-        Ok(token) => {
-            log::info!("[n8n] MCP token retrieved and cached");
-            // Save token to config for future use
-            let mut new_config = config;
-            new_config.mcp_token = Some(token.clone());
-            let _ = n8n_engine::save_config(app_handle, &new_config);
-            Some(token)
-        }
-        Err(e) => {
-            log::warn!("[n8n] MCP token retrieval failed: {}", e);
-            None
+    // Retry token retrieval up to 2 times.  On a fresh n8n start the
+    // MCP module may take a moment to initialise after the health
+    // endpoint responds.
+    for attempt in 1..=2 {
+        match n8n_engine::health::retrieve_mcp_token(&url).await {
+            Ok(token) => {
+                log::info!("[n8n] MCP token retrieved and cached");
+                // Save token to config for future use
+                let mut new_config = config;
+                new_config.mcp_token = Some(token.clone());
+                let _ = n8n_engine::save_config(app_handle, &new_config);
+                return Some(token);
+            }
+            Err(e) => {
+                if attempt < 2 {
+                    log::info!(
+                        "[n8n] MCP token retrieval attempt {} failed: {} — retrying…",
+                        attempt,
+                        e
+                    );
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                } else {
+                    log::warn!("[n8n] MCP token retrieval failed: {}", e);
+                }
+            }
         }
     }
+    None
 }
 
 // ── NCNodes / npm Registry Search ──────────────────────────────────────
@@ -739,13 +760,27 @@ pub async fn engine_n8n_community_packages_list(
         }
     }
 
-    // Fallback: read package.json from the container to discover installed packages
-    // If the container doesn't exist either, return an empty list (n8n not provisioned yet)
+    // Fallback 1: Docker container package.json
     match list_packages_from_container().await {
+        Ok(pkgs) if !pkgs.is_empty() => return Ok(pkgs),
+        Ok(_) => {
+            info!("[n8n] Docker container returned 0 packages — trying data dir fallback");
+        }
+        Err(e) => {
+            info!(
+                "[n8n] Cannot list packages from container: {} — trying data dir fallback",
+                e
+            );
+        }
+    }
+
+    // Fallback 2: Local data dir package.json (Process mode)
+    let data_dir = n8n_engine::n8n_data_dir(&app_handle);
+    match list_packages_from_data_dir(&data_dir) {
         Ok(pkgs) => Ok(pkgs),
         Err(e) => {
             info!(
-                "[n8n] Cannot list packages (container may not exist yet): {}",
+                "[n8n] Data dir fallback also failed: {} — returning empty list",
                 e
             );
             Ok(vec![])
@@ -809,6 +844,49 @@ async fn list_packages_from_container() -> Result<Vec<CommunityPackage>, String>
 
     info!(
         "[n8n] Found {} community packages via container package.json",
+        packages.len()
+    );
+    Ok(packages)
+}
+
+/// Read community packages from the local n8n data directory's package.json.
+///
+/// Process-mode equivalent of `list_packages_from_container`.
+fn list_packages_from_data_dir(
+    data_dir: &std::path::Path,
+) -> Result<Vec<CommunityPackage>, String> {
+    let pkg_json_path = data_dir.join("package.json");
+    let content = std::fs::read_to_string(&pkg_json_path)
+        .map_err(|e| format!("Failed to read {}: {}", pkg_json_path.display(), e))?;
+    let pkg_json: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse package.json: {}", e))?;
+
+    let mut packages = Vec::new();
+
+    if let Some(deps) = pkg_json.get("dependencies").and_then(|d| d.as_object()) {
+        for (name, version) in deps {
+            let unscoped = if let Some(pos) = name.find('/') {
+                &name[pos + 1..]
+            } else {
+                name.as_str()
+            };
+            if unscoped.starts_with("n8n-nodes-") || name.contains("-n8n-") {
+                packages.push(CommunityPackage {
+                    package_name: name.clone(),
+                    installed_version: version
+                        .as_str()
+                        .unwrap_or("unknown")
+                        .trim_start_matches('^')
+                        .trim_start_matches('~')
+                        .to_string(),
+                    installed_nodes: vec![],
+                });
+            }
+        }
+    }
+
+    info!(
+        "[n8n] Found {} community packages via data dir package.json",
         packages.len()
     );
     Ok(packages)
@@ -1428,23 +1506,75 @@ pub async fn engine_n8n_community_packages_install(
             }
         }
         n8n_engine::N8nMode::Process => {
-            let data_dir = app_data_dir_for(&app_handle).join("n8n-data");
+            let _guard = INSTALL_LOCK.lock().await;
+            PENDING_INSTALLS.fetch_add(1, Ordering::SeqCst);
 
+            let data_dir = n8n_engine::n8n_data_dir(&app_handle);
+
+            info!(
+                "[n8n] Process mode: installing '{}' via npm in {}",
+                package_name,
+                data_dir.display()
+            );
+
+            // 5 minute timeout — generous but prevents hanging forever
             let result = tokio::time::timeout(
                 std::time::Duration::from_secs(300),
                 direct_npm_install_process(&package_name, &data_dir),
             )
             .await;
 
+            let remaining = PENDING_INSTALLS.fetch_sub(1, Ordering::SeqCst) - 1;
+
             match result {
                 Ok(inner) => inner?,
                 Err(_) => {
+                    error!(
+                        "[n8n] npm install timed out after 300s for '{}' — \
+                         the package may have a large postinstall script",
+                        package_name
+                    );
                     return Err(format!(
                         "Install of '{}' timed out after 5 minutes. \
-                         The package may have a very large post-install download.",
+                         The package may have a very large post-install download. \
+                         Try installing manually: cd {} && npm install {}",
+                        package_name,
+                        data_dir.display(),
                         package_name
                     ));
                 }
+            }
+
+            check_cancelled(&package_name)?;
+
+            // n8n must be restarted so it discovers the new node_modules.
+            // Defer restart until all concurrent installs are finished.
+            emit_install_progress(
+                &app_handle,
+                &package_name,
+                "restarting",
+                "Restarting engine to load new nodes…",
+            );
+
+            if remaining == 0 {
+                match n8n_engine::restart_process(&app_handle).await {
+                    Ok(endpoint) => {
+                        info!("[n8n] Process restarted at {} after install", endpoint.url);
+                    }
+                    Err(e) => {
+                        warn!(
+                            "[n8n] Process restart failed after install ({}). \
+                             Nodes may not be available until next app restart.",
+                            e
+                        );
+                    }
+                }
+                refresh_mcp_after_install(&app_handle).await;
+            } else {
+                info!(
+                    "[n8n] Deferring process restart — {} install(s) still in flight",
+                    remaining
+                );
             }
         }
         _ => {
@@ -1515,7 +1645,7 @@ pub async fn engine_n8n_community_packages_install(
             }
         }
 
-        // Fallback: check package.json in container
+        // Fallback: check package.json in container (Docker mode)
         if let Ok(pkgs) = list_packages_from_container().await {
             if let Some(pkg) = pkgs.into_iter().find(|p| p.package_name == package_name) {
                 info!(
@@ -1524,6 +1654,26 @@ pub async fn engine_n8n_community_packages_install(
                 );
                 emit_install_progress(&app_handle, &package_name, "done", "Installed successfully");
                 return Ok(pkg);
+            }
+        }
+
+        // Fallback: check package.json in data dir (Process mode)
+        {
+            let data_dir = n8n_engine::n8n_data_dir(&app_handle);
+            if let Ok(pkgs) = list_packages_from_data_dir(&data_dir) {
+                if let Some(pkg) = pkgs.into_iter().find(|p| p.package_name == package_name) {
+                    info!(
+                        "[n8n] Confirmed {} v{} via data dir package.json (attempt {})",
+                        pkg.package_name, pkg.installed_version, attempt
+                    );
+                    emit_install_progress(
+                        &app_handle,
+                        &package_name,
+                        "done",
+                        "Installed successfully",
+                    );
+                    return Ok(pkg);
+                }
             }
         }
 
@@ -1879,16 +2029,12 @@ async fn direct_npm_install_process(
     Ok(())
 }
 
-/// Get the application data directory (mirrors n8n_engine helper).
-fn app_data_dir_for(app_handle: &tauri::AppHandle) -> std::path::PathBuf {
-    use tauri::Manager;
-    app_handle
-        .path()
-        .app_data_dir()
-        .unwrap_or_else(|_| std::path::PathBuf::from("."))
-}
-
 /// Uninstall a community node package from the n8n engine.
+///
+/// Tries the n8n REST API first, then falls back to direct `npm uninstall`
+/// (Process mode) or `docker exec npm uninstall` (Docker mode).
+/// Restarts n8n after uninstall so removed nodes are unloaded, and
+/// refreshes the MCP bridge so agents no longer see stale tools.
 #[tauri::command]
 pub async fn engine_n8n_community_packages_uninstall(
     app_handle: tauri::AppHandle,
@@ -1896,6 +2042,9 @@ pub async fn engine_n8n_community_packages_uninstall(
 ) -> Result<(), String> {
     let (base_url, api_key) = get_n8n_endpoint(&app_handle)?;
 
+    info!("[n8n] Uninstalling community package: {}", package_name);
+
+    // ── Try REST API first ─────────────────────────────────────────
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
         .build()
@@ -1910,16 +2059,135 @@ pub async fn engine_n8n_community_packages_uninstall(
         .header("Content-Type", "application/json")
         .json(&serde_json::json!({ "name": package_name }))
         .send()
-        .await
-        .map_err(|e| format!("Failed to uninstall package: {}", e))?;
+        .await;
 
-    if !resp.status().is_success() {
-        let status = resp.status().as_u16();
-        let body = resp.text().await.unwrap_or_default();
-        return Err(format!(
-            "Uninstall '{}' failed (HTTP {}): {}",
-            package_name, status, body
-        ));
+    let rest_ok = match resp {
+        Ok(r) if r.status().is_success() => {
+            info!("[n8n] Uninstalled '{}' via REST API", package_name);
+            true
+        }
+        Ok(r) => {
+            let status = r.status().as_u16();
+            info!(
+                "[n8n] REST API uninstall returned HTTP {} for '{}' — falling back to npm",
+                status, package_name
+            );
+            false
+        }
+        Err(e) => {
+            info!(
+                "[n8n] REST API uninstall request failed for '{}': {} — falling back to npm",
+                package_name, e
+            );
+            false
+        }
+    };
+
+    // ── Fallback: direct npm uninstall ─────────────────────────────
+    if !rest_ok {
+        let config = n8n_engine::load_config(&app_handle).map_err(|e| e.to_string())?;
+
+        match config.mode {
+            n8n_engine::N8nMode::Process => {
+                let data_dir = n8n_engine::n8n_data_dir(&app_handle);
+                info!(
+                    "[n8n] Process mode: running npm uninstall '{}' in {}",
+                    package_name,
+                    data_dir.display()
+                );
+                let output = tokio::process::Command::new("npm")
+                    .args(["uninstall", &package_name])
+                    .current_dir(&data_dir)
+                    .output()
+                    .await
+                    .map_err(|e| format!("npm uninstall failed to start: {}", e))?;
+
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    error!(
+                        "[n8n] npm uninstall failed for '{}': {}",
+                        package_name, stderr
+                    );
+                    return Err(format!(
+                        "Failed to uninstall '{}': {}",
+                        package_name,
+                        stderr.chars().take(300).collect::<String>()
+                    ));
+                }
+                info!("[n8n] npm uninstall succeeded for '{}'", package_name);
+            }
+            n8n_engine::N8nMode::Embedded => {
+                info!(
+                    "[n8n] Docker mode: running npm uninstall '{}' in container",
+                    package_name
+                );
+                let output = tokio::process::Command::new("docker")
+                    .args([
+                        "exec",
+                        n8n_engine::types::CONTAINER_NAME,
+                        "sh",
+                        "-c",
+                        &format!("cd /home/node/.n8n && npm uninstall {}", package_name),
+                    ])
+                    .output()
+                    .await
+                    .map_err(|e| format!("docker exec npm uninstall failed: {}", e))?;
+
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    error!(
+                        "[n8n] docker npm uninstall failed for '{}': {}",
+                        package_name, stderr
+                    );
+                    return Err(format!(
+                        "Failed to uninstall '{}': {}",
+                        package_name,
+                        stderr.chars().take(300).collect::<String>()
+                    ));
+                }
+                info!(
+                    "[n8n] docker npm uninstall succeeded for '{}'",
+                    package_name
+                );
+            }
+            _ => {
+                return Err(format!(
+                    "Uninstall of '{}' failed — REST API returned an error and direct \
+                     npm uninstall is only available in Embedded or Process mode.",
+                    package_name
+                ));
+            }
+        }
+
+        // ── Restart n8n so removed nodes are unloaded ──────────────
+        match config.mode {
+            n8n_engine::N8nMode::Process => {
+                info!("[n8n] Restarting n8n process after uninstall");
+                match n8n_engine::restart_process(&app_handle).await {
+                    Ok(endpoint) => {
+                        info!(
+                            "[n8n] Process restarted at {} after uninstall",
+                            endpoint.url
+                        );
+                    }
+                    Err(e) => {
+                        warn!(
+                            "[n8n] Process restart failed after uninstall ({}). \
+                             Nodes may still appear until next app restart.",
+                            e
+                        );
+                    }
+                }
+            }
+            n8n_engine::N8nMode::Embedded => {
+                info!("[n8n] Restarting n8n container after uninstall");
+                restart_n8n_container(&base_url, &api_key).await;
+            }
+            _ => {}
+        }
+
+        // ── Refresh MCP bridge ─────────────────────────────────────
+        refresh_mcp_after_install(&app_handle).await;
     }
 
     info!("[n8n] Uninstalled community package: {}", package_name);

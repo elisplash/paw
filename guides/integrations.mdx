@@ -365,7 +365,9 @@ Pawz hot-reloads the skill directory — the integration appears in the Skills t
 
 ### Uninstalling
 
-Click **Uninstall** in the Skills tab. This removes the skill folder from `~/.paw/skills/`, cleans up stored credentials, and removes enabled state.
+**TOML Skills:** Click **Uninstall** in the Skills tab. This removes the skill folder from `~/.paw/skills/`, cleans up stored credentials, and removes enabled state.
+
+**Community Packages (n8n):** In the Community Browser's **Installed** tab, click the **delete** icon on any package. Paw runs `npm uninstall` in the n8n data directory, restarts the engine, and refreshes the MCP bridge so stale tools are removed. A spinning "Removing…" indicator shows progress.
 
 ---
 

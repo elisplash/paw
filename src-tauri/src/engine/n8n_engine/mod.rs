@@ -52,6 +52,43 @@ fn app_data_dir(app_handle: &tauri::AppHandle) -> std::path::PathBuf {
         .unwrap_or_else(|_| std::path::PathBuf::from("."))
 }
 
+/// Get the n8n data directory at a space-free path.
+///
+/// node-gyp / native npm packages break when the install path contains
+/// spaces (macOS `~/Library/Application Support/...`).  We use
+/// `~/.openpawz/n8n-data` instead — no spaces, no node-gyp failures.
+///
+/// On first call, if old data exists at `<app_data_dir>/n8n-data`, it is
+/// moved to the new location automatically.
+pub fn n8n_data_dir(app_handle: &tauri::AppHandle) -> std::path::PathBuf {
+    let new_dir = dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("."))
+        .join(".openpawz")
+        .join("n8n-data");
+
+    // Migrate from old location if it exists and new one doesn't
+    let old_dir = app_data_dir(app_handle).join("n8n-data");
+    if old_dir.exists() && !new_dir.exists() {
+        log::info!(
+            "[n8n] Migrating data dir from {} → {}",
+            old_dir.display(),
+            new_dir.display()
+        );
+        if let Some(parent) = new_dir.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        if let Err(e) = std::fs::rename(&old_dir, &new_dir) {
+            log::warn!("[n8n] Migration rename failed ({}), trying copy…", e);
+            // rename fails across mount points — fall through to use old dir
+            if !new_dir.exists() {
+                return old_dir;
+            }
+        }
+    }
+
+    new_dir
+}
+
 // ── Main orchestrator ──────────────────────────────────────────────────
 
 /// Ensure the n8n engine is running and return its endpoint.
@@ -83,6 +120,9 @@ pub async fn ensure_n8n_ready(app_handle: &tauri::AppHandle) -> EngineResult<N8n
             let port = config.container_port.unwrap_or(DEFAULT_PORT);
             let url = format!("http://127.0.0.1:{}", port);
             if health::probe_n8n(&url, &config.api_key).await {
+                // Ensure owner + MCP are set up (idempotent, handles external restarts)
+                let _ = health::setup_owner_if_needed(&url).await;
+                let _ = health::enable_mcp_access(&url).await;
                 return Ok(N8nEndpoint {
                     url,
                     api_key: config.api_key,
@@ -102,6 +142,11 @@ pub async fn ensure_n8n_ready(app_handle: &tauri::AppHandle) -> EngineResult<N8n
                 // Verify the running n8n version supports MCP (requires 1.x+).
                 // An old cached npx version may still be running without MCP.
                 if health::has_mcp_support(&url).await {
+                    // Ensure owner + MCP are set up every time we reconnect.
+                    // This is idempotent and handles the case where a previous
+                    // MCP setup failed silently or n8n was restarted externally.
+                    let _ = health::setup_owner_if_needed(&url).await;
+                    let _ = health::enable_mcp_access(&url).await;
                     return Ok(N8nEndpoint {
                         url,
                         api_key: config.api_key,
@@ -173,13 +218,19 @@ pub async fn ensure_n8n_ready(app_handle: &tauri::AppHandle) -> EngineResult<N8n
 fn kill_port(port: u16) {
     #[cfg(unix)]
     {
-        // lsof -ti :<port> gives PIDs of all processes on the port
+        // lsof -ti :<port> -sTCP:LISTEN — only kill the LISTEN-ing process,
+        // NOT client connections (which would include our own app).
         if let Ok(output) = std::process::Command::new("lsof")
-            .args(["-ti", &format!(":{}", port)])
+            .args(["-ti", &format!(":{}", port), "-sTCP:LISTEN"])
             .output()
         {
             let pids = String::from_utf8_lossy(&output.stdout);
             for pid in pids.split_whitespace() {
+                log::info!(
+                    "[n8n] kill_port: killing LISTEN pid {} on port {}",
+                    pid,
+                    port
+                );
                 let _ = std::process::Command::new("kill")
                     .args(["-9", pid])
                     .status();
@@ -196,6 +247,35 @@ fn kill_port(port: u16) {
             let _ = output; // best-effort
         }
     }
+}
+
+/// Restart the n8n process after a community package install.
+///
+/// Kills the existing n8n child process and re-provisions with
+/// `start_n8n_process`, which re-reads the data dir (with its new
+/// `node_modules`) and registers all community nodes on startup.
+pub async fn restart_process(app_handle: &tauri::AppHandle) -> EngineResult<N8nEndpoint> {
+    let config = load_config(app_handle)?;
+
+    // Kill the old n8n process.  Prefer PID (targeted) over port-based kill
+    // to avoid accidentally killing our own app which has client connections
+    // on the same port.
+    if let Some(pid) = config.process_pid {
+        log::info!("[n8n] Killing n8n process (pid {}) for restart", pid);
+        process::stop_process(pid);
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    } else if let Some(port) = config.process_port {
+        log::info!(
+            "[n8n] No PID saved — killing LISTEN-ing process on port {} for restart",
+            port
+        );
+        kill_port(port);
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    }
+
+    // Re-provision — start_n8n_process will reuse the same data dir
+    // (with the newly installed packages) and existing encryption/API keys.
+    process::start_n8n_process(app_handle).await
 }
 
 /// Gracefully stop the n8n engine (called on app quit).

@@ -1,7 +1,7 @@
 // Memory Palace — Molecules (DOM rendering, IPC interaction)
 
 import { pawEngine } from '../../engine';
-import { $, escHtml } from '../../components/helpers';
+import { $, escHtml, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import {
   type RecallCardData,
@@ -343,7 +343,7 @@ export async function loadPalaceSidebar(onRecall?: (id: string) => void): Promis
       if (delBtn) {
         delBtn.addEventListener('click', async (e) => {
           e.stopPropagation();
-          if (!confirm('Delete this memory?')) return;
+          if (!(await confirmModal('Delete this memory?', 'Delete Memory'))) return;
           try {
             await pawEngine.memoryDelete(mem.id);
             showToast('Memory deleted', 'success');
@@ -443,7 +443,7 @@ export function renderRecallCard(mem: RecallCardData): HTMLElement {
       e.stopPropagation();
       const memId = (delEl as HTMLElement).dataset.memoryId;
       if (!memId) return;
-      if (!confirm('Delete this memory?')) return;
+      if (!(await confirmModal('Delete this memory?', 'Delete Memory'))) return;
       try {
         await pawEngine.memoryDelete(memId);
         showToast('Memory deleted', 'success');

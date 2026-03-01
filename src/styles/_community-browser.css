@@ -305,6 +305,23 @@
   font-style: italic;
 }
 
+/* ── Uninstalling state ── */
+.community-uninstalling-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.community-uninstalling-status .ms {
+  font-size: 16px;
+  color: var(--warning, #f59e0b);
+}
+.community-uninstalling-label {
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+}
+
 /* ── Empty / Loading states ── */
 .community-empty {
   display: flex;

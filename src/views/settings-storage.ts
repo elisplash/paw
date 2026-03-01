@@ -2,7 +2,7 @@
 // All data goes through Tauri IPC. No gateway.
 
 import { pawEngine } from '../engine';
-import { $ } from '../components/helpers';
+import { $, confirmModal } from '../components/helpers';
 import { getWorkspacePath, setWorkspacePath } from '../workspace';
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -92,7 +92,13 @@ export async function loadStorageSettings() {
     ) as HTMLButtonElement | null;
     if (resetBtn) {
       resetBtn.addEventListener('click', async () => {
-        if (!confirm('Reset data root to default (~/.paw/)? Requires a restart.')) return;
+        if (
+          !(await confirmModal(
+            'Reset data root to default (~/.paw/)? Requires a restart.',
+            'Reset Data Root',
+          ))
+        )
+          return;
         await pawEngine.storageSetDataRoot(null);
         loadStorageSettings();
       });

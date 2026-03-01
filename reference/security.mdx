@@ -7,6 +7,63 @@ description: "OpenPawz is designed with defense-in-depth: 10 security layers pro
 
 OpenPawz is designed with defense-in-depth: **10 security layers** protect against prompt injection, data exfiltration, MITM attacks, memory forensics, and unauthorized actions.
 
+## Zero Attack Surface by Default
+
+OpenPawz exposes **zero network ports** in its default configuration. There is no HTTP server, no WebSocket endpoint, and no listening socket for an attacker to reach — the only communication channel is Tauri's in-process IPC between the WebView and the Rust engine.
+
+### Network listeners
+
+Four optional listeners exist. All are **disabled by default** and bind to **localhost only** (`127.0.0.1`):
+
+| Listener | Default bind | Default state | Authentication | Purpose |
+|----------|-------------|---------------|----------------|---------|
+| Webhook server | `127.0.0.1:3940` | Disabled | Bearer token (auto-generated UUID) + IP rate limiting (60 req/min) | External trigger for agent runs |
+| WebChat | `127.0.0.1:3939` | Disabled | Access token + session cookie + DM policy | Browser-based chat with an agent |
+| WhatsApp bridge | `127.0.0.1:8086` | Disabled | Internal only (local Evolution API) | WhatsApp message relay |
+| n8n engine | `127.0.0.1:5678` | Disabled | n8n's built-in auth | Embedded workflow engine |
+
+Because everything binds to `127.0.0.1`, these services are **unreachable from the network** even when enabled. Binding to `0.0.0.0` (LAN/WAN exposure) is a manual opt-in that triggers a security warning in the logs and recommends TLS via Tailscale Funnel.
+
+:::warning
+Changing `bind_address` to `0.0.0.0` on any listener exposes it to your local network. Only do this behind a firewall or VPN (e.g. Tailscale), and ensure the authentication token is strong.
+:::
+
+### Cryptographic key storage
+
+No cryptographic key is ever stored on the filesystem. All keys live in the **OS keychain** (macOS Keychain / Windows Credential Manager / Linux Secret Service):
+
+| Key | Keychain service | Purpose |
+|-----|-----------------|---------|
+| DB encryption key | `paw-db-encryption` | AES-256-GCM database field encryption |
+| Skill vault key | `paw-skill-vault` | AES-256-GCM skill credential encryption |
+| Memory vault key | `paw-memory-vault` | AES-256-GCM PII memory encryption |
+| Lock screen hash | `paw-lock-screen` | SHA-256 hashed passphrase |
+
+There is no `device.json`, no key file, and no config file containing secrets. If the OS keychain is unavailable, the app **refuses to store credentials** rather than falling back to plaintext.
+
+### Soul files (agent behavior)
+
+Agent personality and behavioral rules (`SOUL.md`, `IDENTITY.md`, `USER.md`) are stored in the **encrypted SQLite database** (`agent_files` table) — not as files on the filesystem. They are read and written exclusively through Tauri IPC commands, which are local WebView-to-Rust calls with no network involvement.
+
+An external attacker would need:
+1. Physical access to the machine, AND
+2. The OS keychain credential to decrypt the database
+
+to tamper with soul files. Remote modification is impossible because no network port serves agent file operations.
+
+### Content Security Policy
+
+The Tauri WebView enforces a strict CSP that restricts all connections to `127.0.0.1`:
+
+```
+default-src 'self'; script-src 'self'; connect-src 'self' ws://127.0.0.1:1420 ...;
+object-src 'none'; frame-ancestors 'none'; form-action 'self'
+```
+
+This prevents XSS-based exfiltration, iframe embedding, and cross-origin form submission.
+
+---
+
 ## Human-in-the-Loop (HIL)
 
 Every tool is classified by risk level. High-risk tools require explicit human approval before execution.

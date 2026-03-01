@@ -67,8 +67,8 @@ pub async fn detect_local_n8n(url: &str) -> Option<N8nEndpoint> {
 /// Check if the running n8n instance supports MCP (has /rest/mcp/api-key endpoint).
 /// Returns false if n8n is an old version that predates MCP support.
 ///
-/// Detection strategy: POST to `/rest/mcp/api-key` without auth.
-///   - Old n8n: route doesn't exist → Express returns 404 HTML "Cannot POST"
+/// Detection strategy: GET `/rest/mcp/api-key` without auth.
+///   - Old n8n: route doesn't exist → Express returns 404 HTML "Cannot GET"
 ///   - New n8n: route exists, auth required → returns 401 JSON
 ///   - The `/mcp-server/http` endpoint is NOT reliable for this check because
 ///     old n8n's auth middleware returns 401 for ALL unauthenticated requests,
@@ -83,20 +83,14 @@ pub async fn has_mcp_support(base_url: &str) -> bool {
     };
 
     let url = format!("{}/rest/mcp/api-key", base_url.trim_end_matches('/'));
-    match client
-        .post(&url)
-        .header("Content-Type", "application/json")
-        .body("{}")
-        .send()
-        .await
-    {
+    match client.get(&url).send().await {
         Ok(resp) => {
             let status = resp.status().as_u16();
             if status == 404 {
-                // Confirm it's the Express "Cannot POST" page, not a JSON 404
+                // Confirm it's the Express "Cannot GET" page, not a JSON 404
                 let body = resp.text().await.unwrap_or_default();
-                if body.contains("Cannot POST") {
-                    log::debug!("[n8n] MCP not supported: /rest/mcp/api-key returns 'Cannot POST'");
+                if body.contains("Cannot GET") {
+                    log::debug!("[n8n] MCP not supported: /rest/mcp/api-key returns 'Cannot GET'");
                     return false;
                 }
             }
@@ -261,10 +255,13 @@ pub async fn enable_mcp_access(base_url: &str) -> Result<(), String> {
 ///
 /// Flow:
 ///   1. Sign in as owner → get session cookie
-///   2. POST /rest/mcp/api-key → create MCP API key (returns data.apiKey)
+///   2. GET /rest/mcp/api-key → get-or-create MCP API key (returns data.apiKey)
 ///
 /// The MCP API key is a JWT with audience "mcp-server-api", separate from
 /// N8N_API_KEY. It is required for Bearer auth on `/mcp-server/http`.
+/// Note: n8n 2.9.x uses `GET` (not POST) to retrieve/create the key via
+/// `McpServerApiKeyService.getOrCreateApiKey()`. The returned `apiKey`
+/// field is the full unredacted JWT on first creation.
 pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
     let base = base_url.trim_end_matches('/');
 
@@ -300,13 +297,15 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
         ));
     }
 
-    log::info!("[n8n] Login successful, creating MCP API key");
+    log::info!("[n8n] Login successful, retrieving MCP API key");
 
-    // Step 2: Create MCP API key via POST /rest/mcp/api-key
+    // Step 2: Get-or-create MCP API key via GET /rest/mcp/api-key
+    // n8n 2.9.x uses GET — the endpoint calls getOrCreateApiKey() which
+    // returns the existing key or creates a new one with audience "mcp-server-api".
     // Response: { "data": { "apiKey": "<jwt>", "audience": "mcp-server-api", ... } }
     let mcp_key_url = format!("{}/rest/mcp/api-key", base);
     let mcp_resp = client
-        .post(&mcp_key_url)
+        .get(&mcp_key_url)
         .send()
         .await
         .map_err(|e| format!("MCP API key request failed: {}", e))?;
@@ -315,7 +314,7 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
     if !mcp_status.is_success() {
         let body = mcp_resp.text().await.unwrap_or_default();
         return Err(format!(
-            "MCP API key creation failed (HTTP {}): {}",
+            "MCP API key retrieval failed (HTTP {}): {}",
             mcp_status,
             &body[..body.len().min(500)]
         ));
@@ -332,14 +331,44 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
     );
 
     // Extract the JWT from data.apiKey
+    // On first call this is the full unredacted JWT. On subsequent calls
+    // n8n redacts it (e.g. "******xxxx"). If we get a redacted key,
+    // rotate to get a fresh unredacted one.
     if let Some(token) = mcp_data
         .get("data")
         .and_then(|d| d.get("apiKey"))
         .and_then(|t| t.as_str())
     {
-        if !token.is_empty() {
+        if !token.is_empty() && !token.contains('*') {
             log::info!("[n8n] Retrieved MCP API key (audience: mcp-server-api)");
             return Ok(token.to_string());
+        }
+
+        // Key is redacted — rotate to get fresh unredacted JWT
+        log::info!("[n8n] MCP API key is redacted, rotating to get fresh key");
+        let rotate_url = format!("{}/rest/mcp/api-key/rotate", base);
+        let rotate_resp = client
+            .post(&rotate_url)
+            .send()
+            .await
+            .map_err(|e| format!("MCP API key rotation failed: {}", e))?;
+
+        if rotate_resp.status().is_success() {
+            let rotate_data: serde_json::Value = rotate_resp
+                .json()
+                .await
+                .map_err(|e| format!("Parse rotated MCP API key: {}", e))?;
+
+            if let Some(new_token) = rotate_data
+                .get("data")
+                .and_then(|d| d.get("apiKey"))
+                .and_then(|t| t.as_str())
+            {
+                if !new_token.is_empty() && !new_token.contains('*') {
+                    log::info!("[n8n] Rotated MCP API key successfully");
+                    return Ok(new_token.to_string());
+                }
+            }
         }
     }
 

@@ -5,6 +5,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { showToast } from '../../../components/toast';
+import { confirmModal } from '../../../components/helpers';
 import { kineticStagger } from '../../../components/kinetic-row';
 import {
   escHtml,
@@ -32,6 +33,7 @@ let _results: CommunityPackage[] = [];
 let _installed: InstalledPackage[] = [];
 let _loading = false;
 const _installing: Set<string> = new Set();
+const _uninstalling: Set<string> = new Set();
 /** Per-package install progress from backend events. */
 const _installProgress: Map<string, { phase: string; message: string }> = new Map();
 /** Package that was just installed — shows post-install guidance overlay. */
@@ -167,10 +169,17 @@ function _renderInstalledTab(): string {
               .join('')}
             ${pkg.installedNodes.length > 3 ? `<span class="community-node-chip community-node-more">+${pkg.installedNodes.length - 3}</span>` : ''}
           </div>
-          <button class="btn btn-ghost btn-sm community-uninstall-btn" data-pkg="${escHtml(pkg.packageName)}"
-                  title="Uninstall">
-            <span class="ms ms-sm">delete</span>
-          </button>
+          ${
+            _uninstalling.has(pkg.packageName)
+              ? `<span class="community-uninstalling-status">
+                <span class="ms ms-sm k-spin">progress_activity</span>
+                <span class="community-uninstalling-label">Removing…</span>
+              </span>`
+              : `<button class="btn btn-ghost btn-sm community-uninstall-btn" data-pkg="${escHtml(pkg.packageName)}"
+                    title="Uninstall">
+              <span class="ms ms-sm">delete</span>
+            </button>`
+          }
         </div>
       `,
         )
@@ -612,14 +621,20 @@ async function _saveCredentials(credentialType: string, displayName: string): Pr
 }
 
 async function _uninstallPackage(packageName: string): Promise<void> {
+  if (_uninstalling.has(packageName)) return; // guard against double-click
+  _uninstalling.add(packageName);
+  _render();
+
   try {
     await invoke('engine_n8n_community_packages_uninstall', { packageName });
     showToast(`Uninstalled ${packageName}`, 'success');
     await _fetchInstalled();
-    _render();
   } catch (e) {
     const err = e instanceof Error ? e.message : String(e);
     showToast(`Uninstall failed: ${err}`, 'error');
+  } finally {
+    _uninstalling.delete(packageName);
+    _render();
   }
 }
 
@@ -693,10 +708,12 @@ function _wireEvents(): void {
 
   // Uninstall buttons
   _container.querySelectorAll('.community-uninstall-btn[data-pkg]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const pkg = (btn as HTMLElement).dataset.pkg;
-      if (pkg && confirm(`Uninstall ${pkg}?`)) _uninstallPackage(pkg);
+      if (pkg && (await confirmModal(`Uninstall ${pkg}?`, 'Uninstall Package'))) {
+        _uninstallPackage(pkg);
+      }
     });
   });
 

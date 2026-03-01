@@ -90,8 +90,8 @@ pub async fn provision_docker_container(
         .filter(|k| !k.is_empty())
         .unwrap_or_else(generate_random_key);
 
-    // Determine data volume path
-    let data_dir = super::app_data_dir(app_handle).join("n8n-data");
+    // Determine data volume path (space-free to avoid node-gyp issues)
+    let data_dir = super::n8n_data_dir(app_handle);
     std::fs::create_dir_all(&data_dir)
         .map_err(|e| EngineError::Other(format!("Failed to create n8n data dir: {}", e)))?;
 
@@ -205,10 +205,26 @@ pub async fn provision_docker_container(
         )));
     }
 
-    // Set up the owner account for headless operation.
-    // n8n requires this before MCP and other features are usable.
-    if let Err(e) = super::health::setup_owner_if_needed(&url).await {
-        log::warn!("[n8n] Owner setup failed (non-fatal): {}", e);
+    // Set up owner + MCP access with retry.  n8n's internal services
+    // may not be fully initialized even though the health endpoint responds.
+    for attempt in 1..=3 {
+        match super::health::setup_owner_if_needed(&url).await {
+            Ok(_) => break,
+            Err(e) if attempt < 3 => {
+                log::info!(
+                    "[n8n] Owner setup attempt {}/3 failed: {} — retrying…",
+                    attempt,
+                    e
+                );
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            }
+            Err(e) => {
+                log::warn!(
+                    "[n8n] Owner setup failed after 3 attempts (non-fatal): {}",
+                    e
+                );
+            }
+        }
     }
 
     // Log the n8n version for diagnostics (MCP requires recent versions)
@@ -216,9 +232,25 @@ pub async fn provision_docker_container(
         log::info!("[n8n] Docker mode running n8n v{}", version);
     }
 
-    // Enable MCP access (disabled by default even after owner creation)
-    if let Err(e) = super::health::enable_mcp_access(&url).await {
-        log::warn!("[n8n] MCP access enable failed (non-fatal): {}", e);
+    // Enable MCP access with retry (disabled by default even after owner creation)
+    for attempt in 1..=3 {
+        match super::health::enable_mcp_access(&url).await {
+            Ok(_) => break,
+            Err(e) if attempt < 3 => {
+                log::info!(
+                    "[n8n] MCP enable attempt {}/3 failed: {} — retrying…",
+                    attempt,
+                    e
+                );
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            }
+            Err(e) => {
+                log::warn!(
+                    "[n8n] MCP access enable failed after 3 attempts (non-fatal): {}",
+                    e
+                );
+            }
+        }
     }
 
     // Persist config
@@ -321,10 +353,36 @@ pub async fn restart_existing_container(
     let url = format!("http://127.0.0.1:{}", port);
 
     if poll_n8n_ready(&url, &config.api_key).await {
-        // Ensure owner account exists (idempotent)
-        let _ = super::health::setup_owner_if_needed(&url).await;
-        // Ensure MCP access is enabled
-        let _ = super::health::enable_mcp_access(&url).await;
+        // Ensure owner account exists (idempotent, with retry)
+        for attempt in 1..=3 {
+            match super::health::setup_owner_if_needed(&url).await {
+                Ok(_) => break,
+                Err(e) if attempt < 3 => {
+                    log::info!(
+                        "[n8n] Owner setup attempt {}/3 failed on restart: {}",
+                        attempt,
+                        e
+                    );
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                }
+                Err(e) => log::warn!("[n8n] Owner setup failed on restart: {}", e),
+            }
+        }
+        // Ensure MCP access is enabled (with retry)
+        for attempt in 1..=3 {
+            match super::health::enable_mcp_access(&url).await {
+                Ok(_) => break,
+                Err(e) if attempt < 3 => {
+                    log::info!(
+                        "[n8n] MCP enable attempt {}/3 failed on restart: {}",
+                        attempt,
+                        e
+                    );
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                }
+                Err(e) => log::warn!("[n8n] MCP enable failed on restart: {}", e),
+            }
+        }
         super::emit_status(app_handle, "ready", "Integration engine ready.");
         Ok(N8nEndpoint {
             url,

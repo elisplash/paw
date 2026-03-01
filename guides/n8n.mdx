@@ -52,6 +52,36 @@ graph LR
 
 ---
 
+## Community Packages
+
+OpenPawz includes a built-in **Community Browser** for discovering, installing, and uninstalling n8n community packages — no terminal required.
+
+### Installing
+
+1. Go to the **Integrations** tab → **Community** section
+2. Search the n8n community registry (25,000+ packages)
+3. Click **Install** — Paw runs `npm install` in the n8n data directory, restarts the engine, and refreshes the MCP bridge
+4. New tools are available to your agents immediately
+
+### Uninstalling
+
+1. Switch to the **Installed** tab in the Community Browser
+2. Click the **delete** icon on any package
+3. Confirm in the modal dialog
+4. Paw runs `npm uninstall`, restarts n8n, and removes stale MCP tools
+
+During uninstall, the delete button is replaced with a spinning "Removing…" indicator. Double-clicks are ignored.
+
+<Note>
+n8n 2.9.x removed the `/api/v1/community-packages` REST endpoint. OpenPawz automatically falls back to direct `npm install`/`npm uninstall` in the n8n data directory for Process mode, or `docker exec` for Docker mode.
+</Note>
+
+### Data Directory
+
+Community packages are installed in `~/.openpawz/n8n-data`. This path is intentionally space-free — macOS's default `~/Library/Application Support/` path breaks `node-gyp` builds for native npm packages. If you have an older install, data is auto-migrated on first launch.
+
+---
+
 ## Setup
 
 ### Automatic (MCP Bridge — Recommended)
@@ -60,11 +90,17 @@ n8n is **auto-provisioned** when you launch OpenPawz. No manual setup required.
 
 1. **Docker users**: n8n starts as a container via the `bollard` crate (port 5678)
 2. **No Docker**: n8n starts via `npx n8n start` as a child process
-3. The MCP Bridge connects automatically at `http://127.0.0.1:5678/mcp`
+3. An **owner account** is auto-created for headless operation
+4. **MCP access** is auto-enabled (with retry logic — up to 3 attempts)
+5. The MCP Bridge connects automatically at `http://127.0.0.1:5678/mcp-server/http`
+
+All of this happens on **every reconnect**, not just the first launch — so if n8n restarts externally or the MCP setup failed previously, it self-heals.
 
 Verify it's working by checking the logs:
 ```
 [n8n] Starting embedded n8n engine...
+[n8n] Owner setup succeeded
+[n8n] MCP access enabled
 [mcp] Auto-registering n8n as MCP server at http://127.0.0.1:5678/mcp-server/http
 [mcp:http] Available tools: search_workflows, execute_workflow, get_workflow_details
 ```
@@ -185,12 +221,19 @@ The widget refreshes every 5 minutes.
 | Workflow not found | Ask the agent to list all workflows first to confirm available IDs. |
 | Execution fails | Ask the agent to fetch execution details — it will show which node errored. |
 | Webhook not working | Ensure the n8n workflow is **active** and the webhook path matches. |
+| Community install fails (node-gyp) | Ensure data dir is at `~/.openpawz/n8n-data` (space-free path). Check logs for npm errors. |
+| Installed tab shows 0 packages | The REST API returns 404 on n8n 2.9.x — Paw falls back to reading `package.json` from the data dir. If the data dir is empty, packages may not have installed correctly. |
+| Uninstall button does nothing | Ensure you're running the latest build. Older versions used `window.confirm()` which doesn't render in Tauri's WKWebView on macOS. |
+| MCP token retrieval fails | Check logs for "MCP API key is redacted" — Paw auto-rotates stale keys. If n8n is mid-restart, wait a few seconds and retry. |
+| Encryption key mismatch on restart | The encryption key is stored in your OS keychain (`paw-n8n-encryption`). If you cleared the keychain, delete `~/.openpawz/n8n-data` for a fresh start. |
 
 ---
 
 ## Security notes
 
 - Your n8n API key is **encrypted** in the Pawz vault (XOR, 32-byte key in OS keychain) — never stored in plain text
+- The **n8n encryption key** is stored in the OS keychain (`paw-n8n-encryption`), never on the filesystem in plain text. It's synced to n8n's config file only to prevent startup mismatch errors.
+- The **MCP API key** is a JWT with `mcp-server-api` audience, separate from the REST API key. Stale/redacted keys are auto-rotated.
 - In RAM, the API key is wrapped in `Zeroizing<String>` — automatically zeroed from memory when the provider is dropped
 - API calls go directly from your machine to your n8n instance — no cloud relay
 - All outbound requests use the **certificate-pinned TLS client** (Mozilla root CAs only, OS trust store excluded)

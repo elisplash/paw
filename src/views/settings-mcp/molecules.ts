@@ -3,7 +3,7 @@
 import { pawEngine } from '../../engine';
 import { showToast } from '../../components/toast';
 import type { McpServerConfig, McpServerStatus } from '../../engine/atoms/types';
-import { $ } from '../../components/helpers';
+import { $, confirmModal } from '../../components/helpers';
 import { esc, makeBtn, inputStyle } from './atoms';
 
 // ── Main loader ────────────────────────────────────────────────────────────
@@ -148,7 +148,13 @@ function renderServerCard(
 
   btnRow.appendChild(
     makeBtn('Remove', 'btn-ghost', async () => {
-      if (!confirm(`Remove MCP server "${server.name}"? This cannot be undone.`)) return;
+      if (
+        !(await confirmModal(
+          `Remove MCP server "${server.name}"? This cannot be undone.`,
+          'Remove Server',
+        ))
+      )
+        return;
       try {
         await pawEngine.mcpRemoveServer(server.id);
         showToast(`Removed ${server.name}`, 'success');

@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+#### n8n Community Packages
+- **Install in Process mode** — npm install now runs in a space-free data dir (`~/.openpawz/n8n-data`) to avoid node-gyp failures, restarts n8n after install, and refreshes MCP bridge so new tools are available immediately
+- **Uninstall** — rewritten with REST API → npm uninstall fallback (Process) / docker exec (Docker), n8n restart after removal, and MCP bridge refresh so stale tools disappear
+- **Installed tab** — list now falls back to reading `package.json` from the data dir when the REST API returns 404 (n8n 2.9.x removed the community-packages endpoint)
+- **Uninstall UX** — delete button shows a spinning "Removing…" indicator during uninstall with double-click protection to prevent duplicate operations
+- **`confirm()` → `confirmModal()`** — replaced all `window.confirm()` calls across the app with the async `confirmModal()` helper; native `confirm()` does not render in Tauri 2 WKWebView on macOS
+
+#### MCP Bridge
+- **Auto-setup on every reconnect** — owner account creation + MCP access enablement now runs on every engine reconnect (not just fresh provision), with retry logic (3 attempts, 2s delay)
+- **POST → GET for MCP token** — `has_mcp_support()` and `retrieve_mcp_token()` now use GET on `/rest/mcp/api-key` matching n8n 2.9.x's `getOrCreateApiKey()` API
+- **JWT validation** — cached MCP tokens are now validated (must contain `.` separators, must not contain `*`) before reuse; stale/redacted tokens trigger automatic re-fetch
+- **Redacted key rotation** — if n8n returns a redacted MCP API key, we automatically rotate via `POST /rest/mcp/api-key/rotate` to get a fresh unredacted JWT
+- **Token retry** — MCP token retrieval retries up to 2 times with 2s delay for fresh n8n starts where the MCP module initialises after the health endpoint
+
+#### n8n Engine Lifecycle
+- **Encryption key in OS keychain** — n8n encryption key now stored in macOS Keychain / Windows Credential Manager / Linux Secret Service (`paw-n8n-encryption`), with migration from n8n's plaintext config file and sync back to prevent mismatch errors
+- **Space-free data dir** — n8n data moved to `~/.openpawz/n8n-data` (auto-migrated from old `~/Library/Application Support/` path) to fix node-gyp build failures on macOS
+- **Process restart safety** — `kill_port()` now uses `-sTCP:LISTEN` to only kill the listening process, not client connections; prefers PID-based kill over port-based
+- **App self-kill prevention** — restart logic no longer accidentally kills the Tauri app process when both share port 5678 connections
+
+#### Security Documentation
+- Added "Zero Attack Surface by Default" section to security.mdx covering network listeners, cryptographic key storage, soul file protection, and Content Security Policy
+
+### Changed
+- `dev:tauri:clean` script now kills stale n8n processes, cleans `~/.openpawz`, and removes all 5 keychain entries for a true clean slate
+
 ## [0.1.0] - 2026-02-24
 
 First public pre-release of OpenPawz — a fully local, multi-agent AI desktop app
