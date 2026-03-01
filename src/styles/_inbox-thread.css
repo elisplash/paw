@@ -6,6 +6,7 @@
   overflow: hidden;
   min-width: 0;
   background: var(--bg-primary);
+  grid-column: 2;
 }
 
 .inbox-thread-header {
