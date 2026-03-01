@@ -267,11 +267,11 @@ After BM25 and vector results are collected, the memory graph is traversed to fi
 
 Results from all three signals are merged using **Reciprocal Rank Fusion (RRF)**:
 
-$$
-\text{RRF\_score}(d) = \sum_{i} \frac{1}{k + \text{rank}_i(d)}
-$$
+```
+RRF_score(d) = Σᵢ 1 / (k + rankᵢ(d))
+```
 
-Where $k = 60$ (standard constant) and $\text{rank}_i(d)$ is the rank of document $d$ in signal $i$. This produces a unified ranking that benefits from all three signals without requiring score normalization.
+Where *k* = 60 (standard constant) and *rankᵢ(d)* is the rank of document *d* in signal *i*. This produces a unified ranking that benefits from all three signals without requiring score normalization.
 
 ### Reranking
 
@@ -416,11 +416,11 @@ When two memories share the same subject and predicate but have different object
 
 Memory strength decays following a simplified Ebbinghaus forgetting curve:
 
-$$
-\text{strength}(t) = S_0 \times e^{-\lambda t}
-$$
+```
+strength(t) = S₀ × e^(−λt)
+```
 
-Where $S_0$ is initial strength (1.0), $\lambda$ is the decay rate, and $t$ is time since creation. Important memories (importance > 0.7) decay slower. Accessed memories get strength boosts.
+Where *S₀* is initial strength (1.0), *λ* is the decay rate, and *t* is time since creation. Important memories (importance > 0.7) decay slower. Accessed memories get strength boosts.
 
 ### 4. Garbage Collection
 
