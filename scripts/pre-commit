@@ -1,0 +1,23 @@
+#!/bin/sh
+# pre-commit hook — auto-installs prek if missing, then runs staged-file checks.
+#
+# Managed by scripts/prepare-hooks.js (re-created on `npm install`).
+
+set -e
+
+# ── Auto-install prek if not on PATH ──────────────────────────────
+if ! command -v prek >/dev/null 2>&1; then
+  echo "[pre-commit] prek not found — installing…"
+  curl -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
+  # Refresh PATH for cargo-installed binaries
+  export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+  if ! command -v prek >/dev/null 2>&1; then
+    echo "[pre-commit] ⚠ Could not install prek. Skipping hooks."
+    exit 0
+  fi
+  echo "[pre-commit] prek installed ✓"
+fi
+
+echo "[pre-commit] Running checks on staged files…"
+prek run --hook-stage pre-commit
+echo "[pre-commit] All checks passed ✓"

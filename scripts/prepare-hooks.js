@@ -1,8 +1,11 @@
 #!/usr/bin/env node
-// Auto-install prek pre-commit hooks on `npm install`.
+// Auto-install prek git hooks on `npm install`.
+// Copies scripts/pre-commit and scripts/pre-push into .git/hooks/.
+// Each hook auto-installs prek at runtime if it's missing, so even a
+// fresh clone without prek on PATH will "just work" on first commit/push.
+//
 // Skipped in CI (no .git directory) and production installs.
 
-import { execSync } from "node:child_process";
 import { existsSync, copyFileSync, chmodSync } from "node:fs";
 import { join } from "node:path";
 
@@ -15,49 +18,24 @@ if (!existsSync(GIT_DIR)) {
   process.exit(0);
 }
 
-// ── 1. Ensure prek binary is available ───────────────────────────
-function hasPrek() {
-  try {
-    execSync("prek --version", { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
-  }
-}
+// ── Install hooks from scripts/ → .git/hooks/ ───────────────────
+const hooks = ["pre-commit", "pre-push"];
 
-if (!hasPrek()) {
-  console.log("Installing prek (fast pre-commit hooks)…");
+for (const hook of hooks) {
+  const src = join(ROOT, "scripts", hook);
+  const dst = join(GIT_DIR, "hooks", hook);
+
+  if (!existsSync(src)) {
+    console.warn(`scripts/${hook} not found — skipping.`);
+    continue;
+  }
+
   try {
-    execSync(
-      "curl -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh",
-      { stdio: "inherit" },
-    );
+    copyFileSync(src, dst);
+    chmodSync(dst, 0o755);
+    console.log(`${hook} hook installed.`);
   } catch (err) {
-    console.warn(
-      "Could not auto-install prek. Install manually: https://prek.j178.dev/installation/",
-    );
-    process.exit(0); // non-fatal — don't block npm install
+    console.warn(`Could not install ${hook} hook:`, err.message);
+    // non-fatal — don't block npm install
   }
-}
-
-// ── 2. Install the git hooks ─────────────────────────────────────
-try {
-  execSync("prek install", { stdio: "inherit", cwd: ROOT });
-  console.log("Pre-commit hooks installed.");
-} catch (err) {
-  console.warn("prek install failed:", err.message);
-  process.exit(0); // non-fatal
-}
-
-// ── 3. Install the pre-push hook ─────────────────────────────────
-const prePushSrc = join(ROOT, "scripts", "pre-push");
-const prePushDst = join(GIT_DIR, "hooks", "pre-push");
-
-try {
-  copyFileSync(prePushSrc, prePushDst);
-  chmodSync(prePushDst, 0o755);
-  console.log("Pre-push hook installed.");
-} catch (err) {
-  console.warn("Could not install pre-push hook:", err.message);
-  // non-fatal
 }
