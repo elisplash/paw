@@ -179,7 +179,7 @@ OpenPawz takes a defense-in-depth approach with 10 security layers. The agent ne
 7. **Credential vault** — OS keychain + AES-256-GCM encrypted SQLite; keys never appear in prompts or logs
 8. **TLS certificate pinning** — Custom `rustls` config pinned to Mozilla root CAs; OS trust store excluded to prevent MITM from compromised CAs
 9. **Outbound request signing** — Every provider request SHA-256 signed (`provider ‖ model ‖ timestamp ‖ body`) with 500-entry audit ring buffer
-10. **Memory encryption** — API keys wrapped in `Zeroizing<String>`, zeroed from RAM on drop via `write_volatile` to defeat memory forensics
+10. **Memory encryption** — Engram memory system encrypts PII-containing memories with AES-256-GCM (separate keychain key). API keys wrapped in `Zeroizing<String>`, zeroed from RAM on drop. FTS5 query sanitization and prompt injection scanning on all recalled content
 
 ### Why This Matters
 
@@ -268,12 +268,17 @@ Telegram · Discord · IRC · Slack · Matrix · Mattermost · Nextcloud Talk ·
 
 Each bridge includes user approval flows, per-agent routing, and uniform start/stop/config commands. The same agent brain, memory, and tools work across every platform.
 
-### Memory System
-- Hybrid BM25 + vector similarity search with Ollama embeddings
-- MMR re-ranking for diversity (lambda=0.7)
-- Temporal decay with 30-day half-life
-- Auto-recall and auto-capture per agent
-- Memory Palace visualization UI
+### Memory System — Project Engram
+- **Three-tier architecture** — Sensory buffer (ring buffer for current turn) → Working memory (priority-evicted slots) → Long-term graph (episodic, semantic, procedural stores)
+- **Hybrid search** — BM25 full-text + vector similarity (Ollama embeddings) with reciprocal rank fusion and spreading activation across memory graph edges
+- **Automatic consolidation** — Background engine runs pattern clustering, contradiction detection, Ebbinghaus strength decay, and garbage collection on a 5-minute cycle
+- **18 memory categories** — Unified across Rust backend, agent tools, and frontend UI (general, preference, fact, project, person, technical, insight, procedure, etc.)
+- **PII-aware encryption** — Automatic detection of 9 PII types with field-level AES-256-GCM encryption before storage. Separate keychain key from credential vault
+- **Memory lifecycle** — Auto-recall injects relevant memories before agent turns; auto-capture stores results after task/orchestrator/compaction completion
+- **Channel-scoped memories** — Memories from Discord, Slack, Telegram etc. are tagged with channel + user scope for isolated recall
+- **GDPR Article 17** — Right-to-erasure API securely purges all memories for given user identifiers
+- **Context budget** — Token-aware ContextBuilder packs memories into available context window with priority ordering and model-specific tokenizer
+- **Memory Palace** — Visualization UI for browsing and managing stored memories
 
 ### Built-in Tools & Skills
 - 25,000+ integrations (400+ native + 25K community integrations via MCP bridge workflows) with encrypted credential injection
@@ -724,6 +729,23 @@ OpenPawz is built by one developer and needs your help. Every contribution matte
 | Bundler | Vite |
 | Testing | vitest (TS) + cargo test (Rust) |
 | CI | GitHub Actions (3 parallel jobs) |
+
+---
+
+## Disclaimer
+
+OpenPawz is open-source software provided **"as is"** under the MIT License, without warranty of any kind.
+
+**By using this software, you acknowledge and agree that:**
+
+- The authors and contributors are **not responsible** for any damages, data loss, financial loss, security incidents, or other consequences arising from the use of this software.
+- You are solely responsible for how you use this software, including any actions performed by AI agents, automated tasks, trading operations, or integrations you configure.
+- AI-generated outputs may be inaccurate, incomplete, or inappropriate. Always review agent actions and outputs before relying on them.
+- Trading and financial features are experimental. **Never risk funds you cannot afford to lose.** The developers are not financial advisors.
+- You are responsible for compliance with applicable laws, regulations, and third-party terms of service in your jurisdiction.
+- This software interacts with third-party APIs and services. The developers are not responsible for those services' availability, accuracy, or terms.
+
+This is a community-driven open-source project. Use at your own risk.
 
 ---
 

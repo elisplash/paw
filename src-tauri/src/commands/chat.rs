@@ -14,6 +14,7 @@ use tauri::{Emitter, Manager, State};
 use crate::commands::state::{normalize_model_name, resolve_provider_for_model, EngineState};
 use crate::engine::agent_loop;
 use crate::engine::chat as chat_org;
+use crate::engine::engram;
 use crate::engine::memory;
 use crate::engine::providers::AnyProvider;
 use crate::engine::types::*;
@@ -220,7 +221,7 @@ pub async fn engine_chat_send(
         );
     }
 
-    let (todays_memories, todays_memory_contents) = {
+    let (todays_memories, _todays_memory_contents) = {
         let tm = state
             .store
             .get_todays_memories(&agent_id_owned)
@@ -235,7 +236,7 @@ pub async fn engine_chat_send(
         info!(
             "[engine] Today's memory notes injected ({} chars, {} entries)",
             tm.len(),
-            todays_memory_contents.len()
+            _todays_memory_contents.len()
         );
     }
 
@@ -273,168 +274,159 @@ pub async fn engine_chat_send(
         )
     };
 
-    // ── Compose full system prompt (organism) ──────────────────────────────
-    let mut full_system_prompt = chat_org::compose_chat_system_prompt(
-        base_system_prompt.as_deref(),
-        runtime_context,
-        core_context.as_deref(),
-        todays_memories.as_deref(),
-        &skill_instructions,
-    );
-
-    // ── Agent roster: inject known agents so delegation works ───────────
+    // ── Compose system prompt + recall + history via Engram ContextBuilder ──
+    // The ContextBuilder uses accurate token counting via the model capability
+    // registry, budget-aware assembly (priority-ordered section dropping),
+    // and BM25+vector+graph fusion for auto-recall. This replaces the old
+    // compose_chat_system_prompt → budget trimming → load_conversation pipeline.
     let agent_roster = chat_org::build_agent_roster(&state.store, &agent_id_owned);
-    if let Some(ref roster) = agent_roster {
-        if let Some(ref mut p) = full_system_prompt {
-            p.push_str("\n\n---\n\n");
-            p.push_str(roster);
-        }
-        info!("[engine] Agent roster injected ({} chars)", roster.len());
-    }
 
-    // ── Auto-recall: search memories relevant to this message ──────────
-    // Same as channel agents — inject relevant long-term memories into
-    // the system prompt so the agent doesn't "forget" cross-session context.
-    // Dedup: skip memories already present in today's memory notes to avoid
-    // double-injection which causes the model to loop on the same content.
-    let mut recall_block: Option<String> = None;
-    {
-        let (auto_recall_on, recall_limit, recall_threshold) = {
-            let mcfg = state.memory_config.lock();
-            (mcfg.auto_recall, mcfg.recall_limit, mcfg.recall_threshold)
-        };
-        if auto_recall_on {
-            let emb_client = state.embedding_client();
-            match memory::search_memories(
-                &state.store,
-                &request.message,
-                recall_limit,
-                recall_threshold,
-                emb_client.as_ref(),
-                Some(&agent_id_owned),
-            )
-            .await
-            {
-                Ok(mems) if !mems.is_empty() => {
-                    // Filter out memories already in today's notes (dedup)
-                    let deduped: Vec<&Memory> = mems
-                        .iter()
-                        .filter(|m| {
-                            !todays_memory_contents.iter().any(|tc| {
-                                memory::content_overlap(&m.content, tc)
-                                    > memory::DEDUP_OVERLAP_THRESHOLD
-                            })
-                        })
-                        .collect();
-                    if !deduped.is_empty() {
-                        let ctx: Vec<String> = deduped
-                            .iter()
-                            .map(|m| {
-                                // Cap individual memory entries to keep things tight
-                                let short = if m.content.len() > 300 {
-                                    format!("{}…", &m.content[..m.content.floor_char_boundary(300)])
-                                } else {
-                                    m.content.clone()
-                                };
-                                format!("- [{}] {}", m.category, short)
-                            })
-                            .collect();
-                        let memory_block = format!("## Relevant Memories\n{}", ctx.join("\n"));
-                        if let Some(ref mut p) = full_system_prompt {
-                            p.push_str("\n\n---\n\n");
-                            p.push_str(&memory_block);
-                        }
-                        recall_block = Some(memory_block.clone());
-                        info!("[engine] Auto-recalled {} memories ({} deduped from today's, {} chars)",
-                            mems.len(), mems.len() - deduped.len(), memory_block.len());
-                    } else {
-                        info!("[engine] Auto-recall: all {} results already in today's notes, skipping", mems.len());
-                    }
-                }
-                Ok(_) => {} // No relevant memories found
-                Err(e) => warn!("[engine] Auto-recall search failed: {}", e),
-            }
-        }
-    }
+    let auto_recall_on = {
+        let mcfg = state.memory_config.lock();
+        mcfg.auto_recall
+    };
 
-    // ── Dynamic system prompt budget ───────────────────────────────────────
-    // Reserve a minimum of conversation_floor tokens for conversation messages.
-    // If the system prompt is too large, drop sections in priority order
-    // (lowest priority first) until the budget fits.
-    //
-    // Priority (highest → lowest, never dropped → dropped first):
-    //   1. Platform awareness + Foreman protocol + runtime context (core identity)
-    //   2. Soul files (IDENTITY.md, SOUL.md, USER.md)
-    //   3. Agent roster (needed for delegation)
-    //   4. Today's memory notes (daily context)
-    //   5. Skill instructions (tool usage hints)
-    //   6. Auto-recalled memories (can always use memory_search instead)
-    let context_window = {
+    let context_window_override = {
         let cfg = state.config.lock();
         cfg.context_window_tokens
     };
-    // Reserve at least 60% of context window for conversation messages.
-    // This ensures even in long conversations the model has room to read
-    // the user's recent messages and respond coherently.
-    let conversation_floor = context_window * 60 / 100;
-    let sys_prompt_budget = context_window - conversation_floor; // in tokens
-    let sys_prompt_budget_chars = sys_prompt_budget * 4; // rough chars ≈ tokens × 4
 
-    let sys_prompt_len = full_system_prompt.as_ref().map(|s| s.len()).unwrap_or(0);
+    // Load raw conversation history for the ContextBuilder to budget-trim
+    let raw_messages = state
+        .store
+        .load_conversation_raw(&session_id, Some(&agent_id_owned))
+        .unwrap_or_default();
 
-    if sys_prompt_len > sys_prompt_budget_chars {
-        info!(
-            "[engine] System prompt ({} chars, ~{}T) exceeds budget (~{}T for {}T window) — trimming by priority",
-            sys_prompt_len, sys_prompt_len / 4, sys_prompt_budget, context_window
-        );
+    let history_pairs: Vec<(String, String)> = raw_messages
+        .iter()
+        .map(|m| (m.role.clone(), m.content.clone()))
+        .collect();
 
-        // Rebuild the system prompt with prioritized sections.
-        // Drop from lowest priority until we fit the budget.
-        let rebuild = chat_org::compose_chat_system_prompt_budgeted(
-            base_system_prompt.as_deref(),
-            {
-                let cfg = state.config.lock();
-                let provider_name = cfg
-                    .providers
-                    .iter()
-                    .find(|p| Some(p.id.clone()) == cfg.default_provider)
-                    .or_else(|| cfg.providers.first())
-                    .map(|p| format!("{} ({:?})", p.id, p.kind))
-                    .unwrap_or_else(|| "unknown".into());
-                let user_tz = cfg.user_timezone.clone();
-                chat_org::build_runtime_context(
-                    &model,
-                    &provider_name,
-                    &session_id,
-                    &agent_id_owned,
-                    &user_tz,
-                )
-            },
-            core_context.as_deref(),
-            todays_memories.as_deref(),
-            &skill_instructions,
-            agent_roster.as_deref(),
-            recall_block.as_deref(),
-            sys_prompt_budget_chars,
-        );
-        full_system_prompt = rebuild;
+    let emb_client_for_recall = state.embedding_client();
+    let recall_scope = crate::atoms::engram_types::MemoryScope {
+        global: false,
+        agent_id: Some(agent_id_owned.clone()),
+        ..Default::default()
+    };
+
+    let mut builder = engram::context_builder::ContextBuilder::new(&model)
+        .context_window(context_window_override);
+
+    if let Some(ref bp) = base_system_prompt {
+        builder = builder.base_prompt(bp.clone());
     }
+    builder = builder.runtime_context(runtime_context);
+    if let Some(ref cc) = core_context {
+        builder = builder.core_context(cc.clone());
+    }
+    if let Some(ref tm) = todays_memories {
+        builder = builder.todays_memories(tm.clone());
+    }
+    if !skill_instructions.is_empty() {
+        builder = builder.skill_instructions(skill_instructions.clone());
+    }
+    if let Some(ref roster) = agent_roster {
+        builder = builder.agent_roster(roster.clone());
+    }
+    if auto_recall_on {
+        builder = builder.recall_from(
+            &state.store,
+            emb_client_for_recall.as_ref(),
+            recall_scope,
+            request.message.clone(),
+        );
+    }
+    builder = builder.messages(history_pairs);
 
-    info!(
-        "[engine] System prompt: {} chars (~{} tokens), budget: ~{} tokens, conversation floor: ~{} tokens",
-        full_system_prompt.as_ref().map(|s| s.len()).unwrap_or(0),
-        full_system_prompt.as_ref().map(|s| s.len() / 4).unwrap_or(0),
-        sys_prompt_budget,
-        conversation_floor,
-    );
+    // Build the assembled context
+    let assembled = builder.build().await;
 
-    // ── Load conversation history ──────────────────────────────────────────
-    let mut messages = state.store.load_conversation(
-        &session_id,
-        full_system_prompt.as_deref(),
-        Some(context_window),
-        Some(&agent_id_owned),
-    )?;
+    let (_full_system_prompt, mut messages, _budget_report) = match assembled {
+        Ok(ctx) => {
+            info!(
+                "[engram:chat] Context assembled: sys={}tok hist={}tok reply={}tok mem={} msgs={}/{}",
+                ctx.budget.system_prompt_tokens,
+                ctx.budget.history_tokens,
+                ctx.budget.available_for_reply,
+                ctx.budget.memories_injected,
+                ctx.budget.messages_included,
+                ctx.budget.messages_included + ctx.budget.messages_trimmed,
+            );
+            // Prepend system prompt as a system message, then add history
+            let mut chat_messages: Vec<Message> = Vec::new();
+            if let Some(ref sys) = ctx.system_prompt {
+                chat_messages.push(Message {
+                    role: Role::System,
+                    content: MessageContent::Text(sys.clone()),
+                    tool_calls: None,
+                    tool_call_id: None,
+                    name: None,
+                });
+            }
+            // Convert (role, content) pairs to Message for the agent loop
+            for (role, content) in &ctx.messages {
+                chat_messages.push(Message {
+                    role: match role.as_str() {
+                        "assistant" => Role::Assistant,
+                        "system" => Role::System,
+                        "tool" => Role::Tool,
+                        _ => Role::User,
+                    },
+                    content: MessageContent::Text(content.clone()),
+                    tool_calls: None,
+                    tool_call_id: None,
+                    name: None,
+                });
+            }
+            (ctx.system_prompt, chat_messages, ctx.budget)
+        }
+        Err(e) => {
+            // Fallback to legacy system prompt composition if ContextBuilder fails
+            warn!(
+                "[engram:chat] ContextBuilder failed ({}), falling back to legacy path",
+                e
+            );
+            let mut fallback_prompt = chat_org::compose_chat_system_prompt(
+                base_system_prompt.as_deref(),
+                {
+                    let cfg = state.config.lock();
+                    let provider_name = cfg
+                        .providers
+                        .iter()
+                        .find(|p| Some(p.id.clone()) == cfg.default_provider)
+                        .or_else(|| cfg.providers.first())
+                        .map(|p| format!("{} ({:?})", p.id, p.kind))
+                        .unwrap_or_else(|| "unknown".into());
+                    let user_tz = cfg.user_timezone.clone();
+                    chat_org::build_runtime_context(
+                        &model,
+                        &provider_name,
+                        &session_id,
+                        &agent_id_owned,
+                        &user_tz,
+                    )
+                },
+                core_context.as_deref(),
+                todays_memories.as_deref(),
+                &skill_instructions,
+            );
+            if let Some(ref roster) = agent_roster {
+                if let Some(ref mut p) = fallback_prompt {
+                    p.push_str("\n\n---\n\n");
+                    p.push_str(roster);
+                }
+            }
+            let context_window = context_window_override;
+            let fallback_msgs = state.store.load_conversation(
+                &session_id,
+                fallback_prompt.as_deref(),
+                Some(context_window),
+                Some(&agent_id_owned),
+            )?;
+            let budget = engram::context_builder::BudgetReport::default();
+            (fallback_prompt, fallback_msgs, budget)
+        }
+    };
 
     // ── Process attachments into multi-modal blocks (organism) ────────────
     chat_org::process_attachments(&request.message, &request.attachments, &mut messages);
@@ -592,6 +584,7 @@ pub async fn engine_chat_send(
                         if !facts.is_empty() {
                             let emb_client = engine_state.embedding_client();
                             for (content, category) in &facts {
+                                // Store in legacy system
                                 match memory::store_memory_dedup(
                                     &engine_state.store,
                                     content,
@@ -610,6 +603,24 @@ pub async fn engine_chat_send(
                                         info!("[engine] Auto-capture skipped (near-duplicate)")
                                     }
                                     Err(e) => warn!("[engine] Auto-capture failed: {}", e),
+                                }
+
+                                // Also store in Engram (three-tier episodic memory)
+                                match engram::bridge::store_auto_capture(
+                                    &engine_state.store,
+                                    content,
+                                    category,
+                                    emb_client.as_ref(),
+                                    Some(&agent_id_for_spawn),
+                                    Some(&session_id_clone),
+                                    None, // no channel context
+                                    None, // no channel user
+                                )
+                                .await
+                                {
+                                    Ok(Some(_)) => {}
+                                    Ok(None) => {}
+                                    Err(e) => warn!("[engine] Engram auto-capture failed: {}", e),
                                 }
                             }
                         }
@@ -657,6 +668,19 @@ pub async fn engine_chat_send(
                             Ok(None) => info!("[engine] Session summary skipped (near-duplicate)"),
                             Err(e) => warn!("[engine] Session summary store failed: {}", e),
                         }
+
+                        // Also store session summary in Engram
+                        let _ = engram::bridge::store_auto_capture(
+                            &engine_state.store,
+                            &session_summary,
+                            "session",
+                            emb_client.as_ref(),
+                            Some(&agent_id_for_spawn),
+                            Some(&session_id_clone),
+                            None, // no channel context
+                            None, // no channel user
+                        )
+                        .await;
                     }
 
                     // ── Auto-prune: cap stored messages per session ──

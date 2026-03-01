@@ -148,7 +148,7 @@ pub async fn execute_tool(
         .or(fetch::execute(name, &args, app_handle).await)
         .or(filesystem::execute(name, &args, agent_id).await)
         .or(soul::execute(name, &args, app_handle, agent_id).await)
-        .or(memory::execute(name, &args, app_handle).await)
+        .or(memory::execute(name, &args, app_handle, agent_id).await)
         .or(web::execute(name, &args, app_handle).await)
         .or(tasks::execute(name, &args, app_handle, agent_id).await)
         .or(agents::execute(name, &args, app_handle, agent_id).await)

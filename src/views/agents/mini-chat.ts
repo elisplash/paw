@@ -140,8 +140,8 @@ function miniChatMd(raw: string): string {
   s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
   // Bold: **...**
   s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // Italic: *...*
-  s = s.replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, '<em>$1</em>');
+  // Italic: *...* (bold already replaced above, so single * is safe)
+  s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
   // Links: [text](url)
   s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
   // Newlines

@@ -29,6 +29,11 @@ impl EmbeddingClient {
         }
     }
 
+    /// The model name used for embeddings.
+    pub fn model_name(&self) -> &str {
+        &self.model
+    }
+
     /// Get embedding vector for a text string.
     /// Tries Ollama API format first, falls back to OpenAI format.
     /// On first failure, attempts to auto-pull the model from Ollama.

@@ -73,14 +73,24 @@ export const DEFAULT_SQUAD_CONFIG: SquadNodeConfig = {
 
 /** Common memory categories available in the UI dropdown. */
 export const MEMORY_CATEGORY_OPTIONS = [
-  { value: 'insight', label: 'Insight', icon: 'lightbulb' },
-  { value: 'fact', label: 'Fact', icon: 'fact_check' },
+  { value: 'general', label: 'General', icon: 'category' },
   { value: 'preference', label: 'Preference', icon: 'tune' },
+  { value: 'fact', label: 'Fact', icon: 'fact_check' },
+  { value: 'skill', label: 'Skill', icon: 'build' },
+  { value: 'context', label: 'Context', icon: 'info' },
+  { value: 'instruction', label: 'Instruction', icon: 'school' },
+  { value: 'correction', label: 'Correction', icon: 'edit' },
+  { value: 'feedback', label: 'Feedback', icon: 'thumbs_up_down' },
+  { value: 'project', label: 'Project', icon: 'folder' },
+  { value: 'person', label: 'Person', icon: 'person' },
+  { value: 'technical', label: 'Technical', icon: 'code' },
+  { value: 'session', label: 'Session', icon: 'history' },
+  { value: 'task_result', label: 'Task Result', icon: 'task_alt' },
   { value: 'summary', label: 'Summary', icon: 'summarize' },
   { value: 'conversation', label: 'Conversation', icon: 'chat' },
-  { value: 'task_result', label: 'Task Result', icon: 'task_alt' },
+  { value: 'insight', label: 'Insight', icon: 'lightbulb' },
   { value: 'error_log', label: 'Error Log', icon: 'error_outline' },
-  { value: 'custom', label: 'Custom', icon: 'label' },
+  { value: 'procedure', label: 'Procedure', icon: 'list_alt' },
 ] as const;
 
 // ── Helpers ────────────────────────────────────────────────────────────────

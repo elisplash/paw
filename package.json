@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:tauri": "npm run dev & sleep 2 && cargo build --manifest-path src-tauri/Cargo.toml && xattr -cr src-tauri/target/debug/openpawz && codesign --force --sign - src-tauri/target/debug/openpawz && src-tauri/target/debug/openpawz",
+    "dev:tauri:clean": "rm -rf ~/.paw ~/Library/WebKit/openpawz ~/Library/Logs/com.openpawz.openpawz && security delete-generic-password -s paw-lock-screen 2>/dev/null; security delete-generic-password -s paw-db-encryption 2>/dev/null; security delete-generic-password -s paw-skill-vault 2>/dev/null; echo '✓ Clean slate' && npm run dev:tauri",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",

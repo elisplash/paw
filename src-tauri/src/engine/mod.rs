@@ -17,6 +17,7 @@ pub mod chat;
 pub mod compaction;
 pub mod dex;
 pub mod discord;
+pub mod engram;
 pub mod events;
 pub mod injection;
 pub mod irc;

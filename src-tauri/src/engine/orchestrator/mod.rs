@@ -18,7 +18,7 @@ use crate::engine::providers::AnyProvider;
 use crate::engine::skills;
 use crate::engine::state::EngineState;
 use crate::engine::types::*;
-use log::info;
+use log::{info, warn};
 use tauri::{Emitter, Manager};
 
 use crate::atoms::error::EngineResult;
@@ -164,6 +164,38 @@ pub async fn run_project(app_handle: &tauri::AppHandle, project_id: &str) -> Eng
         sys_parts.push(skill_instructions.clone());
     }
 
+    // §17 Pre-recall: inject relevant memories into orchestrator context
+    {
+        let emb_client = state.embedding_client();
+        match crate::engine::engram::bridge::search(
+            &state.store,
+            &project.goal,
+            10,
+            0.2,
+            emb_client.as_ref(),
+            Some(&project.boss_agent),
+        )
+        .await
+        {
+            Ok(memories) if !memories.is_empty() => {
+                let mut memory_block = String::from(
+                    "## Relevant Memories\nPrior knowledge that may help with this project:\n",
+                );
+                for m in &memories {
+                    memory_block.push_str(&format!("- [{}] {}\n", m.category, m.content));
+                }
+                sys_parts.push(memory_block);
+                info!(
+                    "[orchestrator] Pre-recalled {} memories for project '{}'",
+                    memories.len(),
+                    project.title
+                );
+            }
+            Ok(_) => {}
+            Err(e) => warn!("[orchestrator] Memory pre-recall failed: {}", e),
+        }
+    }
+
     sys_parts.push(format!(
         r#"## Orchestrator Mode
 
@@ -283,6 +315,39 @@ You are the **Boss Agent** orchestrating project "{}".
                 created_at: chrono::Utc::now().to_rfc3339(),
             };
             state.store.add_message(&stored).ok();
+
+            // §17 Post-capture: store project outcome in Engram memory
+            if !text.is_empty() {
+                let summary = if text.len() > 4000 {
+                    &text[..4000]
+                } else {
+                    text.as_str()
+                };
+                let content = format!(
+                    "Project '{}' completed. Goal: {}. Outcome: {}",
+                    project.title, project.goal, summary
+                );
+                let emb_client = state.embedding_client();
+                match crate::engine::engram::bridge::store_auto_capture(
+                    &state.store,
+                    &content,
+                    "task_result",
+                    emb_client.as_ref(),
+                    Some(&project.boss_agent),
+                    Some(&session_id),
+                    None,
+                    None,
+                )
+                .await
+                {
+                    Ok(Some(id)) => info!(
+                        "[orchestrator] Project outcome stored in Engram (id={})",
+                        &id[..id.len().min(8)]
+                    ),
+                    Ok(None) => {}
+                    Err(e) => warn!("[orchestrator] Failed to store project outcome: {}", e),
+                }
+            }
         }
         Err(err) => {
             let mut p = project.clone();

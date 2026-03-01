@@ -35,6 +35,16 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Load raw conversation messages as (role, content) pairs.
+    /// Used by the Engram ContextBuilder for budget-aware trimming.
+    pub fn load_conversation_raw(
+        &self,
+        session_id: &str,
+        _agent_id: Option<&str>,
+    ) -> EngineResult<Vec<StoredMessage>> {
+        self.get_messages(session_id, 50)
+    }
+
     pub fn get_messages(&self, session_id: &str, limit: i64) -> EngineResult<Vec<StoredMessage>> {
         let conn = self.conn.lock();
 

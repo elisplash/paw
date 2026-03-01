@@ -1,21 +1,48 @@
 ---
 title: "Memory"
-description: "Pawz has a built-in memory system that lets agents remember facts, preferences, and context across conversations."
+description: "Project Engram — a biologically-inspired three-tier memory architecture with hybrid search, PII encryption, and graph-based knowledge management."
 ---
 
 # Memory
 
-Pawz has a built-in memory system that lets agents remember facts, preferences, and context across conversations.
+Pawz uses **Project Engram**, a biologically-inspired three-tier memory architecture that lets agents remember facts, preferences, and context across conversations with graph-based knowledge management, hybrid search, and automatic PII encryption.
 
-## How it works
+## Architecture
+
+Engram models memory after human cognitive architecture with three tiers:
+
+```mermaid actions={false}
+flowchart TD
+    A["User Message"] --> B["Sensory Buffer\n(ring buffer)"]
+    B --> C["Working Memory\n(priority-evicted slots)"]
+    C --> D["ContextBuilder\n(budget-aware prompt assembly)"]
+    D --> E["Agent Response"]
+    C <--> F["Long-Term Memory Graph"]
+    subgraph LTM["Long-Term Memory Graph"]
+        direction LR
+        G["Episodic Store\n(what happened)"]
+        H["Semantic Store\n(what is true)"]
+        I["Procedural Store\n(how to do things)"]
+    end
+    F --- J["Graph Edges (8 types)\nSpreading Activation"]
+    K["Consolidation Engine\n(background, every 5 min)"] --> F
+```
+
+| Tier | Analogy | Role |
+|------|---------|------|
+| **Sensory Buffer** | Iconic/echoic memory | Ring buffer holding raw tokens; discarded after each turn |
+| **Working Memory** | Short-term memory | Priority-evicted slots feeding the context window |
+| **Long-Term Memory** | Declarative + procedural memory | Persistent SQLite graph with episodic, semantic, and procedural stores |
+
+### How it works
 
 ```mermaid actions={false}
 graph TD
-    A["User message"] --> B["Auto-recall\nRetrieve relevant memories"]
-    B --> C["Inject into context"]
+    A["User message"] --> B["Auto-recall\nHybrid search (BM25 + Vector + Graph)"]
+    B --> C["Inject into context\n(budget-aware)"]
     C --> D["Agent responds"]
-    D --> E["Auto-capture\nExtract memorable facts"]
-    E --> F["Embed + store"]
+    D --> E["Auto-capture\nExtract facts via Engram bridge"]
+    E --> F["PII scan → Encrypt → Embed → Store"]
 ```
 
 ## Configuration
@@ -46,16 +73,38 @@ Each memory is tagged with a category:
 | `project` | Project-specific context |
 | `person` | Info about people |
 | `technical` | Technical details, tools, configs |
+| `task_result` | Completed task outcomes |
+| `session` | Compacted session summaries |
+| `observation` | Agent observations about patterns |
+| `goal` | User goals and objectives |
+| `skill` | Learned capabilities and procedures |
+| `relationship` | Connections between entities |
+| `temporal` | Time-based events and deadlines |
+| `emotional` | Sentiment and emotional context |
+| `creative` | Creative works, drafts, ideas |
+| `system` | System state and configuration notes |
 
 ## Hybrid search
 
-Memory retrieval uses a hybrid algorithm combining multiple signals:
+Memory retrieval uses a three-signal hybrid algorithm fused with Reciprocal Rank Fusion (RRF):
 
-1. **BM25** — text relevance via SQLite FTS5
-2. **Vector cosine similarity** — semantic meaning via embeddings
-3. **Weighted merge** — BM25 (0.4) + vector (0.6)
-4. **Temporal decay** — half-life of 30 days (recent memories rank higher)
-5. **MMR re-ranking** — λ=0.7 balances relevance vs. diversity
+```mermaid actions={false}
+flowchart LR
+    Q["Search Query"] --> CL["Query Classifier"]
+    CL --> BM["BM25\n(SQLite FTS5)"]
+    CL --> VS["Vector Similarity\n(Ollama embeddings)"]
+    BM --> RRF["Reciprocal Rank\nFusion"]
+    VS --> RRF
+    RRF --> SA["Graph Spreading\nActivation (1-hop)"]
+    SA --> RR["Reranking\n(RRF / MMR / RRF+MMR)"]
+    RR --> R["Ranked Results"]
+```
+
+1. **BM25** — text relevance via SQLite FTS5 with porter stemming
+2. **Vector cosine similarity** — semantic meaning via Ollama embeddings
+3. **Graph spreading activation** — 1-hop traversal of typed memory edges to find related memories
+4. **RRF fusion** — merges all three signals without requiring score normalization
+5. **Reranking** — configurable strategy: RRF, MMR (maximal marginal relevance), or combined
 6. **Keyword fallback** — when both BM25 and vector search return no results, the engine falls back to a keyword search using SQL `LIKE` on memory content. This ensures memories can always be found even when embeddings are unavailable or the FTS index misses a match.
 
 :::tip Keyword fallback
@@ -201,11 +250,45 @@ Memory in Pawz is protected at multiple levels:
 
 | Layer | Protection |
 |-------|-----------|
+| **PII encryption** | Memory content containing PII is automatically detected (9 regex patterns) and encrypted with AES-256-GCM before storage. Encryption key stored in OS keychain (`paw-memory-vault`). |
 | **At rest** | Sensitive database fields encrypted with AES-256-GCM, key stored in OS keychain |
 | **In transit** | TLS certificate-pinned connections to embedding providers (Mozilla root CAs only, OS trust store excluded) |
 | **In RAM** | Provider API keys wrapped in `Zeroizing<String>` — automatically zeroed from memory on drop |
 | **Outbound** | Every embedding request SHA-256 signed and logged to a 500-entry audit ring buffer |
+| **Query sanitization** | All FTS5 query operators stripped before execution to prevent SQL injection |
+| **Prompt injection** | 10-pattern scanner blocks known prompt injection attempts in memory content |
+| **Anti-forensic** | Database padded to 512KB boundaries; two-phase secure delete prevents plaintext recovery |
+| **GDPR compliance** | Article 17 purge command deletes all memories, embeddings, FTS index, and graph edges for a user |
 
-:::tip
-Memory content itself is stored unencrypted in SQLite for fast full-text search (BM25). If you need encrypted memory content at rest, use the container sandbox with an encrypted filesystem.
+:::info PII auto-encryption
+Unlike the previous memory system which stored content unencrypted, Engram automatically scans memory content for PII patterns (emails, phone numbers, SSNs, credit cards, etc.) and encrypts matching content with field-level AES-256-GCM before writing to SQLite. Decryption happens transparently on retrieval.
 :::
+
+## Consolidation engine
+
+Engram runs a background consolidation cycle every 5 minutes that maintains memory health:
+
+| Operation | Purpose |
+|-----------|---------|
+| **Pattern clustering** | Groups related memories by semantic similarity |
+| **Contradiction detection** | Identifies conflicting facts and resolves them |
+| **Strength decay** | Applies Ebbinghaus-inspired forgetting curve — unused memories fade over time |
+| **Garbage collection** | Removes memories whose strength has fallen below threshold |
+
+### Memory strength
+
+Each memory has a strength score (0.0–1.0) that decays over time. Accessing a memory boosts its strength. Important memories (importance > 0.7) decay slower. This ensures frequently-used knowledge persists while stale information is naturally pruned.
+
+## Agent memory tools
+
+Agents have access to 7 memory tools for direct memory management:
+
+| Tool | Description |
+|------|-------------|
+| `memory_store` | Store a new memory with category and importance |
+| `memory_search` | Hybrid search across all memory stores |
+| `memory_delete` | Remove a specific memory by ID |
+| `memory_list` | List recent memories with optional category filter |
+| `memory_update` | Update an existing memory's content or metadata |
+| `memory_link` | Create a typed edge between two memories |
+| `memory_snapshot` | Export a point-in-time snapshot of the memory graph |

@@ -246,6 +246,37 @@ pub async fn execute_task(
             parts.push(skill_instructions.clone());
         }
 
+        // §15 Pre-recall: inject relevant memories into task context
+        {
+            let emb_client = state.embedding_client();
+            match crate::engine::engram::bridge::search(
+                &state.store,
+                &task_prompt,
+                10,
+                0.2,
+                emb_client.as_ref(),
+                Some(&agent_id),
+            )
+            .await
+            {
+                Ok(memories) if !memories.is_empty() => {
+                    let mut memory_block = String::from("## Relevant Memories\n");
+                    for m in &memories {
+                        memory_block.push_str(&format!("- [{}] {}\n", m.category, m.content));
+                    }
+                    parts.push(memory_block);
+                    info!(
+                        "[task] Pre-recalled {} memories for task '{}' agent '{}'",
+                        memories.len(),
+                        task.title,
+                        agent_id
+                    );
+                }
+                Ok(_) => {}
+                Err(e) => warn!("[task] Memory pre-recall failed for task: {}", e),
+            }
+        }
+
         {
             let user_tz = {
                 let cfg = state.config.lock();
@@ -375,25 +406,66 @@ pub async fn execute_task(
             // a tokio::spawn closure where SessionStore (Mutex<Connection>) can't
             // be moved. The store_path is the same DB, just opened independently.
             if let Ok(conn) = rusqlite::Connection::open(&store_path_clone) {
-                match &result {
-                    Ok(text) => {
-                        let msg_id = uuid::Uuid::new_v4().to_string();
-                        conn.execute(
-                            "INSERT INTO messages (id, session_id, role, content) VALUES (?1, ?2, 'assistant', ?3)",
-                            rusqlite::params![msg_id, session_id, text],
-                        ).ok();
-                        let aid = uuid::Uuid::new_v4().to_string();
-                        conn.execute(
-                            "INSERT INTO task_activity (id, task_id, kind, agent, content) VALUES (?1, ?2, 'agent_completed', ?3, ?4)",
-                            rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} completed. Summary: {}", agent_id, truncate_utf8(text, 200))],
-                        ).ok();
+                // Wrap in SessionStore so we can use Engram bridge for post-capture
+                let temp_store = crate::engine::sessions::SessionStore {
+                    conn: parking_lot::Mutex::new(conn),
+                };
+
+                // Scope the MutexGuard so it's dropped before any .await
+                {
+                    let temp_conn = temp_store.conn.lock();
+                    match &result {
+                        Ok(text) => {
+                            let msg_id = uuid::Uuid::new_v4().to_string();
+                            temp_conn.execute(
+                                "INSERT INTO messages (id, session_id, role, content) VALUES (?1, ?2, 'assistant', ?3)",
+                                rusqlite::params![msg_id, session_id, text],
+                            ).ok();
+                            let aid = uuid::Uuid::new_v4().to_string();
+                            temp_conn.execute(
+                                "INSERT INTO task_activity (id, task_id, kind, agent, content) VALUES (?1, ?2, 'agent_completed', ?3, ?4)",
+                                rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} completed. Summary: {}", agent_id, truncate_utf8(text, 200))],
+                            ).ok();
+                        }
+                        Err(err) => {
+                            let aid = uuid::Uuid::new_v4().to_string();
+                            temp_conn.execute(
+                                "INSERT INTO task_activity (id, task_id, kind, agent, content) VALUES (?1, ?2, 'agent_error', ?3, ?4)",
+                                rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} error: {}", agent_id, err)],
+                            ).ok();
+                        }
                     }
-                    Err(err) => {
-                        let aid = uuid::Uuid::new_v4().to_string();
-                        conn.execute(
-                            "INSERT INTO task_activity (id, task_id, kind, agent, content) VALUES (?1, ?2, 'agent_error', ?3, ?4)",
-                            rusqlite::params![aid, task_id_clone, agent_id, format!("Agent {} error: {}", agent_id, err)],
-                        ).ok();
+                } // MutexGuard dropped here, before .await
+
+                // §15 Post-capture: store task result in Engram memory
+                // Uses bridge for proper PII encryption, dedup, and embedding generation.
+                if let Ok(text) = &result {
+                    if !text.is_empty() {
+                        let task_result_content = truncate_utf8(text, 4000).to_string();
+                        match crate::engine::engram::bridge::store_auto_capture(
+                            &temp_store,
+                            &task_result_content,
+                            "task_result",
+                            None, // no embedding client in background spawn
+                            Some(&agent_id),
+                            Some(&session_id),
+                            None,
+                            None,
+                        )
+                        .await
+                        {
+                            Ok(Some(id)) => info!(
+                                "[task] Post-captured task result into Engram ({}) for agent '{}'",
+                                id, agent_id
+                            ),
+                            Ok(None) => info!(
+                                "[task] Task result deduped/skipped for agent '{}'",
+                                agent_id
+                            ),
+                            Err(e) => {
+                                warn!("[task] Failed to capture task result in Engram: {}", e)
+                            }
+                        }
                     }
                 }
             }

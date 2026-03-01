@@ -7,6 +7,89 @@
     <link rel="stylesheet" href="/src/styles/index.css" />
   </head>
   <body>
+    <!-- ═══ Lock Screen ═══ -->
+    <div class="lock-screen" id="lock-screen">
+      <div class="lock-screen-inner">
+        <div class="lock-logo">
+          <div class="lock-logo-icon"></div>
+        </div>
+        <h1 class="lock-title">OpenPawz</h1>
+        <p class="lock-subtitle" id="lock-subtitle">Verify your identity</p>
+
+        <!-- System auth form (Touch ID / system password) -->
+        <div class="lock-form" id="lock-form-system" style="display:none">
+          <button class="lock-system-btn" id="lock-system-btn">
+            <span class="ms">lock</span>
+            <span>Unlock with System Password</span>
+          </button>
+          <p class="lock-error" id="lock-system-error"></p>
+        </div>
+
+        <!-- Divider between system auth and passphrase (shown when both available) -->
+        <div class="lock-divider" id="lock-divider" style="display:none">
+          <span>or</span>
+        </div>
+
+        <!-- Passphrase unlock form (returning user) -->
+        <div class="lock-form" id="lock-form-unlock" style="display:none">
+          <div class="lock-input-group">
+            <input type="password" class="lock-input" id="lock-password" placeholder="Passphrase" autocomplete="off" spellcheck="false" />
+            <button class="lock-submit" id="lock-submit" title="Unlock">
+              <span class="ms ms-sm">lock_open</span>
+            </button>
+          </div>
+          <p class="lock-error" id="lock-error"></p>
+        </div>
+
+        <!-- Lock screen footer links -->
+        <div class="lock-footer-links" id="lock-footer-links" style="display:none">
+          <a class="lock-switch-link" id="lock-reset">Reset lock screen</a>
+        </div>
+
+        <!-- First-time setup form -->
+        <div class="lock-form" id="lock-form-setup" style="display:none">
+          <div class="lock-auth-options" id="lock-auth-options">
+            <button class="lock-auth-option" id="lock-opt-system">
+              <span class="ms">lock</span>
+              <span class="lock-auth-option-label">System Authentication</span>
+              <span class="lock-auth-option-desc">Mac password or Touch ID</span>
+            </button>
+            <button class="lock-auth-option" id="lock-opt-passphrase">
+              <span class="ms">password</span>
+              <span class="lock-auth-option-label">Custom Passphrase</span>
+              <span class="lock-auth-option-desc">Set your own code</span>
+            </button>
+            <button class="lock-auth-option" id="lock-opt-both">
+              <span class="ms">security</span>
+              <span class="lock-auth-option-label">Both</span>
+              <span class="lock-auth-option-desc">System auth + passphrase as backup</span>
+            </button>
+            <button class="lock-auth-option lock-auth-option-skip" id="lock-opt-skip">
+              <span class="ms">lock_open</span>
+              <span class="lock-auth-option-label">No Protection</span>
+              <span class="lock-auth-option-desc">Skip lock screen</span>
+            </button>
+          </div>
+          <!-- Passphrase sub-form (shown after clicking "Custom Passphrase" or "Both") -->
+          <div id="lock-passphrase-subform" style="display:none">
+            <div class="lock-input-group">
+              <input type="password" class="lock-input" id="lock-new-password" placeholder="New passphrase" autocomplete="off" spellcheck="false" />
+            </div>
+            <div class="lock-input-group" style="margin-top:8px">
+              <input type="password" class="lock-input" id="lock-confirm-password" placeholder="Confirm passphrase" autocomplete="off" spellcheck="false" />
+              <button class="lock-submit" id="lock-setup-submit" title="Set passphrase">
+                <span class="ms ms-sm">shield</span>
+              </button>
+            </div>
+            <p class="lock-error" id="lock-setup-error"></p>
+            <a class="lock-switch-link" id="lock-setup-back">Back to options</a>
+          </div>
+        </div>
+
+        <p class="lock-hint">Secured by OS Keychain</p>
+      </div>
+    </div>
+
     <div class="app">
       <!-- Sidebar -->
       <aside class="sidebar" id="sidebar">

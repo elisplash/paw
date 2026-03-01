@@ -1,0 +1,315 @@
+/* ── Lock Screen ────────────────────────────────────────── */
+/* Full-screen passphrase / biometric gate — shown before the app loads */
+
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.lock-screen.lock-unlocked {
+  opacity: 0;
+  transform: scale(1.02);
+  pointer-events: none;
+}
+
+.lock-screen.lock-hidden {
+  display: none;
+}
+
+.lock-screen-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 340px;
+  animation: lock-fade-in 0.6s ease;
+}
+
+@keyframes lock-fade-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Logo */
+.lock-logo {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.lock-logo-icon {
+  width: 64px;
+  height: 64px;
+  background: url('/images/pawz-logo-transparent.png') center / contain no-repeat;
+  filter: drop-shadow(0 0 8px rgba(255, 77, 77, 0.5));
+  animation: lock-logo-glow 3s ease-in-out infinite;
+}
+
+@keyframes lock-logo-glow {
+  0%, 100% { filter: drop-shadow(0 0 8px rgba(255, 77, 77, 0.5)); }
+  50%      { filter: drop-shadow(0 0 16px rgba(255, 77, 77, 0.7)); }
+}
+
+/* Title */
+.lock-title {
+  font-family: var(--font-pixel);
+  font-size: var(--type-title);
+  color: var(--text-primary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+.lock-subtitle {
+  font-size: var(--type-body);
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Form */
+.lock-form {
+  width: 100%;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ── System auth (Touch ID) button ──────────────────────── */
+.lock-system-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  font-size: var(--type-body);
+  font-family: var(--font-sans);
+  color: var(--text-on-accent);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.lock-system-btn:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  box-shadow: 0 0 12px rgba(255, 77, 77, 0.3);
+}
+
+.lock-system-btn:active {
+  opacity: 0.8;
+}
+
+.lock-system-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lock-system-btn .ms {
+  font-size: 22px;
+}
+
+/* ── Auth option cards (first-time setup) ───────────────── */
+.lock-auth-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.lock-auth-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.lock-auth-option:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.lock-auth-option .ms {
+  font-size: 22px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.lock-auth-option-label {
+  font-size: var(--type-body);
+  font-weight: 500;
+  display: block;
+}
+
+.lock-auth-option-desc {
+  font-size: var(--type-label);
+  color: var(--text-secondary);
+  display: block;
+  margin-top: 2px;
+}
+
+.lock-auth-option-skip {
+  opacity: 0.6;
+}
+.lock-auth-option-skip:hover {
+  opacity: 1;
+}
+.lock-auth-option-skip .ms {
+  color: var(--text-secondary);
+}
+
+/* ── Passphrase input ───────────────────────────────────── */
+.lock-input-group {
+  display: flex;
+  gap: 0;
+  width: 100%;
+}
+
+.lock-input {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: var(--type-body);
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-right: none;
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.lock-input:focus {
+  border-color: var(--accent);
+}
+
+.lock-input::placeholder {
+  color: var(--text-muted);
+}
+
+.lock-input:only-child,
+.lock-input-group:first-child .lock-input {
+  border-right: 1px solid var(--border);
+}
+
+.lock-submit {
+  padding: 10px 16px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: 1px solid var(--accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
+}
+
+.lock-submit:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.lock-submit:active {
+  opacity: 0.8;
+}
+
+.lock-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Error text ─────────────────────────────────────────── */
+.lock-error {
+  font-size: var(--type-label);
+  color: var(--error);
+  margin: 0;
+  min-height: 1.2em;
+}
+
+/* ── Switch link (e.g. "Use passphrase instead") ────────── */
+.lock-switch-link {
+  font-size: var(--type-label);
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+.lock-switch-link:hover {
+  color: var(--accent);
+}
+
+/* ── Hint ───────────────────────────────────────────────── */
+.lock-hint {
+  font-size: var(--type-label);
+  color: var(--text-muted);
+  margin: 8px 0 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Divider ("or") ─────────────────────────────────────── */
+.lock-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 4px 0;
+}
+.lock-divider::before,
+.lock-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.lock-divider span {
+  font-size: var(--type-label);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Footer links ───────────────────────────────────────── */
+.lock-footer-links {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes lock-shake {
+  0%, 100% { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-6px); }
+  30%, 60%, 90% { transform: translateX(6px); }
+}
+
+.lock-shake {
+  animation: lock-shake 0.4s ease;
+}
+
+@keyframes lock-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.4); }
+  100% { box-shadow: 0 0 0 20px rgba(255, 77, 77, 0); }
+}
+
+.lock-screen.lock-unlocking .lock-logo {
+  animation: lock-pulse 0.5s ease;
+}

@@ -278,11 +278,38 @@ async fn run_swarm_turn(
         &user_tz,
     );
 
+    // ── Auto-recall memories for the swarm agent (squad + agent scoped) ────
+    let todays_memories = {
+        let _squad_mem_scope =
+            crate::atoms::engram_types::MemoryScope::squad(squad_id, recipient_id);
+        let emb_client = state.embedding_client();
+        match crate::engine::engram::bridge::search(
+            &state.store,
+            message_content,
+            10,
+            0.2,
+            emb_client.as_ref(),
+            Some(recipient_id),
+        )
+        .await
+        {
+            Ok(results) if !results.is_empty() => {
+                let mem_text = results
+                    .iter()
+                    .map(|r| format!("- [{}] {}", r.category, r.content))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                Some(format!("## Recalled Memories\n{}", mem_text))
+            }
+            _ => None,
+        }
+    };
+
     let mut full_system_prompt = chat_org::compose_chat_system_prompt(
         base_system_prompt.as_deref(),
         runtime_context,
         agent_context.as_deref(),
-        None, // todays_memories — swarm context is enough
+        todays_memories.as_deref(),
         &skill_instructions,
     );
 
