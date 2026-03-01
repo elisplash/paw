@@ -36,7 +36,27 @@ pub async fn engine_chat_send(
 
     // ── Resolve or create session ──────────────────────────────────────────
     let session_id = match &request.session_id {
-        Some(id) if !id.is_empty() => id.clone(),
+        Some(id) if !id.is_empty() => {
+            // Ensure session exists in the database (callers may pass custom IDs)
+            if state.store.get_session(id)?.is_none() {
+                let raw = request.model.clone().unwrap_or_default();
+                let model = if raw.is_empty() || raw.eq_ignore_ascii_case("default") {
+                    let cfg = state.config.lock();
+                    cfg.default_model
+                        .clone()
+                        .unwrap_or_else(|| "gpt-4o".to_string())
+                } else {
+                    raw
+                };
+                state.store.create_session(
+                    id,
+                    &model,
+                    request.system_prompt.as_deref(),
+                    request.agent_id.as_deref(),
+                )?;
+            }
+            id.clone()
+        }
         _ => {
             let new_id = format!("eng-{}", uuid::Uuid::new_v4());
             let raw = request.model.clone().unwrap_or_default();
