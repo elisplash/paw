@@ -191,6 +191,15 @@ export function closeMiniHub(hubId: string): void {
 }
 
 /**
+ * Close the mini-hub for the given agent (by agent id).
+ * No-op if no hub is open for this agent.
+ */
+export function closeMiniHubByAgent(agentId: string): void {
+  const hub = getHubByAgent(appState.miniHubs, agentId);
+  if (hub) closeMiniHub(hub.id);
+}
+
+/**
  * Close all mini-hubs.
  */
 export function closeAllMiniHubs(): void {

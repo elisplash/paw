@@ -426,6 +426,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       },
     });
     AgentsModule.initAgents();
+
+    // Listen for mini-hub maximize → navigate to full chat view
+    window.addEventListener('paw:navigate', ((
+      e: CustomEvent<{ view: string; agentId?: string }>,
+    ) => {
+      const { view, agentId } = e.detail;
+      if (agentId) switchToAgent(agentId);
+      switchView(view);
+    }) as EventListener);
+
     AgentsModule.onProfileUpdated((agentId, agent) => {
       const current = AgentsModule.getCurrentAgent();
       const chatAgentName = $('chat-agent-name');

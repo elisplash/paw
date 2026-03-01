@@ -7,9 +7,13 @@ import { listen } from '@tauri-apps/api/event';
 import { type Agent, AVATAR_COLORS, SPRITE_AVATARS, DEFAULT_AVATAR, isAvatar } from './atoms';
 import { renderAgents } from './molecules';
 import { openAgentCreator, openAgentEditor } from './editor';
-import { openMiniChat as _openMiniChat, _miniChats } from './mini-chat';
 import { seedSoulFiles, refreshAvailableModels } from './helpers';
-import { renderAgentDock } from './dock';
+import {
+  initMiniHubSystem,
+  openMiniHub,
+  refreshDock,
+  closeMiniHubByAgent,
+} from '../../engine/organisms/mini_hub_orchestrator';
 import {
   updateAgentsHeroStats,
   renderCapabilitiesList,
@@ -41,17 +45,7 @@ function startChatWithAgent(agentId: string) {
 function saveAgents() {
   // Persist all agents to localStorage (backend agents too so edits to name/avatar/personality survive reload)
   localStorage.setItem('paw-agents', JSON.stringify(_agents));
-  _renderDock();
-}
-
-/** Thin wrapper that passes module state into the extracted dock renderer. */
-function _renderDock() {
-  renderAgentDock({
-    getAgents: () => _agents,
-    getMiniChatState: (id) => _miniChats.get(id),
-    isMiniChatOpen: (id) => _miniChats.has(id),
-    openMiniChat: (id) => openMiniChat(id),
-  });
+  refreshDock();
 }
 
 // Build the EditorCallbacks object to pass into editor functions
@@ -214,7 +208,9 @@ export async function loadAgents() {
   }
 
   _renderAgents();
-  _renderDock();
+
+  // Initialize the mini-hub system (dock + popup hubs) with the current agents list
+  initMiniHubSystem(() => _agents);
 
   // Seed soul files for all agents that don't have them yet (one-time migration)
   if (isEngineMode()) {
@@ -239,7 +235,7 @@ export function setSelectedAgent(agentId: string | null) {
 
 /** Open a mini-chat popup for any agent (callable from outside the module). */
 export function openMiniChat(agentId: string) {
-  _openMiniChat(agentId, () => _agents);
+  openMiniHub(agentId);
 }
 
 /** Register a callback for profile updates (called from main.ts) */
@@ -277,7 +273,7 @@ function initProfileUpdateListener() {
     // Persist and re-render
     saveAgents();
     _renderAgents();
-    _renderDock();
+    refreshDock();
 
     // Notify main.ts to update chat header if this is the current agent
     if (_onProfileUpdated) _onProfileUpdated(agentId, agent);
@@ -414,5 +410,7 @@ function _importConfig() {
 // ── Re-exports (maintain public interface for existing callers) ────────────
 
 export { spriteAvatar, type Agent } from './atoms';
-// closeMiniChat is not used externally but re-exported for completeness
-export { closeMiniChat } from './mini-chat';
+export function closeMiniChat(agentId: string) {
+  // Find and close by agent id — new system uses hub ids internally
+  closeMiniHubByAgent(agentId);
+}

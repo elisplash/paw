@@ -47,7 +47,7 @@ export function createAgentDock(
 
   function render() {
     if (destroyed) return;
-    const visibleAgents = agents.filter((a) => a.id !== 'default');
+    const visibleAgents = agents;
     if (visibleAgents.length === 0) {
       dockEl.style.display = 'none';
       return;
