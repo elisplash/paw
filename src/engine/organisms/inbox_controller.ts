@@ -132,11 +132,11 @@ export function mountInbox(): void {
     inputContainer: chatInputContainer,
   });
 
-  // Also grab abort button
-  const abortBtn = $('chat-abort-btn');
-  if (abortBtn) {
+  // Also grab stream-actions bar (stop, more-actions dropdown)
+  const streamActions = $('chat-stream-actions');
+  if (streamActions) {
     const threadBody = _thread.el.querySelector('.inbox-thread-body .chat-main-col');
-    if (threadBody) threadBody.appendChild(abortBtn);
+    if (threadBody) threadBody.appendChild(streamActions);
   }
 
   // Hide old header + mission body (sidebar re-parents the panel)

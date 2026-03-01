@@ -694,18 +694,25 @@
                     <span data-icon="square"></span>
                     Stop
                   </button>
-                  <button class="chat-action-btn chat-action-stop-send" id="chat-stop-send-btn" title="Stop the current response and send your message">
-                    <span data-icon="rotate-cw"></span>
-                    Stop &amp; Send
-                  </button>
-                  <button class="chat-action-btn chat-action-queue" id="chat-queue-btn" title="Queue your message to send after the current response finishes">
-                    <span data-icon="list-plus"></span>
-                    Add to Queue
-                  </button>
-                  <button class="chat-action-btn chat-action-steer" id="chat-steer-btn" title="Steer the agent — wrap up current response and process your message next">
-                    <span data-icon="compass"></span>
-                    Steer
-                  </button>
+                  <div class="chat-actions-more-wrap">
+                    <button class="chat-actions-more-btn" id="chat-actions-more-btn" title="More actions">
+                      <span data-icon="chevron-up"></span>
+                    </button>
+                    <div class="chat-actions-dropdown" id="chat-actions-dropdown">
+                      <button class="chat-actions-dropdown-item chat-action-stop-send" id="chat-stop-send-btn" title="Stop the current response and send your message">
+                        <span data-icon="rotate-cw"></span>
+                        Stop &amp; Send
+                      </button>
+                      <button class="chat-actions-dropdown-item chat-action-queue" id="chat-queue-btn" title="Queue your message to send after the current response finishes">
+                        <span data-icon="list-plus"></span>
+                        Add to Queue
+                      </button>
+                      <button class="chat-actions-dropdown-item chat-action-steer" id="chat-steer-btn" title="Steer the agent — wrap up current response and process your message next">
+                        <span data-icon="compass"></span>
+                        Steer
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
