@@ -209,6 +209,32 @@
   gap: 6px;
   margin-top: 2px;
 }
+.community-install-progress {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.community-install-progress .community-install-btn {
+  font-size: 0.7rem;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.community-progress-msg {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.community-cancel-btn {
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.community-cancel-btn:hover {
+  opacity: 1;
+  color: var(--error, #f44336);
+}
 .community-installed-badge {
   display: flex;
   align-items: center;

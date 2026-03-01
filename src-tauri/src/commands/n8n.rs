@@ -4,9 +4,9 @@ use crate::engine::channels;
 use crate::engine::n8n_engine;
 use crate::engine::skills;
 use crate::engine::state::EngineState;
-use log::{error, info};
+use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use tauri::Manager;
 
 /// Mutex that serialises direct (docker exec / npm) community-package installs
@@ -14,6 +14,9 @@ use tauri::Manager;
 static INSTALL_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 /// Counter of in-flight direct installs — restart is deferred until this hits 0.
 static PENDING_INSTALLS: AtomicUsize = AtomicUsize::new(0);
+/// Cancellation flag — set to true by `engine_n8n_community_packages_cancel`
+/// to abort a currently running install.
+static INSTALL_CANCELLED: AtomicBool = AtomicBool::new(false);
 
 // ── Config ─────────────────────────────────────────────────────────────
 
@@ -1235,16 +1238,25 @@ pub async fn engine_n8n_create_credential(
 ///
 /// Strategy:
 ///   1. Verify the package exists on npm (fast, from host).
-///   2. Try the n8n REST API `POST /api/v1/community-packages`.
-///   3. If the REST API returns 404 (common in newer n8n versions that
-///      gate on a verified-packages registry), fall back to direct
-///      `npm install` inside the container/process data directory and
-///      restart n8n so it picks up the new nodes.
+///   2. For lightweight packages, try the n8n REST API first.
+///      For "heavy" packages (puppeteer, playwright, etc.) skip the
+///      REST API entirely — it would trigger a postinstall binary
+///      download that stalls inside the slim Alpine container.
+///   3. Fall back to direct `npm install` inside the container/process
+///      data directory (with skip-download env vars) and restart n8n.
+///
+/// Emits `n8n-install-progress` events so the frontend can show real-time
+/// status updates.  Respects the `INSTALL_CANCELLED` flag for user abort.
 #[tauri::command]
 pub async fn engine_n8n_community_packages_install(
     app_handle: tauri::AppHandle,
     package_name: String,
 ) -> Result<CommunityPackage, String> {
+    // Reset cancellation flag at start
+    INSTALL_CANCELLED.store(false, Ordering::SeqCst);
+
+    emit_install_progress(&app_handle, &package_name, "preparing", "Checking engine…");
+
     // Ensure n8n is running before attempting install (provisions container if needed)
     engine_n8n_ensure_ready(app_handle.clone())
         .await
@@ -1255,83 +1267,158 @@ pub async fn engine_n8n_community_packages_install(
             )
         })?;
 
+    check_cancelled(&package_name)?;
+
     let (base_url, api_key) = get_n8n_endpoint(&app_handle)?;
 
     info!("[n8n] Installing community package: {}", package_name);
+    emit_install_progress(
+        &app_handle,
+        &package_name,
+        "verifying",
+        "Verifying package on npm…",
+    );
 
     // ── Step 1: verify the package exists on npm ───────────────────
     verify_npm_package_exists(&package_name).await?;
 
-    // ── Step 2: try the n8n REST API ───────────────────────────────
+    check_cancelled(&package_name)?;
+
+    // ── Step 2: Choose install strategy ────────────────────────────
+    //
+    // Heavy packages (puppeteer, playwright) try to download 200+ MB
+    // browser binaries in their postinstall scripts.  When n8n's REST
+    // API runs `npm install` internally it doesn't have our SKIP_DOWNLOAD
+    // env vars, so the install stalls or fails in the slim Alpine image.
+    //
+    // For these packages we skip the REST API entirely and go straight
+    // to docker exec (where we control the environment).
+    let skip_rest_api = is_heavy_package(&package_name);
+
     let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(300)) // npm install can be very slow in Docker
+        .timeout(std::time::Duration::from_secs(180))
         .build()
         .map_err(|e| e.to_string())?;
 
-    let resp = client
-        .post(format!(
-            "{}/api/v1/community-packages",
-            base_url.trim_end_matches('/')
-        ))
-        .header("X-N8N-API-KEY", &api_key)
-        .header("Content-Type", "application/json")
-        .json(&serde_json::json!({ "name": package_name }))
-        .send()
-        .await
-        .map_err(|e| {
-            error!("[n8n] Install request failed for {}: {}", package_name, e);
-            format!("Failed to install package (request error): {}", e)
-        })?;
-
-    if resp.status().is_success() {
-        let body_text = resp.text().await.map_err(|e| {
-            error!("[n8n] Failed to read install response body: {}", e);
-            format!("Failed to read response: {}", e)
-        })?;
-
-        let pkg: CommunityPackage = serde_json::from_str(&body_text).map_err(|e| {
-            error!(
-                "[n8n] Failed to parse install response for {}: {} — body: {}",
-                package_name,
-                e,
-                &body_text[..body_text.len().min(500)]
-            );
-            format!("Failed to parse response: {}", e)
-        })?;
-
-        info!(
-            "[n8n] Installed {} v{} ({} nodes)",
-            pkg.package_name,
-            pkg.installed_version,
-            pkg.installed_nodes.len()
+    if !skip_rest_api {
+        emit_install_progress(
+            &app_handle,
+            &package_name,
+            "installing",
+            "Installing via n8n REST API…",
         );
 
-        return Ok(pkg);
+        let resp = client
+            .post(format!(
+                "{}/api/v1/community-packages",
+                base_url.trim_end_matches('/')
+            ))
+            .header("X-N8N-API-KEY", &api_key)
+            .header("Content-Type", "application/json")
+            .json(&serde_json::json!({ "name": package_name }))
+            .send()
+            .await
+            .map_err(|e| {
+                error!("[n8n] Install request failed for {}: {}", package_name, e);
+                format!("Failed to install package (request error): {}", e)
+            })?;
+
+        if resp.status().is_success() {
+            let body_text = resp.text().await.map_err(|e| {
+                error!("[n8n] Failed to read install response body: {}", e);
+                format!("Failed to read response: {}", e)
+            })?;
+
+            let pkg: CommunityPackage = serde_json::from_str(&body_text).map_err(|e| {
+                error!(
+                    "[n8n] Failed to parse install response for {}: {} — body: {}",
+                    package_name,
+                    e,
+                    &body_text[..body_text.len().min(500)]
+                );
+                format!("Failed to parse response: {}", e)
+            })?;
+
+            info!(
+                "[n8n] Installed {} v{} ({} nodes)",
+                pkg.package_name,
+                pkg.installed_version,
+                pkg.installed_nodes.len()
+            );
+
+            emit_install_progress(&app_handle, &package_name, "done", "Installed successfully");
+            return Ok(pkg);
+        }
+
+        let status = resp.status().as_u16();
+        let _body = resp.text().await.unwrap_or_default();
+        info!(
+            "[n8n] REST API install returned HTTP {} for '{}', falling back to direct npm…",
+            status, package_name
+        );
+    } else {
+        info!(
+            "[n8n] Skipping REST API for heavy package '{}' — going straight to docker exec",
+            package_name
+        );
     }
 
-    // ── Step 3: REST API failed — try direct npm fallback ──────────
-    let status = resp.status().as_u16();
-    let body = resp.text().await.unwrap_or_default();
-    info!(
-        "[n8n] REST API install returned HTTP {} for '{}', attempting direct npm fallback…",
-        status, package_name
+    check_cancelled(&package_name)?;
+
+    // ── Step 3: Direct npm install fallback ─────────────────────────
+    emit_install_progress(
+        &app_handle,
+        &package_name,
+        "installing",
+        "Installing via npm (this may take a minute)…",
     );
 
     let config = n8n_engine::load_config(&app_handle).map_err(|e| e.to_string())?;
     match config.mode {
         n8n_engine::N8nMode::Embedded => {
-            // Serialise docker-exec installs so a concurrent restart can't
-            // kill a still-running npm install.
             let _guard = INSTALL_LOCK.lock().await;
             PENDING_INSTALLS.fetch_add(1, Ordering::SeqCst);
-            let result = direct_npm_install_docker(&package_name).await;
-            let remaining = PENDING_INSTALLS.fetch_sub(1, Ordering::SeqCst) - 1;
-            result?;
 
-            // Only restart the container when no other installs are in flight
+            // 5 minute timeout — generous but prevents hanging forever
+            let result = tokio::time::timeout(
+                std::time::Duration::from_secs(300),
+                direct_npm_install_docker(&package_name),
+            )
+            .await;
+
+            let remaining = PENDING_INSTALLS.fetch_sub(1, Ordering::SeqCst) - 1;
+
+            match result {
+                Ok(inner) => inner?,
+                Err(_) => {
+                    error!(
+                        "[n8n] npm install timed out after 300s for '{}' — \
+                         the package may have a large postinstall script",
+                        package_name
+                    );
+                    return Err(format!(
+                        "Install of '{}' timed out after 5 minutes. \
+                         This package may need additional system dependencies \
+                         or have a very large download. Try installing manually \
+                         via `docker exec {} sh -c 'cd /home/node/.n8n && npm install {}'`.",
+                        package_name,
+                        n8n_engine::types::CONTAINER_NAME,
+                        package_name
+                    ));
+                }
+            }
+
+            check_cancelled(&package_name)?;
+
+            emit_install_progress(
+                &app_handle,
+                &package_name,
+                "restarting",
+                "Restarting engine to load new nodes…",
+            );
+
             if remaining == 0 {
                 restart_n8n_container(&base_url, &api_key).await;
-                // Reconnect MCP bridge so the Librarian discovers new tools
                 refresh_mcp_after_install(&app_handle).await;
             } else {
                 info!(
@@ -1342,28 +1429,56 @@ pub async fn engine_n8n_community_packages_install(
         }
         n8n_engine::N8nMode::Process => {
             let data_dir = app_data_dir_for(&app_handle).join("n8n-data");
-            direct_npm_install_process(&package_name, &data_dir).await?;
+
+            let result = tokio::time::timeout(
+                std::time::Duration::from_secs(300),
+                direct_npm_install_process(&package_name, &data_dir),
+            )
+            .await;
+
+            match result {
+                Ok(inner) => inner?,
+                Err(_) => {
+                    return Err(format!(
+                        "Install of '{}' timed out after 5 minutes. \
+                         The package may have a very large post-install download.",
+                        package_name
+                    ));
+                }
+            }
         }
         _ => {
-            // Remote / Local mode — we can't do a direct install, surface original error
+            if skip_rest_api {
+                return Err(format!(
+                    "Package '{}' requires direct npm install which is only available \
+                     in Embedded or Process mode. In Remote/Local mode, install it \
+                     manually in your n8n instance.",
+                    package_name
+                ));
+            }
+            let status = 0u16; // REST was already tried and failed above
             error!(
-                "[n8n] Install '{}' failed (HTTP {}): {} — direct fallback unavailable in {:?} mode",
-                package_name, status, body, config.mode
+                "[n8n] Install '{}' failed — direct fallback unavailable in {:?} mode",
+                package_name, config.mode
             );
             return Err(format!(
-                "Install '{}' failed (HTTP {}): {}. \
+                "Install '{}' failed (HTTP {}). \
                  The n8n instance may not have community packages enabled. \
                  Set N8N_COMMUNITY_PACKAGES_ENABLED=true and \
                  N8N_COMMUNITY_PACKAGES_ALLOW_UNVERIFIED=true in the n8n environment.",
-                package_name, status, body
+                package_name, status
             ));
         }
     }
 
-    // After fallback install, retry querying the list endpoint to confirm
-    info!("[n8n] Direct npm install done, verifying package registration…");
+    // ── Step 4: Verify registration ────────────────────────────────
+    emit_install_progress(
+        &app_handle,
+        &package_name,
+        "verifying",
+        "Confirming node registration…",
+    );
 
-    // Retry up to 5 times with 2s intervals (n8n may still be loading nodes)
     for attempt in 1..=5 {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
@@ -1388,6 +1503,12 @@ pub async fn engine_n8n_community_packages_install(
                             pkg.installed_nodes.len(),
                             attempt
                         );
+                        emit_install_progress(
+                            &app_handle,
+                            &package_name,
+                            "done",
+                            "Installed successfully",
+                        );
                         return Ok(pkg);
                     }
                 }
@@ -1401,6 +1522,7 @@ pub async fn engine_n8n_community_packages_install(
                     "[n8n] Confirmed {} v{} via container package.json (attempt {})",
                     pkg.package_name, pkg.installed_version, attempt
                 );
+                emit_install_progress(&app_handle, &package_name, "done", "Installed successfully");
                 return Ok(pkg);
             }
         }
@@ -1416,11 +1538,25 @@ pub async fn engine_n8n_community_packages_install(
         "[n8n] Package {} installed via npm fallback (n8n may need restart to register nodes)",
         package_name
     );
+    emit_install_progress(
+        &app_handle,
+        &package_name,
+        "done",
+        "Installed (pending node registration)",
+    );
     Ok(CommunityPackage {
         package_name: package_name.clone(),
         installed_version: "latest".into(),
         installed_nodes: vec![],
     })
+}
+
+/// Cancel a currently running community package install.
+#[tauri::command]
+pub async fn engine_n8n_community_packages_cancel() -> Result<(), String> {
+    info!("[n8n] Install cancellation requested");
+    INSTALL_CANCELLED.store(true, Ordering::SeqCst);
+    Ok(())
 }
 
 // ── Helpers for fallback install ───────────────────────────────────────
@@ -1471,7 +1607,56 @@ fn extra_env_for_package(package_name: &str) -> Vec<(&'static str, &'static str)
         env.push(("PUPPETEER_SKIP_DOWNLOAD", "true"));
         env.push(("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1"));
     }
+    if lower.contains("cypress") {
+        env.push(("CYPRESS_INSTALL_BINARY", "0"));
+    }
+    if lower.contains("electron") {
+        env.push(("ELECTRON_SKIP_BINARY_DOWNLOAD", "1"));
+    }
     env
+}
+
+/// Returns true if the package is known to download large binaries (Chromium,
+/// Electron, etc.) during `npm install`.  For these packages we skip n8n's
+/// REST API (which runs `npm install` without our SKIP flags) and go straight
+/// to the docker exec fallback where we control the environment.
+fn is_heavy_package(package_name: &str) -> bool {
+    let lower = package_name.to_lowercase();
+    lower.contains("puppeteer")
+        || lower.contains("playwright")
+        || lower.contains("cypress")
+        || lower.contains("electron")
+        || lower.contains("chromium")
+        || lower.contains("selenium")
+        || lower.contains("sharp") // libvips native binary
+}
+
+/// Emit a progress event to the frontend during community package install.
+fn emit_install_progress(
+    app_handle: &tauri::AppHandle,
+    package_name: &str,
+    phase: &str,
+    message: &str,
+) {
+    use tauri::Emitter;
+    let _ = app_handle.emit(
+        "n8n-install-progress",
+        serde_json::json!({
+            "packageName": package_name,
+            "phase": phase,
+            "message": message,
+        }),
+    );
+}
+
+/// Check if the user has requested cancellation of the current install.
+fn check_cancelled(package_name: &str) -> Result<(), String> {
+    if INSTALL_CANCELLED.load(Ordering::SeqCst) {
+        warn!("[n8n] Install of '{}' cancelled by user", package_name);
+        Err(format!("Install of '{}' cancelled.", package_name))
+    } else {
+        Ok(())
+    }
 }
 
 /// Install a community node package directly via `docker exec` in the managed container.

@@ -3,6 +3,7 @@
 // Molecule-level: builds HTML, binds events, calls Tauri commands.
 
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { showToast } from '../../../components/toast';
 import { kineticStagger } from '../../../components/kinetic-row';
 import {
@@ -31,6 +32,8 @@ let _results: CommunityPackage[] = [];
 let _installed: InstalledPackage[] = [];
 let _loading = false;
 const _installing: Set<string> = new Set();
+/** Per-package install progress from backend events. */
+const _installProgress: Map<string, { phase: string; message: string }> = new Map();
 /** Package that was just installed — shows post-install guidance overlay. */
 let _justInstalled: string | null = null;
 /** Credential schemas discovered for the just-installed package. */
@@ -40,6 +43,8 @@ let _credFormState: 'loading' | 'form' | 'saving' | 'done' | 'error' = 'loading'
 let _credFormError = '';
 let _debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let _container: HTMLElement | null = null;
+/** Unlisten handle for install progress events. */
+let _progressUnlisten: UnlistenFn | null = null;
 
 // ── Public API ─────────────────────────────────────────────────────────
 
@@ -50,6 +55,36 @@ export function mountCommunityBrowser(container: HTMLElement): void {
   _fetchInstalled();
   // Pre-populate with popular packages
   _search('n8n');
+  // Listen for install progress events from the Rust backend
+  _setupProgressListener();
+}
+
+/** Clean up event listeners when the view unmounts. */
+export function unmountCommunityBrowser(): void {
+  if (_progressUnlisten) {
+    _progressUnlisten();
+    _progressUnlisten = null;
+  }
+  _container = null;
+}
+
+/** Subscribe to backend install progress events. */
+async function _setupProgressListener(): Promise<void> {
+  if (_progressUnlisten) _progressUnlisten();
+  _progressUnlisten = await listen<{
+    packageName: string;
+    phase: string;
+    message: string;
+  }>('n8n-install-progress', (event) => {
+    const { packageName, phase, message } = event.payload;
+    if (phase === 'done') {
+      _installProgress.delete(packageName);
+    } else {
+      _installProgress.set(packageName, { phase, message });
+    }
+    // Re-render to show updated progress
+    _render();
+  });
 }
 
 // ── Rendering ──────────────────────────────────────────────────────────
@@ -210,7 +245,7 @@ function _renderPackageCard(pkg: CommunityPackage): string {
           installed
             ? '<span class="community-installed-badge"><span class="ms ms-sm">check_circle</span> Installed</span>'
             : isInstalling
-              ? '<button class="btn btn-sm community-install-btn" disabled><span class="ms ms-sm k-spin">progress_activity</span> Installing…</button>'
+              ? _renderInstallProgress(pkg.package_name)
               : `<button class="btn btn-sm btn-ghost community-install-btn" data-pkg="${escHtml(pkg.package_name)}">
                   <span class="ms ms-sm">add_circle</span> Install
                 </button>`
@@ -233,6 +268,25 @@ function _renderLoading(): string {
     <div class="community-loading">
       <span class="ms ms-lg k-spin">progress_activity</span>
       <p>Searching packages…</p>
+    </div>
+  `;
+}
+
+/** Render inline install progress with phase message and cancel button. */
+function _renderInstallProgress(packageName: string): string {
+  const progress = _installProgress.get(packageName);
+  const phaseMsg = progress?.message ?? 'Installing…';
+
+  return `
+    <div class="community-install-progress">
+      <button class="btn btn-sm community-install-btn" disabled>
+        <span class="ms ms-sm k-spin">progress_activity</span>
+        <span class="community-progress-msg">${escHtml(phaseMsg)}</span>
+      </button>
+      <button class="btn btn-xs btn-ghost community-cancel-btn" data-pkg="${escHtml(packageName)}"
+              title="Cancel install">
+        <span class="ms ms-sm">close</span>
+      </button>
     </div>
   `;
 }
@@ -480,6 +534,7 @@ async function _installPackage(packageName: string): Promise<void> {
     showToast(`Install failed: ${err}`, 'error');
   } finally {
     _installing.delete(packageName);
+    _installProgress.delete(packageName);
     _render();
   }
 }
@@ -568,6 +623,17 @@ async function _uninstallPackage(packageName: string): Promise<void> {
   }
 }
 
+/** Request cancellation of a running install. */
+async function _cancelInstall(packageName: string): Promise<void> {
+  try {
+    await invoke('engine_n8n_community_packages_cancel');
+    showToast(`Cancelling install of ${packageName}…`, 'info');
+  } catch (e) {
+    const err = e instanceof Error ? e.message : String(e);
+    showToast(`Cancel failed: ${err}`, 'error');
+  }
+}
+
 // ── Event wiring ───────────────────────────────────────────────────────
 
 function _wireEvents(): void {
@@ -613,6 +679,15 @@ function _wireEvents(): void {
       e.stopPropagation();
       const pkg = (btn as HTMLElement).dataset.pkg;
       if (pkg) _installPackage(pkg);
+    });
+  });
+
+  // Cancel install buttons
+  _container.querySelectorAll('.community-cancel-btn[data-pkg]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pkg = (btn as HTMLElement).dataset.pkg;
+      if (pkg) _cancelInstall(pkg);
     });
   });
 

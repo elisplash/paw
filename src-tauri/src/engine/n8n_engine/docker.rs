@@ -135,6 +135,18 @@ pub async fn provision_docker_container(
         "N8N_REINSTALL_MISSING_PACKAGES=true".to_string(),
         // Allow community packages to be used as tools in workflows
         "N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true".to_string(),
+        // ── Prevent accidental binary downloads during npm install ──
+        // Community packages like n8n-nodes-puppeteer or playwright try
+        // to download 200+ MB browser binaries in postinstall scripts.
+        // The slim Alpine n8n image can't run them anyway.  If a package
+        // genuinely needs a browser, we install it separately after the
+        // npm package is in place (see post_install_hooks in commands/n8n.rs).
+        "PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true".to_string(),
+        "PUPPETEER_SKIP_DOWNLOAD=true".to_string(),
+        "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1".to_string(),
+        // Cypress / Electron-based packages
+        "CYPRESS_INSTALL_BINARY=0".to_string(),
+        "ELECTRON_SKIP_BINARY_DOWNLOAD=1".to_string(),
     ];
 
     let host_config = HostConfig {
