@@ -105,7 +105,7 @@ impl SessionStore {
         )?;
 
         let result = stmt
-            .query_row(params![id], |row| Self::episodic_from_row(row))
+            .query_row(params![id], Self::episodic_from_row)
             .optional()?;
 
         Ok(result)
@@ -228,7 +228,7 @@ impl SessionStore {
         )?;
 
         let rows = stmt
-            .query_map(params![limit as i64], |row| Self::episodic_from_row(row))?
+            .query_map(params![limit as i64], Self::episodic_from_row)?
             .filter_map(|r| r.ok())
             .collect();
 
@@ -255,7 +255,10 @@ impl SessionStore {
                 or_clauses.push(format!("em.scope_agent_id = '{}'", aid.replace('\'', "''")));
             }
             if let Some(ref pid) = scope.project_id {
-                or_clauses.push(format!("em.scope_project_id = '{}'", pid.replace('\'', "''")));
+                or_clauses.push(format!(
+                    "em.scope_project_id = '{}'",
+                    pid.replace('\'', "''")
+                ));
             }
             if let Some(ref sid) = scope.squad_id {
                 or_clauses.push(format!("em.scope_squad_id = '{}'", sid.replace('\'', "''")));
@@ -264,7 +267,10 @@ impl SessionStore {
                 or_clauses.push(format!("em.scope_channel = '{}'", ch.replace('\'', "''")));
             }
             if let Some(ref uid) = scope.channel_user_id {
-                or_clauses.push(format!("em.scope_channel_user_id = '{}'", uid.replace('\'', "''")));
+                or_clauses.push(format!(
+                    "em.scope_channel_user_id = '{}'",
+                    uid.replace('\'', "''")
+                ));
             }
             // Also include unscoped memories (no agent restriction)
             or_clauses.push("(em.scope_agent_id IS NULL OR em.scope_agent_id = '')".into());
@@ -291,13 +297,14 @@ impl SessionStore {
         );
 
         let mut stmt = conn.prepare(&sql)?;
-        let rows = stmt.query_map(params![query, limit as i64], |row| {
-            let mem = Self::episodic_from_row(row)?;
-            let rank: f64 = row.get(22)?;
-            Ok((mem, -rank))
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
+        let rows = stmt
+            .query_map(params![query, limit as i64], |row| {
+                let mem = Self::episodic_from_row(row)?;
+                let rank: f64 = row.get(22)?;
+                Ok((mem, -rank))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
 
         Ok(rows)
     }
@@ -325,7 +332,7 @@ impl SessionStore {
         )?;
 
         let mut scored: Vec<(EpisodicMemory, f64)> = stmt
-            .query_map([], |row| Self::episodic_from_row(row))?
+            .query_map([], Self::episodic_from_row)?
             .filter_map(|r| r.ok())
             .filter(|mem| scope_matches(scope, &mem.scope))
             .filter_map(|mem| {
@@ -424,7 +431,7 @@ impl SessionStore {
     ) -> EngineResult<bool> {
         let conn = self.conn.lock();
         let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
-        let embedding_bytes = new_embedding.map(|v| f32_vec_to_bytes(v));
+        let embedding_bytes = new_embedding.map(f32_vec_to_bytes);
 
         let rows = if let Some(ref emb) = embedding_bytes {
             conn.execute(
@@ -518,7 +525,7 @@ impl SessionStore {
         let param_refs: Vec<&dyn rusqlite::types::ToSql> =
             param_values.iter().map(|p| p.as_ref()).collect();
         let rows = stmt
-            .query_map(param_refs.as_slice(), |row| Self::episodic_from_row(row))?
+            .query_map(param_refs.as_slice(), Self::episodic_from_row)?
             .filter_map(|r| r.ok())
             .collect();
 
@@ -630,7 +637,7 @@ impl SessionStore {
         )?;
 
         let result = stmt
-            .query_row(params![id], |row| Self::semantic_from_row(row))
+            .query_row(params![id], Self::semantic_from_row)
             .optional()?;
 
         Ok(result)
@@ -660,13 +667,17 @@ impl SessionStore {
         let scope_clause = if scope.global {
             "1=1".to_string()
         } else {
-            let mut or_clauses: Vec<String> = vec!["sm.scope_agent_id = '' OR sm.scope_agent_id IS NULL".into()];
+            let mut or_clauses: Vec<String> =
+                vec!["sm.scope_agent_id = '' OR sm.scope_agent_id IS NULL".into()];
 
             if let Some(ref aid) = scope.agent_id {
                 or_clauses.push(format!("sm.scope_agent_id = '{}'", aid.replace('\'', "''")));
             }
             if let Some(ref pid) = scope.project_id {
-                or_clauses.push(format!("sm.scope_project_id = '{}'", pid.replace('\'', "''")));
+                or_clauses.push(format!(
+                    "sm.scope_project_id = '{}'",
+                    pid.replace('\'', "''")
+                ));
             }
             if let Some(ref ch) = scope.channel {
                 or_clauses.push(format!("sm.scope_channel = '{}'", ch.replace('\'', "''")));
@@ -692,13 +703,14 @@ impl SessionStore {
         );
 
         let mut stmt = conn.prepare(&sql)?;
-        let rows = stmt.query_map(params![query, limit as i64], |row| {
-            let mem = Self::semantic_from_row(row)?;
-            let rank: f64 = row.get(14)?;
-            Ok((mem, -rank))
-        })?
-        .filter_map(|r| r.ok())
-        .collect();
+        let rows = stmt
+            .query_map(params![query, limit as i64], |row| {
+                let mem = Self::semantic_from_row(row)?;
+                let rank: f64 = row.get(14)?;
+                Ok((mem, -rank))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
 
         Ok(rows)
     }
@@ -733,7 +745,7 @@ impl SessionStore {
 
         let mut stmt = conn.prepare(sql)?;
         let rows = if agent_filter.is_empty() {
-            stmt.query_map(params![subject], |row| Self::semantic_from_row(row))?
+            stmt.query_map(params![subject], Self::semantic_from_row)?
                 .filter_map(|r| r.ok())
                 .collect()
         } else {
@@ -856,7 +868,7 @@ impl SessionStore {
         )?;
 
         let result = stmt
-            .query_row(params![id], |row| Self::procedural_from_row(row))
+            .query_row(params![id], Self::procedural_from_row)
             .optional()?;
 
         Ok(result)
@@ -1019,7 +1031,7 @@ impl SessionStore {
              FROM memory_edges WHERE source_id = ?1 ORDER BY weight DESC",
         )?;
         let edges = stmt
-            .query_map(params![source_id], |row| Self::edge_from_row(row))?
+            .query_map(params![source_id], Self::edge_from_row)?
             .filter_map(|r| r.ok())
             .collect();
         Ok(edges)
@@ -1033,7 +1045,7 @@ impl SessionStore {
              FROM memory_edges WHERE target_id = ?1 ORDER BY weight DESC",
         )?;
         let edges = stmt
-            .query_map(params![target_id], |row| Self::edge_from_row(row))?
+            .query_map(params![target_id], Self::edge_from_row)?
             .filter_map(|r| r.ok())
             .collect();
         Ok(edges)
@@ -1327,7 +1339,10 @@ impl SessionStore {
                 or_clauses.push(format!("em.scope_agent_id = '{}'", aid.replace('\'', "''")));
             }
             if let Some(ref pid) = scope.project_id {
-                or_clauses.push(format!("em.scope_project_id = '{}'", pid.replace('\'', "''")));
+                or_clauses.push(format!(
+                    "em.scope_project_id = '{}'",
+                    pid.replace('\'', "''")
+                ));
             }
             if let Some(ref sid) = scope.squad_id {
                 or_clauses.push(format!("em.scope_squad_id = '{}'", sid.replace('\'', "''")));
@@ -1336,7 +1351,10 @@ impl SessionStore {
                 or_clauses.push(format!("em.scope_channel = '{}'", ch.replace('\'', "''")));
             }
             if let Some(ref uid) = scope.channel_user_id {
-                or_clauses.push(format!("em.scope_channel_user_id = '{}'", uid.replace('\'', "''")));
+                or_clauses.push(format!(
+                    "em.scope_channel_user_id = '{}'",
+                    uid.replace('\'', "''")
+                ));
             }
             or_clauses.push("(em.scope_agent_id IS NULL OR em.scope_agent_id = '')".into());
             scope_clause = format!("({})", or_clauses.join(" OR "));
@@ -1447,7 +1465,7 @@ impl SessionStore {
                  FROM entity_profiles
                  WHERE LOWER(canonical_name) = LOWER(?1)",
                 params![name],
-                |row| Self::entity_from_row(row),
+                Self::entity_from_row,
             )
             .optional()?;
 
@@ -1464,10 +1482,12 @@ impl SessionStore {
         )?;
         let pattern = format!("%{}%", name.to_lowercase().replace('%', "\\%"));
         let found: Option<EntityProfile> = stmt
-            .query_map(params![pattern], |row| Self::entity_from_row(row))?
+            .query_map(params![pattern], Self::entity_from_row)?
             .filter_map(|r| r.ok())
             .find(|ep| {
-                ep.aliases.iter().any(|a| a.to_lowercase() == name.to_lowercase())
+                ep.aliases
+                    .iter()
+                    .any(|a| a.to_lowercase() == name.to_lowercase())
             });
 
         Ok(found)
@@ -1485,7 +1505,7 @@ impl SessionStore {
                         mention_count, memory_ids, related_entities, summary, sentiment
                  FROM entity_profiles WHERE id = ?1",
                 params![id],
-                |row| Self::entity_from_row(row),
+                Self::entity_from_row,
             )
             .optional()?;
         Ok(result)
@@ -1498,8 +1518,10 @@ impl SessionStore {
     ) -> EngineResult<()> {
         let conn = self.conn.lock();
         let aliases_json = serde_json::to_string(&profile.aliases).unwrap_or_else(|_| "[]".into());
-        let memory_ids_json = serde_json::to_string(&profile.memory_ids).unwrap_or_else(|_| "[]".into());
-        let related_json = serde_json::to_string(&profile.related_entities).unwrap_or_else(|_| "[]".into());
+        let memory_ids_json =
+            serde_json::to_string(&profile.memory_ids).unwrap_or_else(|_| "[]".into());
+        let related_json =
+            serde_json::to_string(&profile.related_entities).unwrap_or_else(|_| "[]".into());
 
         conn.execute(
             "INSERT INTO entity_profiles (id, canonical_name, aliases, entity_type, first_seen, last_seen,
@@ -1529,8 +1551,10 @@ impl SessionStore {
     ) -> EngineResult<()> {
         let conn = self.conn.lock();
         let aliases_json = serde_json::to_string(&profile.aliases).unwrap_or_else(|_| "[]".into());
-        let memory_ids_json = serde_json::to_string(&profile.memory_ids).unwrap_or_else(|_| "[]".into());
-        let related_json = serde_json::to_string(&profile.related_entities).unwrap_or_else(|_| "[]".into());
+        let memory_ids_json =
+            serde_json::to_string(&profile.memory_ids).unwrap_or_else(|_| "[]".into());
+        let related_json =
+            serde_json::to_string(&profile.related_entities).unwrap_or_else(|_| "[]".into());
 
         conn.execute(
             "UPDATE entity_profiles SET canonical_name = ?2, aliases = ?3, entity_type = ?4,
@@ -1575,7 +1599,9 @@ impl SessionStore {
             id: row.get(0)?,
             canonical_name: row.get(1)?,
             aliases: serde_json::from_str(&aliases_str).unwrap_or_default(),
-            entity_type: entity_type_str.parse::<EntityType>().unwrap_or(EntityType::Unknown),
+            entity_type: entity_type_str
+                .parse::<EntityType>()
+                .unwrap_or(EntityType::Unknown),
             first_seen: row.get(4)?,
             last_seen: row.get(5)?,
             mention_count: row.get::<_, i64>(6)? as u32,
@@ -1608,7 +1634,9 @@ fn scope_matches(search_scope: &MemoryScope, memory_scope: &MemoryScope) -> bool
     }
     // Check each scope level — a match at ANY level grants visibility
     // (most specific → least specific)
-    if let (Some(ref s), Some(ref m)) = (&search_scope.channel_user_id, &memory_scope.channel_user_id) {
+    if let (Some(ref s), Some(ref m)) =
+        (&search_scope.channel_user_id, &memory_scope.channel_user_id)
+    {
         if s == m {
             return true;
         }

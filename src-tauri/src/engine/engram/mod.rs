@@ -19,15 +19,25 @@
 //   - reranking: 4-strategy reranking pipeline (§35.1) + cross-type dedup (§34.3)
 //   - hybrid_search: Auto-detect text-boost weighting (§35.2)
 //   - metadata_inference: Auto-extract structured metadata during consolidation (§35.3)
+//   - emotional_memory: Affective scoring pipeline (§37) — flashbulb encoding
+//   - meta_cognition: Knowledge confidence mapping & reflection (§38)
+//   - abstraction_tree: 4-level hierarchical semantic compression (§42)
+//   - memory_bus: Multi-agent memory sync pub/sub protocol (§43)
+//   - dream_replay: Idle-time memory replay & connection discovery (§44)
 
+pub mod abstraction_tree;
 pub mod bridge;
 pub mod consolidation;
 pub mod context_builder;
+pub mod dream_replay;
+pub mod emotional_memory;
 pub mod encryption;
 pub mod entity_tracking;
 pub mod graph;
 pub mod hybrid_search;
 pub mod intent_classifier;
+pub mod memory_bus;
+pub mod meta_cognition;
 pub mod metadata_inference;
 pub mod model_caps;
 pub mod reranking;
@@ -39,15 +49,25 @@ pub mod tokenizer;
 pub mod working_memory;
 
 // Re-exports for convenience
+pub use abstraction_tree::{build_tree, pack_with_fallback, select_level};
 pub use consolidation::{run_consolidation, ConsolidationReport, GapKind, KnowledgeGap};
 pub use context_builder::{AssembledContext, BudgetReport, ContextBuilder};
-pub use entity_tracking::{extract_entities, process_memory_entities, merge_entities};
+pub use dream_replay::run_replay;
+pub use emotional_memory::{
+    affect_congruent_boost, affect_to_emotional_context, modulated_encoding_strength,
+    modulated_half_life, score_affect,
+};
+pub use entity_tracking::{extract_entities, merge_entities, process_memory_entities};
 pub use graph::{
     apply_decay, garbage_collect, memory_stats, relate, search, store_episodic_dedup,
     store_procedural, store_semantic_dedup, EngramStats,
 };
 pub use hybrid_search::resolve_hybrid_weight;
 pub use intent_classifier::{classify_intent, intent_weights};
+pub use memory_bus::MemoryBus;
+pub use meta_cognition::{
+    assess_query_confidence, build_reflection_prompt, rebuild_confidence_map,
+};
 pub use metadata_inference::{infer_metadata, infer_metadata_full};
 pub use model_caps::{
     resolve_context_window, resolve_max_output_tokens, resolve_model_capabilities,
@@ -58,6 +78,6 @@ pub use retrieval_quality::{
     compute_ndcg,
 };
 pub use sensory_buffer::SensoryBuffer;
-pub use temporal_search::{temporal_search, recency_score, cluster_temporal};
+pub use temporal_search::{cluster_temporal, recency_score, temporal_search};
 pub use tokenizer::Tokenizer;
 pub use working_memory::WorkingMemory;

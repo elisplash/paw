@@ -18,13 +18,27 @@ use std::sync::LazyLock;
 /// Normalize a model name for matching.
 /// Strips common suffixes (dates, preview tags) and lowercases.
 pub fn normalize_model_name(model: &str) -> String {
-    model
-        .to_lowercase()
-        .trim()
-        // Strip date suffixes like -20250514, -20260115
-        .trim_end_matches(|c: char| c == '-' || c.is_ascii_digit())
-        // Strip common suffixes
-        .trim_end_matches("-preview")
+    let s = model.to_lowercase();
+    let s = s.trim();
+
+    // Strip date suffixes like -20250514, -20260115 (dash + exactly 8 digits at end).
+    // This must NOT strip version numbers like -4-6, -4, -3.5.
+    let s = if s.len() > 9 {
+        let candidate = &s[s.len() - 9..];
+        if candidate.starts_with('-')
+            && candidate[1..].len() == 8
+            && candidate[1..].chars().all(|c| c.is_ascii_digit())
+        {
+            &s[..s.len() - 9]
+        } else {
+            s
+        }
+    } else {
+        s
+    };
+
+    // Strip common suffixes
+    s.trim_end_matches("-preview")
         .trim_end_matches("-latest")
         .trim_end_matches("-exp")
         .to_string()

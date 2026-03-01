@@ -474,14 +474,25 @@ impl SessionStore {
                 .map(|tc| tc.id.clone())
                 .collect();
 
-            // Scan immediately following tool-result messages
+            // Scan following messages for tool results, skipping System messages
+            // (context injections can insert System messages between assistant
+            // and tool-result blocks).
             let mut found_ids = HashSet::new();
             let mut j = i + 1;
-            while j < messages.len() && messages[j].role == Role::Tool {
-                if let Some(ref tcid) = messages[j].tool_call_id {
-                    found_ids.insert(tcid.clone());
+            while j < messages.len() {
+                match messages[j].role {
+                    Role::Tool => {
+                        if let Some(ref tcid) = messages[j].tool_call_id {
+                            found_ids.insert(tcid.clone());
+                        }
+                        j += 1;
+                    }
+                    Role::System => {
+                        // Skip injected system messages — don't break the scan
+                        j += 1;
+                    }
+                    _ => break,
                 }
-                j += 1;
             }
 
             // Inject synthetic results for any missing tool_call IDs
@@ -510,9 +521,11 @@ impl SessionStore {
                 );
             }
 
-            // Advance past this assistant message + all following tool results
+            // Advance past this assistant message + all following tool/system results
             i += 1;
-            while i < messages.len() && messages[i].role == Role::Tool {
+            while i < messages.len()
+                && (messages[i].role == Role::Tool || messages[i].role == Role::System)
+            {
                 i += 1;
             }
         }

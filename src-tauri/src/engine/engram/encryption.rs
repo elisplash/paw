@@ -27,21 +27,16 @@ use crate::atoms::error::{EngineError, EngineResult};
 
 /// Three security tiers for memory content.
 /// Tier is determined automatically by PII detection + user override.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum MemorySecurityTier {
     /// Stored as plaintext within the encrypted DB — fast FTS5 search.
+    #[default]
     Cleartext,
     /// Content encrypted with AES-256-GCM. Cleartext summary kept for FTS5.
     Sensitive,
     /// Fully encrypted, no cleartext summary. Only vector search works.
     Confidential,
-}
-
-impl Default for MemorySecurityTier {
-    fn default() -> Self {
-        Self::Cleartext
-    }
 }
 
 impl std::fmt::Display for MemorySecurityTier {
@@ -768,8 +763,10 @@ mod tests {
     #[test]
     fn test_sanitize_fts5_query() {
         assert_eq!(sanitize_fts5_query("hello world"), "hello world");
-        assert_eq!(sanitize_fts5_query("hello* OR world"), "hello  world");
-        assert_eq!(sanitize_fts5_query("\"exact match\""), " exact match ");
+        // '*' becomes space, ' OR ' becomes space, then multiple spaces collapse
+        assert_eq!(sanitize_fts5_query("hello* OR world"), "hello world");
+        // Quotes become spaces, then trimmed
+        assert_eq!(sanitize_fts5_query("\"exact match\""), "exact match");
         assert_eq!(sanitize_fts5_query("col:value"), "col value");
     }
 

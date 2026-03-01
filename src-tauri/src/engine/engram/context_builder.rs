@@ -284,7 +284,7 @@ impl<'a> ContextBuilder<'a> {
                 .working_memory
                 .filter(|wm| !wm.momentum().is_empty())
                 .map(|wm| wm.momentum().to_vec());
-            let mom_ref = momentum.as_ref().map(|v| v.as_slice());
+            let mom_ref = momentum.as_deref();
 
             match super::graph::search(
                 store,

@@ -192,9 +192,11 @@ const LANG_KEYWORDS: &[(&str, &str)] = &[
 pub fn detect_programming_language(content: &str) -> Option<String> {
     let mut lang_votes: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
 
-    // Vote by file extensions found in content
+    // Vote by file extensions found in content.
+    // Extension must appear at a word boundary (not followed by an alphabetic char)
+    // to avoid false positives like ".c" matching inside ".com" or ".css".
     for &(ext, lang) in LANG_EXTENSIONS {
-        if content.contains(ext) {
+        if ext_at_boundary(content, ext) {
             *lang_votes.entry(lang).or_default() += 1;
         }
     }
@@ -213,6 +215,33 @@ pub fn detect_programming_language(content: &str) -> Option<String> {
         .map(|(lang, _)| lang.to_string())
 }
 
+/// Check if `ext` (e.g. ".rs") appears in `content` at an extension boundary:
+/// the character immediately after the match must NOT be an ASCII letter.
+/// This prevents ".c" from matching inside ".com" or ".css".
+fn ext_at_boundary(content: &str, ext: &str) -> bool {
+    let mut start = 0;
+    while let Some(pos) = content[start..].find(ext) {
+        let abs_pos = start + pos;
+        let end_pos = abs_pos + ext.len();
+
+        let after_ok = end_pos >= content.len()
+            || !content
+                .as_bytes()
+                .get(end_pos)
+                .is_some_and(|&b| b.is_ascii_alphabetic());
+
+        if after_ok {
+            return true;
+        }
+
+        start = abs_pos + 1;
+        if start >= content.len() {
+            break;
+        }
+    }
+    false
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // Metadata Extraction (Regex Fast-Path)
 // ═══════════════════════════════════════════════════════════════════════════
@@ -225,21 +254,13 @@ pub fn detect_programming_language(content: &str) -> Option<String> {
 /// For richer extraction (people, topics, sentiment, dates), the caller
 /// should follow up with `enrich_metadata_with_llm()` when Ollama is available.
 pub fn infer_metadata(content: &str) -> InferredMetadata {
-    let mut meta = InferredMetadata::default();
-
-    // ── File paths ─────────────────────────────────────────────────
-    meta.file_paths = extract_file_paths(content);
-
-    // ── URLs ───────────────────────────────────────────────────────
-    meta.urls = extract_urls(content);
-
-    // ── Technologies ──────────────────────────────────────────────
-    meta.technologies = extract_technologies(content);
-
-    // ── Programming language ──────────────────────────────────────
-    meta.language = detect_programming_language(content);
-
-    meta
+    InferredMetadata {
+        file_paths: extract_file_paths(content),
+        urls: extract_urls(content),
+        technologies: extract_technologies(content),
+        language: detect_programming_language(content),
+        ..Default::default()
+    }
 }
 
 /// Extract file paths from content.
@@ -270,7 +291,7 @@ fn looks_like_path(s: &str) -> bool {
         || s.starts_with("./")
         || s.starts_with("~/")
         || s.starts_with("../")
-        || s.chars().next().map_or(false, |c| c.is_alphanumeric());
+        || s.chars().next().is_some_and(|c| c.is_alphanumeric());
 
     // Must not be a URL
     let not_url = !s.starts_with("http://") && !s.starts_with("https://");
@@ -288,7 +309,7 @@ fn extract_urls(content: &str) -> Vec<String> {
     let mut urls: HashSet<String> = HashSet::new();
 
     for word in content.split_whitespace() {
-        let clean = word.trim_end_matches(|c: char| c == ',' || c == ';' || c == ')' || c == '>');
+        let clean = word.trim_end_matches([',', ';', ')', '>']);
 
         if clean.starts_with("http://") || clean.starts_with("https://") {
             urls.insert(clean.to_string());
@@ -341,13 +362,13 @@ fn word_boundary_match(haystack: &str, needle: &str) -> bool {
             || !haystack
                 .as_bytes()
                 .get(abs_pos - 1)
-                .map_or(false, |&b| b.is_ascii_alphanumeric());
+                .is_some_and(|&b| b.is_ascii_alphanumeric());
 
         let after_ok = end_pos >= haystack.len()
             || !haystack
                 .as_bytes()
                 .get(end_pos)
-                .map_or(false, |&b| b.is_ascii_alphanumeric());
+                .is_some_and(|&b| b.is_ascii_alphanumeric());
 
         if before_ok && after_ok {
             return true;

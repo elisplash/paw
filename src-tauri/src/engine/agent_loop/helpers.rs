@@ -7,6 +7,7 @@
 
 use crate::engine::types::*;
 use log::{info, warn};
+use std::collections::HashSet;
 use tauri::Manager;
 
 // ── Malformed tool-call recovery ───────────────────────────────────────
@@ -286,7 +287,154 @@ pub fn truncate_mid_loop(app_handle: &tauri::AppHandle, messages: &mut Vec<Messa
             running,
             messages.len()
         );
+
+        // After truncation, orphaned tool_use / tool_result pairs may remain.
+        // Re-sanitize to prevent Anthropic 400 errors.
+        sanitize_tool_pairs(messages);
     } else if let Some(sys) = sys_msg {
         messages.insert(0, sys);
+    }
+}
+
+/// Ensure every assistant message with tool_calls has matching tool_result
+/// messages, and every tool_result has a matching preceding tool_use.
+///
+/// Three passes:
+///   1. Strip leading orphan tool_result messages (no parent assistant).
+///   2. For each assistant+tool_calls, inject synthetic results for missing IDs.
+///   3. Remove any remaining orphan tool_results whose tool_use_id doesn't
+///      appear in any preceding assistant message.
+///
+/// This is called after mid-loop truncation and also during conversation
+/// loading. It is intentionally duplicated here (rather than calling into
+/// sessions::messages) to avoid a cross-module dependency cycle.
+pub fn sanitize_tool_pairs(messages: &mut Vec<Message>) {
+    // ── Pass 1: strip leading orphan tool results ──────────────────
+    let first_non_system = messages
+        .iter()
+        .position(|m| m.role != Role::System)
+        .unwrap_or(0);
+    let mut strip_end = first_non_system;
+    while strip_end < messages.len() && messages[strip_end].role == Role::Tool {
+        strip_end += 1;
+    }
+    if strip_end > first_non_system {
+        let removed = strip_end - first_non_system;
+        warn!(
+            "[engine] Removing {} orphaned leading tool_result messages",
+            removed
+        );
+        messages.drain(first_non_system..strip_end);
+    }
+
+    // ── Pass 2: ensure every assistant+tool_calls has matching results ─
+    let mut i = 0;
+    while i < messages.len() {
+        let has_tc = messages[i].role == Role::Assistant
+            && messages[i]
+                .tool_calls
+                .as_ref()
+                .map(|tc| !tc.is_empty())
+                .unwrap_or(false);
+
+        if !has_tc {
+            i += 1;
+            continue;
+        }
+
+        // Collect expected tool_call IDs from this assistant message
+        let expected_ids: Vec<String> = messages[i]
+            .tool_calls
+            .as_ref()
+            .unwrap()
+            .iter()
+            .map(|tc| tc.id.clone())
+            .collect();
+
+        // Scan following messages for tool results, skipping System messages
+        // (context injections can insert System messages between assistant
+        // and tool-result blocks).
+        let mut found_ids = HashSet::new();
+        let mut j = i + 1;
+        while j < messages.len() {
+            match messages[j].role {
+                Role::Tool => {
+                    if let Some(ref tcid) = messages[j].tool_call_id {
+                        found_ids.insert(tcid.clone());
+                    }
+                    j += 1;
+                }
+                Role::System => {
+                    // Skip injected system messages — don't break the scan
+                    j += 1;
+                }
+                _ => break,
+            }
+        }
+
+        // Inject synthetic results for any missing tool_call IDs
+        let mut injected = 0;
+        for expected_id in &expected_ids {
+            if !found_ids.contains(expected_id) {
+                let synthetic = Message {
+                    role: Role::Tool,
+                    content: MessageContent::Text(
+                        "[Tool execution was interrupted or result was lost.]".into(),
+                    ),
+                    tool_calls: None,
+                    tool_call_id: Some(expected_id.clone()),
+                    name: Some("_synthetic".into()),
+                };
+                messages.insert(i + 1 + injected, synthetic);
+                injected += 1;
+            }
+        }
+
+        if injected > 0 {
+            warn!(
+                "[engine] Injected {} synthetic tool_result(s) for orphaned tool_use IDs",
+                injected
+            );
+        }
+
+        // Advance past this assistant message + all following tool/system results
+        i += 1;
+        while i < messages.len()
+            && (messages[i].role == Role::Tool || messages[i].role == Role::System)
+        {
+            i += 1;
+        }
+    }
+
+    // ── Pass 3: remove orphan tool_results whose tool_use_id has no ───
+    //    matching tool_use in any preceding assistant message.
+    let mut known_tc_ids: HashSet<String> = HashSet::new();
+    let mut to_remove: Vec<usize> = Vec::new();
+
+    for (idx, msg) in messages.iter().enumerate() {
+        if msg.role == Role::Assistant {
+            if let Some(tcs) = &msg.tool_calls {
+                for tc in tcs {
+                    known_tc_ids.insert(tc.id.clone());
+                }
+            }
+        } else if msg.role == Role::Tool {
+            if let Some(ref tcid) = msg.tool_call_id {
+                if !known_tc_ids.contains(tcid) {
+                    to_remove.push(idx);
+                }
+            }
+        }
+    }
+
+    if !to_remove.is_empty() {
+        warn!(
+            "[engine] Removing {} orphaned tool_result messages (no matching tool_use)",
+            to_remove.len()
+        );
+        // Remove in reverse to preserve indices
+        for &idx in to_remove.iter().rev() {
+            messages.remove(idx);
+        }
     }
 }

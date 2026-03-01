@@ -365,8 +365,10 @@ mod tests {
 
     #[test]
     fn test_eviction_on_budget_overflow() {
-        // Very small budget — only room for ~1 slot
-        let mut wm = make_wm(10);
+        // Very small budget — only room for ~1 slot.
+        // Heuristic tokenizer: "first memory"=4 tokens, "second memory"=4 tokens.
+        // Budget of 5 means the second insert (4+4=8 > 5) forces eviction.
+        let mut wm = make_wm(5);
 
         wm.insert_recall("m1".into(), "first memory".into(), 0.3);
         let evicted = wm.insert_recall("m2".into(), "second memory".into(), 0.8);
@@ -442,8 +444,10 @@ mod tests {
         wm.insert_recall("m1".into(), "first".into(), 0.3);
         wm.insert_recall("m2".into(), "second".into(), 0.9);
 
-        // Shrink budget to force eviction
-        wm.set_token_budget(5);
+        // Shrink budget to force eviction.
+        // Heuristic tokenizer: "first"=2 tokens, "second"=2 tokens, total=4.
+        // Budget of 1 ensures 4 > 1, so eviction is required.
+        wm.set_token_budget(1);
 
         // At least one slot should have been evicted
         assert!(wm.slot_count() <= 1);

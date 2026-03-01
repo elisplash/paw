@@ -64,7 +64,7 @@ pub async fn store(
         content: TieredContent::from_text(&stored_content),
         outcome: None,
         category: category.to_string(),
-        importance: importance.min(1.0).max(0.0),
+        importance: importance.clamp(0.0, 1.0),
         agent_id: agent_id.unwrap_or("default").to_string(),
         session_id: session_id.unwrap_or("unknown").to_string(),
         source: MemorySource::Explicit,
@@ -92,6 +92,7 @@ pub async fn store(
 /// Store an auto-captured memory (from fact extraction or session summary).
 ///
 /// Uses `AutoCapture` source and lower default importance.
+#[allow(clippy::too_many_arguments)]
 pub async fn store_auto_capture(
     store: &SessionStore,
     content: &str,

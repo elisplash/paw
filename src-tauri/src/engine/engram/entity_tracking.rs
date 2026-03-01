@@ -70,7 +70,10 @@ pub fn resolve_entity(
     };
 
     store.engram_insert_entity_profile(&profile)?;
-    info!("[engram:entity] New entity: {} ({:?})", profile.canonical_name, profile.entity_type);
+    info!(
+        "[engram:entity] New entity: {} ({:?})",
+        profile.canonical_name, profile.entity_type
+    );
 
     Ok(profile)
 }
@@ -173,24 +176,128 @@ pub fn merge_entities(
 // ═══════════════════════════════════════════════════════════════════════════
 
 const TECH_TERMS: &[&str] = &[
-    "rust", "python", "javascript", "typescript", "golang", "go", "java", "kotlin",
-    "swift", "c++", "ruby", "php", "scala", "elixir", "haskell", "zig", "nim",
-    "react", "vue", "angular", "svelte", "nextjs", "nuxt", "astro", "remix",
-    "tauri", "electron", "flutter", "docker", "kubernetes", "k8s", "terraform",
-    "ansible", "jenkins", "github", "gitlab", "bitbucket", "jira", "confluence",
-    "redis", "postgres", "postgresql", "mysql", "mongodb", "sqlite", "dynamodb",
-    "elasticsearch", "kafka", "rabbitmq", "nats", "grpc", "graphql", "rest",
-    "nginx", "apache", "caddy", "traefik", "aws", "gcp", "azure", "vercel",
-    "netlify", "cloudflare", "supabase", "firebase", "heroku",
-    "linux", "ubuntu", "macos", "windows", "debian", "fedora", "arch",
-    "openai", "anthropic", "gemini", "ollama", "llama", "mistral", "grok",
-    "langchain", "llamaindex", "autogen", "crewai",
-    "git", "npm", "yarn", "pnpm", "cargo", "pip", "brew", "apt",
-    "vscode", "neovim", "vim", "emacs", "intellij", "xcode",
-    "css", "html", "json", "yaml", "toml", "markdown", "xml",
-    "oauth", "jwt", "saml", "oidc", "ssh", "tls", "ssl",
-    "webrtc", "websocket", "http", "https", "tcp", "udp",
-    "n8n", "zapier", "ifttt", "make",
+    "rust",
+    "python",
+    "javascript",
+    "typescript",
+    "golang",
+    "go",
+    "java",
+    "kotlin",
+    "swift",
+    "c++",
+    "ruby",
+    "php",
+    "scala",
+    "elixir",
+    "haskell",
+    "zig",
+    "nim",
+    "react",
+    "vue",
+    "angular",
+    "svelte",
+    "nextjs",
+    "nuxt",
+    "astro",
+    "remix",
+    "tauri",
+    "electron",
+    "flutter",
+    "docker",
+    "kubernetes",
+    "k8s",
+    "terraform",
+    "ansible",
+    "jenkins",
+    "github",
+    "gitlab",
+    "bitbucket",
+    "jira",
+    "confluence",
+    "redis",
+    "postgres",
+    "postgresql",
+    "mysql",
+    "mongodb",
+    "sqlite",
+    "dynamodb",
+    "elasticsearch",
+    "kafka",
+    "rabbitmq",
+    "nats",
+    "grpc",
+    "graphql",
+    "rest",
+    "nginx",
+    "apache",
+    "caddy",
+    "traefik",
+    "aws",
+    "gcp",
+    "azure",
+    "vercel",
+    "netlify",
+    "cloudflare",
+    "supabase",
+    "firebase",
+    "heroku",
+    "linux",
+    "ubuntu",
+    "macos",
+    "windows",
+    "debian",
+    "fedora",
+    "arch",
+    "openai",
+    "anthropic",
+    "gemini",
+    "ollama",
+    "llama",
+    "mistral",
+    "grok",
+    "langchain",
+    "llamaindex",
+    "autogen",
+    "crewai",
+    "git",
+    "npm",
+    "yarn",
+    "pnpm",
+    "cargo",
+    "pip",
+    "brew",
+    "apt",
+    "vscode",
+    "neovim",
+    "vim",
+    "emacs",
+    "intellij",
+    "xcode",
+    "css",
+    "html",
+    "json",
+    "yaml",
+    "toml",
+    "markdown",
+    "xml",
+    "oauth",
+    "jwt",
+    "saml",
+    "oidc",
+    "ssh",
+    "tls",
+    "ssl",
+    "webrtc",
+    "websocket",
+    "http",
+    "https",
+    "tcp",
+    "udp",
+    "n8n",
+    "zapier",
+    "ifttt",
+    "make",
 ];
 
 fn extract_technology_terms(text: &str, mentions: &mut Vec<EntityMention>) {
@@ -213,11 +320,10 @@ fn find_word_boundary(haystack: &str, needle: &str) -> Option<usize> {
     let mut start = 0;
     while let Some(pos) = haystack[start..].find(needle) {
         let abs_pos = start + pos;
-        let before_ok = abs_pos == 0
-            || !haystack.as_bytes()[abs_pos - 1].is_ascii_alphanumeric();
+        let before_ok = abs_pos == 0 || !haystack.as_bytes()[abs_pos - 1].is_ascii_alphanumeric();
         let after_pos = abs_pos + needle.len();
-        let after_ok = after_pos >= haystack.len()
-            || !haystack.as_bytes()[after_pos].is_ascii_alphanumeric();
+        let after_ok =
+            after_pos >= haystack.len() || !haystack.as_bytes()[after_pos].is_ascii_alphanumeric();
 
         if before_ok && after_ok {
             return Some(abs_pos);
@@ -233,14 +339,12 @@ fn find_word_boundary(haystack: &str, needle: &str) -> Option<usize> {
 
 /// Stopwords that should not start or constitute an entity
 const STOP_WORDS: &[&str] = &[
-    "the", "a", "an", "is", "was", "are", "were", "be", "been", "being",
-    "have", "has", "had", "do", "does", "did", "will", "would", "could",
-    "should", "may", "might", "shall", "can", "it", "its", "this", "that",
-    "these", "those", "i", "we", "you", "he", "she", "they", "my", "our",
-    "your", "his", "her", "their", "what", "which", "who", "whom", "how",
-    "when", "where", "why", "if", "for", "but", "and", "or", "not", "no",
-    "so", "than", "too", "very", "just", "about", "with", "from", "into",
-    "to", "of", "in", "on", "at", "by", "up", "out", "off",
+    "the", "a", "an", "is", "was", "are", "were", "be", "been", "being", "have", "has", "had",
+    "do", "does", "did", "will", "would", "could", "should", "may", "might", "shall", "can", "it",
+    "its", "this", "that", "these", "those", "i", "we", "you", "he", "she", "they", "my", "our",
+    "your", "his", "her", "their", "what", "which", "who", "whom", "how", "when", "where", "why",
+    "if", "for", "but", "and", "or", "not", "no", "so", "than", "too", "very", "just", "about",
+    "with", "from", "into", "to", "of", "in", "on", "at", "by", "up", "out", "off",
 ];
 
 fn extract_capitalized_runs(text: &str, mentions: &mut Vec<EntityMention>) {
@@ -315,7 +419,10 @@ fn is_stop_word(word: &str) -> bool {
 }
 
 fn is_name_connector(word: &str) -> bool {
-    matches!(word.to_lowercase().as_str(), "of" | "the" | "de" | "van" | "von" | "di" | "da")
+    matches!(
+        word.to_lowercase().as_str(),
+        "of" | "the" | "de" | "van" | "von" | "di" | "da"
+    )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

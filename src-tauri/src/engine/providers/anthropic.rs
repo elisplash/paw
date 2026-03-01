@@ -50,32 +50,41 @@ impl AnthropicProvider {
         let mut system = None;
         let mut formatted = Vec::new();
 
-        for msg in messages {
+        let mut idx = 0;
+        while idx < messages.len() {
+            let msg = &messages[idx];
+
             if msg.role == Role::System {
                 system = Some(msg.content.as_text());
+                idx += 1;
                 continue;
             }
 
-            let role = match msg.role {
-                Role::User => "user",
-                Role::Assistant => "assistant",
-                Role::Tool => "user", // Anthropic uses user role for tool results
-                _ => "user",
-            };
-
             if msg.role == Role::Tool {
-                // Tool results in Anthropic format
-                if let Some(tc_id) = &msg.tool_call_id {
-                    formatted.push(json!({
-                        "role": "user",
-                        "content": [{
+                // Batch all consecutive tool_result messages into a single
+                // user message. Anthropic requires tool_results for the same
+                // assistant turn to be in one user message, not separate ones.
+                let mut tool_result_blocks: Vec<Value> = Vec::new();
+                while idx < messages.len() && messages[idx].role == Role::Tool {
+                    if let Some(tc_id) = &messages[idx].tool_call_id {
+                        tool_result_blocks.push(json!({
                             "type": "tool_result",
                             "tool_use_id": tc_id,
-                            "content": msg.content.as_text(),
-                        }]
+                            "content": messages[idx].content.as_text(),
+                        }));
+                    }
+                    idx += 1;
+                }
+                if !tool_result_blocks.is_empty() {
+                    formatted.push(json!({
+                        "role": "user",
+                        "content": tool_result_blocks,
                     }));
                 }
-            } else if msg.role == Role::Assistant {
+                continue;
+            }
+
+            if msg.role == Role::Assistant {
                 if let Some(tool_calls) = &msg.tool_calls {
                     // Assistant message with tool use
                     let mut content_blocks: Vec<Value> = vec![];
@@ -99,7 +108,7 @@ impl AnthropicProvider {
                     }));
                 } else {
                     formatted.push(json!({
-                        "role": role,
+                        "role": "assistant",
                         "content": msg.content.as_text(),
                     }));
                 }
@@ -157,18 +166,20 @@ impl AnthropicProvider {
                             }
                         }
                         formatted.push(json!({
-                            "role": role,
+                            "role": "user",
                             "content": content_blocks,
                         }));
                     }
                     MessageContent::Text(s) => {
                         formatted.push(json!({
-                            "role": role,
+                            "role": "user",
                             "content": s,
                         }));
                     }
                 }
             }
+
+            idx += 1;
         }
 
         (system, formatted)

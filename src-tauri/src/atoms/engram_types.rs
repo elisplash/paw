@@ -140,10 +140,11 @@ impl MemoryScope {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// The source of a memory — how it was created.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 #[serde(tag = "type")]
 pub enum MemorySource {
     /// Extracted from a conversation automatically.
+    #[default]
     AutoCapture,
     /// Stored explicitly by the user or agent via tool/command.
     Explicit,
@@ -161,27 +162,16 @@ pub enum MemorySource {
     LegacyMigration,
 }
 
-impl Default for MemorySource {
-    fn default() -> Self {
-        MemorySource::AutoCapture
-    }
-}
-
 /// Consolidation state for episodic memories.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub enum ConsolidationState {
     /// Just captured, not yet processed.
+    #[default]
     Fresh,
     /// Processed by the consolidation engine.
     Consolidated,
     /// Superseded by a newer version or merged into semantic memory.
     Archived,
-}
-
-impl Default for ConsolidationState {
-    fn default() -> Self {
-        ConsolidationState::Fresh
-    }
 }
 
 /// Multi-dimensional trust score for retrieved memories.
@@ -519,6 +509,8 @@ pub enum EdgeType {
     ExampleOf,
     /// Source is a part of target (compositional).
     PartOf,
+    /// Source and target are semantically similar (discovered during dream replay).
+    SimilarTo,
 }
 
 impl std::fmt::Display for EdgeType {
@@ -535,6 +527,7 @@ impl std::fmt::Display for EdgeType {
             EdgeType::LearnedFrom => write!(f, "learned_from"),
             EdgeType::ExampleOf => write!(f, "example_of"),
             EdgeType::PartOf => write!(f, "part_of"),
+            EdgeType::SimilarTo => write!(f, "similar_to"),
         }
     }
 }
@@ -554,6 +547,7 @@ impl std::str::FromStr for EdgeType {
             "learned_from" => Ok(EdgeType::LearnedFrom),
             "example_of" => Ok(EdgeType::ExampleOf),
             "part_of" => Ok(EdgeType::PartOf),
+            "similar_to" => Ok(EdgeType::SimilarTo),
             _ => Err(format!("Unknown edge type: {}", s)),
         }
     }
@@ -903,8 +897,9 @@ pub struct WorkingMemorySnapshot {
 /// Unified memory category enum — single source of truth across Rust, TypeScript, and SQLite.
 /// Covers categories from: backend MemoryCategory, agent tool enum, frontend memory-intelligence,
 /// flows UI memory-flow-atoms, and auto-capture session/task categories.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash, Default)]
 pub enum MemoryCategory {
+    #[default]
     General,
     Preference,
     Fact,
@@ -950,12 +945,6 @@ impl std::fmt::Display for MemoryCategory {
     }
 }
 
-impl Default for MemoryCategory {
-    fn default() -> Self {
-        MemoryCategory::General
-    }
-}
-
 impl std::str::FromStr for MemoryCategory {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -991,7 +980,7 @@ impl std::str::FromStr for MemoryCategory {
 /// Significantly improves precision — the right memories float to the top.
 ///
 /// Applied as step 5 in the recall pipeline (§8.4) when `rerank_enabled = true`.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub enum RerankStrategy {
     /// Reciprocal Rank Fusion — merges vector + FTS5 rankings.
     /// Fast, no model dependency. Default when Ollama is unavailable.
@@ -1003,17 +992,12 @@ pub enum RerankStrategy {
 
     /// Combined: RRF first, then MMR for diversity. Best overall quality.
     /// Default strategy.
+    #[default]
     RRFThenMMR,
 
     /// Cross-encoder reranking using a lightweight local model.
     /// Most accurate but requires Ollama. Falls back to RRF if unavailable.
     CrossEncoder,
-}
-
-impl Default for RerankStrategy {
-    fn default() -> Self {
-        RerankStrategy::RRFThenMMR
-    }
 }
 
 impl std::fmt::Display for RerankStrategy {
@@ -1229,7 +1213,9 @@ impl EmotionalContext {
     /// Used as a retrieval boost factor — more emotionally intense memories
     /// are recalled more readily (mirroring the biological flashbulb effect).
     pub fn intensity(&self) -> f32 {
-        let raw = (self.valence.abs() + self.arousal.abs() + self.dominance.abs() + self.surprise.abs()) / 4.0;
+        let raw =
+            (self.valence.abs() + self.arousal.abs() + self.dominance.abs() + self.surprise.abs())
+                / 4.0;
         raw.clamp(0.0, 1.0)
     }
 
@@ -1237,7 +1223,12 @@ impl EmotionalContext {
     /// Used to find memories with similar emotional tone during retrieval.
     pub fn similarity(&self, other: &EmotionalContext) -> f32 {
         let a = [self.valence, self.arousal, self.dominance, self.surprise];
-        let b = [other.valence, other.arousal, other.dominance, other.surprise];
+        let b = [
+            other.valence,
+            other.arousal,
+            other.dominance,
+            other.surprise,
+        ];
         let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
         let mag_a = a.iter().map(|x| x * x).sum::<f32>().sqrt();
         let mag_b = b.iter().map(|x| x * x).sum::<f32>().sqrt();
@@ -1279,21 +1270,15 @@ pub enum TemporalQuery {
     },
     /// Find memories near a specific point in time (within ±window).
     Proximity {
-        anchor: String,      // ISO 8601
+        anchor: String, // ISO 8601
         window_hours: f64,
     },
     /// Find memories that repeat at a pattern (daily, weekly, etc.).
-    Pattern {
-        pattern: TemporalPattern,
-    },
+    Pattern { pattern: TemporalPattern },
     /// Find the most recent N memories for an agent.
-    Recent {
-        limit: usize,
-    },
+    Recent { limit: usize },
     /// Find memories from a specific session.
-    Session {
-        session_id: String,
-    },
+    Session { session_id: String },
 }
 
 /// Recognized temporal patterns in memory creation.
@@ -1389,12 +1374,12 @@ impl IntentClassification {
     pub fn signal_weights(&self) -> (f32, f32, f32, f32, f32) {
         let dom = self.dominant();
         match dom {
-            QueryIntent::Factual     => (0.50, 0.30, 0.10, 0.05, 0.05),
-            QueryIntent::Procedural  => (0.30, 0.35, 0.15, 0.10, 0.10),
-            QueryIntent::Causal      => (0.20, 0.30, 0.35, 0.10, 0.05),
-            QueryIntent::Episodic    => (0.25, 0.25, 0.15, 0.25, 0.10),
+            QueryIntent::Factual => (0.50, 0.30, 0.10, 0.05, 0.05),
+            QueryIntent::Procedural => (0.30, 0.35, 0.15, 0.10, 0.10),
+            QueryIntent::Causal => (0.20, 0.30, 0.35, 0.10, 0.05),
+            QueryIntent::Episodic => (0.25, 0.25, 0.15, 0.25, 0.10),
             QueryIntent::Exploratory => (0.20, 0.40, 0.20, 0.10, 0.10),
-            QueryIntent::Reflective  => (0.15, 0.30, 0.15, 0.10, 0.30),
+            QueryIntent::Reflective => (0.15, 0.30, 0.15, 0.10, 0.30),
         }
     }
 }
@@ -1490,4 +1475,215 @@ pub struct EntityMention {
     pub offset: usize,
     /// Confidence of the extraction (0.0–1.0).
     pub confidence: f32,
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 18: Emotional Memory — Affective Scoring (§37)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Score produced by the AffectiveScorer pipeline.
+/// Used to modulate encoding strength, decay resistance, and retrieval boost.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AffectiveScore {
+    /// Pleasure/displeasure dimension (-1.0 to 1.0).
+    pub valence: f32,
+    /// Emotional strength irrespective of direction (0.0–1.0).
+    pub intensity: f32,
+    /// Activation level — high = excited/urgent, low = calm (0.0–1.0).
+    pub arousal: f32,
+}
+
+impl AffectiveScore {
+    /// Encoding strength multiplier for initial memory storage.
+    /// Emotional memories encode 1.0×–1.5× stronger.
+    pub fn encoding_bonus(&self) -> f64 {
+        1.0 + (self.arousal as f64 * 0.5).min(0.5)
+    }
+
+    /// Decay resistance factor. High arousal = slower forgetting.
+    /// Returns a multiplier for the Ebbinghaus half-life: > 1.0 = slower decay.
+    pub fn decay_resistance(&self) -> f64 {
+        1.0 + self.arousal as f64
+    }
+
+    /// Working memory priority bonus (0.0–0.3).
+    pub fn priority_bonus(&self) -> f32 {
+        self.arousal * 0.3
+    }
+
+    /// Whether this memory should be protected from garbage collection.
+    pub fn gc_protected(&self) -> bool {
+        self.arousal >= 0.5
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 19: Reflective Meta-Cognition (§38)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// A knowledge domain discovered by clustering memories.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KnowledgeDomain {
+    /// Human-readable label (auto-derived from cluster content).
+    pub label: String,
+    /// Number of memories in this domain.
+    pub depth: usize,
+    /// Fraction of recent memories (last 30 days) — 0.0 = stale, 1.0 = fresh.
+    pub freshness: f64,
+    /// Fraction of contradictions or gaps in this domain — 0.0 = coherent, 1.0 = chaotic.
+    pub uncertainty: f64,
+    /// Composite confidence: depth × freshness × (1 - uncertainty).
+    pub confidence: f64,
+    /// Memory IDs in this domain.
+    pub memory_ids: Vec<String>,
+}
+
+/// Global knowledge confidence map rebuilt during consolidation.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct KnowledgeConfidenceMap {
+    /// Discovered knowledge domains.
+    pub domains: Vec<KnowledgeDomain>,
+    /// Overall knowledge coverage score (average domain confidence).
+    pub global_coverage: f64,
+    /// When the map was last rebuilt.
+    pub last_rebuilt: String,
+}
+
+/// Assessment of agent confidence for a specific query.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum DomainAssessment {
+    /// High confidence — agent has deep, fresh knowledge (>0.7).
+    Confident { domain: String, confidence: f64 },
+    /// Moderate confidence — knowledge exists but may be stale/incomplete (0.3–0.7).
+    Uncertain { domain: String, confidence: f64 },
+    /// No relevant knowledge found (<0.3).
+    Unknown,
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 20: Hierarchical Semantic Compression — Abstraction Tree (§42)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// A node in the abstraction tree at any level.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AbstractionNode {
+    /// Unique node ID.
+    pub id: String,
+    /// Compressed summary text.
+    pub summary: String,
+    /// Token cost of this summary.
+    pub token_count: usize,
+    /// IDs of children (memories at L0, child nodes at L1+).
+    pub children: Vec<String>,
+}
+
+/// One level of the abstraction tree.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AbstractionLevel {
+    /// Level number: 0 = individual memories, 1 = cluster summaries,
+    /// 2 = domain summaries, 3 = global summary.
+    pub level: usize,
+    /// Nodes at this level.
+    pub nodes: Vec<AbstractionNode>,
+    /// Total tokens across all nodes at this level.
+    pub total_tokens: usize,
+}
+
+/// The full abstraction tree — multi-level compression of memory store.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AbstractionTree {
+    /// Levels 0–3, from most detailed to most compressed.
+    pub levels: Vec<AbstractionLevel>,
+    /// When the tree was last rebuilt.
+    pub last_rebuilt: String,
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 21: Multi-Agent Memory Sync Protocol (§43)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Visibility scope for a memory publication.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum PublicationScope {
+    /// Visible to all agents in the same project.
+    Project,
+    /// Visible to all agents in the same squad.
+    Squad,
+    /// Visible only to specified agents.
+    Targeted(Vec<String>),
+    /// Visible to all agents (global).
+    Global,
+}
+
+/// A memory published to the bus for cross-agent sharing.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemoryPublication {
+    /// Agent that published this memory.
+    pub source_agent: String,
+    /// Memory ID being shared.
+    pub memory_id: String,
+    /// Memory type (Episodic, Semantic, Procedural).
+    pub memory_type: MemoryType,
+    /// Topics/tags for subscription matching.
+    pub topics: Vec<String>,
+    /// Who can see this publication.
+    pub visibility: PublicationScope,
+    /// Minimum importance threshold for delivery.
+    pub min_importance: f32,
+    /// Content of the memory (for delivery without re-fetching).
+    pub content: String,
+    /// When published.
+    pub published_at: String,
+}
+
+/// Filter applied per-agent to control which publications they receive.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubscriptionFilter {
+    /// Topics to subscribe to (empty = all topics).
+    pub topics: Vec<String>,
+    /// Minimum importance to receive.
+    pub min_importance: f32,
+    /// Only receive from these agents (empty = all agents).
+    pub source_agents: Vec<String>,
+    /// Maximum publications per consolidation cycle.
+    pub rate_limit: usize,
+}
+
+impl Default for SubscriptionFilter {
+    fn default() -> Self {
+        Self {
+            topics: Vec::new(),
+            min_importance: 0.0,
+            source_agents: Vec::new(),
+            rate_limit: 20,
+        }
+    }
+}
+
+/// Report from a delivery cycle.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DeliveryReport {
+    /// Number of publications matched and delivered.
+    pub delivered: usize,
+    /// Number of publications filtered out.
+    pub filtered: usize,
+    /// Number of contradictions detected and resolved.
+    pub contradictions_resolved: usize,
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 22: Memory Replay & Dream Consolidation (§44)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Report from a dream replay cycle.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ReplayReport {
+    /// Number of at-risk memories strengthened.
+    pub strengthened: usize,
+    /// Number of stale embeddings refreshed.
+    pub re_embedded: usize,
+    /// Number of new SimilarTo edges discovered.
+    pub new_connections: usize,
+    /// Duration of the replay cycle in milliseconds.
+    pub duration_ms: u64,
 }

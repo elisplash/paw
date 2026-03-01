@@ -193,12 +193,13 @@ if (!canEval) {
                 Ok(true)
             }
             "denied" => Ok(false),
-            "unavailable" => {
-                Err("System authentication not available on this device".into())
-            }
+            "unavailable" => Err("System authentication not available on this device".into()),
             _ => {
                 let stderr = String::from_utf8_lossy(&output.stderr);
-                error!("[lock] System auth unexpected result: {} {}", stdout, stderr);
+                error!(
+                    "[lock] System auth unexpected result: {} {}",
+                    stdout, stderr
+                );
                 Err(format!("Authentication error: {}", stderr.trim()))
             }
         }

@@ -15,8 +15,8 @@
 //   - Recency-weighted RRF fusion signal
 
 use crate::atoms::engram_types::{
-    EpisodicMemory, MemoryScope, RetrievedMemory, TemporalCluster, TemporalPattern,
-    TemporalQuery, TemporalSearchResult, TrustScore,
+    EpisodicMemory, MemoryScope, RetrievedMemory, TemporalCluster, TemporalPattern, TemporalQuery,
+    TemporalSearchResult, TrustScore,
 };
 use crate::atoms::error::EngineResult;
 use crate::engine::sessions::SessionStore;
@@ -78,9 +78,7 @@ pub fn cluster_temporal(memories: &[RetrievedMemory], gap_secs: u64) -> Vec<Temp
     let mut timestamped: Vec<(usize, i64)> = memories
         .iter()
         .enumerate()
-        .filter_map(|(i, m)| {
-            parse_timestamp(&m.created_at).map(|ts| (i, ts))
-        })
+        .filter_map(|(i, m)| parse_timestamp(&m.created_at).map(|ts| (i, ts)))
         .collect();
 
     timestamped.sort_by_key(|(_, ts)| *ts);
@@ -158,8 +156,12 @@ fn search_proximity(
 ) -> EngineResult<TemporalSearchResult> {
     let anchor_dt = parse_datetime(anchor);
     let window = chrono::Duration::minutes((window_hours * 60.0) as i64);
-    let start = (anchor_dt - window).format("%Y-%m-%dT%H:%M:%SZ").to_string();
-    let end = (anchor_dt + window).format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    let start = (anchor_dt - window)
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
+    let end = (anchor_dt + window)
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
 
     search_range(store, &start, &end, scope, limit)
 }
@@ -181,10 +183,7 @@ fn search_pattern(
     )?;
 
     let pattern_memories = detect_temporal_pattern(&recent, pattern);
-    let retrieved: Vec<RetrievedMemory> = pattern_memories
-        .into_iter()
-        .take(limit)
-        .collect();
+    let retrieved: Vec<RetrievedMemory> = pattern_memories.into_iter().take(limit).collect();
     let clusters = cluster_temporal(&retrieved, 3600);
     let (span_start, span_end) = span_bounds_default(&retrieved);
 
@@ -238,9 +237,7 @@ fn detect_temporal_pattern(
 ) -> Vec<RetrievedMemory> {
     let mut timestamped: Vec<(&EpisodicMemory, chrono::DateTime<chrono::Utc>)> = memories
         .iter()
-        .filter_map(|m| {
-            parse_datetime_opt(&m.created_at).map(|dt| (m, dt))
-        })
+        .filter_map(|m| parse_datetime_opt(&m.created_at).map(|dt| (m, dt)))
         .collect();
 
     timestamped.sort_by_key(|(_, dt)| *dt);
@@ -278,7 +275,10 @@ fn find_recurring_by_hour(
 
     // Return memories from the most populated hour buckets that have ≥3 entries
     let mut results: Vec<RetrievedMemory> = Vec::new();
-    let mut buckets: Vec<_> = hour_buckets.into_iter().filter(|(_, v)| v.len() >= 3).collect();
+    let mut buckets: Vec<_> = hour_buckets
+        .into_iter()
+        .filter(|(_, v)| v.len() >= 3)
+        .collect();
     buckets.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
 
     for (_, mems) in buckets.into_iter().take(3) {
@@ -302,7 +302,10 @@ fn find_recurring_by_weekday(
     }
 
     let mut results: Vec<RetrievedMemory> = Vec::new();
-    let mut buckets: Vec<_> = day_buckets.into_iter().filter(|(_, v)| v.len() >= 3).collect();
+    let mut buckets: Vec<_> = day_buckets
+        .into_iter()
+        .filter(|(_, v)| v.len() >= 3)
+        .collect();
     buckets.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
 
     for (_, mems) in buckets.into_iter().take(2) {
@@ -326,7 +329,10 @@ fn find_recurring_by_monthday(
     }
 
     let mut results: Vec<RetrievedMemory> = Vec::new();
-    let mut buckets: Vec<_> = day_buckets.into_iter().filter(|(_, v)| v.len() >= 2).collect();
+    let mut buckets: Vec<_> = day_buckets
+        .into_iter()
+        .filter(|(_, v)| v.len() >= 2)
+        .collect();
     buckets.sort_by(|a, b| b.1.len().cmp(&a.1.len()));
 
     for (_, mems) in buckets.into_iter().take(3) {
@@ -349,15 +355,13 @@ fn find_bursts(
     while i < memories.len() {
         let (_, window_start) = memories[i];
         let mut j = i;
-        while j < memories.len()
-            && (memories[j].1 - window_start).num_seconds() <= window_secs
-        {
+        while j < memories.len() && (memories[j].1 - window_start).num_seconds() <= window_secs {
             j += 1;
         }
         if j - i >= min_count {
             // Found a burst
-            for k in i..j {
-                results.push(episodic_to_retrieved(memories[k].0, 0.7));
+            for mem in memories.iter().take(j).skip(i) {
+                results.push(episodic_to_retrieved(mem.0, 0.7));
             }
             i = j; // Skip past this burst
         } else {
@@ -394,7 +398,10 @@ fn episodic_to_retrieved(mem: &EpisodicMemory, relevance: f32) -> RetrievedMemor
 }
 
 fn memories_to_retrieved(memories: &[EpisodicMemory]) -> Vec<RetrievedMemory> {
-    memories.iter().map(|m| episodic_to_retrieved(m, 0.5)).collect()
+    memories
+        .iter()
+        .map(|m| episodic_to_retrieved(m, 0.5))
+        .collect()
 }
 
 fn parse_timestamp(s: &str) -> Option<i64> {
@@ -402,7 +409,7 @@ fn parse_timestamp(s: &str) -> Option<i64> {
 }
 
 fn parse_datetime(s: &str) -> chrono::DateTime<chrono::Utc> {
-    parse_datetime_opt(s).unwrap_or_else(|| chrono::Utc::now())
+    parse_datetime_opt(s).unwrap_or_else(chrono::Utc::now)
 }
 
 fn parse_datetime_opt(s: &str) -> Option<chrono::DateTime<chrono::Utc>> {
@@ -418,12 +425,16 @@ fn parse_datetime_opt(s: &str) -> Option<chrono::DateTime<chrono::Utc>> {
 
 fn format_timestamp(epoch_secs: i64) -> String {
     chrono::DateTime::from_timestamp(epoch_secs, 0)
-        .unwrap_or_else(|| chrono::Utc::now())
+        .unwrap_or_else(chrono::Utc::now)
         .format("%Y-%m-%dT%H:%M:%SZ")
         .to_string()
 }
 
-fn span_bounds(retrieved: &[RetrievedMemory], default_start: &str, default_end: &str) -> (String, String) {
+fn span_bounds(
+    retrieved: &[RetrievedMemory],
+    default_start: &str,
+    default_end: &str,
+) -> (String, String) {
     let start = retrieved
         .iter()
         .map(|r| r.created_at.as_str())

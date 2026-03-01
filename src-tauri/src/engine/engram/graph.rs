@@ -376,7 +376,9 @@ pub async fn search(
                             category: mem.category.clone(),
                             created_at: mem.created_at.clone(),
                         });
-                        store.engram_record_access(&mem.id, RETRIEVAL_STRENGTH_BOOST * 0.5).ok();
+                        store
+                            .engram_record_access(&mem.id, RETRIEVAL_STRENGTH_BOOST * 0.5)
+                            .ok();
                     }
                 }
             }
