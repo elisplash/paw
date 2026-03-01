@@ -161,6 +161,8 @@ function initModules() {
     updateNodePanel,
     performUndo,
     performRedo,
+    togglePanel,
+    toggleList,
   });
 }
 

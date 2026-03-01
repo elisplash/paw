@@ -32,6 +32,8 @@ export interface KeybindingDeps {
   updateNodePanel: () => void;
   performUndo: () => void;
   performRedo: () => void;
+  togglePanel: () => void;
+  toggleList: () => void;
 }
 
 let _deps: KeybindingDeps | null = null;
@@ -125,6 +127,20 @@ export function onKeyDown(e: KeyboardEvent) {
       // Ctrl+Y as alternative redo
       if (e.ctrlKey || e.metaKey) {
         _deps.performRedo();
+        e.preventDefault();
+      }
+      break;
+    case 'b':
+      if (e.ctrlKey || e.metaKey) {
+        // Toggle left sidebar (Ctrl+B)
+        _deps.toggleList();
+        e.preventDefault();
+      }
+      break;
+    case 'p':
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+        // Toggle properties panel (Ctrl+P)
+        _deps.togglePanel();
         e.preventDefault();
       }
       break;
