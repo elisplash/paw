@@ -239,6 +239,7 @@ function handleToolbarAction(action: string) {
     case 'show-shortcuts':
     case 'toggle-panel':
     case 'toggle-list':
+    case 'toggle-agent':
       // Handled by UI orchestrator in index.ts
       document.dispatchEvent(new CustomEvent('flow:toolbar', { detail: { action } }));
       break;
