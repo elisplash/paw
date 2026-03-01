@@ -23,8 +23,8 @@ import { findLastIndex } from '../atoms/chat';
 // ── Constants ────────────────────────────────────────────────────────────
 
 const HUB_MIN_WIDTH = 320;
-const HUB_DEFAULT_WIDTH = 340;
-const HUB_DEFAULT_HEIGHT = 460;
+const HUB_DEFAULT_WIDTH = 360;
+const HUB_DEFAULT_HEIGHT = 500;
 
 // ── Factory ──────────────────────────────────────────────────────────────
 
@@ -101,14 +101,63 @@ export function createMiniHub(
   streamingDot.title = 'Agent is working…';
   titlebar.appendChild(streamingDot);
 
-  // Model selector (compact)
+  // Unread badge (hidden initially)
+  const unreadBadge = document.createElement('span');
+  unreadBadge.className = 'mini-hub-unread-badge';
+  unreadBadge.style.display = 'none';
+  titlebar.appendChild(unreadBadge);
+
+  // Titlebar button group (right side)
+  const btnGroup = document.createElement('div');
+  btnGroup.className = 'mini-hub-btn-group';
+
+  // Minimize button
+  const minimizeBtn = document.createElement('button');
+  minimizeBtn.className = 'mini-hub-minimize';
+  minimizeBtn.title = 'Minimize';
+  minimizeBtn.innerHTML = icon('minus');
+  minimizeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    controller.minimize();
+  });
+  btnGroup.appendChild(minimizeBtn);
+
+  // Maximize button
+  const maximizeBtn = document.createElement('button');
+  maximizeBtn.className = 'mini-hub-maximize';
+  maximizeBtn.title = 'Open in main chat';
+  maximizeBtn.innerHTML = icon('maximize-2');
+  maximizeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    callbacks.onMaximize(config.hubId);
+  });
+  btnGroup.appendChild(maximizeBtn);
+
+  // Close button
+  const closeBtn = document.createElement('button');
+  closeBtn.className = 'mini-hub-close';
+  closeBtn.title = 'Close';
+  closeBtn.innerHTML = icon('x');
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    callbacks.onClose(config.hubId);
+  });
+  btnGroup.appendChild(closeBtn);
+
+  titlebar.appendChild(btnGroup);
+  root.appendChild(titlebar);
+
+  // ── Toolbar (model selector below titlebar) ────────────────────────────
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'mini-hub-toolbar';
+
   const modelSelect = document.createElement('select');
   modelSelect.className = 'mini-hub-model-select';
   modelSelect.title = 'Model override';
-  // Default option
   const defaultOpt = document.createElement('option');
   defaultOpt.value = '';
-  defaultOpt.textContent = 'Default';
+  defaultOpt.textContent = 'Default model';
   modelSelect.appendChild(defaultOpt);
   if (currentModel) {
     const opt = document.createElement('option');
@@ -121,48 +170,8 @@ export function createMiniHub(
     currentModel = modelSelect.value;
     callbacks.onModelChange?.(config.hubId, currentModel);
   });
-  titlebar.appendChild(modelSelect);
-
-  // Unread badge (hidden initially)
-  const unreadBadge = document.createElement('span');
-  unreadBadge.className = 'mini-hub-unread-badge';
-  unreadBadge.style.display = 'none';
-  titlebar.appendChild(unreadBadge);
-
-  // Minimize button
-  const minimizeBtn = document.createElement('button');
-  minimizeBtn.className = 'mini-hub-minimize';
-  minimizeBtn.title = 'Minimize';
-  minimizeBtn.innerHTML = icon('minus');
-  minimizeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    controller.minimize();
-  });
-  titlebar.appendChild(minimizeBtn);
-
-  // Maximize button
-  const maximizeBtn = document.createElement('button');
-  maximizeBtn.className = 'mini-hub-maximize';
-  maximizeBtn.title = 'Open in main chat';
-  maximizeBtn.innerHTML = icon('maximize-2');
-  maximizeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    callbacks.onMaximize(config.hubId);
-  });
-  titlebar.appendChild(maximizeBtn);
-
-  // Close button
-  const closeBtn = document.createElement('button');
-  closeBtn.className = 'mini-hub-close';
-  closeBtn.title = 'Close';
-  closeBtn.innerHTML = icon('x');
-  closeBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    callbacks.onClose(config.hubId);
-  });
-  titlebar.appendChild(closeBtn);
-
-  root.appendChild(titlebar);
+  toolbar.appendChild(modelSelect);
+  root.appendChild(toolbar);
 
   // ── Message feed ─────────────────────────────────────────────────────
 

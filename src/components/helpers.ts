@@ -6,6 +6,7 @@ export const $ = (id: string) => document.getElementById(id);
 const _iconMap: Record<string, string> = {
   paperclip: 'attach_file',
   'arrow-up': 'send',
+  send: 'send',
   square: 'stop',
   'rotate-ccw': 'replay',
   x: 'close',
@@ -15,6 +16,8 @@ const _iconMap: Record<string, string> = {
   wrench: 'build',
   download: 'download',
   'external-link': 'open_in_new',
+  minus: 'remove',
+  'maximize-2': 'open_in_full',
 };
 
 /** Render a Material Symbols icon span. */

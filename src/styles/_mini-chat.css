@@ -404,15 +404,20 @@
   flex-direction: column;
   background: var(--bg-primary);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-lg);
+  border-radius: 12px;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.28),
+    0 2px 8px rgba(0, 0, 0, 0.12);
   overflow: hidden;
   opacity: 0;
   transform: translateY(16px) scale(0.97);
-  animation: miniHubAppear 0.2s ease forwards;
+  animation: miniHubAppear 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 @keyframes miniHubAppear {
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* Minimized state */
@@ -428,13 +433,14 @@
 .mini-hub-titlebar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 8px 10px;
   cursor: grab;
   user-select: none;
   background: var(--accent);
   color: var(--text-on-accent);
   flex-shrink: 0;
+  border-radius: 12px 12px 0 0;
 }
 .mini-hub-titlebar:active {
   cursor: grabbing;
@@ -447,6 +453,7 @@
 }
 .mini-hub-avatar img {
   image-rendering: auto;
+  border-radius: 4px;
 }
 .mini-hub-title {
   flex: 1;
@@ -455,13 +462,14 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  letter-spacing: 0.01em;
 }
 
 /* Streaming pulsing dot in titlebar */
 .mini-hub-streaming-dot {
   display: none;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--text-on-accent);
   flex-shrink: 0;
@@ -471,31 +479,21 @@
   animation: miniHubPulse 1.2s ease-in-out infinite;
 }
 @keyframes miniHubPulse {
-  0%, 100% { opacity: 0.3; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
-}
-
-/* Model selector in titlebar */
-.mini-hub-model-select {
-  font-size: 11px;
-  padding: 1px 4px;
-  background: rgba(255, 255, 255, 0.15);
-  color: var(--text-on-accent);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-sm);
-  max-width: 80px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-.mini-hub-model-select option {
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 }
 
 /* Unread badge in titlebar */
 .mini-hub-unread-badge {
   background: var(--status-error);
-  color: var(--text-on-accent);
+  color: #fff;
   font-size: 10px;
   font-weight: 700;
   min-width: 16px;
@@ -509,17 +507,25 @@
   flex-shrink: 0;
 }
 
+/* Titlebar button group */
+.mini-hub-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 /* Titlebar buttons */
 .mini-hub-minimize,
 .mini-hub-maximize,
 .mini-hub-close {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.12);
   border: none;
   color: var(--text-on-accent);
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -528,35 +534,191 @@
   flex-shrink: 0;
   transition: background 0.15s;
 }
+.mini-hub-minimize .ms,
+.mini-hub-maximize .ms,
+.mini-hub-close .ms {
+  font-size: 15px;
+}
 .mini-hub-minimize:hover,
 .mini-hub-maximize:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.25);
 }
 .mini-hub-close:hover {
-  background: var(--status-error);
+  background: rgba(220, 38, 38, 0.85);
+}
+
+/* ── Toolbar (below titlebar) ── */
+.mini-hub-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Model selector in toolbar */
+.mini-hub-model-select {
+  font-size: 11px;
+  padding: 3px 8px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.mini-hub-model-select:hover {
+  border-color: var(--accent-muted);
+}
+.mini-hub-model-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.mini-hub-model-select option {
+  background: var(--bg-primary);
+  color: var(--text-primary);
 }
 
 /* ── Messages ── */
 .mini-hub-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   min-height: 0;
+  background: var(--bg-primary);
+}
+
+/* Compact message sizing for mini-hub */
+.mini-hub-messages .message {
+  margin-bottom: 4px;
+}
+.mini-hub-messages .message-content {
+  font-size: 12.5px;
+  line-height: 1.55;
+  padding: 4px 0;
+}
+.mini-hub-messages .message.user .message-content {
+  border-left-width: 2px;
+  padding-left: 10px;
+}
+.mini-hub-messages .message.assistant .message-content {
+  border-left-width: 2px;
+  padding-left: 10px;
+}
+.mini-hub-messages .message-prefix {
+  font-size: 10px;
+  margin-bottom: 1px;
+}
+.mini-hub-messages .message-time {
+  font-size: 10px;
+  padding-left: 12px;
+}
+
+/* Compact code blocks */
+.mini-hub-messages pre {
+  font-size: 11.5px;
+  padding: 8px 10px;
+  margin: 4px 0;
+  border-radius: 6px;
+}
+.mini-hub-messages code {
+  font-size: 11.5px;
+}
+
+/* Compact thinking blocks */
+.mini-hub-messages .thinking-block {
+  margin-bottom: 4px;
+}
+.mini-hub-messages .thinking-block summary {
+  padding: 3px 8px;
+  font-size: 10px;
+}
+.mini-hub-messages .thinking-content {
+  padding: 6px 8px;
+  font-size: 11px;
+  max-height: 150px;
+}
+
+/* Compact lists */
+.mini-hub-messages ul,
+.mini-hub-messages ol {
+  padding-left: 18px;
+  margin: 4px 0;
+}
+.mini-hub-messages li {
+  margin-bottom: 2px;
+  font-size: 12.5px;
+}
+
+/* Scrollbar styling for mini-hub */
+.mini-hub-messages::-webkit-scrollbar {
+  width: 5px;
+}
+.mini-hub-messages::-webkit-scrollbar-track {
+  background: transparent;
+}
+.mini-hub-messages::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 4px;
+  opacity: 0.3;
+}
+.mini-hub-messages::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
 }
 
 /* ── Input area ── */
 .mini-hub-input-area {
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+  background: var(--bg-primary);
+  border-radius: 0 0 12px 12px;
+}
+
+/* Input row layout for mini-hub */
+.mini-hub-input-area .chat-input-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 6px 8px;
+}
+.mini-hub-input-area .chat-input {
+  font-size: 13px;
+  padding: 6px 4px;
+  max-height: 80px;
+}
+.mini-hub-input-area .chat-attach-btn {
+  width: 30px;
+  height: 30px;
+}
+.mini-hub-input-area .chat-attach-btn svg {
+  width: 15px;
+  height: 15px;
+}
+.mini-hub-input-area .chat-send {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+.mini-hub-input-area .chat-send svg {
+  width: 15px;
+  height: 15px;
 }
 
 /* ── Streaming border glow ── */
 .mini-hub-streaming {
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent), var(--shadow-lg);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 16px rgba(var(--accent-rgb, 99, 102, 241), 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.28);
 }
 
 /* ── Drag-and-drop overlay ── */
@@ -568,18 +730,25 @@
 
 /* ── Talk mode (voice) in mini-hub ── */
 .mini-hub-input-area .chat-talk-btn {
-  width: 28px;
-  height: 28px;
-  font-size: 16px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
+}
+.mini-hub-input-area .chat-talk-btn .ms {
+  font-size: 16px;
 }
 .mini-hub-input-area .chat-talk-btn.talk-active {
   color: var(--status-error);
   animation: miniHubTalkPulse 1s ease-in-out infinite;
 }
 @keyframes miniHubTalkPulse {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* ── Attachment preview in mini-hub ── */
@@ -588,6 +757,9 @@
   gap: 4px;
   max-height: 60px;
   overflow-y: auto;
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--border);
 }
 .mini-hub-input-area .attachment-chip {
   font-size: 11px;
