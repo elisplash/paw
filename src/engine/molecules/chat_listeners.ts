@@ -184,6 +184,19 @@ export function initChatListeners(deps: ChatListenerDeps): void {
     showToast('Agent stopped', 'info');
   });
 
+  // ── More-actions dropdown toggle ───────────────────────────────────────
+  const moreBtn = $('chat-actions-more-btn');
+  const dropdown = $('chat-actions-dropdown');
+  if (moreBtn && dropdown) {
+    moreBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+    });
+    // Close on outside click
+    document.addEventListener('click', () => dropdown.classList.remove('open'));
+    dropdown.addEventListener('click', () => dropdown.classList.remove('open'));
+  }
+
   $('chat-stop-send-btn')?.addEventListener('click', () => deps.stopAndSend());
   $('chat-queue-btn')?.addEventListener('click', () => deps.queueMessage());
   $('chat-steer-btn')?.addEventListener('click', () => deps.steerWithMessage());

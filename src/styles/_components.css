@@ -51,9 +51,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin: 10px auto 0;
-  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px auto 0;
 }
 .chat-abort-btn {
   display: flex;
@@ -78,72 +77,92 @@
 .chat-abort-btn:active {
   transform: scale(0.97);
 }
-.chat-abort-btn svg {
-  width: 13px;
-  height: 13px;
-  stroke-width: 2.5;
+.chat-abort-btn .ms {
+  font-size: 14px;
 }
 
-/* ─── Chat Stream Action Buttons ─── */
-.chat-action-btn {
+/* ─── More-actions chevron trigger ─── */
+.chat-actions-more-wrap {
+  position: relative;
+}
+
+.chat-actions-more-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 7px 14px;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
   border: 1.5px solid var(--border);
-  border-radius: var(--radius-pill);
+  border-radius: 50%;
   background: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 500;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all var(--transition-fast);
+}
+.chat-actions-more-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover, var(--bg-tertiary));
+  border-color: var(--text-muted);
+}
+.chat-actions-more-btn .ms {
+  font-size: 18px;
+}
+
+/* ─── Dropdown (opens upward) ─── */
+.chat-actions-dropdown {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  min-width: 170px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,.35));
+  padding: 4px;
+  z-index: 200;
+  flex-direction: column;
+}
+.chat-actions-dropdown.open {
+  display: flex;
+}
+
+.chat-actions-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast), color var(--transition-fast);
   font-family: inherit;
   white-space: nowrap;
+  text-align: left;
+  width: 100%;
 }
-.chat-action-btn svg {
-  width: 13px;
-  height: 13px;
-  stroke-width: 2;
+.chat-actions-dropdown-item .ms {
+  font-size: 16px;
+  flex-shrink: 0;
 }
-.chat-action-btn:active {
-  transform: scale(0.97);
+.chat-actions-dropdown-item:hover {
+  background: var(--bg-hover, var(--bg-tertiary));
+  color: var(--text-primary);
 }
 
-/* Stop & Send */
-.chat-action-stop-send {
-  border-color: var(--warning, #e8a700);
-  background: color-mix(in srgb, var(--warning, #e8a700) 8%, transparent);
+/* Colour accents on icons within the dropdown */
+.chat-actions-dropdown-item.chat-action-stop-send .ms {
   color: var(--warning, #e8a700);
 }
-.chat-action-stop-send:hover {
-  background: var(--warning, #e8a700);
-  color: white;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warning, #e8a700) 15%, transparent);
-}
-
-/* Add to Queue */
-.chat-action-queue {
-  border-color: var(--accent);
-  background: var(--accent-subtle);
+.chat-actions-dropdown-item.chat-action-queue .ms {
   color: var(--accent);
 }
-.chat-action-queue:hover {
-  background: var(--accent);
-  color: white;
-  box-shadow: 0 0 0 3px var(--accent-subtle);
-}
-
-/* Steer */
-.chat-action-steer {
-  border-color: var(--success, #22c55e);
-  background: color-mix(in srgb, var(--success, #22c55e) 8%, transparent);
+.chat-actions-dropdown-item.chat-action-steer .ms {
   color: var(--success, #22c55e);
-}
-.chat-action-steer:hover {
-  background: var(--success, #22c55e);
-  color: white;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--success, #22c55e) 15%, transparent);
 }
 
 /* ─── Chat Attach Button ─── */
