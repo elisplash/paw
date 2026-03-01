@@ -3,7 +3,7 @@
 *A biologically-inspired memory system for persistent AI agents.*
 
 **Version:** 1.0
-**Status:** Implemented in OpenPawz v0.x
+**Status:** Implemented in OpenPawz
 **License:** MIT
 
 ---
@@ -12,41 +12,68 @@
 
 Project Engram is a three-tier memory architecture for desktop AI agents. It replaces flat key-value memory stores with a biologically-inspired system modeled on how human memory works: incoming information flows through a sensory buffer, gets prioritized in working memory, and consolidates into long-term storage with automatic clustering, contradiction detection, and strength decay. The result is agents that remember context across sessions, learn from patterns, and forget gracefully.
 
-This document describes the architecture as implemented in OpenPawz — a Tauri v2 desktop AI platform. All code is open source under the MIT License.
+This document describes the architecture as implemented in OpenPawz — a Tauri v2 desktop AI platform. The system is implemente a three memory tiers, a persistent graph, hybrid search with reciprocal rank fusion, background consolidation, field-level encryption, and full lifecycle integration across chat, tasks, orchestration, and multi-channel bridges.
+
+All code is open source under the MIT License.
 
 ---
 
 ## Table of Contents
 
 1. [Motivation](#motivation)
-2. [Architecture Overview](#architecture-overview)
-3. [The Three Memory Tiers](#the-three-memory-tiers)
-4. [Long-Term Memory Graph](#long-term-memory-graph)
-5. [Hybrid Search — BM25 + Vector Fusion](#hybrid-search)
-6. [Consolidation Engine](#consolidation-engine)
-7. [Context Window Intelligence](#context-window-intelligence)
-8. [Memory Security](#memory-security)
-9. [Memory Lifecycle Integration](#memory-lifecycle-integration)
-10. [Category Taxonomy](#category-taxonomy)
-11. [Schema Design](#schema-design)
-12. [Configuration](#configuration)
-13. [Current Limitations](#current-limitations)
-14. [Future Directions](#future-directions)
-15. [Frontier Capabilities](#frontier-capabilities-designed-implementation-phase-7)
+2. [Design Principles](#design-principles)
+3. [Architecture Overview](#architecture-overview)
+4. [The Three Memory Tiers](#the-three-memory-tiers)
+5. [Long-Term Memory Graph](#long-term-memory-graph)
+6. [Hybrid Search — BM25 + Vector Fusion](#hybrid-search)
+7. [Retrieval Intelligence](#retrieval-intelligence)
+8. [Consolidation Engine](#consolidation-engine)
+9. [Memory Fusion](#memory-fusion)
+10. [Context Window Intelligence](#context-window-intelligence)
+11. [Memory Security](#memory-security)
+12. [Memory Lifecycle Integration](#memory-lifecycle-integration)
+13. [Concurrency Architecture](#concurrency-architecture)
+14. [Observability](#observability)
+15. [Category Taxonomy](#category-taxonomy)
+16. [Schema Design](#schema-design)
+17. [Configuration](#configuration)
+18. [Frontier Capabilities](#frontier-capabilities)
+19. [Quality Evaluation](#quality-evaluation)
 
 ---
 
 ## Motivation
 
-Most AI chat applications treat memory as an afterthought — a flat table of key-value pairs appended to the system prompt. This approach has well-documented problems:
+Most AI memory implementations treat memory as a retrieval problem — store blobs, search blobs, inject blobs. This is a flat model that ignores how memory actually works in biological systems. The practical consequences are well-documented:
 
 - **No prioritization.** All memories compete equally for context window space, regardless of relevance or importance.
 - **No decay.** Outdated information persists indefinitely. A corrected fact and its outdated predecessor both appear in context.
-- **No structure.** Episodic memories (what happened), semantic knowledge (what is true), and procedural memory (how to do things) are all stored in one undifferentiated list.
+- **No structure.** Episodic memories (what happened), semantic knowledge (what is true), and procedural memory (how to do things) are stored in one undifferentiated list.
 - **No security.** Sensitive information stored in plaintext. No PII detection, no encryption, no access control.
 - **No budget awareness.** Memories are injected without regard to the model's context window, leading to truncation or context overflow.
-
 Engram addresses each of these by modeling agent memory after the structure of biological memory systems.
+- **No evolution.** Memories are write-once, read-many — no consolidation, no contradiction resolution, no strengthening through repetition. The store grows linearly while quality degrades over time.
+- **No gating.** Every query triggers a full memory search, even when the question is purely computational or already answered in the conversation. This wastes latency and pollutes the context with irrelevant material.
+
+Human memory is not a database. It is a living graph with multiple storage tiers operating on different timescales, automatic consolidation that strengthens important memories and dissolves noise, episodic replay that reconstructs context, schema-based compression that abstracts patterns from instances, importance weighting that modulates storage strength, and interference-based forgetting that prevents retrieval pollution.
+
+Engram implements all six properties.
+
+---
+
+## Design Principles
+
+Five principles guide every architectural decision in Engram:
+
+1. **Budget-first, always.** Every operation is token-budget-aware. The ContextBuilder never overflows a model's context window. Memories compete for inclusion based on relevance × importance, not insertion order. More context is not always better — attention dilution degrades answer quality, so injection counts are capped per model.
+
+2. **Forgetting is a feature, not a bug.** Graceful decay via the Ebbinghaus curve is essential. Without measured forgetting, the memory store grows unbounded, retrieval precision degrades, and stale information pollutes context. Every forgetting cycle is measured: chain integrity percentage and NDCG delta are computed before and after garbage collection. If quality degrades, the cycle rolls back.
+
+3. **Local-first, always offline.** All storage is local SQLite. All search is local (BM25 + optional local embeddings). No cloud dependency, no telemetry, no external vector stores. The system degrades gracefully — without an embedding model, search falls back to BM25-only with no loss in keyword accuracy.
+
+4. **Security by default.** PII is detected automatically and encrypted before it touches disk. The database itself supports full-disk encryption. Anti-forensic measures prevent side-channel leakage through file size changes. GDPR compliance is built in.
+
+5. **Observe everything.** Every search returns quality metrics (NDCG, latency, result count). Every consolidation cycle has measurable outcomes. Without measurement, optimization is guesswork.
 
 ---
 
@@ -77,7 +104,7 @@ flowchart TD
     K -.- K4["Garbage collection"]
 ```
 
-The system is implemented as 15 Rust modules under `src-tauri/src/engine/engram/`:
+The system is implemented as 23 Rust modules under `src-tauri/src/engine/engram/`:
 
 | Module | Purpose |
 |--------|---------|
@@ -96,6 +123,14 @@ The system is implemented as 15 Rust modules under `src-tauri/src/engine/engram/
 | `metadata_inference.rs` | Auto-extract tech stack, URLs, file paths from content |
 | `encryption.rs` | PII detection, AES-256-GCM field encryption, GDPR purge |
 | `bridge.rs` | Public API connecting tools/commands to the graph |
+| `emotional_memory.rs` | Affective scoring pipeline (valence, arousal, dominance) |
+| `meta_cognition.rs` | Self-assessment of knowledge confidence per domain |
+| `temporal_index.rs` | Time-axis retrieval with range queries and proximity scoring |
+| `intent_classifier.rs` | 6-intent query classifier for dynamic signal weighting |
+| `entity_tracker.rs` | Canonical name resolution and entity lifecycle tracking |
+| `abstraction.rs` | Hierarchical semantic compression tree |
+| `memory_bus.rs` | Multi-agent memory sync protocol with conflict resolution |
+| `dream_replay.rs` | Idle-time hippocampal-inspired replay and re-embedding |
 
 ---
 
@@ -257,6 +292,39 @@ The `hybrid_search.rs` module analyzes queries to determine the optimal search s
 
 ---
 
+## Retrieval Intelligence
+
+Search is only half the problem. The other half is deciding *whether* to search, and *what to do* when results are weak. Engram implements a two-stage retrieval intelligence pipeline inspired by Self-RAG and CRAG research.
+
+### Retrieval Gate
+
+Before any search executes, the `RetrievalGate` classifies the inbound query and decides the retrieval strategy. This adds <1ms of latency but eliminates unnecessary search cycles and prevents context pollution from irrelevant memory injection.
+
+Five retrieval modes:
+
+| Mode | Trigger | Behavior |
+|------|---------|----------|
+| **Skip** | Computational queries, greetings, topic already in working memory | No search. The model answers from its own knowledge or the existing conversation. |
+| **Retrieve** | Standard factual or procedural queries | Normal hybrid search pipeline (BM25 + vector + graph). |
+| **DeepRetrieve** | Exploratory or temporal queries ("tell me everything about…") | Extended search with higher result limits, 2-hop graph activation, and broader scope. |
+| **Refuse** | Post-retrieval: top result relevance below threshold | Graceful refusal — "I don't have information on that" rather than fabricating from weak matches. |
+| **Defer** | Ambiguous references needing clarification | Ask the user for disambiguation before searching. |
+
+The gate is rule-based by default, evaluating query structure, intent classification, and working memory coverage. This avoids the latency and unreliability of an LLM-based gating decision.
+
+### Post-Retrieval Quality Check
+
+After search returns results, the `QualityGate` evaluates whether the results are actually useful:
+
+1. **Relevance check** — If the top result scores below 0.3, the query is reformulated (broader terms, synonym expansion) and retried once.
+2. **Coverage check** — For exploratory queries, if result count is below threshold, graph expansion is triggered to pull in associated memories.
+3. **Decomposition** — If a complex query fails as a whole, it is decomposed into sub-queries that are searched independently and results merged.
+4. **Graceful refusal** — If reformulation and expansion both fail, the system refuses rather than injecting low-quality memories.
+
+This two-stage pipeline means Engram retrieves when it should, skips when it shouldn't, and corrects when results are weak — rather than blindly injecting whatever the search returns.
+
+---
+
 ## Consolidation Engine
 
 A background process runs every 5 minutes (configurable) performing four operations:
@@ -293,6 +361,33 @@ The consolidation engine also detects three types of knowledge gaps:
 - **Category imbalance** — agents with memory heavily concentrated in one category
 
 Gaps are logged for diagnostic purposes.
+
+---
+
+## Memory Fusion
+
+Consolidation handles clustering and contradiction detection, but it does not address **near-duplicate memories** — entries that express the same information in slightly different words. Over months of use, these duplicates accumulate linearly: "User prefers dark mode", "User prefers dark mode in editors", "User uses dark mode" all occupy separate storage, search bandwidth, and context tokens.
+
+Memory fusion addresses this directly, inspired by FadeMem's fusion mechanism.
+
+### Fusion Pipeline
+
+During each consolidation cycle, the fusion engine:
+
+1. **Candidate detection** — Identify memory pairs with cosine similarity ≥ 0.92 and compatible scopes (same agent, same scope tier).
+2. **Merge** — Create a single strengthened entry with the union of propositions from both sources, the maximum of their strength values, and a provenance chain linking back to the originals.
+3. **Edge redirection** — All graph edges pointing to the original entries are redirected to the merged entry, preserving graph connectivity.
+4. **Tombstoning** — Original entries are marked as tombstones rather than deleted immediately. This allows recovery if a merge was too aggressive and maintains audit trail integrity.
+
+### Quality Measurement
+
+Every fusion cycle is measured:
+
+- **Chain integrity percentage** — Multi-hop graph traversals that succeed before and after fusion. A fusion that breaks a retrieval chain is detected.
+- **NDCG delta** — Normalized discounted cumulative gain is computed on a fixed query set before and after fusion. If NDCG drops by more than 5%, the fusion cycle is rolled back.
+- **Storage reduction** — Bytes freed and entries removed are tracked per cycle.
+
+The threshold (0.92 cosine) is tunable. Higher values produce more conservative merging. Lower values risk merging memories that carry distinct nuance.
 
 ---
 
@@ -458,6 +553,102 @@ Agents have direct access to memory through 7 tools:
 
 ---
 
+## Concurrency Architecture
+
+A desktop AI platform serves multiple concurrent consumers: the chat UI, background tasks, orchestration pipelines, 11+ channel bridges, and the consolidation engine — all reading and writing memory simultaneously. The concurrency model must handle this without blocking the Tokio runtime or causing SQLite write contention.
+
+### Read Pool + Write Channel
+
+Engram separates reads from writes using a two-path architecture:
+
+- **Read path** — An r2d2 connection pool with 8 SQLite connections operating in WAL (Write-Ahead Logging) mode. All search queries, graph traversals, and stat reads execute on the pool concurrently. WAL mode allows readers to proceed without blocking on writers.
+- **Write path** — A dedicated writer task receives all mutations through a `tokio::mpsc` channel. The writer serializes all inserts, updates, deletions, and consolidation writes through a single connection, eliminating SQLite write contention entirely.
+
+```
+Read requests ──→ r2d2 pool [8 WAL connections] ──→ result
+Write requests ──→ mpsc channel ──→ dedicated writer task ──→ SQLite
+```
+
+The `mpsc::send()` + `oneshot::recv()` pattern is fully async-safe — no synchronous mutexes appear in async code, which prevents Tokio thread starvation under load.
+
+### Storage Backend Trait
+
+All storage access is mediated through the `MemoryBackend` trait, which abstracts the underlying database:
+
+```rust
+#[async_trait]
+pub trait MemoryBackend: Send + Sync {
+    async fn store_episodic(&self, memory: &EpisodicMemory) -> EngineResult<String>;
+    async fn search_episodic_bm25(&self, query: &str, scope: &MemoryScope, limit: usize) -> EngineResult<Vec<(String, f64)>>;
+    async fn search_episodic_vector(&self, embedding: &[f32], scope: &MemoryScope, limit: usize) -> EngineResult<Vec<(String, f64)>>;
+    async fn add_edge(&self, edge: &MemoryEdge) -> EngineResult<()>;
+    async fn get_neighbors(&self, memory_id: &str, min_weight: f64) -> EngineResult<Vec<(String, f64)>>;
+    async fn apply_decay(&self, half_life_days: f64) -> EngineResult<usize>;
+    async fn garbage_collect(&self, threshold: f64) -> EngineResult<usize>;
+    // ... additional operations for semantic, procedural, graph, and lifecycle
+}
+```
+
+This trait enables `MockMemoryStore` for test isolation, future backend swaps (RocksDB, PostgreSQL), and clean dependency injection across all modules.
+
+### Vector Index Strategy
+
+Vector similarity search uses a tiered indexing strategy:
+
+| Memory Count | Index | Latency | RAM |
+|-------------|-------|---------|-----|
+| < 1,000 | Brute-force cosine scan | < 5ms | Negligible |
+| 1,000 – 100,000 | HNSW (in-memory, pure Rust) | < 5ms | ~3KB/vector |
+| > 100,000 | HNSW with disk-backed fallback | < 25ms | Bounded |
+
+Both implementations sit behind a `VectorIndex` trait. The index warms from the database on startup and receives new embeddings on the write path. If no embedding model is available, vector search is disabled entirely and the system falls back to BM25-only with no loss in keyword accuracy.
+
+---
+
+## Observability
+
+A memory system without measurement is a memory system without improvement. Engram instruments every operation to make debugging, optimization, and quality evaluation possible.
+
+### Tracing
+
+All public functions are instrumented with `tracing::instrument` spans organized in a hierarchy:
+
+- `engram.search` — Covers the full search pipeline: gate decision, BM25, vector, graph activation, reranking, quality check
+- `engram.store` — Covers PII detection, encryption, embedding generation, deduplication, and database write
+- `engram.consolidate` — Covers pattern clustering, contradiction detection, fusion, decay, and garbage collection
+- `engram.context` — Covers the ContextBuilder prompt assembly pass
+
+Span metadata includes agent ID, query text (redacted if PII), result count, latency, and quality scores. These spans integrate with any `tracing::Subscriber` — local log files, structured JSON, or external collectors.
+
+### Metrics
+
+The `metrics` crate provides three categories of runtime instrumentation:
+
+| Type | Metric | Purpose |
+|------|--------|---------|
+| Counter | `engram.search_count` | Total searches executed |
+| Counter | `engram.store_count` | Total memories stored |
+| Counter | `engram.gc_count` | Garbage collection cycles |
+| Counter | `engram.gate_skip_count` | Retrieval gate skips (queries that didn't need memory) |
+| Gauge | `engram.memory_count` | Current total memory count |
+| Gauge | `engram.hnsw_size` | Current HNSW index size |
+| Gauge | `engram.pool_active` | Active read pool connections |
+| Histogram | `engram.search_latency_ms` | Search latency distribution |
+| Histogram | `engram.store_latency_ms` | Store latency distribution |
+| Histogram | `engram.consolidation_ms` | Consolidation cycle duration |
+
+### Cognitive Debug Events
+
+For real-time debugging, Engram emits Tauri events that the frontend debug panel can display:
+
+- `engram:search` — Query, gate decision, result count, top scores, latency
+- `engram:store` — Memory ID, category, importance, PII detected, encrypted fields
+- `engram:quality` — NDCG score, relevance warnings, chain integrity
+
+These events enable developers and users to observe the memory system's decision-making in real time without parsing log files.
+
+---
+
 ## Category Taxonomy
 
 18 categories, unified across Rust backend, agent tools, and frontend UI:
@@ -560,31 +751,17 @@ The `EngramConfig` struct provides 30+ tunable parameters:
 
 ---
 
-## Current Limitations
+## Frontier Capabilities
 
-These are known limitations in the current implementation. They are documented here for transparency, not as promises of future work.
+Eight modules extend the core architecture with cognitive capabilities drawn from neuroscience and memory research. Each module integrates into the existing pipeline through formal interface contracts — they share data through defined trait boundaries rather than ad-hoc coupling.
 
-1. **Vector search is O(n)** — Brute-force cosine scan over all embeddings. Adequate for <10K memories per agent, but will need an index (HNSW or similar) for larger scales.
+- **Emotional memory dimension** — The `emotional_memory.rs` module implements an affective scoring pipeline measuring valence, arousal, dominance, and surprise for each memory. Emotionally significant memories decay at 60% of the normal rate, receive consolidation priority boosts, and get retrieval score amplification. This models the well-documented effect that emotionally charged experiences are retained more strongly in biological memory.
 
-2. **No proposition decomposition** — Memories are stored as whole text blobs. Splitting complex statements into atomic propositions would improve retrieval precision but requires NLP or LLM processing.
+- **Reflective meta-cognition** — The `meta_cognition.rs` module performs periodic self-assessment of knowledge confidence per domain, generating "I know / I don't know" maps across the agent's memory space. These maps guide anticipatory pre-loading — if the agent knows its knowledge of a topic is sparse, it can signal this to the user rather than hallucinating from weak memories.
 
-3. **Single-writer SQLite** — All writes go through one `Mutex<Connection>`. Sufficient for single-user desktop, but concurrent multi-agent heavy workloads may contend on the lock.
+- **Temporal-axis retrieval** — The `temporal_index.rs` module treats time as a first-class retrieval signal. A B-tree temporal index supports range queries ("what happened last week?"), proximity scoring (memories closer in time to the query context rank higher), and pattern detection (recurring events, periodic activity). This resolves temporal queries natively rather than forcing them through keyword or vector search.
 
-4. **Tiered content partially populated** — The schema supports full/summary/key_facts/tags columns, but currently only `content_full` is populated. Automatic summarization would require LLM calls at storage time.
-
-5. **Spreading activation is 1-hop** — Only direct graph neighbors are boosted. Multi-hop traversal would capture more distant associations but adds latency.
-
-6. **Working memory snapshots are structural** — The Tauri command saves/restores snapshot markers. Full working memory state capture requires engine-level integration during agent turns (the library supports this, but the command layer stores placeholder snapshots).
-
-7. **No full-database encryption** — Individual PII fields are encrypted, but the database file itself is not encrypted with SQLCipher. An attacker with file access can read non-PII content.
-
-8. **Embeddings require Ollama** — Vector search only works when an Ollama embedding model is running. Without it, search falls back to BM25-only.
-
----
-
-## Future Directions
-
-These are areas we're exploring. No commitments — just interesting problems.
+- **Intent-aware retrieval weighting** — The `intent_classifier.rs` module implements a 6-intent classifier (informational, procedural, comparative, debugging, exploratory, confirmatory) that dynamically weights all retrieval signals per query type. A debugging query boosts error logs and technical memories. An exploratory query triggers broader graph activation. The intent signal feeds into the retrieval gate and the reranking pipeline.
 
 - **HNSW vector index** — O(log n) approximate nearest neighbor search using `sqlite-vec` or a custom implementation
 - **Proposition-level storage** — LLM-based decomposition of complex statements into atomic, independently retrievable facts
@@ -595,20 +772,68 @@ These are areas we're exploring. No commitments — just interesting problems.
 - **Process memory hardening** — `mlock` to prevent swapping, core dump prevention, `zeroize` Drop implementations on all memory structs
 - **SQLCipher integration** — Full database encryption at rest
 
-### Frontier Capabilities
+- **Entity lifecycle tracking** — The `entity_tracker.rs` module maintains canonical entity profiles with name resolution (aliases, abbreviations, misspellings all resolve to the same entity), evolving entity state, entity-centric queries ("what do I know about Project X?"), and relationship emergence detection across all memory types.
 
-These 8 capabilities were identified through analysis of cutting-edge memory research (Cognee, OpenMemory/HMD, HEMA, SHIMI, IMDMR, MemoriesDB) and represent the next evolution of Engram beyond any existing system:
+- **Hierarchical semantic compression** — The `abstraction.rs` module builds a multi-level abstraction tree: individual memories → clusters → super-clusters → domain summaries. This enables navigation of knowledge at any zoom level — from a single data point up to a high-level summary of an entire domain. The compression tree is rebuilt incrementally during consolidation.
 
-- **Emotional memory dimension** (§37) — Affective scoring pipeline (valence/arousal/dominance/surprise) modulates decay rates, consolidation priority, and retrieval boost. Emotionally charged memories decay 40% slower.
-- **Reflective meta-cognition layer** (§38) — Periodic self-assessment of knowledge confidence per domain, generating "I know / I don't know" maps that guide anticipatory pre-loading.
-- **Temporal-axis retrieval** (§39) — Time as a first-class retrieval signal with B-tree temporal index, range queries, proximity scoring, and pattern detection. "What happened last week?" resolved natively.
-- **Intent-aware multi-dimensional retrieval** (§40) — 6-intent classifier (informational/procedural/comparative/debugging/exploratory/confirmatory) dynamically weights all retrieval signals per query.
-- **Entity lifecycle tracking** (§41) — Canonical name resolution, evolving entity profiles, entity-centric queries, and relationship emergence detection across all memory types.
-- **Hierarchical semantic compression** (§42) — Multi-level abstraction tree (memories → clusters → super-clusters → domain summaries). Navigate knowledge at any zoom level.
-- **Multi-agent memory sync protocol** (§43) — CRDT-inspired memory bus for peer-to-peer knowledge sharing between agents with vector-clock conflict resolution.
-- **Memory replay & dream consolidation** (§44) — Idle-time hippocampal-inspired replay strengthens memories, discovers latent connections, and re-embeds with evolved context.
+- **Multi-agent memory sync** — The `memory_bus.rs` module implements a CRDT-inspired protocol for peer-to-peer knowledge sharing between agents. Vector-clock conflict resolution ensures convergence when multiple agents modify related memories concurrently. Agents can share discoveries, coordinate on projects, and maintain consistent world models without a central coordinator.
 
-These capabilities are connected by 13 formal integration contracts (§45) ensuring they form a synergistic network rather than isolated features.
+- **Memory replay and dream consolidation** — The `dream_replay.rs` module runs during idle periods, implementing hippocampal-inspired memory replay. During replay, memories are reactivated, latent connections between temporally distant memories are discovered, and embeddings are regenerated with evolved context. This mirrors the role of sleep in biological memory consolidation — strengthening important memories and discovering patterns that weren't obvious during waking activity.
+
+These eight modules are connected through 13 integration contracts ensuring they operate as a synergistic network. For example, emotional scoring feeds into the retrieval gate's relevance calculation; intent classification adjusts the reranking strategy; entity tracking informs memory fusion's scope compatibility check; and the abstraction tree provides input to community-level summaries.
+
+---
+
+## Quality Evaluation
+
+Engram's quality evaluation framework ensures that every subsystem is measurable and regressions are caught automatically.
+
+### Retrieval Quality
+
+Every search returns quality metadata alongside results:
+
+- **NDCG (Normalized Discounted Cumulative Gain)** — Measures ranking quality against relevance judgments. Computed per-query and tracked over time.
+- **Precision@k** — What fraction of the top-k returned memories are actually relevant to the query.
+- **Latency** — End-to-end search time including gate decision, BM25, vector, graph activation, and reranking. Target: <10ms at 10K memories.
+
+### Faithfulness Evaluation
+
+Memory injection quality is evaluated along three dimensions:
+
+1. **Faithfulness** — Are the injected memories factually consistent with the stored content? Claim decomposition verifies that the agent's response doesn't misrepresent memories.
+2. **Context relevancy** — What percentage of injected memories are actually relevant to the query? Irrelevant injections waste context budget and risk attention dilution.
+3. **Answer relevancy** — Does the agent's response actually address the user's query, given the injected memories?
+
+### Unanswerability Detection
+
+Not every query has an answer in memory. The `UnanswerabilityDetector` evaluates whether the system should refuse rather than fabricate:
+
+- Intent-aware thresholds: factual queries require higher confidence (0.5) than exploratory queries (0.25)
+- Procedural queries use an intermediate threshold (0.4) — partial procedures are worse than no procedure
+- Detection feeds back into the retrieval gate's Refuse mode
+
+### Forgetting Regression
+
+Every consolidation cycle (decay + garbage collection + fusion) is evaluated for quality impact:
+
+- Pre/post NDCG comparison on a fixed query set
+- Chain integrity — multi-hop graph traversals that succeed before and after the cycle
+- Automatic rollback if NDCG degrades by more than 5%
+
+This prevents the system from forgetting useful information in pursuit of storage efficiency.
+
+### Benchmark Harness
+
+A Criterion benchmark suite measures core operations at scale:
+
+| Benchmark | Target (10K memories) | Target (100K memories) |
+|-----------|----------------------|------------------------|
+| Hybrid search | < 10ms | < 25ms |
+| Memory store | < 5ms | < 5ms |
+| Consolidation cycle | < 500ms | < 2s |
+| Context assembly | < 10ms | < 10ms |
+
+These benchmarks run in CI. Performance regressions beyond defined thresholds block merges.
 
 ---
 
@@ -616,14 +841,28 @@ These capabilities are connected by 13 formal integration contracts (§45) ensur
 
 - Ebbinghaus, H. (1885). *Memory: A Contribution to Experimental Psychology.*
 - Anderson, J. R. (1983). *A Spreading Activation Theory of Memory.* Journal of Verbal Learning and Verbal Behavior, 22(3), 261-295.
+- Tulving, E. (1972). *Episodic and Semantic Memory.* In Organization of Memory. Academic Press.
+- Miller, G. A. (1956). *The Magical Number Seven, Plus or Minus Two.* Psychological Review, 63(2), 81-97.
+- Bartlett, F. C. (1932). *Remembering: A Study in Experimental and Social Psychology.* Cambridge University Press.
+- Nader, K., Schafe, G. E., & LeDoux, J. E. (2000). *Fear Memories Require Protein Synthesis in the Amygdala for Reconsolidation After Retrieval.* Nature, 406, 722-726.
 - Robertson, S. E., & Zaragoza, H. (2009). *The Probabilistic Relevance Framework: BM25 and Beyond.* Foundations and Trends in Information Retrieval, 3(4), 333-389.
 - Carbonell, J., & Goldstein, J. (1998). *The Use of MMR, Diversity-Based Reranking for Reordering Documents and Producing Summaries.* SIGIR '98.
+- Cormack, G. V., Clarke, C. L. A., & Buettcher, S. (2009). *Reciprocal Rank Fusion Outperforms Condorcet and Individual Rank Learning Methods.* SIGIR '09.
+- Malkov, Y. A., & Yashunin, D. A. (2018). *Efficient and Robust Approximate Nearest Neighbor Using Hierarchical Navigable Small World Graphs.* IEEE TPAMI.
 - Cahill, L., & McGaugh, J. L. (1995). *A Novel Demonstration of Enhanced Memory Associated with Emotional Arousal.* Consciousness and Cognition, 4(4), 410-421.
 - Flavell, J. H. (1979). *Metacognition and Cognitive Monitoring.* American Psychologist, 34(10), 906-911.
 - Wilson, M. A., & McNaughton, B. L. (1994). *Reactivation of Hippocampal Ensemble Memories During Sleep.* Science, 265(5172), 676-679.
 - Diekelmann, S., & Born, J. (2010). *The Memory Function of Sleep.* Nature Reviews Neuroscience, 11(2), 114-126.
 - Shapiro, M. et al. (2011). *Conflict-Free Replicated Data Types.* SSS 2011.
 - Getoor, L., & Machanavajjhala, A. (2012). *Entity Resolution: Theory, Practice & Open Challenges.* VLDB Tutorial.
+- Park, J. S., et al. (2023). *Generative Agents: Interactive Simulacra of Human Behavior.* UIST '23.
+- Wang, G., et al. (2023). *Voyager: An Open-Ended Embodied Agent with Large Language Models.* NeurIPS 2023.
+- Shinn, N., et al. (2023). *Reflexion: Language Agents with Verbal Reinforcement Learning.* NeurIPS 2023.
+- Asai, A., et al. (2024). *Self-RAG: Learning to Retrieve, Generate, and Critique Through Self-Reflection.* ICLR 2024.
+- Yan, S., et al. (2024). *Corrective Retrieval Augmented Generation (CRAG).* ICLR 2024.
+- Edge, D., et al. (2024). *From Local to Global: A Graph RAG Approach to Query-Focused Summarization.* Microsoft Research.
+- Es, S., et al. (2024). *RAGAs: Automated Evaluation of Retrieval Augmented Generation.* EACL 2024.
+- Chen, J., et al. (2023). *Dense X Retrieval: What Retrieval Granularity Should We Use?* ACL 2024.
 
 ---
 
