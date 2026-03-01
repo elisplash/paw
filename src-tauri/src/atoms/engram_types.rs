@@ -214,6 +214,36 @@ impl TrustScore {
             utility: 0.5,   // unknown
         }
     }
+
+    /// Apply time-based decay to the freshness dimension.
+    /// `days_since_creation` — how old this memory is.
+    /// `half_life_days` — how many days until freshness halves.
+    pub fn apply_freshness_decay(&mut self, days_since_creation: f64, half_life_days: f64) {
+        if half_life_days <= 0.0 {
+            return;
+        }
+        let decay = (-days_since_creation * (2.0_f64.ln()) / half_life_days).exp() as f32;
+        self.freshness = (self.freshness * decay).clamp(0.0, 1.0);
+    }
+
+    /// Apply negative feedback — reduces accuracy and utility.
+    /// Called when a user or system marks a retrieved memory as unhelpful.
+    pub fn apply_negative_feedback(&mut self) {
+        self.accuracy = (self.accuracy - 0.15).max(0.0);
+        self.utility = (self.utility - 0.1).max(0.0);
+    }
+
+    /// Apply positive feedback — boosts accuracy and utility.
+    pub fn apply_positive_feedback(&mut self) {
+        self.accuracy = (self.accuracy + 0.1).min(1.0);
+        self.utility = (self.utility + 0.08).min(1.0);
+    }
+
+    /// Check if this memory should be filtered out due to low trust.
+    /// Memories with very low composite scores are noise.
+    pub fn should_filter(&self, threshold: f32) -> bool {
+        self.composite() < threshold
+    }
 }
 
 /// Tiered content — a memory exists at multiple compression levels simultaneously.
@@ -1172,4 +1202,292 @@ pub struct MetadataFilters {
     /// Filter by topic.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub topics: Option<Vec<String>>,
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 14: Emotional Memory Dimension (§37)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Affective dimensions attached to memories.
+/// Based on the PAD (Pleasure-Arousal-Dominance) model extended with surprise.
+/// All values range from -1.0 to 1.0 (bipolar scales).
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct EmotionalContext {
+    /// Pleasure/displeasure dimension. Positive = pleasant, negative = unpleasant.
+    pub valence: f32,
+    /// Activation/deactivation. High = excited/alert, low = calm/bored.
+    pub arousal: f32,
+    /// Dominance/submissiveness. High = in control, low = overwhelmed.
+    pub dominance: f32,
+    /// Surprise factor (0.0 = expected, 1.0 = highly surprising).
+    /// Surprising memories get stronger encoding (von Restorff effect).
+    pub surprise: f32,
+}
+
+impl EmotionalContext {
+    /// Compute a single emotional intensity score (0.0–1.0).
+    /// Used as a retrieval boost factor — more emotionally intense memories
+    /// are recalled more readily (mirroring the biological flashbulb effect).
+    pub fn intensity(&self) -> f32 {
+        let raw = (self.valence.abs() + self.arousal.abs() + self.dominance.abs() + self.surprise.abs()) / 4.0;
+        raw.clamp(0.0, 1.0)
+    }
+
+    /// Compute emotional similarity to another context (cosine-like).
+    /// Used to find memories with similar emotional tone during retrieval.
+    pub fn similarity(&self, other: &EmotionalContext) -> f32 {
+        let a = [self.valence, self.arousal, self.dominance, self.surprise];
+        let b = [other.valence, other.arousal, other.dominance, other.surprise];
+        let dot: f32 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
+        let mag_a = a.iter().map(|x| x * x).sum::<f32>().sqrt();
+        let mag_b = b.iter().map(|x| x * x).sum::<f32>().sqrt();
+        if mag_a < f32::EPSILON || mag_b < f32::EPSILON {
+            return 0.0;
+        }
+        (dot / (mag_a * mag_b)).clamp(-1.0, 1.0)
+    }
+
+    /// Modulate Ebbinghaus decay rate based on emotional arousal.
+    /// High-arousal memories decay slower (stronger encoding).
+    /// Returns a decay multiplier: < 1.0 = slower decay, > 1.0 = faster decay.
+    pub fn decay_modulation(&self) -> f32 {
+        // Arousal-based modulation: high arousal → slower decay
+        // Surprise also strengthens encoding
+        let arousal_factor = 1.0 - (self.arousal.abs() * 0.3);
+        let surprise_factor = 1.0 - (self.surprise * 0.2);
+        (arousal_factor * surprise_factor).clamp(0.4, 1.2)
+    }
+
+    /// Check if this is emotionally neutral (all dimensions near zero).
+    pub fn is_neutral(&self) -> bool {
+        self.intensity() < 0.1
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 15: Temporal-Axis Retrieval (§39)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Temporal query types for time-axis retrieval.
+/// Allows searching memories by when they occurred, not just what they contain.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum TemporalQuery {
+    /// Find memories within a date range (inclusive).
+    Range {
+        start: String, // ISO 8601
+        end: String,   // ISO 8601
+    },
+    /// Find memories near a specific point in time (within ±window).
+    Proximity {
+        anchor: String,      // ISO 8601
+        window_hours: f64,
+    },
+    /// Find memories that repeat at a pattern (daily, weekly, etc.).
+    Pattern {
+        pattern: TemporalPattern,
+    },
+    /// Find the most recent N memories for an agent.
+    Recent {
+        limit: usize,
+    },
+    /// Find memories from a specific session.
+    Session {
+        session_id: String,
+    },
+}
+
+/// Recognized temporal patterns in memory creation.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum TemporalPattern {
+    /// Memories created around the same time daily.
+    Daily,
+    /// Memories created on the same day of week.
+    Weekly,
+    /// Memories created around the same date monthly.
+    Monthly,
+    /// Burst of memories in a short window (high activity period).
+    Burst,
+}
+
+/// Result of a temporal search including temporal metadata.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemporalSearchResult {
+    /// The retrieved memories.
+    pub memories: Vec<RetrievedMemory>,
+    /// Temporal clustering info — groups of memories that are temporally close.
+    pub clusters: Vec<TemporalCluster>,
+    /// Time range spanned by results.
+    pub span_start: String,
+    pub span_end: String,
+}
+
+/// A temporally co-located cluster of memories.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TemporalCluster {
+    /// Cluster centroid time (ISO 8601).
+    pub centroid: String,
+    /// Memory IDs in this cluster.
+    pub memory_ids: Vec<String>,
+    /// Duration of cluster window (seconds).
+    pub window_secs: u64,
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 16: Intent-Aware Retrieval (§40)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Classified query intent — determines how to weight retrieval signals.
+/// A single query can have multiple intents with varying confidence.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum QueryIntent {
+    /// "What is X?" — factual lookup, weight BM25 heavily.
+    Factual,
+    /// "How do I X?" — procedural recall, weight procedures heavily.
+    Procedural,
+    /// "Why did X happen?" — causal reasoning, traverse CausedBy edges.
+    Causal,
+    /// "What happened when..." — episodic recall, weight temporal + episodic.
+    Episodic,
+    /// "Tell me about X" — broad exploration, weight diversity via MMR.
+    Exploratory,
+    /// "Remember when we..." — personal/emotional, weight emotional context.
+    Reflective,
+}
+
+/// Intent classification result — scores for each intent type.
+/// Used to dynamically weight search signals per-query.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct IntentClassification {
+    pub factual: f32,
+    pub procedural: f32,
+    pub causal: f32,
+    pub episodic: f32,
+    pub exploratory: f32,
+    pub reflective: f32,
+}
+
+impl IntentClassification {
+    /// Return the dominant intent (highest score).
+    pub fn dominant(&self) -> QueryIntent {
+        let scores = [
+            (QueryIntent::Factual, self.factual),
+            (QueryIntent::Procedural, self.procedural),
+            (QueryIntent::Causal, self.causal),
+            (QueryIntent::Episodic, self.episodic),
+            (QueryIntent::Exploratory, self.exploratory),
+            (QueryIntent::Reflective, self.reflective),
+        ];
+        scores
+            .iter()
+            .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(intent, _)| *intent)
+            .unwrap_or(QueryIntent::Factual)
+    }
+
+    /// Get dynamic signal weights based on intent classification.
+    /// Returns (bm25_weight, vector_weight, graph_weight, temporal_weight, emotional_weight).
+    pub fn signal_weights(&self) -> (f32, f32, f32, f32, f32) {
+        let dom = self.dominant();
+        match dom {
+            QueryIntent::Factual     => (0.50, 0.30, 0.10, 0.05, 0.05),
+            QueryIntent::Procedural  => (0.30, 0.35, 0.15, 0.10, 0.10),
+            QueryIntent::Causal      => (0.20, 0.30, 0.35, 0.10, 0.05),
+            QueryIntent::Episodic    => (0.25, 0.25, 0.15, 0.25, 0.10),
+            QueryIntent::Exploratory => (0.20, 0.40, 0.20, 0.10, 0.10),
+            QueryIntent::Reflective  => (0.15, 0.30, 0.15, 0.10, 0.30),
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 17: Entity Lifecycle Tracking (§41)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// A tracked entity — a person, project, tool, or concept that appears
+/// across multiple memories and whose lifecycle is tracked over time.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntityProfile {
+    /// Canonical entity ID (lowercase, normalized).
+    pub id: String,
+    /// Canonical display name.
+    pub canonical_name: String,
+    /// Known aliases / alternate spellings.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
+    /// Entity type.
+    pub entity_type: EntityType,
+    /// First seen timestamp.
+    pub first_seen: String,
+    /// Last seen timestamp.
+    pub last_seen: String,
+    /// Number of memories mentioning this entity.
+    pub mention_count: u32,
+    /// Memory IDs that reference this entity.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub memory_ids: Vec<String>,
+    /// Related entity IDs (auto-discovered co-occurrences).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub related_entities: Vec<String>,
+    /// Summary of what we know about this entity (auto-generated).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summary: Option<String>,
+    /// Sentiment toward this entity (running average).
+    pub sentiment: f32,
+}
+
+/// Types of tracked entities.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum EntityType {
+    Person,
+    Project,
+    Technology,
+    Organization,
+    Location,
+    Concept,
+    Unknown,
+}
+
+impl std::fmt::Display for EntityType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            EntityType::Person => write!(f, "person"),
+            EntityType::Project => write!(f, "project"),
+            EntityType::Technology => write!(f, "technology"),
+            EntityType::Organization => write!(f, "organization"),
+            EntityType::Location => write!(f, "location"),
+            EntityType::Concept => write!(f, "concept"),
+            EntityType::Unknown => write!(f, "unknown"),
+        }
+    }
+}
+
+impl std::str::FromStr for EntityType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "person" => Ok(EntityType::Person),
+            "project" => Ok(EntityType::Project),
+            "technology" | "tech" => Ok(EntityType::Technology),
+            "organization" | "org" | "company" => Ok(EntityType::Organization),
+            "location" | "place" => Ok(EntityType::Location),
+            "concept" | "idea" => Ok(EntityType::Concept),
+            _ => Ok(EntityType::Unknown),
+        }
+    }
+}
+
+/// Entity mention extracted from memory content.
+/// Used during storage to update entity profiles and discover relationships.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EntityMention {
+    /// The raw text as it appeared in content.
+    pub surface_form: String,
+    /// Resolved entity ID (after canonical name resolution).
+    pub entity_id: String,
+    /// Entity type (person, project, etc.).
+    pub entity_type: EntityType,
+    /// Position in the source text (character offset).
+    pub offset: usize,
+    /// Confidence of the extraction (0.0–1.0).
+    pub confidence: f32,
 }

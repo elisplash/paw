@@ -201,6 +201,9 @@ export function createInboxThread(callbacks: InboxThreadCallbacks): InboxThreadC
 
     showThread() {
       emptyState.style.display = 'none';
+      // Re-show chat elements that showEmpty() hid
+      const chatEls = body.querySelectorAll('.chat-main-col > *');
+      chatEls.forEach((el) => ((el as HTMLElement).style.display = ''));
     },
 
     mountChatElements(elements) {

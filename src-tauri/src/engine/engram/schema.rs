@@ -46,6 +46,31 @@ pub fn run_engram_migrations(conn: &Connection) -> EngineResult<()> {
         [],
     );
 
+    // §41: Entity lifecycle tracking — entity_profiles table
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS entity_profiles (
+            id TEXT PRIMARY KEY,
+            canonical_name TEXT NOT NULL,
+            aliases TEXT NOT NULL DEFAULT '[]',
+            entity_type TEXT NOT NULL DEFAULT 'unknown',
+            first_seen TEXT NOT NULL,
+            last_seen TEXT NOT NULL,
+            mention_count INTEGER NOT NULL DEFAULT 1,
+            memory_ids TEXT NOT NULL DEFAULT '[]',
+            related_entities TEXT NOT NULL DEFAULT '[]',
+            summary TEXT,
+            sentiment REAL
+        );
+        CREATE INDEX IF NOT EXISTS idx_entity_canonical ON entity_profiles(canonical_name);
+        CREATE INDEX IF NOT EXISTS idx_entity_type ON entity_profiles(entity_type);",
+    )?;
+
+    // §39: Temporal index on episodic memories created_at
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_episodic_created_at ON episodic_memories(created_at)",
+        [],
+    );
+
     // ── Anti-forensic padding (KDBX-equivalent vault-size quantization) ──
     // Inflate the database to the next PADDING_BUCKET boundary so the
     // file size only reveals a coarse bucket, not the exact row count.

@@ -80,3 +80,4 @@
 /* ── Safety & Audit ─────────────────────────────────────── */
 @import './_guardrails.css';    /* Guardrails, rate limits, audit log, permissions */
 @import './_action-receipts.css'; /* Action receipts inline */
+@import './_lock-screen.css';   /* Lock screen passphrase gate */

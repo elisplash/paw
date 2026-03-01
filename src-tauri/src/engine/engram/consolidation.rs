@@ -130,12 +130,14 @@ pub async fn run_consolidation(
     let gaps = detect_gaps(store)?;
     report.gaps_detected = gaps.len();
 
-    if !gaps.is_empty() {
+    if report.gaps_detected > 0 {
         info!(
             "[engram:consolidation] Detected {} knowledge gaps",
-            gaps.len()
+            report.gaps_detected
         );
     }
+
+    report.gaps = gaps;
 
     // ── 7. Audit ─────────────────────────────────────────────────────────
     store.engram_audit_log(
@@ -180,6 +182,8 @@ pub struct ConsolidationReport {
     pub gaps_detected: usize,
     /// How many memories had metadata extracted (§35.3).
     pub metadata_enriched: usize,
+    /// Detected knowledge gaps for injection into working memory (§4.5).
+    pub gaps: Vec<KnowledgeGap>,
 }
 
 /// A detected gap in the knowledge graph.

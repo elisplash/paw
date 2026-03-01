@@ -356,8 +356,29 @@ pub async fn search(
                 {
                     // Boost existing result
                     existing.trust_score.relevance += activation * 0.2;
+                } else if *activation > 0.4 {
+                    // Fetch high-activation neighbors not already in results (§5 2-hop)
+                    if let Ok(Some(mem)) = store.engram_get_episodic(neighbor_id) {
+                        let trust = TrustScore {
+                            relevance: activation * 0.15,
+                            accuracy: 0.5,
+                            freshness: temporal_freshness(&mem.created_at),
+                            utility: 0.4,
+                        };
+                        let content = mem.content.full.clone();
+                        all_results.push(RetrievedMemory {
+                            token_cost: Tokenizer::heuristic().count_tokens(&content),
+                            content,
+                            compression_level: CompressionLevel::Full,
+                            memory_id: mem.id.clone(),
+                            memory_type: MemoryType::Episodic,
+                            trust_score: trust,
+                            category: mem.category.clone(),
+                            created_at: mem.created_at.clone(),
+                        });
+                        store.engram_record_access(&mem.id, RETRIEVAL_STRENGTH_BOOST * 0.5).ok();
+                    }
                 }
-                // Otherwise we could fetch the neighbor, but skip for now to stay within budget
             }
         }
     }

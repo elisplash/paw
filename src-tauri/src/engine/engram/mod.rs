@@ -24,25 +24,30 @@ pub mod bridge;
 pub mod consolidation;
 pub mod context_builder;
 pub mod encryption;
+pub mod entity_tracking;
 pub mod graph;
 pub mod hybrid_search;
+pub mod intent_classifier;
 pub mod metadata_inference;
 pub mod model_caps;
 pub mod reranking;
 pub mod retrieval_quality;
 pub mod schema;
 pub mod sensory_buffer;
+pub mod temporal_search;
 pub mod tokenizer;
 pub mod working_memory;
 
 // Re-exports for convenience
 pub use consolidation::{run_consolidation, ConsolidationReport, GapKind, KnowledgeGap};
 pub use context_builder::{AssembledContext, BudgetReport, ContextBuilder};
+pub use entity_tracking::{extract_entities, process_memory_entities, merge_entities};
 pub use graph::{
     apply_decay, garbage_collect, memory_stats, relate, search, store_episodic_dedup,
     store_procedural, store_semantic_dedup, EngramStats,
 };
 pub use hybrid_search::resolve_hybrid_weight;
+pub use intent_classifier::{classify_intent, intent_weights};
 pub use metadata_inference::{infer_metadata, infer_metadata_full};
 pub use model_caps::{
     resolve_context_window, resolve_max_output_tokens, resolve_model_capabilities,
@@ -53,5 +58,6 @@ pub use retrieval_quality::{
     compute_ndcg,
 };
 pub use sensory_buffer::SensoryBuffer;
+pub use temporal_search::{temporal_search, recency_score, cluster_temporal};
 pub use tokenizer::Tokenizer;
 pub use working_memory::WorkingMemory;

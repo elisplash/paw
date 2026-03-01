@@ -1,8 +1,9 @@
-// commands/utility.rs — Keyring and weather utility commands.
+// commands/utility.rs — Keyring, lock screen, and weather utility commands.
 
-use crate::atoms::constants::{DB_KEY_SERVICE, DB_KEY_USER};
+use crate::atoms::constants::{DB_KEY_SERVICE, DB_KEY_USER, LOCK_SERVICE, LOCK_USER};
 use log::{error, info};
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use tauri::Manager;
 
 /// Check whether the OS keychain has a stored password for the given account.
@@ -77,6 +78,159 @@ pub fn has_db_encryption_key() -> bool {
         .ok()
         .and_then(|e| e.get_password().ok())
         .is_some()
+}
+
+// ── Lock Screen Passphrase ─────────────────────────────────────────────────
+// The passphrase is SHA-256 hashed before storing in the keychain. The raw
+// passphrase never leaves the WebView→Rust boundary. On verify, we hash the
+// input and compare with the stored hash.
+
+fn hash_passphrase(passphrase: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(passphrase.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+/// Check if a lock screen passphrase has been configured.
+#[tauri::command]
+pub fn lock_screen_has_passphrase() -> bool {
+    keyring::Entry::new(LOCK_SERVICE, LOCK_USER)
+        .ok()
+        .and_then(|e| e.get_password().ok())
+        .is_some()
+}
+
+/// Set (or replace) the lock screen passphrase. Stores SHA-256 hash in keychain.
+#[tauri::command]
+pub fn lock_screen_set_passphrase(passphrase: String) -> Result<(), String> {
+    if passphrase.len() < 4 {
+        return Err("Passphrase must be at least 4 characters".into());
+    }
+    let hash = hash_passphrase(&passphrase);
+    let entry = keyring::Entry::new(LOCK_SERVICE, LOCK_USER)
+        .map_err(|e| format!("Keyring init failed: {}", e))?;
+    entry
+        .set_password(&hash)
+        .map_err(|e| format!("Failed to store passphrase: {}", e))?;
+    info!("[lock] Passphrase set in OS keychain");
+    Ok(())
+}
+
+/// Verify a passphrase against the stored hash.
+#[tauri::command]
+pub fn lock_screen_verify_passphrase(passphrase: String) -> Result<bool, String> {
+    let entry = keyring::Entry::new(LOCK_SERVICE, LOCK_USER)
+        .map_err(|e| format!("Keyring init failed: {}", e))?;
+    match entry.get_password() {
+        Ok(stored_hash) => {
+            let input_hash = hash_passphrase(&passphrase);
+            Ok(stored_hash == input_hash)
+        }
+        Err(keyring::Error::NoEntry) => Err("No passphrase configured".into()),
+        Err(e) => Err(format!("Keyring error: {}", e)),
+    }
+}
+
+/// Remove the lock screen passphrase (disable lock screen).
+#[tauri::command]
+pub fn lock_screen_remove_passphrase() -> Result<(), String> {
+    let entry = keyring::Entry::new(LOCK_SERVICE, LOCK_USER)
+        .map_err(|e| format!("Keyring init failed: {}", e))?;
+    match entry.delete_credential() {
+        Ok(()) => {
+            info!("[lock] Passphrase removed from OS keychain");
+            Ok(())
+        }
+        Err(keyring::Error::NoEntry) => Ok(()),
+        Err(e) => Err(format!("Failed to remove passphrase: {}", e)),
+    }
+}
+
+// ── System Authentication (macOS Touch ID / device password) ───────────────
+// Uses the LocalAuthentication framework via osascript/JXA. This triggers
+// the native Touch ID dialog or falls back to the Mac login password.
+// Policy 1 = LAPolicyDeviceOwnerAuthentication (biometric + passcode fallback).
+
+/// Trigger macOS system authentication (Touch ID / login password).
+/// Returns true on success, false if the user cancelled or failed.
+#[tauri::command]
+pub async fn lock_screen_system_auth() -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let script = r#"
+ObjC.import('LocalAuthentication');
+ObjC.import('Foundation');
+var ctx = $.LAContext.alloc.init;
+var error = Ref();
+var canEval = ctx.canEvaluatePolicyError(2, error);
+if (!canEval) {
+    'unavailable';
+} else {
+    var done = false;
+    var success = false;
+    ctx.evaluatePolicyLocalizedReasonReply(
+        2,
+        'Verify your identity to open OpenPawz',
+        function(s, e) { success = s; done = true; }
+    );
+    while (!done) {
+        $.NSRunLoop.currentRunLoop.runUntilDate(
+            $.NSDate.dateWithTimeIntervalSinceNow(0.1)
+        );
+    }
+    success ? 'ok' : 'denied';
+}"#;
+        let output = tokio::process::Command::new("osascript")
+            .args(["-l", "JavaScript", "-e", script])
+            .output()
+            .await
+            .map_err(|e| format!("Failed to run system auth: {}", e))?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        match stdout.as_str() {
+            "ok" => {
+                info!("[lock] System authentication successful");
+                Ok(true)
+            }
+            "denied" => Ok(false),
+            "unavailable" => {
+                Err("System authentication not available on this device".into())
+            }
+            _ => {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                error!("[lock] System auth unexpected result: {} {}", stdout, stderr);
+                Err(format!("Authentication error: {}", stderr.trim()))
+            }
+        }
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        Err("System authentication is only available on macOS".into())
+    }
+}
+
+/// Check if system authentication (Touch ID / device password) is available.
+#[tauri::command]
+pub fn lock_screen_system_available() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("osascript")
+            .args([
+                "-l",
+                "JavaScript",
+                "-e",
+                r#"ObjC.import('LocalAuthentication');var c=$.LAContext.alloc.init;c.canEvaluatePolicyError(2,Ref())?'yes':'no'"#,
+            ])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "yes")
+            .unwrap_or(false)
+    }
+
+    #[cfg(not(target_os = "macos"))]
+    {
+        false
+    }
 }
 
 /// Detailed keychain health status for the Settings → Security panel.

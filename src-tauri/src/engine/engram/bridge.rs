@@ -269,10 +269,33 @@ pub async fn run_maintenance(
     // 3. Garbage collection
     let gc_count = super::graph::garbage_collect(store, gc_importance_threshold, 100)?;
 
+    // 4. Self-healing gap injection (§4.5)
+    // Convert detected knowledge gaps into natural-language prompts
+    // that can be injected into working memory as clarifying questions.
+    let gap_prompts: Vec<String> = consolidation
+        .gaps
+        .iter()
+        .map(|gap| {
+            use super::consolidation::GapKind;
+            match &gap.kind {
+                GapKind::StaleHighUse => {
+                    format!("[Memory Gap] Frequently used knowledge may be outdated: {}. Consider verifying.", gap.description)
+                }
+                GapKind::UnresolvedContradiction => {
+                    format!("[Memory Conflict] Contradictory facts detected: {}. Clarification needed.", gap.description)
+                }
+                GapKind::IncompleteSchema => {
+                    format!("[Incomplete Knowledge] Only partial information exists: {}. More context would help.", gap.description)
+                }
+            }
+        })
+        .collect();
+
     let report = MaintenanceReport {
         consolidation,
         memories_decayed: decayed,
         memories_gc: gc_count,
+        gap_prompts,
     };
 
     info!(
@@ -289,6 +312,8 @@ pub struct MaintenanceReport {
     pub consolidation: super::consolidation::ConsolidationReport,
     pub memories_decayed: usize,
     pub memories_gc: usize,
+    /// Knowledge gaps detected during consolidation, formatted for working memory injection.
+    pub gap_prompts: Vec<String>,
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

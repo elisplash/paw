@@ -66,6 +66,7 @@ import { initWebhookLog } from './components/webhook-log';
 import { isTourComplete, startTour } from './components/tour';
 import { restoreShowcase, enableShowcase } from './components/showcase';
 import { shouldShowWizard, initWizard } from './views/onboarding';
+import { initLockScreen } from './views/lock-screen';
 
 // ── Tauri bridge ─────────────────────────────────────────────────────────
 interface TauriWindow {
@@ -223,6 +224,10 @@ function handlePaletteAction(action: string) {
 document.addEventListener('DOMContentLoaded', async () => {
   try {
     console.debug('[main] Paw starting...');
+
+    // ── Lock screen gate — must authenticate before anything else ──
+    await initLockScreen();
+    console.debug('[main] Lock screen passed');
 
     for (const el of document.querySelectorAll<HTMLElement>('[data-icon]')) {
       const name = el.dataset.icon;

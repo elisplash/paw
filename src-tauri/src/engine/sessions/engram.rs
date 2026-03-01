@@ -243,10 +243,36 @@ impl SessionStore {
         limit: usize,
     ) -> EngineResult<Vec<(EpisodicMemory, f64)>> {
         let conn = self.conn.lock();
-        let agent_filter = scope.agent_id.as_deref().unwrap_or("");
 
-        // Use agent-scoped or unscoped SQL
-        let sql = if agent_filter.is_empty() || scope.global {
+        // Build hierarchical scope WHERE clause
+        let mut scope_conditions: Vec<String> = vec!["1=1".into()]; // always true for global search
+        let mut _scope_params: Vec<String> = Vec::new();
+
+        if !scope.global {
+            let mut or_clauses: Vec<String> = vec!["em.scope_global = 1".into()];
+
+            if let Some(ref aid) = scope.agent_id {
+                or_clauses.push(format!("em.scope_agent_id = '{}'", aid.replace('\'', "''")));
+            }
+            if let Some(ref pid) = scope.project_id {
+                or_clauses.push(format!("em.scope_project_id = '{}'", pid.replace('\'', "''")));
+            }
+            if let Some(ref sid) = scope.squad_id {
+                or_clauses.push(format!("em.scope_squad_id = '{}'", sid.replace('\'', "''")));
+            }
+            if let Some(ref ch) = scope.channel {
+                or_clauses.push(format!("em.scope_channel = '{}'", ch.replace('\'', "''")));
+            }
+            if let Some(ref uid) = scope.channel_user_id {
+                or_clauses.push(format!("em.scope_channel_user_id = '{}'", uid.replace('\'', "''")));
+            }
+            // Also include unscoped memories (no agent restriction)
+            or_clauses.push("(em.scope_agent_id IS NULL OR em.scope_agent_id = '')".into());
+
+            scope_conditions = vec![format!("({})", or_clauses.join(" OR "))];
+        }
+
+        let sql = format!(
             "SELECT em.id, em.content_full, em.content_summary, em.content_key_fact, em.content_tags,
                     em.category, em.importance, em.agent_id, em.session_id, em.source,
                     em.consolidation_state,
@@ -258,43 +284,20 @@ impl SessionStore {
              FROM episodic_memories em
              JOIN episodic_memories_fts fts ON em.id = fts.id
              WHERE episodic_memories_fts MATCH ?1
+               AND {}
              ORDER BY fts.rank
-             LIMIT ?2"
-        } else {
-            "SELECT em.id, em.content_full, em.content_summary, em.content_key_fact, em.content_tags,
-                    em.category, em.importance, em.agent_id, em.session_id, em.source,
-                    em.consolidation_state,
-                    em.scope_global, em.scope_project_id, em.scope_squad_id, em.scope_agent_id,
-                    em.scope_channel, em.scope_channel_user_id,
-                    em.embedding, em.embedding_model,
-                    em.created_at, em.last_accessed_at, em.access_count,
-                    fts.rank
-             FROM episodic_memories em
-             JOIN episodic_memories_fts fts ON em.id = fts.id
-             WHERE episodic_memories_fts MATCH ?1
-               AND (em.scope_agent_id = ?3 OR em.scope_global = 1 OR em.scope_agent_id = '')
-             ORDER BY fts.rank
-             LIMIT ?2"
-        };
+             LIMIT ?2",
+            scope_conditions.join(" AND ")
+        );
 
-        let mut stmt = conn.prepare(sql)?;
-        let rows = if agent_filter.is_empty() || scope.global {
-            stmt.query_map(params![query, limit as i64], |row| {
-                let mem = Self::episodic_from_row(row)?;
-                let rank: f64 = row.get(22)?;
-                Ok((mem, -rank))
-            })?
-            .filter_map(|r| r.ok())
-            .collect()
-        } else {
-            stmt.query_map(params![query, limit as i64, agent_filter], |row| {
-                let mem = Self::episodic_from_row(row)?;
-                let rank: f64 = row.get(22)?;
-                Ok((mem, -rank))
-            })?
-            .filter_map(|r| r.ok())
-            .collect()
-        };
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map(params![query, limit as i64], |row| {
+            let mem = Self::episodic_from_row(row)?;
+            let rank: f64 = row.get(22)?;
+            Ok((mem, -rank))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
         Ok(rows)
     }
@@ -652,9 +655,27 @@ impl SessionStore {
         limit: usize,
     ) -> EngineResult<Vec<(SemanticMemory, f64)>> {
         let conn = self.conn.lock();
-        let agent_filter = scope.agent_id.as_deref().unwrap_or("");
 
-        let sql = if agent_filter.is_empty() || scope.global {
+        // Build hierarchical scope WHERE clause
+        let scope_clause = if scope.global {
+            "1=1".to_string()
+        } else {
+            let mut or_clauses: Vec<String> = vec!["sm.scope_agent_id = '' OR sm.scope_agent_id IS NULL".into()];
+
+            if let Some(ref aid) = scope.agent_id {
+                or_clauses.push(format!("sm.scope_agent_id = '{}'", aid.replace('\'', "''")));
+            }
+            if let Some(ref pid) = scope.project_id {
+                or_clauses.push(format!("sm.scope_project_id = '{}'", pid.replace('\'', "''")));
+            }
+            if let Some(ref ch) = scope.channel {
+                or_clauses.push(format!("sm.scope_channel = '{}'", ch.replace('\'', "''")));
+            }
+
+            format!("({})", or_clauses.join(" OR "))
+        };
+
+        let sql = format!(
             "SELECT sm.id, sm.subject, sm.predicate, sm.object,
                     sm.confidence, sm.version, sm.supersedes_id,
                     sm.scope_agent_id, sm.scope_project_id, sm.scope_channel,
@@ -664,41 +685,20 @@ impl SessionStore {
              FROM semantic_memories sm
              JOIN semantic_memories_fts fts ON sm.id = fts.id
              WHERE semantic_memories_fts MATCH ?1
+               AND {}
              ORDER BY fts.rank
-             LIMIT ?2"
-        } else {
-            "SELECT sm.id, sm.subject, sm.predicate, sm.object,
-                    sm.confidence, sm.version, sm.supersedes_id,
-                    sm.scope_agent_id, sm.scope_project_id, sm.scope_channel,
-                    sm.source, sm.embedding,
-                    sm.created_at, sm.updated_at,
-                    fts.rank
-             FROM semantic_memories sm
-             JOIN semantic_memories_fts fts ON sm.id = fts.id
-             WHERE semantic_memories_fts MATCH ?1
-               AND (sm.scope_agent_id = ?3 OR sm.scope_agent_id = '')
-             ORDER BY fts.rank
-             LIMIT ?2"
-        };
+             LIMIT ?2",
+            scope_clause
+        );
 
-        let mut stmt = conn.prepare(sql)?;
-        let rows = if agent_filter.is_empty() || scope.global {
-            stmt.query_map(params![query, limit as i64], |row| {
-                let mem = Self::semantic_from_row(row)?;
-                let rank: f64 = row.get(14)?;
-                Ok((mem, -rank))
-            })?
-            .filter_map(|r| r.ok())
-            .collect()
-        } else {
-            stmt.query_map(params![query, limit as i64, agent_filter], |row| {
-                let mem = Self::semantic_from_row(row)?;
-                let rank: f64 = row.get(14)?;
-                Ok((mem, -rank))
-            })?
-            .filter_map(|r| r.ok())
-            .collect()
-        };
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt.query_map(params![query, limit as i64], |row| {
+            let mem = Self::semantic_from_row(row)?;
+            let rank: f64 = row.get(14)?;
+            Ok((mem, -rank))
+        })?
+        .filter_map(|r| r.ok())
+        .collect();
 
         Ok(rows)
     }
@@ -1306,6 +1306,288 @@ impl SessionStore {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// Temporal Search Queries
+// ═════════════════════════════════════════════════════════════════════════════
+
+impl SessionStore {
+    /// Search episodic memories within a time range.
+    pub fn engram_search_episodic_temporal_range(
+        &self,
+        start: &str,
+        end: &str,
+        scope: &MemoryScope,
+        limit: usize,
+    ) -> EngineResult<Vec<EpisodicMemory>> {
+        let conn = self.conn.lock();
+
+        let mut scope_clause = String::from("1=1");
+        if !scope.global {
+            let mut or_clauses: Vec<String> = vec!["em.scope_global = 1".into()];
+            if let Some(ref aid) = scope.agent_id {
+                or_clauses.push(format!("em.scope_agent_id = '{}'", aid.replace('\'', "''")));
+            }
+            if let Some(ref pid) = scope.project_id {
+                or_clauses.push(format!("em.scope_project_id = '{}'", pid.replace('\'', "''")));
+            }
+            if let Some(ref sid) = scope.squad_id {
+                or_clauses.push(format!("em.scope_squad_id = '{}'", sid.replace('\'', "''")));
+            }
+            if let Some(ref ch) = scope.channel {
+                or_clauses.push(format!("em.scope_channel = '{}'", ch.replace('\'', "''")));
+            }
+            if let Some(ref uid) = scope.channel_user_id {
+                or_clauses.push(format!("em.scope_channel_user_id = '{}'", uid.replace('\'', "''")));
+            }
+            or_clauses.push("(em.scope_agent_id IS NULL OR em.scope_agent_id = '')".into());
+            scope_clause = format!("({})", or_clauses.join(" OR "));
+        }
+
+        let sql = format!(
+            "SELECT em.id, em.content_full, em.content_summary, em.content_key_fact, em.content_tags,
+                    em.category, em.importance, em.agent_id, em.session_id, em.source,
+                    em.consolidation_state,
+                    em.scope_global, em.scope_project_id, em.scope_squad_id, em.scope_agent_id,
+                    em.scope_channel, em.scope_channel_user_id,
+                    em.embedding, em.embedding_model,
+                    em.created_at, em.last_accessed_at, em.access_count
+             FROM episodic_memories em
+             WHERE em.created_at >= ?1 AND em.created_at <= ?2
+               AND {scope_clause}
+             ORDER BY em.created_at DESC
+             LIMIT ?3"
+        );
+
+        let mut stmt = conn.prepare(&sql)?;
+        let rows = stmt
+            .query_map(params![start, end, limit as i64], |row| {
+                Self::episodic_from_row(row)
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(rows)
+    }
+
+    /// Search episodic memories by session ID.
+    pub fn engram_search_episodic_by_session(
+        &self,
+        session_id: &str,
+        scope: &MemoryScope,
+        limit: usize,
+    ) -> EngineResult<Vec<EpisodicMemory>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, content_full, content_summary, content_key_fact, content_tags,
+                    category, importance, agent_id, session_id, source,
+                    consolidation_state,
+                    scope_global, scope_project_id, scope_squad_id, scope_agent_id,
+                    scope_channel, scope_channel_user_id,
+                    embedding, embedding_model,
+                    created_at, last_accessed_at, access_count
+             FROM episodic_memories
+             WHERE session_id = ?1
+             ORDER BY created_at ASC
+             LIMIT ?2",
+        )?;
+
+        let rows: Vec<EpisodicMemory> = stmt
+            .query_map(params![session_id, limit as i64], |row| {
+                Self::episodic_from_row(row)
+            })?
+            .filter_map(|r| r.ok())
+            .filter(|m| scope_matches(scope, &m.scope))
+            .collect();
+
+        Ok(rows)
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Entity Profile CRUD
+// ═════════════════════════════════════════════════════════════════════════════
+
+impl SessionStore {
+    /// Ensure the entity_profiles table exists (called from schema migration).
+    pub fn engram_ensure_entity_table(&self) -> EngineResult<()> {
+        let conn = self.conn.lock();
+        conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS entity_profiles (
+                id TEXT PRIMARY KEY,
+                canonical_name TEXT NOT NULL,
+                aliases TEXT NOT NULL DEFAULT '[]',
+                entity_type TEXT NOT NULL DEFAULT 'unknown',
+                first_seen TEXT NOT NULL,
+                last_seen TEXT NOT NULL,
+                mention_count INTEGER NOT NULL DEFAULT 1,
+                memory_ids TEXT NOT NULL DEFAULT '[]',
+                related_entities TEXT NOT NULL DEFAULT '[]',
+                summary TEXT,
+                sentiment REAL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_entity_canonical ON entity_profiles(canonical_name);
+            CREATE INDEX IF NOT EXISTS idx_entity_type ON entity_profiles(entity_type);",
+        )?;
+        Ok(())
+    }
+
+    /// Find an entity profile by canonical name or alias.
+    pub fn engram_find_entity_by_name(
+        &self,
+        name: &str,
+    ) -> EngineResult<Option<crate::atoms::engram_types::EntityProfile>> {
+        use crate::atoms::engram_types::EntityProfile;
+        let conn = self.conn.lock();
+
+        // First try canonical name (case-insensitive)
+        let result: Option<EntityProfile> = conn
+            .query_row(
+                "SELECT id, canonical_name, aliases, entity_type, first_seen, last_seen,
+                        mention_count, memory_ids, related_entities, summary, sentiment
+                 FROM entity_profiles
+                 WHERE LOWER(canonical_name) = LOWER(?1)",
+                params![name],
+                |row| Self::entity_from_row(row),
+            )
+            .optional()?;
+
+        if result.is_some() {
+            return Ok(result);
+        }
+
+        // Fallback: search in aliases JSON array
+        let mut stmt = conn.prepare(
+            "SELECT id, canonical_name, aliases, entity_type, first_seen, last_seen,
+                    mention_count, memory_ids, related_entities, summary, sentiment
+             FROM entity_profiles
+             WHERE LOWER(aliases) LIKE ?1",
+        )?;
+        let pattern = format!("%{}%", name.to_lowercase().replace('%', "\\%"));
+        let found: Option<EntityProfile> = stmt
+            .query_map(params![pattern], |row| Self::entity_from_row(row))?
+            .filter_map(|r| r.ok())
+            .find(|ep| {
+                ep.aliases.iter().any(|a| a.to_lowercase() == name.to_lowercase())
+            });
+
+        Ok(found)
+    }
+
+    /// Get an entity profile by ID.
+    pub fn engram_get_entity_profile(
+        &self,
+        id: &str,
+    ) -> EngineResult<Option<crate::atoms::engram_types::EntityProfile>> {
+        let conn = self.conn.lock();
+        let result = conn
+            .query_row(
+                "SELECT id, canonical_name, aliases, entity_type, first_seen, last_seen,
+                        mention_count, memory_ids, related_entities, summary, sentiment
+                 FROM entity_profiles WHERE id = ?1",
+                params![id],
+                |row| Self::entity_from_row(row),
+            )
+            .optional()?;
+        Ok(result)
+    }
+
+    /// Insert a new entity profile.
+    pub fn engram_insert_entity_profile(
+        &self,
+        profile: &crate::atoms::engram_types::EntityProfile,
+    ) -> EngineResult<()> {
+        let conn = self.conn.lock();
+        let aliases_json = serde_json::to_string(&profile.aliases).unwrap_or_else(|_| "[]".into());
+        let memory_ids_json = serde_json::to_string(&profile.memory_ids).unwrap_or_else(|_| "[]".into());
+        let related_json = serde_json::to_string(&profile.related_entities).unwrap_or_else(|_| "[]".into());
+
+        conn.execute(
+            "INSERT INTO entity_profiles (id, canonical_name, aliases, entity_type, first_seen, last_seen,
+                                          mention_count, memory_ids, related_entities, summary, sentiment)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+            params![
+                profile.id,
+                profile.canonical_name,
+                aliases_json,
+                profile.entity_type.to_string(),
+                profile.first_seen,
+                profile.last_seen,
+                profile.mention_count as i64,
+                memory_ids_json,
+                related_json,
+                profile.summary,
+                profile.sentiment,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Update an existing entity profile.
+    pub fn engram_update_entity_profile(
+        &self,
+        profile: &crate::atoms::engram_types::EntityProfile,
+    ) -> EngineResult<()> {
+        let conn = self.conn.lock();
+        let aliases_json = serde_json::to_string(&profile.aliases).unwrap_or_else(|_| "[]".into());
+        let memory_ids_json = serde_json::to_string(&profile.memory_ids).unwrap_or_else(|_| "[]".into());
+        let related_json = serde_json::to_string(&profile.related_entities).unwrap_or_else(|_| "[]".into());
+
+        conn.execute(
+            "UPDATE entity_profiles SET canonical_name = ?2, aliases = ?3, entity_type = ?4,
+                    first_seen = ?5, last_seen = ?6, mention_count = ?7, memory_ids = ?8,
+                    related_entities = ?9, summary = ?10, sentiment = ?11
+             WHERE id = ?1",
+            params![
+                profile.id,
+                profile.canonical_name,
+                aliases_json,
+                profile.entity_type.to_string(),
+                profile.first_seen,
+                profile.last_seen,
+                profile.mention_count as i64,
+                memory_ids_json,
+                related_json,
+                profile.summary,
+                profile.sentiment,
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Delete an entity profile by ID.
+    pub fn engram_delete_entity_profile(&self, id: &str) -> EngineResult<()> {
+        let conn = self.conn.lock();
+        conn.execute("DELETE FROM entity_profiles WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    /// Parse an entity_profiles row into EntityProfile.
+    fn entity_from_row(
+        row: &rusqlite::Row<'_>,
+    ) -> rusqlite::Result<crate::atoms::engram_types::EntityProfile> {
+        use crate::atoms::engram_types::{EntityProfile, EntityType};
+        let aliases_str: String = row.get(2)?;
+        let entity_type_str: String = row.get(3)?;
+        let memory_ids_str: String = row.get(7)?;
+        let related_str: String = row.get(8)?;
+
+        Ok(EntityProfile {
+            id: row.get(0)?,
+            canonical_name: row.get(1)?,
+            aliases: serde_json::from_str(&aliases_str).unwrap_or_default(),
+            entity_type: entity_type_str.parse::<EntityType>().unwrap_or(EntityType::Unknown),
+            first_seen: row.get(4)?,
+            last_seen: row.get(5)?,
+            mention_count: row.get::<_, i64>(6)? as u32,
+            memory_ids: serde_json::from_str(&memory_ids_str).unwrap_or_default(),
+            related_entities: serde_json::from_str(&related_str).unwrap_or_default(),
+            summary: row.get(9)?,
+            sentiment: row.get(10)?,
+        })
+    }
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // Helpers
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -1316,10 +1598,32 @@ fn non_empty_opt(val: Option<String>) -> Option<String> {
 
 /// Check if a memory's scope is visible to the given search scope.
 fn scope_matches(search_scope: &MemoryScope, memory_scope: &MemoryScope) -> bool {
-    if search_scope.global || memory_scope.global {
+    // Global memories are always visible
+    if memory_scope.global {
         return true;
     }
+    // Global search sees everything
+    if search_scope.global {
+        return true;
+    }
+    // Check each scope level — a match at ANY level grants visibility
+    // (most specific → least specific)
+    if let (Some(ref s), Some(ref m)) = (&search_scope.channel_user_id, &memory_scope.channel_user_id) {
+        if s == m {
+            return true;
+        }
+    }
+    if let (Some(ref s), Some(ref m)) = (&search_scope.channel, &memory_scope.channel) {
+        if s == m {
+            return true;
+        }
+    }
     if let (Some(ref s), Some(ref m)) = (&search_scope.agent_id, &memory_scope.agent_id) {
+        if s == m {
+            return true;
+        }
+    }
+    if let (Some(ref s), Some(ref m)) = (&search_scope.squad_id, &memory_scope.squad_id) {
         if s == m {
             return true;
         }
@@ -1328,6 +1632,15 @@ fn scope_matches(search_scope: &MemoryScope, memory_scope: &MemoryScope) -> bool
         if s == m {
             return true;
         }
+    }
+    // If the memory has no scope restrictions (empty agent_id, no channel, etc.), it's accessible
+    if memory_scope.agent_id.is_none()
+        && memory_scope.project_id.is_none()
+        && memory_scope.squad_id.is_none()
+        && memory_scope.channel.is_none()
+        && memory_scope.channel_user_id.is_none()
+    {
+        return true;
     }
     false
 }

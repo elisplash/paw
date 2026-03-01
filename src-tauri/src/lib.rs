@@ -206,13 +206,19 @@ pub fn run() {
             commands::mail::move_email,
             commands::mail::delete_email,
             commands::mail::set_email_flag,
-            // ── Utility (keychain, weather, db crypto) ──
+            // ── Utility (keychain, weather, db crypto, lock screen) ──
             commands::utility::keyring_has_password,
             commands::utility::keyring_delete_password,
             commands::utility::fetch_weather,
             commands::utility::get_db_encryption_key,
             commands::utility::has_db_encryption_key,
             commands::utility::check_keychain_health,
+            commands::utility::lock_screen_has_passphrase,
+            commands::utility::lock_screen_set_passphrase,
+            commands::utility::lock_screen_verify_passphrase,
+            commands::utility::lock_screen_remove_passphrase,
+            commands::utility::lock_screen_system_auth,
+            commands::utility::lock_screen_system_available,
             // ── Chat & Sessions ──
             commands::chat::engine_chat_send,
             commands::chat::engine_chat_history,
