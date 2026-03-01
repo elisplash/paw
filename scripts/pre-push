@@ -1,10 +1,23 @@
 #!/bin/sh
-# pre-push hook — runs prek --all-files on the file-hygiene hooks
-# before pushing, catching issues that per-file pre-commit missed.
+# pre-push hook — auto-installs prek if missing, then runs file-hygiene
+# checks on ALL files before pushing.
 #
-# Installed by scripts/prepare-hooks.js
+# Managed by scripts/prepare-hooks.js (re-created on `npm install`).
 
 set -e
+
+# ── Auto-install prek if not on PATH ──────────────────────────────
+if ! command -v prek >/dev/null 2>&1; then
+  echo "[pre-push] prek not found — installing…"
+  curl -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
+  # Refresh PATH for cargo-installed binaries
+  export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+  if ! command -v prek >/dev/null 2>&1; then
+    echo "[pre-push] ⚠ Could not install prek. Skipping hooks."
+    exit 0
+  fi
+  echo "[pre-push] prek installed ✓"
+fi
 
 echo "[pre-push] Running file-hygiene checks on all files…"
 
