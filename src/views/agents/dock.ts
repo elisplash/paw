@@ -36,7 +36,7 @@ export function renderAgentDock(deps: DockDeps) {
     document.body.appendChild(_dockEl);
   }
 
-  const agents = deps.getAgents().filter((a) => a.id !== 'default');
+  const agents = deps.getAgents();
   if (agents.length === 0) {
     _dockEl.style.display = 'none';
     return;

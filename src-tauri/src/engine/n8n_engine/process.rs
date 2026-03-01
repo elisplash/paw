@@ -50,6 +50,19 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
         "Starting integration engine (Node.js)...",
     );
 
+    // Redirect n8n output to a log file so we can diagnose startup failures.
+    let log_path = data_dir.join("n8n-process.log");
+    let log_file = std::fs::File::create(&log_path).ok();
+    let stdout_sink = log_file
+        .as_ref()
+        .and_then(|f| f.try_clone().ok())
+        .map(std::process::Stdio::from)
+        .unwrap_or_else(std::process::Stdio::null);
+    let stderr_sink = log_file
+        .and_then(|f| f.try_clone().ok())
+        .map(std::process::Stdio::from)
+        .unwrap_or_else(std::process::Stdio::null);
+
     let child = std::process::Command::new("npx")
         .arg("--yes")
         .arg("n8n@latest")
@@ -67,8 +80,8 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
         .env("N8N_COMMUNITY_PACKAGES_ALLOW_UNVERIFIED", "true")
         .env("N8N_REINSTALL_MISSING_PACKAGES", "true")
         .env("N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE", "true")
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
+        .stdout(stdout_sink)
+        .stderr(stderr_sink)
         .spawn()
         .map_err(|e| EngineError::Other(format!("Failed to start npx n8n: {}", e)))?;
 
@@ -85,6 +98,22 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
                 .arg(pid.to_string())
                 .status();
         }
+
+        // Read tail of n8n log for diagnostics
+        let tail = std::fs::read_to_string(&log_path)
+            .ok()
+            .map(|s| {
+                let lines: Vec<&str> = s.lines().collect();
+                let start = lines.len().saturating_sub(30);
+                lines[start..].join("\n")
+            })
+            .unwrap_or_default();
+        if !tail.is_empty() {
+            log::error!("[n8n] Process log tail:\n{}", tail);
+        } else {
+            log::error!("[n8n] No process log output captured");
+        }
+
         super::emit_status(
             app_handle,
             "error",

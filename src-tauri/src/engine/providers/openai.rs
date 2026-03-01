@@ -43,10 +43,21 @@ pub struct OpenAiProvider {
 
 impl OpenAiProvider {
     pub fn new(config: &ProviderConfig) -> Self {
-        let base_url = config
+        let mut base_url = config
             .base_url
             .clone()
             .unwrap_or_else(|| config.kind.default_base_url().to_string());
+
+        // Ollama's OpenAI-compatible endpoint lives at /v1.  The DB may
+        // store the raw Ollama URL (http://…:11434) without the suffix —
+        // normalise it here so chat requests hit /v1/chat/completions.
+        if config.kind == ProviderKind::Ollama {
+            let trimmed = base_url.trim_end_matches('/');
+            if !trimmed.ends_with("/v1") {
+                base_url = format!("{}/v1", trimmed);
+            }
+        }
+
         let is_azure = base_url.contains(".azure.com");
         OpenAiProvider {
             client: pinned_client(),
