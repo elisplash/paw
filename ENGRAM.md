@@ -82,12 +82,16 @@ Five principles guide every architectural decision in Engram:
 
 ```mermaid
 flowchart TD
-    A["User Message"] --> B["Sensory Buffer\n(ring buffer)"]
-    B --> C["Working Memory\n(priority-evicted slots)"]
-    C --> D["ContextBuilder\n(budget-aware prompt assembly)"]
-    D --> E["Agent Response"]
+    A["User Message"] --> SB["Sensory Buffer\n(Tier 0 — FIFO ring cache)"]
+    SB --> WM["Working Memory\n(Tier 1 — priority-evicted attention cache)"]
 
-    C <--> F["Long-Term Memory Graph"]
+    WM --> CTX["ContextBuilder\n(budget-aware prompt assembly)"]
+    CTX --> E["Agent Response"]
+
+    E --> CAP["Post-Capture\n(auto-extract facts, preferences, outcomes)"]
+    CAP --> ENC["Encryption Layer\n(PII detect → AES-256-GCM)"]
+    ENC --> BR["Engram Bridge\n(dedup → embed → store)"]
+    BR --> DB[("SQLite — Long-Term Memory\n(Tier 2)")]
 
     subgraph LTM["Long-Term Memory Graph"]
         direction LR
@@ -96,13 +100,49 @@ flowchart TD
         I["Procedural Store\n(how to do things)"]
     end
 
-    F --- J["Graph Edges (8 types)\nSpreading Activation"]
+    DB --- LTM
+    LTM --- J["Graph Edges (8 types)\nSpreading Activation"]
 
-    K["Consolidation Engine\n(background, every 5 min)"] --> F
-    K -.- K1["Pattern clustering"]
-    K -.- K2["Contradiction detection"]
-    K -.- K3["Ebbinghaus strength decay"]
-    K -.- K4["Garbage collection"]
+    WM --> RG["Retrieval Gate\n(Skip / Retrieve / Deep / Refuse / Defer)"]
+    RG --> HS["Hybrid Search\n(BM25 + Vector + Graph)"]
+    HS --> RR["Reranking\n(RRF / MMR / RRF+MMR)"]
+    RR --> QG["Quality Gate\n(relevance check → reformulate or refuse)"]
+    QG --> WM
+
+    DB --> HS
+
+    subgraph Background["Background Processes"]
+        direction TB
+        K["Consolidation Engine\n(every 5 min)"]
+        K1["Pattern clustering"]
+        K2["Contradiction detection"]
+        K3["Ebbinghaus decay"]
+        K4["Garbage collection"]
+        FUS["Memory Fusion\n(cosine ≥ 0.92 → merge → tombstone)"]
+        DR["Dream Replay\n(idle-time re-embed + discover connections)"]
+    end
+
+    DB <--> K
+    K -.- K1
+    K -.- K2
+    K -.- K3
+    K -.- K4
+    K --> FUS
+    FUS --> DB
+    DR --> DB
+
+    subgraph Cognition["Cognitive Modules"]
+        direction LR
+        EM["Emotional Memory\n(affective scoring)"]
+        MC["Meta-Cognition\n(confidence maps)"]
+        IC["Intent Classifier\n(6-intent routing)"]
+        ET["Entity Tracker\n(canonical resolution)"]
+    end
+
+    HS --> Cognition
+    Cognition --> RR
+
+    MB["Memory Bus\n(multi-agent sync)"] <--> DB
 ```
 
 The system is implemented as 23 Rust modules under `src-tauri/src/engine/engram/`:
@@ -239,14 +279,19 @@ Engram uses three search signals, fused with reciprocal rank fusion (RRF):
 
 ```mermaid
 flowchart LR
-    Q["Search Query"] --> CL["Query Classifier\n(factual vs conceptual)"]
+    Q["Search Query"] --> RG["Retrieval Gate\n(Skip / Retrieve / Deep)"]
+    RG -- Skip --> SKIP["Return empty\n(no search needed)"]
+    RG -- Retrieve / Deep --> CL["Query Classifier\n(factual vs conceptual)"]
     CL --> BM["BM25\n(SQLite FTS5)"]
     CL --> VS["Vector Similarity\n(Ollama embeddings)"]
     BM --> RRF["Reciprocal Rank Fusion\nRRF_score = Σ 1/(k + rank)"]
     VS --> RRF
-    RRF --> SA["Graph Spreading\nActivation (1-hop)"]
+    RRF --> SA["Graph Spreading\nActivation (1-hop → 2-hop)"]
     SA --> RR["Reranking\n(RRF / MMR / RRF+MMR)"]
-    RR --> R["Ranked Results"]
+    RR --> QG["Quality Gate\n(relevance ≥ 0.3?)"]
+    QG -- Pass --> R["Ranked Results"]
+    QG -- Fail --> RF["Reformulate / Expand / Refuse"]
+    RF --> CL
 ```
 
 ### 1. BM25 Full-Text Search (SQLite FTS5)
