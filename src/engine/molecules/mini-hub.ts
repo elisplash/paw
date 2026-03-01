@@ -22,11 +22,11 @@ import { findLastIndex } from '../atoms/chat';
 
 // ── Constants ────────────────────────────────────────────────────────────
 
-const HUB_MIN_WIDTH = 300;
+const HUB_MIN_WIDTH = 260;
 const HUB_MAX_WIDTH_RATIO = 0.92; // never wider than 92% of viewport
 const HUB_MAX_HEIGHT_RATIO = 0.85; // never taller than 85% of viewport
-const HUB_PREFERRED_WIDTH = 360;
-const HUB_PREFERRED_HEIGHT = 500;
+const HUB_PREFERRED_WIDTH = 270;
+const HUB_PREFERRED_HEIGHT = 380;
 const HUB_EDGE_PADDING = 8; // min gap from viewport edges
 
 /** Compute clamped width/height that fits the current viewport. */
