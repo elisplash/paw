@@ -74,6 +74,7 @@ export function renderFlowList(
       <div class="flow-list-actions">
         <button class="flow-list-new-btn" data-action="new-folder" title="New Folder"><span class="ms">create_new_folder</span></button>
         <button class="flow-list-new-btn" title="New Flow"><span class="ms">add</span></button>
+        <button class="flow-list-new-btn flow-sidebar-collapse-btn" data-action="collapse-sidebar" title="Hide sidebar (Ctrl+B)"><span class="ms">left_panel_close</span></button>
       </div>
     </div>
     <div class="flow-list-items">
@@ -86,6 +87,11 @@ export function renderFlowList(
   container
     .querySelector('.flow-list-new-btn:not([data-action])')
     ?.addEventListener('click', onNew);
+
+  // Wire sidebar collapse button
+  container.querySelector('[data-action="collapse-sidebar"]')?.addEventListener('click', () => {
+    document.dispatchEvent(new CustomEvent('flow:toolbar', { detail: { action: 'toggle-list' } }));
+  });
 
   // Wire new folder button
   container.querySelector('[data-action="new-folder"]')?.addEventListener('click', () => {
