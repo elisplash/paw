@@ -570,13 +570,6 @@ Engram is wired into every major execution path:
 
 ```mermaid
 flowchart TD
-    subgraph Capture["Post-Capture (after agent turn)"]
-        CH["Chat"] --> PC["Auto-capture facts"]
-        TA["Tasks"] --> PC2["Store task_result"]
-        OR["Orchestrator"] --> PC3["Store project outcome"]
-        CO["Compaction"] --> PC4["Store session summary"]
-    end
-
     subgraph Recall["Pre-Recall (before agent turn)"]
         R1["Chat auto-recall"]
         R2["Task memory injection"]
@@ -584,11 +577,34 @@ flowchart TD
         R4["Swarm agent recall"]
     end
 
-    Recall --> HS["Hybrid Search\n(BM25 + Vector + Graph)"]
-    HS --> CTX["ContextBuilder\n(inject into prompt)"]
-    Capture --> BR["Engram Bridge\n(PII encrypt → dedup → embed → store)"]
+    subgraph Capture["Post-Capture (after agent turn)"]
+        CH["Chat"] --> PC["Auto-capture facts"]
+        TA["Tasks"] --> PC2["Store task_result"]
+        OR["Orchestrator"] --> PC3["Store project outcome"]
+        CO["Compaction"] --> PC4["Store session summary"]
+        CB["Channel Bridges\n(Discord, Slack, Telegram…)"] --> PC5["Store with scope metadata"]
+    end
+
+    R1 & R2 & R3 & R4 --> RG["Retrieval Gate\n(Skip / Retrieve / Deep)"]
+    RG --> HS["Hybrid Search\n(BM25 + Vector + Graph)"]
+    HS --> QG["Quality Gate\n(relevance check)"]
+    QG --> CTX["ContextBuilder\n(budget-aware inject into prompt)"]
+
+    PC & PC2 & PC3 & PC4 & PC5 --> BR["Engram Bridge\n(PII encrypt → dedup → embed → store)"]
     BR --> DB[("SQLite\nEpisodic / Semantic / Procedural")]
     DB --> HS
+
+    AT["Agent Tools\n(store, search, knowledge,\nstats, delete, update, list)"] <--> BR
+    AT <--> HS
+
+    subgraph Background["Background (every 5 min)"]
+        CON["Consolidation Engine\n(cluster → contradict → decay → GC)"]
+        FUS["Memory Fusion\n(dedup → merge → tombstone)"]
+    end
+
+    DB <--> CON
+    CON --> FUS
+    FUS --> DB
 ```
 
 ### Chat
