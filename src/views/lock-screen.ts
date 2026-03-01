@@ -34,10 +34,17 @@ let _setupBothMode = false; // true when setup flow picked "Both"
 export function initLockScreen(): Promise<void> {
   return new Promise(async (resolve) => {
     const lockScreen = $('lock-screen');
-    if (!lockScreen) { resolve(); return; }
+    if (!lockScreen) {
+      resolve();
+      return;
+    }
 
     const hasTauri = !!(window as unknown as Record<string, unknown>).__TAURI_INTERNALS__;
-    if (!hasTauri) { hideLockScreen(lockScreen); resolve(); return; }
+    if (!hasTauri) {
+      hideLockScreen(lockScreen);
+      resolve();
+      return;
+    }
 
     _lockScreen = lockScreen;
     _resolve = resolve;
@@ -68,7 +75,10 @@ function wireListeners() {
   // Passphrase unlock
   $('lock-submit')!.addEventListener('click', tryUnlock);
   $('lock-password')!.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter') { e.preventDefault(); tryUnlock(); }
+    if ((e as KeyboardEvent).key === 'Enter') {
+      e.preventDefault();
+      tryUnlock();
+    }
   });
 
   // Reset link
@@ -82,10 +92,16 @@ function wireListeners() {
   $('lock-setup-back')!.addEventListener('click', handleSetupBack);
   $('lock-setup-submit')!.addEventListener('click', trySetup);
   $('lock-new-password')!.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter') { e.preventDefault(); ($('lock-confirm-password') as HTMLInputElement).focus(); }
+    if ((e as KeyboardEvent).key === 'Enter') {
+      e.preventDefault();
+      ($('lock-confirm-password') as HTMLInputElement).focus();
+    }
   });
   $('lock-confirm-password')!.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter') { e.preventDefault(); trySetup(); }
+    if ((e as KeyboardEvent).key === 'Enter') {
+      e.preventDefault();
+      trySetup();
+    }
   });
 }
 
@@ -164,7 +180,11 @@ async function tryUnlock() {
   const errorEl = $('lock-error')!;
   const passphrase = passwordInput.value;
 
-  if (!passphrase) { errorEl.textContent = 'Please enter your passphrase'; shakeInput(passwordInput); return; }
+  if (!passphrase) {
+    errorEl.textContent = 'Please enter your passphrase';
+    shakeInput(passwordInput);
+    return;
+  }
 
   submitBtn.disabled = true;
   errorEl.textContent = '';
@@ -260,8 +280,16 @@ async function trySetup() {
   const newPass = newPasswordInput.value;
   const confirmPass = confirmPasswordInput.value;
 
-  if (!newPass) { errorEl.textContent = 'Please enter a passphrase'; shakeInput(newPasswordInput); return; }
-  if (newPass.length < 4) { errorEl.textContent = 'Passphrase must be at least 4 characters'; shakeInput(newPasswordInput); return; }
+  if (!newPass) {
+    errorEl.textContent = 'Please enter a passphrase';
+    shakeInput(newPasswordInput);
+    return;
+  }
+  if (newPass.length < 4) {
+    errorEl.textContent = 'Passphrase must be at least 4 characters';
+    shakeInput(newPasswordInput);
+    return;
+  }
   if (newPass !== confirmPass) {
     errorEl.textContent = 'Passphrases do not match';
     shakeInput(confirmPasswordInput);
@@ -287,14 +315,24 @@ async function trySetup() {
 
 async function handleReset() {
   localStorage.removeItem(LOCK_MODE_KEY);
-  try { await invoke('lock_screen_remove_passphrase'); } catch { /* ignore */ }
+  try {
+    await invoke('lock_screen_remove_passphrase');
+  } catch {
+    /* ignore */
+  }
   await showSetupForm();
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 function hideAllForms() {
-  for (const id of ['lock-form-system', 'lock-form-unlock', 'lock-form-setup', 'lock-divider', 'lock-footer-links']) {
+  for (const id of [
+    'lock-form-system',
+    'lock-form-unlock',
+    'lock-form-setup',
+    'lock-divider',
+    'lock-footer-links',
+  ]) {
     const el = $(id);
     if (el) el.style.display = 'none';
   }
