@@ -301,6 +301,7 @@ export function finalizeStreaming(
 
   const actionsBar = $('chat-stream-actions');
   if (actionsBar) actionsBar.style.display = 'none';
+  $('chat-actions-dropdown')?.classList.remove('open');
 
   const currentAgent = AgentsModule.getCurrentAgent();
   if (streamingAgent && currentAgent && streamingAgent !== currentAgent.id) {

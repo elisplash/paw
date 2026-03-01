@@ -9,6 +9,7 @@ const _iconMap: Record<string, string> = {
   send: 'send',
   square: 'stop',
   'rotate-ccw': 'replay',
+  'rotate-cw': 'autorenew',
   x: 'close',
   image: 'image',
   'file-text': 'description',
@@ -18,6 +19,9 @@ const _iconMap: Record<string, string> = {
   'external-link': 'open_in_new',
   minus: 'remove',
   'maximize-2': 'open_in_full',
+  'list-plus': 'playlist_add',
+  compass: 'explore',
+  'chevron-up': 'expand_less',
 };
 
 /** Render a Material Symbols icon span. */
