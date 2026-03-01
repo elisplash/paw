@@ -1,11 +1,11 @@
 ---
 title: "n8n"
-description: "OpenPawz embeds n8n as a local automation engine — auto-provisioned, MCP-bridged, with 25,000+ community node types available to your agents."
+description: "OpenPawz embeds n8n as a local automation engine — auto-provisioned, MCP-bridged, with 25,000+ community integrations available to your agents via workflow-level MCP tools."
 ---
 
 # n8n — Embedded Automation Engine
 
-OpenPawz embeds [n8n](https://n8n.io) directly into the desktop app. It auto-provisions at launch (via Docker or npx), connects via the **Model Context Protocol (MCP)**, and exposes **25,000+ community node types** as agent tools. No manual setup required.
+OpenPawz embeds [n8n](https://n8n.io) directly into the desktop app. It auto-provisions at launch (via Docker or npx), connects via the **Model Context Protocol (MCP)**, and provides access to **25,000+ community integrations** through auto-deployed workflows. No manual setup required.
 
 <Note>
 n8n in OpenPawz is **not a separate service you manage**. It's an embedded engine that starts automatically, runs locally, and is fully controlled by your agents via the MCP Bridge.
@@ -17,9 +17,9 @@ n8n in OpenPawz is **not a separate service you manage**. It's an embedded engin
 
 OpenPawz uses n8n in two ways:
 
-### 1. MCP Bridge (Primary — New)
+### 1. MCP Bridge (Primary)
 
-The MCP Bridge connects your agents to n8n's **25,000+ community node types** via the Model Context Protocol. Agents discover and execute n8n nodes automatically:
+The MCP Bridge connects your agents to n8n via the Model Context Protocol. n8n's MCP server exposes **three workflow-level tools** (`search_workflows`, `execute_workflow`, `get_workflow_details`). Paw auto-deploys per-service workflows that agents discover and execute:
 
 ```mermaid actions={false}
 graph LR
@@ -27,8 +27,9 @@ graph LR
         A["Agent"] -->|"MCP Bridge"| B["Embedded n8n"]
     end
     subgraph n8n Engine
-        B -->|"SSE Transport"| C["25,000+ Node Types"]
-        C -->|"Auto-install"| D["Community Packages"]
+        B -->|"Streamable HTTP"| C["Workflow-Level MCP Tools"]
+        C -->|"execute_workflow"| D["Auto-Deployed Workflows"]
+        D -->|"25,000+ nodes"| E["Community Packages"]
     end
 ```
 
@@ -64,7 +65,8 @@ n8n is **auto-provisioned** when you launch OpenPawz. No manual setup required.
 Verify it's working by checking the logs:
 ```
 [n8n] Starting embedded n8n engine...
-[mcp] Auto-registering n8n as MCP server at http://127.0.0.1:5678/mcp
+[mcp] Auto-registering n8n as MCP server at http://127.0.0.1:5678/mcp-server/http
+[mcp:http] Available tools: search_workflows, execute_workflow, get_workflow_details
 ```
 
 ### Manual (REST API — Optional)

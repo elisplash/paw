@@ -26,15 +26,15 @@ export interface StrategyOverlayData {
 // ── Colors ─────────────────────────────────────────────────────────────────
 
 const UNIT_COLORS: Record<StrategyUnit['kind'], string> = {
-  collapsed:   'var(--kinetic-sage, #5BA08C)',
-  parallel:    'var(--accent, #5E9EFF)',
-  sequential:  'var(--text-muted, #666)',
-  convergent:  'var(--kinetic-gold, #D4A853)',
+  collapsed: 'var(--kinetic-sage, #5BA08C)',
+  parallel: 'var(--accent, #5E9EFF)',
+  sequential: 'var(--text-muted, #666)',
+  convergent: 'var(--kinetic-gold, #D4A853)',
 };
 
 const UNIT_ICONS: Record<StrategyUnit['kind'], string> = {
-  collapsed:  'compress',
-  parallel:   'stacks',
+  collapsed: 'compress',
+  parallel: 'stacks',
   sequential: 'arrow_downward',
   convergent: 'cycle',
 };
@@ -99,9 +99,7 @@ function renderUnit(
   svgEl: (tag: string) => SVGElement,
 ): SVGGElement | null {
   // Calculate bounding box of all nodes in the unit
-  const nodes = unit.nodeIds
-    .map((id) => nodeMap.get(id))
-    .filter((n): n is FlowNode => n != null);
+  const nodes = unit.nodeIds.map((id) => nodeMap.get(id)).filter((n): n is FlowNode => n != null);
 
   if (nodes.length === 0) return null;
 
@@ -228,7 +226,10 @@ function renderSummaryBadge(
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function computeBounds(nodes: FlowNode[]): { x: number; y: number; w: number; h: number } {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const n of nodes) {
     if (n.x < minX) minX = n.x;
     if (n.y < minY) minY = n.y;

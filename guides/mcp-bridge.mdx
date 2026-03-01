@@ -6,7 +6,7 @@ sidebarTitle: "MCP Bridge"
 
 # MCP Bridge — Zero-Gap Automation
 
-OpenPawz ships with 400+ native integrations compiled into the Rust binary. The **MCP Bridge** extends this to **25,000+** by embedding an n8n engine and connecting to it via the Model Context Protocol (MCP). Your agents discover, install, and execute any of n8n's community node types — automatically, at runtime, with zero configuration.
+OpenPawz ships with 400+ native integrations compiled into the Rust binary. The **MCP Bridge** extends this to **25,000+** by embedding an n8n engine and connecting to it via the Model Context Protocol (MCP). Your agents discover, install, and execute any of n8n's community packages — automatically, at runtime, with zero configuration.
 
 <Note>
 This is the feature that makes OpenPawz the most connected AI agent platform in existence. No other tool — open source or commercial — offers this level of integration coverage.
@@ -18,18 +18,18 @@ This is the feature that makes OpenPawz the most connected AI agent platform in 
 
 ```mermaid actions={false}
 graph TD
-    A["User: 'Generate a QR code for my website'"] --> B["Agent calls request_tools()"]
-    B --> C["Librarian (embedding model)\nSemantic search over tool index"]
-    C --> D["Finds: n8n-nodes-base.qrCode"]
-    D --> E{"Package installed?"}
-    E -->|No| F["Auto-install via npm\ninside n8n container"]
-    E -->|Yes| G["Execute via MCP Bridge"]
+    A["User: 'Post a photo to Instagram'"] --> B["Agent calls request_tools()"]
+    B --> C["Librarian (embedding model)\nSemantic search over workflow index"]
+    C --> D["Finds workflow: 'OpenPawz MCP — Instagram'"]
+    D --> E{"Workflow deployed?"}
+    E -->|No| F["Auto-deploy workflow\nvia engine_n8n_deploy_mcp_workflow"]
+    E -->|Yes| G["Execute via MCP Bridge\nexecute_workflow(workflowId, inputs)"]
     F --> G
-    G --> H["n8n executes node\nReturns result via SSE"]
-    H --> I["Agent returns QR code to user"]
+    G --> H["n8n runs workflow\nReturns result via Streamable HTTP"]
+    H --> I["Agent returns result to user"]
 ```
 
-The flow is fully automatic. The user just asks for what they need — the agent figures out which integration to use, installs it if necessary, and executes it.
+The flow is fully automatic. The user just asks for what they need — the agent figures out which workflow to use, deploys it if necessary, and executes it.
 
 ---
 
@@ -48,34 +48,51 @@ n8n is auto-provisioned at app launch with zero user configuration:
 
 The engine starts 8 seconds after app launch in a background thread. Health checks run before every MCP operation via `lazy_ensure_n8n()`.
 
-### 2. MCP Transport
+### 2. MCP Transport — Streamable HTTP
 
-Two transport implementations in `transport.rs` (688 lines):
+n8n's MCP server uses **Streamable HTTP** at `/mcp-server/http`. This was confirmed working with n8n MCP Server v1.0.0 (protocol version `2024-11-05`).
 
-| Transport | Protocol | Use Case |
-|-----------|----------|----------|
-| **SSE** (`SseTransport`) | Server-Sent Events over HTTP | n8n connection (default) |
-| **Stdio** (`StdioTransport`) | stdin/stdout JSON-RPC | External MCP servers |
+| Detail | Value |
+|--------|-------|
+| **Endpoint** | `POST /mcp-server/http` |
+| **Auth** | `Authorization: Bearer <mcp-api-key-jwt>` |
+| **Accept** | `application/json, text/event-stream` |
+| **Content-Type** | `application/json` |
+| **Response format** | SSE (`event: message\ndata: {json}\n\n`) |
 
-The SSE transport connects to `http://127.0.0.1:5678/mcp/sse`, receives tool definitions, and sends tool calls via JSON-RPC.
+The transport is implemented in `transport.rs` alongside Stdio and legacy SSE transports.
 
-### 3. Auto-Registration & Tool Remapping
+### 3. n8n MCP Tools — Workflow-Level Operations
 
-`registry.rs` handles automatic MCP server registration:
+n8n's MCP server exposes **three workflow-level tools** — not individual node operations. This is the key architectural insight:
 
-- **`register_n8n()`** — registers n8n as an MCP server with `N8N_MCP_SERVER_ID`
-- **`pascal_to_snake()`** — converts n8n's PascalCase tool names (e.g., `QrCode`) to snake_case (`qr_code`) for LLM compatibility
-- **`mcp_tool_to_paw_def()`** — converts MCP tool schemas to Paw's internal tool format
+| MCP Tool | Purpose | Parameters |
+|----------|---------|------------|
+| `search_workflows` | Find workflows by name or description | `query`, `limit`, `projectId` |
+| `execute_workflow` | Run a workflow with typed inputs | `workflowId`, `chatInput` / `formData` / `webhookData` |
+| `get_workflow_details` | Inspect a workflow's nodes, triggers, and connections | `workflowId` |
 
-### 4. Community Node Auto-Install
+The `execute_workflow` tool supports three input types:
 
-When an agent needs a tool that requires an n8n community package:
+| Input Type | When Used | Fields |
+|-----------|-----------|--------|
+| **Chat** | Workflows with a chat trigger | `chatInput` (string) |
+| **Form** | Workflows with a form trigger | `formData` (key-value object) |
+| **Webhook** | Workflows with a webhook trigger | `method`, `query`, `body`, `headers` |
 
-1. `COMMUNITY_PACKAGE_MAP` maps node type → npm package name
-2. `getRequiredPackage()` checks if the package is needed
-3. `_showAutoInstallPrompt()` presents a one-click install UI
-4. Package is installed inside the n8n container/process via npm
-5. MCP tool list is refreshed automatically
+n8n also declares `listChanged: true` capability — the server notifies when new workflows appear.
+
+### 4. Workflow-First Integration
+
+When an agent needs to use a community package (e.g. Instagram, Puppeteer):
+
+1. The community package is installed inside the n8n container via npm
+2. n8n restarts and loads the new node types
+3. Paw **auto-deploys a workflow** via `engine_n8n_deploy_mcp_workflow` — e.g. "OpenPawz MCP — Instagram"
+4. The workflow becomes executable through `execute_workflow(workflowId, inputs)`
+5. The Librarian indexes the new workflow for semantic discovery
+
+This is fundamentally different from exposing individual node types as MCP tools. Workflows are composable — a single workflow can chain multiple nodes (credential binding, error handling, retries, data transformation) into one coherent operation.
 
 ---
 
@@ -86,12 +103,12 @@ Cloud LLMs (Gemini, Claude, GPT) act as **Architects** — they plan and orchest
 ```mermaid actions={false}
 graph LR
     subgraph Cloud["Architect (Cloud LLM)"]
-        A["Plans task"] --> B["Identifies needed tools"]
+        A["Plans task"] --> B["Identifies needed workflows"]
         B --> C["Delegates to worker"]
     end
     subgraph Local["Worker (any model — e.g. Ollama, gpt-4o-mini)"]
         C --> D["Receives task + MCP tool schemas"]
-        D --> E["Executes tool calls via MCP"]
+        D --> E["Calls execute_workflow via MCP"]
         E --> F["Returns results"]
     end
     F --> G["Architect synthesizes\nfinal response"]
@@ -101,23 +118,22 @@ graph LR
 |------|-------|------|---------|
 | **Architect** | Gemini / Claude / GPT | Per-token | Planning, reasoning, user interaction |
 | **Worker** | Any cheaper model (e.g. Ollama `worker-qwen`, or cloud `gpt-4o-mini`) | $0 local / low cloud | MCP tool execution, structured I/O |
-| **Librarian** | Any embedding model (e.g. Ollama `nomic-embed-text`, or cloud embedding API) | $0 local / low cloud | Semantic tool discovery (embeddings) |
+| **Librarian** | Any embedding model (e.g. Ollama `nomic-embed-text`, or cloud embedding API) | $0 local / low cloud | Semantic workflow discovery (embeddings) |
 
 ### How It Works in Practice
 
 When you say *"Send a message to #general on Slack"*:
 
-1. **Architect** (Gemini/Claude) decides to call the `mcp_slack_send_message` tool
+1. **Architect** (Gemini/Claude) decides to call `execute_workflow` for the Slack messaging workflow
 2. The engine **intercepts** the MCP tool call before execution
 3. **Worker** (local Ollama, free) receives the task and the MCP tool schemas
-4. Worker connects to n8n's MCP bridge — **n8n tells the worker how to use the tool** (self-describing schemas)
-5. Worker executes the tool call via JSON-RPC → n8n → Slack API
-6. Result flows back: Worker → Engine → Architect → User
+4. Worker calls `execute_workflow(workflowId, webhookData)` via MCP → n8n executes the workflow → Slack API
+5. Result flows back: Worker → Engine → Architect → User
 
-The Architect never touches the MCP layer directly. The Worker doesn't need pre-built knowledge of Slack, Trello, or any integration — MCP provides the schemas at runtime.
+The Architect never touches the MCP layer directly. The Worker doesn't need pre-built knowledge of Slack, Trello, or any integration — MCP provides the tool schemas, and each workflow encapsulates the integration logic.
 
 <Note>
-**This is the breakthrough:** The worker model doesn't need to know how to use 25,000+ integrations. MCP servers are self-describing — they tell the worker what tools are available and how to call them. Any new n8n community node is instantly usable with zero configuration, zero training, zero cost.
+**This is the breakthrough:** The worker model doesn't need to know how to use 25,000+ integrations. n8n's MCP server is self-describing — it tells the worker what workflows are available and how to execute them. Any new workflow Paw deploys is instantly discoverable and executable with zero configuration, zero training, zero cost.
 </Note>
 
 ### Fallback Behavior
@@ -141,7 +157,7 @@ If no `worker_model` is configured in **Settings → Models → Model Routing**,
 
 ## What Can Agents Do?
 
-With the MCP Bridge, your agents can access any service that has an n8n community node. Here are some examples that require **no API keys**:
+With the MCP Bridge, your agents can access any service that has an n8n community package — via auto-deployed workflows. Here are some examples that require **no API keys**:
 
 | Category | Examples |
 |----------|----------|
@@ -166,6 +182,20 @@ And with API keys configured in n8n:
 
 ---
 
+## All Five Directions
+
+The workflow-first architecture supports every integration pattern:
+
+| Direction | How | Example |
+|-----------|-----|---------|
+| **Forward** | Agent → `execute_workflow` → external service | "Send a Slack message" |
+| **Backward** | n8n trigger → webhook → agent | Incoming email triggers agent response |
+| **Bidirectional** | Read + write in same conversation | Read Jira tickets, then update them |
+| **Single-use** | Agent builds an ephemeral workflow on the fly | One-time data migration |
+| **Flows** | Conductor orchestrates multi-workflow chains | Daily report → email → Slack summary |
+
+---
+
 ## Setup
 
 The MCP Bridge requires **zero configuration** for basic operation. Everything is auto-provisioned.
@@ -186,7 +216,7 @@ If using Ollama locally, three models power the system:
 # Worker model — executes MCP tool calls
 ollama pull qwen2.5-coder:7b
 
-# Embedding model — semantic tool discovery + memory
+# Embedding model — semantic workflow discovery + memory
 ollama pull nomic-embed-text
 
 # Chat fallback — default offline chat model
@@ -199,8 +229,9 @@ After launching OpenPawz, check the logs for:
 
 ```
 [n8n] Starting embedded n8n engine...
-[mcp] Auto-registering n8n as MCP server at http://127.0.0.1:5678/mcp
-[mcp:sse] Connecting to http://127.0.0.1:5678/mcp/sse
+[mcp] Auto-registering n8n as MCP server at http://127.0.0.1:5678/mcp-server/http
+[mcp:http] Connected to n8n MCP — protocol 2024-11-05
+[mcp:http] Available tools: search_workflows, execute_workflow, get_workflow_details
 ```
 
 You can also check n8n status in **Settings → Advanced → n8n Engine**.
@@ -214,13 +245,13 @@ OpenPawz includes a built-in **Community Browser** UI for discovering n8n commun
 1. Open **Settings → Advanced → Community Nodes**
 2. Search the n8n community registry
 3. Click **Install** to add a package
-4. The MCP tool list refreshes automatically
+4. Paw auto-deploys a workflow for the new node type and refreshes the MCP tool list
 
 Alternatively, agents can discover and install packages conversationally:
 
 > "I need to generate QR codes"
 >
-> *Agent searches community nodes, finds n8n-nodes-base.qrCode, installs the package, and generates the QR code — all in one conversation.*
+> *Agent searches community nodes, finds the QR code package, installs it, deploys a workflow, and generates the QR code — all in one conversation.*
 
 ---
 
@@ -229,10 +260,10 @@ Alternatively, agents can discover and install packages conversationally:
 | | **OpenPawz MCP Bridge** | **Zapier** | **Make** | **n8n (standalone)** |
 |---|---|---|---|---|
 | **Integrations** | 25,000+ | 7,000+ | 2,000+ | 400+ built-in |
-| **AI-driven** | Agents discover & execute | Manual setup | Manual setup | Manual setup |
-| **Auto-install** | On-demand, at runtime | Pre-configured | Pre-configured | Manual npm install |
+| **AI-driven** | Agents discover & execute workflows | Manual setup | Manual setup | Manual setup |
+| **Auto-deploy** | Workflows created at runtime | Pre-configured | Pre-configured | Manual workflow building |
 | **Cost** | $0 local / low cloud | $20–600/mo | $9–300/mo | Free (self-hosted) |
-| **Natural language** | "Generate a QR code" | Drag-and-drop | Drag-and-drop | Drag-and-drop |
+| **Natural language** | "Post a photo to Instagram" | Drag-and-drop | Drag-and-drop | Drag-and-drop |
 | **Privacy** | 100% local | Cloud | Cloud | Self-hosted option |
 | **Multi-agent** | Yes | No | No | No |
 
@@ -243,9 +274,11 @@ Alternatively, agents can discover and install packages conversationally:
 | Problem | Solution |
 |---------|----------|
 | n8n not starting | Check Docker is running (`docker ps`) or Node.js 18+ is available (`node --version`) |
-| SSE stream closes immediately | Expected if no MCP workflows are deployed yet. Install a community package first. |
+| MCP 403 "access is disabled" | Paw auto-enables MCP via `PATCH /rest/mcp/settings`. If manual, ensure `mcpAccessEnabled: true`. |
+| MCP 406 "must accept both" | The transport must send `Accept: application/json, text/event-stream`. Check transport config. |
 | "No MCP tools available" | Run `mcp_refresh` or restart the app. Check that n8n is healthy at `http://localhost:5678`. |
-| Community package install fails | Ensure n8n has network access. Check container logs: `docker logs openpawz-n8n`. |
+| Community package install fails | Ensure n8n has network access. Check container logs: `docker logs paw-n8n`. |
+| Workflow not found after install | The auto-deploy step may have failed. Check logs for `engine_n8n_deploy_mcp_workflow` errors. |
 | Worker model not found | If using Ollama, run `ollama pull qwen2.5-coder:7b`. Otherwise, configure any model as the worker in Settings → Models → Model Routing. |
 
 ---
@@ -255,6 +288,7 @@ Alternatively, agents can discover and install packages conversationally:
 - n8n runs **locally** — no cloud relay, no data leaves your machine
 - Community packages are installed from the **official npm registry**
 - MCP transport uses **localhost-only** connections (127.0.0.1:5678)
+- MCP auth uses a **JWT with `mcp-server-api` audience** — separate from the REST API key
 - All tool calls go through OpenPawz's **Human-in-the-Loop approval** system
 - Credential injection for n8n nodes uses the same **AES-256-GCM encrypted vault**
 - The MCP Bridge inherits all 10 security layers from the core platform

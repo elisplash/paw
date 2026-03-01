@@ -49,11 +49,7 @@ export function validateConnection(
  * Check if connecting would create a cycle.
  * Uses BFS from toNode to see if it reaches fromNode.
  */
-export function wouldCreateCycle(
-  graph: FlowGraph,
-  fromNodeId: string,
-  toNodeId: string,
-): boolean {
+export function wouldCreateCycle(graph: FlowGraph, fromNodeId: string, toNodeId: string): boolean {
   // BFS forward from toNode — if we can reach fromNode, it's a cycle
   const visited = new Set<string>();
   const queue = [toNodeId];
@@ -129,7 +125,13 @@ export function classifyDropTargets(
     }
 
     // Check specific connection rules
-    const reason = validateConnection(sourceNode, node, sourcePort, node.inputs[0] ?? 'in', graph.edges);
+    const reason = validateConnection(
+      sourceNode,
+      node,
+      sourcePort,
+      node.inputs[0] ?? 'in',
+      graph.edges,
+    );
     if (reason) {
       result.set(node.id, 'invalid');
       continue;
@@ -152,12 +154,7 @@ export function classifyDropTargets(
 const SNAP_DISTANCE = 20;
 
 /** Check if a point is close enough to snap to a port. */
-export function snapToPort(
-  mouseX: number,
-  mouseY: number,
-  portX: number,
-  portY: number,
-): boolean {
+export function snapToPort(mouseX: number, mouseY: number, portX: number, portY: number): boolean {
   const dx = mouseX - portX;
   const dy = mouseY - portY;
   return Math.sqrt(dx * dx + dy * dy) <= SNAP_DISTANCE;

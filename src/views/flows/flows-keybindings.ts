@@ -55,16 +55,16 @@ export function onKeyDown(e: KeyboardEvent) {
   switch (e.key) {
     case 'Delete':
     case 'Backspace':
-      if (
-        !(e.target instanceof HTMLInputElement) &&
-        !(e.target instanceof HTMLTextAreaElement)
-      ) {
+      if (!(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
         // Collect nodes to delete: multi-select or single
         const selectedNodeIds = _deps.getSelectedNodeIds();
         const selectedNodeId = _deps.getSelectedNodeId();
-        const idsToDelete = selectedNodeIds.size > 0
-          ? new Set(selectedNodeIds)
-          : (selectedNodeId ? new Set([selectedNodeId]) : new Set<string>());
+        const idsToDelete =
+          selectedNodeIds.size > 0
+            ? new Set(selectedNodeIds)
+            : selectedNodeId
+              ? new Set([selectedNodeId])
+              : new Set<string>();
         if (idsToDelete.size > 0) {
           const stack = _deps.getUndoStack(graph.id);
           pushUndo(stack, graph);
@@ -142,9 +142,7 @@ export function onKeyDown(e: KeyboardEvent) {
         // Copy selected nodes to clipboard
         const selIds = _deps.getSelectedNodeIds();
         const selId = _deps.getSelectedNodeId();
-        const copyIds = selIds.size > 0
-          ? selIds
-          : (selId ? new Set([selId]) : new Set<string>());
+        const copyIds = selIds.size > 0 ? selIds : selId ? new Set([selId]) : new Set<string>();
         if (copyIds.size > 0) {
           const copiedNodes = graph.nodes
             .filter((n) => copyIds.has(n.id))

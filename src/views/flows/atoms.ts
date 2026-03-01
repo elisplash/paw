@@ -214,11 +214,21 @@ export const NODE_DEFAULTS: Record<
   error: { width: 180, height: 72, color: 'var(--kinetic-red, #D64045)', icon: 'error' },
   group: { width: 240, height: 120, color: 'var(--border)', icon: 'folder' },
   http: { width: 180, height: 72, color: 'var(--kinetic-sage, #5BA08C)', icon: 'http' },
-  'mcp-tool': { width: 180, height: 72, color: 'var(--kinetic-steel, #7A8B9A)', icon: 'integration_instructions' },
+  'mcp-tool': {
+    width: 180,
+    height: 72,
+    color: 'var(--kinetic-steel, #7A8B9A)',
+    icon: 'integration_instructions',
+  },
   loop: { width: 180, height: 80, color: 'var(--kinetic-gold, #D4A853)', icon: 'repeat' },
   squad: { width: 200, height: 80, color: 'var(--kinetic-purple, #A855F7)', icon: 'groups' },
   memory: { width: 180, height: 72, color: 'var(--kinetic-sage, #5BA08C)', icon: 'save' },
-  'memory-recall': { width: 180, height: 72, color: 'var(--kinetic-gold, #D4A853)', icon: 'manage_search' },
+  'memory-recall': {
+    width: 180,
+    height: 72,
+    color: 'var(--kinetic-gold, #D4A853)',
+    icon: 'manage_search',
+  },
 };
 
 export const GRID_SIZE = 20;

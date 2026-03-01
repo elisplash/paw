@@ -191,33 +191,9 @@ async fn execute_query_direct(
 /// Map a query to the appropriate tool call for a given service.
 fn build_query_tool_call(
     service_id: &str,
-    question: &str,
+    _question: &str,
 ) -> Option<crate::engine::types::ToolCall> {
     let (tool_name, args) = match service_id {
-        "github" => {
-            // Map common GitHub queries to API endpoints
-            let endpoint = if question.to_lowercase().contains("issue") {
-                "/repos/{owner}/{repo}/issues?state=open&per_page=10"
-            } else if question.to_lowercase().contains("pr")
-                || question.to_lowercase().contains("pull request")
-            {
-                "/repos/{owner}/{repo}/pulls?state=open&per_page=10"
-            } else {
-                "/user/repos?sort=updated&per_page=5"
-            };
-            (
-                "github_api",
-                serde_json::json!({"endpoint": endpoint, "method": "GET"}),
-            )
-        }
-        "slack" => (
-            "slack_read",
-            serde_json::json!({"channel": "general", "limit": 10}),
-        ),
-        "trello" => (
-            "rest_api_call",
-            serde_json::json!({"path": "/1/members/me/boards", "method": "GET"}),
-        ),
         // For services that map to rest_api, use rest_api_call
         "notion" | "linear" | "todoist" | "clickup" | "airtable" | "sendgrid" | "hubspot"
         | "stripe" => {

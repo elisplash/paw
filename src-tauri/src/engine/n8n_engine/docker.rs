@@ -73,8 +73,22 @@ pub async fn provision_docker_container(
     cleanup_stale_container(&docker).await;
 
     let port = find_available_port(DEFAULT_PORT);
-    let api_key = generate_random_key();
-    let encryption_key = generate_random_key();
+
+    // Reuse encryption key and API key from previous config if they exist.
+    // The n8n data directory is a persistent bind mount — if we generate a
+    // new encryption key on re-provision, n8n will see a mismatch between
+    // the env var and the key saved in /home/node/.n8n/config and crash.
+    let prev_config = super::load_config(app_handle).ok();
+    let api_key = prev_config
+        .as_ref()
+        .filter(|c| !c.api_key.is_empty())
+        .map(|c| c.api_key.clone())
+        .unwrap_or_else(generate_random_key);
+    let encryption_key = prev_config
+        .as_ref()
+        .and_then(|c| c.encryption_key.clone())
+        .filter(|k| !k.is_empty())
+        .unwrap_or_else(generate_random_key);
 
     // Determine data volume path
     let data_dir = super::app_data_dir(app_handle).join("n8n-data");
@@ -115,7 +129,11 @@ pub async fn provision_docker_container(
         "N8N_PERSONALIZATION_ENABLED=false".to_string(),
         // Enable community node installation (required for 25K+ packages)
         "N8N_COMMUNITY_PACKAGES_ENABLED=true".to_string(),
-        // Enable MCP server so workflows can expose tools via MCP
+        // Allow installation of packages not in n8n's verified registry
+        "N8N_COMMUNITY_PACKAGES_ALLOW_UNVERIFIED=true".to_string(),
+        // Reinstall previously installed packages on startup
+        "N8N_REINSTALL_MISSING_PACKAGES=true".to_string(),
+        // Allow community packages to be used as tools in workflows
         "N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE=true".to_string(),
     ];
 
@@ -129,6 +147,8 @@ pub async fn provision_docker_container(
             name: Some(RestartPolicyNameEnum::UNLESS_STOPPED),
             maximum_retry_count: None,
         }),
+        // Explicit DNS servers so npm registry is always reachable inside the container
+        dns: Some(vec!["8.8.8.8".to_string(), "1.1.1.1".to_string()]),
         ..Default::default()
     };
 
@@ -167,9 +187,26 @@ pub async fn provision_docker_container(
             "error",
             "Integration engine started but isn't responding. Check Docker logs.",
         );
-        return Err(EngineError::Other(
-            "n8n container started but failed to become healthy within 60s".into(),
-        ));
+        return Err(EngineError::Other(format!(
+            "n8n container started but failed to become healthy within {}s",
+            STARTUP_TIMEOUT_SECS
+        )));
+    }
+
+    // Set up the owner account for headless operation.
+    // n8n requires this before MCP and other features are usable.
+    if let Err(e) = super::health::setup_owner_if_needed(&url).await {
+        log::warn!("[n8n] Owner setup failed (non-fatal): {}", e);
+    }
+
+    // Log the n8n version for diagnostics (MCP requires recent versions)
+    if let Some(version) = super::health::get_n8n_version(&url, &api_key).await {
+        log::info!("[n8n] Docker mode running n8n v{}", version);
+    }
+
+    // Enable MCP access (disabled by default even after owner creation)
+    if let Err(e) = super::health::enable_mcp_access(&url).await {
+        log::warn!("[n8n] MCP access enable failed (non-fatal): {}", e);
     }
 
     // Persist config
@@ -182,6 +219,7 @@ pub async fn provision_docker_container(
         encryption_key: Some(encryption_key),
         process_pid: None,
         process_port: None,
+        mcp_token: None,
         enabled: true,
         auto_discover: true,
         mcp_mode: true,
@@ -231,6 +269,35 @@ pub async fn restart_existing_container(
         .as_deref()
         .ok_or_else(|| EngineError::Other("No container ID stored".into()))?;
 
+    // Check if the container actually exists before wasting time polling
+    let container_info = match docker.inspect_container(container_id, None).await {
+        Ok(info) => Some(info),
+        Err(_) => {
+            // Also check by name in case the ID changed
+            match docker.inspect_container(CONTAINER_NAME, None).await {
+                Ok(info) => Some(info),
+                Err(_) => {
+                    return Err(EngineError::Other(
+                        "Container no longer exists — will re-provision".into(),
+                    ));
+                }
+            }
+        }
+    };
+
+    // Detect crash-looping container (e.g. encryption key mismatch).
+    // If the container is in "restarting" state, it will never become
+    // healthy — fail fast so we can re-provision with correct config.
+    if let Some(info) = &container_info {
+        if let Some(state) = &info.state {
+            if state.restarting == Some(true) {
+                return Err(EngineError::Other(
+                    "Container is crash-looping — will re-provision".into(),
+                ));
+            }
+        }
+    }
+
     super::emit_status(app_handle, "starting", "Restarting integration engine...");
 
     // Try to start the container (it may be stopped)
@@ -242,6 +309,10 @@ pub async fn restart_existing_container(
     let url = format!("http://127.0.0.1:{}", port);
 
     if poll_n8n_ready(&url, &config.api_key).await {
+        // Ensure owner account exists (idempotent)
+        let _ = super::health::setup_owner_if_needed(&url).await;
+        // Ensure MCP access is enabled
+        let _ = super::health::enable_mcp_access(&url).await;
         super::emit_status(app_handle, "ready", "Integration engine ready.");
         Ok(N8nEndpoint {
             url,

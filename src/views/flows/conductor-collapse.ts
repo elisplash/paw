@@ -105,10 +105,7 @@ function isCollapseCompatible(a: NodeExecConfig, b: NodeExecConfig): boolean {
 /**
  * Build a merged compound prompt from a chain of agent nodes.
  */
-function buildCollapsedPrompt(
-  chain: string[],
-  nodeMap: Map<string, FlowNode>,
-): string {
+function buildCollapsedPrompt(chain: string[], nodeMap: Map<string, FlowNode>): string {
   const parts: string[] = [];
   parts.push(
     'You are executing a multi-step task. Complete ALL of the following steps in order, providing output for each:',
@@ -121,8 +118,7 @@ function buildCollapsedPrompt(
 
     const config = getNodeExecConfig(node);
     const stepLabel = node.label || `Step ${i + 1}`;
-    const stepPrompt =
-      config.prompt || node.description || `Perform this step: ${stepLabel}`;
+    const stepPrompt = config.prompt || node.description || `Perform this step: ${stepLabel}`;
 
     parts.push(`## Step ${i + 1}: ${stepLabel}`);
     parts.push(stepPrompt);

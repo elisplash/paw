@@ -41,11 +41,7 @@ export function destroyAnimationLayer(): void {
  * Animate particles along an edge to visualize data flow.
  * Call when a node starts executing to show data flowing from upstream.
  */
-export function animateEdge(
-  edge: FlowEdge,
-  fromNode: FlowNode,
-  toNode: FlowNode,
-): void {
+export function animateEdge(edge: FlowEdge, fromNode: FlowNode, toNode: FlowNode): void {
   if (!_animationLayer) return;
 
   // Don't duplicate
@@ -123,10 +119,7 @@ export function stopAllAnimations(): void {
  * Bulk-animate edges for a parallel execution group.
  * All edges in the group pulse simultaneously.
  */
-export function animateParallelGroup(
-  edges: FlowEdge[],
-  nodeMap: Map<string, FlowNode>,
-): void {
+export function animateParallelGroup(edges: FlowEdge[], nodeMap: Map<string, FlowNode>): void {
   for (const edge of edges) {
     const from = nodeMap.get(edge.from);
     const to = nodeMap.get(edge.to);
@@ -169,9 +162,7 @@ function animationTick(now: number): void {
       particle.setAttribute('cy', String(point.y));
 
       // Fade in/out at ends
-      const fade = progress < 0.1 ? progress / 0.1
-        : progress > 0.9 ? (1 - progress) / 0.1
-        : 1;
+      const fade = progress < 0.1 ? progress / 0.1 : progress > 0.9 ? (1 - progress) / 0.1 : 1;
       particle.setAttribute('opacity', String(fade * 0.8));
 
       // Auto-stop after 3 cycles
@@ -194,10 +185,15 @@ function animationTick(now: number): void {
 
 function edgeAnimColor(kind: string): string {
   switch (kind) {
-    case 'forward': return 'var(--accent, #5E9EFF)';
-    case 'error': return 'var(--kinetic-red, #FF4D4D)';
-    case 'reverse': return 'var(--status-info, #4DC9F6)';
-    case 'bidirectional': return 'var(--kinetic-gold, #D4A853)';
-    default: return 'var(--accent, #5E9EFF)';
+    case 'forward':
+      return 'var(--accent, #5E9EFF)';
+    case 'error':
+      return 'var(--kinetic-red, #FF4D4D)';
+    case 'reverse':
+      return 'var(--status-info, #4DC9F6)';
+    case 'bidirectional':
+      return 'var(--kinetic-gold, #D4A853)';
+    default:
+      return 'var(--accent, #5E9EFF)';
   }
 }

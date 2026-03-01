@@ -114,9 +114,7 @@ export async function restore() {
     const backendFlows = await pawEngine.flowsList();
     if (backendFlows && backendFlows.length > 0) {
       _deps.setGraphs(
-        backendFlows
-          .map((f) => deserializeGraph(f.graph_json))
-          .filter(Boolean) as FlowGraph[],
+        backendFlows.map((f) => deserializeGraph(f.graph_json)).filter(Boolean) as FlowGraph[],
       );
       _backendAvailable = true;
 

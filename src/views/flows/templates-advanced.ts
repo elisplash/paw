@@ -405,7 +405,8 @@ export const TEMPLATES_ADVANCED: FlowTemplate[] = [
   {
     id: 'tpl-squad-research',
     name: 'Squad Research Team',
-    description: 'A multi-agent squad collaborates to research a topic and produce a comprehensive report.',
+    description:
+      'A multi-agent squad collaborates to research a topic and produce a comprehensive report.',
     category: 'ai',
     tags: ['squad', 'research', 'multi-agent', 'collaboration'],
     icon: 'groups',
@@ -426,7 +427,10 @@ export const TEMPLATES_ADVANCED: FlowTemplate[] = [
         kind: 'squad' as 'trigger',
         label: 'Research Squad',
         description: 'Multi-agent research team',
-        config: { squadObjective: 'Research the topic thoroughly, considering multiple perspectives', squadMaxRounds: 5 },
+        config: {
+          squadObjective: 'Research the topic thoroughly, considering multiple perspectives',
+          squadMaxRounds: 5,
+        },
       },
       {
         kind: 'memory' as 'trigger',
@@ -467,14 +471,20 @@ export const TEMPLATES_ADVANCED: FlowTemplate[] = [
         kind: 'memory-recall' as 'trigger',
         label: 'Recall Context',
         description: 'Search memory',
-        config: { memoryQuerySource: 'input', memoryLimit: 10, memoryThreshold: 0.3, memoryOutputFormat: 'text' },
+        config: {
+          memoryQuerySource: 'input',
+          memoryLimit: 10,
+          memoryThreshold: 0.3,
+          memoryOutputFormat: 'text',
+        },
       },
       {
         kind: 'agent',
         label: 'Answer with Context',
         description: 'Generate informed answer',
         config: {
-          prompt: 'Answer the user\'s question using the recalled context above. Cite specific memories when relevant. If no relevant memories exist, answer from general knowledge.',
+          prompt:
+            "Answer the user's question using the recalled context above. Cite specific memories when relevant. If no relevant memories exist, answer from general knowledge.",
         },
       },
       {
@@ -516,13 +526,21 @@ export const TEMPLATES_ADVANCED: FlowTemplate[] = [
         kind: 'http' as 'trigger',
         label: 'Fetch Data',
         description: 'API request with retry',
-        config: { httpMethod: 'GET', httpUrl: 'https://api.example.com/data', maxRetries: 3, retryDelayMs: 2000, selfHealEnabled: true },
+        config: {
+          httpMethod: 'GET',
+          httpUrl: 'https://api.example.com/data',
+          maxRetries: 3,
+          retryDelayMs: 2000,
+          selfHealEnabled: true,
+        },
       },
       {
         kind: 'code' as 'trigger',
         label: 'Transform',
         description: 'Parse & clean data',
-        config: { code: '// Transform the API response\nconst data = JSON.parse(input);\nreturn JSON.stringify(data.results || data, null, 2);' },
+        config: {
+          code: '// Transform the API response\nconst data = JSON.parse(input);\nreturn JSON.stringify(data.results || data, null, 2);',
+        },
       },
       {
         kind: 'condition',

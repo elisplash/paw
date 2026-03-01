@@ -26,11 +26,7 @@ import {
   type FlowExecEvent,
   type NodeExecConfig,
 } from './executor-atoms';
-import {
-  compileStrategy,
-  shouldUseConductor,
-  type ExecutionStrategy,
-} from './conductor-atoms';
+import { compileStrategy, shouldUseConductor, type ExecutionStrategy } from './conductor-atoms';
 import { engineChatSend } from '../../engine/molecules/bridge';
 import { pawEngine } from '../../engine/molecules/ipc_client';
 import { subscribeSession } from '../../engine/molecules/event_bus';
@@ -162,7 +158,9 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
         try {
           const val = await callbacks.credentialLoader(name);
           if (val !== null) vaultCreds[name] = val;
-        } catch { /* skip failed loads */ }
+        } catch {
+          /* skip failed loads */
+        }
       }
     }
 
@@ -443,7 +441,11 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
               onEvent: callbacks.onEvent,
               executeAgentStep,
             },
-            graph, node, upstreamInput, config, defaultAgentId,
+            graph,
+            node,
+            upstreamInput,
+            config,
+            defaultAgentId,
           );
           break;
 
@@ -942,18 +944,42 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
 
   /** Mutable state shared with the debug sub-module. */
   const _debugState: DebugState = {
-    get runState() { return _runState; },
-    set runState(v) { _runState = v; },
-    get running() { return _running; },
-    set running(v) { _running = v; },
-    get debugMode() { return _debugMode; },
-    set debugMode(v) { _debugMode = v; },
-    get debugGraph() { return _debugGraph; },
-    set debugGraph(v) { _debugGraph = v; },
-    get debugAgentId() { return _debugAgentId; },
-    set debugAgentId(v) { _debugAgentId = v; },
-    get skipNodes() { return _skipNodes; },
-    set skipNodes(v) { _skipNodes = v; },
+    get runState() {
+      return _runState;
+    },
+    set runState(v) {
+      _runState = v;
+    },
+    get running() {
+      return _running;
+    },
+    set running(v) {
+      _running = v;
+    },
+    get debugMode() {
+      return _debugMode;
+    },
+    set debugMode(v) {
+      _debugMode = v;
+    },
+    get debugGraph() {
+      return _debugGraph;
+    },
+    set debugGraph(v) {
+      _debugGraph = v;
+    },
+    get debugAgentId() {
+      return _debugAgentId;
+    },
+    set debugAgentId(v) {
+      _debugAgentId = v;
+    },
+    get skipNodes() {
+      return _skipNodes;
+    },
+    set skipNodes(v) {
+      _skipNodes = v;
+    },
     edgeValues: _edgeValues,
   };
 

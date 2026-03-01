@@ -385,3 +385,166 @@
   flex-shrink: 0;
   align-self: center;
 }
+
+/* ── Post-install guidance ── */
+.community-post-install {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 24px;
+  text-align: center;
+  animation: community-fade-in 0.35s ease-out;
+}
+@keyframes community-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.community-post-install-icon {
+  margin-bottom: 4px;
+}
+.community-post-install-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+.community-post-install-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  max-width: 400px;
+  margin: 0;
+}
+.community-post-install-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+.community-post-install-steps {
+  text-align: left;
+  width: 100%;
+  max-width: 480px;
+  margin-top: 8px;
+  padding: 16px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+}
+.community-post-install-steps-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+.community-post-install-step-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.community-post-install-step-list strong {
+  color: var(--text-primary);
+}
+.community-post-install-step-list em {
+  font-style: normal;
+  color: var(--accent);
+  font-weight: 600;
+}
+.community-post-install-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+/* ── Credential form (inline post-install) ── */
+.community-cred-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  justify-content: center;
+  padding: 8px 0;
+}
+.community-cred-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.community-cred-success strong {
+  color: var(--text-primary);
+}
+.community-cred-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  color: var(--error, #ef4444);
+  background: color-mix(in srgb, var(--error, #ef4444) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--error, #ef4444) 20%, transparent);
+  border-radius: var(--radius-sm, 4px);
+  padding: 6px 10px;
+  margin-bottom: 8px;
+}
+.community-cred-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.community-cred-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.community-cred-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.community-cred-required {
+  color: var(--error, #ef4444);
+}
+.community-cred-hint {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.community-cred-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.community-cred-input {
+  width: 100%;
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm, 4px);
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: border-color 0.15s;
+}
+.community-cred-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.community-cred-toggle-vis {
+  flex-shrink: 0;
+}
+.community-cred-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}

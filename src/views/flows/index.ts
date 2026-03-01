@@ -122,13 +122,17 @@ function initModules() {
   initStateBridge();
   initFlowsPersistence({
     getGraphs: () => _graphs,
-    setGraphs: (g) => { _graphs = g; },
+    setGraphs: (g) => {
+      _graphs = g;
+    },
     afterPersist: () => rebuildScheduleRegistry(),
   });
   initFlowsScheduler({
     getGraphs: () => _graphs,
     getActiveGraphId: () => _activeGraphId,
-    setActiveGraphId: (id) => { _activeGraphId = id; },
+    setActiveGraphId: (id) => {
+      _activeGraphId = id;
+    },
     getExecutor: () => _executor,
     runActiveFlow: () => runActiveFlow(),
   });
@@ -136,13 +140,21 @@ function initModules() {
     el,
     getGraph: () => _graphs.find((g) => g.id === _activeGraphId),
     getSelectedNodeId: () => _selectedNodeId,
-    setSelectedNodeId: (id) => { _selectedNodeId = id; },
+    setSelectedNodeId: (id) => {
+      _selectedNodeId = id;
+    },
     getSelectedNodeIds: () => _selectedNodeIds,
-    setSelectedNodeIds: (ids) => { _selectedNodeIds = ids; },
+    setSelectedNodeIds: (ids) => {
+      _selectedNodeIds = ids;
+    },
     getSelectedEdgeId: () => _selectedEdgeId,
-    setSelectedEdgeId: (id) => { _selectedEdgeId = id; },
+    setSelectedEdgeId: (id) => {
+      _selectedEdgeId = id;
+    },
     getClipboard: () => _clipboard,
-    setClipboard: (c) => { _clipboard = c; },
+    setClipboard: (c) => {
+      _clipboard = c;
+    },
     getUndoStack,
     persist,
     updateFlowList,
@@ -663,9 +675,15 @@ function updateToolbar() {
   const view = el('flows-view');
   if (view) {
     const panelBtn = toolbarContainer.querySelector('[data-action="toggle-panel"] .ms');
-    if (panelBtn) panelBtn.textContent = view.classList.contains('flows-panel-collapsed') ? 'right_panel_open' : 'right_panel_close';
+    if (panelBtn)
+      panelBtn.textContent = view.classList.contains('flows-panel-collapsed')
+        ? 'right_panel_open'
+        : 'right_panel_close';
     const listBtn = toolbarContainer.querySelector('[data-action="toggle-list"] .ms');
-    if (listBtn) listBtn.textContent = view.classList.contains('flows-list-collapsed') ? 'left_panel_open' : 'left_panel_close';
+    if (listBtn)
+      listBtn.textContent = view.classList.contains('flows-list-collapsed')
+        ? 'left_panel_open'
+        : 'left_panel_close';
   }
 
   // Wire toolbar action buttons

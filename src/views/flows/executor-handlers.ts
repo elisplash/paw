@@ -178,22 +178,18 @@ export async function executeSquadTask(
 
   try {
     const response = await Promise.race([
-      engineChatSend(
-        sessionKey,
-        `[Squad Task] ${objective}\n\n[Context]\n${upstreamInput}`,
-        {
-          agentProfile: {
-            id: squadId,
-            name: `Squad ${squadId}`,
-            bio: `Multi-agent squad executing: ${node.label}`,
-            systemPrompt: `You are coordinating a squad of agents. Objective: ${objective}`,
-            model: config.model || '',
-            personality: { tone: 'focused' },
-            boundaries: [],
-            autoApproveAll: true,
-          },
+      engineChatSend(sessionKey, `[Squad Task] ${objective}\n\n[Context]\n${upstreamInput}`, {
+        agentProfile: {
+          id: squadId,
+          name: `Squad ${squadId}`,
+          bio: `Multi-agent squad executing: ${node.label}`,
+          systemPrompt: `You are coordinating a squad of agents. Objective: ${objective}`,
+          model: config.model || '',
+          personality: { tone: 'focused' },
+          boundaries: [],
+          autoApproveAll: true,
         },
-      ),
+      }),
       new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error(`Squad timeout after ${timeoutMs / 1000}s`)), timeoutMs),
       ),
@@ -390,7 +386,11 @@ export async function executeLoopIteration(
             break;
           case 'code': {
             const codeSource = (targetNode.config.code as string) ?? targetConfig.prompt ?? '';
-            const codeResult = executeCodeSandboxed(codeSource, resolvedInput, targetConfig.timeoutMs ?? 5000);
+            const codeResult = executeCodeSandboxed(
+              codeSource,
+              resolvedInput,
+              targetConfig.timeoutMs ?? 5000,
+            );
             if (codeResult.error) throw new Error(`Code error: ${codeResult.error}`);
             iterOutput = codeResult.output;
             break;
@@ -400,15 +400,13 @@ export async function executeLoopIteration(
         }
         iterResults.push(iterOutput);
       } catch (err) {
-        iterResults.push(`Error in iteration ${i + 1}: ${err instanceof Error ? err.message : String(err)}`);
+        iterResults.push(
+          `Error in iteration ${i + 1}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 
-    results.push(
-      downstreamIds.length > 0
-        ? iterResults.join('\n')
-        : itemStr,
-    );
+    results.push(downstreamIds.length > 0 ? iterResults.join('\n') : itemStr);
   }
 
   // Mark downstream nodes as handled (they were executed inside the loop)

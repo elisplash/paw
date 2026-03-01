@@ -4,10 +4,7 @@
 // Sub-modules: canvas-state, canvas-render, canvas-interaction.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import {
-  type FlowGraph,
-  GRID_SIZE,
-} from './atoms';
+import { type FlowGraph, GRID_SIZE } from './atoms';
 import { getMoleculesState } from './molecule-state';
 import { cs, svgEl, applyTransform } from './canvas-state';
 import { renderNode, renderPorts, renderEdge } from './canvas-render';
@@ -64,7 +61,13 @@ export function getCanvasCenter(): { x: number; y: number } {
 }
 
 /** Return current viewport state for minimap synchronisation. */
-export function getCanvasViewport(): { panX: number; panY: number; zoom: number; width: number; height: number } {
+export function getCanvasViewport(): {
+  panX: number;
+  panY: number;
+  zoom: number;
+  width: number;
+  height: number;
+} {
   return {
     panX: cs.panX,
     panY: cs.panY,
@@ -254,9 +257,7 @@ export function renderGraph() {
   const selectedId = _state.getSelectedNodeId();
   const selectedIds = _state.getSelectedNodeIds();
   for (const node of graph.nodes) {
-    const isSelected = selectedIds.size > 0
-      ? selectedIds.has(node.id)
-      : node.id === selectedId;
+    const isSelected = selectedIds.size > 0 ? selectedIds.has(node.id) : node.id === selectedId;
     cs.nodesGroup.appendChild(renderNode(node, isSelected));
     renderPorts(node);
   }
@@ -300,9 +301,8 @@ export function deleteSelected() {
 
   const selectedIds = _state.getSelectedNodeIds();
   const selectedId = _state.getSelectedNodeId();
-  const idsToDelete = selectedIds.size > 0
-    ? selectedIds
-    : (selectedId ? new Set([selectedId]) : new Set<string>());
+  const idsToDelete =
+    selectedIds.size > 0 ? selectedIds : selectedId ? new Set([selectedId]) : new Set<string>();
 
   if (idsToDelete.size === 0) return;
 

@@ -72,7 +72,10 @@ const ERROR_PATTERNS: Array<{ pattern: RegExp; category: ErrorCategory }> = [
   { pattern: /rate\s*limit|429|too many requests/i, category: 'rate-limit' },
   { pattern: /unauthorized|forbidden|401|403|auth/i, category: 'auth' },
   { pattern: /ECONNREFUSED|ENOTFOUND|network|DNS/i, category: 'network' },
-  { pattern: /invalid.*input|parse.*error|JSON\.parse|unexpected token/i, category: 'invalid-input' },
+  {
+    pattern: /invalid.*input|parse.*error|JSON\.parse|unexpected token/i,
+    category: 'invalid-input',
+  },
   { pattern: /no.*configured|missing.*config|undefined.*config/i, category: 'config' },
   { pattern: /Code error:|Blocked:|sandbox/i, category: 'code-error' },
   { pattern: /4\d{2}|5\d{2}|API.*error|server error/i, category: 'api-error' },
@@ -140,7 +143,8 @@ export function suggestQuickFixes(
     case 'auth':
       fixes.push({
         diagnosis: 'Authentication failed.',
-        description: 'Check credential configuration — the API key or token may be expired or missing.',
+        description:
+          'Check credential configuration — the API key or token may be expired or missing.',
         confidence: 0.5,
         autoApplicable: false,
       });
@@ -161,7 +165,8 @@ export function suggestQuickFixes(
     case 'code-error':
       fixes.push({
         diagnosis: 'Code execution error.',
-        description: 'Review the JavaScript code for syntax or runtime errors. Check that the code avoids forbidden patterns (window, document, fetch, eval).',
+        description:
+          'Review the JavaScript code for syntax or runtime errors. Check that the code avoids forbidden patterns (window, document, fetch, eval).',
         confidence: 0.4,
         autoApplicable: false,
       });

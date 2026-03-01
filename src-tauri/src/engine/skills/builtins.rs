@@ -8,42 +8,6 @@ pub fn builtin_skills() -> Vec<SkillDefinition> {
         // ───── VAULT SKILLS (dedicated tool functions + credentials) ─────
 
         SkillDefinition {
-            id: "email".into(),
-            name: "Email".into(),
-            description: "Send and read emails via IMAP/SMTP".into(),
-            icon: "📧".into(),
-            category: SkillCategory::Vault,
-            tier: SkillTier::Integration,
-            required_credentials: vec![
-                CredentialField { key: "SMTP_HOST".into(), label: "SMTP Host".into(), description: "SMTP server hostname (e.g. smtp.gmail.com)".into(), required: true, placeholder: "smtp.gmail.com".into() },
-                CredentialField { key: "SMTP_PORT".into(), label: "SMTP Port".into(), description: "SMTP port (587 for TLS, 465 for SSL)".into(), required: true, placeholder: "587".into() },
-                CredentialField { key: "SMTP_USER".into(), label: "Email Address".into(), description: "Your email address for authentication".into(), required: true, placeholder: "you@gmail.com".into() },
-                CredentialField { key: "SMTP_PASSWORD".into(), label: "App Password".into(), description: "App-specific password (not your main password)".into(), required: true, placeholder: "xxxx xxxx xxxx xxxx".into() },
-                CredentialField { key: "IMAP_HOST".into(), label: "IMAP Host".into(), description: "IMAP server for reading mail (e.g. imap.gmail.com)".into(), required: false, placeholder: "imap.gmail.com".into() },
-                CredentialField { key: "IMAP_PORT".into(), label: "IMAP Port".into(), description: "IMAP port (993 for SSL)".into(), required: false, placeholder: "993".into() },
-            ],
-            tool_names: vec!["email_send".into(), "email_read".into()],
-            required_binaries: vec![], required_env_vars: vec![], install_hint: String::new(),
-            agent_instructions: "You can send and read emails. Use email_send to compose and send messages. Use email_read to check inbox. Always confirm recipients before sending.".into(),
-            default_enabled: false,
-        },
-        SkillDefinition {
-            id: "slack".into(),
-            name: "Slack".into(),
-            description: "Send messages to Slack channels and DMs".into(),
-            icon: "💬".into(),
-            category: SkillCategory::Vault,
-            tier: SkillTier::Integration,
-            required_credentials: vec![
-                CredentialField { key: "SLACK_BOT_TOKEN".into(), label: "Bot Token".into(), description: "Slack Bot User OAuth Token (xoxb-...)".into(), required: true, placeholder: "xoxb-your-slack-bot-token".into() },
-                CredentialField { key: "SLACK_DEFAULT_CHANNEL".into(), label: "Default Channel".into(), description: "Default channel ID to post to (optional)".into(), required: false, placeholder: "C0123456789".into() },
-            ],
-            tool_names: vec!["slack_send".into(), "slack_read".into()],
-            required_binaries: vec![], required_env_vars: vec![], install_hint: String::new(),
-            agent_instructions: "You can post to and read from Slack channels. Use slack_send to post messages. Use slack_read to fetch recent messages from a channel.".into(),
-            default_enabled: false,
-        },
-        SkillDefinition {
             id: "telegram".into(),
             name: "Telegram".into(),
             description: "Send proactive messages to Telegram users via the bot bridge. No extra credentials needed — uses the Telegram bot token configured in the channel bridge.".into(),
@@ -54,25 +18,6 @@ pub fn builtin_skills() -> Vec<SkillDefinition> {
             tool_names: vec!["telegram_send".into(), "telegram_read".into()],
             required_binaries: vec![], required_env_vars: vec![], install_hint: String::new(),
             agent_instructions: "You can send proactive messages to Telegram users. Use telegram_send to push messages — specify a username or it defaults to the owner. Use telegram_read to check bridge status and known users. The Telegram bot must be set up in channel settings first, and the user must have messaged the bot at least once.".into(),
-            default_enabled: false,
-        },
-        SkillDefinition {
-            id: "github".into(),
-            name: "GitHub".into(),
-            description: "Create issues, PRs, read repos, manage projects via gh CLI and GitHub API".into(),
-            icon: "🐙".into(),
-            category: SkillCategory::Vault,
-            tier: SkillTier::Integration,
-            required_credentials: vec![
-                CredentialField { key: "GITHUB_TOKEN".into(), label: "Personal Access Token".into(), description: "GitHub PAT with repo access (ghp_...)".into(), required: true, placeholder: "ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".into() },
-            ],
-            tool_names: vec!["github_api".into()],
-            required_binaries: vec!["gh".into()],
-            required_env_vars: vec![], install_hint: "brew install gh".into(),
-            agent_instructions: r#"You have GitHub access via the github_api tool and the `gh` CLI.
-For quick operations use the `gh` CLI via exec: `gh issue list`, `gh pr create`, `gh repo view`, `gh api ...`.
-For complex API calls use github_api tool which sends authenticated requests to api.github.com.
-Available gh commands: issue (list/create/view/close), pr (list/create/view/merge/checkout), run (list/view/watch), repo (view/clone/fork), api (raw REST calls)."#.into(),
             default_enabled: false,
         },
         SkillDefinition {
@@ -173,7 +118,6 @@ Do NOT run exec/curl to call the Discord API — use your built-in tools."#.into
             tool_names: vec!["coinbase_prices".into(), "coinbase_balance".into(), "coinbase_wallet_create".into(), "coinbase_trade".into(), "coinbase_transfer".into()],
             required_binaries: vec![], required_env_vars: vec![], install_hint: "Get API keys at portal.cdp.coinbase.com".into(),
             agent_instructions: r#"You have Coinbase CDP (Developer Platform) access for crypto trading and wallet management.
-
 CRITICAL: Credentials are already configured and injected automatically by the engine. Authentication (Ed25519 JWT signing) is handled for you. Do NOT:
 - Read source code files (.rs, .ts, etc.) to understand how tools work
 - Read or inspect cdp_api_key.json or any credential/key files
@@ -220,57 +164,6 @@ Key endpoints:
 - POST /search — search across all pages/databases
 Headers: Authorization: Bearer {token}, Notion-Version: 2022-06-28, Content-Type: application/json
 Notion uses rich text blocks. Page content is a list of block objects (paragraph, heading_1, to_do, etc.)."#.into(),
-            default_enabled: false,
-        },
-        SkillDefinition {
-            id: "trello".into(),
-            name: "Trello".into(),
-            description: "Manage Trello boards, lists, cards, labels, and checklists".into(),
-            icon: "📋".into(),
-            category: SkillCategory::Api,
-            tier: SkillTier::Integration,
-            required_credentials: vec![
-                CredentialField { key: "TRELLO_API_KEY".into(), label: "API Key".into(), description: "Trello API key from trello.com/app-key".into(), required: true, placeholder: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".into() },
-                CredentialField { key: "TRELLO_TOKEN".into(), label: "Token".into(), description: "Trello authorization token".into(), required: true, placeholder: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx".into() },
-            ],
-            tool_names: vec![
-                // boards
-                "trello_list_boards".into(), "trello_create_board".into(),
-                "trello_get_board".into(), "trello_update_board".into(), "trello_delete_board".into(),
-                // lists
-                "trello_get_lists".into(), "trello_create_list".into(),
-                "trello_update_list".into(), "trello_archive_list".into(),
-                // cards
-                "trello_get_cards".into(), "trello_create_card".into(), "trello_get_card".into(),
-                "trello_update_card".into(), "trello_delete_card".into(), "trello_move_card".into(),
-                "trello_add_comment".into(), "trello_search".into(),
-                // labels
-                "trello_get_labels".into(), "trello_create_label".into(), "trello_update_label".into(),
-                "trello_delete_label".into(), "trello_add_label".into(), "trello_remove_label".into(),
-                // checklists
-                "trello_create_checklist".into(), "trello_add_checklist_item".into(),
-                "trello_toggle_checklist_item".into(), "trello_delete_checklist".into(),
-                // members
-                "trello_get_members".into(),
-            ],
-            required_binaries: vec![], required_env_vars: vec![], install_hint: "Get API key at trello.com/app-key, then authorize for a token".into(),
-            agent_instructions: r#"You have full Trello access with 28 built-in tools. Auth is handled automatically — never put credentials in URLs or scripts.
-
-**Boards**: trello_list_boards, trello_create_board, trello_get_board, trello_update_board, trello_delete_board
-**Lists**: trello_get_lists, trello_create_list, trello_update_list, trello_archive_list
-**Cards**: trello_get_cards, trello_create_card, trello_get_card, trello_update_card, trello_delete_card, trello_move_card, trello_add_comment, trello_search
-**Labels**: trello_get_labels, trello_create_label, trello_update_label, trello_delete_label, trello_add_label, trello_remove_label
-**Checklists**: trello_create_checklist, trello_add_checklist_item (supports batch via 'names' array), trello_toggle_checklist_item, trello_delete_checklist
-**Members**: trello_get_members
-
-TOOL SELECTION RULES:
-- LIST boards → trello_list_boards
-- CREATE board → trello_create_board, then trello_create_list for each list, then trello_create_card for cards
-- VIEW a board's structure → trello_get_board (returns lists + labels)
-- MOVE card between lists → trello_move_card
-- ADD multiple checklist items at once → trello_add_checklist_item with 'names' array
-- SEARCH across boards → trello_search
-Do NOT use fetch/exec/curl for Trello — use your built-in tools."#.into(),
             default_enabled: false,
         },
 
@@ -657,62 +550,6 @@ First run requires Spotify OAuth login."#.into(),
             default_enabled: false,
         },
         SkillDefinition {
-            id: "google_workspace".into(),
-            name: "Google Workspace".into(),
-            description: "Gmail, Calendar, Drive, Sheets, and Docs — connect with your Google account".into(),
-            icon: "📧".into(),
-            category: SkillCategory::Api,
-            tier: SkillTier::Skill,
-            // Credentials are optional: official builds ship with bundled OAuth client ID.
-            // Self-builders can paste their own Client ID/Secret in the UI.
-            // The frontend handles the UI dynamically (see renderGoogleOAuthSection).
-            required_credentials: vec![],
-            tool_names: vec![
-                "google_gmail_list".into(),
-                "google_gmail_read".into(),
-                "google_gmail_send".into(),
-                "google_calendar_list".into(),
-                "google_calendar_create".into(),
-                "google_drive_list".into(),
-                "google_drive_read".into(),
-                "google_drive_upload".into(),
-                "google_drive_share".into(),
-                "google_docs_create".into(),
-                "google_sheets_read".into(),
-                "google_sheets_append".into(),
-                "google_api".into(),
-            ],
-            required_binaries: vec![],
-            required_env_vars: vec![], install_hint: "Go to Skills → Google Workspace → Configure. Click 'Connect with Google' to sign in. Enterprise users can use a service account instead.".into(),
-            agent_instructions: r#"You have full Google Workspace access. Available tools:
-- google_gmail_list: List/search emails. Use Gmail search operators (from:, to:, subject:, is:unread, etc).
-- google_gmail_read: Read full email by message ID (from list results).
-- google_gmail_send: Send emails. Supports plain text and HTML. Can CC recipients.
-- google_calendar_list: List upcoming events with time range filtering.
-- google_calendar_create: Schedule events with attendees, location, description.
-- google_drive_list: Browse and search Drive files.
-- google_drive_read: Read document contents (exports Google Docs/Sheets as text).
-- google_drive_upload: Upload content to Drive as a Google Doc, Sheet, or file. Supports creating new files with content and updating existing files.
-- google_drive_share: Share a Drive file with a specific user (by email) or make it public with a link.
-- google_docs_create: Create a new Google Doc with optional initial text content. Returns the doc URL.
-- google_sheets_read: Read spreadsheet data as markdown tables.
-- google_sheets_append: Add rows to a spreadsheet.
-- google_api: Generic authenticated call to any Google REST API endpoint (for anything not covered above).
-
-IMPORTANT — Use the dedicated tools instead of google_api whenever possible:
-- To create a doc with content: use google_docs_create (NOT google_api to docs.googleapis.com)
-- To upload a file to Drive: use google_drive_upload (NOT google_api with multipart)
-- To share a file: use google_drive_share (NOT google_api to /permissions)
-- google_api is for edge cases only (Admin API, Contacts, etc.)
-
-Tips:
-- Gmail message IDs come from google_gmail_list results.
-- Drive file IDs come from google_drive_list results.
-- For Sheets, the spreadsheet_id is the long string in the Google Sheets URL.
-- Calendar times must be RFC3339 format like 2026-02-24T10:00:00-05:00."#.into(),
-            default_enabled: false,
-        },
-        SkillDefinition {
             id: "google_places".into(),
             name: "Google Places".into(),
             description: "Search places, get details, reviews via Google Places API".into(),
@@ -822,113 +659,79 @@ camsnap stream <url> --frames 10 --interval 1s (capture multiple).
 Supports RTSP, ONVIF, and HTTP MJPEG streams."#.into(),
             default_enabled: false,
         },
-        // ── DEX / Uniswap Trading ──
         SkillDefinition {
             id: "dex".into(),
-            name: "DEX Trading (Uniswap)".into(),
-            description: "Self-custody Ethereum wallet with on-chain swaps via Uniswap V3. Private key never leaves the vault.".into(),
+            name: "DEX Trading (EVM)".into(),
+            description: "Self-custody Ethereum wallet with Uniswap V3 on-chain swaps, whale tracking, and trending tokens".into(),
             icon: "🦄".into(),
             category: SkillCategory::Vault,
             tier: SkillTier::Integration,
             required_credentials: vec![
-                CredentialField { key: "DEX_RPC_URL".into(), label: "Ethereum RPC URL".into(), description: "JSON-RPC endpoint for Ethereum (from Infura, Alchemy, or your own node). Example: https://mainnet.infura.io/v3/YOUR_KEY".into(), required: false, placeholder: "https://mainnet.infura.io/v3/abc123...".into() },
-                CredentialField { key: "DEX_PRIVATE_KEY".into(), label: "Wallet Private Key".into(), description: "Auto-generated when you use dex_wallet_create. Or paste your own 0x-prefixed hex key. Stored encrypted in OS keychain vault.".into(), required: false, placeholder: "Auto-generated — leave blank".into() },
-                CredentialField { key: "DEX_WALLET_ADDRESS".into(), label: "Wallet Address".into(), description: "Auto-populated when wallet is created. Or paste your own Ethereum address if importing a key.".into(), required: false, placeholder: "Auto-generated — leave blank".into() },
+                CredentialField { key: "ETHEREUM_PRIVATE_KEY".into(), label: "Ethereum Private Key".into(), description: "Your Ethereum wallet private key (hex, with or without 0x prefix). Used for signing transactions locally — never sent to any server.".into(), required: true, placeholder: "0xabcdef1234567890...".into() },
             ],
             tool_names: vec!["dex_wallet_create".into(), "dex_balance".into(), "dex_quote".into(), "dex_swap".into(), "dex_transfer".into(), "dex_portfolio".into(), "dex_token_info".into(), "dex_check_token".into(), "dex_search_token".into(), "dex_watch_wallet".into(), "dex_whale_transfers".into(), "dex_top_traders".into(), "dex_trending".into()],
-            required_binaries: vec![], required_env_vars: vec![], install_hint: "Get an RPC URL at infura.io or alchemy.com (free tier works)".into(),
-            agent_instructions: r#"You have a self-custody Ethereum wallet for DEX trading via Uniswap V3.
-
-CRITICAL: Your private key is stored encrypted in the OS keychain vault. You NEVER see it — the engine signs transactions internally. Do NOT:
-- Try to read or access the private key
-- Try to export or display wallet credentials
-- Run shell commands to interact with the blockchain (use the tools below)
+            required_binaries: vec![], required_env_vars: vec![], install_hint: "Import or create an Ethereum wallet".into(),
+            agent_instructions: r#"You have EVM DEX trading tools for self-custody Ethereum trading.
+Credentials are injected automatically. Do NOT read source code or key files.
 
 Available tools:
-- **dex_wallet_create**: Generate a new Ethereum wallet. Private key is encrypted and stored automatically.
-- **dex_balance**: Check ETH and ERC-20 token balances for a specific token.
-- **dex_quote**: Get a swap quote from Uniswap V3 (read-only, no transaction).
-- **dex_swap**: Execute a token swap on Uniswap V3. ALWAYS requires user approval.
-- **dex_transfer**: Send ETH or ERC-20 tokens from your wallet to any external Ethereum address. ALWAYS requires user approval.
-- **dex_portfolio**: Check all token balances at once.
-- **dex_token_info**: Get comprehensive on-chain info about any ERC-20 token (name, symbol, supply, owner, swap viability). Queries the blockchain directly — no website needed.
-- **dex_check_token**: Run automated safety checks (honeypot detection, tax analysis, ownership audit, risk scoring 0-30). ALWAYS run this before trading any new/unknown token.
-- **dex_search_token**: Search for tokens by name or symbol to find contract addresses, prices, volume, and liquidity. Uses DexScreener API (not web scraping). Use this to discover contract addresses before running dex_check_token.
-- **dex_watch_wallet**: Monitor any wallet address — shows ETH balance, token holdings, and recent ERC-20 transfers. Use this to track smart money wallets and alpha traders.
-- **dex_whale_transfers**: Scan recent large transfers of a token. Identifies top accumulators (whales buying) and distributors (insiders selling). Essential for spotting whale moves early.
-- **dex_top_traders**: Analyze a token's Transfer events to discover the most profitable wallets — smart traders, rotators, early movers. Classifies each wallet (Accumulator, Profit Taker, Rotator) with PnL and trade stats. Use this to find alpha wallets to monitor.
-- **dex_trending**: Get trending and recently boosted tokens from DexScreener. Shows what's gaining attention right now. Filter by chain.
+- **dex_wallet_create**: Create or import an Ethereum wallet. Requires approval.
+- **dex_balance**: Check ETH and token balances.
+- **dex_quote**: Get swap quotes from Uniswap V3 before executing.
+- **dex_swap**: Execute on-chain token swaps. ALWAYS requires approval.
+- **dex_transfer**: Send ETH or tokens. ALWAYS requires approval.
+- **dex_portfolio**: View full portfolio with USD values.
+- **dex_token_info**: Get token details (price, liquidity, contract info).
+- **dex_check_token**: Audit a token contract for rug-pull risks.
+- **dex_search_token**: Search tokens by name or symbol.
+- **dex_watch_wallet**: Track another wallet's activity.
+- **dex_whale_transfers**: Monitor large transfers on-chain.
+- **dex_top_traders**: Find top traders for a specific token.
+- **dex_trending**: Get trending tokens on DEXes.
 
-Supported tokens: ETH, WETH, USDC, USDT, DAI, WBTC, UNI, LINK, PEPE, SHIB, ARB, AAVE (or any ERC-20 by contract address).
-
-Trading Rules:
-- ALWAYS get a quote (dex_quote) before proposing a swap
-- ALWAYS run dex_check_token on any new/unfamiliar token before trading to detect honeypots and scams
-- ALWAYS state your reasoning and expected outcome before swapping
-- Check balances before trading
-- Default slippage is 0.5% — warn the user if you need higher
-- For ETH→token swaps, the wallet must have enough ETH for gas + swap amount
-- For token→token swaps, the wallet must have ETH for gas fees
-- If the user hasn't set risk parameters, ask before executing large trades
-
-Alpha Hunting Workflow:
-1. Use dex_trending to find what's hot right now (boosted tokens, new listings)
-2. Use dex_search_token to discover tokens by name/symbol and get price/volume/liquidity
-3. Use dex_check_token to run safety checks (honeypot, tax, ownership) — MANDATORY before trading
-4. Use dex_top_traders to find the most profitable wallets trading a token (smart money, rotators, early buyers)
-5. Use dex_whale_transfers to see large transfers and accumulation patterns
-6. Use dex_watch_wallet on high-conviction wallets to see their full portfolio and recent moves
-7. Cross-reference: when multiple smart wallets accumulate the same token, that's a strong signal
-8. Execute: dex_quote first, then dex_swap with user approval"#.into(),
+Risk Management:
+- NEVER risk more than 2% of portfolio on a single swap
+- Always check token safety with dex_check_token before buying new tokens
+- Always get a quote before executing swaps
+- Warn about gas costs on Ethereum mainnet
+- Check liquidity depth before large trades"#.into(),
             default_enabled: false,
         },
-        // ── Solana DEX Trading (Jupiter + PumpPortal) ──
         SkillDefinition {
             id: "solana_dex".into(),
-            name: "Solana DEX Trading (Jupiter + PumpPortal)".into(),
-            description: "Self-custody Solana wallet with on-chain swaps via Jupiter aggregator + PumpPortal fallback for pump.fun tokens. Private key never leaves the vault.".into(),
+            name: "Trading: Solana DEX".into(),
+            description: "Solana self-custody wallet with Jupiter aggregator swaps and PumpPortal integration for pump.fun tokens".into(),
             icon: "☀️".into(),
             category: SkillCategory::Vault,
             tier: SkillTier::Integration,
             required_credentials: vec![
-                CredentialField { key: "JUPITER_API_KEY".into(), label: "Jupiter API Key".into(), description: "For Jupiter swap quotes. Get a free key at https://dev.jup.ag — Dashboard → API Keys. Optional: PumpPortal works without it.".into(), required: false, placeholder: "your-jupiter-api-key".into() },
-                CredentialField { key: "SOLANA_RPC_URL".into(), label: "Solana RPC URL".into(), description: "JSON-RPC endpoint for Solana mainnet (from Alchemy, Helius, QuickNode, or your own node). Example: https://solana-mainnet.g.alchemy.com/v2/YOUR_KEY".into(), required: false, placeholder: "https://solana-mainnet.g.alchemy.com/v2/abc123...".into() },
-                CredentialField { key: "SOLANA_PRIVATE_KEY".into(), label: "Wallet Private Key".into(), description: "Auto-generated when you use sol_wallet_create. Or paste your own base58-encoded keypair. Stored encrypted in OS keychain vault.".into(), required: false, placeholder: "Auto-generated — leave blank".into() },
-                CredentialField { key: "SOLANA_WALLET_ADDRESS".into(), label: "Wallet Address".into(), description: "Auto-populated when wallet is created. Or paste your own Solana address if importing a key.".into(), required: false, placeholder: "Auto-generated — leave blank".into() },
+                CredentialField { key: "SOLANA_PRIVATE_KEY".into(), label: "Solana Private Key".into(), description: "Your Solana wallet private key (base58 encoded). Used for signing transactions locally — never sent to any server.".into(), required: true, placeholder: "4wBqpZ...base58...".into() },
             ],
             tool_names: vec!["sol_wallet_create".into(), "sol_balance".into(), "sol_quote".into(), "sol_swap".into(), "sol_transfer".into(), "sol_portfolio".into(), "sol_token_info".into()],
-            required_binaries: vec![], required_env_vars: vec![], install_hint: "Get a Solana RPC URL at alchemy.com, helius.dev, or quicknode.com (free tier works). Jupiter API key optional (free at dev.jup.ag). PumpPortal needs no API key.".into(),
-            agent_instructions: r#"You have a self-custody Solana wallet for DEX trading.
-
-ROUTING: Swaps try Jupiter aggregator first (best prices across all DEXes). If Jupiter has no route (common for pump.fun memecoins), it automatically falls back to PumpPortal which routes through pump.fun bonding curve, PumpSwap AMM, Raydium, and more. This means you CAN buy AND sell pump.fun tokens.
-
-CRITICAL: Your private key is stored encrypted in the OS keychain vault. You NEVER see it — the engine signs transactions internally. Do NOT:
-- Try to read or access the private key
-- Try to export or display wallet credentials
-- Run shell commands to interact with the blockchain (use the tools below)
+            required_binaries: vec![], required_env_vars: vec![], install_hint: "Import or create a Solana wallet".into(),
+            agent_instructions: r#"You have Solana DEX trading tools for self-custody trading on Solana.
+Credentials are injected automatically. Do NOT read source code or key files.
 
 Available tools:
-- **sol_wallet_create**: Generate a new Solana wallet (ed25519). Private key is encrypted and stored automatically.
+- **sol_wallet_create**: Create or import a Solana wallet. Requires approval.
 - **sol_balance**: Check SOL and SPL token balances.
-- **sol_quote**: Get a swap quote (tries Jupiter, falls back to PumpPortal for pump.fun tokens).
-- **sol_swap**: Execute a token swap. Tries Jupiter first, falls back to PumpPortal if no route. REQUIRES USER APPROVAL.
-- **sol_transfer**: Send SOL or SPL tokens from your wallet to any external Solana address. Creates recipient token account if needed. REQUIRES USER APPROVAL.
-- **sol_portfolio**: Check all token balances at once.
-- **sol_token_info**: Get on-chain info about any SPL token (decimals, supply, authorities).
+- **sol_quote**: Get swap quotes from Jupiter aggregator.
+- **sol_swap**: Execute on-chain swaps via Jupiter or PumpPortal (for pump.fun tokens). ALWAYS requires approval.
+- **sol_transfer**: Send SOL or SPL tokens. ALWAYS requires approval.
+- **sol_portfolio**: View full portfolio with USD values.
+- **sol_token_info**: Get token details, price, and metadata.
 
-Supported tokens: SOL, USDC, USDT, BONK, JUP, RAY, PYTH, WIF, ORCA, mSOL, jitoSOL (or any SPL token by mint address).
+PumpPortal Integration:
+- For pump.fun tokens, swaps automatically route through PumpPortal
+- These tokens may have extreme volatility — always warn the user
+- Check token age and holder distribution before buying
 
-Trading Rules:
-- ALWAYS get a quote (sol_quote) before proposing a swap
-- ALWAYS state your reasoning and expected outcome before swapping
-- Check balances before trading (sol_balance)
-- Default slippage is 0.5% — for pump.fun memecoins, suggest 5-15% slippage
-- For SOL→token swaps, the wallet needs enough SOL for fees + swap amount
-- For token→token swaps, the wallet needs SOL for transaction fees (~0.005 SOL)
-- If the user hasn't set risk parameters, ask before executing large trades
-- Use dex_search_token (from the Ethereum DEX skill) to discover new Solana tokens — DexScreener supports all chains
-- Use dex_trending with chain='solana' to find trending Solana tokens
-- If a sell fails on Jupiter, try again with higher slippage — PumpPortal fallback will kick in automatically"#.into(),
+Risk Management:
+- NEVER risk more than 2% of portfolio on a single swap
+- Always get a quote before executing swaps
+- Warn about pump.fun token risks (rug pulls, low liquidity)
+- Check slippage tolerance — default 1% for established tokens, suggest higher for pump.fun
+- Solana transactions are fast but check for congestion"#.into(),
             default_enabled: false,
         },
     ]

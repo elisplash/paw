@@ -16,13 +16,13 @@ sidebarTitle: "The Librarian Method"
 
 Every AI agent platform faces the same scaling wall: **tool bloat**.
 
-An agent that can send emails, manage files, query databases, generate images, post to Slack, and trade crypto needs dozens of tool definitions injected into its context window. When you connect to an automation engine like n8n with 25,000+ available node types, this becomes catastrophic — you simply cannot fit 25,000 tool schemas into a 32K or even 128K context window.
+An agent that can send emails, manage files, query databases, generate images, post to Slack, and trade crypto needs dozens of tool definitions injected into its context window. When you connect to an automation engine like n8n with thousands of available workflows and integrations, this becomes catastrophic — you simply cannot fit all those tool schemas into a 32K or even 128K context window.
 
 The conventional approaches all have critical flaws:
 
 | Approach | Problem |
 |----------|---------|
-| **Load all tools** | Impossible at scale. 25,000 definitions would consume millions of tokens. |
+| **Load all tools** | Impossible at scale. Hundreds of workflow definitions would consume excessive tokens. |
 | **Pre-filter by keyword** | Fragile. "Send a message to John" — is that email, Slack, SMS, WhatsApp, or Telegram? A keyword filter guesses wrong. |
 | **Category menus** | Requires the user to know which category their request falls into. Breaks natural language interaction. |
 | **Static tool sets per agent** | Limits each agent's capability. Defeats the purpose of a universal platform. |
@@ -52,7 +52,7 @@ graph TD
         F["Returns matching tool schemas"]
     end
     subgraph Library["Library (ToolIndex · in-memory)"]
-        G["25,000+ tool definitions as embedding vectors"]
+        G["Workflow + tool definitions as embedding vectors"]
         H["17 skill domains"]
         I["Built once, persists in memory (~230 KB)"]
     end
@@ -144,7 +144,7 @@ The Librarian Method combines five properties that, to the best of our research,
 
 ### Prior Art Comparison
 
-Academic work on tool retrieval for LLMs exists (ToolGen, ICLR 2025; ToolWeaver, ICLR 2026; ToolkenGPT, NeurIPS 2023), but these systems focus on fine-tuning LLMs to generate tool tokens or training retrieval models on tool documentation. They require expensive training pipelines and don't operate at the 25,000+ tool scale.
+Academic work on tool retrieval for LLMs exists (ToolGen, ICLR 2025; ToolWeaver, ICLR 2026; ToolkenGPT, NeurIPS 2023), but these systems focus on fine-tuning LLMs to generate tool tokens or training retrieval models on tool documentation. They require expensive training pipelines and don't scale gracefully.
 
 The Librarian Method requires **zero training**. It uses off-the-shelf embedding models (e.g. `nomic-embed-text`, OpenAI `text-embedding-3-small`, or any model that produces vector embeddings) and works with any tool added to the index — including tools that didn't exist when the embedding model was trained.
 

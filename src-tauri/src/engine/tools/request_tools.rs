@@ -125,10 +125,17 @@ async fn execute_request_tools(
 
     // Ensure the tool index is built
     {
+        // Grab MCP tools first (separate lock) so they're included in the index.
+        // This is what lets the Librarian discover mcp_n8n_* workflow tools via semantic search.
+        let mcp_tools = {
+            let reg = state.mcp_registry.lock().await;
+            reg.all_tool_definitions()
+        };
+
         let mut tool_index = state.tool_index.lock().await;
         if !tool_index.is_ready() {
-            info!("[tool-rag] Tool index not ready, building on first request...");
-            let all_tools = build_all_tools_for_index(&state);
+            info!("[tool-rag] Tool index not ready, building on first request ({} MCP tools available)...", mcp_tools.len());
+            let all_tools = build_all_tools_for_index(&state, &mcp_tools);
             tool_index.build(&all_tools, &emb_client).await;
         }
     }
@@ -178,8 +185,12 @@ async fn execute_request_tools(
 }
 
 /// Build the complete list of tools for indexing.
-/// This includes builtins + all possible skill tools (regardless of enabled state).
-fn build_all_tools_for_index(state: &EngineState) -> Vec<ToolDefinition> {
+/// This includes builtins + skill tools + MCP tools (e.g. mcp_n8n_* workflow tools).
+/// MCP tools are passed in because we need them from the registry (separate lock).
+fn build_all_tools_for_index(
+    state: &EngineState,
+    mcp_tools: &[ToolDefinition],
+) -> Vec<ToolDefinition> {
     let mut tools = ToolDefinition::builtins();
 
     // Include ALL skill tools for indexing (even disabled ones)
@@ -201,9 +212,15 @@ fn build_all_tools_for_index(state: &EngineState) -> Vec<ToolDefinition> {
     ];
     tools.extend(ToolDefinition::skill_tools(&all_skill_ids));
 
-    // Include MCP tools if available
-    // (we can't easily get these without the app_handle, so skip for now —
-    //  MCP tools are always included in the active tool list anyway)
+    // Include MCP tools (n8n integrations, custom MCP servers, etc.)
+    // so the Librarian can discover mcp_n8n_* workflow tools via semantic search.
+    if !mcp_tools.is_empty() {
+        info!(
+            "[tool-rag] Including {} MCP tools in index",
+            mcp_tools.len()
+        );
+        tools.extend(mcp_tools.iter().cloned());
+    }
 
     // Don't include request_tools itself in the index
     tools.retain(|t| t.function.name != "request_tools");

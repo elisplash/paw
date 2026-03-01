@@ -57,7 +57,15 @@ describe('preview-molecules', () => {
 
   describe('dataShapeColor', () => {
     it('returns distinct colors for each shape', () => {
-      const shapes: DataShape[] = ['string', 'number', 'boolean', 'json', 'json[]', 'error', 'null'];
+      const shapes: DataShape[] = [
+        'string',
+        'number',
+        'boolean',
+        'json',
+        'json[]',
+        'error',
+        'null',
+      ];
       const colors = shapes.map(dataShapeColor);
       expect(typeof colors[0]).toBe('string');
       expect(dataShapeColor('error')).toContain('#');
@@ -239,9 +247,7 @@ describe('validation-molecules', () => {
 
 // ── Alignment Tests ────────────────────────────────────────────────────────
 
-import {
-  computeAlignmentSnap,
-} from './alignment-molecules';
+import { computeAlignmentSnap } from './alignment-molecules';
 
 describe('alignment-molecules', () => {
   describe('computeAlignmentSnap', () => {
@@ -286,11 +292,7 @@ describe('alignment-molecules', () => {
 
 // ── Shortcuts Tests ────────────────────────────────────────────────────────
 
-import {
-  SHORTCUT_REGISTRY,
-  searchShortcuts,
-  type ShortcutCategory,
-} from './shortcuts-molecules';
+import { SHORTCUT_REGISTRY, searchShortcuts, type ShortcutCategory } from './shortcuts-molecules';
 
 describe('shortcuts-molecules', () => {
   describe('SHORTCUT_REGISTRY', () => {

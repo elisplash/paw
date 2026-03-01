@@ -8,16 +8,16 @@ import type { FlowNode } from './atoms';
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const SNAP_THRESHOLD = 5;  // px to trigger alignment snap
-const SPACING_THRESHOLD = 10;  // px tolerance for equal-spacing detection
+const SNAP_THRESHOLD = 5; // px to trigger alignment snap
+const SPACING_THRESHOLD = 10; // px tolerance for equal-spacing detection
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface AlignmentGuide {
   axis: 'horizontal' | 'vertical';
-  position: number;       // x for vertical, y for horizontal
-  from: number;           // start of the guide line
-  to: number;             // end of the guide line
+  position: number; // x for vertical, y for horizontal
+  from: number; // start of the guide line
+  to: number; // end of the guide line
   type: 'center' | 'edge' | 'spacing';
 }
 
@@ -175,9 +175,8 @@ export function renderAlignmentGuides(
       line.setAttribute('y2', String(guide.position));
     }
 
-    const color = guide.type === 'spacing'
-      ? 'var(--kinetic-gold, #D4A853)'
-      : 'var(--accent, #5E9EFF)';
+    const color =
+      guide.type === 'spacing' ? 'var(--kinetic-gold, #D4A853)' : 'var(--accent, #5E9EFF)';
     const dash = guide.type === 'center' ? 'none' : '4 2';
 
     line.setAttribute('stroke', color);

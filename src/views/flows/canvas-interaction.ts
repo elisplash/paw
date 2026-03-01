@@ -12,10 +12,7 @@ import {
   getOutputPort,
   buildEdgePath,
 } from './atoms';
-import {
-  getMoleculesState,
-  setSelectedEdgeIdLocal,
-} from './molecule-state';
+import { getMoleculesState, setSelectedEdgeIdLocal } from './molecule-state';
 import { cs, svgEl, applyTransform } from './canvas-state';
 
 // Lazy import helpers — avoid circular dependency with canvas-molecules.ts.
@@ -97,7 +94,7 @@ export function onMouseDown(e: MouseEvent): void {
         ids.add(node.id);
       }
       _state.setSelectedNodeIds(ids);
-      _state.setSelectedNodeId(ids.size === 1 ? [...ids][0] : (ids.size > 0 ? node.id : null));
+      _state.setSelectedNodeId(ids.size === 1 ? [...ids][0] : ids.size > 0 ? node.id : null);
     } else {
       const selectedIds = _state.getSelectedNodeIds();
       if (!selectedIds.has(node.id)) {

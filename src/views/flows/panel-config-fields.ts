@@ -331,7 +331,16 @@ return input.toUpperCase();">${codeVal}</textarea>
     const memCat = (config.memoryCategory as string) ?? 'insight';
     const memImp = (config.memoryImportance as number) ?? 0.5;
     const memAgent = escAttr((config.memoryAgentId as string) ?? '');
-    const categories = ['insight', 'fact', 'preference', 'summary', 'conversation', 'task_result', 'error_log', 'custom'];
+    const categories = [
+      'insight',
+      'fact',
+      'preference',
+      'summary',
+      'conversation',
+      'task_result',
+      'error_log',
+      'custom',
+    ];
     html += `
       <div class="flow-panel-retry-config" style="margin-top: 8px">
         <div class="flow-panel-retry-header">
@@ -477,7 +486,20 @@ return input.toUpperCase();">${codeVal}</textarea>
 
   // ── Retry config ─────────────────────────────────────────────────────────
 
-  if (['agent', 'tool', 'data', 'code', 'http', 'mcp-tool', 'loop', 'squad', 'memory', 'memory-recall'].includes(node.kind)) {
+  if (
+    [
+      'agent',
+      'tool',
+      'data',
+      'code',
+      'http',
+      'mcp-tool',
+      'loop',
+      'squad',
+      'memory',
+      'memory-recall',
+    ].includes(node.kind)
+  ) {
     const maxRetries = (config.maxRetries as number) ?? 0;
     const retryDelay = (config.retryDelayMs as number) ?? 1000;
     const retryBackoff = (config.retryBackoff as number) ?? 2;
@@ -505,7 +527,21 @@ return input.toUpperCase();">${codeVal}</textarea>
 
   // ── Timeout ──────────────────────────────────────────────────────────────
 
-  if (['agent', 'tool', 'condition', 'data', 'code', 'http', 'mcp-tool', 'loop', 'squad', 'memory', 'memory-recall'].includes(node.kind)) {
+  if (
+    [
+      'agent',
+      'tool',
+      'condition',
+      'data',
+      'code',
+      'http',
+      'mcp-tool',
+      'loop',
+      'squad',
+      'memory',
+      'memory-recall',
+    ].includes(node.kind)
+  ) {
     html += `
       <label class="flow-panel-field">
         <span>Timeout (s)</span>

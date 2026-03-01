@@ -60,7 +60,11 @@ function mkEdge(from: string, to: string, overrides: Partial<FlowEdge> = {}): Fl
   };
 }
 
-function mkGraph(nodes: FlowNode[], edges: FlowEdge[], overrides: Partial<FlowGraph> = {}): FlowGraph {
+function mkGraph(
+  nodes: FlowNode[],
+  edges: FlowEdge[],
+  overrides: Partial<FlowGraph> = {},
+): FlowGraph {
   return {
     id: overrides.id ?? 'test-graph',
     name: overrides.name ?? 'Test Graph',
@@ -225,10 +229,7 @@ describe('detectCycles', () => {
     const a = mkNode('agent', { id: 'a' });
     const b = mkNode('agent', { id: 'b' });
     const c = mkNode('agent', { id: 'c' });
-    const graph = mkGraph(
-      [a, b, c],
-      [mkEdge('a', 'b'), mkEdge('b', 'c'), mkEdge('c', 'a')],
-    );
+    const graph = mkGraph([a, b, c], [mkEdge('a', 'b'), mkEdge('b', 'c'), mkEdge('c', 'a')]);
 
     const cycles = detectCycles(graph);
     expect(cycles.length).toBeGreaterThan(0);
@@ -353,10 +354,7 @@ describe('detectCollapseChains', () => {
     const a = mkNode('agent', { id: 'a', config: { prompt: 'p1' } });
     const b = mkNode('agent', { id: 'b', config: { prompt: 'p2' } });
     const c = mkNode('agent', { id: 'c', config: { prompt: 'p3' } });
-    const graph = mkGraph(
-      [a, b, c],
-      [mkEdge('a', 'b'), mkEdge('a', 'c')],
-    );
+    const graph = mkGraph([a, b, c], [mkEdge('a', 'b'), mkEdge('a', 'c')]);
 
     const groups = detectCollapseChains(graph);
     expect(groups).toHaveLength(0);
@@ -366,10 +364,7 @@ describe('detectCollapseChains', () => {
     const a = mkNode('agent', { id: 'a', config: { prompt: 'p1' } });
     const b = mkNode('agent', { id: 'b', config: { prompt: 'p2' } });
     const c = mkNode('agent', { id: 'c', config: { prompt: 'p3' } });
-    const graph = mkGraph(
-      [a, b, c],
-      [mkEdge('a', 'c'), mkEdge('b', 'c')],
-    );
+    const graph = mkGraph([a, b, c], [mkEdge('a', 'c'), mkEdge('b', 'c')]);
 
     const groups = detectCollapseChains(graph);
     expect(groups).toHaveLength(0);
@@ -541,7 +536,7 @@ describe('checkConvergence', () => {
     ]);
     const curr = new Map([
       ['a', 'hello world test case'], // 1.0
-      ['b', 'foo bar baz'],           // 1.0
+      ['b', 'foo bar baz'], // 1.0
     ]);
     expect(checkConvergence(prev, curr, 0.9)).toBe(true);
   });
@@ -615,10 +610,7 @@ describe('compileStrategy', () => {
       mkNode('code', { id: 'c' }),
       mkNode('output', { id: 'd' }),
     ];
-    const graph = mkGraph(
-      nodes,
-      [mkEdge('a', 'b'), mkEdge('b', 'c'), mkEdge('c', 'd')],
-    );
+    const graph = mkGraph(nodes, [mkEdge('a', 'b'), mkEdge('b', 'c'), mkEdge('c', 'd')]);
 
     const strategy = compileStrategy(graph);
     const coveredNodes = new Set<string>();
@@ -676,16 +668,10 @@ describe('compileStrategy', () => {
       mkNode('agent', { id: 'b' }),
       mkNode('agent', { id: 'c' }),
     ];
-    const graph = mkGraph(nodes, [
-      mkEdge('a', 'b'),
-      mkEdge('b', 'c'),
-      mkEdge('c', 'a'),
-    ]);
+    const graph = mkGraph(nodes, [mkEdge('a', 'b'), mkEdge('b', 'c'), mkEdge('c', 'a')]);
 
     const strategy = compileStrategy(graph);
-    const meshUnits = strategy.phases
-      .flatMap((p) => p.units)
-      .filter((u) => u.type === 'mesh');
+    const meshUnits = strategy.phases.flatMap((p) => p.units).filter((u) => u.type === 'mesh');
 
     expect(meshUnits.length).toBeGreaterThan(0);
     expect(strategy.meta.meshCount).toBeGreaterThan(0);
@@ -769,8 +755,7 @@ describe('parseCollapsedOutput', () => {
   });
 
   it('truncates when more parts than expected', () => {
-    const output =
-      'R1\n---STEP_BOUNDARY---\nR2\n---STEP_BOUNDARY---\nR3\n---STEP_BOUNDARY---\nR4';
+    const output = 'R1\n---STEP_BOUNDARY---\nR2\n---STEP_BOUNDARY---\nR3\n---STEP_BOUNDARY---\nR4';
     const parts = parseCollapsedOutput(output, 2);
     expect(parts).toHaveLength(2);
     expect(parts).toEqual(['R1', 'R2']);
@@ -826,7 +811,10 @@ describe('end-to-end strategy compilation', () => {
       mkNode('agent', { id: 'research', config: { prompt: 'Research the topic' } }),
       mkNode('agent', { id: 'summarize', config: { prompt: 'Summarize findings' } }),
       mkNode('code', { id: 'format' }),
-      mkNode('http' as FlowNodeKind, { id: 'notify', config: { httpUrl: 'https://hook.example.com', httpMethod: 'POST' } }),
+      mkNode('http' as FlowNodeKind, {
+        id: 'notify',
+        config: { httpUrl: 'https://hook.example.com', httpMethod: 'POST' },
+      }),
       mkNode('output', { id: 'out' }),
     ];
     const edges = [

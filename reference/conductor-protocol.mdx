@@ -379,13 +379,13 @@ The Conductor Protocol is the third of OpenPawz's three complementary inventions
 
 | Protocol | Problem | Solution |
 |----------|---------|----------|
-| [**The Librarian Method**](/reference/librarian-method) | *Which* tool to use among 25,000+? | Intent-driven discovery via semantic embeddings |
+| [**The Librarian Method**](/reference/librarian-method) | *Which* tool to use among many? | Intent-driven discovery via semantic embeddings |
 | [**The Foreman Protocol**](/reference/foreman-protocol) | *How* to execute tools cheaply? | Worker model delegation via self-describing MCP |
 | **The Conductor Protocol** | *What's the optimal execution plan?* | AI-compiled flow strategies: Collapse, Extract, Parallelize, Converge |
 
 In a single flow execution:
 1. The **Conductor** compiles the graph into an optimized strategy — collapsing agents, extracting direct actions, parallelizing branches
-2. Agent nodes that need tools use the **Librarian** to discover which tools are relevant from 25,000+ options
+2. Agent nodes that need tools use the **Librarian** to discover which workflows/tools are relevant
 3. Tool calls are delegated to the **Foreman** for cheap or free execution via worker models
 
 The result: a 20-node flow that would take 2+ minutes on n8n executes in under 20 seconds on OpenPawz, with lower cost and capabilities (cycles, memory, squads) that other platforms cannot express at all.
@@ -398,12 +398,12 @@ n8n has over 25,000 community-contributed integration nodes — Slack, Jira, Git
 
 The Conductor Protocol transforms what those nodes can do.
 
-When n8n nodes are exposed via MCP (Model Context Protocol), they become available as tool, HTTP, and MCP-tool nodes inside OpenPawz flows. But they're no longer confined to sequential, human-designed automations. The Conductor can:
+n8n's MCP server exposes workflow-level tools: `search_workflows`, `execute_workflow`, and `get_workflow_details`. Paw composes n8n nodes into per-service workflows that are auto-deployed and made available through MCP. The Conductor can then orchestrate these workflows as part of larger, AI-compiled execution strategies:
 
-- **Collapse** three sequential n8n-backed agent steps into a single LLM call
-- **Extract** n8n tool invocations and run them directly via Rust — no LLM needed
-- **Parallelize** independent n8n operations across branches automatically
-- **Converge** n8n-connected agents in iterative feedback loops that n8n itself cannot express
+- **Collapse** multiple sequential workflow executions into a single orchestrated call
+- **Extract** simple workflow executions and run them directly — no LLM reasoning needed
+- **Parallelize** independent workflow executions across branches automatically
+- **Converge** workflow-connected agents in iterative feedback loops that n8n itself cannot express
 
 This is not a wrapper around n8n. It is a fundamentally new execution model that uses n8n's integration ecosystem as building blocks for AI-compiled workflows.
 
@@ -420,9 +420,9 @@ The NLP parser builds a 7-node flow graph. The Conductor compiles it:
 - **Phase 2:** Agent summarize ‖ Airtable store ‖ Condition check — all concurrent
 - **Phase 3:** Slack post (direct, no LLM)
 
-The Airtable and Slack operations are n8n nodes. They execute via Extract — direct MCP calls, zero LLM cost. The agent steps that need AI intelligence get Collapsed where possible. Independent branches Parallelize automatically.
+The Airtable and Slack operations are n8n workflows executed via `execute_workflow`. They execute via Extract — direct MCP calls, zero LLM cost. The agent steps that need AI intelligence get Collapsed where possible. Independent branches Parallelize automatically.
 
-The 25,000 n8n nodes didn't change. What changed is the engine that orchestrates them.
+The 25,000 n8n nodes didn't change. What changed is the engine that orchestrates them — and the fact that Paw composes those nodes into workflows that become first-class tools.
 
 ---
 

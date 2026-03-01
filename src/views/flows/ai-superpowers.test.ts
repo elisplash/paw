@@ -30,10 +30,7 @@ import {
 } from './self-healing-atoms';
 
 // Suggestions
-import {
-  getSuggestionsForNode,
-  suggestedNodePosition,
-} from './suggestion-atoms';
+import { getSuggestionsForNode, suggestedNodePosition } from './suggestion-atoms';
 
 // Smart Conditions
 import {
@@ -95,7 +92,11 @@ function mkEdge(from: string, to: string, overrides: Partial<FlowEdge> = {}): Fl
   };
 }
 
-function mkGraph(nodes: FlowNode[], edges: FlowEdge[], overrides: Partial<FlowGraph> = {}): FlowGraph {
+function mkGraph(
+  nodes: FlowNode[],
+  edges: FlowEdge[],
+  overrides: Partial<FlowGraph> = {},
+): FlowGraph {
   return {
     id: overrides.id ?? 'test-graph',
     name: overrides.name ?? 'Test Graph',
@@ -207,7 +208,21 @@ describe('Phase 4.1: AI Flow Builder', () => {
           id: 'g1',
           name: 'Test',
           description: 'A test flow',
-          nodes: [{ id: 'n1', kind: 'trigger', label: 'Start', x: 0, y: 0, width: 180, height: 72, status: 'idle', config: {}, inputs: ['in'], outputs: ['out'] }],
+          nodes: [
+            {
+              id: 'n1',
+              kind: 'trigger',
+              label: 'Start',
+              x: 0,
+              y: 0,
+              width: 180,
+              height: 72,
+              status: 'idle',
+              config: {},
+              inputs: ['in'],
+              outputs: ['out'],
+            },
+          ],
           edges: [],
           createdAt: '2024-01-01',
           updatedAt: '2024-01-01',
@@ -221,7 +236,8 @@ describe('Phase 4.1: AI Flow Builder', () => {
     });
 
     it('extracts JSON from markdown code blocks', () => {
-      const response = '```json\n{"graph":{"id":"g1","name":"Test","nodes":[],"edges":[],"createdAt":"2024","updatedAt":"2024"},"explanation":"Empty"}\n```';
+      const response =
+        '```json\n{"graph":{"id":"g1","name":"Test","nodes":[],"edges":[],"createdAt":"2024","updatedAt":"2024"},"explanation":"Empty"}\n```';
       const result = parseFlowBuildResponse(response);
       expect(result).not.toBeNull();
       expect(result!.graph.nodes).toHaveLength(0);
@@ -350,7 +366,11 @@ describe('Phase 4.2: Self-Healing', () => {
       const graph = mkGraph([node], []);
       const config = getNodeExecConfig(node);
       const prompt = buildDiagnosisPrompt({
-        node, config, error: 'timed out', input: 'hello', graph,
+        node,
+        config,
+        error: 'timed out',
+        input: 'hello',
+        graph,
       });
       expect(prompt).toContain('Summarizer');
       expect(prompt).toContain('timed out');
@@ -363,7 +383,12 @@ describe('Phase 4.2: Self-Healing', () => {
         rootCause: 'Timeout',
         explanation: 'The upstream API is slow.',
         fixes: [
-          { diagnosis: 'Slow API', description: 'Increase timeout', confidence: 0.9, autoApplicable: true },
+          {
+            diagnosis: 'Slow API',
+            description: 'Increase timeout',
+            confidence: 0.9,
+            autoApplicable: true,
+          },
         ],
         isTransient: true,
       });
@@ -383,17 +408,25 @@ describe('Phase 4.2: Self-Healing', () => {
     it('merges configPatch into current config', () => {
       const result = applyFixToConfig(
         { maxRetries: 0 },
-        { diagnosis: '', description: '', confidence: 1, autoApplicable: true, configPatch: { maxRetries: 3 } },
+        {
+          diagnosis: '',
+          description: '',
+          confidence: 1,
+          autoApplicable: true,
+          configPatch: { maxRetries: 3 },
+        },
       );
       expect(result.maxRetries).toBe(3);
     });
 
     it('returns original config if no patch', () => {
       const original = { maxRetries: 0 };
-      const result = applyFixToConfig(
-        original,
-        { diagnosis: '', description: '', confidence: 1, autoApplicable: true },
-      );
+      const result = applyFixToConfig(original, {
+        diagnosis: '',
+        description: '',
+        confidence: 1,
+        autoApplicable: true,
+      });
       expect(result).toBe(original);
     });
   });
@@ -411,7 +444,12 @@ describe('Phase 4.3: Squad Node', () => {
 
   it('getNodeExecConfig extracts squad fields', () => {
     const node = mkNode('squad' as FlowNodeKind, {
-      config: { squadId: 'sq-1', squadObjective: 'Research AI', squadTimeoutMs: 60000, squadMaxRounds: 3 },
+      config: {
+        squadId: 'sq-1',
+        squadObjective: 'Research AI',
+        squadTimeoutMs: 60000,
+        squadMaxRounds: 3,
+      },
     });
     const config = getNodeExecConfig(node);
     expect(config.squadId).toBe('sq-1');
@@ -766,11 +804,15 @@ describe('Phase 4.6: Memory-Aware Flows', () => {
 
   describe('buildMemoryContent', () => {
     it('uses custom content when source is custom', () => {
-      const result = buildMemoryContent('node output', {
-        ...DEFAULT_MEMORY_WRITE,
-        memorySource: 'custom',
-        memoryContent: 'Custom fact',
-      }, 'Test Node');
+      const result = buildMemoryContent(
+        'node output',
+        {
+          ...DEFAULT_MEMORY_WRITE,
+          memorySource: 'custom',
+          memoryContent: 'Custom fact',
+        },
+        'Test Node',
+      );
       expect(result).toBe('Custom fact');
     });
 
@@ -796,7 +838,12 @@ describe('Phase 4.6: Memory-Aware Flows', () => {
   describe('getNodeExecConfig extracts memory fields', () => {
     it('extracts memory-write fields', () => {
       const node = mkNode('memory' as FlowNodeKind, {
-        config: { memoryCategory: 'fact', memoryImportance: 0.9, memorySource: 'custom', memoryContent: 'Hello' },
+        config: {
+          memoryCategory: 'fact',
+          memoryImportance: 0.9,
+          memorySource: 'custom',
+          memoryContent: 'Hello',
+        },
       });
       const config = getNodeExecConfig(node);
       expect(config.memoryCategory).toBe('fact');
@@ -807,7 +854,12 @@ describe('Phase 4.6: Memory-Aware Flows', () => {
 
     it('extracts memory-recall fields', () => {
       const node = mkNode('memory-recall' as FlowNodeKind, {
-        config: { memoryQuerySource: 'custom', memoryQuery: 'search this', memoryLimit: 10, memoryOutputFormat: 'json' },
+        config: {
+          memoryQuerySource: 'custom',
+          memoryQuery: 'search this',
+          memoryLimit: 10,
+          memoryOutputFormat: 'json',
+        },
       });
       const config = getNodeExecConfig(node);
       expect(config.memoryQuerySource).toBe('custom');

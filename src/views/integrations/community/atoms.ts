@@ -23,6 +23,34 @@ export interface InstalledPackage {
   installedNodes: Array<{ name: string; type: string }>;
 }
 
+// ── n8n Credential Schema Types ────────────────────────────────────────
+
+/** A field definition from n8n's credential type schema. */
+export interface N8nCredentialSchemaField {
+  name: string;
+  display_name: string;
+  field_type: string; // "string", "number", "boolean", "options"
+  required: boolean;
+  default_value: string | null;
+  placeholder: string | null;
+  description: string | null;
+  options: string[];
+  is_secret: boolean;
+}
+
+/** Schema for a specific n8n credential type. */
+export interface N8nCredentialSchema {
+  credential_type: string;
+  display_name: string;
+  fields: N8nCredentialSchemaField[];
+}
+
+/** Credential info for a package's nodes (returned by backend). */
+export interface PackageCredentialInfo {
+  package_name: string;
+  credential_types: N8nCredentialSchema[];
+}
+
 export type CommunityTab = 'browse' | 'installed';
 export type CommunitySortOption = 'downloads' | 'updated' | 'a-z';
 

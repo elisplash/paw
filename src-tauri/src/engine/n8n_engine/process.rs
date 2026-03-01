@@ -24,8 +24,21 @@ pub fn is_node_available() -> bool {
 /// Start n8n as a managed child process via `npx n8n`.
 pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8nEndpoint> {
     let port = find_available_port(DEFAULT_PORT);
-    let api_key = generate_random_key();
-    let encryption_key = generate_random_key();
+
+    // Reuse encryption key and API key from previous config if they exist.
+    // The n8n data directory persists — generating a new encryption key on
+    // re-provision causes a mismatch with the key saved in the data dir.
+    let prev_config = super::load_config(app_handle).ok();
+    let api_key = prev_config
+        .as_ref()
+        .filter(|c| !c.api_key.is_empty())
+        .map(|c| c.api_key.clone())
+        .unwrap_or_else(generate_random_key);
+    let encryption_key = prev_config
+        .as_ref()
+        .and_then(|c| c.encryption_key.clone())
+        .filter(|k| !k.is_empty())
+        .unwrap_or_else(generate_random_key);
 
     let data_dir = super::app_data_dir(app_handle).join("n8n-data");
     std::fs::create_dir_all(&data_dir)
@@ -38,7 +51,8 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
     );
 
     let child = std::process::Command::new("npx")
-        .arg("n8n")
+        .arg("--yes")
+        .arg("n8n@latest")
         .env("N8N_PORT", port.to_string())
         .env("N8N_BASIC_AUTH_ACTIVE", "false")
         .env("N8N_SECURE_COOKIE", "false")
@@ -49,6 +63,9 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
         .env("N8N_PERSONALIZATION_ENABLED", "false")
         // Enable community node installation (required for 25K+ packages)
         .env("N8N_COMMUNITY_PACKAGES_ENABLED", "true")
+        // Allow installation of packages not in n8n's verified registry
+        .env("N8N_COMMUNITY_PACKAGES_ALLOW_UNVERIFIED", "true")
+        .env("N8N_REINSTALL_MISSING_PACKAGES", "true")
         .env("N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE", "true")
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -73,9 +90,25 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
             "error",
             "Integration engine failed to start. Check that Node.js 18+ is installed.",
         );
-        return Err(EngineError::Other(
-            "npx n8n started but failed to become healthy within 60s".into(),
-        ));
+        return Err(EngineError::Other(format!(
+            "npx n8n started but failed to become healthy within {}s",
+            super::types::STARTUP_TIMEOUT_SECS
+        )));
+    }
+
+    // Set up the owner account for headless operation.
+    if let Err(e) = super::health::setup_owner_if_needed(&url).await {
+        log::warn!("[n8n] Owner setup failed (non-fatal): {}", e);
+    }
+
+    // Log the n8n version for diagnostics (MCP requires recent versions)
+    if let Some(version) = super::health::get_n8n_version(&url, &api_key).await {
+        log::info!("[n8n] Process mode running n8n v{}", version);
+    }
+
+    // Enable MCP access (disabled by default even after owner creation)
+    if let Err(e) = super::health::enable_mcp_access(&url).await {
+        log::warn!("[n8n] MCP access enable failed (non-fatal): {}", e);
     }
 
     // Persist config
@@ -88,6 +121,7 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
         encryption_key: Some(encryption_key),
         process_pid: Some(pid),
         process_port: Some(port),
+        mcp_token: None,
         enabled: true,
         auto_discover: true,
         mcp_mode: true,

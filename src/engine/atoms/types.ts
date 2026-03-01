@@ -844,6 +844,7 @@ export interface N8nEngineConfig {
   encryption_key?: string;
   process_pid?: number;
   process_port?: number;
+  mcp_token?: string;
   enabled: boolean;
   auto_discover: boolean;
   mcp_mode: boolean;
@@ -867,7 +868,7 @@ export interface N8nStatusEvent {
 
 // ── MCP Servers (Phase E) ────────────────────────────────────────────
 
-export type McpTransport = 'stdio' | 'sse';
+export type McpTransport = 'stdio' | 'sse' | 'streamablehttp';
 
 export interface McpServerConfig {
   id: string;

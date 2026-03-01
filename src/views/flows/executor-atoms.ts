@@ -56,7 +56,7 @@ export interface NodeExecConfig {
   httpHeaders?: string;
   /** For http nodes: request body */
   httpBody?: string;
-  /** For mcp-tool nodes: MCP tool name (e.g. mcp_n8n_slack_post) */
+  /** For mcp-tool nodes: MCP tool name (e.g. mcp_n8n_execute_workflow) */
   mcpToolName?: string;
   /** For mcp-tool nodes: MCP tool arguments (JSON string) */
   mcpToolArgs?: string;
@@ -509,6 +509,19 @@ export function getNodeExecConfig(node: FlowNode): NodeExecConfig {
 
 // ── Re-exports from split modules ──────────────────────────────────────────
 
-export { type FlowSchedule, type ScheduleFireLog, CRON_PRESETS, nextCronFire, validateCron, describeCron } from './cron-atoms';
+export {
+  type FlowSchedule,
+  type ScheduleFireLog,
+  CRON_PRESETS,
+  nextCronFire,
+  validateCron,
+  describeCron,
+} from './cron-atoms';
 export { resolveVariables, parseLoopArray } from './variable-atoms';
-export { type FlowValidationError, validateFlowForExecution, summarizeRun, formatMs, executeCodeSandboxed } from './sandbox-atoms';
+export {
+  type FlowValidationError,
+  validateFlowForExecution,
+  summarizeRun,
+  formatMs,
+  executeCodeSandboxed,
+} from './sandbox-atoms';

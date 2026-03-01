@@ -14,9 +14,7 @@ import {
   createFlowRunState,
   buildExecutionPlan,
 } from './executor-atoms';
-import {
-  classifyNode,
-} from './conductor-atoms';
+import { classifyNode } from './conductor-atoms';
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -53,7 +51,11 @@ function mkEdge(from: string, to: string, overrides: Partial<FlowEdge> = {}): Fl
   };
 }
 
-function mkGraph(nodes: FlowNode[], edges: FlowEdge[], overrides: Partial<FlowGraph> = {}): FlowGraph {
+function mkGraph(
+  nodes: FlowNode[],
+  edges: FlowEdge[],
+  overrides: Partial<FlowGraph> = {},
+): FlowGraph {
   return {
     id: overrides.id ?? 'test-graph',
     name: overrides.name ?? 'Test Graph',

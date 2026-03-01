@@ -227,7 +227,9 @@ function parseProse(text: string, name: string, warnings: string[]): ParseResult
 
   if (segments.length < 2) {
     // Can't parse as flow — create single node
-    warnings.push('Could not detect flow steps. Try using arrows (->), "then", pipes (|), or numbered steps.');
+    warnings.push(
+      'Could not detect flow steps. Try using arrows (->), "then", pipes (|), or numbered steps.',
+    );
     const node = createNode(detectKind(text), cleanLabel(text));
     const graph = createGraph(name, [node], []);
     return { graph, warnings };

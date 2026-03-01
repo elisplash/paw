@@ -304,17 +304,6 @@ pub fn run() {
             commands::skill_wizard::engine_wizard_publish_url,
             // ── Skill Storage (Phase F.6) ──
             commands::skills::engine_skill_store_list,
-            // ── Google OAuth2 ──
-            commands::skills::engine_google_oauth_connect,
-            commands::skills::engine_google_oauth_status,
-            commands::skills::engine_google_oauth_disconnect,
-            commands::skills::engine_google_oauth_has_bundled,
-            // ── Google Gmail (Mail UI) ──
-            commands::skills::engine_google_gmail_list,
-            commands::skills::engine_google_gmail_read,
-            commands::skills::engine_google_gmail_send,
-            // ── Google Calendar (Today widget) ──
-            commands::skills::engine_google_calendar_list,
             // ── Trading ──
             commands::trade::engine_trading_history,
             commands::trade::engine_trading_summary,
@@ -515,6 +504,9 @@ pub fn run() {
             commands::n8n::engine_n8n_deploy_mcp_workflow,
             // ── NCNodes Discovery (Phase 3) ──
             commands::n8n::engine_n8n_search_ncnodes,
+            // ── n8n Credential Management ──
+            commands::n8n::engine_n8n_package_credential_schema,
+            commands::n8n::engine_n8n_create_credential,
             // ── Ollama Model Management (Phase 4) ──
             commands::ollama::engine_ollama_list_models,
             commands::ollama::engine_ollama_has_model,

@@ -14,7 +14,9 @@ pub const HEALTH_ENDPOINT: &str = "/healthz";
 pub const API_PROBE_ENDPOINT: &str = "/api/v1/workflows?limit=1";
 
 /// Maximum time (seconds) to wait for n8n to become healthy after start.
-pub const STARTUP_TIMEOUT_SECS: u64 = 60;
+/// First-time `npx n8n@latest` download can take 3-5 minutes on slower
+/// connections, plus community package reinstall adds more time.
+pub const STARTUP_TIMEOUT_SECS: u64 = 360;
 /// Interval between readiness polls.
 pub const POLL_INTERVAL_SECS: u64 = 2;
 
@@ -73,6 +75,12 @@ pub struct N8nEngineConfig {
     #[serde(default)]
     pub process_port: Option<u16>,
 
+    // ── MCP ────────────────────────────────────────────────────────
+    /// Bearer token for n8n's MCP server endpoint.
+    /// Retrieved automatically after owner setup.
+    #[serde(default)]
+    pub mcp_token: Option<String>,
+
     // ── Common ─────────────────────────────────────────────────────
     #[serde(default)]
     pub enabled: bool,
@@ -93,6 +101,7 @@ impl Default for N8nEngineConfig {
             encryption_key: None,
             process_pid: None,
             process_port: None,
+            mcp_token: None,
             enabled: false,
             auto_discover: true,
             mcp_mode: false,

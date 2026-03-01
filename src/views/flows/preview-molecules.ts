@@ -49,13 +49,20 @@ export function inferDataShape(value: string): DataShape {
 /** Get the color for a data shape. */
 export function dataShapeColor(shape: DataShape): string {
   switch (shape) {
-    case 'string':  return 'var(--accent, #5E9EFF)';
-    case 'number':  return 'var(--kinetic-sage, #5BA08C)';
-    case 'boolean': return 'var(--kinetic-gold, #D4A853)';
-    case 'json':    return 'var(--kinetic-purple, #A855F7)';
-    case 'json[]':  return 'var(--kinetic-purple, #A855F7)';
-    case 'error':   return 'var(--kinetic-red, #FF4D4D)';
-    case 'null':    return 'var(--text-muted, #666)';
+    case 'string':
+      return 'var(--accent, #5E9EFF)';
+    case 'number':
+      return 'var(--kinetic-sage, #5BA08C)';
+    case 'boolean':
+      return 'var(--kinetic-gold, #D4A853)';
+    case 'json':
+      return 'var(--kinetic-purple, #A855F7)';
+    case 'json[]':
+      return 'var(--kinetic-purple, #A855F7)';
+    case 'error':
+      return 'var(--kinetic-red, #FF4D4D)';
+    case 'null':
+      return 'var(--text-muted, #666)';
   }
 }
 

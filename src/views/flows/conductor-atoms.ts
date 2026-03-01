@@ -20,10 +20,7 @@ export {
   computeDepthLevels,
   type NodeExecClassification,
 } from './conductor-graph';
-export {
-  detectCollapseChains,
-  type CollapseGroup,
-} from './conductor-collapse';
+export { detectCollapseChains, type CollapseGroup } from './conductor-collapse';
 export {
   groupByDepth,
   hasDataDependency,
@@ -113,12 +110,8 @@ export function shouldUseConductor(graph: FlowGraph): boolean {
     if (e.kind === 'bidirectional') return true;
   }
   // Mixed node types (agents + direct actions)
-  const hasAgent = graph.nodes.some(
-    (n) => classifyNode(n) === 'agent',
-  );
-  const hasDirect = graph.nodes.some(
-    (n) => classifyNode(n) === 'direct',
-  );
+  const hasAgent = graph.nodes.some((n) => classifyNode(n) === 'agent');
+  const hasDirect = graph.nodes.some((n) => classifyNode(n) === 'direct');
   if (hasAgent && hasDirect) return true;
 
   return false;
@@ -296,10 +289,7 @@ function getDependencies(
  * Build a sequential (non-Conductor) strategy as fallback.
  * Each node gets its own unit, one per phase, in topological order.
  */
-export function buildSequentialStrategy(
-  graph: FlowGraph,
-  plan: string[],
-): ExecutionStrategy {
+export function buildSequentialStrategy(graph: FlowGraph, plan: string[]): ExecutionStrategy {
   const nodeMap = new Map(graph.nodes.map((n) => [n.id, n]));
   const phases: ExecutionPhase[] = [];
 
@@ -342,12 +332,12 @@ export function buildSequentialStrategy(
  * Parse the output of a collapsed agent call back into individual step outputs.
  * Looks for "---STEP_BOUNDARY---" separators.
  */
-export function parseCollapsedOutput(
-  output: string,
-  nodeCount: number,
-): string[] {
+export function parseCollapsedOutput(output: string, nodeCount: number): string[] {
   const BOUNDARY = '---STEP_BOUNDARY---';
-  const parts = output.split(BOUNDARY).map((s) => s.trim()).filter(Boolean);
+  const parts = output
+    .split(BOUNDARY)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
   // If we got the right number of parts, great
   if (parts.length === nodeCount) return parts;

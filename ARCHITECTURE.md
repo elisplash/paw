@@ -224,11 +224,11 @@ src-tauri/                    # Rust backend
 │       ├── mcp/              # MCP Bridge — 7 modules (Zero-Gap Automation)
 │       │   ├── mod.rs        # MCP session lifecycle
 │       │   ├── client.rs     # MCP client (JSON-RPC, initialize, tool listing)
-│       │   ├── transport.rs  # SSE + Stdio transports (688 lines)
+│       │   ├── transport.rs  # Streamable HTTP + Stdio transports
 │       │   ├── types.rs      # MCP protocol types
 │       │   ├── tools.rs      # Tool schema ↔ Paw tool conversion
 │       │   ├── registry.rs   # Auto-registration, pascal_to_snake remapping
-│       │   └── n8n.rs        # n8n-specific: ensure_ready, auto-install, community nodes
+│       │   └── n8n.rs        # n8n-specific: ensure_ready, auto-install, community packages
 │       ├── toml/             # TOML skill manifest loader — 4 modules
 │       │   ├── mod.rs        # Public API
 │       │   ├── parser.rs     # TOML parsing and validation
@@ -350,7 +350,7 @@ Auto-recall injects relevant memories into agent context. Auto-capture extracts 
 
 > *[Full case study →](reference/librarian-method.mdx)*
 
-Pawz uses **Tool RAG** (Retrieval-Augmented Generation for tools) to solve the "tool bloat" problem. Instead of dumping all 25,000+ tool definitions into every LLM request, the agent discovers tools on demand via semantic search — like a library patron asking a librarian for the right book.
+Pawz uses **Tool RAG** (Retrieval-Augmented Generation for tools) to solve the "tool bloat" problem. Instead of dumping all workflow and tool definitions into every LLM request, the agent discovers tools on demand via semantic search — like a library patron asking a librarian for the right book.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -382,7 +382,7 @@ Pawz uses **Tool RAG** (Retrieval-Augmented Generation for tools) to solve the "
 ┌─────────────────────────────────────────────────────────────────┐
 │  LIBRARY  (ToolIndex — in-memory, ~230KB)                       │
 │                                                                  │
-│  25,000+ tool definitions stored as embedding vectors              │
+│  Workflow + tool definitions stored as embedding vectors           │
 │  Grouped into 17 skill domains:                                  │
 │    system, filesystem, web, identity, memory, agents,           │
 │    communication, squads, tasks, skills, dashboard, storage,    │
@@ -427,7 +427,7 @@ Round 3: Done ✅  (used 12 tools total, not 75)
 
 > *[Full case study →](reference/foreman-protocol.mdx)*
 
-The MCP Bridge is the breakthrough that connects OpenPawz to **25,000+ integrations** via an embedded n8n engine. Instead of hard-coding tools, agents discover and execute any of n8n's community node types through the Model Context Protocol (MCP). A worker model (the "Foreman") executes all MCP tool calls using self-describing MCP schemas — any model from any provider works, with local Ollama models recommended for zero cost.
+The MCP Bridge is the breakthrough that connects OpenPawz to **25,000+ integrations** via an embedded n8n engine. Instead of hard-coding tools, agents discover and execute auto-deployed workflows through the Model Context Protocol (MCP). n8n's MCP server exposes three workflow-level tools (`search_workflows`, `execute_workflow`, `get_workflow_details`) — NOT individual node operations. A worker model (the "Foreman") executes all MCP tool calls using self-describing MCP schemas — any model from any provider works, with local Ollama models recommended for zero cost.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -447,7 +447,7 @@ The MCP Bridge is the breakthrough that connects OpenPawz to **25,000+ integrati
 │  Cheaper than the Architect — or free if running locally        │
 │  Handles structured input/output mapping                        │
 └──────────────────────┬──────────────────────────────────────────┘
-                       │  JSON-RPC over SSE
+                       │  JSON-RPC over Streamable HTTP
                        ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  EMBEDDED n8n  (Docker or npx — auto-provisioned)               │
@@ -455,34 +455,34 @@ The MCP Bridge is the breakthrough that connects OpenPawz to **25,000+ integrati
 │  Auto-starts at app launch (8s delay, background)               │
 │  Docker: bollard crate, container lifecycle management          │
 │  Fallback: npx n8n start                                        │
-│  MCP server at http://127.0.0.1:5678/mcp                       │
+│  MCP server at http://127.0.0.1:5678/mcp-server/http           │
 │                                                                  │
-│  Community packages installed on-demand:                        │
-│  npm install n8n-nodes-<package> inside container/process       │
+│  MCP tools: search_workflows, execute_workflow,                 │
+│    get_workflow_details (workflow-level, NOT individual nodes)   │
 └──────────────────────┬──────────────────────────────────────────┘
                        │
                        ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│  25,000+ COMMUNITY NODE TYPES                                   │
+│  25,000+ COMMUNITY INTEGRATIONS (via auto-deployed workflows)   │
 │                                                                  │
 │  1,000+ npm packages: QR codes, PDF, OCR, CRMs, ERPs,         │
 │  databases, IoT, messaging, analytics, AI services...           │
-│  Each package exposes multiple node types as MCP tools          │
+│  Paw auto-deploys per-service workflows on package install      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 **Architecture decisions:**
-- **SSE transport** (`transport.rs`) — Server-Sent Events connection to n8n's MCP endpoint. Reconnects on disconnect. 688 lines handling the full MCP transport lifecycle.
-- **Auto-registration** (`registry.rs`) — `register_n8n()` + `N8N_MCP_SERVER_ID` auto-registers n8n as an MCP server. `pascal_to_snake()` remaps n8n's PascalCase tool names to snake_case for LLM compatibility.
-- **Lazy ensure-ready** (`n8n.rs`) — `lazy_ensure_n8n()` checks n8n health before every community node install or MCP refresh. Ensures n8n is always available.
-- **On-demand auto-install** — `COMMUNITY_PACKAGE_MAP` maps node types to npm packages. When an agent needs a tool, the package is installed automatically.
+- **Streamable HTTP transport** (`transport.rs`) — Connects to n8n's MCP endpoint at `/mcp-server/http` with JWT auth. Handles SSE response format. Reconnects on disconnect.
+- **Auto-registration** (`registry.rs`) — `register_n8n()` + `N8N_MCP_SERVER_ID` auto-registers n8n as an MCP server. `pascal_to_snake()` remaps tool names to snake_case for LLM compatibility.
+- **Lazy ensure-ready** (`n8n.rs`) — `lazy_ensure_n8n()` checks n8n health before every community package install or MCP refresh. Ensures n8n is always available.
+- **Workflow auto-deploy** — When a community package is installed, Paw auto-deploys a per-service workflow via `engine_n8n_deploy_mcp_workflow`. The workflow becomes executable through `execute_workflow`.
 - **Architect/Worker split** — Cloud LLMs plan; a cheaper worker model (e.g. Ollama `qwen2.5-coder:7b` or any cloud model) executes MCP calls. Minimal or zero cost for tool execution.
 
 **Files:**
-- `engine/mcp/transport.rs` — `SseTransport`, `StdioTransport`, `McpTransportHandle`
+- `engine/mcp/transport.rs` — `StreamableHttpTransport`, `StdioTransport`, `McpTransportHandle`
 - `engine/mcp/client.rs` — MCP client: initialize, list tools, call tools
 - `engine/mcp/registry.rs` — Auto-registration, `pascal_to_snake()`, tool remapping
-- `engine/mcp/n8n.rs` — `lazy_ensure_n8n()`, `ensure_n8n_ready()`, community node auto-install
+- `engine/mcp/n8n.rs` — `lazy_ensure_n8n()`, `ensure_n8n_ready()`, community package auto-install
 - `engine/tools/n8n.rs` — Agent tools: `search_ncnodes`, `install_n8n_node`, `mcp_refresh`
 - `engine/orchestrator/sub_agent.rs` — Worker agent spawning with MCP tool wiring
 - `commands/ollama.rs` — Worker model management (pull, status, Modelfile)
@@ -497,7 +497,7 @@ Pawz has a three-tier extensibility system:
 | **Integration** (Tier 2) | `pawz-skill.toml` | Credentials + binary detection + agent tools + dashboard widgets |
 | **Extension** (Tier 3) | `pawz-skill.toml` | Custom sidebar views + persistent key-value storage |
 
-Built-in integrations are compiled into the Rust binary (400+ native). The MCP Bridge extends this to **25,000+** via n8n community nodes. Community skills use the [skills.sh](https://skills.sh) ecosystem. The TOML manifest system for Tier 2/3 community integrations and extensions is implemented — TOML loader, PawzHub registry browser, dashboard widgets, skill output persistence, and extension storage are all functional.
+Built-in integrations are compiled into the Rust binary (400+ native). The MCP Bridge extends this to **25,000+** via auto-deployed workflows that compose n8n community nodes. Community skills use the [skills.sh](https://skills.sh) ecosystem. The TOML manifest system for Tier 2/3 community integrations and extensions is implemented — TOML loader, PawzHub registry browser, dashboard widgets, skill output persistence, and extension storage are all functional.
 
 ### Community Skills (`skills/community/`)
 

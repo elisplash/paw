@@ -135,7 +135,10 @@ export function renderMinimap(): void {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function computeWorldBounds(graph: FlowGraph): void {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const n of graph.nodes) {
     if (n.x < minX) minX = n.x;
     if (n.y < minY) minY = n.y;

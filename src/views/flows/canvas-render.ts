@@ -264,7 +264,7 @@ export function renderEdge(edge: FlowEdge, fromNode: FlowNode, toNode: FlowNode)
   path.setAttribute('class', 'flow-edge-path');
   path.setAttribute('d', pathD);
   path.setAttribute('fill', 'none');
-  path.setAttribute('stroke-width', isSelected ? '3' : (edge.active ? '2.5' : '1.5'));
+  path.setAttribute('stroke-width', isSelected ? '3' : edge.active ? '2.5' : '1.5');
 
   switch (edge.kind) {
     case 'forward':

@@ -53,8 +53,21 @@ export interface FlowExplainRequest {
 
 /** All valid node kinds for the AI builder prompt. */
 const VALID_KINDS: FlowNodeKind[] = [
-  'trigger', 'agent', 'tool', 'condition', 'data', 'code', 'output', 'error',
-  'group', 'http', 'mcp-tool', 'loop', 'squad', 'memory', 'memory-recall',
+  'trigger',
+  'agent',
+  'tool',
+  'condition',
+  'data',
+  'code',
+  'output',
+  'error',
+  'group',
+  'http',
+  'mcp-tool',
+  'loop',
+  'squad',
+  'memory',
+  'memory-recall',
 ];
 
 /**
@@ -107,7 +120,9 @@ export function buildFlowFromIntentPrompt(request: FlowBuildRequest): string {
   parts.push(`Create a flow for: "${request.intent}"`);
 
   if (request.availableAgents?.length) {
-    parts.push(`\nAvailable agents: ${request.availableAgents.map((a) => `${a.name} (${a.id})`).join(', ')}`);
+    parts.push(
+      `\nAvailable agents: ${request.availableAgents.map((a) => `${a.name} (${a.id})`).join(', ')}`,
+    );
   }
 
   if (request.availableTools?.length) {

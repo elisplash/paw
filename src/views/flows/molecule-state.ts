@@ -91,7 +91,10 @@ export function getDebugEdgeValues(): ReadonlyMap<string, string> {
   return _edgeValues;
 }
 
-export function getDebugNodeStates(): Map<string, { input: string; output: string; status: string }> {
+export function getDebugNodeStates(): Map<
+  string,
+  { input: string; output: string; status: string }
+> {
   return _debugNodeStates;
 }
 

@@ -60,16 +60,12 @@ export function resolveVariables(
     result = result.replace(/\{\{loop\.index\}\}/g, String(context.loopIndex));
   }
   if (context.loopItem !== undefined) {
-    const itemStr = typeof context.loopItem === 'string'
-      ? context.loopItem
-      : JSON.stringify(context.loopItem);
+    const itemStr =
+      typeof context.loopItem === 'string' ? context.loopItem : JSON.stringify(context.loopItem);
     result = result.replace(/\{\{loop\.item\}\}/g, itemStr);
     // Also support custom loop variable name
     if (context.loopVar && context.loopVar !== 'item') {
-      result = result.replace(
-        new RegExp(`\\{\\{loop\\.${context.loopVar}\\}\\}`, 'g'),
-        itemStr,
-      );
+      result = result.replace(new RegExp(`\\{\\{loop\\.${context.loopVar}\\}\\}`, 'g'), itemStr);
     }
   }
 

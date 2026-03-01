@@ -19,10 +19,7 @@ export interface ParallelGroup {
  * Group nodes by depth level for parallel execution.
  * Nodes at the same depth with no mutual data dependency can run concurrently.
  */
-export function groupByDepth(
-  _graph: FlowGraph,
-  depths: Map<string, number>,
-): ParallelGroup[] {
+export function groupByDepth(_graph: FlowGraph, depths: Map<string, number>): ParallelGroup[] {
   const byDepth = new Map<number, string[]>();
 
   for (const [nodeId, depth] of depths) {
@@ -37,16 +34,9 @@ export function groupByDepth(
 /**
  * Check if two nodes at the same depth have a data dependency between them.
  */
-export function hasDataDependency(
-  graph: FlowGraph,
-  nodeA: string,
-  nodeB: string,
-): boolean {
+export function hasDataDependency(graph: FlowGraph, nodeA: string, nodeB: string): boolean {
   for (const e of graph.edges) {
-    if (
-      (e.from === nodeA && e.to === nodeB) ||
-      (e.from === nodeB && e.to === nodeA)
-    ) {
+    if ((e.from === nodeA && e.to === nodeB) || (e.from === nodeB && e.to === nodeA)) {
       return true;
     }
   }
@@ -57,10 +47,7 @@ export function hasDataDependency(
  * Split a depth group into independent parallel sub-groups.
  * Nodes with mutual dependencies go into the same sub-group (sequential within).
  */
-export function splitIntoIndependentGroups(
-  graph: FlowGraph,
-  nodeIds: string[],
-): string[][] {
+export function splitIntoIndependentGroups(graph: FlowGraph, nodeIds: string[]): string[][] {
   if (nodeIds.length <= 1) return [nodeIds];
 
   // Build a simple union-find for grouping dependent nodes

@@ -66,9 +66,7 @@ export async function runConductorStrategy(
       await executeConductorUnit(deps, graph, phase.units[0], nodeMap, defaultAgentId);
     } else {
       await Promise.all(
-        phase.units.map((unit) =>
-          executeConductorUnit(deps, graph, unit, nodeMap, defaultAgentId),
-        ),
+        phase.units.map((unit) => executeConductorUnit(deps, graph, unit, nodeMap, defaultAgentId)),
       );
     }
   }
@@ -162,10 +160,16 @@ async function executeCollapsedUnit(
     // Execute as a single LLM call
     const firstNode = nodeMap.get(firstNodeId)!;
     const config = getNodeExecConfig(firstNode);
-    const output = await deps.executeAgentStep(graph, firstNode, upstreamInput, {
-      ...config,
-      prompt: prompt,
-    }, defaultAgentId);
+    const output = await deps.executeAgentStep(
+      graph,
+      firstNode,
+      upstreamInput,
+      {
+        ...config,
+        prompt: prompt,
+      },
+      defaultAgentId,
+    );
 
     const durationMs = Date.now() - startTime;
 
@@ -297,7 +301,13 @@ async function executeMeshRounds(
       }
       const upstreamInput = contextParts.join('\n\n');
 
-      const output = await deps.executeAgentStep(graph, node, upstreamInput, config, defaultAgentId);
+      const output = await deps.executeAgentStep(
+        graph,
+        node,
+        upstreamInput,
+        config,
+        defaultAgentId,
+      );
       currOutputs.set(nodeId, output);
 
       // Update node state

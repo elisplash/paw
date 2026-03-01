@@ -75,8 +75,10 @@ export function resolvePath(path: string, data: unknown, rawInput?: string): unk
   if (!isNaN(num) && trimmed !== '') return num;
 
   // String literal (quoted)
-  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-      (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
     return trimmed.slice(1, -1);
   }
 
@@ -94,7 +96,12 @@ export function resolvePath(path: string, data: unknown, rawInput?: string): unk
       return rawInput ?? '';
     }
     parts.shift(); // Remove 'input' prefix
-  } else if (parts[0] === 'data' && data != null && typeof data === 'object' && !('data' in (data as Record<string, unknown>))) {
+  } else if (
+    parts[0] === 'data' &&
+    data != null &&
+    typeof data === 'object' &&
+    !('data' in (data as Record<string, unknown>))
+  ) {
     current = data;
     parts.shift(); // Remove 'data' prefix — only when data param IS the data root
   }
@@ -125,19 +132,26 @@ export function compareValues(left: unknown, op: string, right: unknown): boolea
   const r = typeof right === 'string' ? right : right;
 
   switch (op) {
-    case '===': return l === r;
-    case '!==': return l !== r;
+    case '===':
+      return l === r;
+    case '!==':
+      return l !== r;
     case '==':
       // eslint-disable-next-line eqeqeq
       return l == r;
     case '!=':
       // eslint-disable-next-line eqeqeq
       return l != r;
-    case '>': return Number(l) > Number(r);
-    case '<': return Number(l) < Number(r);
-    case '>=': return Number(l) >= Number(r);
-    case '<=': return Number(l) <= Number(r);
-    default: return false;
+    case '>':
+      return Number(l) > Number(r);
+    case '<':
+      return Number(l) < Number(r);
+    case '>=':
+      return Number(l) >= Number(r);
+    case '<=':
+      return Number(l) <= Number(r);
+    default:
+      return false;
   }
 }
 
@@ -178,10 +192,7 @@ export function evaluateBuiltinCondition(expr: string): ConditionEvalResult | nu
  * - String comparisons: `data.type === "error"`, `input == "ready"`
  * - Compound: `data.status === 200 && data.items.length > 0` (simple && / ||)
  */
-export function evaluateSmartCondition(
-  expr: string,
-  rawInput: string,
-): ConditionEvalResult | null {
+export function evaluateSmartCondition(expr: string, rawInput: string): ConditionEvalResult | null {
   const trimmed = expr.trim();
   if (!trimmed) return null;
 
@@ -207,9 +218,7 @@ export function evaluateSmartCondition(
       if (results.some((r) => r === null)) return null;
 
       const boolResults = results.map((r) => r!.result);
-      const combined = logicOp === '&&'
-        ? boolResults.every(Boolean)
-        : boolResults.some(Boolean);
+      const combined = logicOp === '&&' ? boolResults.every(Boolean) : boolResults.some(Boolean);
 
       return {
         result: combined,

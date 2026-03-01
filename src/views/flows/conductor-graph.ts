@@ -11,8 +11,8 @@ import { getNodeExecConfig } from './executor-atoms';
 
 /** Classification of how a node should execute. */
 export type NodeExecClassification =
-  | 'agent'       // Needs LLM call (agent, data, semantic condition)
-  | 'direct'      // Deterministic — bypass LLM (tool, code, http, mcp-tool, output, error)
+  | 'agent' // Needs LLM call (agent, data, semantic condition)
+  | 'direct' // Deterministic — bypass LLM (tool, code, http, mcp-tool, output, error)
   | 'passthrough'; // No execution needed (trigger, output with no transform)
 
 /** Kinds that bypass LLM entirely — direct execution. */
@@ -158,10 +158,7 @@ export function detectCycles(graph: FlowGraph): Set<string>[] {
  * Compute depth levels for nodes in a DAG (ignoring cycles).
  * Returns Map<nodeId, depth> where depth 0 = root nodes.
  */
-export function computeDepthLevels(
-  graph: FlowGraph,
-  cycleNodes: Set<string>,
-): Map<string, number> {
+export function computeDepthLevels(graph: FlowGraph, cycleNodes: Set<string>): Map<string, number> {
   const { forward, backward } = buildAdjacency(graph);
   const depths = new Map<string, number>();
   const inDegree = new Map<string, number>();

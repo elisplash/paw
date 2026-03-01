@@ -4,11 +4,7 @@
 // Config field generation delegated to panel-config-fields.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import {
-  type FlowGraph,
-  type FlowNode,
-  NODE_DEFAULTS,
-} from './atoms';
+import { type FlowGraph, type FlowNode, NODE_DEFAULTS } from './atoms';
 import {
   getMoleculesState,
   getSelectedEdgeIdLocal,
@@ -117,7 +113,7 @@ export function renderNodePanel(
             </label>
             <label class="flow-panel-field">
               <span>Condition</span>
-              <input type="text" class="flow-panel-input" data-edge-field="conditionExpr" value="${escAttr((edge as unknown as Record<string, unknown>).conditionExpr as string ?? '')}" placeholder="Expression for conditional routing" />
+              <input type="text" class="flow-panel-input" data-edge-field="conditionExpr" value="${escAttr(((edge as unknown as Record<string, unknown>).conditionExpr as string) ?? '')}" placeholder="Expression for conditional routing" />
             </label>
             <div class="flow-panel-section" style="margin-top: 12px">
               <button class="flow-btn flow-btn-danger" data-edge-action="delete" style="width:100%">

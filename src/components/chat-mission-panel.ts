@@ -205,19 +205,6 @@ interface ApprovalCategory {
 
 const APPROVAL_CATEGORIES: ApprovalCategory[] = [
   {
-    id: 'email',
-    label: 'Email',
-    icon: 'mail',
-    description: 'Send emails, read inbox',
-    tools: [
-      'email_send',
-      'google_gmail_send',
-      'email_read',
-      'google_gmail_list',
-      'google_gmail_read',
-    ],
-  },
-  {
     id: 'browser',
     label: 'Browser',
     icon: 'travel_explore',
@@ -239,24 +226,6 @@ const APPROVAL_CATEGORIES: ApprovalCategory[] = [
     tools: ['exec', 'run_command'],
   },
   {
-    id: 'google',
-    label: 'Google',
-    icon: 'cloud',
-    description: 'Drive, Docs, Calendar, Sheets',
-    tools: [
-      'google_docs_create',
-      'google_drive_upload',
-      'google_drive_share',
-      'google_calendar_create',
-      'google_sheets_append',
-      'google_api',
-      'google_calendar_list',
-      'google_drive_list',
-      'google_drive_read',
-      'google_sheets_read',
-    ],
-  },
-  {
     id: 'memory',
     label: 'Memory',
     icon: 'psychology',
@@ -275,14 +244,7 @@ const APPROVAL_CATEGORIES: ApprovalCategory[] = [
     label: 'Messaging',
     icon: 'forum',
     description: 'Slack, Telegram, Discord, inter-agent',
-    tools: [
-      'slack_read',
-      'slack_send',
-      'telegram_read',
-      'telegram_send',
-      'agent_send_message',
-      'agent_read_messages',
-    ],
+    tools: ['telegram_read', 'telegram_send', 'agent_send_message', 'agent_read_messages'],
   },
   {
     id: 'trading',

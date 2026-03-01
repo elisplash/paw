@@ -6,7 +6,7 @@
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface ShortcutEntry {
-  keys: string[];        // e.g. ['Ctrl', 'Z']
+  keys: string[]; // e.g. ['Ctrl', 'Z']
   label: string;
   category: ShortcutCategory;
 }
@@ -52,9 +52,9 @@ const CATEGORIES: ShortcutCategory[] = ['Navigation', 'Editing', 'Execution', 'D
 
 const CATEGORY_ICONS: Record<ShortcutCategory, string> = {
   Navigation: 'explore',
-  Editing:    'edit',
-  Execution:  'play_arrow',
-  Debug:      'bug_report',
+  Editing: 'edit',
+  Execution: 'play_arrow',
+  Debug: 'bug_report',
 };
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -186,5 +186,9 @@ function renderShortcutRow(entry: ShortcutEntry): string {
 }
 
 function escHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }

@@ -35,7 +35,7 @@ impl ProviderKind {
             ProviderKind::OpenAI => "https://api.openai.com/v1",
             ProviderKind::Anthropic => "https://api.anthropic.com",
             ProviderKind::Google => "https://generativelanguage.googleapis.com/v1beta",
-            ProviderKind::Ollama => "http://localhost:11434",
+            ProviderKind::Ollama => "http://localhost:11434/v1",
             ProviderKind::OpenRouter => "https://openrouter.ai/api/v1",
             ProviderKind::Custom => "",
             ProviderKind::DeepSeek => "https://api.deepseek.com/v1",

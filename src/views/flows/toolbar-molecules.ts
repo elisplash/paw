@@ -3,13 +3,7 @@
 // Toolbar HTML rendering and action dispatch (add nodes, zoom, layout, etc.).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import {
-  type FlowNodeKind,
-  NODE_DEFAULTS,
-  createNode,
-  snapToGrid,
-  applyLayout,
-} from './atoms';
+import { type FlowNodeKind, NODE_DEFAULTS, createNode, snapToGrid, applyLayout } from './atoms';
 import { getMoleculesState } from './molecule-state';
 import {
   renderGraph,

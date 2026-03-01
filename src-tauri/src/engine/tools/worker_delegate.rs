@@ -6,7 +6,7 @@
 //   - Cloud: gemini-2.0-flash, gpt-4o-mini, claude-haiku-4-5, deepseek-chat
 //   - Local: worker-qwen (Ollama), llama3.2:3b, phi3:mini
 //
-// Flow: Boss decides "call fetch" or "call mcp_n8n_slack_post" →
+// Flow: Boss decides "call fetch" or "call mcp_n8n_execute_workflow" →
 //       Worker (cheap model) receives task + tool schemas →
 //       Worker executes tools (fetch, exec, MCP) →
 //       Result returned to boss as tool output.

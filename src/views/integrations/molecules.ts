@@ -49,7 +49,7 @@ export function initMoleculesState(): { setMoleculesState: (s: MoleculesState) =
   };
 }
 
-// ── Native integrations (engine skills + MCP) ──────────────────────────
+// ── Active integrations (MCP servers) ──────────────────────────────
 
 let _mcpServers: McpServerConfig[] = [];
 let _mcpStatuses: McpServerStatus[] = [];
@@ -59,7 +59,6 @@ export function setNativeIntegrations(
   mcpServers: McpServerConfig[],
   mcpStatuses: McpServerStatus[],
 ): void {
-  // _skills param kept for backward compat but native cards moved to Built In page
   _mcpServers = mcpServers;
   _mcpStatuses = mcpStatuses;
 }
@@ -185,7 +184,7 @@ function _renderServicesTab(tabBody: HTMLElement): void {
   _wireEvents();
 }
 
-// ── Active integrations section (MCP servers only — native Rust tools live on Built In page) ──
+// ── Active integrations section (MCP servers) ──
 
 function _renderNativeSection(tabBody: HTMLElement): void {
   const connectedMcp = _mcpStatuses.filter((s) => s.connected);
@@ -195,7 +194,6 @@ function _renderNativeSection(tabBody: HTMLElement): void {
   const sectionEl = document.createElement('div');
   sectionEl.className = 'native-integrations-section';
 
-  // MCP server cards only (native Rust skills moved to Built In page)
   let cardsHtml = '';
   for (const server of _mcpServers) {
     const status = _mcpStatuses.find((s) => s.id === server.id);
