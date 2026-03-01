@@ -22,9 +22,34 @@ import { findLastIndex } from '../atoms/chat';
 
 // ── Constants ────────────────────────────────────────────────────────────
 
-const HUB_MIN_WIDTH = 320;
-const HUB_DEFAULT_WIDTH = 360;
-const HUB_DEFAULT_HEIGHT = 500;
+const HUB_MIN_WIDTH = 300;
+const HUB_MAX_WIDTH_RATIO = 0.92; // never wider than 92% of viewport
+const HUB_MAX_HEIGHT_RATIO = 0.85; // never taller than 85% of viewport
+const HUB_PREFERRED_WIDTH = 360;
+const HUB_PREFERRED_HEIGHT = 500;
+const HUB_EDGE_PADDING = 8; // min gap from viewport edges
+
+/** Compute clamped width/height that fits the current viewport. */
+function computeHubSize(): { w: number; h: number } {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  return {
+    w: Math.max(HUB_MIN_WIDTH, Math.min(HUB_PREFERRED_WIDTH, Math.floor(vw * HUB_MAX_WIDTH_RATIO))),
+    h: Math.max(260, Math.min(HUB_PREFERRED_HEIGHT, Math.floor(vh * HUB_MAX_HEIGHT_RATIO))),
+  };
+}
+
+/** Clamp a position so the hub stays fully visible within the viewport. */
+function clampPosition(
+  pos: { x: number; y: number },
+  w: number,
+  h: number,
+): { x: number; y: number } {
+  return {
+    x: Math.max(HUB_EDGE_PADDING, Math.min(pos.x, window.innerWidth - w - HUB_EDGE_PADDING)),
+    y: Math.max(HUB_EDGE_PADDING, Math.min(pos.y, window.innerHeight - h - HUB_EDGE_PADDING)),
+  };
+}
 
 // ── Factory ──────────────────────────────────────────────────────────────
 
@@ -67,15 +92,31 @@ export function createMiniHub(
 
   // ── Build DOM ──────────────────────────────────────────────────────────
 
+  // Compute initial size clamped to viewport
+  let hubSize = computeHubSize();
+  position = clampPosition(position, hubSize.w, hubSize.h);
+
   const root = document.createElement('div');
   root.className = 'mini-hub';
   root.dataset.hubId = config.hubId;
-  root.style.width = `${HUB_DEFAULT_WIDTH}px`;
-  root.style.height = `${HUB_DEFAULT_HEIGHT}px`;
+  root.style.width = `${hubSize.w}px`;
+  root.style.height = `${hubSize.h}px`;
   root.style.position = 'fixed';
   root.style.left = `${position.x}px`;
   root.style.top = `${position.y}px`;
   root.style.zIndex = '9000';
+
+  // Re-clamp on window resize so the hub never overflows the viewport
+  function onWindowResize() {
+    if (destroyed || minimized) return;
+    hubSize = computeHubSize();
+    root.style.width = `${hubSize.w}px`;
+    root.style.height = `${hubSize.h}px`;
+    position = clampPosition(position, hubSize.w, hubSize.h);
+    root.style.left = `${position.x}px`;
+    root.style.top = `${position.y}px`;
+  }
+  window.addEventListener('resize', onWindowResize);
 
   // ── Titlebar ─────────────────────────────────────────────────────────
 
@@ -245,10 +286,11 @@ export function createMiniHub(
 
   function onDragMove(e: MouseEvent) {
     if (!dragging) return;
-    position = {
-      x: Math.max(0, Math.min(e.clientX - dragOffsetX, window.innerWidth - HUB_MIN_WIDTH)),
-      y: Math.max(0, Math.min(e.clientY - dragOffsetY, window.innerHeight - 40)),
-    };
+    position = clampPosition(
+      { x: e.clientX - dragOffsetX, y: e.clientY - dragOffsetY },
+      hubSize.w,
+      hubSize.h,
+    );
     root.style.left = `${position.x}px`;
     root.style.top = `${position.y}px`;
   }
@@ -458,6 +500,7 @@ export function createMiniHub(
       if (destroyed) return;
       destroyed = true;
       talkMode.cleanup();
+      window.removeEventListener('resize', onWindowResize);
       titlebar.removeEventListener('mousedown', onDragStart);
       document.removeEventListener('mousemove', onDragMove);
       document.removeEventListener('mouseup', onDragEnd);

@@ -106,7 +106,13 @@ function defaultPosition(): { x: number; y: number } {
   // Safe fallback when running outside browser (tests)
   const w = typeof window !== 'undefined' ? window.innerWidth : 1280;
   const h = typeof window !== 'undefined' ? window.innerHeight : 720;
-  return { x: w - 340, y: h - 460 };
+  // Position bottom-right with padding, capped so it never goes off-screen
+  const hubW = Math.min(360, Math.floor(w * 0.92));
+  const hubH = Math.min(500, Math.floor(h * 0.85));
+  return {
+    x: Math.max(8, w - hubW - 12),
+    y: Math.max(8, h - hubH - 12),
+  };
 }
 
 /**
