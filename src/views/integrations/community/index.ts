@@ -2,6 +2,6 @@
 //
 // Thin barrel: re-exports the mount function + package requirement helpers.
 
-export { mountCommunityBrowser } from './molecules';
+export { mountCommunityBrowser, unmountCommunityBrowser } from './molecules';
 export { getRequiredPackage, displayName, COMMUNITY_PACKAGE_MAP } from './atoms';
 export type { CommunityPackage, InstalledPackage } from './atoms';

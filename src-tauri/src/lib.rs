@@ -501,6 +501,7 @@ pub fn run() {
             commands::n8n::engine_n8n_community_packages_list,
             commands::n8n::engine_n8n_community_packages_install,
             commands::n8n::engine_n8n_community_packages_uninstall,
+            commands::n8n::engine_n8n_community_packages_cancel,
             commands::n8n::engine_n8n_deploy_mcp_workflow,
             // ── NCNodes Discovery (Phase 3) ──
             commands::n8n::engine_n8n_search_ncnodes,
