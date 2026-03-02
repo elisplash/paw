@@ -716,8 +716,9 @@ pub async fn engine_n8n_search_ncnodes(
     // Fetch real weekly download counts from npm download-counts API.
     // We batch up to 128 scoped/unscoped names per request.
     if !results.is_empty() {
-        let names: Vec<&str> = results.iter().map(|r| r.package_name.as_str()).collect();
-        let downloads = fetch_npm_weekly_downloads(&client, &names).await;
+        let names: Vec<String> = results.iter().map(|r| r.package_name.clone()).collect();
+        let name_refs: Vec<&str> = names.iter().map(|s| s.as_str()).collect();
+        let downloads = fetch_npm_weekly_downloads(&client, &name_refs).await;
         for r in &mut results {
             if let Some(&count) = downloads.get(r.package_name.as_str()) {
                 r.weekly_downloads = count;

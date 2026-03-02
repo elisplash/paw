@@ -715,7 +715,7 @@ async fn execute_search_ncnodes(args: &serde_json::Value) -> Result<String, Stri
     );
 
     let results =
-        crate::commands::n8n::engine_n8n_search_ncnodes(query.to_string(), Some(limit)).await?;
+        crate::commands::n8n::engine_n8n_search_ncnodes(query.to_string(), Some(limit), None).await?;
 
     if results.is_empty() {
         return Ok(format!(
