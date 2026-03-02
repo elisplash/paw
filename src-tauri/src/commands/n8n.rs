@@ -1313,11 +1313,9 @@ pub async fn engine_n8n_package_credential_schema(
     // inaccessible (they often require session auth, not API key auth).
     if schemas.is_empty() {
         let pkg_display = display_name_for_pkg(&package_name);
-        // Build a search-friendly documentation link for unknown packages
-        let search_query = pkg_display.replace(' ', "+");
-        let fallback_doc = format!(
-            "https://docs.n8n.io/?s={}",
-            search_query
+        let npm_url = format!(
+            "https://www.npmjs.com/package/{}",
+            package_name
         );
 
         schemas.push(N8nCredentialSchema {
@@ -1337,8 +1335,19 @@ pub async fn engine_n8n_package_credential_schema(
                 options: vec![],
                 is_secret: true,
             }],
-            documentation_url: Some(fallback_doc),
+            documentation_url: Some(npm_url),
         });
+    }
+
+    // For community packages, the setup guide lives in the npm package README,
+    // not on n8n's docs site.  Override any n8n-internal documentationUrl with
+    // the npm page so users land on the actual community node's instructions.
+    let npm_doc_url = format!(
+        "https://www.npmjs.com/package/{}",
+        package_name
+    );
+    for schema in &mut schemas {
+        schema.documentation_url = Some(npm_doc_url.clone());
     }
 
     Ok(PackageCredentialInfo {
