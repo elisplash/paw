@@ -201,6 +201,30 @@ The system is implemented as 23 Rust modules under `src-tauri/src/engine/engram/
 
 ## The Three Memory Tiers
 
+```mermaid
+flowchart TB
+    subgraph T0["Tier 0 — Sensory Buffer"]
+        direction LR
+        SB["FIFO Ring Cache\n20 items max\nSingle turn lifetime"]
+    end
+
+    subgraph T1["Tier 1 — Working Memory"]
+        direction LR
+        WM["Priority-Evicted Slots\n4,096 token budget\nActive attention"]
+    end
+
+    subgraph T2["Tier 2 — Long-Term Memory Graph"]
+        direction LR
+        EP["Episodic\n(what happened)"]
+        KN["Knowledge\n(what is true)"]
+        PR["Procedural\n(how to do things)"]
+    end
+
+    T0 -- "attentional\npromotion" --> T1
+    T1 -- "consolidation" --> T2
+    T2 -- "recall on\nsearch" --> T1
+```
+
 ### Tier 1: Sensory Buffer
 
 A fixed-capacity ring buffer (`VecDeque`) that accumulates raw input during a single agent turn: user messages, tool results, recalled memories, and system context.
@@ -293,6 +317,23 @@ Memories are not isolated rows — they form a graph connected by typed edges:
 
 When memories are retrieved by search, the graph is traversed to find associated memories. Adjacent nodes receive an activation boost proportional to their edge weight, biased by edge type. This implements a simplified version of spreading activation from cognitive science.
 
+```mermaid
+graph LR
+    Q["Search Query"] --> M1["Memory A\n(direct hit)"]
+
+    M1 -- "RelatedTo\nweight: 0.8" --> M2["Memory B\n(1-hop boost)"]
+    M1 -- "CausedBy\nweight: 0.9" --> M3["Memory C\n(1-hop boost)"]
+    M1 -- "Supports\nweight: 0.7" --> M4["Memory D\n(1-hop boost)"]
+    M2 -- "SimilarTo\nweight: 0.6" --> M5["Memory E\n(2-hop — future)"]
+
+    style Q fill:#f59e0b,color:#fff
+    style M1 fill:#4a9eff,color:#fff
+    style M2 fill:#22c55e,color:#fff
+    style M3 fill:#22c55e,color:#fff
+    style M4 fill:#22c55e,color:#fff
+    style M5 fill:#6b7280,color:#fff
+```
+
 Currently 1-hop traversal: direct neighbors of retrieved memories are boosted. The activation score is blended with the original retrieval score to produce the final ranking.
 
 ---
@@ -365,6 +406,31 @@ The `hybrid_search.rs` module analyzes queries to determine the optimal search s
 ## Retrieval Intelligence
 
 Search is only half the problem. The other half is deciding *whether* to search, and *what to do* when results are weak. Engram implements a two-stage retrieval intelligence pipeline inspired by Self-RAG and CRAG research.
+
+```mermaid
+flowchart TD
+    Q["Inbound Query"] --> GATE{"Retrieval Gate\n(<1ms)"}
+
+    GATE -- "Skip" --> SKIP["No search\n(greetings, math,\ntopic in working memory)"]
+    GATE -- "Retrieve" --> SEARCH["Hybrid Search\n(BM25 + Vector + Graph)"]
+    GATE -- "DeepRetrieve" --> DEEP["Extended Search\n(higher limits, 2-hop,\nGraphRAG communities)"]
+
+    SEARCH --> QC{"CRAG Quality\nTier?"}
+    DEEP --> QC
+
+    QC -- "Correct (\u2265 0.6)" --> INJECT["Inject directly\n(extract supporting sentences)"]
+    QC -- "Ambiguous (0.3\u20130.6)" --> REFINE["Knowledge Refinement\n(decompose + re-search + merge)"]
+    QC -- "Incorrect (< 0.3)" --> REFUSE["Refuse / Broaden Scope\n/ Query Decomposition"]
+
+    REFINE --> INJECT
+    REFUSE -- "reformulated" --> SEARCH
+
+    GATE -- "Defer" --> ASK["Ask user for\nclarification"]
+
+    style SKIP fill:#6b7280,color:#fff
+    style INJECT fill:#22c55e,color:#fff
+    style REFUSE fill:#ef4444,color:#fff
+```
 
 ### Retrieval Gate
 
@@ -514,6 +580,25 @@ This unidirectional flow eliminates the coherence complexity that plagues tradit
 
 A background process runs every 5 minutes (configurable) performing four operations:
 
+```mermaid
+flowchart TD
+    subgraph Cycle["Consolidation Cycle (every 5 min)"]
+        direction TB
+        SAVE["SAVEPOINT\n(pre-consolidation baseline)"]
+        SAVE --> PC["1. Pattern Clustering\ncosine ≥ 0.75 → union-find grouping"]
+        PC --> CD["2. Contradiction Detection\nsame subject + predicate, different object → resolve"]
+        CD --> DECAY["3. Dual-Layer Decay\nLML β=0.8 (slow) / SML β=1.2 (fast)"]
+        DECAY --> GC["4. Garbage Collection\nstrength < 0.1 → two-phase delete"]
+        GC --> FUS["5. Memory Fusion\ncosine ≥ 0.75 → merge → tombstone"]
+        FUS --> NDCG{"NDCG delta\n< −5%?"}
+        NDCG -- Yes --> ROLL["ROLLBACK TO SAVEPOINT\n(no memories lost)"]
+        NDCG -- No --> COMMIT["COMMIT\n(changes persist)"]
+    end
+
+    style ROLL fill:#ef4444,color:#fff
+    style COMMIT fill:#22c55e,color:#fff
+```
+
 ### 1. Pattern Clustering
 
 Memories with cosine similarity ≥ 0.75 are grouped using union-find clustering. Clusters of related memories are identified for potential fusion. This prevents memory bloat from repeated similar observations.
@@ -593,24 +678,27 @@ Traditional memory systems treat forgetting as a failure mode. Engram treats it 
 
 Human memory does not decay uniformly. Frequently-rehearsed information consolidates into long-term storage while transient details fade rapidly. FadeMem formalizes this with a dual-layer architecture that Engram adopts:
 
-```
-┌─────────────────────────────────────────────────────┐
-│          Long Memory Layer (LML)                    │
-│  β = 0.8 (sub-linear decay)                        │
-│  half-life ≈ 11.25 days                            │
-│  ← promoted when access_freq > θ_promote (0.7)     │
-│                                                     │
-│  Important facts, verified knowledge, high-use      │
-│  procedural memories, user-explicit stores           │
-├─────────────────────────────────────────────────────┤
-│          Short Memory Layer (SML)                   │
-│  β = 1.2 (super-linear decay)                      │
-│  half-life ≈ 5.02 days                             │
-│  → demoted when relevance < θ_demote (0.3)         │
-│                                                     │
-│  Session context, transient observations,            │
-│  auto-captured details, low-importance entries       │
-└─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph LML["Long Memory Layer (LML)"]
+        direction TB
+        L1["β = 0.8 — sub-linear decay"]
+        L2["half-life ≈ 11.25 days"]
+        L3["Important facts · verified knowledge\nhigh-use procedural memories · user-explicit stores"]
+    end
+
+    subgraph SML["Short Memory Layer (SML)"]
+        direction TB
+        S1["β = 1.2 — super-linear decay"]
+        S2["half-life ≈ 5.02 days"]
+        S3["Session context · transient observations\nauto-captured details · low-importance entries"]
+    end
+
+    SML -- "promote when\naccess_freq > θ_promote (0.7)" --> LML
+    LML -- "demote when\nrelevance < θ_demote (0.3)" --> SML
+
+    style LML fill:#1e3a5f,color:#fff
+    style SML fill:#5f1e1e,color:#fff
 ```
 
 ### Interference-Based Decay
@@ -667,6 +755,28 @@ Memory fusion addresses this directly, inspired by FadeMem's fusion mechanism.
 
 During each consolidation cycle, the fusion engine:
 
+```mermaid
+flowchart TD
+    SCAN["Scan Memory Pairs"] --> COS{"Cosine\nSimilarity\n\u2265 0.75?"}
+    COS -- No --> SKIP["Skip\n(distinct memories)"]
+    COS -- Yes --> CLASS{"Classify\nRelation"}
+
+    CLASS -- Compatible --> FUSE["Fuse into\nunified entry"]
+    CLASS -- Contradictory --> CONTRA["Recent wins\nConfidence transferred\nContradicts edge created"]
+    CLASS -- Subsumes --> ABSORB["Absorb old into new\nOld becomes tombstone"]
+    CLASS -- Subsumed --> KEEP["Keep old\nBoost strength\nDiscard new"]
+
+    FUSE & CONTRA & ABSORB & KEEP --> EDGE["Redirect Graph Edges\nto merged entry"]
+    EDGE --> TOMB["Tombstone Originals\n(recoverable)"]
+    TOMB --> QC{"NDCG\ndelta OK?"}
+    QC -- "Drop > 5%" --> ROLLBACK["Rollback fusion cycle"]
+    QC -- OK --> DONE["Commit \u2014 storage reduced"]
+
+    style ROLLBACK fill:#ef4444,color:#fff
+    style DONE fill:#22c55e,color:#fff
+    style SKIP fill:#6b7280,color:#fff
+```
+
 1. **Candidate detection** — Identify memory pairs with cosine similarity ≥ θ_fusion (0.75, derived from FadeMem paper — the plan originally used 0.92 but the paper demonstrates 0.75 is the optimal threshold) and compatible scopes (same agent, same scope tier).
 2. **Relation classification** — Classify each pair as Compatible, Contradictory, Subsumes, or Subsumed using the four-type conflict model.
 3. **Merge** — For Compatible pairs: create a single strengthened entry with the union of propositions from both sources, the maximum of their strength values, and a provenance chain linking back to the originals.
@@ -709,6 +819,29 @@ Each community gets a **hierarchical summary** — an LLM-generated description 
 ### Deep GraphRAG Three-Stage Pipeline
 
 For queries that require community-level reasoning, Engram uses a three-stage hierarchical pipeline from Deep GraphRAG:
+
+```mermaid
+flowchart TD
+    Q["Query"] --> ROUTER{"Query\nPlane?"}
+
+    ROUTER -- Local --> LOCAL["Standard Hybrid Search\nBM25 + Vector + 1-hop Graph"]
+    ROUTER -- Global --> S1
+    ROUTER -- Hybrid --> BOTH["Local Search +\nCommunity Summaries"]
+
+    subgraph Pipeline["Deep GraphRAG Three-Stage Pipeline"]
+        S1["Stage 1: Inter-Community Filter\nEmbed query \u2192 match community summaries\n\u2192 select top-k communities"]
+        S1 --> S2["Stage 2: Intra-Community Retrieval\nHybrid search within each\nselected community"]
+        S2 --> S3["Stage 3: Knowledge Integration\nDeduplicate \u2192 cross-community edges\n\u2192 budget-aware ranking"]
+    end
+
+    LOCAL --> RESULTS["Ranked Results"]
+    S3 --> RESULTS
+    BOTH --> RESULTS
+
+    style S1 fill:#4a9eff,color:#fff
+    style S2 fill:#4a9eff,color:#fff
+    style S3 fill:#4a9eff,color:#fff
+```
 
 1. **Inter-community filter** — Embed the query, compare against all community summary embeddings, select the top-k most relevant communities. This narrows the search space from the entire graph to a few coherent clusters.
 
@@ -758,6 +891,30 @@ Engram is the **first local-first GraphRAG implementation** in any agent memory 
 ## Compounding Skill Library
 
 Most agent memory systems only store *facts* — what happened, what is true. Engram also stores *skills* — executable, composable procedures that improve with every interaction. This is inspired by Voyager (NeurIPS 2023), Reflexion (NeurIPS 2023), and HELPER (EMNLP 2023).
+
+```mermaid
+flowchart TD
+    TASK["Agent Completes\nMulti-Step Task"] --> EXTRACT["Auto-Extract\nReusable Skill"]
+    EXTRACT --> VERIFY{"Skill Verifier\nTools exist? Outcomes match?\nNo hallucinations? No danger?"}
+    VERIFY -- Pass --> LIB["Skill Library\n(composable procedures)"]
+    VERIFY -- Fail --> DISCARD["Discard"]
+
+    LIB --> SUGGEST["Proactive Suggestion\n(pattern match on context)"]
+    SUGGEST --> EXEC["Skill Execution"]
+    EXEC --> SUCCESS{"Outcome?"}
+    SUCCESS -- Success --> BOOST["Increment success_count\nBoost strength"]
+    SUCCESS -- Failure --> REFLECT["Reflexion Analysis\n(root cause \u2192 correction)"]
+    REFLECT --> VARIANT["Store as skill variant\nor guard condition"]
+
+    VARIANT --> LIB
+    BOOST --> LIB
+    LIB --> COMPOSE["Compositional Hierarchy\n(skills reference sub-skills)"]
+    COMPOSE --> LIB
+
+    style LIB fill:#4a9eff,color:#fff
+    style DISCARD fill:#6b7280,color:#fff
+    style REFLECT fill:#f59e0b,color:#fff
+```
 
 ### Auto-Extraction
 
@@ -821,6 +978,28 @@ No competing memory system implements a self-improving procedural memory library
 ### ContextBuilder
 
 The ContextBuilder is a fluent API for assembling the final prompt within a token budget:
+
+```mermaid
+flowchart TD
+    subgraph Budget["Token Budget Allocation (priority order)"]
+        direction TB
+        P1["1. System Prompt\n(always included — first priority)"]
+        P1 --> P2["2. Recalled Memories\n(packed by importance × relevance score)"]
+        P2 --> P3["3. Working Memory Slots\n(packed by priority)"]
+        P3 --> P4["4. Sensory Buffer Items\n(packed by recency)"]
+        P4 --> P5["5. Conversation Messages\n(newest-first until budget exhausted)"]
+    end
+
+    MODEL["Model Capability\nRegistry"] --> BUDGET["Total Token\nBudget"]
+    BUDGET --> Budget
+    Budget --> PROMPT["Final Assembled\nPrompt"]
+
+    style P1 fill:#ef4444,color:#fff
+    style P2 fill:#f59e0b,color:#fff
+    style P3 fill:#eab308,color:#fff
+    style P4 fill:#22c55e,color:#fff
+    style P5 fill:#4a9eff,color:#fff
+```
 
 ```rust
 let prompt = ContextBuilder::new(model_caps)
@@ -1020,6 +1199,38 @@ A desktop AI platform serves multiple concurrent consumers: the chat UI, backgro
 ### Read Pool + Write Channel
 
 Engram separates reads from writes using a two-path architecture:
+
+```mermaid
+flowchart LR
+    subgraph Consumers["Concurrent Consumers"]
+        direction TB
+        C1["Chat UI"]
+        C2["Background Tasks"]
+        C3["Orchestration"]
+        C4["Channel Bridges\n(11+)"]
+        C5["Consolidation\nEngine"]
+    end
+
+    subgraph ReadPath["Read Path (concurrent)"]
+        direction TB
+        RP["Connection Pool\n8 WAL read-only connections"]
+    end
+
+    subgraph WritePath["Write Path (serialized)"]
+        direction TB
+        WC["tokio::mpsc channel"]
+        WC --> WT["Dedicated writer task\n(single connection)"]
+    end
+
+    Consumers -- "search, traverse,\nstat reads" --> ReadPath
+    Consumers -- "insert, update,\ndelete, consolidate" --> WritePath
+
+    ReadPath --> DB[("Storage\nEngine")]
+    WritePath --> DB
+
+    style ReadPath fill:#22c55e,color:#fff
+    style WritePath fill:#f59e0b,color:#fff
+```
 
 - **Read path** — A connection pool with 8 read-only connections operating in WAL (Write-Ahead Logging) mode. All search queries, graph traversals, and stat reads execute on the pool concurrently. WAL mode allows readers to proceed without blocking on writers.
 - **Write path** — A dedicated writer task receives all mutations through a `tokio::mpsc` channel. The writer serializes all inserts, updates, deletions, and consolidation writes through a single connection, eliminating write contention entirely.
@@ -1262,6 +1473,49 @@ These eight modules are connected through 13 integration contracts ensuring they
 
 Engram's quality evaluation framework ensures that every subsystem is measurable and regressions are caught automatically.
 
+```mermaid
+flowchart TD
+    subgraph Retrieval["Retrieval Quality"]
+        direction TB
+        RQ1["NDCG\nranking quality"]
+        RQ2["Precision@k\nrelevance ratio"]
+        RQ3["Latency\n<10ms target at 10K"]
+    end
+
+    subgraph Faith["Faithfulness Evaluation"]
+        direction TB
+        FE1["Faithfulness\nfactual consistency"]
+        FE2["Context Relevancy\ninjection quality"]
+        FE3["Answer Relevancy\nresponse quality"]
+    end
+
+    subgraph Forget["Forgetting Regression"]
+        direction TB
+        FR1["Pre/post NDCG\ncomparison"]
+        FR2["Chain integrity\nmulti-hop check"]
+        FR3["Auto-rollback\nif \u0394 > 5%"]
+    end
+
+    subgraph Dilution["PAPerBench Dilution"]
+        direction TB
+        PA1["Personalization axis"]
+        PA2["Privacy axis"]
+        PA3["Injection-Faithfulness axis"]
+    end
+
+    Retrieval --> CI["CI Quality Gates"]
+    Faith --> CI
+    Forget --> CI
+    Dilution --> CI
+
+    CI --> MERGE{"Pass all\nthresholds?"}
+    MERGE -- Yes --> ALLOW["Merge allowed"]
+    MERGE -- No --> BLOCK["Merge blocked"]
+
+    style ALLOW fill:#22c55e,color:#fff
+    style BLOCK fill:#ef4444,color:#fff
+```
+
 ### Retrieval Quality
 
 Every search returns quality metadata alongside results:
@@ -1364,6 +1618,29 @@ The paper's explicit conclusion — *"Agent Memory is the future direction"* —
 
 Long-running agent sessions inevitably exceed context limits. Most systems handle this with silent truncation — conversation history is cut from the front and the agent loses context. Engram implements a checkpoint-and-continue system that preserves cognitive state across context boundaries.
 
+```mermaid
+flowchart TD
+    RUNNING["Agent Running"] --> SIDE{"Side-effect\noperation?"}
+    SIDE -- No --> RUNNING
+    SIDE -- Yes --> CAPTURE["Capture Checkpoint\nconversation + working memory\n+ file hashes + task progress"]
+    CAPTURE --> STORE[("Persistent Store")]
+    STORE --> CONTINUE["Continue Execution"]
+
+    CONTINUE --> LIMIT{"Context\nlimit\nreached?"}
+    LIMIT -- No --> RUNNING
+    LIMIT -- Yes --> MODE{"Continuation\nmode?"}
+
+    MODE -- Automatic --> SUMMARIZE["Task-Aware Summarize\npending work + key decisions\n+ relevant memories"]
+    SUMMARIZE --> NEW["New context with summary"]
+    NEW --> RUNNING
+
+    MODE -- Manual --> CHOICE["User chooses:\n\u2022 Continue with summary\n\u2022 Revert to checkpoint\n\u2022 Start fresh"]
+
+    style CAPTURE fill:#4a9eff,color:#fff
+    style SUMMARIZE fill:#f59e0b,color:#fff
+    style CHOICE fill:#22c55e,color:#fff
+```
+
 ### Workspace Checkpoints
 
 Before any side-effect operation (file write, tool execution, memory mutation), Engram captures a checkpoint:
@@ -1390,27 +1667,25 @@ This replaces silent truncation with intelligent handoffs. No competing product 
 
 Engram's architecture is not a collection of independent features — it is a reinforcing loop where each principle strengthens the others. The Grand Research Synthesis (synthesizing all 21 papers from 2021-2026) reveals a unified intelligence architecture:
 
+```mermaid
+flowchart LR
+    GATE["GATE\n\nSelf-RAG · CRAG\nDecide WHETHER\nto search"] --> RETRIEVE["RETRIEVE\n\nDeep GraphRAG\nGraphRAG-R1\nFind the right\nmemories"]
+    RETRIEVE --> CAP["CAP\n\nPAPerBench\nInject the right\nAMOUNT"]
+    CAP --> SKILL["SKILL\n\nVoyager · Reflexion\nApply learned\nprocedures"]
+    SKILL --> EVAL["EVALUATE\n\nDRB-II · RAGAs\nMeasure everything\ncatch regressions"]
+    EVAL --> FORGET["FORGET\n\nFadeMem\nRemove noise\nprovably safely"]
+    FORGET --> GATE
+
+    style GATE fill:#6366f1,color:#fff
+    style RETRIEVE fill:#4a9eff,color:#fff
+    style CAP fill:#f59e0b,color:#fff
+    style SKILL fill:#22c55e,color:#fff
+    style EVAL fill:#ec4899,color:#fff
+    style FORGET fill:#ef4444,color:#fff
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  THE INTELLIGENCE LOOP                   │
-│                                                         │
-│    ┌──────┐    ┌──────────┐    ┌─────┐    ┌───────┐    │
-│    │ GATE │───→│ RETRIEVE │───→│ CAP │───→│ SKILL │    │
-│    └──┬───┘    └──────────┘    └─────┘    └───┬───┘    │
-│       │                                       │        │
-│       │    ┌──────────┐    ┌──────┐           │        │
-│       └────│  FORGET  │←───│ EVAL │←──────────┘        │
-│            └──────────┘    └──────┘                     │
-│                                                         │
-│  Each principle reinforces the others:                   │
-│  • Gating makes retrieval efficient                     │
-│  • Retrieval makes capping meaningful                   │
-│  • Capping makes skills focused                         │
-│  • Skills make evaluation concrete                      │
-│  • Evaluation makes forgetting safe                     │
-│  • Forgetting makes gating accurate                     │
-└─────────────────────────────────────────────────────────┘
-```
+
+> **Each principle reinforces the others:**
+> Gating makes retrieval efficient → Retrieval makes capping meaningful → Capping makes skills focused → Skills make evaluation concrete → Evaluation makes forgetting safe → Forgetting makes gating accurate
 
 ### Six Principles
 
@@ -1426,35 +1701,6 @@ Engram's architecture is not a collection of independent features — it is a re
 The key insight: **intelligent memory is not more memory — it is better memory.** Every component in the loop works to ensure that only the right information reaches the model at the right time, and that the system learns and improves with every interaction.
 
 This six-principle loop represents the synthesis of 21 research papers spanning 5 years. No competing product implements all six principles as a unified architecture.
-
----
-
-## Build Roadmap
-
-The implementation follows a phased approach, with each phase building on verified foundations:
-
-| Phase | Days | Core Deliverables | Research Applied |
-|---|---|---|---|
-| **Phase 0: Foundation** | 5 | MemoryBackend trait, CognitiveState wiring, working_memory activation | Architectural prerequisite |
-| **Phase 1: Gating** | 7 | Retrieval gate, unified gated_search(), all paths wired | Self-RAG, CRAG |
-| **Phase 2: Forgetting** | 10 | FadeMem fusion, interference decay, transactional forgetting | FadeMem |
-| **Phase 3: Graph** | 12 | Louvain communities, hierarchical summarization, Deep GraphRAG 3-stage pipeline | Deep GraphRAG, WildGraphBench |
-| **Phase 4: Skills** | 10 | Skill extraction, verification, composition, Reflexion learning | Voyager, Reflexion |
-| **Phase 5: Evaluation** | 8 | PAPerBench three-axis dilution, DRB-II rubrics, privacy probes, CI gates | PAPerBench, DRB-II |
-| **Phase 6: Calibration** | 5 | End-to-end integration testing, per-model dilution calibration | All papers |
-| **Total** | **~57 days** | **27 PRs** | **21 papers** |
-
-### Top 5 Quick Wins
-
-Based on code gap audit (27 gaps across 7 source files) and paper ablation studies:
-
-| Rank | Fix | Days | Why First |
-|---|---|---|---|
-| #1 | Wire intent_classifier.rs (1,181 lines of dead code) | ~2 | Enables query routing; WildGraphBench proves GraphRAG hurts without it |
-| #2 | Add dual-layer decay to graph.rs | ~5 | Replace uniform decay; FadeMem: -33.9% F1 without it |
-| #3 | Add conflict resolution + fusion | ~5 | Stop contradictions piling up; FadeMem: -53.7% F1 without fusion |
-| #4 | Add per-model injection caps | ~3 | PAPerBench: privacy degrades before quality |
-| #5 | Fix bypass paths through gated_search | ~3 | Tasks/orchestrator/swarm currently hardcode limit=10, skip all safety |
 
 ---
 
