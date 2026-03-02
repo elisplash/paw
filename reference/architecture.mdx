@@ -310,7 +310,7 @@ Pawz uses a dual build pipeline — **Vite** for the frontend and **Cargo** for 
 ### Development
 
 ```bash
-npm run tauri dev
+pnpm tauri dev
 ```
 
 1. **Vite dev server** starts on `http://localhost:1420` (HMR enabled)
@@ -321,10 +321,10 @@ npm run tauri dev
 ### Production build
 
 ```bash
-npm run tauri build
+pnpm tauri build
 ```
 
-1. `npm run build` — Vite bundles TypeScript → `dist/` (optimized, minified)
+1. `pnpm build` — Vite bundles TypeScript → `dist/` (optimized, minified)
 2. `cargo build --release` — Compiles Rust backend with optimizations
 3. Tauri packages both into a native installer (`.dmg`, `.AppImage`, `.msi`)
 

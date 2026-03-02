@@ -42,10 +42,10 @@ git clone https://github.com/OpenPawz/openpawz.git
 cd paw
 
 # Install frontend dependencies
-npm install
+pnpm install
 
 # Run in development mode (hot-reload)
-npm run tauri dev
+pnpm tauri dev
 ```
 
 The first build will take a few minutes while Rust compiles all dependencies. Subsequent builds are incremental.
@@ -53,7 +53,7 @@ The first build will take a few minutes while Rust compiles all dependencies. Su
 ## Production build
 
 ```bash
-npm run tauri build
+pnpm tauri build
 ```
 
 The built app will be in `src-tauri/target/release/bundle/` — platform-specific installer (.dmg, .deb, .msi, etc.).
