@@ -38,9 +38,9 @@ Thanks for your interest in contributing! Whether you write Rust, TypeScript, do
 ```bash
 git clone https://github.com/OpenPawz/openpawz.git
 cd paw
-npm install
+pnpm install
 prek install          # set up git hooks
-npm run tauri dev
+pnpm tauri dev
 ```
 
 This starts the Tauri dev server with hot-reload for the frontend and live-rebuild for the Rust backend.
@@ -69,7 +69,7 @@ npx prettier --check "src/**/*.ts"
 cd src-tauri && cargo fmt --check
 
 # Full production build
-npm run tauri build
+pnpm tauri build
 ```
 
 ---

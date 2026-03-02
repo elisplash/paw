@@ -520,10 +520,10 @@ git clone https://github.com/OpenPawz/openpawz.git
 cd paw
 
 # 2. Install frontend dependencies
-npm install
+pnpm install
 
 # 3. Run in development mode (hot-reload frontend + live Rust rebuilds)
-npm run tauri dev
+pnpm tauri dev
 ```
 
 > **First build takes 3–5 minutes** while Rust compiles all dependencies. Subsequent builds are incremental (~5–15 seconds).
@@ -533,8 +533,8 @@ npm run tauri dev
 If you just want to run the frontend UI without the Rust backend (useful for UI development or quick previews):
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 This starts the Vite dev server at `http://localhost:1420/` with hot-reload. The full Tauri backend (provider calls, credential vault, container sandbox, etc.) won't be available in this mode, but all views and UI components will render.
@@ -626,13 +626,13 @@ npx prettier --check "src/**/*.ts"
 cd src-tauri && cargo fmt --check
 
 # Run everything at once
-npm run check
+pnpm check
 ```
 
 ### Production Build
 
 ```bash
-npm run tauri build
+pnpm tauri build
 ```
 
 The built app will be in `src-tauri/target/release/bundle/` — platform-specific installer:
