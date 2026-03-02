@@ -28,7 +28,9 @@ pub struct AnthropicProvider {
     base_url: String,
     /// API key wrapped in Zeroizing<> — automatically zeroed from RAM on drop.
     api_key: Zeroizing<String>,
-    is_azure: bool,
+    /// Azure OpenAI (*.openai.azure.com / *.cognitiveservices.azure.com) —
+    /// uses `api-key` header and `?api-version=` query param.
+    is_azure_openai: bool,
 }
 
 impl AnthropicProvider {
@@ -37,12 +39,16 @@ impl AnthropicProvider {
             .base_url
             .clone()
             .unwrap_or_else(|| config.kind.default_base_url().to_string());
-        let is_azure = base_url.contains(".azure.com");
+        // Azure OpenAI endpoints use a different auth header (api-key) and
+        // require ?api-version=. Azure AI Foundry (*.services.ai.azure.com)
+        // proxies the native Anthropic API and uses standard x-api-key auth.
+        let is_azure_openai = base_url.contains(".openai.azure.com")
+            || base_url.contains(".cognitiveservices.azure.com");
         AnthropicProvider {
             client: pinned_client(),
             base_url,
             api_key: Zeroizing::new(config.api_key.clone()),
-            is_azure,
+            is_azure_openai,
         }
     }
 
@@ -402,7 +408,7 @@ impl AnthropicProvider {
         temperature: Option<f64>,
         thinking_level: Option<&str>,
     ) -> Result<Vec<StreamChunk>, ProviderError> {
-        let url = if self.is_azure {
+        let url = if self.is_azure_openai {
             let base = self.base_url.trim_end_matches('/');
             if base.contains('?') {
                 format!("{}/v1/messages", base)
@@ -512,7 +518,7 @@ impl AnthropicProvider {
                     "anthropic-beta",
                     "prompt-caching-2024-07-31,interleaved-thinking-2025-05-14",
                 );
-            if self.is_azure {
+            if self.is_azure_openai {
                 req = req.header("api-key", self.api_key.as_str());
             } else {
                 req = req.header("x-api-key", self.api_key.as_str());
