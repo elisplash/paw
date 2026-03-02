@@ -342,3 +342,198 @@ describe('DEFAULT_RATE_LIMITS', () => {
     }
   });
 });
+
+// ── classifyActionRisk — edge cases ────────────────────────────────────
+
+describe('classifyActionRisk — edge cases', () => {
+  it('defaults to soft for empty string', () => {
+    expect(classifyActionRisk('')).toBe('soft');
+  });
+
+  it('matches first found verb by iteration order', () => {
+    // "fetch_count" — "fetch" appears in the map and will match first
+    expect(classifyActionRisk('fetch_count')).toBe('auto');
+  });
+});
+
+// ── riskMeta — color format ────────────────────────────────────────────
+
+describe('riskMeta — color format', () => {
+  it('all colors contain CSS var syntax', () => {
+    for (const level of ['auto', 'soft', 'hard'] as const) {
+      expect(riskMeta(level).color).toContain('var(--');
+    }
+  });
+});
+
+// ── getRateLimit — edge cases ──────────────────────────────────────────
+
+describe('getRateLimit — edge cases', () => {
+  it('falls back to generic with empty overrides array', () => {
+    const limit = getRateLimit('slack', []);
+    expect(limit).toEqual(DEFAULT_GENERIC_LIMIT);
+  });
+});
+
+// ── checkRateLimit / bumpRateLimit — edge cases ────────────────────────
+
+describe('checkRateLimit — edge cases', () => {
+  beforeEach(() => {
+    resetRateLimit('edge-svc');
+  });
+
+  it('isolates separate services', () => {
+    resetRateLimit('svc-a');
+    resetRateLimit('svc-b');
+    const cfgA: RateLimitConfig = { service: 'svc-a', maxActions: 2, windowMinutes: 15 };
+    const cfgB: RateLimitConfig = { service: 'svc-b', maxActions: 2, windowMinutes: 15 };
+    checkRateLimit('svc-a', cfgA);
+    checkRateLimit('svc-a', cfgA);
+    // svc-a exhausted, svc-b should still work
+    const resultB = checkRateLimit('svc-b', cfgB);
+    expect(resultB.allowed).toBe(true);
+    resetRateLimit('svc-a');
+    resetRateLimit('svc-b');
+  });
+
+  it('uses getRateLimit default when no config passed', () => {
+    const result = checkRateLimit('slack');
+    expect(result.limit).toBe(30); // Default for slack
+    resetRateLimit('slack');
+  });
+});
+
+describe('bumpRateLimit — edge cases', () => {
+  it('no-ops on non-existent service window', () => {
+    // Should not throw
+    expect(() => bumpRateLimit('nonexistent-svc', 5)).not.toThrow();
+  });
+
+  it('bump with extra=0 is a no-op', () => {
+    resetRateLimit('bump-svc');
+    const cfg: RateLimitConfig = { service: 'bump-svc', maxActions: 5, windowMinutes: 15 };
+    checkRateLimit('bump-svc', cfg); // count=1
+    bumpRateLimit('bump-svc', 0);
+    const result = checkRateLimit('bump-svc', cfg); // count=2
+    expect(result.remaining).toBe(3);
+    resetRateLimit('bump-svc');
+  });
+
+  it('bump more than current count floors to 0', () => {
+    resetRateLimit('bump2');
+    const cfg: RateLimitConfig = { service: 'bump2', maxActions: 5, windowMinutes: 15 };
+    checkRateLimit('bump2', cfg); // count=1
+    bumpRateLimit('bump2', 100); // count -> max(0, 1-100) = 0
+    const result = checkRateLimit('bump2', cfg); // count=1
+    expect(result.remaining).toBe(4);
+    resetRateLimit('bump2');
+  });
+});
+
+describe('resetRateLimit — edge cases', () => {
+  it('no-ops on non-existent service', () => {
+    expect(() => resetRateLimit('never-existed')).not.toThrow();
+  });
+});
+
+// ── isActionAllowed — edge cases ───────────────────────────────────────
+
+describe('isActionAllowed — edge cases', () => {
+  it('read access blocks upload (soft-risk action)', () => {
+    expect(isActionAllowed('read', 'upload')).toBe(false);
+  });
+
+  it('read access allows fetch (auto-risk action)', () => {
+    expect(isActionAllowed('read', 'fetch')).toBe(true);
+  });
+});
+
+// ── accessMeta — completeness ──────────────────────────────────────────
+
+describe('accessMeta — completeness', () => {
+  it('all 4 levels have label and color', () => {
+    for (const level of ['none', 'read', 'write', 'full'] as const) {
+      const meta = accessMeta(level);
+      expect(meta.label).toBeTruthy();
+      expect(meta.color).toBeTruthy();
+    }
+  });
+});
+
+// ── countHighRisk — edge cases ─────────────────────────────────────────
+
+describe('countHighRisk — edge cases', () => {
+  const makePlan = (steps: DryRunStep[]): DryRunPlan => ({
+    id: 'p1',
+    steps,
+    totalActions: steps.length,
+    highRiskCount: steps.filter((s) => s.risk === 'hard').length,
+  });
+
+  it('handles empty steps array', () => {
+    expect(countHighRisk(makePlan([]))).toBe(0);
+  });
+
+  it('counts when all steps are hard', () => {
+    const plan = makePlan([
+      { index: 0, service: 'a', action: 'delete', target: 'x', risk: 'hard' },
+      { index: 1, service: 'b', action: 'archive', target: 'y', risk: 'hard' },
+    ]);
+    expect(countHighRisk(plan)).toBe(2);
+  });
+});
+
+// ── planRequiresConfirm — edge cases ───────────────────────────────────
+
+describe('planRequiresConfirm — edge cases', () => {
+  const makePlan = (steps: DryRunStep[]): DryRunPlan => ({
+    id: 'p1',
+    steps,
+    totalActions: steps.length,
+    highRiskCount: steps.filter((s) => s.risk === 'hard').length,
+  });
+
+  it('exactly 3 soft steps does NOT require confirm', () => {
+    const plan = makePlan([
+      { index: 0, service: 'a', action: 'send', target: 'x', risk: 'soft' },
+      { index: 1, service: 'b', action: 'send', target: 'y', risk: 'soft' },
+      { index: 2, service: 'c', action: 'send', target: 'z', risk: 'soft' },
+    ]);
+    expect(planRequiresConfirm(plan)).toBe(false);
+  });
+
+  it('plan with 0 steps does not require confirm', () => {
+    expect(planRequiresConfirm(makePlan([]))).toBe(false);
+  });
+});
+
+// ── DEFAULT_GENERIC_LIMIT ──────────────────────────────────────────────
+
+describe('DEFAULT_GENERIC_LIMIT', () => {
+  it('has wildcard service', () => {
+    expect(DEFAULT_GENERIC_LIMIT.service).toBe('*');
+  });
+
+  it('has positive maxActions', () => {
+    expect(DEFAULT_GENERIC_LIMIT.maxActions).toBeGreaterThan(0);
+  });
+
+  it('has positive windowMinutes', () => {
+    expect(DEFAULT_GENERIC_LIMIT.windowMinutes).toBeGreaterThan(0);
+  });
+});
+
+// ── DEFAULT_RATE_LIMITS — completeness ─────────────────────────────────
+
+describe('DEFAULT_RATE_LIMITS — completeness', () => {
+  it('all windowMinutes are positive', () => {
+    for (const limit of DEFAULT_RATE_LIMITS) {
+      expect(limit.windowMinutes).toBeGreaterThan(0);
+    }
+  });
+
+  it('services are unique', () => {
+    const services = DEFAULT_RATE_LIMITS.map((r) => r.service);
+    expect(new Set(services).size).toBe(services.length);
+  });
+});

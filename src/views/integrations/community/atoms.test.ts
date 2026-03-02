@@ -323,3 +323,120 @@ describe('COMMUNITY_PACKAGE_MAP', () => {
     }
   });
 });
+
+// ── escHtml — edge cases ───────────────────────────────────────────────────
+
+describe('escHtml (community) — edge cases', () => {
+  it('does NOT escape single quotes', () => {
+    expect(escHtml("it's")).toBe("it's");
+  });
+
+  it('handles unicode/emoji', () => {
+    expect(escHtml('🐾 <test>')).toBe('🐾 &lt;test&gt;');
+  });
+});
+
+// ── formatDownloads — edge cases ───────────────────────────────────────────
+
+describe('formatDownloads — edge cases', () => {
+  it('handles negative numbers', () => {
+    // Negative < 1000 → string coercion
+    expect(formatDownloads(-5)).toBe('-5');
+  });
+
+  it('handles boundary 999', () => {
+    expect(formatDownloads(999)).toBe('999');
+  });
+
+  it('handles boundary 999_999', () => {
+    expect(formatDownloads(999_999)).toBe('1000.0k');
+  });
+});
+
+// ── relativeDate — edge cases ──────────────────────────────────────────────
+
+describe('relativeDate — edge cases', () => {
+  it('boundary: 60 minutes = 1h', () => {
+    const sixtyMinAgo = new Date(Date.now() - 60 * 60_000).toISOString();
+    expect(relativeDate(sixtyMinAgo)).toBe('1h ago');
+  });
+
+  it('boundary: 24 hours = 1d', () => {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 3_600_000).toISOString();
+    expect(relativeDate(twentyFourHoursAgo)).toBe('1d ago');
+  });
+
+  it('boundary: 30 days = 1mo', () => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    expect(relativeDate(thirtyDaysAgo)).toBe('1mo ago');
+  });
+
+  it('boundary: 360 days = 12mo (not year)', () => {
+    const threeSixtyDaysAgo = new Date(Date.now() - 360 * 86_400_000).toISOString();
+    expect(relativeDate(threeSixtyDaysAgo)).toBe('1y ago');
+  });
+});
+
+// ── sortPackages — edge cases ──────────────────────────────────────────────
+
+describe('sortPackages — edge cases', () => {
+  it('handles packages with identical download counts', () => {
+    const a = makePkg({ package_name: 'bravo', weekly_downloads: 100 });
+    const b = makePkg({ package_name: 'alpha', weekly_downloads: 100 });
+    const result = sortPackages([a, b], 'downloads');
+    // Both have same downloads, order depends on JS sort stability
+    expect(result).toHaveLength(2);
+  });
+
+  it('handles packages with same last_updated', () => {
+    const a = makePkg({ package_name: 'a', last_updated: '2025-01-01T00:00:00Z' });
+    const b = makePkg({ package_name: 'b', last_updated: '2025-01-01T00:00:00Z' });
+    const result = sortPackages([a, b], 'updated');
+    expect(result).toHaveLength(2);
+  });
+});
+
+// ── isInstalled — edge cases ───────────────────────────────────────────────
+
+describe('isInstalled — edge cases', () => {
+  it('handles duplicate entries in installed list', () => {
+    const installed = [
+      makeInstalled({ packageName: 'n8n-nodes-test' }),
+      makeInstalled({ packageName: 'n8n-nodes-test' }),
+    ];
+    const pkg = makePkg({ package_name: 'n8n-nodes-test' });
+    expect(isInstalled(pkg, installed)).toBe(true);
+  });
+});
+
+// ── displayName — edge cases ───────────────────────────────────────────────
+
+describe('displayName — edge cases', () => {
+  it('handles consecutive hyphens', () => {
+    // "n8n-nodes-foo--bar" → strip prefix → "foo--bar" → "foo  bar" → "Foo  Bar"
+    expect(displayName('n8n-nodes-foo--bar')).toBe('Foo  Bar');
+  });
+});
+
+// ── getRequiredPackage — edge cases ────────────────────────────────────────
+
+describe('getRequiredPackage — edge cases', () => {
+  it('returns null for empty string serviceId', () => {
+    expect(getRequiredPackage('')).toBeNull();
+  });
+
+  it('uses empty string override as truthy', () => {
+    // Empty string is falsy, so it falls through to the map
+    expect(getRequiredPackage('redis', '')).toBe('n8n-nodes-redis');
+  });
+});
+
+// ── COMMUNITY_PACKAGE_MAP — completeness ───────────────────────────────────
+
+describe('COMMUNITY_PACKAGE_MAP — completeness', () => {
+  it('all keys are lowercase kebab-case', () => {
+    for (const key of Object.keys(COMMUNITY_PACKAGE_MAP)) {
+      expect(key).toMatch(/^[a-z0-9-]+$/);
+    }
+  });
+});

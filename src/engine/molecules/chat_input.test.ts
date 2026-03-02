@@ -235,3 +235,147 @@ describe('destroy', () => {
     expect(() => ctrl.destroy()).not.toThrow();
   });
 });
+
+// ── Slash autocomplete ───────────────────────────────────────────────────
+
+describe('slash autocomplete', () => {
+  let ctrl: ChatInputController;
+
+  beforeEach(() => {
+    ctrl = createChatInput();
+    document.body.appendChild(ctrl.el);
+  });
+
+  it('shows popup when typing /he', () => {
+    const textarea = ctrl.el.querySelector('textarea')!;
+    textarea.value = '/he';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    const popup = ctrl.el.querySelector('.slash-autocomplete-popup') as HTMLElement;
+    expect(popup).not.toBeNull();
+    expect(popup.style.display).toBe('block');
+  });
+
+  it('hides popup on Escape key', () => {
+    const textarea = ctrl.el.querySelector('textarea')!;
+    textarea.value = '/he';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    const popup = ctrl.el.querySelector('.slash-autocomplete-popup') as HTMLElement;
+    expect(popup.style.display).toBe('none');
+  });
+
+  it('hides popup when space is typed after slash', () => {
+    const textarea = ctrl.el.querySelector('textarea')!;
+    textarea.value = '/he';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.value = '/he ';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    const popup = ctrl.el.querySelector('.slash-autocomplete-popup') as HTMLElement;
+    expect(popup.style.display).toBe('none');
+  });
+
+  it('selects autocomplete item on click', () => {
+    const textarea = ctrl.el.querySelector('textarea')!;
+    textarea.value = '/he';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    const item = ctrl.el.querySelector('.slash-ac-item') as HTMLElement;
+    item.click();
+    expect(textarea.value).toBe('/help ');
+  });
+
+  it('ArrowDown navigates selection', () => {
+    const textarea = ctrl.el.querySelector('textarea')!;
+    textarea.value = '/he';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    textarea.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    // Should not throw. There's only one item so ArrowDown wraps around.
+    const selected = ctrl.el.querySelector('.slash-ac-item.selected');
+    expect(selected).not.toBeNull();
+  });
+});
+
+// ── Textarea auto-resize ─────────────────────────────────────────────────
+
+describe('textarea auto-resize', () => {
+  it('adjusts height on input', () => {
+    const ctrl = createChatInput({ maxHeight: 200 });
+    document.body.appendChild(ctrl.el);
+    const textarea = ctrl.el.querySelector('textarea')!;
+    textarea.value = 'Line 1\nLine 2\nLine 3';
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    // In jsdom scrollHeight is 0, but the handler should run without error
+    expect(textarea.style.height).toBeTruthy();
+  });
+});
+
+// ── Attachment preview details ───────────────────────────────────────────
+
+describe('attachment preview details', () => {
+  let ctrl: ChatInputController;
+
+  beforeEach(() => {
+    ctrl = createChatInput();
+    document.body.appendChild(ctrl.el);
+  });
+
+  it('truncates long file name (>24 chars)', () => {
+    const longName = 'this-is-a-very-long-filename-for-testing.txt';
+    const file = new File(['x'], longName, { type: 'text/plain' });
+    ctrl.setAttachments([file]);
+    const nameEl = ctrl.el.querySelector('.attachment-chip-name') as HTMLElement;
+    expect(nameEl.textContent!.length).toBeLessThan(longName.length);
+    expect(nameEl.textContent).toContain('...');
+    expect(nameEl.title).toBe(longName);
+  });
+
+  it('shows file size in B for small files', () => {
+    const file = new File(['x'], 'tiny.txt', { type: 'text/plain' });
+    ctrl.setAttachments([file]);
+    const sizeEl = ctrl.el.querySelector('.attachment-chip-size') as HTMLElement;
+    expect(sizeEl.textContent).toContain('B');
+  });
+
+  it('remove button removes the attachment', () => {
+    const file = new File(['x'], 'a.txt', { type: 'text/plain' });
+    ctrl.setAttachments([file]);
+    expect(ctrl.getAttachments()).toHaveLength(1);
+    const removeBtn = ctrl.el.querySelector('.attachment-chip-remove') as HTMLButtonElement;
+    removeBtn.click();
+    expect(ctrl.getAttachments()).toHaveLength(0);
+  });
+});
+
+// ── setValue / focus / onSend edge cases ──────────────────────────────────
+
+describe('chat input edge cases', () => {
+  it('setValue with empty string', () => {
+    const ctrl = createChatInput();
+    ctrl.setValue('hello');
+    ctrl.setValue('');
+    expect(ctrl.getValue()).toBe('');
+  });
+
+  it('focus does not throw', () => {
+    const ctrl = createChatInput();
+    document.body.appendChild(ctrl.el);
+    expect(() => ctrl.focus()).not.toThrow();
+  });
+
+  it('getAttachments returns a copy (mutation isolation)', () => {
+    const ctrl = createChatInput();
+    const file = new File(['x'], 'a.txt');
+    ctrl.setAttachments([file]);
+    const copy = ctrl.getAttachments();
+    copy.push(new File(['y'], 'b.txt'));
+    expect(ctrl.getAttachments()).toHaveLength(1);
+  });
+
+  it('send button click with no onSend set does not throw', () => {
+    const ctrl = createChatInput();
+    document.body.appendChild(ctrl.el);
+    ctrl.setValue('Hello');
+    ctrl.onSend = null;
+    const sendBtn = ctrl.el.querySelector('.chat-send') as HTMLButtonElement;
+    expect(() => sendBtn.click()).not.toThrow();
+  });
+});

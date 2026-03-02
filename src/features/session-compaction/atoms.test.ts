@@ -96,3 +96,130 @@ describe('formatCompactionResult', () => {
     expect(text).toContain('0%');
   });
 });
+
+// ── Additional session compaction edge cases ───────────────────────────
+
+describe('estimateMessageTokens — edge cases', () => {
+  it('handles null content gracefully', () => {
+    const msg = makeMsg('');
+    // @ts-expect-error testing null content
+    msg.content = null;
+    const tokens = estimateMessageTokens(msg);
+    expect(tokens).toBeGreaterThanOrEqual(4);
+  });
+
+  it('handles null tool_calls_json gracefully', () => {
+    const msg = makeMsg('hello');
+    // @ts-expect-error testing null
+    msg.tool_calls_json = null;
+    const tokens = estimateMessageTokens(msg);
+    expect(tokens).toBeGreaterThanOrEqual(4);
+  });
+
+  it('scales roughly with content length', () => {
+    const short = estimateMessageTokens(makeMsg('hi'));
+    const long = estimateMessageTokens(makeMsg('x'.repeat(1000)));
+    expect(long).toBeGreaterThan(short * 5);
+  });
+});
+
+describe('analyzeCompactionNeed — edge cases', () => {
+  it('keeps all messages when count < keepRecent', () => {
+    const msgs = Array.from({ length: 3 }, (_, i) => makeMsg(`msg ${i}`));
+    const stats = analyzeCompactionNeed(msgs, {
+      minMessages: 2,
+      tokenThreshold: 0,
+      keepRecent: 10,
+    });
+    expect(stats.toKeep).toBe(3);
+    expect(stats.toSummarize).toBe(0);
+  });
+
+  it('returns false when messages >= min but tokens < threshold', () => {
+    const msgs = Array.from({ length: 25 }, (_, i) => makeMsg(`msg ${i}`));
+    const stats = analyzeCompactionNeed(msgs, {
+      minMessages: 5,
+      tokenThreshold: 999_999,
+      keepRecent: 6,
+    });
+    expect(stats.needsCompaction).toBe(false);
+  });
+
+  it('returns false when tokens > threshold but messages < min', () => {
+    const msgs = Array.from({ length: 3 }, () => makeMsg('x'.repeat(100_000)));
+    const stats = analyzeCompactionNeed(msgs, {
+      minMessages: 50,
+      tokenThreshold: 100,
+      keepRecent: 2,
+    });
+    expect(stats.needsCompaction).toBe(false);
+  });
+
+  it('handles empty message array', () => {
+    const stats = analyzeCompactionNeed([]);
+    expect(stats.messageCount).toBe(0);
+    expect(stats.estimatedTokens).toBe(0);
+    expect(stats.needsCompaction).toBe(false);
+    expect(stats.toKeep).toBe(0);
+    expect(stats.toSummarize).toBe(0);
+  });
+
+  it('sums tokens correctly across messages', () => {
+    // Each message: ceil((8 + 0)/4) + 4 = ceil(2) + 4 = 6 tokens
+    const msgs = Array.from({ length: 10 }, () => makeMsg('12345678'));
+    const stats = analyzeCompactionNeed(msgs);
+    expect(stats.estimatedTokens).toBe(60); // 10 * 6
+  });
+});
+
+describe('formatCompactionResult — edge cases', () => {
+  it('formats large numbers with locale separators', () => {
+    const text = formatCompactionResult({
+      messages_before: 500,
+      messages_after: 20,
+      tokens_before: 1_000_000,
+      tokens_after: 50_000,
+      summary_length: 2000,
+    });
+    expect(text).toContain('95%');
+    expect(text).toContain('500 → 20');
+  });
+
+  it('handles 100% reduction', () => {
+    const text = formatCompactionResult({
+      messages_before: 10,
+      messages_after: 1,
+      tokens_before: 5000,
+      tokens_after: 0,
+      summary_length: 100,
+    });
+    expect(text).toContain('100%');
+  });
+
+  it('shows summary length', () => {
+    const text = formatCompactionResult({
+      messages_before: 10,
+      messages_after: 5,
+      tokens_before: 1000,
+      tokens_after: 500,
+      summary_length: 350,
+    });
+    expect(text).toContain('350 chars');
+  });
+});
+
+describe('DEFAULT_COMPACTION_CONFIG', () => {
+  it('has minMessages >= 1', () => {
+    expect(DEFAULT_COMPACTION_CONFIG.minMessages).toBeGreaterThanOrEqual(1);
+  });
+
+  it('keepRecent is reasonable (< minMessages)', () => {
+    expect(DEFAULT_COMPACTION_CONFIG.keepRecent).toBeLessThan(
+      DEFAULT_COMPACTION_CONFIG.minMessages,
+    );
+  });
+
+  it('tokenThreshold is positive', () => {
+    expect(DEFAULT_COMPACTION_CONFIG.tokenThreshold).toBeGreaterThan(0);
+  });
+});

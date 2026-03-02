@@ -51,6 +51,7 @@ import {
   DEFAULT_MEMORY_WRITE,
   DEFAULT_MEMORY_RECALL,
   DEFAULT_SQUAD_CONFIG,
+  MEMORY_CATEGORY_OPTIONS,
 } from './memory-flow-atoms';
 
 // Existing modules
@@ -868,6 +869,145 @@ describe('Phase 4.6: Memory-Aware Flows', () => {
       expect(config.memoryQuery).toBe('search this');
       expect(config.memoryLimit).toBe(10);
       expect(config.memoryOutputFormat).toBe('json');
+    });
+  });
+
+  // ── Additional memory-flow edge cases ────────────────────────────────
+
+  describe('formatRecalledMemories — edge cases', () => {
+    it('handles memories without scores (text)', () => {
+      const mems = [{ content: 'No score memory', category: 'general', importance: 0.5 }];
+      const text = formatRecalledMemories(mems, 'text');
+      expect(text).toContain('No score memory');
+      expect(text).not.toContain('relevance');
+    });
+
+    it('handles memories without scores (json)', () => {
+      const mems = [{ content: 'No score', category: 'fact', importance: 0.5 }];
+      const json = formatRecalledMemories(mems, 'json');
+      const parsed = JSON.parse(json);
+      expect(parsed[0].score).toBeUndefined();
+    });
+
+    it('includes relevance percentage for scored memories', () => {
+      const mems = [{ content: 'test', category: 'general', importance: 0.5, score: 0.85 }];
+      const text = formatRecalledMemories(mems, 'text');
+      expect(text).toContain('85%');
+    });
+
+    it('formats multiple memories as numbered list', () => {
+      const mems = Array.from({ length: 5 }, (_, i) => ({
+        content: `Memory ${i}`,
+        category: 'general',
+        importance: 0.5,
+        score: 0.5,
+      }));
+      const text = formatRecalledMemories(mems, 'text');
+      expect(text).toContain('1.');
+      expect(text).toContain('5.');
+    });
+  });
+
+  describe('buildMemoryContent — edge cases', () => {
+    it('falls back to node output when custom content is empty', () => {
+      const config = {
+        ...DEFAULT_MEMORY_WRITE,
+        memorySource: 'custom' as const,
+        memoryContent: '',
+      };
+      // Empty string is falsy — should fall through to output path
+      const result = buildMemoryContent('node output', config, 'Label');
+      expect(result).toContain('node output');
+    });
+
+    it('includes node label in output-sourced content', () => {
+      const result = buildMemoryContent('some data', DEFAULT_MEMORY_WRITE, 'Research Agent');
+      expect(result).toContain('Research Agent');
+      expect(result).toContain('some data');
+    });
+
+    it('uses custom content verbatim when provided', () => {
+      const config = {
+        ...DEFAULT_MEMORY_WRITE,
+        memorySource: 'custom' as const,
+        memoryContent: 'Exact custom content',
+      };
+      expect(buildMemoryContent('ignored', config, 'Label')).toBe('Exact custom content');
+    });
+  });
+
+  describe('getMemoryWriteConfig — partial overrides', () => {
+    it('fills defaults for missing fields', () => {
+      const config = getMemoryWriteConfig({ memoryCategory: 'fact' });
+      expect(config.memoryCategory).toBe('fact');
+      expect(config.memorySource).toBe(DEFAULT_MEMORY_WRITE.memorySource);
+      expect(config.memoryImportance).toBe(DEFAULT_MEMORY_WRITE.memoryImportance);
+    });
+
+    it('returns undefined for missing optional fields', () => {
+      const config = getMemoryWriteConfig({});
+      expect(config.memoryContent).toBeUndefined();
+      expect(config.memoryAgentId).toBeUndefined();
+    });
+  });
+
+  describe('getMemoryRecallConfig — partial overrides', () => {
+    it('fills defaults for missing fields', () => {
+      const config = getMemoryRecallConfig({ memoryLimit: 20 });
+      expect(config.memoryLimit).toBe(20);
+      expect(config.memoryQuerySource).toBe(DEFAULT_MEMORY_RECALL.memoryQuerySource);
+      expect(config.memoryThreshold).toBe(DEFAULT_MEMORY_RECALL.memoryThreshold);
+    });
+
+    it('returns undefined for missing optional fields', () => {
+      const config = getMemoryRecallConfig({});
+      expect(config.memoryQuery).toBeUndefined();
+      expect(config.memoryAgentId).toBeUndefined();
+    });
+  });
+
+  describe('MEMORY_CATEGORY_OPTIONS', () => {
+    it('has 18 options matching MEMORY_CATEGORIES', () => {
+      expect(MEMORY_CATEGORY_OPTIONS).toHaveLength(18);
+    });
+
+    it('each option has value, label, and icon', () => {
+      for (const opt of MEMORY_CATEGORY_OPTIONS) {
+        expect(opt.value).toBeTruthy();
+        expect(opt.label).toBeTruthy();
+        expect(opt.icon).toBeTruthy();
+      }
+    });
+
+    it('has no duplicate values', () => {
+      const values = MEMORY_CATEGORY_OPTIONS.map((o) => o.value);
+      expect(new Set(values).size).toBe(values.length);
+    });
+  });
+
+  describe('DEFAULT_MEMORY_WRITE', () => {
+    it('has importance between 0 and 1', () => {
+      expect(DEFAULT_MEMORY_WRITE.memoryImportance).toBeGreaterThanOrEqual(0);
+      expect(DEFAULT_MEMORY_WRITE.memoryImportance).toBeLessThanOrEqual(1);
+    });
+
+    it('defaults to output source', () => {
+      expect(DEFAULT_MEMORY_WRITE.memorySource).toBe('output');
+    });
+  });
+
+  describe('DEFAULT_MEMORY_RECALL', () => {
+    it('has positive limit', () => {
+      expect(DEFAULT_MEMORY_RECALL.memoryLimit).toBeGreaterThan(0);
+    });
+
+    it('threshold is between 0 and 1', () => {
+      expect(DEFAULT_MEMORY_RECALL.memoryThreshold).toBeGreaterThanOrEqual(0);
+      expect(DEFAULT_MEMORY_RECALL.memoryThreshold).toBeLessThanOrEqual(1);
+    });
+
+    it('defaults to text format', () => {
+      expect(DEFAULT_MEMORY_RECALL.memoryOutputFormat).toBe('text');
     });
   });
 });

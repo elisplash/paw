@@ -249,3 +249,131 @@ describe('generateSuggestions', () => {
     expect(suggestions[0].actionLabel).toBe('Check Slack');
   });
 });
+
+// ── computeHealthSummary — edge cases ──────────────────────────────────
+
+describe('computeHealthSummary — edge cases', () => {
+  const base: ServiceHealth = {
+    service: 'test',
+    serviceName: 'Test',
+    icon: 'test',
+    status: 'healthy',
+    lastChecked: new Date().toISOString(),
+    recentFailures: 0,
+    todayActions: 5,
+  };
+
+  it('all same non-healthy status (all error)', () => {
+    const services: ServiceHealth[] = [
+      { ...base, service: 'a', status: 'error' },
+      { ...base, service: 'b', status: 'error' },
+    ];
+    const summary = computeHealthSummary(services);
+    expect(summary.error).toBe(2);
+    expect(summary.healthy).toBe(0);
+    expect(summary.needsAttention).toHaveLength(2);
+  });
+
+  it('single service', () => {
+    const summary = computeHealthSummary([{ ...base, status: 'degraded' }]);
+    expect(summary.total).toBe(1);
+    expect(summary.degraded).toBe(1);
+    expect(summary.needsAttention).toHaveLength(1);
+  });
+
+  it('unknown status is NOT added to needsAttention', () => {
+    const services: ServiceHealth[] = [{ ...base, status: 'unknown' }];
+    const summary = computeHealthSummary(services);
+    expect(summary.needsAttention).toHaveLength(0);
+    expect(summary.total).toBe(1);
+  });
+
+  it('all 5 statuses together', () => {
+    const services: ServiceHealth[] = [
+      { ...base, service: 'a', status: 'healthy' },
+      { ...base, service: 'b', status: 'degraded' },
+      { ...base, service: 'c', status: 'error' },
+      { ...base, service: 'd', status: 'expired' },
+      { ...base, service: 'e', status: 'unknown' },
+    ];
+    const summary = computeHealthSummary(services);
+    expect(summary.healthy).toBe(1);
+    expect(summary.degraded).toBe(1);
+    expect(summary.error).toBe(1);
+    expect(summary.expired).toBe(1);
+    expect(summary.needsAttention).toHaveLength(3); // degraded, error, expired
+  });
+});
+
+// ── deriveHealthStatus — boundary cases ────────────────────────────────
+
+describe('deriveHealthStatus — boundary cases', () => {
+  it('token expiry exactly 7 days out → degraded (<=7)', () => {
+    const exactly7 = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    expect(deriveHealthStatus(exactly7, 0, true)).toBe('degraded');
+  });
+
+  it('token expiry exactly 8 days out → healthy', () => {
+    const exactly8 = new Date(Date.now() + 8 * 86_400_000).toISOString();
+    expect(deriveHealthStatus(exactly8, 0, true)).toBe('healthy');
+  });
+
+  it('exactly 3 failures → error', () => {
+    expect(deriveHealthStatus(undefined, 3, true)).toBe('error');
+  });
+
+  it('token soon-to-expire AND failures >= 3 → token check wins (degraded)', () => {
+    const soon = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    expect(deriveHealthStatus(soon, 5, true)).toBe('degraded');
+  });
+});
+
+// ── daysUntilExpiry — edge cases ───────────────────────────────────────
+
+describe('daysUntilExpiry — edge cases', () => {
+  it('returns NaN for invalid date string', () => {
+    expect(isNaN(daysUntilExpiry('not-a-date'))).toBe(true);
+  });
+
+  it('very far future', () => {
+    const far = new Date(Date.now() + 365 * 10 * 86_400_000).toISOString();
+    expect(daysUntilExpiry(far)).toBeGreaterThan(3000);
+  });
+
+  it('very far past', () => {
+    const past = new Date(Date.now() - 365 * 10 * 86_400_000).toISOString();
+    expect(daysUntilExpiry(past)).toBeLessThan(-3000);
+  });
+});
+
+// ── generateSuggestions — edge cases ───────────────────────────────────
+
+describe('generateSuggestions — edge cases', () => {
+  it('duplicate services produce duplicate suggestions', () => {
+    const suggestions = generateSuggestions(['gmail', 'gmail']);
+    expect(suggestions).toHaveLength(2);
+  });
+
+  it('suggestion objects are copies (not references to template)', () => {
+    const s1 = generateSuggestions(['gmail']);
+    const s2 = generateSuggestions(['gmail']);
+    expect(s1[0]).not.toBe(s2[0]);
+    expect(s1[0]).toEqual(s2[0]);
+  });
+
+  it('order matches input order', () => {
+    const suggestions = generateSuggestions(['github', 'gmail', 'slack']);
+    expect(suggestions[0].service).toBe('github');
+    expect(suggestions[1].service).toBe('gmail');
+    expect(suggestions[2].service).toBe('slack');
+  });
+
+  it('all 6 template services produce correct suggestions individually', () => {
+    for (const svc of ['gmail', 'slack', 'github', 'hubspot', 'trello', 'jira']) {
+      const suggestions = generateSuggestions([svc]);
+      expect(suggestions).toHaveLength(1);
+      expect(suggestions[0].service).toBe(svc);
+      expect(suggestions[0].id).toBe(`suggest-${svc}`);
+    }
+  });
+});

@@ -64,3 +64,79 @@ describe('makeBtn', () => {
     expect(handler).toHaveBeenCalledOnce();
   });
 });
+
+// ── Edge cases: esc ────────────────────────────────────────────────────
+
+describe('esc (n8n) — edge cases', () => {
+  it('escapes all 5 special chars combined', () => {
+    expect(esc('<a href="x">&\'test\'</a>')).toBe(
+      '&lt;a href=&quot;x&quot;&gt;&amp;&#39;test&#39;&lt;/a&gt;',
+    );
+  });
+
+  it('passes through strings with no special chars', () => {
+    expect(esc('Hello World 123')).toBe('Hello World 123');
+  });
+
+  it('handles unicode / emoji content', () => {
+    expect(esc('Hello 🐾 <world>')).toBe('Hello 🐾 &lt;world&gt;');
+  });
+
+  it('handles very long string without corruption', () => {
+    const long = 'x'.repeat(10_000) + '<>';
+    const result = esc(long);
+    expect(result).toContain('&lt;&gt;');
+    expect(result.length).toBeGreaterThan(10_000);
+  });
+});
+
+// ── Edge cases: workflowCountLabel ─────────────────────────────────────
+
+describe('workflowCountLabel — edge cases', () => {
+  it('handles negative numbers', () => {
+    expect(workflowCountLabel(-1)).toBe('-1 workflows');
+  });
+
+  it('handles very large numbers', () => {
+    expect(workflowCountLabel(Number.MAX_SAFE_INTEGER)).toBe(
+      `${Number.MAX_SAFE_INTEGER} workflows`,
+    );
+  });
+
+  it('formats decimal as-is (JavaScript coercion)', () => {
+    expect(workflowCountLabel(1.5)).toBe('1.5 workflows');
+  });
+});
+
+// ── Edge cases: makeBtn ────────────────────────────────────────────────
+
+describe('makeBtn — edge cases', () => {
+  it('handles empty label', () => {
+    const btn = makeBtn('', 'btn-primary', () => {});
+    expect(btn.textContent).toBe('');
+  });
+
+  it('handles empty class string', () => {
+    const btn = makeBtn('OK', '', () => {});
+    expect(btn.className).toBe('btn  btn-sm');
+  });
+
+  it('click handler can be called multiple times', () => {
+    const handler = vi.fn();
+    const btn = makeBtn('Go', 'btn-primary', handler);
+    btn.click();
+    btn.click();
+    btn.click();
+    expect(handler).toHaveBeenCalledTimes(3);
+  });
+
+  it('always includes btn-sm class', () => {
+    const btn = makeBtn('X', 'btn-warning', () => {});
+    expect(btn.className).toContain('btn-sm');
+  });
+
+  it('is an HTMLButtonElement instance', () => {
+    const btn = makeBtn('A', 'b', () => {});
+    expect(btn).toBeInstanceOf(HTMLButtonElement);
+  });
+});

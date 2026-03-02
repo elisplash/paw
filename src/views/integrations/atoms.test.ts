@@ -230,3 +230,120 @@ describe('CATEGORIES', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 });
+
+// ── escHtml — edge cases ───────────────────────────────────────────────────
+
+describe('escHtml (integrations) — edge cases', () => {
+  it('does NOT escape single quotes (unlike n8n esc)', () => {
+    expect(escHtml("it's")).toBe("it's");
+  });
+
+  it('handles string with only special chars', () => {
+    expect(escHtml('<>&"')).toBe('&lt;&gt;&amp;&quot;');
+  });
+});
+
+// ── fuzzyMatch — edge cases ────────────────────────────────────────────────
+
+describe('fuzzyMatch — edge cases', () => {
+  it('returns false when query is longer than text', () => {
+    expect(fuzzyMatch('abcdef', 'abc')).toBe(false);
+  });
+
+  it('matches same string', () => {
+    expect(fuzzyMatch('slack', 'slack')).toBe(true);
+  });
+
+  it('handles query with special regex chars', () => {
+    // Should not throw
+    expect(fuzzyMatch('a.b', 'a.b.c')).toBe(true);
+  });
+});
+
+// ── filterServices — edge cases ────────────────────────────────────────────
+
+describe('filterServices — edge cases', () => {
+  it('handles empty services array', () => {
+    expect(filterServices([], 'slack', 'all')).toHaveLength(0);
+  });
+
+  it('matches query against category string', () => {
+    const services = [
+      makeService({ id: 'x', name: 'X', category: 'communication', description: 'no match' }),
+    ];
+    const result = filterServices(services, 'comm', 'all');
+    expect(result).toHaveLength(1);
+  });
+});
+
+// ── sortServices — edge cases ──────────────────────────────────────────────
+
+describe('sortServices — edge cases', () => {
+  it('handles empty array', () => {
+    expect(sortServices([], 'a-z')).toEqual([]);
+  });
+
+  it('handles single element', () => {
+    const services = [makeService({ name: 'Alpha' })];
+    const result = sortServices(services, 'popular');
+    expect(result).toHaveLength(1);
+  });
+
+  it('sorts services with identical names stably', () => {
+    const services = [
+      makeService({ id: 'a1', name: 'Alpha', category: 'utility' }),
+      makeService({ id: 'a2', name: 'Alpha', category: 'communication' }),
+    ];
+    const result = sortServices(services, 'a-z');
+    expect(result).toHaveLength(2);
+  });
+});
+
+// ── categoryLabel — all categories ─────────────────────────────────────────
+
+describe('categoryLabel — all categories', () => {
+  it('every CATEGORIES entry maps to its own label', () => {
+    for (const cat of CATEGORIES) {
+      expect(categoryLabel(cat.id)).toBe(cat.label);
+    }
+  });
+});
+
+// ── categoryIcon — all categories ──────────────────────────────────────────
+
+describe('categoryIcon — all categories', () => {
+  it('every CATEGORIES entry maps to its own icon', () => {
+    for (const cat of CATEGORIES) {
+      expect(categoryIcon(cat.id)).toBe(cat.icon);
+    }
+  });
+});
+
+// ── CATEGORIES — completeness ──────────────────────────────────────────────
+
+describe('CATEGORIES — completeness', () => {
+  const allServiceCategories: ServiceCategory[] = [
+    'communication',
+    'development',
+    'productivity',
+    'crm',
+    'commerce',
+    'social',
+    'cloud',
+    'storage',
+    'database',
+    'analytics',
+    'security',
+    'ai',
+    'voice',
+    'content',
+    'utility',
+  ];
+
+  it('covers all ServiceCategory values', () => {
+    const catIds = CATEGORIES.map((c) => c.id);
+    for (const cat of allServiceCategories) {
+      expect(catIds).toContain(cat);
+    }
+  });
+});

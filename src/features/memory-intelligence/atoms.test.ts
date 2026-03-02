@@ -331,3 +331,241 @@ describe('groupByCategory — edge cases', () => {
     expect(groupByCategory([])).toEqual({});
   });
 });
+
+// ── Deep memory algorithm tests ────────────────────────────────────────
+
+describe('mmrRerank — diversity vs relevance', () => {
+  it('with lambda=0 maximizes diversity (least similar first after top)', () => {
+    // Three memories: two very similar, one different
+    const mems = [
+      makeMem('the quick brown fox jumps over the lazy dog', 'general', 0.9),
+      makeMem('the quick brown fox runs over the lazy dog', 'general', 0.85),
+      makeMem('quantum computing advances in modern physics', 'technical', 0.8),
+    ];
+    const result = mmrRerank(mems, 3, 0);
+    // First is still highest score, but second should be the diverse one
+    expect(result[0].content).toContain('jumps');
+    expect(result[1].content).toContain('quantum');
+  });
+
+  it('preserves diversity-correctness with all identical content', () => {
+    const mems = [
+      makeMem('identical content here', 'general', 0.9),
+      makeMem('identical content here', 'general', 0.8),
+      makeMem('identical content here', 'general', 0.7),
+    ];
+    const result = mmrRerank(mems, 3);
+    // All selected despite identical content
+    expect(result).toHaveLength(3);
+  });
+
+  it('single candidate returns it regardless of lambda', () => {
+    const mem = makeMem('only one', 'general', 0.5);
+    expect(mmrRerank([mem], 1, 0)).toHaveLength(1);
+    expect(mmrRerank([mem], 1, 1)).toHaveLength(1);
+    expect(mmrRerank([mem], 1, 0.5)[0].content).toBe('only one');
+  });
+});
+
+describe('applyDecay — ordering guarantees', () => {
+  it('newer memories decay less than older ones', () => {
+    const now = new Date();
+    const oneDay = new Date(now.getTime() - 86_400_000);
+    const oneWeek = new Date(now.getTime() - 7 * 86_400_000);
+    const oneMonth = new Date(now.getTime() - 30 * 86_400_000);
+
+    const mems = [
+      makeMem('recent', 'general', 1.0, now.toISOString()),
+      makeMem('day old', 'general', 1.0, oneDay.toISOString()),
+      makeMem('week old', 'general', 1.0, oneWeek.toISOString()),
+      makeMem('month old', 'general', 1.0, oneMonth.toISOString()),
+    ];
+    const decayed = applyDecay(mems);
+    // Scores should be strictly decreasing by age
+    for (let i = 0; i < decayed.length - 1; i++) {
+      expect(decayed[i].score!).toBeGreaterThan(decayed[i + 1].score!);
+    }
+  });
+
+  it('preserves all memory fields besides score', () => {
+    const mem = makeMem('important fact', 'fact', 0.8);
+    mem.agent_id = 'agent-42';
+    const [decayed] = applyDecay([mem]);
+    expect(decayed.content).toBe('important fact');
+    expect(decayed.category).toBe('fact');
+    expect(decayed.agent_id).toBe('agent-42');
+    expect(decayed.id).toBe(mem.id);
+    expect(decayed.importance).toBe(5);
+  });
+});
+
+describe('temporalDecayFactor — mathematical properties', () => {
+  it('decay is monotonically decreasing with age', () => {
+    const factors = [1, 7, 14, 30, 60, 90, 180, 365].map((days) => {
+      const d = new Date(Date.now() - days * 86_400_000).toISOString();
+      return temporalDecayFactor(d);
+    });
+    for (let i = 0; i < factors.length - 1; i++) {
+      expect(factors[i]).toBeGreaterThan(factors[i + 1]);
+    }
+  });
+
+  it('two half-lives gives ~0.25', () => {
+    const d = new Date(Date.now() - 60 * 86_400_000).toISOString();
+    expect(temporalDecayFactor(d, 30)).toBeCloseTo(0.25, 1);
+  });
+
+  it('custom half-life of 1 day decays fast', () => {
+    const d = new Date(Date.now() - 3 * 86_400_000).toISOString();
+    const factor = temporalDecayFactor(d, 1);
+    expect(factor).toBeLessThan(0.15); // 2^(-3) = 0.125
+  });
+});
+
+describe('jaccardSimilarity — word-level correctness', () => {
+  it('ignores case differences', () => {
+    expect(jaccardSimilarity('Hello World Foo', 'hello world foo')).toBe(1);
+  });
+
+  it('ignores words with 2 or fewer characters', () => {
+    // 'the' has 3 chars → included; 'a' and 'is' are filtered
+    const sim = jaccardSimilarity('the dog is big', 'the cat is big');
+    // Sets: {the, dog, big} vs {the, cat, big} → intersection=2, union=4 → 0.5
+    expect(sim).toBeCloseTo(0.5, 2);
+  });
+
+  it('handles strings with only short words', () => {
+    // All words ≤2 chars → both sets empty → returns 1
+    expect(jaccardSimilarity('a b c', 'x y z')).toBe(1);
+  });
+
+  it('returns correct value for known overlap', () => {
+    // Words: {machine, learning, great} vs {machine, learning, hard}
+    // intersection=2, union=4 → 0.5
+    const sim = jaccardSimilarity('machine learning is great', 'machine learning is hard');
+    expect(sim).toBeCloseTo(0.5, 2);
+  });
+});
+
+describe('describeAge — full range coverage', () => {
+  it('shows months for 90-day-old memory', () => {
+    const d = new Date(Date.now() - 90 * 86_400_000).toISOString();
+    expect(describeAge(d)).toBe('3mo ago');
+  });
+
+  it('shows months for year-old memory', () => {
+    const d = new Date(Date.now() - 365 * 86_400_000).toISOString();
+    expect(describeAge(d)).toBe('12mo ago');
+  });
+
+  it('boundary: exactly 24 hours shows 1d ago', () => {
+    const d = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    expect(describeAge(d)).toBe('1d ago');
+  });
+
+  it('boundary: exactly 30 days shows 1mo ago', () => {
+    const d = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    expect(describeAge(d)).toBe('1mo ago');
+  });
+
+  it('23 hours shows hours', () => {
+    const d = new Date(Date.now() - 23 * 60 * 60 * 1000).toISOString();
+    expect(describeAge(d)).toBe('23h ago');
+  });
+});
+
+describe('formatMemoryForContext — formatting correctness', () => {
+  it('includes dash prefix', () => {
+    const mem = makeMem('test', 'general', 0.5);
+    expect(formatMemoryForContext(mem)).toMatch(/^- /);
+  });
+
+  it('formats score to 2 decimal places', () => {
+    const mem = makeMem('test', 'general', 0.12345);
+    expect(formatMemoryForContext(mem)).toContain('[0.12]');
+  });
+
+  it('shows category in brackets', () => {
+    const mem = makeMem('test', 'technical', 0.5);
+    expect(formatMemoryForContext(mem)).toContain('[technical]');
+  });
+
+  it('omits agent tag when no agent_id', () => {
+    const mem = makeMem('test', 'general', 0.5);
+    expect(formatMemoryForContext(mem)).not.toContain('(agent:');
+  });
+});
+
+describe('groupByCategory — grouping correctness', () => {
+  it('handles all 18 memory categories', () => {
+    const mems = MEMORY_CATEGORIES.map((cat) => makeMem(`content for ${cat}`, cat));
+    const groups = groupByCategory(mems);
+    expect(Object.keys(groups)).toHaveLength(MEMORY_CATEGORIES.length);
+    for (const cat of MEMORY_CATEGORIES) {
+      expect(groups[cat]).toHaveLength(1);
+    }
+  });
+
+  it('preserves memory references in groups', () => {
+    const mem = makeMem('unique', 'insight');
+    const groups = groupByCategory([mem]);
+    expect(groups['insight'][0]).toBe(mem);
+  });
+});
+
+describe('MEMORY_CATEGORIES — completeness', () => {
+  it('has exactly 18 categories', () => {
+    expect(MEMORY_CATEGORIES).toHaveLength(18);
+  });
+
+  it('contains all expected categories', () => {
+    const expected = [
+      'general',
+      'preference',
+      'fact',
+      'skill',
+      'context',
+      'instruction',
+      'correction',
+      'feedback',
+      'project',
+      'person',
+      'technical',
+      'session',
+      'task_result',
+      'summary',
+      'conversation',
+      'insight',
+      'error_log',
+      'procedure',
+    ];
+    for (const cat of expected) {
+      expect(MEMORY_CATEGORIES).toContain(cat);
+    }
+  });
+
+  it('has no duplicates', () => {
+    const unique = new Set(MEMORY_CATEGORIES);
+    expect(unique.size).toBe(MEMORY_CATEGORIES.length);
+  });
+});
+
+describe('DEFAULT_SEARCH_CONFIG — constraints', () => {
+  it('weights sum to 1.0', () => {
+    expect(DEFAULT_SEARCH_CONFIG.bm25Weight + DEFAULT_SEARCH_CONFIG.vectorWeight).toBeCloseTo(1.0);
+  });
+
+  it('mmrLambda is between 0 and 1', () => {
+    expect(DEFAULT_SEARCH_CONFIG.mmrLambda).toBeGreaterThanOrEqual(0);
+    expect(DEFAULT_SEARCH_CONFIG.mmrLambda).toBeLessThanOrEqual(1);
+  });
+
+  it('threshold is between 0 and 1', () => {
+    expect(DEFAULT_SEARCH_CONFIG.threshold).toBeGreaterThan(0);
+    expect(DEFAULT_SEARCH_CONFIG.threshold).toBeLessThan(1);
+  });
+
+  it('decayHalfLifeDays is positive', () => {
+    expect(DEFAULT_SEARCH_CONFIG.decayHalfLifeDays).toBeGreaterThan(0);
+  });
+});

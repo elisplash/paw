@@ -17,6 +17,7 @@ import {
   renderSingleMessage,
   renderMessages,
   renderAttachmentStrip,
+  renderScreenshotCard,
   showStreamingMessage,
   appendStreamingDelta,
   appendThinkingDelta,
@@ -341,5 +342,164 @@ describe('scrollToBottom', () => {
     scrollToBottom(container, rafRef);
     // Should not throw, just skip
     expect(rafRef.value).toBe(true);
+  });
+});
+
+// ── renderScreenshotCard ─────────────────────────────────────────────────
+
+describe('renderScreenshotCard', () => {
+  it('returns null when no screenshot match', () => {
+    expect(renderScreenshotCard('Just some text')).toBeNull();
+  });
+
+  it('returns null when filename does not start with screenshot-', () => {
+    expect(renderScreenshotCard('Screenshot saved: myfile.png')).toBeNull();
+  });
+
+  it('returns an element when match is valid', () => {
+    const el = renderScreenshotCard('Screenshot saved: screenshot-1234.png');
+    expect(el).not.toBeNull();
+    expect(el!.className).toBe('message-screenshot-card');
+  });
+});
+
+// ── renderSingleMessage — edge cases ─────────────────────────────────────
+
+describe('renderSingleMessage — edge cases', () => {
+  let container: HTMLElement;
+
+  beforeEach(() => {
+    container = document.createElement('div');
+  });
+
+  it('falls back to AGENT when no agentName in opts', () => {
+    const msg = makeMessage({ role: 'assistant', content: 'Hi' });
+    const el = renderSingleMessage(container, msg, 0, -1, 0, {
+      agentName: undefined as any,
+    });
+    const prefix = el.querySelector('.message-prefix')!;
+    expect(prefix.textContent).toBe('AGENT ›');
+  });
+
+  it('renders retry button on errored assistant message', () => {
+    const onRetry = vi.fn();
+    const msg = makeMessage({
+      role: 'assistant',
+      content: 'Error: something went wrong',
+    });
+    const el = renderSingleMessage(container, msg, 0, -1, 0, {
+      ...defaultOpts,
+      onRetry,
+    });
+    const btn = el.querySelector('.message-retry-btn') as HTMLButtonElement;
+    expect(btn).not.toBeNull();
+    btn.click();
+    expect(onRetry).toHaveBeenCalledWith('Error: something went wrong');
+  });
+
+  it('pluralizes tool calls badge correctly', () => {
+    const msg = makeMessage({
+      role: 'assistant',
+      content: 'Done',
+      toolCalls: [
+        { name: 'a', input: '{}', result: 'ok' },
+        { name: 'b', input: '{}', result: 'ok' },
+        { name: 'c', input: '{}', result: 'ok' },
+      ] as any,
+    });
+    const el = renderSingleMessage(container, msg, 0, -1, 0, defaultOpts);
+    const badge = el.querySelector('.tool-calls-badge');
+    expect(badge!.textContent).toContain('3 tool calls');
+  });
+
+  it('renders user message content as textContent (not innerHTML)', () => {
+    const msg = makeMessage({ role: 'user', content: '<b>bold</b>' });
+    const el = renderSingleMessage(container, msg, 0, 0, -1, defaultOpts);
+    const textSpan = el.querySelectorAll('.message-content span')[1];
+    expect(textSpan.textContent).toBe('<b>bold</b>');
+    expect(textSpan.innerHTML).not.toContain('<b>');
+  });
+
+  it('TTS button click fires onSpeak with content', () => {
+    const onSpeak = vi.fn();
+    const msg = makeMessage({ role: 'assistant', content: 'Say this aloud' });
+    const el = renderSingleMessage(container, msg, 0, -1, 0, {
+      ...defaultOpts,
+      onSpeak,
+    });
+    const ttsBtn = el.querySelector('.message-tts-btn') as HTMLButtonElement;
+    ttsBtn.click();
+    expect(onSpeak).toHaveBeenCalledWith('Say this aloud', ttsBtn);
+  });
+});
+
+// ── renderAttachmentStrip — edge cases ───────────────────────────────────
+
+describe('renderAttachmentStrip — edge cases', () => {
+  it('uses "attachment" as alt when name is absent on image', () => {
+    const strip = renderAttachmentStrip([
+      { mimeType: 'image/png', url: 'http://example.com/img.png' },
+    ]);
+    expect(strip.querySelector('img')!.alt).toBe('attachment');
+  });
+
+  it('uses "file" as text when name is absent on doc', () => {
+    const strip = renderAttachmentStrip([{ mimeType: 'application/pdf' }]);
+    expect(strip.querySelector('span')!.textContent).toBe('file');
+  });
+
+  it('handles empty attachments array', () => {
+    const strip = renderAttachmentStrip([]);
+    expect(strip.children.length).toBe(0);
+  });
+});
+
+// ── renderMessages — edge cases ──────────────────────────────────────────
+
+describe('renderMessages — edge cases', () => {
+  it('works when emptyStateEl is null (not undefined)', () => {
+    const container = document.createElement('div');
+    // Should not throw
+    expect(() => renderMessages(container, [], defaultOpts, null)).not.toThrow();
+  });
+
+  it('works without emptyStateEl param at all', () => {
+    const container = document.createElement('div');
+    expect(() => renderMessages(container, [], defaultOpts)).not.toThrow();
+  });
+});
+
+// ── appendThinkingDelta — edge cases ─────────────────────────────────────
+
+describe('appendThinkingDelta — edge cases', () => {
+  it('prepends thinking block when no .message-content child', () => {
+    const streamMsg = document.createElement('div');
+    // No .message-content child
+    appendThinkingDelta(streamMsg, 'Reasoning…');
+    const thinking = streamMsg.querySelector('.thinking-block');
+    expect(thinking).not.toBeNull();
+    // Should be first child (prepend)
+    expect(streamMsg.firstElementChild).toBe(thinking);
+  });
+});
+
+// ── scrollToBottom — edge cases ──────────────────────────────────────────
+
+describe('scrollToBottom — edge cases', () => {
+  it('resets rafPending to false after callback', () => {
+    const container = document.createElement('div');
+    Object.defineProperty(container, 'scrollHeight', { value: 100 });
+    const rafRef = { value: false };
+
+    const origRAF = globalThis.requestAnimationFrame;
+    globalThis.requestAnimationFrame = (cb: FrameRequestCallback) => {
+      cb(0);
+      return 0;
+    };
+
+    scrollToBottom(container, rafRef);
+    expect(rafRef.value).toBe(false);
+
+    globalThis.requestAnimationFrame = origRAF;
   });
 });

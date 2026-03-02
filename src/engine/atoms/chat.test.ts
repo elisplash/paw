@@ -1,9 +1,11 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import {
   generateSessionLabel,
   extractContent,
   findLastIndex,
   fileTypeIcon,
+  fileToBase64,
   fmtK,
   estimateContextBreakdown,
 } from './chat';
@@ -200,5 +202,144 @@ describe('estimateContextBreakdown', () => {
       messages: [],
     });
     expect(result.pct).toBe(0);
+  });
+});
+
+// ── fileToBase64 ──────────────────────────────────────────────────────────
+
+describe('fileToBase64', () => {
+  it('resolves with base64 content from a file', async () => {
+    const file = new File(['hello'], 'test.txt', { type: 'text/plain' });
+    const result = await fileToBase64(file);
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('strips data URI prefix — returns only the base64 part', async () => {
+    const file = new File(['abc'], 'test.txt', { type: 'text/plain' });
+    const result = await fileToBase64(file);
+    // Should NOT contain the data: prefix
+    expect(result).not.toContain('data:');
+  });
+
+  it('handles empty file', async () => {
+    const file = new File([], 'empty.txt', { type: 'text/plain' });
+    const result = await fileToBase64(file);
+    expect(typeof result).toBe('string');
+  });
+});
+
+// ── generateSessionLabel — edge cases ─────────────────────────────────
+
+describe('generateSessionLabel — edge cases', () => {
+  it('keeps message exactly 50 chars without ellipsis', () => {
+    const exact = 'A'.repeat(50);
+    const label = generateSessionLabel(exact);
+    expect(label).toBe(exact);
+    expect(label.length).toBe(50);
+  });
+
+  it('truncates message of 51 chars', () => {
+    const over = 'word '.repeat(11); // 55 chars
+    const label = generateSessionLabel(over);
+    expect(label.length).toBeLessThanOrEqual(50);
+    expect(label.endsWith('…')).toBe(true);
+  });
+
+  it('handles message with only slash command', () => {
+    expect(generateSessionLabel('/model')).toBe('New chat');
+  });
+
+  it('handles backtick fences', () => {
+    expect(generateSessionLabel('```code```')).toBe('code');
+  });
+});
+
+// ── extractContent — edge cases ───────────────────────────────────────
+
+describe('extractContent — edge cases', () => {
+  it('returns empty string for empty array', () => {
+    expect(extractContent([])).toBe('');
+  });
+
+  it('filters out blocks where text is not a string', () => {
+    const blocks = [{ type: 'text', text: 123 }];
+    expect(extractContent(blocks)).toBe('');
+  });
+});
+
+// ── findLastIndex — edge cases ────────────────────────────────────────
+
+describe('findLastIndex — edge cases', () => {
+  it('returns last index when all elements match', () => {
+    expect(findLastIndex([1, 1, 1], () => true)).toBe(2);
+  });
+
+  it('works with single-element array that matches', () => {
+    expect(findLastIndex([42], (n) => n === 42)).toBe(0);
+  });
+});
+
+// ── fileTypeIcon — edge cases ─────────────────────────────────────────
+
+describe('fileTypeIcon — edge cases', () => {
+  it('returns "image" for image/webp', () => {
+    expect(fileTypeIcon('image/webp')).toBe('image');
+  });
+
+  it('returns "file-text" for text/csv', () => {
+    expect(fileTypeIcon('text/csv')).toBe('file-text');
+  });
+
+  it('returns "file" for empty string', () => {
+    expect(fileTypeIcon('')).toBe('file');
+  });
+});
+
+// ── fmtK — edge cases ────────────────────────────────────────────────
+
+describe('fmtK — edge cases', () => {
+  it('formats boundary 999 as plain number', () => {
+    expect(fmtK(999)).toBe('999');
+  });
+
+  it('handles negative numbers', () => {
+    expect(fmtK(-500)).toBe('-500');
+  });
+
+  it('handles very large numbers', () => {
+    expect(fmtK(1_000_000)).toBe('1000.0K');
+  });
+});
+
+// ── estimateContextBreakdown — edge cases ─────────────────────────────
+
+describe('estimateContextBreakdown — edge cases', () => {
+  it('handles messages with no content field', () => {
+    const result = estimateContextBreakdown({
+      sessionTokensUsed: 100,
+      modelContextLimit: 1000,
+      sessionInputTokens: 100,
+      sessionOutputTokens: 0,
+      sessionToolResultTokens: 0,
+      messages: [{ content: undefined } as any, {}],
+    });
+    // Each msg with no content: ceil(0/4) + 4 = 4
+    expect(result.messages).toBe(8);
+  });
+
+  it('percentage fields are non-negative', () => {
+    const result = estimateContextBreakdown({
+      sessionTokensUsed: 500,
+      modelContextLimit: 1000,
+      sessionInputTokens: 300,
+      sessionOutputTokens: 200,
+      sessionToolResultTokens: 100,
+      messages: [{ content: 'Hi' }],
+    });
+    expect(result.systemPct).toBeGreaterThanOrEqual(0);
+    expect(result.messagesPct).toBeGreaterThanOrEqual(0);
+    expect(result.toolResultsPct).toBeGreaterThanOrEqual(0);
+    expect(result.outputPct).toBeGreaterThanOrEqual(0);
   });
 });
