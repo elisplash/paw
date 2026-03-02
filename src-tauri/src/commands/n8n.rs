@@ -1072,6 +1072,8 @@ pub struct N8nCredentialSchema {
     pub credential_type: String,
     pub display_name: String,
     pub fields: Vec<N8nCredentialSchemaField>,
+    /// Link to n8n documentation or external setup guide for this credential.
+    pub documentation_url: Option<String>,
 }
 
 /// Information about credential types required by an installed community package.
@@ -1256,12 +1258,18 @@ pub async fn engine_n8n_package_credential_schema(
                 .unwrap_or(cred_type_name)
                 .to_string();
 
+            let doc_url = ct
+                .get("documentationUrl")
+                .and_then(|d| d.as_str())
+                .map(|s| resolve_n8n_doc_url(s));
+
             let fields = extract_credential_fields(ct);
 
             schemas.push(N8nCredentialSchema {
                 credential_type: cred_type_name.clone(),
                 display_name: display,
                 fields,
+                documentation_url: doc_url,
             });
         } else {
             // Fallback: try the REST API schema endpoint
@@ -1280,12 +1288,18 @@ pub async fn engine_n8n_package_credential_schema(
                             .unwrap_or(cred_type_name)
                             .to_string();
 
+                        let doc_url = schema_json
+                            .get("documentationUrl")
+                            .and_then(|d| d.as_str())
+                            .map(|s| resolve_n8n_doc_url(s));
+
                         let fields = extract_credential_fields(&schema_json);
 
                         schemas.push(N8nCredentialSchema {
                             credential_type: cred_type_name.clone(),
                             display_name: display,
                             fields,
+                            documentation_url: doc_url,
                         });
                     }
                 }
@@ -1299,6 +1313,13 @@ pub async fn engine_n8n_package_credential_schema(
     // inaccessible (they often require session auth, not API key auth).
     if schemas.is_empty() {
         let pkg_display = display_name_for_pkg(&package_name);
+        // Build a search-friendly documentation link for unknown packages
+        let search_query = pkg_display.replace(' ', "+");
+        let fallback_doc = format!(
+            "https://docs.n8n.io/?s={}",
+            search_query
+        );
+
         schemas.push(N8nCredentialSchema {
             credential_type: format!(
                 "{}Api",
@@ -1316,6 +1337,7 @@ pub async fn engine_n8n_package_credential_schema(
                 options: vec![],
                 is_secret: true,
             }],
+            documentation_url: Some(fallback_doc),
         });
     }
 
@@ -1410,6 +1432,27 @@ fn extract_credential_fields(ct: &serde_json::Value) -> Vec<N8nCredentialSchemaF
     }
 
     fields
+}
+
+/// Resolve an n8n documentation URL.
+///
+/// n8n credential definitions store `documentationUrl` in several formats:
+///   - Full URL:     `"https://docs.n8n.io/integrations/builtin/credentials/instagram/"`
+///   - Relative:     `"instagram/"` or `"/integrations/builtin/credentials/instagram/"`
+///   - Empty/other:  fallback gracefully
+fn resolve_n8n_doc_url(raw: &str) -> String {
+    if raw.starts_with("http://") || raw.starts_with("https://") {
+        return raw.to_string();
+    }
+    let path = raw.trim_start_matches('/');
+    if path.starts_with("integrations/") {
+        format!("https://docs.n8n.io/{}", path)
+    } else {
+        format!(
+            "https://docs.n8n.io/integrations/builtin/credentials/{}",
+            path
+        )
+    }
 }
 
 /// Display name for a package: strip "n8n-nodes-" prefix, titlecase.

@@ -43,6 +43,8 @@ export interface N8nCredentialSchema {
   credential_type: string;
   display_name: string;
   fields: N8nCredentialSchemaField[];
+  /** Link to n8n documentation or external setup guide. */
+  documentation_url: string | null;
 }
 
 /** Credential info for a package's nodes (returned by backend). */

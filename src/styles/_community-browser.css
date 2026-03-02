@@ -495,6 +495,22 @@
   gap: 6px;
   margin: 0 0 10px;
 }
+.community-cred-guide-link {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+.community-cred-guide-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
 .community-post-install-step-list {
   margin: 0;
   padding-left: 20px;

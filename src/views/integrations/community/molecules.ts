@@ -458,6 +458,9 @@ function _renderCredentialForm(schema: N8nCredentialSchema): string {
     <div class="community-post-install-steps" data-cred-type="${escHtml(schema.credential_type)}">
       <h3 class="community-post-install-steps-title">
         <span class="ms ms-sm">key</span> Connect ${escHtml(schema.display_name)}
+        ${schema.documentation_url ? `<a href="${escHtml(schema.documentation_url)}" target="_blank" rel="noopener" class="community-cred-guide-link" title="Open setup guide">
+          <span class="ms ms-sm">help</span> Setup Guide
+        </a>` : ''}
       </h3>
 
       ${
