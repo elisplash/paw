@@ -20,7 +20,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         label: 'Region',
         type: 'select',
         required: false,
-        helpText: 'The region where the Google Cloud service is located. This applies only to specific nodes, like the Google Vertex Cha...',
+        helpText:
+          'The region where the Google Cloud service is located. This applies only to specific nodes, like the Google Vertex Cha...',
       },
       {
         key: 'email',
@@ -34,16 +35,19 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         key: 'privateKey',
         label: 'Private Key',
         type: 'password',
-        placeholder: '-----BEGIN PRIVATE KEY-----\\nXIYEvQIBADANBg<...>0IhA7TMoGYPQc=\\n-----END PRIVATE KEY-----\\n',
+        placeholder:
+          '-----BEGIN PRIVATE KEY-----\\nXIYEvQIBADANBg<...>0IhA7TMoGYPQc=\\n-----END PRIVATE KEY-----\\n',
         required: true,
-        helpText: 'Enter the private key located in the JSON file downloaded from Google Cloud Console',
+        helpText:
+          'Enter the private key located in the JSON file downloaded from Google Cloud Console',
       },
       {
         key: 'delegatedEmail',
         label: 'Email',
         type: 'text',
         required: false,
-        helpText: 'The email address of the user for which the application is requesting delegated access',
+        helpText:
+          'The email address of the user for which the application is requesting delegated access',
       },
       {
         key: 'scopes',
@@ -58,7 +62,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Gmail account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Region, Service Account Email, Private Key, Impersonate a User, Email, Set up for use in HTTP Request node, Scope(s).' },
+        {
+          instruction:
+            'Locate or generate the following: Region, Service Account Email, Private Key, Impersonate a User, Email, Set up for use in HTTP Request node, Scope(s).',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -85,7 +92,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Google Sheets',
       steps: [
-        { instruction: 'Log into your Google Sheets account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Google Sheets account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -165,7 +175,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'password',
         placeholder: 'Paste your secret',
         required: false,
-        helpText: 'The signature secret is used to verify the authenticity of requests sent by Stripe.',
+        helpText:
+          'The signature secret is used to verify the authenticity of requests sent by Stripe.',
       },
     ],
     guide: {
@@ -390,7 +401,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Jenkins account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Jenkins Username, Personal API Token, Jenkins Instance URL.' },
+        {
+          instruction:
+            'Locate or generate the following: Jenkins Username, Personal API Token, Jenkins Instance URL.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -573,7 +587,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Google Calendar',
       steps: [
-        { instruction: 'Log into your Google Calendar account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Google Calendar account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -588,7 +605,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         label: 'Region',
         type: 'select',
         required: false,
-        helpText: 'The region where the Google Cloud service is located. This applies only to specific nodes, like the Google Vertex Cha...',
+        helpText:
+          'The region where the Google Cloud service is located. This applies only to specific nodes, like the Google Vertex Cha...',
       },
       {
         key: 'email',
@@ -602,16 +620,19 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         key: 'privateKey',
         label: 'Private Key',
         type: 'password',
-        placeholder: '-----BEGIN PRIVATE KEY-----\\nXIYEvQIBADANBg<...>0IhA7TMoGYPQc=\\n-----END PRIVATE KEY-----\\n',
+        placeholder:
+          '-----BEGIN PRIVATE KEY-----\\nXIYEvQIBADANBg<...>0IhA7TMoGYPQc=\\n-----END PRIVATE KEY-----\\n',
         required: true,
-        helpText: 'Enter the private key located in the JSON file downloaded from Google Cloud Console',
+        helpText:
+          'Enter the private key located in the JSON file downloaded from Google Cloud Console',
       },
       {
         key: 'delegatedEmail',
         label: 'Email',
         type: 'text',
         required: false,
-        helpText: 'The email address of the user for which the application is requesting delegated access',
+        helpText:
+          'The email address of the user for which the application is requesting delegated access',
       },
       {
         key: 'scopes',
@@ -626,7 +647,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Google Docs account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Region, Service Account Email, Private Key, Impersonate a User, Email, Set up for use in HTTP Request node, Scope(s).' },
+        {
+          instruction:
+            'Locate or generate the following: Region, Service Account Email, Private Key, Impersonate a User, Email, Set up for use in HTTP Request node, Scope(s).',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -681,7 +705,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'password',
         placeholder: 'Paste your API key',
         required: true,
-        helpText: 'Use the multiline editor. Make sure it is in standard PEM key format:-----BEGIN PRIVATE KEY-----KEY DATA GOES HERE---...',
+        helpText:
+          'Use the multiline editor. Make sure it is in standard PEM key format:-----BEGIN PRIVATE KEY-----KEY DATA GOES HERE---...',
       },
     ],
     guide: {
@@ -689,7 +714,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Salesforce account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Environment Type, Client ID, Username, Private Key.' },
+        {
+          instruction:
+            'Locate or generate the following: Environment Type, Client ID, Username, Private Key.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -738,7 +766,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -790,7 +819,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Zoho CRM',
       steps: [
-        { instruction: 'Log into your Zoho CRM account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Zoho CRM account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -891,7 +923,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Shopify account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: API Key, Password, Shop Subdomain, Shared Secret.' },
+        {
+          instruction:
+            'Locate or generate the following: API Key, Password, Shop Subdomain, Shared Secret.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -961,7 +996,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your WooCommerce account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Consumer Key, Consumer Secret, WooCommerce URL, Include Credentials in Query.' },
+        {
+          instruction:
+            'Locate or generate the following: Consumer Key, Consumer Secret, WooCommerce URL, Include Credentials in Query.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -1010,7 +1048,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -1060,7 +1099,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Twitter / X',
       steps: [
-        { instruction: 'Log into your Twitter / X account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Twitter / X account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -1089,7 +1131,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -1139,7 +1182,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Reddit',
       steps: [
-        { instruction: 'Log into your Reddit account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Reddit account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -1168,7 +1214,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -1218,7 +1265,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect LinkedIn',
       steps: [
-        { instruction: 'Log into your LinkedIn account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your LinkedIn account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -1246,7 +1296,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect YouTube',
       steps: [
-        { instruction: 'Log into your YouTube account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your YouTube account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -1304,7 +1357,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your AWS S3 account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.' },
+        {
+          instruction:
+            'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -1340,7 +1396,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your AWS Lambda account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.' },
+        {
+          instruction:
+            'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -1376,7 +1435,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your AWS SES account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.' },
+        {
+          instruction:
+            'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -1412,7 +1474,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your AWS SNS account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.' },
+        {
+          instruction:
+            'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -1481,7 +1546,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Firebase',
       steps: [
-        { instruction: 'Log into your Firebase account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Firebase account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -1496,7 +1564,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         label: 'Region',
         type: 'select',
         required: false,
-        helpText: 'The region where the Google Cloud service is located. This applies only to specific nodes, like the Google Vertex Cha...',
+        helpText:
+          'The region where the Google Cloud service is located. This applies only to specific nodes, like the Google Vertex Cha...',
       },
       {
         key: 'email',
@@ -1510,16 +1579,19 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         key: 'privateKey',
         label: 'Private Key',
         type: 'password',
-        placeholder: '-----BEGIN PRIVATE KEY-----\\nXIYEvQIBADANBg<...>0IhA7TMoGYPQc=\\n-----END PRIVATE KEY-----\\n',
+        placeholder:
+          '-----BEGIN PRIVATE KEY-----\\nXIYEvQIBADANBg<...>0IhA7TMoGYPQc=\\n-----END PRIVATE KEY-----\\n',
         required: true,
-        helpText: 'Enter the private key located in the JSON file downloaded from Google Cloud Console',
+        helpText:
+          'Enter the private key located in the JSON file downloaded from Google Cloud Console',
       },
       {
         key: 'delegatedEmail',
         label: 'Email',
         type: 'text',
         required: false,
-        helpText: 'The email address of the user for which the application is requesting delegated access',
+        helpText:
+          'The email address of the user for which the application is requesting delegated access',
       },
       {
         key: 'scopes',
@@ -1534,7 +1606,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Google Drive account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Region, Service Account Email, Private Key, Impersonate a User, Email, Set up for use in HTTP Request node, Scope(s).' },
+        {
+          instruction:
+            'Locate or generate the following: Region, Service Account Email, Private Key, Impersonate a User, Email, Set up for use in HTTP Request node, Scope(s).',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -1590,7 +1665,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -1640,7 +1716,9 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Box',
       steps: [
-        { instruction: 'Log into your Box account and go to the developer console or API settings.' },
+        {
+          instruction: 'Log into your Box account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -1676,7 +1754,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect OneDrive',
       steps: [
-        { instruction: 'Log into your OneDrive account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your OneDrive account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -1792,7 +1873,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         label: 'Maximum Number of Connections',
         type: 'text',
         required: false,
-        helpText: 'Make sure this value times the number of workers you have is lower than the maximum number of connections your postgr...',
+        helpText:
+          'Make sure this value times the number of workers you have is lower than the maximum number of connections your postgr...',
       },
       {
         key: 'ssl',
@@ -1812,7 +1894,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your PostgreSQL account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Host, Database, User, Password, Maximum Number of Connections, Ignore SSL Issues (Insecure), SSL, Port.' },
+        {
+          instruction:
+            'Locate or generate the following: Host, Database, User, Password, Maximum Number of Connections, Ignore SSL Issues (Insecure), SSL, Port.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -1857,7 +1942,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         label: 'Connect Timeout',
         type: 'text',
         required: false,
-        helpText: 'The milliseconds before a timeout occurs during the initial connection to the MySQL server',
+        helpText:
+          'The milliseconds before a timeout occurs during the initial connection to the MySQL server',
       },
       {
         key: 'caCertificate',
@@ -1886,7 +1972,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your MySQL account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Host, Database, User, Password, Port, Connect Timeout, SSL, CA Certificate, Client Private Key, Client Certificate.' },
+        {
+          instruction:
+            'Locate or generate the following: Host, Database, User, Password, Port, Connect Timeout, SSL, CA Certificate, Client Private Key, Client Certificate.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -1906,9 +1995,11 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         key: 'connectionString',
         label: 'Connection String',
         type: 'password',
-        placeholder: 'mongodb://<USERNAME>:<PASSWORD>@localhost:27017/?authSource=admin&readPreference=primary&appname=openpawz&ssl=false',
+        placeholder:
+          'mongodb://<USERNAME>:<PASSWORD>@localhost:27017/?authSource=admin&readPreference=primary&appname=openpawz&ssl=false',
         required: false,
-        helpText: 'If provided, the value here will be used as a MongoDB connection string, and the MongoDB credentials will be ignored',
+        helpText:
+          'If provided, the value here will be used as a MongoDB connection string, and the MongoDB credentials will be ignored',
       },
       {
         key: 'host',
@@ -1921,7 +2012,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         label: 'Database',
         type: 'text',
         required: false,
-        helpText: 'Note: the database should still be provided even if using an override connection string',
+        helpText:
+          'Note: the database should still be provided even if using an override connection string',
       },
       {
         key: 'user',
@@ -1976,7 +2068,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your MongoDB account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Configuration Type, Connection String, Host, Database, User, Password, Port, Use TLS, CA Certificate, Public Client Certificate, Private Client Key, Passphrase.' },
+        {
+          instruction:
+            'Locate or generate the following: Configuration Type, Connection String, Host, Database, User, Password, Port, Use TLS, CA Certificate, Public Client Certificate, Private Client Key, Passphrase.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -2022,7 +2117,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Redis account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Password, User, Host, Port, Database Number, SSL, Disable TLS Verification (insecure).' },
+        {
+          instruction:
+            'Locate or generate the following: Password, User, Host, Port, Database Number, SSL, Disable TLS Verification (insecure).',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -2058,7 +2156,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Elasticsearch account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Username, Password, Base URL, Ignore SSL Issues (Insecure).' },
+        {
+          instruction:
+            'Locate or generate the following: Username, Password, Base URL, Ignore SSL Issues (Insecure).',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -2085,7 +2186,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Google Analytics',
       steps: [
-        { instruction: 'Log into your Google Analytics account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Google Analytics account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -2157,7 +2261,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         label: 'Organization ID (optional)',
         type: 'text',
         required: false,
-        helpText: 'For users who belong to multiple organizations, you can set which organization is used for an API request. Usage from...',
+        helpText:
+          'For users who belong to multiple organizations, you can set which organization is used for an API request. Usage from...',
       },
       {
         key: 'url',
@@ -2186,7 +2291,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your OpenAI account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: API Key, Organization ID (optional), Base URL, Add Custom Header, Header Name, Header Value.' },
+        {
+          instruction:
+            'Locate or generate the following: API Key, Organization ID (optional), Base URL, Add Custom Header, Header Name, Header Value.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -2228,7 +2336,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       title: 'Connect Calendly',
       steps: [
         { instruction: 'Log into your Calendly account.' },
-        { instruction: 'Navigate to Settings → API and generate an API Key or Personal Access Token.' },
+        {
+          instruction:
+            'Navigate to Settings → API and generate an API Key or Personal Access Token.',
+        },
         { instruction: 'Copy the API Key or Personal Access Token and paste it below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -2263,7 +2374,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your WordPress account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Username, Password, Wordpress URL, Ignore SSL Issues (Insecure).' },
+        {
+          instruction:
+            'Locate or generate the following: Username, Password, Wordpress URL, Ignore SSL Issues (Insecure).',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -2357,7 +2471,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'password',
         placeholder: 'Paste your access token',
         required: false,
-        helpText: 'Access token that has access to the space. Can be left empty if only Delivery API should be used.',
+        helpText:
+          'Access token that has access to the space. Can be left empty if only Delivery API should be used.',
       },
       {
         key: 'ContentPreviewaccessToken',
@@ -2365,7 +2480,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'password',
         placeholder: 'Paste your access token',
         required: false,
-        helpText: 'Access token that has access to the space. Can be left empty if only Preview API should be used.',
+        helpText:
+          'Access token that has access to the space. Can be left empty if only Preview API should be used.',
       },
     ],
     guide: {
@@ -2373,7 +2489,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Contentful account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Space ID, Content Delivery API Access Token, Content Preview API Access Token.' },
+        {
+          instruction:
+            'Locate or generate the following: Space ID, Content Delivery API Access Token, Content Preview API Access Token.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -2447,7 +2566,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'password',
         placeholder: 'Enter passwordless',
         required: false,
-        helpText: 'Whether to use passwordless connection with certificates (SASL mechanism EXTERNAL)',
+        helpText:
+          'Whether to use passwordless connection with certificates (SASL mechanism EXTERNAL)',
       },
       {
         key: 'ca',
@@ -2479,7 +2599,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your MQTT account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Protocol, Host, Port, Username, Password, Clean Session, Client ID, SSL, Passwordless, CA Certificates, Reject Unauthorized Certificate, Client Certificate, Client Key.' },
+        {
+          instruction:
+            'Locate or generate the following: Protocol, Host, Port, Username, Password, Clean Session, Client ID, SSL, Passwordless, CA Certificates, Reject Unauthorized Certificate, Client Certificate, Client Key.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -2588,7 +2711,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Microsoft Outlook',
       steps: [
-        { instruction: 'Log into your Microsoft Outlook account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Microsoft Outlook account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -2631,7 +2757,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         label: 'Region',
         type: 'select',
         required: false,
-        helpText: 'The region where the Google Cloud service is located. This applies only to specific nodes, like the Google Vertex Cha...',
+        helpText:
+          'The region where the Google Cloud service is located. This applies only to specific nodes, like the Google Vertex Cha...',
       },
       {
         key: 'email',
@@ -2645,16 +2772,19 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         key: 'privateKey',
         label: 'Private Key',
         type: 'password',
-        placeholder: '-----BEGIN PRIVATE KEY-----\\nXIYEvQIBADANBg<...>0IhA7TMoGYPQc=\\n-----END PRIVATE KEY-----\\n',
+        placeholder:
+          '-----BEGIN PRIVATE KEY-----\\nXIYEvQIBADANBg<...>0IhA7TMoGYPQc=\\n-----END PRIVATE KEY-----\\n',
         required: true,
-        helpText: 'Enter the private key located in the JSON file downloaded from Google Cloud Console',
+        helpText:
+          'Enter the private key located in the JSON file downloaded from Google Cloud Console',
       },
       {
         key: 'delegatedEmail',
         label: 'Email',
         type: 'text',
         required: false,
-        helpText: 'The email address of the user for which the application is requesting delegated access',
+        helpText:
+          'The email address of the user for which the application is requesting delegated access',
       },
       {
         key: 'scopes',
@@ -2669,7 +2799,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Google Chat account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Region, Service Account Email, Private Key, Impersonate a User, Email, Set up for use in HTTP Request node, Scope(s).' },
+        {
+          instruction:
+            'Locate or generate the following: Region, Service Account Email, Private Key, Impersonate a User, Email, Set up for use in HTTP Request node, Scope(s).',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -2719,7 +2852,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -2769,7 +2903,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Help Scout',
       steps: [
-        { instruction: 'Log into your Help Scout account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Help Scout account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -2848,7 +2985,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -2898,7 +3036,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Webex',
       steps: [
-        { instruction: 'Log into your Webex account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Webex account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -2927,7 +3068,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -2977,7 +3119,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect LINE',
       steps: [
-        { instruction: 'Log into your LINE account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your LINE account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -3065,7 +3210,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Splunk account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Auth Token, Base URL, Allow Self-Signed Certificates.' },
+        {
+          instruction:
+            'Locate or generate the following: Auth Token, Base URL, Allow Self-Signed Certificates.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -3121,7 +3269,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Microsoft To Do',
       steps: [
-        { instruction: 'Log into your Microsoft To Do account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Microsoft To Do account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -3229,7 +3380,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'password',
         placeholder: 'Paste your access token',
         required: false,
-        helpText: 'The access token must have the following scopes: Create/modify webhooks View webhooks View surveys ...',
+        helpText:
+          'The access token must have the following scopes: Create/modify webhooks View webhooks View surveys ...',
       },
       {
         key: 'clientId',
@@ -3250,7 +3402,9 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your SurveyMonkey account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Access Token, Client ID, Client Secret.' },
+        {
+          instruction: 'Locate or generate the following: Access Token, Client ID, Client Secret.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -3364,7 +3518,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -3414,7 +3569,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Keap (Infusionsoft)',
       steps: [
-        { instruction: 'Log into your Keap (Infusionsoft) account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Keap (Infusionsoft) account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -3491,7 +3649,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Paddle account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Vendor Auth Code, Vendor ID, Use Sandbox Environment API.' },
+        {
+          instruction:
+            'Locate or generate the following: Vendor Auth Code, Vendor ID, Use Sandbox Environment API.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -3547,7 +3708,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -3603,7 +3765,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect QuickBooks',
       steps: [
-        { instruction: 'Log into your QuickBooks account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your QuickBooks account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -3632,7 +3797,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -3682,7 +3848,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Xero',
       steps: [
-        { instruction: 'Log into your Xero account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Xero account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
@@ -3711,7 +3880,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'password',
         placeholder: 'Paste your API key',
         required: false,
-        helpText: 'Optional private key used for Strong Customer Authentication (SCA). Only needed to retrieve statements, and execute t...',
+        helpText:
+          'Optional private key used for Strong Customer Authentication (SCA). Only needed to retrieve statements, and execute t...',
       },
     ],
     guide: {
@@ -3719,7 +3889,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Wise (TransferWise) account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: API Token, Environment, Private Key (Optional).' },
+        {
+          instruction:
+            'Locate or generate the following: API Token, Environment, Private Key (Optional).',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -3755,7 +3928,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your AWS DynamoDB account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.' },
+        {
+          instruction:
+            'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -3791,7 +3967,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your AWS SQS account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.' },
+        {
+          instruction:
+            'Locate or generate the following: Access Key ID, Secret Access Key, Temporary Security Credentials, Session Token.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -3819,7 +3998,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         label: 'Warehouse',
         type: 'text',
         required: false,
-        helpText: 'The default virtual warehouse to use for the session after connecting. Used for performing queries, loading data, etc.',
+        helpText:
+          'The default virtual warehouse to use for the session after connecting. Used for performing queries, loading data, etc.',
       },
       {
         key: 'authentication',
@@ -3847,7 +4027,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'password',
         placeholder: 'Paste your API key',
         required: true,
-        helpText: 'Private PEM key for Key-pair authentication with Snowflake, follow guide <a href=',
+        helpText:
+          'Private PEM key for Key-pair authentication with Snowflake, follow guide <a href=',
       },
       {
         key: 'passphrase',
@@ -3855,7 +4036,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'password',
         placeholder: 'Enter passphrase',
         required: false,
-        helpText: 'If the private key is encrypted, you must provide the passphrase used to encrypt it',
+        helpText:
+          'If the private key is encrypted, you must provide the passphrase used to encrypt it',
       },
       {
         key: 'schema',
@@ -3877,7 +4059,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Snowflake account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Account, Database, Warehouse, Authentication, Username, Password, Private Key, Passphrase, Schema, Role, Client Session Keep Alive.' },
+        {
+          instruction:
+            'Locate or generate the following: Account, Database, Warehouse, Authentication, Username, Password, Private Key, Passphrase, Schema, Role, Client Session Keep Alive.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -3891,7 +4076,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         label: 'Region',
         type: 'select',
         required: false,
-        helpText: 'The region where the Google Cloud service is located. This applies only to specific nodes, like the Google Vertex Cha...',
+        helpText:
+          'The region where the Google Cloud service is located. This applies only to specific nodes, like the Google Vertex Cha...',
       },
       {
         key: 'email',
@@ -3905,16 +4091,19 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         key: 'privateKey',
         label: 'Private Key',
         type: 'password',
-        placeholder: '-----BEGIN PRIVATE KEY-----\\nXIYEvQIBADANBg<...>0IhA7TMoGYPQc=\\n-----END PRIVATE KEY-----\\n',
+        placeholder:
+          '-----BEGIN PRIVATE KEY-----\\nXIYEvQIBADANBg<...>0IhA7TMoGYPQc=\\n-----END PRIVATE KEY-----\\n',
         required: true,
-        helpText: 'Enter the private key located in the JSON file downloaded from Google Cloud Console',
+        helpText:
+          'Enter the private key located in the JSON file downloaded from Google Cloud Console',
       },
       {
         key: 'delegatedEmail',
         label: 'Email',
         type: 'text',
         required: false,
-        helpText: 'The email address of the user for which the application is requesting delegated access',
+        helpText:
+          'The email address of the user for which the application is requesting delegated access',
       },
       {
         key: 'scopes',
@@ -3929,7 +4118,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Google BigQuery account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Region, Service Account Email, Private Key, Impersonate a User, Email, Set up for use in HTTP Request node, Scope(s).' },
+        {
+          instruction:
+            'Locate or generate the following: Region, Service Account Email, Private Key, Impersonate a User, Email, Set up for use in HTTP Request node, Scope(s).',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -4000,7 +4192,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Bitwarden account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Client ID, Client Secret, Environment, Self-Hosted Domain.' },
+        {
+          instruction:
+            'Locate or generate the following: Client ID, Client Secret, Environment, Self-Hosted Domain.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -4195,7 +4390,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your Apache Kafka account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Client ID, Brokers, SSL, Authentication, Username, Password, SASL Mechanism.' },
+        {
+          instruction:
+            'Locate or generate the following: Client ID, Brokers, SSL, Authentication, Username, Password, SASL Mechanism.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -4243,7 +4441,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'password',
         placeholder: 'Enter passwordless',
         required: false,
-        helpText: 'Whether to use passwordless connection with certificates (SASL mechanism EXTERNAL)',
+        helpText:
+          'Whether to use passwordless connection with certificates (SASL mechanism EXTERNAL)',
       },
       {
         key: 'ca',
@@ -4312,7 +4511,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your RabbitMQ account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: Hostname, Port, User, Password, Vhost, SSL, Passwordless, CA Certificates, Client Certificate, Client Key, Passphrase, Client ID, Brokers, Username, Password.' },
+        {
+          instruction:
+            'Locate or generate the following: Hostname, Port, User, Password, Vhost, SSL, Passwordless, CA Certificates, Client Certificate, Client Key, Passphrase, Client ID, Brokers, Username, Password.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -4406,7 +4608,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
       steps: [
         { instruction: 'Log into your LDAP account.' },
         { instruction: 'Navigate to Settings → API or Developer section.' },
-        { instruction: 'Locate or generate the following: LDAP Server Address, LDAP Server Port, Binding DN, Binding Password, Connection Security, Ignore SSL/TLS Issues, CA Certificate, Timeout.' },
+        {
+          instruction:
+            'Locate or generate the following: LDAP Server Address, LDAP Server Port, Binding DN, Binding Password, Connection Security, Ignore SSL/TLS Issues, CA Certificate, Timeout.',
+        },
         { instruction: 'Copy each value into the matching field below.' },
         { instruction: 'Click "Test & Save" to verify the connection.' },
       ],
@@ -4509,7 +4714,8 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
         type: 'text',
         placeholder: 'access_type=offline',
         required: false,
-        helpText: 'For some services additional query parameters have to be set which can be defined here',
+        helpText:
+          'For some services additional query parameters have to be set which can be defined here',
       },
       {
         key: 'scope',
@@ -4565,7 +4771,10 @@ export const CREDENTIAL_OVERRIDES: Record<string, CredentialOverride> = {
     guide: {
       title: 'Connect Philips Hue',
       steps: [
-        { instruction: 'Log into your Philips Hue account and go to the developer console or API settings.' },
+        {
+          instruction:
+            'Log into your Philips Hue account and go to the developer console or API settings.',
+        },
         { instruction: 'Create a new OAuth application or API integration.' },
         { instruction: 'Copy the Client ID and Client Secret into the fields below.' },
         { instruction: 'Click "Test & Save" to authorize the connection.' },
