@@ -326,12 +326,6 @@ graph LR
     M1 -- "Supports\nweight: 0.7" --> M4["Memory D\n(1-hop boost)"]
     M2 -- "SimilarTo\nweight: 0.6" --> M5["Memory E\n(2-hop — future)"]
 
-    style Q fill:#f59e0b,color:#fff
-    style M1 fill:#4a9eff,color:#fff
-    style M2 fill:#22c55e,color:#fff
-    style M3 fill:#22c55e,color:#fff
-    style M4 fill:#22c55e,color:#fff
-    style M5 fill:#6b7280,color:#fff
 ```
 
 Currently 1-hop traversal: direct neighbors of retrieved memories are boosted. The activation score is blended with the original retrieval score to produce the final ranking.
@@ -426,10 +420,6 @@ flowchart TD
     REFUSE -- "reformulated" --> SEARCH
 
     GATE -- "Defer" --> ASK["Ask user for\nclarification"]
-
-    style SKIP fill:#6b7280,color:#fff
-    style INJECT fill:#22c55e,color:#fff
-    style REFUSE fill:#ef4444,color:#fff
 ```
 
 ### Retrieval Gate
@@ -595,8 +585,6 @@ flowchart TD
         NDCG -- No --> COMMIT["COMMIT\n(changes persist)"]
     end
 
-    style ROLL fill:#ef4444,color:#fff
-    style COMMIT fill:#22c55e,color:#fff
 ```
 
 ### 1. Pattern Clustering
@@ -697,8 +685,6 @@ flowchart TB
     SML -- "promote when\naccess_freq > θ_promote (0.7)" --> LML
     LML -- "demote when\nrelevance < θ_demote (0.3)" --> SML
 
-    style LML fill:#1e3a5f,color:#fff
-    style SML fill:#5f1e1e,color:#fff
 ```
 
 ### Interference-Based Decay
@@ -772,9 +758,6 @@ flowchart TD
     QC -- "Drop > 5%" --> ROLLBACK["Rollback fusion cycle"]
     QC -- OK --> DONE["Commit \u2014 storage reduced"]
 
-    style ROLLBACK fill:#ef4444,color:#fff
-    style DONE fill:#22c55e,color:#fff
-    style SKIP fill:#6b7280,color:#fff
 ```
 
 1. **Candidate detection** — Identify memory pairs with cosine similarity ≥ θ_fusion (0.75, derived from FadeMem paper — the plan originally used 0.92 but the paper demonstrates 0.75 is the optimal threshold) and compatible scopes (same agent, same scope tier).
@@ -838,9 +821,6 @@ flowchart TD
     S3 --> RESULTS
     BOTH --> RESULTS
 
-    style S1 fill:#4a9eff,color:#fff
-    style S2 fill:#4a9eff,color:#fff
-    style S3 fill:#4a9eff,color:#fff
 ```
 
 1. **Inter-community filter** — Embed the query, compare against all community summary embeddings, select the top-k most relevant communities. This narrows the search space from the entire graph to a few coherent clusters.
@@ -911,9 +891,6 @@ flowchart TD
     LIB --> COMPOSE["Compositional Hierarchy\n(skills reference sub-skills)"]
     COMPOSE --> LIB
 
-    style LIB fill:#4a9eff,color:#fff
-    style DISCARD fill:#6b7280,color:#fff
-    style REFLECT fill:#f59e0b,color:#fff
 ```
 
 ### Auto-Extraction
@@ -994,11 +971,6 @@ flowchart TD
     BUDGET --> Budget
     Budget --> PROMPT["Final Assembled\nPrompt"]
 
-    style P1 fill:#ef4444,color:#fff
-    style P2 fill:#f59e0b,color:#fff
-    style P3 fill:#eab308,color:#fff
-    style P4 fill:#22c55e,color:#fff
-    style P5 fill:#4a9eff,color:#fff
 ```
 
 ```rust
@@ -1228,8 +1200,6 @@ flowchart LR
     ReadPath --> DB[("Storage\nEngine")]
     WritePath --> DB
 
-    style ReadPath fill:#22c55e,color:#fff
-    style WritePath fill:#f59e0b,color:#fff
 ```
 
 - **Read path** — A connection pool with 8 read-only connections operating in WAL (Write-Ahead Logging) mode. All search queries, graph traversals, and stat reads execute on the pool concurrently. WAL mode allows readers to proceed without blocking on writers.
@@ -1512,8 +1482,6 @@ flowchart TD
     MERGE -- Yes --> ALLOW["Merge allowed"]
     MERGE -- No --> BLOCK["Merge blocked"]
 
-    style ALLOW fill:#22c55e,color:#fff
-    style BLOCK fill:#ef4444,color:#fff
 ```
 
 ### Retrieval Quality
@@ -1636,9 +1604,6 @@ flowchart TD
 
     MODE -- Manual --> CHOICE["User chooses:\n\u2022 Continue with summary\n\u2022 Revert to checkpoint\n\u2022 Start fresh"]
 
-    style CAPTURE fill:#4a9eff,color:#fff
-    style SUMMARIZE fill:#f59e0b,color:#fff
-    style CHOICE fill:#22c55e,color:#fff
 ```
 
 ### Workspace Checkpoints
@@ -1675,13 +1640,6 @@ flowchart LR
     SKILL --> EVAL["EVALUATE\n\nDRB-II · RAGAs\nMeasure everything\ncatch regressions"]
     EVAL --> FORGET["FORGET\n\nFadeMem\nRemove noise\nprovably safely"]
     FORGET --> GATE
-
-    style GATE fill:#6366f1,color:#fff
-    style RETRIEVE fill:#4a9eff,color:#fff
-    style CAP fill:#f59e0b,color:#fff
-    style SKILL fill:#22c55e,color:#fff
-    style EVAL fill:#ec4899,color:#fff
-    style FORGET fill:#ef4444,color:#fff
 ```
 
 > **Each principle reinforces the others:**
