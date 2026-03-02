@@ -638,12 +638,14 @@ pub struct NCNodeResult {
 pub async fn engine_n8n_search_ncnodes(
     query: String,
     limit: Option<u32>,
+    from: Option<u32>,
 ) -> Result<Vec<NCNodeResult>, String> {
     let limit = limit.unwrap_or(10).min(50);
+    let from = from.unwrap_or(0);
 
     info!(
-        "[n8n:ncnodes] Searching npm for '{}' (limit={})",
-        query, limit
+        "[n8n:ncnodes] Searching npm for '{}' (limit={}, from={})",
+        query, limit, from
     );
 
     let client = reqwest::Client::builder()
@@ -658,6 +660,7 @@ pub async fn engine_n8n_search_ncnodes(
             &format!("{} keywords:n8n-community-node-package", query),
         )
         .append_pair("size", &limit.to_string())
+        .append_pair("from", &from.to_string())
         .finish();
     let search_url = format!("https://registry.npmjs.org/-/v1/search?{}", encoded_query);
 
@@ -676,7 +679,7 @@ pub async fn engine_n8n_search_ncnodes(
 
     let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
 
-    let results: Vec<NCNodeResult> = body["objects"]
+    let mut results: Vec<NCNodeResult> = body["objects"]
         .as_array()
         .map(|arr| {
             arr.iter()
@@ -692,10 +695,8 @@ pub async fn engine_n8n_search_ncnodes(
                             .unwrap_or("unknown")
                             .to_string(),
                         version: pkg["version"].as_str().unwrap_or("0.0.0").to_string(),
-                        weekly_downloads: obj["score"]["detail"]["popularity"]
-                            .as_f64()
-                            .map(|p| (p * 100_000.0) as u64)
-                            .unwrap_or(0),
+                        // Placeholder — real downloads fetched below
+                        weekly_downloads: 0,
                         last_updated: pkg["date"].as_str().unwrap_or("").to_string(),
                         repository_url: pkg["links"]["repository"].as_str().map(|s| s.to_string()),
                         keywords: pkg["keywords"]
@@ -712,6 +713,18 @@ pub async fn engine_n8n_search_ncnodes(
         })
         .unwrap_or_default();
 
+    // Fetch real weekly download counts from npm download-counts API.
+    // We batch up to 128 scoped/unscoped names per request.
+    if !results.is_empty() {
+        let names: Vec<&str> = results.iter().map(|r| r.package_name.as_str()).collect();
+        let downloads = fetch_npm_weekly_downloads(&client, &names).await;
+        for r in &mut results {
+            if let Some(&count) = downloads.get(r.package_name.as_str()) {
+                r.weekly_downloads = count;
+            }
+        }
+    }
+
     info!(
         "[n8n:ncnodes] Found {} packages for '{}'",
         results.len(),
@@ -719,6 +732,71 @@ pub async fn engine_n8n_search_ncnodes(
     );
 
     Ok(results)
+}
+
+/// Fetch real weekly download counts from npm's bulk download-counts API.
+///
+/// Uses `https://api.npmjs.org/downloads/point/last-week/<pkg1>,<pkg2>,...`
+/// which returns actual download numbers. Scoped packages (@org/pkg) need
+/// individual requests since the bulk endpoint doesn't support them.
+async fn fetch_npm_weekly_downloads<'a>(
+    client: &reqwest::Client,
+    names: &[&'a str],
+) -> std::collections::HashMap<&'a str, u64> {
+    use std::collections::HashMap;
+
+    let mut result: HashMap<&str, u64> = HashMap::new();
+
+    // Split into scoped (need individual fetch) and unscoped (can batch)
+    let mut unscoped: Vec<&str> = Vec::new();
+    let mut scoped: Vec<&str> = Vec::new();
+    for &name in names {
+        if name.starts_with('@') {
+            scoped.push(name);
+        } else {
+            unscoped.push(name);
+        }
+    }
+
+    // Bulk fetch unscoped packages (npm supports comma-separated, up to ~128)
+    if !unscoped.is_empty() {
+        let joined = unscoped.join(",");
+        let url = format!(
+            "https://api.npmjs.org/downloads/point/last-week/{}",
+            joined
+        );
+        if let Ok(resp) = client.get(&url).send().await {
+            if let Ok(body) = resp.json::<serde_json::Value>().await {
+                if let Some(obj) = body.as_object() {
+                    for (key, val) in obj {
+                        if let Some(downloads) = val["downloads"].as_u64() {
+                            // Match back to the original slice reference
+                            if let Some(&name) = names.iter().find(|&&n| n == key.as_str()) {
+                                result.insert(name, downloads);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Fetch scoped packages individually
+    for &name in &scoped {
+        let url = format!(
+            "https://api.npmjs.org/downloads/point/last-week/{}",
+            url::form_urlencoded::byte_serialize(name.as_bytes()).collect::<String>()
+        );
+        if let Ok(resp) = client.get(&url).send().await {
+            if let Ok(body) = resp.json::<serde_json::Value>().await {
+                if let Some(downloads) = body["downloads"].as_u64() {
+                    result.insert(name, downloads);
+                }
+            }
+        }
+    }
+
+    result
 }
 
 /// List community node packages installed in the n8n engine.

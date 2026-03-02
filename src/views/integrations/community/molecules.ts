@@ -32,6 +32,9 @@ let _sortOption: CommunitySortOption = 'downloads';
 let _results: CommunityPackage[] = [];
 let _installed: InstalledPackage[] = [];
 let _loading = false;
+let _loadingMore = false;
+let _hasMore = true;
+const _PAGE_SIZE = 30;
 const _installing: Set<string> = new Set();
 const _uninstalling: Set<string> = new Set();
 /** Per-package install progress from backend events. */
@@ -43,6 +46,8 @@ let _credentialInfo: PackageCredentialInfo | null = null;
 /** Post-install credential form state: 'form' | 'saving' | 'done' | 'error' | 'loading' */
 let _credFormState: 'loading' | 'form' | 'saving' | 'done' | 'error' = 'loading';
 let _credFormError = '';
+/** IntersectionObserver for infinite scroll sentinel. */
+let _scrollObserver: IntersectionObserver | null = null;
 let _debounceTimer: ReturnType<typeof setTimeout> | null = null;
 let _container: HTMLElement | null = null;
 /** Unlisten handle for install progress events. */
@@ -95,6 +100,10 @@ export function unmountCommunityBrowser(): void {
   if (_progressUnlisten) {
     _progressUnlisten();
     _progressUnlisten = null;
+  }
+  if (_scrollObserver) {
+    _scrollObserver.disconnect();
+    _scrollObserver = null;
   }
   _container = null;
 }
@@ -244,6 +253,15 @@ function _renderPackageList(): string {
     <div class="community-package-grid">
       ${sorted.map((pkg) => _renderPackageCard(pkg)).join('')}
     </div>
+    ${
+      _loadingMore
+        ? `<div class="community-loading-more">
+            <span class="ms ms-sm k-spin">progress_activity</span> Loading more…
+          </div>`
+        : _hasMore
+          ? `<div class="community-scroll-sentinel" style="height:1px"></div>`
+          : ''
+    }
     <div class="community-footer">
       Showing ${sorted.length} results · Data from <a href="https://www.ncnodes.com" target="_blank" rel="noopener" style="color:var(--accent)">ncnodes.com</a> + npm registry
     </div>
@@ -268,8 +286,8 @@ function _renderPackageCard(pkg: CommunityPackage): string {
       </div>
       <div class="community-card-desc">${escHtml(pkg.description || 'No description available.')}</div>
       <div class="community-card-meta">
-        <span class="community-card-stat" title="Weekly downloads">
-          <span class="ms ms-sm">download</span> ${formatDownloads(pkg.weekly_downloads)}
+        <span class="community-card-stat" title="Downloads last week">
+          <span class="ms ms-sm">download</span> ${formatDownloads(pkg.weekly_downloads)}/wk
         </span>
         <span class="community-card-stat" title="Last updated">
           <span class="ms ms-sm">schedule</span> ${relativeDate(pkg.last_updated)}
@@ -507,27 +525,70 @@ function _renderCredentialForm(schema: N8nCredentialSchema): string {
 
 // ── Data fetching ──────────────────────────────────────────────────────
 
-async function _search(query: string): Promise<void> {
-  _loading = true;
+async function _search(query: string, append = false): Promise<void> {
+  if (append) {
+    _loadingMore = true;
+  } else {
+    _loading = true;
+    _results = [];
+    _hasMore = true;
+  }
   _render();
 
   try {
+    const from = append ? _results.length : 0;
     const results = await invoke<CommunityPackage[]>('engine_n8n_search_ncnodes', {
       query,
-      limit: 30,
+      limit: _PAGE_SIZE,
+      from,
     });
-    _results = results;
+    if (append) {
+      // Deduplicate by package name before appending
+      const existing = new Set(_results.map((r) => r.package_name));
+      const newResults = results.filter((r) => !existing.has(r.package_name));
+      _results = [..._results, ...newResults];
+    } else {
+      _results = results;
+    }
+    _hasMore = results.length >= _PAGE_SIZE;
   } catch (e) {
     const err = e instanceof Error ? e.message : String(e);
     showToast(`Search failed: ${err}`, 'error');
-    _results = [];
+    if (!append) _results = [];
+    _hasMore = false;
   } finally {
     _loading = false;
+    _loadingMore = false;
     _render();
     // Stagger animate results
     const grid = _container?.querySelector('.community-package-grid');
     if (grid) kineticStagger(grid as HTMLElement, '.community-card');
+    // Set up infinite scroll observer on the sentinel
+    _setupScrollObserver();
   }
+}
+
+/** Load the next page of results. */
+function _loadMore(): void {
+  if (_loadingMore || !_hasMore || !_query.trim()) return;
+  _search(_query.trim(), true);
+}
+
+/** Observe the scroll sentinel to trigger infinite scroll. */
+function _setupScrollObserver(): void {
+  if (_scrollObserver) {
+    _scrollObserver.disconnect();
+    _scrollObserver = null;
+  }
+  const sentinel = _container?.querySelector('.community-scroll-sentinel');
+  if (!sentinel) return;
+  _scrollObserver = new IntersectionObserver(
+    (entries) => {
+      if (entries[0]?.isIntersecting) _loadMore();
+    },
+    { rootMargin: '200px' },
+  );
+  _scrollObserver.observe(sentinel);
 }
 
 async function _fetchInstalled(): Promise<void> {

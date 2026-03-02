@@ -374,6 +374,17 @@
   margin-top: 12px;
 }
 
+/* ── Infinite scroll loading indicator ── */
+.community-loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 /* ── Spin animation for loading icons ── */
 .k-spin {
   animation: k-spin 1s linear infinite;
