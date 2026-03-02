@@ -6,6 +6,7 @@ import {
   describePolicySummary,
   DEFAULT_POLICY,
   READONLY_POLICY,
+  STANDARD_POLICY,
   POLICY_PRESETS,
   ALL_TOOLS,
   SAFE_TOOLS,
@@ -145,5 +146,86 @@ describe('Tool constants', () => {
 
   it('POLICY_PRESETS has 4 presets', () => {
     expect(Object.keys(POLICY_PRESETS)).toHaveLength(4);
+  });
+});
+
+// ── Additional edge cases ──────────────────────────────────────────────
+
+describe('checkToolPolicy — unknown mode', () => {
+  it('defaults to allowed for unknown mode', () => {
+    const policy = {
+      mode: 'something-new' as any,
+      allowed: [],
+      denied: [],
+      requireApprovalForUnlisted: false,
+      alwaysRequireApproval: [],
+    };
+    const decision = checkToolPolicy('exec', policy);
+    expect(decision.allowed).toBe(true);
+  });
+});
+
+describe('describePolicySummary — additional modes', () => {
+  it('describes denylist mode', () => {
+    const summary = describePolicySummary(STANDARD_POLICY);
+    expect(summary.toLowerCase()).toContain('deny');
+  });
+
+  it('describes readonly policy', () => {
+    const summary = describePolicySummary(READONLY_POLICY);
+    expect(summary.toLowerCase()).toContain('allow');
+  });
+});
+
+describe('isOverToolCallLimit — boundary', () => {
+  it('returns false at exact limit', () => {
+    const policy = {
+      ...DEFAULT_POLICY,
+      maxToolCallsPerTurn: 5,
+    };
+    expect(isOverToolCallLimit(5, policy)).toBe(false);
+  });
+
+  it('returns true at limit + 1', () => {
+    const policy = {
+      ...DEFAULT_POLICY,
+      maxToolCallsPerTurn: 5,
+    };
+    expect(isOverToolCallLimit(6, policy)).toBe(true);
+  });
+});
+
+describe('filterToolsByPolicy — denylist', () => {
+  it('filters denied tools from list', () => {
+    const policy = {
+      mode: 'denylist' as const,
+      allowed: [],
+      denied: ['exec', 'write_file'],
+      requireApprovalForUnlisted: false,
+      alwaysRequireApproval: [],
+    };
+    const filtered = filterToolsByPolicy(['exec', 'read_file', 'write_file', 'list_dir'], policy);
+    expect(filtered).toContain('read_file');
+    expect(filtered).toContain('list_dir');
+    expect(filtered).not.toContain('exec');
+    expect(filtered).not.toContain('write_file');
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(filterToolsByPolicy([], DEFAULT_POLICY)).toHaveLength(0);
+  });
+});
+
+describe('SAFE_TOOLS / HIGH_RISK_TOOLS integrity', () => {
+  it('SAFE_TOOLS and HIGH_RISK_TOOLS overlap is limited to skill_search', () => {
+    // NOTE: skill_search appears in both — this is a known issue
+    const overlap = SAFE_TOOLS.filter((t) => HIGH_RISK_TOOLS.includes(t));
+    expect(overlap).toEqual(['skill_search']);
+  });
+
+  it('STANDARD_POLICY alwaysRequireApproval includes all HIGH_RISK_TOOLS', () => {
+    for (const tool of HIGH_RISK_TOOLS) {
+      expect(STANDARD_POLICY.alwaysRequireApproval).toContain(tool);
+    }
   });
 });

@@ -194,3 +194,49 @@ describe('flushBufferToTransport', () => {
     expect(() => flushBufferToTransport()).not.toThrow();
   });
 });
+
+// ── Ring buffer overflow ───────────────────────────────────────────────
+
+describe('ring buffer overflow', () => {
+  it('evicts oldest entries when exceeding MAX_BUFFER_SIZE (500)', () => {
+    const log = createLogger('overflow');
+    for (let i = 0; i < 510; i++) {
+      log.info(`msg-${i}`);
+    }
+    const all = getRecentLogs(600);
+    expect(all.length).toBe(500);
+    // Oldest 10 (0–9) should have been evicted
+    expect(all[0].message).toBe('msg-10');
+    expect(all[all.length - 1].message).toBe('msg-509');
+  });
+
+  it('maintains correct counts after overflow', () => {
+    const log = createLogger('test');
+    for (let i = 0; i < 510; i++) log.info(`msg`);
+    const counts = getLogCounts();
+    expect(counts.info).toBe(500);
+  });
+});
+
+describe('getLogCounts edge cases', () => {
+  it('returns zero counts on empty buffer', () => {
+    const counts = getLogCounts();
+    expect(counts.debug).toBe(0);
+    expect(counts.info).toBe(0);
+    expect(counts.warn).toBe(0);
+    expect(counts.error).toBe(0);
+  });
+});
+
+describe('getRecentLogs edge cases', () => {
+  it('returns empty array when buffer is empty', () => {
+    expect(getRecentLogs()).toHaveLength(0);
+  });
+
+  it('returns all entries when count exceeds buffer size', () => {
+    const log = createLogger('t');
+    log.info('a');
+    log.info('b');
+    expect(getRecentLogs(100).length).toBe(2);
+  });
+});

@@ -114,3 +114,80 @@ describe('DEFAULT_BLOCKED_DOMAINS', () => {
     expect(DEFAULT_BLOCKED_DOMAINS).toContain('transfer.sh');
   });
 });
+
+// ── Additional edge cases ──────────────────────────────────────────────
+
+describe('formatBytes — edge cases', () => {
+  it('formats 0 bytes', () => {
+    const result = formatBytes(0);
+    expect(result).toContain('0');
+  });
+
+  it('formats exact 1 KB boundary', () => {
+    const result = formatBytes(1024);
+    expect(result).toMatch(/1.*KB/i);
+  });
+
+  it('formats exact 1 MB boundary', () => {
+    const result = formatBytes(1024 * 1024);
+    expect(result).toMatch(/1.*MB/i);
+  });
+
+  it('formats exact 1 GB boundary', () => {
+    const result = formatBytes(1024 * 1024 * 1024);
+    expect(result).toMatch(/1.*GB/i);
+  });
+});
+
+describe('isValidDomain — edge cases', () => {
+  it('rejects domain with spaces', () => {
+    expect(isValidDomain('exam ple.com')).toBe(false);
+  });
+
+  it('rejects domain with special characters', () => {
+    expect(isValidDomain('exam!ple.com')).toBe(false);
+  });
+
+  it('accepts localhost as valid', () => {
+    expect(isValidDomain('localhost')).toBe(true);
+  });
+
+  it('rejects leading hyphen', () => {
+    expect(isValidDomain('-example.com')).toBe(false);
+  });
+});
+
+describe('extractDomain — edge cases', () => {
+  it('lowercases the domain', () => {
+    expect(extractDomain('https://API.Example.COM/path')).toBe('api.example.com');
+  });
+
+  it('strips port from URL', () => {
+    expect(extractDomain('http://localhost:3000/api')).toBe('localhost');
+  });
+});
+
+describe('timeAgo — edge cases', () => {
+  it('shows date for 30+ days ago', () => {
+    const old = new Date(Date.now() - 45 * 86_400_000).toISOString();
+    const result = timeAgo(old);
+    // Should be a formatted date string, not relative
+    expect(result).toMatch(/\d/);
+  });
+
+  it('shows just now for recent timestamp', () => {
+    const now = new Date().toISOString();
+    const result = timeAgo(now);
+    expect(result.toLowerCase()).toMatch(/just now|second|0/);
+  });
+});
+
+describe('DEFAULT_BROWSER_CONFIG — additional', () => {
+  it('has exactly 1 default profile', () => {
+    expect(DEFAULT_BROWSER_CONFIG.profiles).toHaveLength(1);
+  });
+
+  it('has idle_timeout_secs of 300', () => {
+    expect(DEFAULT_BROWSER_CONFIG.idle_timeout_secs).toBe(300);
+  });
+});
