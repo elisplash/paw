@@ -1261,9 +1261,11 @@ pub async fn engine_n8n_package_credential_schema(
         }
     }
 
-    // If we couldn't discover any schemas but we know the package has nodes,
-    // emit a generic "API Key" credential as a fallback
-    if schemas.is_empty() && !known_node_types.is_empty() {
+    // If we couldn't discover any schemas, emit a generic "API Key"
+    // credential as a fallback. Most community nodes need at least an API key
+    // and this lets users configure it even if n8n's type endpoints are
+    // inaccessible (they often require session auth, not API key auth).
+    if schemas.is_empty() {
         let pkg_display = display_name_for_pkg(&package_name);
         schemas.push(N8nCredentialSchema {
             credential_type: format!(

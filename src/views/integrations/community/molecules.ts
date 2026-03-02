@@ -207,6 +207,10 @@ function _renderInstalledTab(): string {
               .join('')}
             ${pkg.installedNodes.length > 3 ? `<span class="community-node-chip community-node-more">+${pkg.installedNodes.length - 3}</span>` : ''}
           </div>
+          <button class="btn btn-ghost btn-sm community-configure-btn" data-pkg="${escHtml(pkg.packageName)}"
+                  title="Configure credentials">
+            <span class="ms ms-sm">key</span>
+          </button>
           ${
             _uninstalling.has(pkg.packageName)
               ? `<span class="community-uninstalling-status">
@@ -646,7 +650,7 @@ async function _fetchCredentialSchema(packageName: string): Promise<void> {
       packageName,
     });
     _credentialInfo = info;
-    _credFormState = info.credential_types.length > 0 ? 'form' : 'form';
+    _credFormState = info.credential_types.length > 0 ? 'form' : 'done';
     _render();
   } catch (e) {
     console.warn('[community] Could not fetch credential schema:', e);
@@ -804,6 +808,22 @@ function _wireEvents(): void {
       const pkg = (btn as HTMLElement).dataset.pkg;
       if (pkg && (await confirmModal(`Uninstall ${pkg}?`, 'Uninstall Package'))) {
         _uninstallPackage(pkg);
+      }
+    });
+  });
+
+  // Configure credentials buttons (installed tab)
+  _container.querySelectorAll('.community-configure-btn[data-pkg]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pkg = (btn as HTMLElement).dataset.pkg;
+      if (pkg) {
+        _justInstalled = pkg;
+        _credentialInfo = null;
+        _credFormState = 'loading';
+        _credFormError = '';
+        _render();
+        _fetchCredentialSchema(pkg);
       }
     });
   });
