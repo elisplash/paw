@@ -19,13 +19,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: npm
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Install prek
         run: curl -LsSf https://github.com/j178/prek/releases/latest/download/prek-installer.sh | sh
@@ -44,13 +48,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: npm
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: TypeScript type-check
         run: npx tsc --noEmit
@@ -130,13 +138,17 @@ jobs:
         run: cargo audit
         working-directory: src-tauri
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v6
         with:
           node-version: 20
-          cache: npm
+          cache: pnpm
 
       - name: Install npm dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: npm audit
-        run: npm audit --audit-level=high
+      - name: pnpm audit
+        run: pnpm audit --audit-level=high
