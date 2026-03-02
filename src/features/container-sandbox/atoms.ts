@@ -140,7 +140,7 @@ export function validateSandboxConfig(config: SandboxConfig): SandboxValidation 
     }
     // Security: block sensitive host paths
     if (parts.length >= 1) {
-      const hostPath = parts[0].replace(/\/+$/, ''); // normalize trailing slash
+      const hostPath = parts[0].replace(/\/+$/, '') || '/'; // normalize trailing slash, preserve root
       const DENIED_MOUNT_PATHS = [
         '/',
         '/etc',

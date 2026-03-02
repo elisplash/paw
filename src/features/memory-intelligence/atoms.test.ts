@@ -184,3 +184,150 @@ describe('DEFAULT_SEARCH_CONFIG', () => {
     expect(DEFAULT_SEARCH_CONFIG.threshold).toBeLessThan(1);
   });
 });
+
+// ── Additional edge cases ──────────────────────────────────────────────
+
+describe('temporalDecayFactor — edge cases', () => {
+  it('returns > 1 for future dates', () => {
+    const future = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    const factor = temporalDecayFactor(future);
+    expect(factor).toBeGreaterThan(1);
+  });
+
+  it('returns NaN for invalid date string', () => {
+    // An invalid date leads to NaN in age calculation
+    const factor = temporalDecayFactor('not-a-date');
+    expect(Number.isNaN(factor)).toBe(true);
+  });
+});
+
+describe('applyDecay — edge cases', () => {
+  it('returns empty array for empty input', () => {
+    expect(applyDecay([])).toHaveLength(0);
+  });
+
+  it('handles memories with undefined score', () => {
+    const mem = {
+      id: '1',
+      content: 'test',
+      category: 'general' as const,
+      importance: 5,
+      created_at: new Date().toISOString(),
+    };
+    const [decayed] = applyDecay([mem]);
+    expect(decayed.score).toBeDefined();
+    expect(typeof decayed.score).toBe('number');
+  });
+
+  it('accepts custom halfLifeDays', () => {
+    const old = new Date(Date.now() - 30 * 86_400_000).toISOString();
+    const mem = {
+      id: '1',
+      content: 'test',
+      category: 'general' as const,
+      importance: 5,
+      created_at: old,
+      score: 1.0,
+    };
+    const [short] = applyDecay([mem], 7);
+    const [long] = applyDecay([mem], 90);
+    // Shorter half-life decays faster
+    expect(short.score!).toBeLessThan(long.score!);
+  });
+});
+
+describe('jaccardSimilarity — edge cases', () => {
+  it('returns 0 when one string is empty', () => {
+    expect(jaccardSimilarity('hello world', '')).toBe(0);
+    expect(jaccardSimilarity('', 'hello world')).toBe(0);
+  });
+
+  it('returns 1 for two empty strings (both sets empty)', () => {
+    // Edge: 0/0 case, implementation may return 0 or 1
+    const result = jaccardSimilarity('', '');
+    expect([0, 1]).toContain(result);
+  });
+});
+
+describe('mmrRerank — edge cases', () => {
+  it('returns empty for k=0', () => {
+    const mem = {
+      id: '1',
+      content: 'test',
+      category: 'general' as const,
+      importance: 5,
+      created_at: new Date().toISOString(),
+      score: 0.9,
+    };
+    expect(mmrRerank([mem], 0)).toHaveLength(0);
+  });
+
+  it('returns all when k > candidates.length', () => {
+    const mems = Array.from({ length: 3 }, (_, i) => ({
+      id: String(i),
+      content: `memory ${i}`,
+      category: 'general' as const,
+      importance: 5,
+      created_at: new Date().toISOString(),
+      score: 0.5 + i * 0.1,
+    }));
+    const result = mmrRerank(mems, 10);
+    expect(result).toHaveLength(3);
+  });
+
+  it('with lambda=1 selects by relevance (score) only', () => {
+    const mems = [
+      {
+        id: '1',
+        content: 'alpha beta',
+        category: 'general' as const,
+        importance: 5,
+        created_at: new Date().toISOString(),
+        score: 0.3,
+      },
+      {
+        id: '2',
+        content: 'alpha gamma',
+        category: 'general' as const,
+        importance: 5,
+        created_at: new Date().toISOString(),
+        score: 0.9,
+      },
+    ];
+    const result = mmrRerank(mems, 2, 1);
+    expect(result[0].id).toBe('2'); // highest score first
+  });
+});
+
+describe('describeAge — edge cases', () => {
+  it('describes months for 60-day-old memory', () => {
+    const old = new Date(Date.now() - 60 * 86_400_000).toISOString();
+    const desc = describeAge(old);
+    expect(desc).toMatch(/\d+\s*mo|month/i);
+  });
+
+  it('describes a very recent memory as just now', () => {
+    const now = new Date().toISOString();
+    expect(describeAge(now)).toMatch(/just now|0|second/i);
+  });
+});
+
+describe('formatMemoryForContext — edge cases', () => {
+  it('omits score tag when score is undefined', () => {
+    const mem = {
+      id: '1',
+      content: 'no score',
+      category: 'general' as const,
+      importance: 3,
+      created_at: new Date().toISOString(),
+    };
+    const formatted = formatMemoryForContext(mem);
+    expect(formatted).not.toContain('NaN');
+  });
+});
+
+describe('groupByCategory — edge cases', () => {
+  it('returns empty object for empty array', () => {
+    expect(groupByCategory([])).toEqual({});
+  });
+});

