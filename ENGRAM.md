@@ -45,7 +45,7 @@ All code is open source under the MIT License.
 23. [Quality Evaluation](#quality-evaluation)
 24. [Context Continuity](#context-continuity)
 25. [The Intelligence Loop](#the-intelligence-loop)
-26. [Build Roadmap](#build-roadmap)
+26. [Verification & Operational Completeness](#verification--operational-completeness)
 27. [References](#references)
 
 ---
@@ -73,7 +73,7 @@ Engram implements all six properties.
 
 Seven principles guide every architectural decision in Engram:
 
-1. **Budget-first, always.** Every operation is token-budget-aware. The ContextBuilder never overflows a model's context window. Memories compete for inclusion based on relevance × importance, not insertion order. More context is not always better — PAPerBench proves that attention dilution degrades both personalization and privacy protection as context grows. Injection counts are capped per model based on empirical dilution curves.
+1. **Budget-first, always.** Every operation is token-budget-aware. The ContextBuilder never overflows a model's context window. Memories compete for inclusion based on $\text{relevance} \times \text{importance}$, not insertion order. More context is not always better — PAPerBench proves that attention dilution degrades both personalization and privacy protection as context grows. Injection counts are capped per model based on empirical dilution curves.
 
 2. **Forgetting is a feature, not a bug.** Graceful decay rooted in the Ebbinghaus forgetting curve is essential — extended with a dual-layer FadeMem-inspired architecture that differentiates long-term and short-term retention. Without measured forgetting, the memory store grows unbounded, retrieval precision degrades, and stale information pollutes context. Every forgetting cycle is measured: chain integrity percentage and NDCG delta are computed before and after garbage collection. If quality degrades, the cycle rolls back via transactional savepoint. FadeMem research demonstrates 45% storage reduction while *improving* multi-hop retrieval quality.
 
@@ -371,11 +371,9 @@ After BM25 and vector results are collected, the memory graph is traversed to fi
 
 Results from all three signals are merged using **Reciprocal Rank Fusion (RRF)**:
 
-```
-RRF_score(d) = Σᵢ 1 / (k + rankᵢ(d))
-```
+$$\text{RRF}_{\text{score}}(d) = \sum_{i} \frac{1}{k + \text{rank}_i(d)}$$
 
-Where *k* = 60 (standard constant) and *rankᵢ(d)* is the rank of document *d* in signal *i*. This produces a unified ranking that benefits from all three signals without requiring score normalization.
+Where $k = 60$ (standard constant) and $\text{rank}_i(d)$ is the rank of document $d$ in signal $i$. This produces a unified ranking that benefits from all three signals without requiring score normalization.
 
 ### Reranking
 
@@ -384,7 +382,7 @@ After fusion, results are optionally reranked using one of four strategies:
 | Strategy | Method | Use Case |
 |----------|--------|----------|
 | RRF | Reciprocal rank fusion only | Default, fast |
-| MMR | Maximal marginal relevance (λ=0.7) | Diversity-focused |
+| MMR | Maximal marginal relevance ($\lambda = 0.7$) | Diversity-focused |
 | RRF+MMR | RRF followed by MMR | Best quality |
 | CrossEncoder | Model-based reranking (falls back to RRF+MMR) | Future |
 
@@ -599,26 +597,24 @@ When two memories share the same subject and predicate but have different object
 
 Memory strength decays following a biologically-inspired dual-layer model derived from Ebbinghaus FadeMem. Instead of uniform Ebbinghaus decay, memories are assigned to one of two layers with different decay characteristics:
 
-**Long Memory Layer (LML)** — Important, frequently-accessed memories. Decay exponent β = 0.8 (sub-linear), producing a half-life of ~11.25 days. These memories fade slowly and persist across sessions.
+**Long Memory Layer (LML)** — Important, frequently-accessed memories. Decay exponent $\beta = 0.8$ (sub-linear), producing a half-life of ~11.25 days. These memories fade slowly and persist across sessions.
 
-**Short Memory Layer (SML)** — Transient, low-importance memories. Decay exponent β = 1.2 (super-linear), producing a half-life of ~5.02 days. These memories fade quickly to prevent clutter.
+**Short Memory Layer (SML)** — Transient, low-importance memories. Decay exponent $\beta = 1.2$ (super-linear), producing a half-life of ~5.02 days. These memories fade quickly to prevent clutter.
 
-```
-strength(t) = S₀ × e^(−λ_base × t^β)
+$$\text{strength}(t) = S_0 \cdot e^{-\lambda_{\text{base}} \cdot t^{\beta}}$$
 
-where:
-  λ_base = 0.1     (base decay rate)
-  β_LML  = 0.8     (sub-linear for long-term)
-  β_SML  = 1.2     (super-linear for short-term)
-```
+Where:
+- $\lambda_{\text{base}} = 0.1$ — base decay rate
+- $\beta_{\text{LML}} = 0.8$ — sub-linear for long-term
+- $\beta_{\text{SML}} = 1.2$ — super-linear for short-term
 
-**Hysteresis mechanism:** Memories are promoted from SML to LML when access frequency exceeds θ_promote = 0.7, and demoted from LML to SML when relevance drops below θ_demote = 0.3. The gap between these thresholds prevents oscillation — a memory doesn't bounce between layers on marginal changes.
+**Hysteresis mechanism:** Memories are promoted from SML to LML when access frequency exceeds $\theta_{\text{promote}} = 0.7$, and demoted from LML to SML when relevance drops below $\theta_{\text{demote}} = 0.3$. The gap between these thresholds prevents oscillation — a memory doesn't bounce between layers on marginal changes.
 
 **Per-type decay modulation:** Decay rates are further adjusted by memory type:
-- Procedural memories: λ × 0.5 (skills persist longer)
-- Semantic memories: λ × 0.7 (knowledge decays slower than episodes)
-- Episodic memories: λ × 1.0 (experiences decay at base rate)
-- Frequently accessed (>5 accesses): λ × 0.7 (used memories persist)
+- Procedural memories: $\lambda \times 0.5$ (skills persist longer)
+- Semantic memories: $\lambda \times 0.7$ (knowledge decays slower than episodes)
+- Episodic memories: $\lambda \times 1.0$ (experiences decay at base rate)
+- Frequently accessed (>5 accesses): $\lambda \times 0.7$ (used memories persist)
 
 This dual-layer approach achieves 45% storage reduction while *improving* retrieval quality — FadeMem's ablation study shows removing dual-layer decay causes a 33.9% F1 drop.
 
@@ -697,9 +693,7 @@ Beyond the dual-layer structure, decay is modulated by *interference* — how mu
 
 The combined formula:
 
-```
-effective_λ = λ_base × type_modifier × interference_factor × (1 + semantic_overlap)
-```
+$$\lambda_{\text{eff}} = \lambda_{\text{base}} \times \text{type\_modifier} \times \text{interference\_factor} \times (1 + \text{semantic\_overlap})$$
 
 This produces *adaptive* forgetting: universally useful knowledge persists almost indefinitely (low interference, frequent access, LML layer), while transient noise evaporates quickly (high interference, no access, SML layer).
 
@@ -760,7 +754,7 @@ flowchart TD
 
 ```
 
-1. **Candidate detection** — Identify memory pairs with cosine similarity ≥ θ_fusion (0.75, derived from FadeMem paper — the plan originally used 0.92 but the paper demonstrates 0.75 is the optimal threshold) and compatible scopes (same agent, same scope tier).
+1. **Candidate detection** — Identify memory pairs with cosine similarity $\geq \theta_{\text{fusion}}$ (0.75, derived from FadeMem paper — the plan originally used 0.92 but the paper demonstrates 0.75 is the optimal threshold) and compatible scopes (same agent, same scope tier).
 2. **Relation classification** — Classify each pair as Compatible, Contradictory, Subsumes, or Subsumed using the four-type conflict model.
 3. **Merge** — For Compatible pairs: create a single strengthened entry with the union of propositions from both sources, the maximum of their strength values, and a provenance chain linking back to the originals.
 4. **Edge redirection** — All graph edges pointing to the original entries are redirected to the merged entry, preserving graph connectivity.
@@ -774,7 +768,7 @@ Every fusion cycle is measured:
 - **NDCG delta** — Normalized discounted cumulative gain is computed on a fixed query set before and after fusion. If NDCG drops by more than 5%, the fusion cycle is rolled back.
 - **Storage reduction** — Bytes freed and entries removed are tracked per cycle.
 
-The threshold (θ_fusion = 0.75 cosine) is derived from FadeMem's paper. Higher values produce more conservative merging. Lower values risk merging memories that carry distinct nuance.
+The threshold ($\theta_{\text{fusion}} = 0.75$ cosine) is derived from FadeMem's paper. Higher values produce more conservative merging. Lower values risk merging memories that carry distinct nuance.
 
 ---
 
@@ -983,7 +977,7 @@ let prompt = ContextBuilder::new(model_caps)
 
 **Budget allocation strategy:**
 1. System prompt gets first priority (always included)
-2. Recalled memories packed by importance × relevance score
+2. Recalled memories packed by $\text{importance} \times \text{relevance score}$
 3. Working memory slots packed by priority
 4. Sensory buffer items packed by recency
 5. Conversation messages packed newest-first until budget exhausted
@@ -1004,11 +998,11 @@ The registry covers all models from OpenAI, Anthropic, Google, DeepSeek, Mistral
 ### Tokenizer
 
 Model-specific token estimation:
-- `Cl100kBase` — GPT-4, Claude (÷3.4 bytes)
-- `O200kBase` — o1, o3, o4 (÷3.8 bytes)
-- `Gemini` — Gemini models (÷3.3 bytes)
-- `SentencePiece` — Llama, Mistral, local models (÷3.0 bytes)
-- `Heuristic` — Fallback (÷4.0 bytes)
+- `Cl100kBase` — GPT-4, Claude ($\div 3.4$ bytes)
+- `O200kBase` — o1, o3, o4 ($\div 3.8$ bytes)
+- `Gemini` — Gemini models ($\div 3.3$ bytes)
+- `SentencePiece` — Llama, Mistral, local models ($\div 3.0$ bytes)
+- `Heuristic` — Fallback ($\div 4.0$ bytes)
 
 All calculations use `ceil()` to round up and are UTF-8 safe (truncation never splits a multi-byte character).
 
@@ -1398,7 +1392,7 @@ The `EngramConfig` struct provides 30+ tunable parameters:
 Two presets are provided:
 
 - **Conservative** (default) — Uses traditional Ebbinghaus decay with forgiving thresholds. Suitable for users who prefer to keep more memories longer.
-- **FadeMem Paper** — Uses the exact parameters from the FadeMem research paper (λ=0.1, β_LML=0.8, β_SML=1.2, θ_promote=0.7, θ_demote=0.3, θ_fusion=0.75). Optimized for storage efficiency with proven quality preservation.
+- **FadeMem Paper** — Uses the exact parameters from the FadeMem research paper ($\lambda = 0.1$, $\beta_{\text{LML}} = 0.8$, $\beta_{\text{SML}} = 1.2$, $\theta_{\text{promote}} = 0.7$, $\theta_{\text{demote}} = 0.3$, $\theta_{\text{fusion}} = 0.75$). Optimized for storage efficiency with proven quality preservation.
 
 ---
 
@@ -1660,6 +1654,143 @@ This six-principle loop represents the synthesis of 21 research papers spanning 
 
 ---
 
+## Verification & Operational Completeness
+
+An architecture of this complexity — 22 modules spanning three memory tiers, eight cognitive subsystems, and a six-principle intelligence loop — requires a verification model that is itself a first-class design concern. This section describes Engram's approach to ensuring that every architectural contract described in §1–§25 is exercised, measured, and proven correct under realistic conditions.
+
+The verification architecture addresses four fundamental challenges that arise in any cognitive memory system: ensuring that multi-tier data pipelines flow correctly end-to-end, that scoring and ranking produce consistent results across system boundaries, that modules compose without silent degradation, and that the system's quality can be measured continuously rather than assumed.
+
+### 26.1 Layered Verification Model
+
+Engram's verification follows a four-layer pyramid. Each layer catches a different class of failure:
+
+```mermaid
+graph TB
+    subgraph "Layer 4: Cognitive Scenario Tests"
+        L4["10 end-to-end scenarios exercising<br/>the full pipeline from sensory input<br/>through consolidation to retrieval"]
+    end
+    subgraph "Layer 3: Cross-Module Integration"
+        L3["Store → consolidate → search → recall →<br/>context build as a single transaction"]
+    end
+    subgraph "Layer 2: Contract Tests"
+        L2["Each module's public API tested against<br/>typed contracts: EngineResult invariants,<br/>scope isolation, budget compliance"]
+    end
+    subgraph "Layer 1: Unit Tests"
+        L1["Pure function correctness: decay curves,<br/>Jaccard similarity, RRF scoring, PII regex,<br/>tokenizer accuracy, NDCG computation"]
+    end
+    L4 --> L3 --> L2 --> L1
+```
+
+**Layer 1 — Unit tests** verify pure functions in isolation. These include decay curve monotonicity, Jaccard/cosine similarity correctness, RRF scoring, PII detection regex coverage, tokenizer per-model accuracy, and NDCG computation. Property-based testing (via `proptest`) is used for consolidation clustering invariants — specifically that cluster membership is reflexive and symmetric, that fusion never increases total memory count, and that decay is monotonically decreasing.
+
+**Layer 2 — Contract tests** verify that each module's public API upholds its typed contract. Every function returning `EngineResult` is tested for both success and error paths. Scope isolation is verified: agent A's store operations are invisible to agent B's searches. Budget compliance is verified: the ContextBuilder never produces output exceeding the model's declared context window.
+
+**Layer 3 — Cross-module integration** tests exercise multi-module pipelines as single logical operations. The canonical pipeline — store → consolidate → search → recall → context build — is tested with deterministic mocks (no LLM or embedding model required). Each integration test asserts that data flows correctly between tiers and that intermediate representations (embeddings, trust scores, quality metrics) propagate through the full chain.
+
+**Layer 4 — Cognitive scenario tests** exercise the system as a whole against realistic usage patterns. These 10 scenarios form the system's acceptance criteria:
+
+| Scenario | Modules Exercised | Invariant |
+|---|---|---|
+| Memory Lifecycle | graph, consolidation, schema | 50 episodic memories → clusters formed, semantic triples extracted |
+| Forgetting Quality | graph, consolidation, retrieval_quality | Decay + GC cycle → NDCG does not degrade (transactional rollback) |
+| Three-Tier Flow | sensory_buffer, working_memory, graph | 30 messages → sensory → working memory promotion → long-term storage |
+| Multi-Agent Isolation | memory_bus, encryption, graph | 3 agents → scope-isolated search + bus delivery with capability tokens |
+| Encryption Round-Trip | encryption, graph, schema | PII stored → encrypted at rest → decrypted on search → GDPR purge zero-residual |
+| Context Budget Fidelity | context_builder, model_caps, tokenizer | 5 model sizes → token counts never exceed window → correct priority ordering |
+| Dream Replay Idempotency | dream_replay, graph, meta_cognition | Two replay cycles → no duplicate edges, no double-strengthening |
+| Entity Lifecycle | entity_tracking, graph | Aliased mentions → canonical resolution → entity-scoped retrieval |
+| Contradiction Resolution | consolidation, graph | Conflicting facts → newer wins, `Contradicts` edge, confidence transferred |
+| Skill Compounding | graph (procedural), bridge | Task success → skill extracted → failure → failure variant stored |
+
+### 26.2 Single Source of Truth Principle
+
+A critical design constraint for multi-layer systems is that scoring, ranking, and token estimation must happen in exactly one place. Engram enforces this by treating the Rust engine as the sole authority for all numerical computation:
+
+```mermaid
+flowchart LR
+    subgraph "Frontend (TypeScript)"
+        UI["Display Layer"]
+        IPC["IPC Passthrough"]
+    end
+    subgraph "Engine (Rust)"
+        TOK["Tokenizer<br/>(model-specific)"]
+        SCORE["Scoring Pipeline<br/>(decay · MMR · RRF · NDCG)"]
+        CONFIG["SearchConfig<br/>(tunable parameters)"]
+    end
+    UI --> IPC
+    IPC --> TOK
+    IPC --> SCORE
+    IPC --> CONFIG
+    TOK --> IPC
+    SCORE --> IPC
+    CONFIG --> IPC
+```
+
+Token estimation uses model-specific divisors (Cl100k: $\div 3.4$, O200k: $\div 3.8$, Gemini: $\div 3.3$, SentencePiece: $\div 3.0$) rather than a fixed heuristic. Temporal decay, MMR diversity reranking, and quality scoring are computed server-side in Rust and returned as final scores. The frontend receives pre-scored, pre-ranked results and renders them without modification. Configuration parameters (BM25/vector weight, decay half-life, MMR lambda, relevance threshold) are read from the engine via IPC at startup, not duplicated as client-side constants.
+
+This eliminates an entire class of divergence bugs where the frontend and backend disagree on compaction thresholds or result ordering.
+
+### 26.3 Cognitive Pipeline Integration
+
+The three-tier memory pipeline (§4) is designed as a unidirectional flow: Sensory Buffer → Working Memory → Long-Term Store. The verification model enforces that every tier is instantiated, connected, and exercised:
+
+```mermaid
+flowchart LR
+    IN["Incoming<br/>Message"] --> SB["Sensory Buffer<br/>(ring buffer, O(1) push)"]
+    SB -->|"eviction on<br/>capacity overflow"| WM["Working Memory<br/>(priority-sorted slots)"]
+    WM -->|"lowest-priority<br/>eviction"| LTM["Long-Term Store<br/>(SQLite graph)"]
+    LTM -->|"recall by<br/>ContextBuilder"| WM
+    SB -->|"drain within<br/>token budget"| CTX["ContextBuilder<br/>(budget-aware assembly)"]
+    WM -->|"priority-ordered<br/>slots"| CTX
+    LTM -->|"auto-recalled<br/>memories"| CTX
+    CTX --> LLM["LLM Prompt"]
+```
+
+The IntentClassifier gates every retrieval operation, producing signal weights that adapt hybrid search (§6) to the query type: factual queries weight BM25 higher, conceptual queries weight vector similarity higher, procedural queries boost the procedural memory store. This intent-adapted weighting feeds through the full pipeline — from the initial `classify_intent()` call through `resolve_hybrid_weight()` to the final `rerank_results()` output.
+
+All consumer paths — chat, tasks, orchestrator, swarm, channel bridges — route through a single `gated_search()` entry point. This guarantees that every retrieval operation receives gate classification, intent-adapted weighting, encryption-aware decryption, CRAG quality checking, and NDCG measurement. No path bypasses the quality pipeline.
+
+### 26.4 Embedding Model Portability
+
+Vector embeddings are model-specific: cosine similarity between vectors from different models is meaningless. Engram handles model migration through the Dream Replay subsystem:
+
+1. Every memory records the embedding model that generated its vector (stored in the `embedding_model` column).
+2. When the configured embedding model changes, all existing vectors are marked stale.
+3. Dream Replay Phase 2 (re-embed stale) processes stale vectors during idle time, generating new embeddings with the current model.
+4. During the transition period, the hybrid search pipeline falls back gracefully to BM25-only for memories with stale embeddings — the system degrades to keyword search rather than producing invalid similarity scores.
+
+This design ensures that users can switch between embedding models (e.g., `nomic-embed-text` → `mxbai-embed-large`) without data loss or retrieval corruption.
+
+### 26.5 Scale Verification
+
+The system's performance characteristics must be verified at realistic scale, not just assumed from algorithmic complexity bounds. Engram defines five scale tiers with target latency budgets:
+
+| Memory Count | Search Latency | Consolidation Cycle | Concurrent Readers | RAM Budget |
+|---|---|---|---|---|
+| 1K | <5ms | <100ms | 8 | <50MB |
+| 10K | <10ms | <500ms | 8 | <100MB |
+| 50K | <15ms | <2s | 8 | <200MB |
+| 100K | <25ms | <5s | 8 | <350MB |
+| 500K | <50ms (HNSW disk) | <15s | 8 | <500MB |
+
+These targets are enforced through Criterion benchmark suites that run against seeded databases at each tier. Regressions beyond the target latency block merge. The tiered vector index transitions automatically from brute-force (< 1K) to in-memory HNSW (1K–100K) to disk-backed HNSW (> 100K), keeping search latency sublinear across the full range.
+
+### 26.6 Quality Feedback Loop
+
+Verification is not a one-time activity — it is a continuous feedback loop built into the system's runtime. Every search operation produces a `RetrievalQualityMetrics` payload containing:
+
+- **NDCG** — Normalized Discounted Cumulative Gain measuring ranking quality (§23)
+- **Average relevancy** — Mean composite trust score across returned memories
+- **Candidates filtered** — How many memories were considered vs. returned
+- **Search latency** — Wall-clock time for the full pipeline
+- **Rerank strategy applied** — Which of the four strategies was selected
+
+These metrics serve dual purposes: they surface in the cognitive debug panel for developer inspection, and they feed the transactional forgetting system. If a garbage collection cycle degrades NDCG by more than 5%, the cycle is rolled back via vector savepoint. This ensures that the system can never silently degrade its own retrieval quality through its maintenance operations.
+
+The consolidation engine reports its own metrics per cycle: candidates processed, clusters formed, semantic triples extracted, contradictions resolved, and knowledge gaps discovered. These allow the system to track its learning velocity — how efficiently it converts raw episodic experience into structured semantic knowledge over time.
+
+---
+
 ## References
 
 ### Foundations
@@ -1723,5 +1854,3 @@ This six-principle loop represents the synthesis of 21 research papers spanning 
 ---
 
 *Project Engram is part of OpenPawz, an open-source AI platform licensed under MIT. Contributions welcome.*
-
-*This whitepaper reflects 27 sections, 56 novel innovations, and the synthesis of 21 research papers (2021–2026). Total research references: 37. The architecture described here is the result of a complete codebase audit (23 modules, ~12K lines Rust), a 27-gap code audit mapped to papers, and the integration of 7 revolutionary 2026 papers into a unified intelligence loop. No competing product implements all six principles (Gate → Retrieve → Cap → Skill → Evaluate → Forget) as a reinforcing architecture.*
