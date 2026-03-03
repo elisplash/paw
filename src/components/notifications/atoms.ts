@@ -11,6 +11,8 @@ export interface Notification {
   agent?: string;
   timestamp: string;
   read: boolean;
+  /** Optional view name to navigate to when clicked (e.g. "tasks", "channels"). */
+  navigateTo?: string;
 }
 
 /** Map notification kind to Material Symbol icon name. */

@@ -4,6 +4,7 @@
 import { pawEngine, type ChannelStatus } from '../../engine';
 import { $, escHtml, escAttr, confirmModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
+import { pushNotification } from '../../components/notifications';
 import { CHANNEL_CLASSES, CHANNEL_SETUPS, isChannelConfigured, emptyChannelConfig } from './atoms';
 import {
   updateChannelsHeroStats,
@@ -378,6 +379,13 @@ function bindChannelCardActions(card: HTMLElement, ch: string, name: string): vo
       await startChannel(ch);
       if (ch !== 'whatsapp') {
         showToast(`${name} started`, 'success');
+        pushNotification(
+          'channel',
+          `${name} started`,
+          'Channel is now online',
+          undefined,
+          'channels',
+        );
         loadChannels();
       }
     } catch (e) {
@@ -401,6 +409,13 @@ function bindChannelCardActions(card: HTMLElement, ch: string, name: string): vo
     try {
       await stopChannel(ch);
       showToast(`${name} stopped`, 'success');
+      pushNotification(
+        'channel',
+        `${name} stopped`,
+        'Channel is now offline',
+        undefined,
+        'channels',
+      );
       loadChannels();
     } catch (e) {
       showToast(`Stop failed: ${e}`, 'error');

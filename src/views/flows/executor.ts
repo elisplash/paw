@@ -31,6 +31,7 @@ import { engineChatSend } from '../../engine/molecules/bridge';
 import { pawEngine } from '../../engine/molecules/ipc_client';
 import { subscribeSession } from '../../engine/molecules/event_bus';
 import { showToast } from '../../components/toast';
+import { pushNotification } from '../../components/notifications';
 
 // Sub-module imports
 import {
@@ -274,6 +275,21 @@ export function createFlowExecutor(callbacks: FlowExecutorCallbacks): FlowExecut
       totalDurationMs: _runState.totalDurationMs,
       outputLog: _runState.outputLog,
     });
+
+    // Push notification for flow completion
+    const durationSec = ((_runState.totalDurationMs ?? 0) / 1000).toFixed(1);
+    const finalStatus = _runState.status as string;
+    if (finalStatus === 'success') {
+      pushNotification('task', 'Flow completed', `Finished in ${durationSec}s`, undefined, 'flows');
+    } else if (finalStatus === 'error') {
+      pushNotification(
+        'system',
+        'Flow failed',
+        `Errored after ${durationSec}s`,
+        undefined,
+        'flows',
+      );
+    }
 
     return _runState;
   }

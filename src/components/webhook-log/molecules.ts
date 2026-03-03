@@ -2,6 +2,7 @@
 
 import { escHtml } from '../helpers';
 import { relativeTime } from '../../views/today/atoms';
+import { pushNotification } from '../notifications';
 import { parseWebhookEvent, truncatePreview, type WebhookLogEntry } from './atoms';
 
 const $ = (id: string) => document.getElementById(id);
@@ -14,6 +15,13 @@ export function addWebhookEntry(payload: Record<string, unknown>) {
   const entry = parseWebhookEvent(payload);
   _entries.unshift(entry);
   if (_entries.length > MAX_ENTRIES) _entries = _entries.slice(0, MAX_ENTRIES);
+  pushNotification(
+    'webhook',
+    'Webhook received',
+    entry.agentId ? `Routed to ${entry.agentId}` : 'Incoming webhook event',
+    entry.agentId || undefined,
+    'integrations',
+  );
   renderLog();
 }
 

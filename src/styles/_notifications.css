@@ -59,6 +59,10 @@
   font-weight: 600;
   color: var(--text-primary);
 }
+.notification-drawer-actions {
+  display: flex;
+  gap: 4px;
+}
 .notification-drawer-list {
   overflow-y: auto;
   flex: 1;

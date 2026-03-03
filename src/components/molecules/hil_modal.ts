@@ -19,6 +19,7 @@ import {
 } from '../../security';
 import { logCredentialActivity, logSecurityEvent } from '../../db';
 import { showToast } from '../toast';
+import { pushNotification } from '../notifications';
 import { escHtml } from '../molecules/markdown';
 
 const $ = (id: string) => document.getElementById(id);
@@ -245,6 +246,9 @@ export function initHILModal(): void {
     }
     modal.style.display = 'flex';
 
+    // Notify: tool needs approval (important — user may be in another view)
+    pushNotification('hil', 'Tool approval needed', toolName, undefined, 'chat');
+
     const cleanup = () => {
       modal.style.display = 'none';
       if (typeInput) {
@@ -280,6 +284,7 @@ export function initHILModal(): void {
         matchedPattern: risk?.matchedPattern,
       });
       showToast('Tool approved', 'success');
+      pushNotification('hil', 'Tool approved', toolName, undefined, 'chat');
     };
     const onDeny = () => {
       cleanup();
@@ -303,6 +308,7 @@ export function initHILModal(): void {
         matchedPattern: risk?.matchedPattern,
       });
       showToast('Tool denied', 'warning');
+      pushNotification('hil', 'Tool denied', toolName, undefined, 'chat');
     };
 
     $('approval-allow-btn')?.addEventListener('click', onAllow);

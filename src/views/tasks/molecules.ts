@@ -9,6 +9,7 @@ import {
   type TaskAgent,
 } from '../../engine';
 import { showToast } from '../../components/toast';
+import { pushNotification } from '../../components/notifications';
 import { populateModelSelect, $, escHtml, formatTimeAgo } from '../../components/helpers';
 import { spriteAvatar } from '../agents';
 import { COLUMNS } from './atoms';
@@ -420,6 +421,7 @@ export async function saveTask() {
         await pawEngine.taskSetAgents(task.id, modalSelectedAgents);
       }
       showToast('Task created', 'success');
+      pushNotification('task', 'Task created', task.title, undefined, 'tasks');
     }
     closeTaskModal();
     await _state.reload();
@@ -446,9 +448,17 @@ export async function runTask(taskId: string) {
     showToast('Starting agent work...', 'info');
     await pawEngine.taskRun(taskId);
     showToast('Agent is working on the task', 'success');
+    pushNotification('task', 'Agent working on task', undefined, undefined, 'tasks');
     await _state.reload();
   } catch (e) {
     showToast(`Run failed: ${e instanceof Error ? e.message : e}`, 'error');
+    pushNotification(
+      'system',
+      'Task run failed',
+      e instanceof Error ? e.message : String(e),
+      undefined,
+      'tasks',
+    );
   }
 }
 
