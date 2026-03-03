@@ -620,14 +620,18 @@ pub async fn run_agent_turn(
             ];
 
             // Combined auto-approve set: T1 + T2
-            let auto_approved_tools: Vec<&str> = tier1_safe.iter()
+            let auto_approved_tools: Vec<&str> = tier1_safe
+                .iter()
                 .chain(tier2_reversible.iter())
                 .copied()
                 .collect();
 
             // Trading write tools check the policy-based approval function
-            let trading_write_tools = tier4_dangerous.iter()
-                .filter(|t| t.starts_with("sol_") || t.starts_with("dex_") || t.starts_with("coinbase_"))
+            let trading_write_tools = tier4_dangerous
+                .iter()
+                .filter(|t| {
+                    t.starts_with("sol_") || t.starts_with("dex_") || t.starts_with("coinbase_")
+                })
                 .copied()
                 .collect::<Vec<&str>>();
 

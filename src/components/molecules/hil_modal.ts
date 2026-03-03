@@ -32,7 +32,6 @@ import { showToast } from '../toast';
 import { pushNotification } from '../notifications';
 import { escHtml } from '../molecules/markdown';
 
-
 const $ = (id: string) => document.getElementById(id);
 
 // ── Persist "Always Allow" per tool in localStorage ─────────────────
@@ -98,7 +97,9 @@ function injectChatBubble(
   bubble.className = `chat-approval-bubble${tier === 'external' ? ' bubble-external' : tier === 'dangerous' ? ' bubble-dangerous' : ''}`;
   bubble.dataset.toolCallId = toolCallId;
 
-  const riskHint = risk ? ` — <span style="color: var(--status-error)">${escHtml(risk.level)}: ${escHtml(risk.label)}</span>` : '';
+  const riskHint = risk
+    ? ` — <span style="color: var(--status-error)">${escHtml(risk.level)}: ${escHtml(risk.label)}</span>`
+    : '';
   const argsJson = args ? JSON.stringify(args, null, 2) : '';
   const tierLabel =
     tier === 'external'
