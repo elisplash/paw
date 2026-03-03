@@ -68,3 +68,6 @@ nohup.out
 # Rust build artifacts (cargo target dirs)
 **/target/
 .tauri-updater-key
+
+# Private website (separate repo)
+website/

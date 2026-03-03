@@ -2,6 +2,7 @@
 // View routing — switchView and showView — extracted from main.ts.
 
 import { appState } from '../state/index';
+import { viewEnter } from '../components/animations';
 import { loadChannels, loadSpaceCron } from './channels';
 import { loadSessions, populateAgentSelect } from '../engine/organisms/chat_controller';
 import { loadActiveSettingsTab } from './settings-tabs';
@@ -101,7 +102,11 @@ export function switchView(viewName: string) {
     item.classList.toggle('active', item.getAttribute('data-view') === highlightName);
   });
   allViewIds.forEach((id) => document.getElementById(id)?.classList.remove('active'));
-  (document.getElementById(viewMap[viewName] ?? '') ?? null)?.classList.add('active');
+  const _targetView = document.getElementById(viewMap[viewName] ?? '') ?? null;
+  if (_targetView) {
+    _targetView.classList.add('active');
+    viewEnter(_targetView);
+  }
 
   if (appState.wsConnected) {
     switch (viewName) {
@@ -216,7 +221,11 @@ export function switchView(viewName: string) {
 
 export function showView(viewId: string) {
   allViewIds.forEach((id) => document.getElementById(id)?.classList.remove('active'));
-  document.getElementById(viewId)?.classList.add('active');
+  const el = document.getElementById(viewId);
+  if (el) {
+    el.classList.add('active');
+    viewEnter(el);
+  }
 }
 
 // Wire nav clicks immediately on module load.

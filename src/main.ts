@@ -67,6 +67,7 @@ import { isTourComplete, startTour } from './components/tour';
 import { restoreShowcase, enableShowcase } from './components/showcase';
 import { shouldShowWizard, initWizard } from './views/onboarding';
 import { initLockScreen } from './views/lock-screen';
+import { sidebarNavEntrance } from './components/animations';
 
 // ── Tauri bridge ─────────────────────────────────────────────────────────
 interface TauriWindow {
@@ -235,6 +236,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     initTheme();
+
+    // ── Sidebar entrance animation (anime.js) ───────────────────────────
+    sidebarNavEntrance('.nav-item');
 
     // ── Sidebar collapse toggle ──────────────────────────────────────────
     const sidebar = document.getElementById('sidebar');

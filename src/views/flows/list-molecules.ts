@@ -5,6 +5,7 @@
 
 import type { FlowGraph } from './atoms';
 import { formatDate, escAttr } from './molecule-state';
+import { staggerIn } from '../../components/animations';
 
 // Track which folders are collapsed
 const _collapsedFolders = new Set<string>();
@@ -82,6 +83,9 @@ export function renderFlowList(
       ${rootHtml}
     </div>
   `;
+
+  // Animate flow list items cascading in
+  staggerIn('.flow-list-item', container);
 
   // Wire new flow button
   container

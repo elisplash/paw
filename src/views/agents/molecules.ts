@@ -5,6 +5,7 @@ import { $, escHtml } from '../../components/helpers';
 import { getAgentPolicy } from '../../features/agent-policies';
 import { type Agent, spriteAvatar } from './atoms';
 import { kineticRow } from '../../components/kinetic-row';
+import { staggerIn, staggerCards } from '../../components/animations';
 
 let _createBtnBound = false;
 
@@ -154,6 +155,13 @@ export function renderAgents(agents: Agent[], cbs: RenderAgentsCallbacks) {
   grid.querySelectorAll('.agent-card.k-row').forEach((card) => {
     kineticRow(card as HTMLElement, { spring: true, materialise: true });
   });
+
+  // Animate cards/rows entering — stagger cascade
+  if (_viewMode === 'grid') {
+    staggerCards('.agent-card', grid);
+  } else {
+    staggerIn('.agents-roster-row', grid);
+  }
 
   // Bind events
   grid.querySelectorAll('.agent-chat-btn').forEach((btn) => {

@@ -16,6 +16,7 @@ import {
 } from './molecules';
 import { fetchAndRenderActivity } from './activity';
 import { pawEngine } from '../../engine';
+import { staggerCards } from '../../components/animations';
 
 // ── State ─────────────────────────────────────────────────────────────
 
@@ -68,6 +69,9 @@ export async function loadToday() {
 
   // 2. Render the full page (one-time, with task data baked in)
   renderToday();
+
+  // 2b. Animate dashboard cards cascading in
+  staggerCards('.today-card');
 
   // 3. Fetch all card data in parallel — each updates its own DOM element.
   //    reloadTodayTasks uses inPlace=true to avoid re-rendering the whole page.

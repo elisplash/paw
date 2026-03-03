@@ -6,6 +6,7 @@
 // All event listeners are bound ONCE. Form switching is done via display toggling.
 
 import { invoke } from '@tauri-apps/api/core';
+import { lockScreenUnlock, shakeElement } from '../components/animations';
 
 const $ = (id: string) => document.getElementById(id);
 const LOCK_MODE_KEY = 'paw-lock-mode';
@@ -341,14 +342,13 @@ function hideAllForms() {
 function unlock() {
   if (_unlocked) return;
   _unlocked = true;
-  _lockScreen.classList.add('lock-unlocking');
-  setTimeout(() => {
-    _lockScreen.classList.add('lock-unlocked');
-    setTimeout(() => {
-      _lockScreen.classList.add('lock-hidden');
-      _resolve();
-    }, 400);
-  }, 300);
+
+  // Cinematic anime.js unlock sequence
+  const anim = lockScreenUnlock(_lockScreen);
+  anim.then(() => {
+    _lockScreen.classList.add('lock-hidden');
+    _resolve();
+  });
 }
 
 function hideLockScreen(lockScreen: HTMLElement) {
@@ -356,7 +356,5 @@ function hideLockScreen(lockScreen: HTMLElement) {
 }
 
 function shakeInput(el: HTMLElement) {
-  el.classList.remove('lock-shake');
-  void el.offsetWidth;
-  el.classList.add('lock-shake');
+  shakeElement(el);
 }
