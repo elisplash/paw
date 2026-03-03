@@ -693,7 +693,7 @@ Beyond the dual-layer structure, decay is modulated by *interference* — how mu
 
 The combined formula:
 
-$$\lambda_{\text{eff}} = \lambda_{\text{base}} \times \text{type\_modifier} \times \text{interference\_factor} \times (1 + \text{semantic\_overlap})$$
+$$\lambda_\text{eff} = \lambda_\text{base} \times \textit{typeModifier} \times \textit{interferenceFactor} \times (1 + \textit{semanticOverlap})$$
 
 This produces *adaptive* forgetting: universally useful knowledge persists almost indefinitely (low interference, frequent access, LML layer), while transient noise evaporates quickly (high interference, no access, SML layer).
 
