@@ -49,10 +49,7 @@
     "macOS": {
       "minimumSystemVersion": "10.15",
       "entitlements": "Entitlements.plist",
-      "infoPlist": {
-        "NSCameraUsageDescription": "Open Pawz needs camera access for visual AI interactions.",
-        "NSMicrophoneUsageDescription": "Open Pawz needs microphone access for voice dictation and talk mode."
-      }
+      "infoPlist": "Info.plist"
     }
   }
 }

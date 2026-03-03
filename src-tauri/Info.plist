@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSCameraUsageDescription</key>
+    <string>Open Pawz needs camera access for visual AI interactions.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Open Pawz needs microphone access for voice dictation and talk mode.</string>
+</dict>
+</plist>
