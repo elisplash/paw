@@ -455,6 +455,7 @@ export interface TtsConfig {
   elevenlabs_model: string; // "eleven_multilingual_v2" | "eleven_turbo_v2_5"
   stability: number; // 0.0–1.0
   similarity_boost: number; // 0.0–1.0
+  stt_provider: string; // "browser" (free, Web Speech API) | "whisper" (OpenAI/Google, requires key)
 }
 
 // ── Tasks ─────────────────────────────────────────────────────────────

@@ -36,6 +36,7 @@ function buildFormConfig(): TtsConfig {
       ($('tts-elevenlabs-model') as HTMLSelectElement)?.value || 'eleven_multilingual_v2',
     stability: parseFloat(($('tts-stability') as HTMLInputElement)?.value || '0.5'),
     similarity_boost: parseFloat(($('tts-similarity') as HTMLInputElement)?.value || '0.75'),
+    stt_provider: ($('stt-provider') as HTMLSelectElement)?.value || 'browser',
   };
 }
 
@@ -130,8 +131,19 @@ export function renderVoiceForm(container: HTMLElement) {
 
       <!-- Talk Mode section -->
       <div style="margin-top:32px;padding-top:24px;border-top:1px solid var(--border)">
-        <h3 style="margin:0 0 8px 0;font-size:14px;color:var(--text)">Talk Mode</h3>
-        <p class="form-hint" style="margin:0 0 16px 0">Hold-to-talk or toggle continuous voice conversation. Your speech is transcribed via OpenAI Whisper, sent to your agent, and the response is read aloud automatically.</p>
+        <h3 style="margin:0 0 8px 0;font-size:14px;color:var(--text)">Speech-to-Text (Dictation)</h3>
+        <p class="form-hint" style="margin:0 0 16px 0">Use the mic button in chat to dictate messages by voice. Choose your transcription engine below.</p>
+
+        <!-- STT Provider -->
+        <div class="form-group">
+          <label class="form-label">Dictation Engine</label>
+          <select class="form-input" id="stt-provider">
+            <option value="browser" ${config.stt_provider !== 'whisper' ? 'selected' : ''}>Browser (Free) — built-in, no API key needed</option>
+            <option value="whisper" ${config.stt_provider === 'whisper' ? 'selected' : ''}>Whisper (Enhanced) — higher accuracy, requires API key</option>
+          </select>
+          <div class="form-hint" id="stt-provider-hint">${config.stt_provider === 'whisper' ? 'Uses OpenAI Whisper via your API key. Higher accuracy, supports more languages.' : 'Uses your browser\u2019s built-in speech recognition. Free, instant, no setup required.'}</div>
+        </div>
+
         <div class="form-group" style="display:flex;gap:12px;align-items:center">
           <button class="btn btn-ghost" id="talk-mode-btn">
             <span class="ms">mic</span> Start Talk Mode
@@ -183,6 +195,18 @@ function bindFormEvents() {
   const similarityVal = $('tts-similarity-val');
   similaritySlider?.addEventListener('input', () => {
     if (similarityVal) similarityVal.textContent = parseFloat(similaritySlider.value).toFixed(2);
+  });
+
+  // STT provider hint
+  const sttSelect = $('stt-provider') as HTMLSelectElement;
+  const sttHint = $('stt-provider-hint');
+  sttSelect?.addEventListener('change', () => {
+    if (sttHint) {
+      sttHint.textContent =
+        sttSelect.value === 'whisper'
+          ? 'Uses OpenAI Whisper via your API key. Higher accuracy, supports more languages.'
+          : 'Uses your browser\u2019s built-in speech recognition. Free, instant, no setup required.';
+    }
   });
 
   $('tts-save')?.addEventListener('click', async () => {

@@ -16,6 +16,7 @@ let _config: TtsConfig = {
   elevenlabs_model: 'eleven_multilingual_v2',
   stability: 0.5,
   similarity_boost: 0.75,
+  stt_provider: 'browser',
 };
 
 // ── State bridge ──────────────────────────────────────────────────────

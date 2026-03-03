@@ -21,6 +21,8 @@ pub struct TtsConfig {
     pub stability: f64, // 0.0–1.0 (ElevenLabs voice stability)
     #[serde(default = "default_similarity")]
     pub similarity_boost: f64, // 0.0–1.0 (ElevenLabs clarity + similarity)
+    #[serde(default = "default_stt_provider")]
+    pub stt_provider: String, // "browser" (free, Web Speech API) | "whisper" (requires API key)
 }
 
 fn default_elevenlabs_model() -> String {
@@ -31,6 +33,9 @@ fn default_stability() -> f64 {
 }
 fn default_similarity() -> f64 {
     0.75
+}
+fn default_stt_provider() -> String {
+    "browser".into()
 }
 
 impl Default for TtsConfig {
@@ -45,6 +50,7 @@ impl Default for TtsConfig {
             elevenlabs_model: "eleven_multilingual_v2".into(),
             stability: 0.5,
             similarity_boost: 0.75,
+            stt_provider: "browser".into(),
         }
     }
 }
