@@ -7,7 +7,7 @@ use crate::engine::engram;
 use crate::engine::memory;
 use crate::engine::state::EngineState;
 use crate::engine::util::safe_truncate;
-use log::info;
+use log::{info, warn};
 use tauri::Manager;
 
 pub fn definitions() -> Vec<ToolDefinition> {
@@ -184,9 +184,11 @@ pub async fn execute(
                 .map_err(|e| e.to_string()),
         ),
         "memory_stats" => Some(execute_memory_stats(app_handle).map_err(|e| e.to_string())),
-        "memory_delete" => Some(execute_memory_delete(args, app_handle).map_err(|e| e.to_string())),
+        "memory_delete" => {
+            Some(execute_memory_delete(args, app_handle, agent_id).map_err(|e| e.to_string()))
+        }
         "memory_update" => Some(
-            execute_memory_update(args, app_handle)
+            execute_memory_update(args, app_handle, agent_id)
                 .await
                 .map_err(|e| e.to_string()),
         ),
@@ -194,9 +196,11 @@ pub async fn execute(
             Some(execute_memory_list(args, app_handle, agent_id).map_err(|e| e.to_string()))
         }
         "memory_feedback" => {
-            Some(execute_memory_feedback(args, app_handle).map_err(|e| e.to_string()))
+            Some(execute_memory_feedback(args, app_handle, agent_id).map_err(|e| e.to_string()))
         }
-        "memory_relate" => Some(execute_memory_relate(args, app_handle).map_err(|e| e.to_string())),
+        "memory_relate" => {
+            Some(execute_memory_relate(args, app_handle, agent_id).map_err(|e| e.to_string()))
+        }
         _ => None,
     }
 }
@@ -363,6 +367,33 @@ async fn execute_memory_knowledge(
         .ok_or("memory_knowledge: missing 'object' argument")?;
     let category = args["category"].as_str().unwrap_or("fact");
 
+    // §Security: enforce size limits on triple fields to prevent abuse
+    const MAX_TRIPLE_FIELD_LEN: usize = 2000;
+    if subject.len() > MAX_TRIPLE_FIELD_LEN {
+        return Err(format!(
+            "memory_knowledge: 'subject' exceeds maximum length ({} > {})",
+            subject.len(),
+            MAX_TRIPLE_FIELD_LEN
+        )
+        .into());
+    }
+    if predicate.len() > MAX_TRIPLE_FIELD_LEN {
+        return Err(format!(
+            "memory_knowledge: 'predicate' exceeds maximum length ({} > {})",
+            predicate.len(),
+            MAX_TRIPLE_FIELD_LEN
+        )
+        .into());
+    }
+    if object.len() > MAX_TRIPLE_FIELD_LEN {
+        return Err(format!(
+            "memory_knowledge: 'object' exceeds maximum length ({} > {})",
+            object.len(),
+            MAX_TRIPLE_FIELD_LEN
+        )
+        .into());
+    }
+
     info!(
         "[engine] memory_knowledge: {} {} {} agent={}",
         subject, predicate, object, agent_id
@@ -422,16 +453,48 @@ fn execute_memory_stats(app_handle: &tauri::AppHandle) -> EngineResult<String> {
 fn execute_memory_delete(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
+    agent_id: &str,
 ) -> EngineResult<String> {
     let memory_id = args["memory_id"]
         .as_str()
         .ok_or("memory_delete: missing 'memory_id' argument")?;
 
-    info!("[engine] memory_delete: id={}", memory_id);
+    info!(
+        "[engine] memory_delete: id={} agent={}",
+        memory_id, agent_id
+    );
 
     let state = app_handle
         .try_state::<EngineState>()
         .ok_or("Engine state not available")?;
+
+    // §Security: verify agent owns this memory before deleting (fail-closed)
+    match state.store.engram_get_episodic(memory_id) {
+        Ok(Some(mem)) => {
+            let mem_agent = mem.scope.agent_id.as_deref().unwrap_or("");
+            if !mem_agent.is_empty() && mem_agent != agent_id {
+                warn!(
+                    "[engine] memory_delete: agent '{}' attempted to delete memory owned by '{}'",
+                    agent_id, mem_agent
+                );
+                return Err(format!(
+                    "memory_delete: memory {} belongs to another agent. You can only delete your own memories.",
+                    safe_truncate(memory_id, 8)
+                ).into());
+            }
+        }
+        Ok(None) => {
+            return Err(format!(
+                "memory_delete: memory {} not found.",
+                safe_truncate(memory_id, 8)
+            )
+            .into());
+        }
+        Err(e) => {
+            warn!("[engine] memory_delete: ownership lookup failed: {}", e);
+            return Err("memory_delete: failed to verify memory ownership.".into());
+        }
+    }
 
     // Try deleting from Engram episodic tier
     let deleted = state.store.engram_delete_episodic(memory_id).is_ok();
@@ -455,6 +518,7 @@ fn execute_memory_delete(
 async fn execute_memory_update(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
+    agent_id: &str,
 ) -> EngineResult<String> {
     let memory_id = args["memory_id"]
         .as_str()
@@ -464,14 +528,44 @@ async fn execute_memory_update(
         .ok_or("memory_update: missing 'content' argument")?;
 
     info!(
-        "[engine] memory_update: id={} new_len={}",
+        "[engine] memory_update: id={} new_len={} agent={}",
         memory_id,
-        new_content.len()
+        new_content.len(),
+        agent_id
     );
 
     let state = app_handle
         .try_state::<EngineState>()
         .ok_or("Engine state not available")?;
+
+    // §Security: verify agent owns this memory before updating (fail-closed)
+    match state.store.engram_get_episodic(memory_id) {
+        Ok(Some(mem)) => {
+            let mem_agent = mem.scope.agent_id.as_deref().unwrap_or("");
+            if !mem_agent.is_empty() && mem_agent != agent_id {
+                warn!(
+                    "[engine] memory_update: agent '{}' attempted to update memory owned by '{}'",
+                    agent_id, mem_agent
+                );
+                return Err(format!(
+                    "memory_update: memory {} belongs to another agent. You can only update your own memories.",
+                    safe_truncate(memory_id, 8)
+                ).into());
+            }
+        }
+        Ok(None) => {
+            return Err(format!(
+                "memory_update: memory {} not found.",
+                safe_truncate(memory_id, 8)
+            )
+            .into());
+        }
+        Err(e) => {
+            warn!("[engine] memory_update: ownership lookup failed: {}", e);
+            return Err("memory_update: failed to verify memory ownership.".into());
+        }
+    }
+
     let emb_client = state.embedding_client();
 
     // Re-embed the updated content
@@ -548,6 +642,7 @@ fn execute_memory_list(
 fn execute_memory_feedback(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
+    agent_id: &str,
 ) -> EngineResult<String> {
     let memory_id = args["memory_id"]
         .as_str()
@@ -558,15 +653,44 @@ fn execute_memory_feedback(
     let context = args["context"].as_str();
 
     info!(
-        "[engine] memory_feedback: id={} helpful={} context={:?}",
+        "[engine] memory_feedback: id={} helpful={} context={:?} agent={}",
         safe_truncate(memory_id, 8),
         helpful,
-        context.map(|c| safe_truncate(c, 50))
+        context.map(|c| safe_truncate(c, 50)),
+        agent_id
     );
 
     let state = app_handle
         .try_state::<EngineState>()
         .ok_or("Engine state not available")?;
+
+    // §Security: verify agent owns this memory before modifying trust scores (fail-closed)
+    match state.store.engram_get_episodic(memory_id) {
+        Ok(Some(mem)) => {
+            let mem_agent = mem.scope.agent_id.as_deref().unwrap_or("");
+            if !mem_agent.is_empty() && mem_agent != agent_id {
+                warn!(
+                    "[engine] memory_feedback: agent '{}' attempted to modify trust of memory owned by '{}'",
+                    agent_id, mem_agent
+                );
+                return Err(format!(
+                    "memory_feedback: memory {} belongs to another agent. You can only provide feedback on your own memories.",
+                    safe_truncate(memory_id, 8)
+                ).into());
+            }
+        }
+        Ok(None) => {
+            return Err(format!(
+                "memory_feedback: memory {} not found.",
+                safe_truncate(memory_id, 8)
+            )
+            .into());
+        }
+        Err(e) => {
+            warn!("[engine] memory_feedback: ownership lookup failed: {}", e);
+            return Err("memory_feedback: failed to verify memory ownership.".into());
+        }
+    }
 
     if helpful {
         // Positive feedback: boost importance and utility trust dimension
@@ -610,6 +734,7 @@ fn execute_memory_feedback(
 fn execute_memory_relate(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
+    agent_id: &str,
 ) -> EngineResult<String> {
     let source_id = args["source_id"]
         .as_str()
@@ -637,6 +762,44 @@ fn execute_memory_relate(
     let state = app_handle
         .try_state::<EngineState>()
         .ok_or("Engine state not available")?;
+
+    // §Security: verify agent owns at least one of the memories being related (fail-closed)
+    let source_ownership = state.store.engram_get_episodic(source_id);
+    let target_ownership = state.store.engram_get_episodic(target_id);
+
+    let source_ok = match &source_ownership {
+        Ok(Some(mem)) => {
+            mem.scope.agent_id.as_deref() == Some(agent_id) || mem.scope.agent_id.is_none()
+        }
+        Ok(None) => false,
+        Err(_) => false,
+    };
+    let target_ok = match &target_ownership {
+        Ok(Some(mem)) => {
+            mem.scope.agent_id.as_deref() == Some(agent_id) || mem.scope.agent_id.is_none()
+        }
+        Ok(None) => false,
+        Err(_) => false,
+    };
+
+    // At least one must exist and be owned by this agent
+    if !source_ok && !target_ok {
+        // If both lookups failed, report the error
+        if source_ownership.is_err() && target_ownership.is_err() {
+            warn!(
+                "[engine] memory_relate: ownership lookups failed for agent '{}'",
+                agent_id
+            );
+            return Err("memory_relate: failed to verify memory ownership.".into());
+        }
+        warn!(
+            "[engine] memory_relate: agent '{}' attempted to relate memories it doesn't own",
+            agent_id
+        );
+        return Err(
+            "memory_relate: you can only create relationships involving your own memories.".into(),
+        );
+    }
 
     // Parse the relation string to EdgeType
     let edge_type = match relation {

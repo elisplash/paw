@@ -8,8 +8,14 @@
 //
 // Flow: Boss decides "call fetch" or "call mcp_n8n_execute_workflow" →
 //       Worker (cheap model) receives task + tool schemas →
-//       Worker executes tools (fetch, exec, MCP) →
+//       Worker executes tools (fetch, MCP) →
 //       Result returned to boss as tool output.
+//
+// Security: Worker tools are limited to fetch, MCP, and n8n management.
+// Dangerous tools (exec, write_file, delete_file, append_file) are BLOCKED
+// from worker execution to maintain HIL (Human-in-the-Loop) integrity.
+// All worker tool results are scanned for prompt injection before being
+// returned to the boss model.
 
 use crate::atoms::types::*;
 use crate::engine::providers::AnyProvider;
@@ -67,12 +73,13 @@ pub async fn delegate_to_worker(
     let provider = AnyProvider::from_config(&provider_config);
 
     // Gather tool definitions the worker can use:
-    // - fetch/exec for direct API calls and shell commands
+    // - fetch for API calls
     // - MCP tools for n8n-bridged services
     // - n8n management tools
+    // NOTE: exec is intentionally excluded — it requires HIL approval which
+    // the worker bypasses. Shell commands must go through the main agent loop.
     let mut worker_tools: Vec<ToolDefinition> = Vec::new();
     worker_tools.extend(crate::engine::tools::fetch::definitions());
-    worker_tools.extend(crate::engine::tools::exec::definitions());
     worker_tools.extend(ToolDefinition::mcp_tools(app_handle));
     worker_tools.extend(crate::engine::tools::n8n::definitions());
 
@@ -95,11 +102,10 @@ pub async fn delegate_to_worker(
         You are a silent execution unit — never engage in conversation, never explain your reasoning.\n\n\
         ## Available Tools\n\
         - `fetch` — Make HTTP requests (GET/POST) to any API. Use for data lookups, price checks, API calls.\n\
-        - `exec` — Run shell commands (curl, jq, etc.). Use when you need piping or complex CLI workflows.\n\
         - `mcp_*` — MCP bridge tools for n8n-connected services.\n\n\
         ## Execution Rules\n\
         1. Parse the Task Order. Identify what data/action is needed.\n\
-        2. Use `fetch` for simple API calls, `exec` for CLI pipelines, `mcp_*` for n8n services.\n\
+        2. Use `fetch` for simple API calls, `mcp_*` for n8n services.\n\
         3. If a tool call fails, retry ONCE with corrected parameters.\n\
         4. Return ONLY the result data — no explanation, no commentary.\n\
         5. For structured data (JSON), return relevant fields only, summarized concisely.\n\n\
@@ -164,8 +170,9 @@ pub async fn delegate_to_worker(
 }
 
 /// Minimal agent loop for the worker: call model → execute tools → repeat.
-/// No HIL approval (worker tools are pre-approved), no streaming to frontend,
-/// no budget tracking. Just silent local execution.
+/// Worker tools are restricted to safe operations (fetch, MCP, n8n).
+/// Dangerous tools (exec, write_file, etc.) are blocked.
+/// All tool results are scanned for prompt injection before being fed back.
 async fn run_worker_loop(
     app_handle: &tauri::AppHandle,
     provider: &AnyProvider,
@@ -264,6 +271,23 @@ async fn run_worker_loop(
 
             let result = execute_worker_tool(tc, app_handle, agent_id).await;
 
+            // §Security: scan worker tool results for prompt injection payloads
+            // before feeding them back into the model context.
+            let sanitized_output = {
+                let scan = crate::engine::injection::scan_for_injection(&result.output);
+                if scan.is_injection
+                    && scan.severity >= Some(crate::engine::injection::InjectionSeverity::High)
+                {
+                    warn!(
+                        "[worker-delegate] Injection detected in tool result for '{}' (score={}), sanitizing",
+                        tc.function.name, scan.score
+                    );
+                    crate::engine::engram::encryption::sanitize_recalled_memory(&result.output)
+                } else {
+                    result.output.clone()
+                }
+            };
+
             info!(
                 "[worker-delegate] Worker tool result: {} success={} len={}",
                 tc.function.name,
@@ -273,7 +297,7 @@ async fn run_worker_loop(
 
             messages.push(Message {
                 role: Role::Tool,
-                content: MessageContent::Text(result.output),
+                content: MessageContent::Text(sanitized_output),
                 tool_calls: None,
                 tool_call_id: Some(tc.id.clone()),
                 name: Some(tc.function.name.clone()),
@@ -321,6 +345,9 @@ fn resolve_worker_provider(model: &str, providers: &[ProviderConfig]) -> Option<
 /// Execute a tool call from the worker agent.
 /// Routes MCP tools directly to the MCP registry and n8n management tools
 /// to the n8n module — bypassing `execute_tool` to avoid recursion.
+///
+/// §Security: Dangerous tools (exec, write_file, delete_file, append_file) are
+/// blocked to maintain HIL integrity. The worker only gets safe tools.
 async fn execute_worker_tool(
     tool_call: &ToolCall,
     app_handle: &tauri::AppHandle,
@@ -330,11 +357,76 @@ async fn execute_worker_tool(
     let args: serde_json::Value =
         serde_json::from_str(&tool_call.function.arguments).unwrap_or(serde_json::json!({}));
 
+    // §Security: Block dangerous tools that require HIL approval.
+    // These must go through the main agent loop where the user can approve/deny.
+    // Case-insensitive to prevent casing bypass (e.g., "Exec", "WRITE_FILE").
+    const BLOCKED_WORKER_TOOLS: &[&str] = &[
+        "exec",
+        "write_file",
+        "delete_file",
+        "append_file",
+        "email_send",
+        "webhook_send",
+        "rest_api_call",
+        "slack_send",
+        "github_api",
+    ];
+    let name_lower = name.to_lowercase();
+    if BLOCKED_WORKER_TOOLS.iter().any(|b| name_lower == *b) {
+        warn!(
+            "[worker-delegate] Blocked dangerous tool '{}' from worker execution",
+            name
+        );
+        return ToolResult {
+            tool_call_id: tool_call.id.clone(),
+            output: format!(
+                "Error: Tool '{}' requires human approval and cannot be executed by the worker. \
+                 Return the task to the main agent for execution.",
+                name
+            ),
+            success: false,
+        };
+    }
+
+    // §Security: Block MCP tools whose names contain dangerous operation keywords.
+    // This prevents a rogue MCP server from exposing "mcp_server_exec" or
+    // "mcp_server_write_file" that would bypass the direct tool blocklist above.
+    if let Some(after_prefix) = name_lower.strip_prefix("mcp_") {
+        const BLOCKED_MCP_PATTERNS: &[&str] = &[
+            "exec",
+            "shell",
+            "run_command",
+            "terminal",
+            "system",
+            "write_file",
+            "delete_file",
+            "remove_file",
+            "file_write",
+            "rm_rf",
+            "rmdir",
+            "unlink",
+        ];
+        for pattern in BLOCKED_MCP_PATTERNS {
+            if after_prefix.contains(pattern) {
+                warn!(
+                    "[worker-delegate] Blocked MCP tool matching dangerous pattern '{}': {}",
+                    pattern, name
+                );
+                return ToolResult {
+                    tool_call_id: tool_call.id.clone(),
+                    output: format!(
+                        "Error: MCP tool '{}' matches blocked pattern '{}'. \
+                         Dangerous MCP operations cannot be executed by the worker.",
+                        name, pattern
+                    ),
+                    success: false,
+                };
+            }
+        }
+    }
+
     let result = if let Some(r) = tools::fetch::execute(name, &args, app_handle).await {
         // fetch — HTTP requests for API calls
-        r
-    } else if let Some(r) = tools::exec::execute(name, &args, app_handle, _agent_id).await {
-        // exec — shell commands
         r
     } else if name.starts_with("mcp_") {
         // MCP tools → direct JSON-RPC to MCP server

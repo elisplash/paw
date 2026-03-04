@@ -8,6 +8,8 @@ use crate::atoms::error::{EngineError, EngineResult};
 use aes_gcm::aead::Aead;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use log::{error, info, warn};
+use std::sync::RwLock;
+use zeroize::Zeroizing;
 
 const VAULT_KEYRING_SERVICE: &str = "paw-skill-vault";
 const VAULT_KEYRING_USER: &str = "encryption-key";
@@ -15,8 +17,71 @@ const VAULT_KEYRING_USER: &str = "encryption-key";
 /// Prefix for AES-256-GCM encrypted values (distinguishes from legacy XOR).
 const AES_PREFIX: &str = "aes:";
 
+/// Expected AES-256 key length in bytes.
+const EXPECTED_KEY_LEN: usize = 32;
+
+/// In-memory cache for the vault encryption key.
+/// - `RwLock` allows concurrent readers (5–20+ per chat turn) without blocking.
+/// - `Zeroizing<Vec<u8>>` securely zeros key material when the value is dropped
+///   or replaced, preventing it from lingering in freed memory.
+/// - `unwrap_or_else(|e| e.into_inner())` recovers from a poisoned lock instead
+///   of panicking the whole app.
+static VAULT_KEY_CACHE: RwLock<Option<Zeroizing<Vec<u8>>>> = RwLock::new(None);
+
 /// Get or create the vault encryption key from the OS keychain.
+/// The result is cached in-memory for the lifetime of the process so the
+/// OS keychain is only accessed once per session.
+///
+/// Security properties:
+/// - Key material wrapped in `Zeroizing` — zeroed on drop/replace.
+/// - RwLock for concurrent reads without contention.
+/// - Poison-safe — recovers from panicked threads instead of crashing.
+/// - Key length validated before caching.
 pub fn get_vault_key() -> EngineResult<Vec<u8>> {
+    // Fast path: return cached key (read lock — many readers allowed)
+    {
+        let guard = VAULT_KEY_CACHE.read().unwrap_or_else(|e| e.into_inner());
+        if let Some(ref key) = *guard {
+            return Ok(key.to_vec());
+        }
+    }
+    // Slow path: acquire write lock and double-check (prevents TOCTOU race
+    // where two threads both see None in the read lock above)
+    let mut guard = VAULT_KEY_CACHE.write().unwrap_or_else(|e| e.into_inner());
+    if let Some(ref key) = *guard {
+        return Ok(key.to_vec());
+    }
+    // Read from OS keychain (only happens once per session)
+    let key = load_vault_key_from_keychain()?;
+    if key.len() != EXPECTED_KEY_LEN {
+        error!(
+            "[vault] Keychain returned key with unexpected length {} (expected {})",
+            key.len(),
+            EXPECTED_KEY_LEN
+        );
+        return Err(EngineError::Other(format!(
+            "Vault key length mismatch: got {} bytes, expected {}",
+            key.len(),
+            EXPECTED_KEY_LEN
+        )));
+    }
+    let result = key.to_vec();
+    *guard = Some(key); // key is already Zeroizing<Vec<u8>> from load fn
+    info!("[vault] Vault key loaded and cached from OS keychain");
+    Ok(result)
+}
+
+/// Check whether the vault key has already been cached (avoids keychain access).
+pub fn vault_key_cached() -> bool {
+    VAULT_KEY_CACHE
+        .read()
+        .unwrap_or_else(|e| e.into_inner())
+        .is_some()
+}
+
+/// Read (or create) the vault key directly from the OS keychain.
+/// Returns `Zeroizing<Vec<u8>>` so callers don't need to manually zero.
+fn load_vault_key_from_keychain() -> EngineResult<Zeroizing<Vec<u8>>> {
     let entry = keyring::Entry::new(VAULT_KEYRING_SERVICE, VAULT_KEYRING_USER).map_err(|e| {
         error!(
             "[vault] Keyring init failed — OS keychain unavailable: {}",
@@ -26,17 +91,23 @@ pub fn get_vault_key() -> EngineResult<Vec<u8>> {
     })?;
 
     match entry.get_password() {
-        Ok(key_b64) => base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &key_b64)
-            .map_err(|e| {
-                error!("[vault] Failed to decode stored vault key: {}", e);
-                EngineError::Other(format!("Failed to decode vault key: {}", e))
-            }),
+        Ok(key_b64) => {
+            let decoded =
+                base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &key_b64)
+                    .map_err(|e| {
+                        error!("[vault] Failed to decode stored vault key: {}", e);
+                        EngineError::Other(format!("Failed to decode vault key: {}", e))
+                    })?;
+            Ok(Zeroizing::new(decoded))
+        }
         Err(keyring::Error::NoEntry) => {
-            // Generate a new random key
-            use rand::Rng;
-            let mut key = vec![0u8; 32];
-            rand::thread_rng().fill(&mut key[..]);
-            let key_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &key);
+            // Generate a new random key using OS CSPRNG (not thread_rng)
+            use rand::rngs::OsRng;
+            use rand::RngCore;
+            let mut key = Zeroizing::new(vec![0u8; 32]);
+            OsRng.fill_bytes(&mut key);
+            let key_b64 =
+                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, key.as_slice());
             entry.set_password(&key_b64).map_err(|e| {
                 error!("[vault] Failed to store vault key in keychain: {}", e);
                 format!("Failed to store vault key in keychain: {}", e)

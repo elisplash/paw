@@ -5,7 +5,7 @@
 
 use crate::atoms::types::*;
 use crate::engine::state::EngineState;
-use log::info;
+use log::{info, warn};
 use tauri::Emitter;
 use tauri::Manager;
 
@@ -73,6 +73,42 @@ fn execute_send(
         .ok_or_else(|| "missing 'content'".to_string())?;
     let channel = args["channel"].as_str().unwrap_or("general");
     let metadata = args["metadata"].as_str().map(String::from);
+
+    // §Security: Scan inter-agent message content for prompt injection.
+    // This prevents a compromised agent from manipulating other agents
+    // via crafted messages that override their instructions.
+    // Both High and Critical severity are blocked (not just Critical).
+    let injection_scan = crate::engine::injection::scan_for_injection(content);
+    if injection_scan.is_injection
+        && injection_scan.severity >= Some(crate::engine::injection::InjectionSeverity::High)
+    {
+        warn!(
+            "[engine] agent_send_message: BLOCKED injection from '{}' → '{}' on #{} (score={}, severity={:?})",
+            agent_id, to, channel, injection_scan.score, injection_scan.severity
+        );
+        return Err(format!(
+            "Message blocked: prompt injection detected (severity: {:?}, score: {}). \
+             Inter-agent messages cannot contain instruction override attempts.",
+            injection_scan.severity, injection_scan.score
+        ));
+    }
+
+    // §Security: Also scan metadata field — injection payloads can be hidden there
+    if let Some(ref meta) = metadata {
+        let meta_scan = crate::engine::injection::scan_for_injection(meta);
+        if meta_scan.is_injection
+            && meta_scan.severity >= Some(crate::engine::injection::InjectionSeverity::High)
+        {
+            warn!(
+                "[engine] agent_send_message: BLOCKED injection in metadata from '{}' → '{}' (score={})",
+                agent_id, to, meta_scan.score
+            );
+            return Err(format!(
+                "Message metadata blocked: prompt injection detected (severity: {:?}, score: {}).",
+                meta_scan.severity, meta_scan.score
+            ));
+        }
+    }
 
     let state = app_handle
         .try_state::<EngineState>()

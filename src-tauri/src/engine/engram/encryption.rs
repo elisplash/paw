@@ -303,31 +303,91 @@ const CURRENT_KEY_VERSION: u8 = 1;
 const ENC_PREFIX_VERSIONED: &str = "enc:v1:";
 const ENC_PREFIX_LEGACY: &str = "enc:";
 
+/// Expected AES-256 key length in bytes.
+const EXPECTED_KEY_LEN: usize = 32;
+
+/// In-memory cache for the master memory encryption key.
+/// - `RwLock` allows concurrent readers (5–20+ per chat turn) without blocking.
+/// - `Zeroizing<Vec<u8>>` securely zeros key material when the value is dropped
+///   or replaced, preventing it from lingering in freed memory.
+/// - Poison-safe — recovers from panicked threads instead of crashing.
+static MEMORY_KEY_CACHE: std::sync::RwLock<Option<zeroize::Zeroizing<Vec<u8>>>> =
+    std::sync::RwLock::new(None);
+
 /// Get or create the master memory encryption key from the OS keychain.
 /// This is a SEPARATE key from the skill vault key — compromising one
 /// does not compromise the other.
 ///
 /// Uses OsRng (kernel CSPRNG) for key generation — never thread_rng.
+/// The result is cached in-memory for the lifetime of the process so the
+/// OS keychain is only accessed once per session.
+///
+/// Security properties:
+/// - Key material wrapped in `Zeroizing` — zeroed on drop/replace.
+/// - RwLock for concurrent reads without contention.
+/// - Poison-safe — recovers from panicked threads instead of crashing.
+/// - Key length validated before caching.
 pub fn get_memory_encryption_key() -> EngineResult<Vec<u8>> {
+    // Fast path: return cached key (read lock — many readers allowed)
+    {
+        let guard = MEMORY_KEY_CACHE.read().unwrap_or_else(|e| e.into_inner());
+        if let Some(ref key) = *guard {
+            return Ok(key.to_vec());
+        }
+    }
+    // Slow path: acquire write lock and double-check (prevents TOCTOU race
+    // where two threads both see None in the read lock above)
+    let mut guard = MEMORY_KEY_CACHE.write().unwrap_or_else(|e| e.into_inner());
+    if let Some(ref key) = *guard {
+        return Ok(key.to_vec());
+    }
+    // Read from OS keychain (only happens once per session)
+    let key = load_memory_key_from_keychain()?;
+    if key.len() != EXPECTED_KEY_LEN {
+        error!(
+            "[engram-encryption] Keychain returned key with unexpected length {} (expected {})",
+            key.len(),
+            EXPECTED_KEY_LEN
+        );
+        return Err(EngineError::Other(format!(
+            "Memory key length mismatch: got {} bytes, expected {}",
+            key.len(),
+            EXPECTED_KEY_LEN
+        )));
+    }
+    let result = key.to_vec();
+    *guard = Some(key); // key is already Zeroizing<Vec<u8>> from load fn
+    info!("[engram-encryption] Memory key loaded and cached from OS keychain");
+    Ok(result)
+}
+
+/// Read (or create) the memory encryption key directly from the OS keychain.
+/// Returns `Zeroizing<Vec<u8>>` so callers don't need to manually zero.
+fn load_memory_key_from_keychain() -> EngineResult<zeroize::Zeroizing<Vec<u8>>> {
     let entry = keyring::Entry::new(MEMORY_KEYRING_SERVICE, MEMORY_KEYRING_USER).map_err(|e| {
         error!("[engram-encryption] Keyring init failed: {}", e);
         format!("Keyring init failed: {}", e)
     })?;
 
     match entry.get_password() {
-        Ok(key_b64) => base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &key_b64)
-            .map_err(|e| {
-                error!(
-                    "[engram-encryption] Failed to decode memory encryption key: {}",
-                    e
-                );
-                EngineError::Other(format!("Failed to decode memory encryption key: {}", e))
-            }),
+        Ok(key_b64) => {
+            let decoded =
+                base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &key_b64)
+                    .map_err(|e| {
+                        error!(
+                            "[engram-encryption] Failed to decode memory encryption key: {}",
+                            e
+                        );
+                        EngineError::Other(format!("Failed to decode memory encryption key: {}", e))
+                    })?;
+            Ok(zeroize::Zeroizing::new(decoded))
+        }
         Err(keyring::Error::NoEntry) => {
             // Generate a new random 256-bit key using OS CSPRNG
-            let mut key = vec![0u8; 32];
+            let mut key = zeroize::Zeroizing::new(vec![0u8; 32]);
             OsRng.fill_bytes(&mut key);
-            let key_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &key);
+            let key_b64 =
+                base64::Engine::encode(&base64::engine::general_purpose::STANDARD, key.as_slice());
             entry.set_password(&key_b64).map_err(|e| {
                 error!(
                     "[engram-encryption] Failed to store memory encryption key: {}",

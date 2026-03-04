@@ -60,8 +60,63 @@ async fn execute_exec(
 
     info!("[engine] exec: {}", safe_truncate(command, 200));
 
-    // Block installing packages that duplicate built-in skill tools
+    // §Security: Block dangerous command patterns that attempt to exfiltrate
+    // credentials, open reverse shells, or access sensitive files.
+    // These are blocked even when the user approves the tool call.
     let cmd_lower = command.to_lowercase();
+    {
+        const EXFIL_PATTERNS: &[&str] = &[
+            // Credential exfiltration
+            "cat.*id_rsa",
+            "cat.*id_ed25519",
+            "cat.*/etc/shadow",
+            "base64.*\\.ssh",
+            "base64.*\\.gnupg",
+            "tar.*\\.ssh",
+            "zip.*\\.ssh",
+            "cp.*\\.ssh",
+            "scp.*\\.ssh",
+            // Reverse shells
+            "nc -e",
+            "nc -c",
+            "ncat -e",
+            "bash -i >& /dev/tcp",
+            "python.*-c.*import.*socket",
+            "python.*-c.*import.*subprocess",
+            "perl.*socket.*connect",
+            "ruby.*tcpsocket",
+            "php.*fsockopen",
+            // Credential harvesting
+            "cat.*\\.aws/credentials",
+            "cat.*\\.npmrc",
+            "cat.*\\.env",
+            "printenv.*secret",
+            "printenv.*token",
+            "printenv.*password",
+            "echo.*\\$.*secret",
+            "echo.*\\$.*token",
+            "echo.*\\$.*password",
+        ];
+
+        for pattern in EXFIL_PATTERNS {
+            if cmd_lower.contains(pattern) {
+                warn!(
+                    "[engine] exec: BLOCKED dangerous command pattern '{}' (agent={}): {}",
+                    pattern,
+                    agent_id,
+                    safe_truncate(command, 100)
+                );
+                return Err(format!(
+                    "exec: command blocked by security policy — matches dangerous pattern '{}'. \
+                     Credential access and reverse shells are not permitted.",
+                    pattern
+                )
+                .into());
+            }
+        }
+    }
+
+    // Block installing packages that duplicate built-in skill tools
     let blocked_packages = [
         "cdp-sdk",
         "coinbase-sdk",

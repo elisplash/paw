@@ -27,9 +27,17 @@ const WAKES_PER_MEMBER: u32 = 4;
 /// Absolute ceiling regardless of squad size.
 const MAX_SWARM_WAKES_CAP: u32 = 24;
 
+/// Global ceiling across ALL squads per human turn.
+/// Prevents cross-squad cascading from exceeding a safe total.
+const MAX_GLOBAL_SWARM_WAKES: u32 = 48;
+
 /// Per-squad swarm counters — tracks how many auto-wakes have fired.
 static SWARM_COUNTERS: LazyLock<parking_lot::Mutex<HashMap<String, Arc<AtomicU32>>>> =
     LazyLock::new(|| parking_lot::Mutex::new(HashMap::new()));
+
+/// Global swarm counter across all squads.
+static GLOBAL_SWARM_COUNTER: LazyLock<Arc<AtomicU32>> =
+    LazyLock::new(|| Arc::new(AtomicU32::new(0)));
 
 /// Per-squad member counts — used to compute dynamic limits.
 static SQUAD_MEMBER_COUNT: LazyLock<parking_lot::Mutex<HashMap<String, u32>>> =
@@ -50,21 +58,52 @@ fn wake_limit(squad_id: &str) -> u32 {
 
 /// Check if we can auto-wake more agents for this squad.
 pub fn can_auto_wake(squad_id: &str) -> bool {
+    // Check global limit first (Acquire ordering for cross-thread visibility)
+    if GLOBAL_SWARM_COUNTER.load(Ordering::Acquire) >= MAX_GLOBAL_SWARM_WAKES {
+        return false;
+    }
+    // Check per-squad limit
     let limit = wake_limit(squad_id);
     let counters = SWARM_COUNTERS.lock();
     counters
         .get(squad_id)
-        .map(|c| c.load(Ordering::Relaxed) < limit)
+        .map(|c| c.load(Ordering::Acquire) < limit)
         .unwrap_or(true)
 }
 
-/// Increment the swarm counter for a squad. Returns the new count.
-fn increment_counter(squad_id: &str) -> u32 {
+/// Atomically try to increment the global counter. Returns false if limit reached.
+/// Uses compare_exchange to prevent concurrent callers from exceeding the cap.
+fn try_increment_global() -> bool {
+    loop {
+        let current = GLOBAL_SWARM_COUNTER.load(Ordering::Acquire);
+        if current >= MAX_GLOBAL_SWARM_WAKES {
+            return false;
+        }
+        match GLOBAL_SWARM_COUNTER.compare_exchange(
+            current,
+            current + 1,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => return true,
+            Err(_) => continue, // Another thread incremented — retry
+        }
+    }
+}
+
+/// Increment the swarm counter for a squad. Returns the new count,
+/// or None if the global limit has been reached (atomic CAS).
+fn increment_counter(squad_id: &str) -> Option<u32> {
+    // Atomically claim a global slot first
+    if !try_increment_global() {
+        return None;
+    }
+    // Increment per-squad counter
     let mut counters = SWARM_COUNTERS.lock();
     let counter = counters
         .entry(squad_id.to_string())
         .or_insert_with(|| Arc::new(AtomicU32::new(0)));
-    counter.fetch_add(1, Ordering::Relaxed) + 1
+    Some(counter.fetch_add(1, Ordering::Release) + 1)
 }
 
 /// Reset the swarm counter for a squad (called on new human input).
@@ -76,6 +115,7 @@ pub fn reset_counter(squad_id: &str) {
 /// Reset ALL swarm counters — called at the start of each human chat turn
 /// so sub-agents can wake up fresh for each new human message.
 pub fn reset_all_counters() {
+    GLOBAL_SWARM_COUNTER.store(0, Ordering::Release);
     let mut counters = SWARM_COUNTERS.lock();
     if !counters.is_empty() {
         info!(
@@ -84,6 +124,9 @@ pub fn reset_all_counters() {
         );
         counters.clear();
     }
+    // Also clear stale squad member counts to prevent unbounded growth
+    let mut counts = SQUAD_MEMBER_COUNT.lock();
+    counts.clear();
 }
 
 /// Spawn an auto-wake agent turn for a squad member.
@@ -111,7 +154,16 @@ pub fn spawn_swarm_reply(
         return Ok(());
     }
 
-    let count = increment_counter(squad_id);
+    let count = match increment_counter(squad_id) {
+        Some(c) => c,
+        None => {
+            info!(
+                "[swarm] Skipping auto-wake for '{}' — global limit reached",
+                recipient_id
+            );
+            return Ok(());
+        }
+    };
     let limit = wake_limit(squad_id);
     info!(
         "[swarm] Auto-waking '{}' for squad '{}' (wake {}/{})",
@@ -461,10 +513,10 @@ async fn run_swarm_turn(
         recipient_id,
         daily_budget,
         Some(&daily_tokens),
-        None, // thinking_level
-        true, // auto_approve_all — swarm agents run autonomously
-        &[],  // user_approved_tools
-        None, // yield_signal
+        None,  // thinking_level
+        false, // auto_approve_all — swarm agents respect HIL policies
+        &[],   // user_approved_tools
+        None,  // yield_signal
     )
     .await
     .map_err(|e| e.to_string())?;

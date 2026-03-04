@@ -14,7 +14,17 @@
 
 use crate::engine::state::EngineState;
 use log::{info, warn};
+use std::collections::HashMap;
+use std::sync::LazyLock;
 use tauri::Manager;
+
+/// Minimum cooldown between re-triggers of the same task (in seconds).
+const EVENT_TRIGGER_COOLDOWN_SECS: i64 = 30;
+
+/// Track last trigger time per task_id to enforce cooldown.
+static LAST_TRIGGER_TIMES: LazyLock<
+    parking_lot::Mutex<HashMap<String, chrono::DateTime<chrono::Utc>>>,
+> = LazyLock::new(|| parking_lot::Mutex::new(HashMap::new()));
 
 /// An event that can trigger task execution.
 #[derive(Debug, Clone)]
@@ -67,6 +77,25 @@ pub async fn dispatch_event(app_handle: &tauri::AppHandle, event: &EngineEvent) 
         };
 
         if matches_event(&trigger, event) {
+            // §Security: enforce cooldown to prevent event amplification attacks.
+            // An agent spamming agent_send_message cannot re-trigger the same
+            // task faster than EVENT_TRIGGER_COOLDOWN_SECS.
+            {
+                let now = chrono::Utc::now();
+                let mut times = LAST_TRIGGER_TIMES.lock();
+                if let Some(last) = times.get(&task.id) {
+                    let elapsed = (now - *last).num_seconds();
+                    if elapsed < EVENT_TRIGGER_COOLDOWN_SECS {
+                        info!(
+                            "[events] Skipping task '{}' — cooldown ({}/{}s)",
+                            task.id, elapsed, EVENT_TRIGGER_COOLDOWN_SECS
+                        );
+                        continue;
+                    }
+                }
+                times.insert(task.id.clone(), now);
+            }
+
             info!("[events] Event matched task '{}' ({})", task.title, task.id);
 
             let now = chrono::Utc::now();
@@ -117,6 +146,15 @@ pub async fn dispatch_event(app_handle: &tauri::AppHandle, event: &EngineEvent) 
         }
     }
 
+    // §Security: GC stale entries from cooldown map to prevent unbounded growth.
+    // Remove entries for task IDs that no longer exist in the active task list.
+    {
+        let active_ids: std::collections::HashSet<&str> =
+            tasks.iter().map(|t| t.id.as_str()).collect();
+        let mut times = LAST_TRIGGER_TIMES.lock();
+        times.retain(|k, _| active_ids.contains(k.as_str()));
+    }
+
     triggered
 }
 
@@ -126,9 +164,12 @@ fn matches_event(trigger: &serde_json::Value, event: &EngineEvent) -> bool {
 
     match (trigger_type, event) {
         ("webhook", EngineEvent::Webhook { path, .. }) => {
-            // If trigger has a path filter, check it; otherwise match all webhooks
+            // If trigger has a path filter, check it with prefix matching;
+            // otherwise match all webhooks.
+            // §Security: use starts_with instead of contains to prevent
+            // overly-broad substring matching on webhook paths.
             match trigger["path"].as_str() {
-                Some(pattern) => path.contains(pattern),
+                Some(pattern) => path == pattern || path.starts_with(&format!("{}/", pattern)),
                 None => true,
             }
         }
@@ -172,12 +213,21 @@ mod tests {
     #[test]
     fn webhook_matches_path() {
         let trigger = serde_json::json!({"type": "webhook", "path": "/deploy"});
+        // Exact match
         let event = EngineEvent::Webhook {
-            path: "/webhook/deploy".into(),
+            path: "/deploy".into(),
             agent_id: "default".into(),
             payload: "{}".into(),
         };
         assert!(matches_event(&trigger, &event));
+
+        // Prefix match (path starts with "/deploy/")
+        let sub = EngineEvent::Webhook {
+            path: "/deploy/prod".into(),
+            agent_id: "default".into(),
+            payload: "{}".into(),
+        };
+        assert!(matches_event(&trigger, &sub));
 
         let other = EngineEvent::Webhook {
             path: "/other".into(),
@@ -185,6 +235,14 @@ mod tests {
             payload: "{}".into(),
         };
         assert!(!matches_event(&trigger, &other));
+
+        // Substring elsewhere should NOT match (security fix)
+        let substring = EngineEvent::Webhook {
+            path: "/webhook/deploy".into(),
+            agent_id: "default".into(),
+            payload: "{}".into(),
+        };
+        assert!(!matches_event(&trigger, &substring));
     }
 
     #[test]
@@ -318,15 +376,31 @@ mod tests {
     }
 
     #[test]
-    fn webhook_path_partial_match() {
-        let trigger = serde_json::json!({"type": "webhook", "path": "deploy"});
-        // Path contains "deploy" (partial match)
-        let event = EngineEvent::Webhook {
+    fn webhook_path_prefix_match() {
+        let trigger = serde_json::json!({"type": "webhook", "path": "/deploy"});
+        // Exact match
+        let exact = EngineEvent::Webhook {
+            path: "/deploy".into(),
+            agent_id: "default".into(),
+            payload: "{}".into(),
+        };
+        assert!(matches_event(&trigger, &exact));
+
+        // Prefix match (sub-path)
+        let sub = EngineEvent::Webhook {
+            path: "/deploy/prod".into(),
+            agent_id: "default".into(),
+            payload: "{}".into(),
+        };
+        assert!(matches_event(&trigger, &sub));
+
+        // Substring in the middle should NOT match
+        let middle = EngineEvent::Webhook {
             path: "/api/v2/deploy/prod".into(),
             agent_id: "default".into(),
             payload: "{}".into(),
         };
-        assert!(matches_event(&trigger, &event));
+        assert!(!matches_event(&trigger, &middle));
     }
 
     #[test]

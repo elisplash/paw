@@ -6,7 +6,7 @@
 
 use super::transport::McpTransportHandle;
 use super::types::*;
-use log::info;
+use log::{info, warn};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 /// MCP protocol version we advertise.
@@ -15,6 +15,8 @@ const PROTOCOL_VERSION: &str = "2024-11-05";
 const DEFAULT_TIMEOUT: u64 = 30;
 /// Timeout for tool calls — tools can be slow (seconds).
 const TOOL_CALL_TIMEOUT: u64 = 120;
+/// Maximum number of tools accepted from a single MCP server.
+const MAX_TOOLS_PER_SERVER: usize = 200;
 
 /// A connected MCP client for a single server.
 pub struct McpClient {
@@ -153,7 +155,18 @@ impl McpClient {
                 self.config.name,
                 list.tools.len()
             );
-            self.tools = list.tools;
+            // §Security: cap the number of tools from a single server
+            if list.tools.len() > MAX_TOOLS_PER_SERVER {
+                warn!(
+                    "[mcp] Server '{}' exposes {} tools, capping to {}",
+                    self.config.name,
+                    list.tools.len(),
+                    MAX_TOOLS_PER_SERVER
+                );
+                self.tools = list.tools.into_iter().take(MAX_TOOLS_PER_SERVER).collect();
+            } else {
+                self.tools = list.tools;
+            }
         } else {
             self.tools = vec![];
         }

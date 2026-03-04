@@ -7,7 +7,9 @@
 use super::client::McpClient;
 use super::types::*;
 use crate::atoms::types::{FunctionDefinition, ToolDefinition};
-use log::info;
+use crate::engine::engram::encryption::sanitize_recalled_memory;
+use crate::engine::injection::{scan_for_injection, InjectionSeverity};
+use log::{info, warn};
 use std::collections::HashMap;
 
 /// Well-known server ID for the auto-registered n8n integration engine.
@@ -84,6 +86,9 @@ impl McpRegistry {
 
     /// Execute an MCP tool call. The `tool_name` should include the
     /// `mcp_{server_id}_` prefix so we can route to the correct server.
+    ///
+    /// §Security: results from external MCP servers are scanned for prompt
+    /// injection patterns and sanitized before being returned to the agent.
     pub async fn execute_tool(
         &self,
         tool_name: &str,
@@ -94,7 +99,46 @@ impl McpRegistry {
         let (server_id, original_name) = find_server_and_tool(stripped, &self.clients)?;
 
         let client = self.clients.get(server_id)?;
-        Some(client.call_tool(original_name, arguments.clone()).await)
+        let result = client.call_tool(original_name, arguments.clone()).await;
+
+        // §Security: scan MCP results for prompt injection before returning to agent.
+        // Both Ok and Err paths are scanned — rogue servers can embed payloads in errors too.
+        Some(match result {
+            Ok(text) => {
+                let scan = scan_for_injection(&text);
+                if scan.is_injection {
+                    let sev = scan.severity.unwrap_or(InjectionSeverity::Low);
+                    warn!(
+                        "[mcp] Injection detected in result from server '{}' tool '{}' (severity={:?})",
+                        server_id, tool_name, sev
+                    );
+                    if sev >= InjectionSeverity::High {
+                        Ok(sanitize_recalled_memory(&text))
+                    } else {
+                        Ok(text)
+                    }
+                } else {
+                    Ok(text)
+                }
+            }
+            Err(err) => {
+                let scan = scan_for_injection(&err);
+                if scan.is_injection {
+                    let sev = scan.severity.unwrap_or(InjectionSeverity::Low);
+                    warn!(
+                        "[mcp] Injection detected in error from server '{}' tool '{}' (severity={:?})",
+                        server_id, tool_name, sev
+                    );
+                    if sev >= InjectionSeverity::High {
+                        Err(sanitize_recalled_memory(&err))
+                    } else {
+                        Err(err)
+                    }
+                } else {
+                    Err(err)
+                }
+            }
+        })
     }
 
     /// Status of all configured servers.

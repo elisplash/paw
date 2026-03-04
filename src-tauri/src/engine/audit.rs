@@ -169,9 +169,11 @@ fn get_audit_signing_key() -> EngineResult<Vec<u8>> {
         Ok(key_b64) => base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &key_b64)
             .map_err(|e| EngineError::Other(format!("Failed to decode audit signing key: {}", e))),
         Err(keyring::Error::NoEntry) => {
-            use rand::Rng;
+            // Generate a new random key using OS CSPRNG (not thread_rng)
+            use rand::rngs::OsRng;
+            use rand::RngCore;
             let mut key = vec![0u8; 32];
-            rand::thread_rng().fill(&mut key[..]);
+            OsRng.fill_bytes(&mut key);
             let key_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &key);
             entry.set_password(&key_b64).map_err(|e| {
                 error!("[audit] Failed to store audit signing key: {}", e);
@@ -185,16 +187,18 @@ fn get_audit_signing_key() -> EngineResult<Vec<u8>> {
 }
 
 /// Cached signing key (loaded once per process lifetime).
-static SIGNING_KEY: LazyLock<Option<Vec<u8>>> = LazyLock::new(|| match get_audit_signing_key() {
-    Ok(key) => Some(key),
-    Err(e) => {
-        warn!(
-            "[audit] Could not load signing key: {}. Audit signatures will be empty.",
-            e
-        );
-        None
-    }
-});
+/// Wrapped in `Zeroizing` to securely zero key material on drop.
+static SIGNING_KEY: LazyLock<Option<zeroize::Zeroizing<Vec<u8>>>> =
+    LazyLock::new(|| match get_audit_signing_key() {
+        Ok(key) => Some(zeroize::Zeroizing::new(key)),
+        Err(e) => {
+            warn!(
+                "[audit] Could not load signing key: {}. Audit signatures will be empty.",
+                e
+            );
+            None
+        }
+    });
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Signing

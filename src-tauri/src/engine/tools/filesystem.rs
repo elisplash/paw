@@ -14,12 +14,28 @@ const SENSITIVE_PATHS: &[&str] = &[
     ".gnome-keyring",
     ".password-store",
     ".aws/credentials",
+    ".aws/config",
     ".config/gcloud",
     ".azure",
     ".npmrc",
     ".pypirc",
     ".docker/config.json",
     ".kube/config",
+    ".local/share/keyrings",
+    // Shell config & history (credential/token leakage)
+    ".bashrc",
+    ".bash_profile",
+    ".bash_history",
+    ".zshrc",
+    ".zsh_history",
+    ".profile",
+    ".gitconfig",
+    // Browser profiles (cookies, tokens, saved passwords)
+    ".mozilla",
+    ".config/google-chrome",
+    ".config/chromium",
+    "Library/Application Support/Google/Chrome",
+    "Library/Application Support/Firefox",
     // System
     "/etc/shadow",
     "/etc/passwd",
@@ -91,7 +107,12 @@ fn resolve_and_validate(
     }
 
     // Check against sensitive paths
-    let path_str = canonical.to_string_lossy();
+    // §Security: On macOS (case-insensitive HFS+/APFS), normalize to lowercase
+    // so that paths like ~/.SSH or ~/.Aws still match the blocklist.
+    #[cfg(target_os = "macos")]
+    let path_str = canonical.to_string_lossy().to_lowercase();
+    #[cfg(not(target_os = "macos"))]
+    let path_str = canonical.to_string_lossy().to_string();
     for sensitive in SENSITIVE_PATHS {
         if sensitive.starts_with('/') {
             // Absolute sensitive path
@@ -299,7 +320,27 @@ async fn execute_write_file(args: &serde_json::Value, agent_id: &str) -> EngineR
     let has_raw_b64_key = content.len() > 40
         && content.contains("==")
         && (content_lower.contains("secret") || content_lower.contains("private"));
-    if has_private_key || has_api_secret || has_raw_b64_key {
+    // §Security: Expanded credential pattern detection
+    let has_known_token_prefix = content.contains("ghp_")    // GitHub PAT
+        || content.contains("gho_")    // GitHub OAuth
+        || content.contains("github_pat_")  // GitHub fine-grained PAT
+        || content.starts_with("sk-")   // OpenAI API key
+        || content.contains("\"sk-")   // OpenAI key in JSON
+        || content.contains("xoxb-")   // Slack bot token
+        || content.contains("xoxp-")   // Slack user token
+        || content.contains("AKIA"); // AWS access key ID prefix
+    let has_env_secrets = content_lower.contains("aws_secret_access_key")
+        || content_lower.contains("openai_api_key")
+        || content_lower.contains("discord_bot_token")
+        || content_lower.contains("github_token")
+        || content_lower.contains("database_url")
+        || (content_lower.contains("password") && content_lower.contains("="));
+    if has_private_key
+        || has_api_secret
+        || has_raw_b64_key
+        || has_known_token_prefix
+        || has_env_secrets
+    {
         return Err(
             "Cannot write files containing API secrets or private keys. \
              Credentials are managed securely by the engine — use built-in skill tools directly."

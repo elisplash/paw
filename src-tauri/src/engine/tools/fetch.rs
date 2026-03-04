@@ -3,9 +3,56 @@
 
 use crate::atoms::error::EngineResult;
 use crate::atoms::types::*;
-use log::info;
+use log::{info, warn};
 use std::time::Duration;
 use tauri::Manager;
+
+/// §Security: SSRF protection — block access to internal/private network addresses
+/// and cloud metadata endpoints. Applied unconditionally before any network policy.
+fn is_ssrf_target(url: &str) -> bool {
+    let url_lower = url.to_lowercase();
+    // Loopback and special addresses
+    const BLOCKED_PREFIXES: &[&str] = &[
+        "://localhost",
+        "://127.",
+        "://0.0.0.0",
+        "://[::1]",
+        "://[::]",
+        "://0x7f",  // Hex-encoded 127.x
+        "://0177.", // Octal-encoded 127.x
+    ];
+    // Private RFC-1918, link-local, and cloud metadata ranges
+    const BLOCKED_RANGES: &[&str] = &[
+        "://10.",
+        "://192.168.",
+        "://169.254.",        // Link-local + AWS metadata
+        "://metadata.google", // GCP metadata
+        "://metadata.gce",
+        "://100.100.100.200", // Alibaba Cloud metadata
+    ];
+    for prefix in BLOCKED_PREFIXES {
+        if url_lower.contains(prefix) {
+            return true;
+        }
+    }
+    for range in BLOCKED_RANGES {
+        if url_lower.contains(range) {
+            return true;
+        }
+    }
+    // Check 172.16.0.0/12 (172.16–172.31)
+    if let Some(idx) = url_lower.find("://172.") {
+        let after = &url_lower[idx + 7..];
+        if let Some(dot) = after.find('.') {
+            if let Ok(second_octet) = after[..dot].parse::<u8>() {
+                if (16..=31).contains(&second_octet) {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
 
 pub fn definitions() -> Vec<ToolDefinition> {
     vec![ToolDefinition {
@@ -56,6 +103,16 @@ async fn execute_fetch(
     let method = args["method"].as_str().unwrap_or("GET");
 
     info!("[engine] fetch: {} {}", method, url);
+
+    // §Security: SSRF protection — unconditionally block internal/private IPs
+    if is_ssrf_target(url) {
+        warn!("[engine] fetch: SSRF blocked — {} {}", method, url);
+        return Err(
+            "fetch: access to internal/private network addresses is blocked (SSRF protection). \
+             This includes localhost, RFC-1918 private ranges, link-local, and cloud metadata endpoints."
+                .into(),
+        );
+    }
 
     // Network policy enforcement
     if let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() {
