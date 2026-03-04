@@ -607,11 +607,33 @@ pub struct TradingPolicy {
     pub max_transfer_usd: f64,
 }
 
+/// Which embedding backend to use.
+///
+/// - `"auto"` — try Ollama first, then fall back to the user's chat provider
+/// - `"ollama"` — Ollama only (local)
+/// - `"openai"` — OpenAI embeddings API directly
+/// - `"google"` — Google `text-embedding-004` via Gemini API
+/// - `"provider"` — reuse whatever chat provider the user configured
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum EmbeddingProvider {
+    #[default]
+    Auto,
+    Ollama,
+    OpenAI,
+    Google,
+    /// Reuse the user's default chat provider for embeddings.
+    Provider,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryConfig {
+    /// Which embedding backend to use (auto, ollama, openai, google, provider)
+    #[serde(default)]
+    pub embedding_provider: EmbeddingProvider,
     /// Base URL for embedding API (Ollama: http://localhost:11434)
     pub embedding_base_url: String,
-    /// Embedding model name (e.g., "nomic-embed-text", "all-minilm")
+    /// Embedding model name (e.g., "nomic-embed-text", "text-embedding-3-small")
     pub embedding_model: String,
     /// Embedding dimensions (e.g., 768 for nomic-embed-text, 384 for all-minilm)
     pub embedding_dims: usize,

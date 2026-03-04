@@ -3,6 +3,7 @@
 import { pawEngine } from '../../engine';
 import { showToast } from '../../components/toast';
 import { isConnected } from '../../state/connection';
+import type { EmbeddingProvider } from '../../engine/atoms/types';
 import {
   esc,
   formRow,
@@ -180,7 +181,28 @@ export async function loadAgentDefaultsSettings() {
     embSection.innerHTML =
       '<h3 class="settings-subsection-title" style="margin-top:20px">Embedding (Semantic Search)</h3>';
     embSection.innerHTML +=
-      '<p class="form-hint" style="margin:0 0 8px;font-size:11px;color:var(--text-muted)">Ollama runs locally and powers semantic memory search. The embedding model converts text to vectors for similarity matching. Pawz will auto-start Ollama and pull the model if needed.</p>';
+      '<p class="form-hint" style="margin:0 0 8px;font-size:11px;color:var(--text-muted)">Embeddings power semantic memory search. Choose a provider — Ollama runs locally, or use your existing cloud API key. Pawz will always fall back to keyword matching if embeddings are unavailable.</p>';
+
+    // ── Embedding Provider selector ──────────────────────────────────────
+    const embProviderRow = formRow(
+      'Embedding Provider',
+      'Which service generates embedding vectors',
+    );
+    const embProviderOpts = [
+      { value: 'auto', label: 'Auto (Ollama → cloud fallback)' },
+      { value: 'ollama', label: 'Ollama (local)' },
+      { value: 'openai', label: 'OpenAI' },
+      { value: 'google', label: 'Google (Gemini)' },
+      { value: 'provider', label: 'Use my chat provider' },
+    ];
+    const embProviderSel = selectInput(embProviderOpts, memConfig.embedding_provider ?? 'auto');
+    embProviderSel.style.maxWidth = '280px';
+    embProviderRow.appendChild(embProviderSel);
+    embSection.appendChild(embProviderRow);
+
+    // ── Ollama-specific section (auto-setup, URL, model chips) ───────────
+    const ollamaSection = document.createElement('div');
+    ollamaSection.dataset.embProvider = 'ollama';
 
     // Auto-Setup button (prominent)
     const autoSetupRow = document.createElement('div');
@@ -196,7 +218,7 @@ export async function loadAgentDefaultsSettings() {
       'Checks Ollama, starts it if needed, and pulls the embedding model';
     autoSetupRow.appendChild(autoSetupBtn);
     autoSetupRow.appendChild(autoSetupStatus);
-    embSection.appendChild(autoSetupRow);
+    ollamaSection.appendChild(autoSetupRow);
 
     autoSetupBtn.addEventListener('click', async () => {
       autoSetupBtn.disabled = true;
@@ -206,6 +228,7 @@ export async function loadAgentDefaultsSettings() {
       try {
         // Save current form values first
         const mc = await pawEngine.getMemoryConfig();
+        mc.embedding_provider = embProviderSel.value as EmbeddingProvider;
         mc.embedding_base_url = embUrlInp.value.trim() || 'http://localhost:11434';
         mc.embedding_model = embModelInp.value.trim() || 'nomic-embed-text';
         mc.embedding_dims = parseInt(embDimsInp.value) || 768;
@@ -245,18 +268,18 @@ export async function loadAgentDefaultsSettings() {
     );
     embUrlInp.style.maxWidth = '320px';
     embUrlRow.appendChild(embUrlInp);
-    embSection.appendChild(embUrlRow);
+    ollamaSection.appendChild(embUrlRow);
 
-    const embModelRow = formRow('Embedding Model', 'Ollama model for generating embeddings');
+    const embModelRow = formRow('Embedding Model', 'Model for generating embeddings');
     const embModelInp = textInput(
       memConfig.embedding_model || 'nomic-embed-text',
       'nomic-embed-text',
     );
     embModelInp.style.maxWidth = '220px';
     embModelRow.appendChild(embModelInp);
-    embSection.appendChild(embModelRow);
+    ollamaSection.appendChild(embModelRow);
 
-    // Model quick-picks
+    // Model quick-picks (Ollama models)
     const modelChipsRow = document.createElement('div');
     modelChipsRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 8px 0';
     for (const m of [
@@ -274,8 +297,29 @@ export async function loadAgentDefaultsSettings() {
       });
       modelChipsRow.appendChild(chip);
     }
-    embSection.appendChild(modelChipsRow);
+    ollamaSection.appendChild(modelChipsRow);
+    embSection.appendChild(ollamaSection);
 
+    // ── Cloud provider info section (shown for openai/google/provider) ────
+    const cloudSection = document.createElement('div');
+    cloudSection.dataset.embProvider = 'cloud';
+    const cloudInfo = document.createElement('div');
+    cloudInfo.style.cssText =
+      'padding:10px 14px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-secondary, rgba(255,255,255,0.03));margin:0 0 12px 0';
+    cloudInfo.innerHTML = `
+      <p style="margin:0 0 6px;font-size:12px;color:var(--text-primary)"><strong>Using your configured chat provider for embeddings</strong></p>
+      <p style="margin:0;font-size:11px;color:var(--text-muted)">
+        The embedding model is auto-selected based on your provider:<br>
+        <strong>OpenAI</strong> → text-embedding-3-small &nbsp;|&nbsp;
+        <strong>Google</strong> → text-embedding-004 &nbsp;|&nbsp;
+        <strong>Mistral</strong> → mistral-embed<br>
+        No extra configuration needed — your existing API key is used.
+      </p>
+    `;
+    cloudSection.appendChild(cloudInfo);
+    embSection.appendChild(cloudSection);
+
+    // ── Shared fields (dims, test, backfill) ─────────────────────────────
     const embDimsRow = formRow(
       'Embedding Dimensions',
       'Auto-detected when you run Test or Auto-Setup',
@@ -313,6 +357,7 @@ export async function loadAgentDefaultsSettings() {
       try {
         // Save current values first so the test uses them
         const mc = await pawEngine.getMemoryConfig();
+        mc.embedding_provider = embProviderSel.value as EmbeddingProvider;
         mc.embedding_base_url = embUrlInp.value.trim() || 'http://localhost:11434';
         mc.embedding_model = embModelInp.value.trim() || 'nomic-embed-text';
         mc.embedding_dims = parseInt(embDimsInp.value) || 768;
@@ -348,23 +393,40 @@ export async function loadAgentDefaultsSettings() {
       }
     });
 
-    // Check Ollama status on load
+    // ── Provider-dependent visibility ──────────────────────────────────
+    const updateEmbProviderUI = () => {
+      const prov = embProviderSel.value;
+      const isOllama = prov === 'auto' || prov === 'ollama';
+      ollamaSection.style.display = isOllama ? '' : 'none';
+      cloudSection.style.display = isOllama ? 'none' : '';
+    };
+    embProviderSel.addEventListener('change', updateEmbProviderUI);
+    updateEmbProviderUI(); // initial state
+
+    // Check embedding status on load
     (async () => {
       try {
-        const embStatus = await pawEngine.embeddingStatus();
-        if (embStatus.ollama_running && embStatus.model_available) {
-          statusSpan.textContent = `✓ Ollama running, ${embStatus.model_name} available`;
-          statusSpan.style.color = 'var(--text-success)';
-          autoSetupStatus.textContent = `✓ Ollama is running and ${embStatus.model_name} is available`;
-          autoSetupStatus.style.color = 'var(--text-success)';
-        } else if (embStatus.ollama_running) {
-          statusSpan.textContent = `Ollama running but ${embStatus.model_name} not pulled yet`;
-          statusSpan.style.color = 'var(--text-warning, orange)';
-          autoSetupStatus.textContent = `Ollama is running but ${embStatus.model_name} needs to be pulled — click Auto-Setup`;
-          autoSetupStatus.style.color = 'var(--text-warning, orange)';
+        const prov = embProviderSel.value;
+        if (prov === 'auto' || prov === 'ollama') {
+          const embStatus = await pawEngine.embeddingStatus();
+          if (embStatus.ollama_running && embStatus.model_available) {
+            statusSpan.textContent = `✓ Ollama running, ${embStatus.model_name} available`;
+            statusSpan.style.color = 'var(--text-success)';
+            autoSetupStatus.textContent = `✓ Ollama is running and ${embStatus.model_name} is available`;
+            autoSetupStatus.style.color = 'var(--text-success)';
+          } else if (embStatus.ollama_running) {
+            statusSpan.textContent = `Ollama running but ${embStatus.model_name} not pulled yet`;
+            statusSpan.style.color = 'var(--text-warning, orange)';
+            autoSetupStatus.textContent = `Ollama is running but ${embStatus.model_name} needs to be pulled — click Auto-Setup`;
+            autoSetupStatus.style.color = 'var(--text-warning, orange)';
+          } else {
+            statusSpan.textContent =
+              'Ollama not detected — click Auto-Setup or switch to a cloud provider';
+            statusSpan.style.color = 'var(--text-warning, orange)';
+          }
         } else {
-          statusSpan.textContent = 'Ollama not detected — click Auto-Setup to start it';
-          statusSpan.style.color = 'var(--text-warning, orange)';
+          statusSpan.textContent = `Using ${prov} provider for embeddings — click Test to verify`;
+          statusSpan.style.color = 'var(--text-muted)';
         }
       } catch {
         /* ignore */
@@ -396,6 +458,7 @@ export async function loadAgentDefaultsSettings() {
             mc.auto_recall = recallCb.checked;
             mc.auto_capture = captureCb.checked;
             mc.recall_limit = parseInt(recallLimitInp.value) || 5;
+            mc.embedding_provider = embProviderSel.value as EmbeddingProvider;
             mc.embedding_base_url = embUrlInp.value.trim() || 'http://localhost:11434';
             mc.embedding_model = embModelInp.value.trim() || 'nomic-embed-text';
             mc.embedding_dims = parseInt(embDimsInp.value) || 768;

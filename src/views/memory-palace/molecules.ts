@@ -122,6 +122,11 @@ export async function renderEmbeddingStatus(stats: {
   if (old) old.remove();
 
   try {
+    const memConfig = await pawEngine.getMemoryConfig();
+    const embProvider = memConfig.embedding_provider ?? 'auto';
+    const isCloudProvider =
+      embProvider === 'openai' || embProvider === 'google' || embProvider === 'provider';
+
     const status = await pawEngine.embeddingStatus();
     const statsEl = $('palace-stats');
     if (!statsEl) return;
@@ -131,7 +136,7 @@ export async function renderEmbeddingStatus(stats: {
     banner.style.cssText =
       'margin:8px 0;padding:10px 14px;border-radius:8px;font-size:12px;line-height:1.5';
 
-    if (!status.ollama_running) {
+    if (!isCloudProvider && !status.ollama_running) {
       banner.style.background = 'var(--warning-bg, rgba(234,179,8,0.1))';
       banner.style.border = '1px solid var(--warning-border, rgba(234,179,8,0.3))';
       banner.innerHTML = `
@@ -140,7 +145,7 @@ export async function renderEmbeddingStatus(stats: {
           <div>
             <strong>Ollama not running</strong> — semantic memory search is disabled.
             <div style="color:var(--text-muted);margin-top:2px">
-              Start Ollama to enable AI-powered memory search.
+              Start Ollama or switch to a cloud embedding provider in Settings → Agent Defaults.
               Memory will fallback to keyword matching.
             </div>
           </div>
@@ -231,13 +236,18 @@ export async function renderEmbeddingStatus(stats: {
         }
       });
       return;
-    } else if (status.ollama_running && status.model_available) {
+    } else if (isCloudProvider || (status.ollama_running && status.model_available)) {
+      const provLabel = isCloudProvider
+        ? embProvider === 'provider'
+          ? 'your chat provider'
+          : embProvider
+        : 'Ollama';
       banner.style.background = 'var(--success-bg, rgba(34,197,94,0.08))';
       banner.style.border = '1px solid var(--success-border, rgba(34,197,94,0.2))';
       banner.innerHTML = `
         <div style="display:flex;align-items:center;gap:6px">
           <span style="font-size:14px">✓</span>
-          <span>Semantic search active — <code style="font-size:11px;background:var(--bg-tertiary,rgba(255,255,255,0.06));padding:1px 5px;border-radius:3px">${escHtml(status.model_name)}</code> via Ollama</span>
+          <span>Semantic search active — <code style="font-size:11px;background:var(--bg-tertiary,rgba(255,255,255,0.06));padding:1px 5px;border-radius:3px">${escHtml(status.model_name || embProvider)}</code> via ${escHtml(provLabel)}</span>
         </div>`;
     } else {
       return;

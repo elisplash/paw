@@ -195,7 +195,10 @@ export interface EngineMemory {
   agent_id?: string;
 }
 
+export type EmbeddingProvider = 'auto' | 'ollama' | 'openai' | 'google' | 'provider';
+
 export interface EngineMemoryConfig {
+  embedding_provider: EmbeddingProvider;
   embedding_base_url: string;
   embedding_model: string;
   embedding_dims: number;

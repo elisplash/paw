@@ -1,7 +1,12 @@
 // Paw Agent Engine — Embedding Client
 //
-// Calls Ollama or OpenAI-compatible embedding APIs to produce vector
-// representations of text. Used by the memory system for semantic search.
+// Provider-agnostic embedding layer.  Supports Ollama, OpenAI,
+// Google (Gemini), and any OpenAI-compatible endpoint.  The active
+// backend is controlled by `EmbeddingProvider` in `MemoryConfig`.
+//
+// When the provider is `Auto` (default) the legacy cascade is kept:
+//   Ollama → OpenAI-at-same-URL → user's chat provider fallback
+// so existing setups keep working without configuration changes.
 
 use crate::atoms::error::EngineResult;
 use crate::engine::types::*;
@@ -24,12 +29,14 @@ pub struct OpenAiFallback {
     pub chat_model: String,
 }
 
-/// Embedding client — calls Ollama or OpenAI-compatible embedding API.
+/// Embedding client — calls Ollama, OpenAI, Google, or any compatible API.
 pub struct EmbeddingClient {
     client: Client,
+    /// Which backend to use (auto, ollama, openai, google, provider).
+    provider: EmbeddingProvider,
     base_url: String,
     model: String,
-    /// If set, used as a fallback when Ollama is unreachable.
+    /// If set, used as a fallback when the primary is unreachable.
     openai_fallback: Option<OpenAiFallback>,
 }
 
@@ -37,6 +44,7 @@ impl EmbeddingClient {
     pub fn new(config: &MemoryConfig) -> Self {
         EmbeddingClient {
             client: Client::new(),
+            provider: config.embedding_provider.clone(),
             base_url: config.embedding_base_url.clone(),
             model: config.embedding_model.clone(),
             openai_fallback: None,
@@ -55,16 +63,35 @@ impl EmbeddingClient {
     }
 
     /// Get embedding vector for a text string.
-    /// Tries Ollama API format first, falls back to OpenAI format.
-    /// On first failure, attempts to auto-pull the model from Ollama.
+    ///
+    /// Routing depends on `EmbeddingProvider`:
+    /// - **Auto** (default): Ollama → OpenAI-at-same-URL → user provider fallback
+    /// - **Ollama**: Ollama only, then provider fallback
+    /// - **OpenAI**: Direct OpenAI embeddings API, then provider fallback
+    /// - **Google**: Google `textembedding-004` via Gemini, then provider fallback
+    /// - **Provider**: User's configured chat provider for embeddings
+    ///
+    /// Every path still ends with the keyword-search safety net in the
+    /// memory layer, so we never lose memories.
     pub async fn embed(&self, text: &str) -> EngineResult<Vec<f32>> {
         // Safety truncation: nomic-embed-text context is 8192 tokens (~6K chars).
         // Truncate rather than fail for oversized inputs.
         // Use floor_char_boundary to avoid panicking on multi-byte chars (e.g. em dash —)
         let safe_text: &str = &text[..text.floor_char_boundary(6000)];
 
+        match self.provider {
+            EmbeddingProvider::Ollama => self.embed_route_ollama(safe_text).await,
+            EmbeddingProvider::OpenAI => self.embed_route_openai(safe_text).await,
+            EmbeddingProvider::Google => self.embed_route_google(safe_text).await,
+            EmbeddingProvider::Provider => self.embed_route_provider(safe_text).await,
+            EmbeddingProvider::Auto => self.embed_route_auto(safe_text).await,
+        }
+    }
+
+    // ── Route: Auto (legacy cascade) ─────────────────────────────────────
+    async fn embed_route_auto(&self, text: &str) -> EngineResult<Vec<f32>> {
         // Try Ollama format first (new /api/embed endpoint, then legacy /api/embeddings)
-        let ollama_result = self.embed_ollama(safe_text).await;
+        let ollama_result = self.embed_ollama(text).await;
         if let Ok(vec) = ollama_result {
             return Ok(vec);
         }
@@ -88,7 +115,7 @@ impl EmbeddingClient {
                         "[memory] Model '{}' pulled successfully, retrying embed",
                         self.model
                     );
-                    let retry = self.embed_ollama(safe_text).await;
+                    let retry = self.embed_ollama(text).await;
                     if let Ok(vec) = retry {
                         return Ok(vec);
                     }
@@ -100,18 +127,16 @@ impl EmbeddingClient {
         }
 
         // Try OpenAI-compatible format at the same base_url: POST /v1/embeddings
-        let openai_result = self.embed_openai(safe_text).await;
+        let openai_result = self.embed_openai(text).await;
         if let Ok(vec) = openai_result {
             return Ok(vec);
         }
         let openai_err = openai_result.unwrap_err();
 
-        // ── Fallback: use the user's configured OpenAI provider ──────
-        // If Ollama is unreachable but the user has an OpenAI (or compatible)
-        // provider configured, use it for embeddings instead of failing.
+        // ── Fallback: use the user's configured provider ─────────────
         if let Some(ref fb) = self.openai_fallback {
-            info!("[memory] Ollama unavailable, falling back to OpenAI provider for embeddings");
-            let fb_result = self.embed_openai_provider(safe_text, fb).await;
+            info!("[memory] Ollama unavailable, falling back to provider for embeddings");
+            let fb_result = self.embed_openai_provider(text, fb).await;
             if let Ok(vec) = fb_result {
                 return Ok(vec);
             }
@@ -128,6 +153,86 @@ impl EmbeddingClient {
             ollama_err, openai_err
         )
         .into())
+    }
+
+    // ── Route: Ollama only ───────────────────────────────────────────────
+    async fn embed_route_ollama(&self, text: &str) -> EngineResult<Vec<f32>> {
+        let result = self.embed_ollama(text).await;
+        if let Ok(vec) = result {
+            return Ok(vec);
+        }
+        let err = result.unwrap_err();
+
+        // Auto-pull once on model-not-found
+        let err_str = err.to_string();
+        if (err_str.contains("not found")
+            || err_str.contains("404")
+            || err_str.contains("does not exist"))
+            && !MODEL_PULL_ATTEMPTED.swap(true, Ordering::SeqCst)
+        {
+            info!(
+                "[memory] Model '{}' not found, attempting auto-pull...",
+                self.model
+            );
+            if self.pull_model().await.is_ok() {
+                let retry = self.embed_ollama(text).await;
+                if let Ok(vec) = retry {
+                    return Ok(vec);
+                }
+            }
+        }
+
+        // Fall back to provider if available
+        if let Some(ref fb) = self.openai_fallback {
+            info!("[memory] Ollama failed, falling back to provider for embeddings");
+            return self.embed_openai_provider(text, fb).await;
+        }
+        Err(err)
+    }
+
+    // ── Route: OpenAI direct ─────────────────────────────────────────────
+    async fn embed_route_openai(&self, text: &str) -> EngineResult<Vec<f32>> {
+        // Use the configured base_url with /v1/embeddings (or provider fallback)
+        if let Some(ref fb) = self.openai_fallback {
+            let result = self.embed_openai_provider(text, fb).await;
+            if result.is_ok() {
+                return result;
+            }
+            warn!(
+                "[memory] OpenAI provider embedding failed: {}",
+                result.as_ref().unwrap_err()
+            );
+        }
+        // Try base_url as OpenAI-compatible endpoint
+        self.embed_openai(text).await
+    }
+
+    // ── Route: Google (Gemini) ───────────────────────────────────────────
+    async fn embed_route_google(&self, text: &str) -> EngineResult<Vec<f32>> {
+        if let Some(ref fb) = self.openai_fallback {
+            let result = self.embed_google(text, fb).await;
+            if result.is_ok() {
+                return result;
+            }
+            let err = result.unwrap_err();
+            warn!("[memory] Google embedding failed: {}", err);
+            // Fall back to OpenAI provider format (some Google proxies use it)
+            let openai_result = self.embed_openai_provider(text, fb).await;
+            if openai_result.is_ok() {
+                return openai_result;
+            }
+            return Err(err);
+        }
+        Err("Google embedding requires an API key — configure a Google provider".into())
+    }
+
+    // ── Route: Use whatever chat provider is configured ──────────────────
+    async fn embed_route_provider(&self, text: &str) -> EngineResult<Vec<f32>> {
+        if let Some(ref fb) = self.openai_fallback {
+            info!("[memory] Using configured chat provider for embeddings");
+            return self.embed_openai_provider(text, fb).await;
+        }
+        Err("No chat provider configured — set up a provider in Settings first".into())
     }
 
     /// Ollama current API: POST /api/embed { model, input } → { embeddings: [[f32...]] }
@@ -337,6 +442,57 @@ impl EmbeddingClient {
         }
 
         info!("[memory] OpenAI provider embedding OK ({} dims)", vec.len());
+        Ok(vec)
+    }
+
+    /// Google Gemini embedding: POST models/{model}:embedContent
+    /// https://ai.google.dev/gemini-api/docs/embeddings
+    async fn embed_google(&self, text: &str, fb: &OpenAiFallback) -> EngineResult<Vec<f32>> {
+        let model = if fb.embedding_model.is_empty() {
+            "text-embedding-004"
+        } else {
+            &fb.embedding_model
+        };
+        let base = fb.base_url.trim_end_matches('/');
+        let url = format!("{}/models/{}:embedContent?key={}", base, model, fb.api_key);
+
+        let body = json!({
+            "model": format!("models/{}", model),
+            "content": {
+                "parts": [{ "text": text }]
+            }
+        });
+
+        let resp = self
+            .client
+            .post(&url)
+            .json(&body)
+            .timeout(std::time::Duration::from_secs(30))
+            .send()
+            .await
+            .map_err(|e| format!("Google embed request failed: {}", e))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body_text = resp.text().await.unwrap_or_default();
+            return Err(format!("Google embed {} — {}", status, body_text).into());
+        }
+
+        let v: Value = resp.json().await?;
+        let values = v["embedding"]["values"]
+            .as_array()
+            .ok_or_else(|| "No 'embedding.values' in Google response".to_string())?;
+
+        let vec: Vec<f32> = values
+            .iter()
+            .filter_map(|v| v.as_f64().map(|f| f as f32))
+            .collect();
+
+        if vec.is_empty() {
+            return Err("Empty embedding vector from Google".into());
+        }
+
+        info!("[memory] Google embedding OK ({} dims)", vec.len());
         Ok(vec)
     }
 
