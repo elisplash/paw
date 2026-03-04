@@ -31,6 +31,8 @@ use tokio::net::TcpListener;
 pub struct OAuthConfig {
     /// Human-readable service name (e.g., "GitHub")
     pub name: &'static str,
+    /// Env var prefix for Client ID/Secret (e.g., "GOOGLE" → OPENPAWZ_GOOGLE_CLIENT_ID)
+    pub env_prefix: &'static str,
     /// Authorization endpoint URL
     pub auth_url: &'static str,
     /// Token exchange endpoint URL
@@ -360,6 +362,7 @@ pub async fn start_rfc7591_flow(
     // in a desktop app's lifetime, so the tiny leak is inconsequential.
     let dynamic_config = OAuthConfig {
         name: "Dynamic",
+        env_prefix: "DYNAMIC",
         auth_url: "",
         token_url: Box::leak(token_url.to_string().into_boxed_str()),
         client_id: Box::leak(reg.client_id.clone().into_boxed_str()),
@@ -559,6 +562,7 @@ pub fn oauth_service_ids() -> Vec<&'static str> {
 
 static GITHUB_OAUTH: OAuthConfig = OAuthConfig {
     name: "GitHub",
+    env_prefix: "GITHUB",
     auth_url: "https://github.com/login/oauth/authorize",
     token_url: "https://github.com/login/oauth/access_token",
     client_id: match option_env!("OPENPAWZ_GITHUB_CLIENT_ID") {
@@ -573,6 +577,7 @@ static GITHUB_OAUTH: OAuthConfig = OAuthConfig {
 
 static GOOGLE_OAUTH: OAuthConfig = OAuthConfig {
     name: "Google",
+    env_prefix: "GOOGLE",
     auth_url: "https://accounts.google.com/o/oauth2/v2/auth",
     token_url: "https://oauth2.googleapis.com/token",
     client_id: match option_env!("OPENPAWZ_GOOGLE_CLIENT_ID") {
@@ -595,6 +600,7 @@ static GOOGLE_OAUTH: OAuthConfig = OAuthConfig {
 
 static DISCORD_OAUTH: OAuthConfig = OAuthConfig {
     name: "Discord",
+    env_prefix: "DISCORD",
     auth_url: "https://discord.com/oauth2/authorize",
     token_url: "https://discord.com/api/oauth2/token",
     client_id: match option_env!("OPENPAWZ_DISCORD_CLIENT_ID") {
@@ -609,6 +615,7 @@ static DISCORD_OAUTH: OAuthConfig = OAuthConfig {
 
 static SLACK_OAUTH: OAuthConfig = OAuthConfig {
     name: "Slack",
+    env_prefix: "SLACK",
     auth_url: "https://slack.com/oauth/v2/authorize",
     token_url: "https://slack.com/api/oauth.v2.access",
     client_id: match option_env!("OPENPAWZ_SLACK_CLIENT_ID") {
@@ -623,6 +630,7 @@ static SLACK_OAUTH: OAuthConfig = OAuthConfig {
 
 static NOTION_OAUTH: OAuthConfig = OAuthConfig {
     name: "Notion",
+    env_prefix: "NOTION",
     auth_url: "https://api.notion.com/v1/oauth/authorize",
     token_url: "https://api.notion.com/v1/oauth/token",
     client_id: match option_env!("OPENPAWZ_NOTION_CLIENT_ID") {
@@ -638,6 +646,7 @@ static NOTION_OAUTH: OAuthConfig = OAuthConfig {
 
 static SPOTIFY_OAUTH: OAuthConfig = OAuthConfig {
     name: "Spotify",
+    env_prefix: "SPOTIFY",
     auth_url: "https://accounts.spotify.com/authorize",
     token_url: "https://accounts.spotify.com/api/token",
     client_id: match option_env!("OPENPAWZ_SPOTIFY_CLIENT_ID") {
@@ -661,6 +670,7 @@ static SPOTIFY_OAUTH: OAuthConfig = OAuthConfig {
 
 static DROPBOX_OAUTH: OAuthConfig = OAuthConfig {
     name: "Dropbox",
+    env_prefix: "DROPBOX",
     auth_url: "https://www.dropbox.com/oauth2/authorize",
     token_url: "https://api.dropboxapi.com/oauth2/token",
     client_id: match option_env!("OPENPAWZ_DROPBOX_CLIENT_ID") {
@@ -675,6 +685,7 @@ static DROPBOX_OAUTH: OAuthConfig = OAuthConfig {
 
 static LINEAR_OAUTH: OAuthConfig = OAuthConfig {
     name: "Linear",
+    env_prefix: "LINEAR",
     auth_url: "https://linear.app/oauth/authorize",
     token_url: "https://api.linear.app/oauth/token",
     client_id: match option_env!("OPENPAWZ_LINEAR_CLIENT_ID") {
@@ -689,6 +700,7 @@ static LINEAR_OAUTH: OAuthConfig = OAuthConfig {
 
 static FIGMA_OAUTH: OAuthConfig = OAuthConfig {
     name: "Figma",
+    env_prefix: "FIGMA",
     auth_url: "https://www.figma.com/oauth",
     token_url: "https://api.figma.com/v1/oauth/token",
     client_id: match option_env!("OPENPAWZ_FIGMA_CLIENT_ID") {
@@ -703,6 +715,7 @@ static FIGMA_OAUTH: OAuthConfig = OAuthConfig {
 
 static REDDIT_OAUTH: OAuthConfig = OAuthConfig {
     name: "Reddit",
+    env_prefix: "REDDIT",
     auth_url: "https://www.reddit.com/api/v1/authorize",
     token_url: "https://www.reddit.com/api/v1/access_token",
     client_id: match option_env!("OPENPAWZ_REDDIT_CLIENT_ID") {
@@ -763,9 +776,7 @@ pub async fn start_oauth_flow(
             "OAuth not configured for {} yet. The Client ID needs to be registered \
              at the {} developer portal. Set the OPENPAWZ_{}_CLIENT_ID environment \
              variable before building, or use the manual API key flow instead.",
-            config.name,
-            config.name,
-            service_id.to_uppercase().replace('-', "_"),
+            config.name, config.name, config.env_prefix,
         )));
     }
 
