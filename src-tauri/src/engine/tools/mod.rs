@@ -112,6 +112,14 @@ pub async fn execute_tool(
         &args_str[..args_str.len().min(200)]
     );
 
+    // Default empty/whitespace args to {} — models sometimes send no args
+    // for tools that take no parameters (e.g. mcp_refresh).
+    let args_str = if args_str.trim().is_empty() {
+        "{}"
+    } else {
+        args_str
+    };
+
     let args: serde_json::Value = match serde_json::from_str(args_str) {
         Ok(v) => v,
         Err(parse_err) => {
