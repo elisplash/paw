@@ -3296,7 +3296,7 @@ pub fn engine_integrations_provision(
 
 /// Map integration credential keys (from UI) to skill vault keys (for tools).
 /// Returns (skill_id, mapped_credentials).
-fn map_integration_to_skill(
+pub(crate) fn map_integration_to_skill(
     service_id: &str,
     creds: &std::collections::HashMap<String, String>,
 ) -> (String, std::collections::HashMap<String, String>) {

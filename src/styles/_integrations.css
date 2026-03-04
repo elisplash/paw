@@ -606,6 +606,44 @@
   margin: 8px 0 12px;
 }
 
+.integrations-connect-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.integrations-connect-options .btn-ghost {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.integrations-connect-options .btn-ghost:hover {
+  opacity: 1;
+}
+
+/* n8n OAuth delegation button */
+.integrations-connect-options .btn-n8n-oauth {
+  background: linear-gradient(135deg, #ea4b71 0%, #ff6d5a 100%);
+  border: none;
+  color: #fff;
+}
+
+.integrations-connect-options .btn-n8n-oauth:hover {
+  background: linear-gradient(135deg, #d43d63 0%, #e65f4f 100%);
+}
+
+/* RFC 7591 auto-connect button */
+.integrations-connect-options .btn-rfc7591 {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  color: #fff;
+}
+
+.integrations-connect-options .btn-rfc7591:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+}
+
 .integrations-detail-section {
   margin-bottom: 24px;
 }

@@ -762,9 +762,36 @@ function _renderDetail(service: ServiceDefinition): void {
       ${
         isConnected
           ? '<span class="integrations-status connected"><span class="ms ms-sm">check_circle</span> Connected</span>'
-          : `<button class="btn btn-primary btn-sm" id="detail-connect-btn">
-            <span class="ms ms-sm">power</span> Connect ${escHtml(service.name)}
-          </button>`
+          : service.authType === 'oauth'
+            ? `<div class="integrations-connect-options">
+                <button class="btn btn-primary btn-sm" id="detail-oauth-btn">
+                  <span class="ms ms-sm">link</span> Connect ${escHtml(service.name)}
+                </button>
+                <button class="btn btn-ghost btn-xs" id="detail-manual-btn" title="Manual API key setup">
+                  <span class="ms ms-sm">key</span> Enter credentials manually
+                </button>
+              </div>`
+            : service.authType === 'n8n-oauth'
+              ? `<div class="integrations-connect-options">
+                  <button class="btn btn-primary btn-sm btn-n8n-oauth" id="detail-n8n-oauth-btn">
+                    <span class="ms ms-sm">swap_horiz</span> Connect via n8n
+                  </button>
+                  <button class="btn btn-ghost btn-xs" id="detail-manual-btn" title="Manual API key setup">
+                    <span class="ms ms-sm">key</span> Enter credentials manually
+                  </button>
+                </div>`
+              : service.authType === 'rfc7591'
+                ? `<div class="integrations-connect-options">
+                    <button class="btn btn-primary btn-sm btn-rfc7591" id="detail-rfc7591-btn">
+                      <span class="ms ms-sm">auto_fix_high</span> Auto-connect ${escHtml(service.name)}
+                    </button>
+                    <button class="btn btn-ghost btn-xs" id="detail-manual-btn" title="Manual API key setup">
+                      <span class="ms ms-sm">key</span> Enter credentials manually
+                    </button>
+                  </div>`
+                : `<button class="btn btn-primary btn-sm" id="detail-connect-btn">
+                    <span class="ms ms-sm">power</span> Connect ${escHtml(service.name)}
+                  </button>`
       }
     </div>
 
@@ -838,8 +865,28 @@ function _renderDetail(service: ServiceDefinition): void {
     _state.setSelectedService(null);
   });
 
-  // Wire connect button → open setup guide
+  // Wire connect button → open setup guide (API key path)
   document.getElementById('detail-connect-btn')?.addEventListener('click', () => {
+    _openGuide(service);
+  });
+
+  // Wire OAuth connect button → launch OAuth PKCE flow
+  document.getElementById('detail-oauth-btn')?.addEventListener('click', () => {
+    _startOAuthFlow(service);
+  });
+
+  // Wire n8n OAuth delegation button → open n8n credential UI
+  document.getElementById('detail-n8n-oauth-btn')?.addEventListener('click', () => {
+    _startN8nOAuthFlow(service);
+  });
+
+  // Wire RFC 7591 auto-connect button → dynamic registration + PKCE
+  document.getElementById('detail-rfc7591-btn')?.addEventListener('click', () => {
+    _startRfc7591Flow(service);
+  });
+
+  // Wire manual fallback for OAuth services → same setup guide as API key
+  document.getElementById('detail-manual-btn')?.addEventListener('click', () => {
     _openGuide(service);
   });
 
@@ -916,6 +963,177 @@ async function _renderCommunityBanner(service: ServiceDefinition): Promise<void>
         btn.innerHTML = '<span class="ms ms-sm">add_circle</span> Install';
       }
     });
+  }
+}
+
+// ── OAuth PKCE flow ────────────────────────────────────────────────────
+
+async function _startOAuthFlow(service: ServiceDefinition): Promise<void> {
+  const panel = document.getElementById('integrations-detail');
+  if (!panel) return;
+
+  const btn = document.getElementById('detail-oauth-btn') as HTMLButtonElement | null;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML =
+      '<span class="ms ms-sm k-spin">progress_activity</span> Waiting for authorization…';
+  }
+
+  try {
+    const result = await invoke<{
+      service_id: string;
+      success: boolean;
+      scopes_granted: string[];
+      error?: string;
+    }>('engine_oauth_start', { serviceId: service.id });
+
+    if (result.success) {
+      // OAuth tokens stored — run the provisioning pipeline
+      try {
+        await invoke('engine_integrations_connect', {
+          serviceId: service.id,
+          toolCount: service.capabilities?.length ?? 1,
+        });
+      } catch (e) {
+        console.warn('[oauth] connect:', e);
+      }
+
+      try {
+        // Deploy MCP workflow for tool discovery
+        await invoke('engine_n8n_deploy_mcp_workflow', {
+          serviceId: service.id,
+          serviceName: service.name,
+          n8nNodeType: service.n8nNodeType,
+        });
+      } catch (e) {
+        console.warn('[oauth] MCP deploy (non-fatal):', e);
+      }
+
+      // Show success + refresh
+      const { showToast } = await import('../../components/toast');
+      showToast(`Connected to ${service.name}!`, 'success');
+      refreshConnected();
+      _renderDetail(service);
+    } else {
+      // Show error
+      const { showToast } = await import('../../components/toast');
+      showToast(result.error ?? `Failed to connect ${service.name}`, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="ms ms-sm">link</span> Connect ${escHtml(service.name)}`;
+      }
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const { showToast } = await import('../../components/toast');
+    showToast(`OAuth error: ${msg}`, 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span class="ms ms-sm">link</span> Connect ${escHtml(service.name)}`;
+    }
+  }
+}
+
+// ── n8n OAuth delegation flow ──────────────────────────────────────────
+
+async function _startN8nOAuthFlow(service: ServiceDefinition): Promise<void> {
+  const btn = document.getElementById('detail-n8n-oauth-btn') as HTMLButtonElement | null;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="ms ms-sm k-spin">progress_activity</span> Opening n8n…';
+  }
+
+  try {
+    const url = await invoke<string>('engine_oauth_n8n_url', {
+      serviceId: service.id,
+    });
+
+    // Open n8n credential creation page in the default browser
+    await invoke('plugin:opener|open_url', { url });
+
+    showToast(
+      `Complete the OAuth flow in n8n, then return here and click "Verify Connection"`,
+      'info',
+    );
+
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span class="ms ms-sm">check_circle</span> I've completed setup in n8n`;
+      // Re-wire to verify connection
+      btn.onclick = async () => {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="ms ms-sm k-spin">progress_activity</span> Verifying…';
+        try {
+          await invoke('engine_integrations_connect', {
+            serviceId: service.id,
+            toolCount: service.capabilities?.length ?? 1,
+          });
+          showToast(`Connected to ${service.name} via n8n!`, 'success');
+          refreshConnected();
+          _renderDetail(service);
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          showToast(`Verification failed: ${msg}`, 'error');
+          btn.disabled = false;
+          btn.innerHTML = `<span class="ms ms-sm">check_circle</span> I've completed setup in n8n`;
+        }
+      };
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    showToast(`n8n OAuth error: ${msg}`, 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span class="ms ms-sm">swap_horiz</span> Connect via n8n`;
+    }
+  }
+}
+
+// ── RFC 7591 dynamic registration flow ─────────────────────────────────
+
+async function _startRfc7591Flow(service: ServiceDefinition): Promise<void> {
+  const btn = document.getElementById('detail-rfc7591-btn') as HTMLButtonElement | null;
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML =
+      '<span class="ms ms-sm k-spin">progress_activity</span> Registering & authorizing…';
+  }
+
+  try {
+    const result = await invoke<{
+      service_id: string;
+      success: boolean;
+      scopes_granted: string[];
+      error?: string;
+    }>('engine_oauth_rfc7591_start', { serviceId: service.id });
+
+    if (result.success) {
+      try {
+        await invoke('engine_integrations_connect', {
+          serviceId: service.id,
+          toolCount: service.capabilities?.length ?? 1,
+        });
+      } catch (e) {
+        console.warn('[rfc7591] connect:', e);
+      }
+
+      showToast(`Auto-connected to ${service.name}!`, 'success');
+      refreshConnected();
+      _renderDetail(service);
+    } else {
+      showToast(result.error ?? `Failed to auto-connect ${service.name}`, 'error');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = `<span class="ms ms-sm">auto_fix_high</span> Auto-connect ${escHtml(service.name)}`;
+      }
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    showToast(`Auto-connect error: ${msg}`, 'error');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = `<span class="ms ms-sm">auto_fix_high</span> Auto-connect ${escHtml(service.name)}`;
+    }
   }
 }
 

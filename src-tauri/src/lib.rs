@@ -219,6 +219,17 @@ pub fn run() {
                     tokio::time::sleep(std::time::Duration::from_secs(300)).await;
                 }
             });
+
+            // ── OAuth token auto-refresh (background, 15-min interval) ─────
+            // Checks all stored OAuth tokens and proactively refreshes any
+            // that are within 10 minutes of expiry.
+            {
+                let app_handle_oauth = app.handle().clone();
+                tauri::async_runtime::spawn(
+                    commands::oauth::oauth_token_refresh_loop(app_handle_oauth),
+                );
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -594,6 +605,14 @@ pub fn run() {
             commands::health_monitor::engine_health_toggle_chain,
             commands::health_monitor::engine_health_delete_chain,
             // ── Integrations Management (Phase 7) ──
+            commands::oauth::engine_oauth_services,
+            commands::oauth::engine_oauth_start,
+            commands::oauth::engine_oauth_refresh,
+            commands::oauth::engine_oauth_status,
+            commands::oauth::engine_oauth_revoke,
+            commands::oauth::engine_oauth_resolve_tier,
+            commands::oauth::engine_oauth_n8n_url,
+            commands::oauth::engine_oauth_rfc7591_start,
             commands::integrations::engine_integrations_list_connected,
             commands::integrations::engine_integrations_get_connected,
             commands::integrations::engine_integrations_connect,

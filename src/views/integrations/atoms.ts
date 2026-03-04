@@ -63,6 +63,14 @@ export interface ServiceDefinition {
   popular: boolean;
   /** npm package name if this service needs a community node (not in n8n-nodes-base). */
   communityPackage?: string;
+  /**
+   * Auth type determines how the connect button behaves:
+   *  - 'oauth'      → Tier 1: one-click PKCE with shipped Client ID
+   *  - 'n8n-oauth'  → Tier 2: opens n8n credential UI for OAuth
+   *  - 'rfc7591'    → Tier 3: dynamic client registration + PKCE
+   *  - 'apikey'     → Tier 5: manual paste (default)
+   */
+  authType?: 'oauth' | 'n8n-oauth' | 'rfc7591' | 'apikey';
 }
 
 export interface ConnectedService {

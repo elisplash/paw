@@ -29,6 +29,7 @@ pub mod memory;
 pub mod n8n_engine;
 pub mod nextcloud;
 pub mod nostr;
+pub mod oauth;
 pub mod orchestrator;
 pub mod routing;
 pub mod sandbox;

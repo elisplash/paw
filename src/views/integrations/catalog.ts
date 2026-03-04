@@ -5739,6 +5739,98 @@ const AUTO: ServiceDefinition[] = [
   ),
 ];
 
+// ── OAuth-capable services ─────────────────────────────────────────────
+// Tier 1: Services with shipped Client IDs — one-click PKCE.
+// Matching IDs get authType:'oauth'; all others remain manual/apikey.
+
+const OAUTH_SERVICE_IDS = new Set([
+  'github',
+  'gmail',
+  'google-sheets',
+  'google-calendar',
+  'google-docs',
+  'google-drive',
+  'discord',
+  'slack',
+  'notion',
+  'dropbox',
+  'linear',
+  'figma',
+  'reddit',
+]);
+
+// ── n8n OAuth delegation (Tier 2) ─────────────────────────────────────
+// Services where OAuth is handled by n8n's built-in credential UI.
+// User clicks "Connect via n8n" → opens n8n credential creation page.
+
+const N8N_OAUTH_SERVICE_IDS = new Set([
+  'hubspot',
+  'salesforce',
+  'jira',
+  'stripe',
+  'shopify',
+  'airtable',
+  'trello',
+  'asana',
+  'mailchimp',
+  'quickbooks',
+  'zendesk',
+  'freshdesk',
+  'monday',
+  'clickup',
+  'basecamp',
+  'todoist',
+  'microsoft-teams',
+  'microsoft-outlook',
+  'onedrive',
+  'sharepoint',
+  'box',
+  'twitch',
+  'spotify',
+  'youtube',
+  'twitter',
+  'facebook',
+  'instagram',
+  'linkedin',
+  'pinterest',
+  'tiktok',
+  'zoom',
+  'webex',
+  'calendly',
+  'typeform',
+  'surveymonkey',
+  'intercom',
+  'drift',
+  'pipedrive',
+  'copper',
+  'freshsales',
+  'xero',
+  'harvest',
+  'toggl',
+  'clockify',
+  'miro',
+]);
+
+// ── RFC 7591 dynamic registration (Tier 3) ────────────────────────────
+// OIDC providers that support automatic client registration.
+
+const RFC7591_SERVICE_IDS = new Set(['okta', 'auth0', 'keycloak']);
+
+function applyAuthTiers(services: typeof CURATED): void {
+  for (const s of services) {
+    if (OAUTH_SERVICE_IDS.has(s.id)) {
+      s.authType = 'oauth';
+    } else if (N8N_OAUTH_SERVICE_IDS.has(s.id) && !OAUTH_SERVICE_IDS.has(s.id)) {
+      s.authType = 'n8n-oauth';
+    } else if (RFC7591_SERVICE_IDS.has(s.id)) {
+      s.authType = 'rfc7591';
+    }
+  }
+}
+
+applyAuthTiers(CURATED);
+applyAuthTiers(AUTO);
+
 // ── Full catalog ───────────────────────────────────────────────────────
 
 export const SERVICE_CATALOG: ServiceDefinition[] = [...CURATED, ...AUTO];

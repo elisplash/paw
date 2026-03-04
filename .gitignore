@@ -36,9 +36,11 @@ resources/node/*.tar.gz
 # Local secrets (never commit)
 .env
 .env.local
+.env.build
 src-tauri/.env
 
 # Private planning docs
+.credential-architecture.md
 LAUNCH_PLAN.md
 N8N_INTEGRATION_PLAN.md
 MINI_HUB_PLAN.md
@@ -71,3 +73,5 @@ nohup.out
 
 # Private website (separate repo)
 website/
+# Private planning docs
+.oauth-implementation.md
