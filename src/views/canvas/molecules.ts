@@ -2,7 +2,7 @@
 // Renders a bento-grid of agent-generated components.
 
 import { pawEngine } from '../../engine';
-import { $, escHtml } from '../../components/helpers';
+import { $, escHtml, promptModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import {
   type ParsedCanvasComponent,
@@ -28,8 +28,15 @@ interface MoleculesState {
   setComponents: (c: ParsedCanvasComponent[]) => void;
   getSessionId: () => string | null;
   getDashboardId: () => string | null;
+  getDashboardName: () => string | null;
   getTabBarHtml: () => string;
   wireTabBar: () => void;
+  onSave: (name: string) => Promise<void>;
+  onRename: (name: string) => Promise<void>;
+  onPin: () => Promise<void>;
+  onPopOut: () => Promise<void>;
+  onOpenDashboard: (dashboardId: string) => Promise<void>;
+  onDelete: () => Promise<void>;
 }
 
 let _state: MoleculesState;
@@ -77,20 +84,60 @@ export function renderCanvas(): void {
 
   const components = _state.getComponents();
   const isEmpty = components.length === 0;
+  const dashName = _state.getDashboardName();
+  const dashId = _state.getDashboardId();
+  const hasDashboard = !!dashId;
 
   const tabBarHtml = _state.getTabBarHtml();
+
+  const titleText = dashName ? escHtml(dashName) : 'Canvas';
 
   container.innerHTML = `
     ${tabBarHtml}
     <div class="canvas-header">
-      <h2><span class="ms">dashboard_customize</span> Canvas</h2>
-      <div class="canvas-actions">
-        ${!isEmpty ? `<button class="btn btn-ghost btn-sm" id="canvas-clear-btn" title="Clear canvas"><span class="ms ms-sm">delete_sweep</span> Clear</button>` : ''}
+      <div class="canvas-header-left">
+        <h2><span class="ms">dashboard_customize</span> ${titleText}</h2>
+      </div>
+      <div class="canvas-toolbar">
+        <button class="btn btn-ghost btn-sm" id="canvas-open-btn" title="Open saved dashboard">
+          <span class="ms ms-sm">folder_open</span> Open
+        </button>
+        ${
+          !isEmpty
+            ? `<button class="btn btn-ghost btn-sm" id="canvas-save-btn" title="${hasDashboard ? 'Saved' : 'Save as dashboard'}">
+                <span class="ms ms-sm">${hasDashboard ? 'check_circle' : 'save'}</span> ${hasDashboard ? 'Saved' : 'Save'}
+              </button>`
+            : ''
+        }
+        ${
+          hasDashboard
+            ? `<button class="btn btn-ghost btn-sm" id="canvas-rename-btn" title="Rename dashboard">
+                <span class="ms ms-sm">edit</span> Rename
+              </button>
+              <button class="btn btn-ghost btn-sm" id="canvas-pin-btn" title="Pin/Unpin dashboard">
+                <span class="ms ms-sm">push_pin</span> Pin
+              </button>
+              <button class="btn btn-ghost btn-sm" id="canvas-popout-btn" title="Open in new window">
+                <span class="ms ms-sm">open_in_new</span>
+              </button>
+              <button class="btn btn-ghost btn-sm canvas-toolbar-danger" id="canvas-delete-btn" title="Delete dashboard">
+                <span class="ms ms-sm">delete</span>
+              </button>`
+            : ''
+        }
+        ${
+          !isEmpty && !hasDashboard
+            ? `<button class="btn btn-ghost btn-sm" id="canvas-clear-btn" title="Clear canvas">
+                <span class="ms ms-sm">delete_sweep</span> Clear
+              </button>`
+            : ''
+        }
       </div>
     </div>
     <div class="canvas-body">
       ${isEmpty ? renderEmptyState() : renderGrid(components)}
     </div>
+    <div class="canvas-dashboard-picker" id="canvas-dashboard-picker" style="display:none"></div>
   `;
 
   _state.wireTabBar();
@@ -430,8 +477,187 @@ function wireEvents(): void {
     });
   }
 
+  // Save button — save current session canvas as a named dashboard
+  const saveBtn = $('canvas-save-btn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      if (_state.getDashboardId()) {
+        showToast('Dashboard already saved', 'info');
+        return;
+      }
+      const name = await promptModal('Save Dashboard', 'Dashboard name');
+      if (!name) return;
+      try {
+        await _state.onSave(name);
+        showToast(`Dashboard "${name}" saved`, 'success');
+      } catch (e) {
+        showToast('Failed to save dashboard', 'error');
+        console.error('[canvas] Save failed:', e);
+      }
+    });
+  }
+
+  // Rename button
+  const renameBtn = $('canvas-rename-btn');
+  if (renameBtn) {
+    renameBtn.addEventListener('click', async () => {
+      const current = _state.getDashboardName() ?? '';
+      const name = await promptModal('Rename Dashboard', current);
+      if (!name) return;
+      try {
+        await _state.onRename(name);
+        showToast(`Renamed to "${name}"`, 'success');
+      } catch (e) {
+        showToast('Failed to rename', 'error');
+        console.error('[canvas] Rename failed:', e);
+      }
+    });
+  }
+
+  // Pin button
+  const pinBtn = $('canvas-pin-btn');
+  if (pinBtn) {
+    pinBtn.addEventListener('click', async () => {
+      try {
+        await _state.onPin();
+      } catch (e) {
+        showToast('Failed to toggle pin', 'error');
+        console.error('[canvas] Pin failed:', e);
+      }
+    });
+  }
+
+  // Pop-out button
+  const popBtn = $('canvas-popout-btn');
+  if (popBtn) {
+    popBtn.addEventListener('click', async () => {
+      try {
+        await _state.onPopOut();
+      } catch (e) {
+        showToast('Failed to pop out', 'error');
+        console.error('[canvas] Pop-out failed:', e);
+      }
+    });
+  }
+
+  // Delete dashboard button
+  const deleteBtn = $('canvas-delete-btn');
+  if (deleteBtn) {
+    deleteBtn.addEventListener('click', async () => {
+      const name = _state.getDashboardName() ?? 'this dashboard';
+      if (!confirm(`Delete "${name}" and all its components? This cannot be undone.`)) return;
+      try {
+        await _state.onDelete();
+        showToast(`"${name}" deleted`, 'success');
+      } catch (e) {
+        showToast('Failed to delete dashboard', 'error');
+        console.error('[canvas] Delete failed:', e);
+      }
+    });
+  }
+
+  // Open dashboard picker
+  const openBtn = $('canvas-open-btn');
+  if (openBtn) {
+    openBtn.addEventListener('click', () => toggleDashboardPicker());
+  }
+
   // Per-card remove buttons
   _state.getComponents().forEach((c) => wireCardRemove(c.id));
+}
+
+/** Toggle the dashboard picker dropdown. */
+async function toggleDashboardPicker(): Promise<void> {
+  const picker = $('canvas-dashboard-picker');
+  if (!picker) return;
+
+  // Close if already open
+  if (picker.style.display !== 'none') {
+    picker.style.display = 'none';
+    return;
+  }
+
+  try {
+    const dashboards = await pawEngine.listDashboards();
+    const templates = await pawEngine.listTemplates();
+
+    if (!dashboards.length && !templates.length) {
+      picker.innerHTML = `<div class="canvas-picker-empty">No saved dashboards or templates yet</div>`;
+      picker.style.display = 'block';
+      return;
+    }
+
+    let html = '';
+
+    if (dashboards.length) {
+      html += `<div class="canvas-picker-section">
+        <div class="canvas-picker-section-label"><span class="ms ms-sm">folder</span> Saved Dashboards</div>
+        ${dashboards
+          .map(
+            (d) => `
+          <button class="canvas-picker-item" data-dashboard-id="${escHtml(d.id)}">
+            <span class="ms ms-sm">${escHtml(d.icon || 'dashboard')}</span>
+            <span class="canvas-picker-name">${escHtml(d.name)}</span>
+            ${d.pinned ? '<span class="ms ms-xs">push_pin</span>' : ''}
+          </button>
+        `,
+          )
+          .join('')}
+      </div>`;
+    }
+
+    if (templates.length) {
+      html += `<div class="canvas-picker-section">
+        <div class="canvas-picker-section-label"><span class="ms ms-sm">auto_awesome</span> Templates</div>
+        ${templates
+          .map(
+            (t) => `
+          <button class="canvas-picker-item canvas-picker-template" data-template-id="${escHtml(t.id)}">
+            <span class="ms ms-sm">${escHtml(t.icon || 'widgets')}</span>
+            <span class="canvas-picker-name">${escHtml(t.name)}</span>
+            <span class="canvas-picker-desc">${escHtml(t.description)}</span>
+          </button>
+        `,
+          )
+          .join('')}
+      </div>`;
+    }
+
+    picker.innerHTML = html;
+    picker.style.display = 'block';
+
+    // Wire dashboard items
+    picker.querySelectorAll<HTMLElement>('[data-dashboard-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.dashboardId ?? '';
+        picker.style.display = 'none';
+        await _state.onOpenDashboard(id);
+      });
+    });
+
+    // Wire template items (future: create from template)
+    picker.querySelectorAll<HTMLElement>('[data-template-id]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        picker.style.display = 'none';
+        showToast('Template support coming soon', 'info');
+      });
+    });
+
+    // Close on outside click
+    const dismiss = (e: MouseEvent) => {
+      if (
+        !picker.contains(e.target as Node) &&
+        (e.target as HTMLElement)?.id !== 'canvas-open-btn'
+      ) {
+        picker.style.display = 'none';
+        document.removeEventListener('click', dismiss);
+      }
+    };
+    setTimeout(() => document.addEventListener('click', dismiss), 0);
+  } catch (e) {
+    console.error('[canvas] Failed to load dashboard picker:', e);
+    showToast('Failed to load dashboards', 'error');
+  }
 }
 
 function wireCardRemove(componentId: string): void {
