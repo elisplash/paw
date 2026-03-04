@@ -1,11 +1,11 @@
 ---
 title: "Security"
-description: "OpenPawz is designed with defense-in-depth: 12 security layers protect against prompt injection, data exfiltration, MITM attacks, memory forensics, agent fixation, and unauthorized actions."
+description: "OpenPawz is designed with defense-in-depth: 20+ security layers protect against prompt injection, data exfiltration, SSRF, MITM attacks, memory forensics, agent fixation, inter-agent manipulation, and unauthorized actions."
 ---
 
 # Security
 
-OpenPawz is designed with defense-in-depth: **12 security layers** protect against prompt injection, data exfiltration, MITM attacks, memory forensics, agent fixation, and unauthorized actions.
+OpenPawz is designed with defense-in-depth: **20+ security layers** protect against prompt injection, data exfiltration, SSRF, MITM attacks, memory forensics, agent fixation, inter-agent manipulation, and unauthorized actions.
 
 ## Zero Attack Surface by Default
 
@@ -202,12 +202,13 @@ When a project is active, all file operations are constrained to the project roo
 
 Credentials are protected by two independent encryption layers:
 
-### Layer 1: Skill credential encryption (XOR)
+### Layer 1: Skill credential encryption (AES-256-GCM)
 
-- API keys encrypted with XOR using a 32-byte random key
+- API keys encrypted with **AES-256-GCM** using a 32-byte random key
 - Encryption key stored in OS keychain (`paw-skill-vault`)
 - High-risk credentials (Coinbase, DEX) are **server-side only** — never injected into prompts
 - Credentials are decrypted only at execution time
+- Legacy XOR-encrypted values are auto-migrated to AES-256-GCM on first read
 
 ### Layer 2: Database field encryption (AES-256-GCM)
 
@@ -600,6 +601,121 @@ Daily spending limits with progressive warnings:
 | Pairing | Users must pair with a code |
 
 Each user gets an isolated session — no cross-user data leakage.
+
+## Keychain key management
+
+All cryptographic keys are read from the OS keychain exactly **once per process lifetime** and cached in-memory using a hardened caching pattern. This eliminates repeated system password prompts during normal operation.
+
+### Cache architecture
+
+Each key cache uses `RwLock<Option<Zeroizing<T>>>`:
+
+| Property | Implementation |
+|----------|---------------|
+| **Concurrency** | `RwLock` — many concurrent readers, exclusive writers |
+| **Locking pattern** | Double-check locking — after acquiring write lock, re-check if another thread already populated the cache before calling the OS keychain |
+| **Zeroization** | All cached keys wrapped in `Zeroizing<T>` (`zeroize` crate) — zeroed on drop via `core::ptr::write_volatile` |
+| **Poison recovery** | `unwrap_or_else(\|e\| e.into_inner())` on all lock operations — a poisoned lock never crashes the app |
+| **Key length validation** | 32 bytes for binary keys, 32+ chars for hex-encoded keys — rejects truncated or corrupted keychain entries |
+
+### Key generation
+
+All new keys (vault, DB, memory, audit signing) are generated using `OsRng` from the `rand` crate, which delegates to the kernel CSPRNG (`getrandom` syscall on Linux, `Security.framework` on macOS, `BCryptGenRandom` on Windows). `thread_rng()` is never used for key material.
+
+### Constant-time passphrase comparison
+
+The lock screen passphrase is verified using `subtle::ConstantTimeEq` (the `subtle` crate). This prevents timing side-channel attacks where an attacker could infer how many bytes of the passphrase matched by measuring response time.
+
+## SSRF protection
+
+The `fetch` tool validates all URLs against a blocklist of internal and cloud metadata endpoints before making any outbound request:
+
+| Category | Blocked addresses |
+|----------|-------------------|
+| **Loopback** | `127.0.0.1`, `::1`, `localhost` |
+| **RFC-1918 private** | `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16` |
+| **Link-local** | `169.254.0.0/16` |
+| **Cloud metadata** | `169.254.169.254` (AWS/GCP/Azure instance metadata) |
+
+Blocked requests return an error without making any network call. This prevents agents from accessing internal services, cloud instance credentials, or other resources on the local network.
+
+## Audit chain integrity (HMAC)
+
+Every entry in the security audit log is signed with **HMAC-SHA256** using a dedicated signing key stored in the OS keychain (`paw-audit-chain`), separate from all encryption keys.
+
+| Property | Detail |
+|----------|--------|
+| Algorithm | HMAC-SHA256 |
+| Key storage | OS keychain (`paw-audit-chain`), generated with `OsRng` |
+| Key caching | `LazyLock<Option<Zeroizing<Vec<u8>>>>` — loaded once, zeroed on process exit |
+| Chain structure | Each entry's HMAC covers timestamp + category + action + agent ID + session ID + previous entry hash |
+| Verification | `verify_chain()` walks the full log and validates every HMAC — returns the broken row ID if tampered |
+
+This forms a tamper-evident hash chain: modifying or deleting any audit entry breaks the chain from that point forward.
+
+## Inter-agent communication security
+
+All messages sent between agents via `agent_send_message` are scanned for prompt injection before delivery:
+
+- **Content field** — scanned against the full injection pattern set
+- **Metadata field** — independently scanned (injection payloads can be hidden in metadata)
+- **Blocking threshold** — messages with `High` or `Critical` injection severity are **blocked** and never delivered
+
+This prevents a compromised agent from manipulating other agents via crafted messages containing instruction override attempts.
+
+## Worker delegate security
+
+Worker agents (spawned by the orchestrator for delegated subtasks) operate under a restricted tool policy that cannot be overridden:
+
+### Blocked tools
+
+`exec`, `write_file`, `delete_file`, `append_file`, and all trading write operations are removed from the worker's available tool set before execution begins.
+
+### MCP tool name blocking
+
+MCP tools whose names contain dangerous operation keywords are blocked at the name level:
+
+`exec` · `shell` · `run_command` · `terminal` · `system` · `write_file` · `delete_file` · `remove_file` · `file_write` · `rm_rf` · `rmdir` · `unlink`
+
+This prevents a rogue MCP server from exposing tools like `mcp_server_exec` or `mcp_server_write_file` that would bypass the direct tool blocklist.
+
+## MCP registry injection scanning
+
+Results returned from MCP tool executions are scanned for prompt injection on **both success and error paths**. This prevents a malicious MCP server from embedding instruction overrides in:
+
+- **Success responses** — tool output that gets forwarded to the agent's context
+- **Error messages** — error strings that are included in the agent's next prompt turn
+
+Messages with `High` or `Critical` severity are sanitized before reaching the agent.
+
+## Memory tool hardening
+
+The `memory_store` and `memory_update` tools enforce additional safety constraints:
+
+| Control | Detail |
+|---------|--------|
+| **Fail-closed ownership** | If the requesting agent's ID is missing or empty, the operation is rejected — no silent fallback to a default scope |
+| **Field size limits** | Content and metadata fields capped at 2,000 characters to prevent context-stuffing attacks |
+
+## Swarm orchestration security
+
+The multi-agent swarm subsystem uses atomic operations for all shared state:
+
+| Property | Implementation |
+|----------|---------------|
+| **Global run counter** | `AtomicU64` with compare-and-swap (CAS) for incrementing |
+| **Memory ordering** | `Acquire`/`Release` ordering ensures cross-thread visibility without full sequential consistency overhead |
+| **Stale run GC** | Periodic garbage collection removes runs older than 10 minutes to prevent resource exhaustion from abandoned swarm runs |
+
+## Event / webhook rate limiting
+
+The event dispatch system enforces cooldown-based rate limiting on webhook triggers:
+
+| Control | Detail |
+|---------|--------|
+| **Cooldown period** | Configurable per-event minimum interval between fires |
+| **Prefix matching** | Webhook URL patterns use prefix matching to prevent bypass via query parameters or path suffixes |
+| **Deduplication** | Rapid consecutive fires of the same event within the cooldown window are silently dropped |
 
 ## Reporting vulnerabilities
 

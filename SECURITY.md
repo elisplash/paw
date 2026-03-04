@@ -68,7 +68,7 @@ Tool calls are classified into two tiers at the Rust engine level:
 
 ### Danger Pattern Detection
 
-30+ patterns across multiple categories:
+58+ patterns across multiple categories:
 
 - **Privilege escalation** — `sudo`, `su`, `doas`, `pkexec`, `runas`
 - **Destructive deletion** — `rm -rf /`, `rm -rf ~`, `rm -rf /*`
@@ -80,6 +80,9 @@ Tool calls are classified into two tiers at the Rust engine level:
 - **Firewall disabling** — `iptables -F`, `ufw disable`
 - **Account modification** — `passwd`, `chpasswd`, `usermod`
 - **Network exfiltration** — `curl | cat`, `scp` outbound, `/dev/tcp`
+- **Reverse shells** — `bash -i >& /dev/tcp`, `nc -e`, `python -c import socket`, `ruby -rsocket`, `perl -e socket`, `php -r fsockopen`, `socat tcp-connect`, `ncat -e`, `telnet \| /bin/sh`, `openssl s_client`
+- **Data staging / exfiltration** — `base64` piped to `curl`/`nc`, `tar` piped to `curl`/`nc`, `xxd` piped to `curl`/`nc`, `gzip` piped to `curl`/`nc`
+- **Credential harvesting** — `cat /etc/shadow`, `cat ~/.ssh/id_rsa`, `cat ~/.aws/credentials`, `security find-generic-password` (macOS Keychain dump)
 
 ### Command Allowlist / Denylist
 
@@ -179,6 +182,73 @@ The following hardening measures were applied as part of a systematic enterprise
   1. **Bucket padding** — The SQLite database is padded to 512KB bucket boundaries (via `_engram_padding` table) so an attacker observing the file can only determine a coarse size bucket, not the exact memory count. Re-padded after every GC cycle. This is the SQLite equivalent of KDBX inner-content padding.
   2. **Secure erasure** — Memory deletion is two-phase: content fields are overwritten with empty values *before* the row is deleted, preventing plaintext recovery from freed SQLite pages or WAL replay. Complements `PRAGMA secure_delete = ON`.
   3. **8KB pages + incremental auto-vacuum** — Larger page size reduces file-size granularity; incremental vacuum prevents the file from shrinking immediately after deletions (which would reveal deletion count).
+
+### Keychain Key Management
+
+All cryptographic keys are read from the OS keychain exactly **once per process lifetime** and cached in-memory using a hardened pattern:
+
+| Property | Implementation |
+|----------|---------------|
+| **Cache type** | `RwLock<Option<Zeroizing<T>>>` — concurrent readers, exclusive writers |
+| **Locking pattern** | Double-check locking — after acquiring write lock, re-check cache before hitting keychain (prevents TOCTOU race) |
+| **Key generation** | `OsRng` (kernel CSPRNG via `getrandom` syscall) for all 256-bit keys — vault, DB, memory, and audit signing keys |
+| **Zeroization** | All cached keys wrapped in `Zeroizing<T>` (`zeroize` crate) — zeroed on drop via `write_volatile` |
+| **Poison recovery** | `unwrap_or_else(\|e\| e.into_inner())` on all lock operations — poisoned mutex never crashes the app |
+| **Key length validation** | 32 bytes for binary keys, 32+ chars for hex-encoded keys — rejects truncated or corrupted keychain entries |
+| **Passphrase comparison** | Lock screen passphrase verified with `subtle::ConstantTimeEq` — prevents timing side-channel attacks |
+
+This eliminates repeated macOS Keychain password prompts during normal operation (keychain was previously hit 5–20+ times per chat turn for encrypt/decrypt operations).
+
+### SSRF Protection
+
+The `fetch` tool validates all URLs against a blocklist of internal and cloud metadata endpoints before making any outbound request:
+
+- **Loopback** — `127.0.0.1`, `::1`, `localhost`
+- **RFC-1918 private ranges** — `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`
+- **Link-local** — `169.254.0.0/16`
+- **Cloud metadata** — `169.254.169.254` (AWS/GCP/Azure instance metadata endpoint)
+
+Blocked requests return an error to the agent without making any network call.
+
+### Audit Chain Integrity (HMAC)
+
+Every entry in the security audit log is signed with **HMAC-SHA256** using a dedicated signing key stored in the OS keychain (`paw-audit-chain`), separate from all encryption keys. The signing key is cached in a `LazyLock<Option<Zeroizing<Vec<u8>>>>` and generated with `OsRng` on first use. Each audit entry's HMAC covers the timestamp, category, action, agent ID, session ID, and the previous entry's hash — forming a tamper-evident hash chain. Chain integrity can be verified end-to-end via `verify_chain()`.
+
+### Inter-Agent Communication Security
+
+All messages sent between agents via `agent_send_message` are scanned for prompt injection before delivery. Both the **content** field and the **metadata** field are independently scanned. Messages with High or Critical injection severity are **blocked** — preventing a compromised agent from manipulating other agents via crafted messages that override their instructions.
+
+### Worker Delegate Hardening
+
+Worker agents (spawned by the orchestrator for delegated subtasks) operate under a restricted tool policy:
+
+- **Blocked tools** — `exec`, `write_file`, `delete_file`, `append_file`, and all trading write operations are removed from the worker's tool set
+- **MCP pattern blocking** — MCP tools whose names contain dangerous operation keywords (`exec`, `shell`, `run_command`, `terminal`, `system`, `write_file`, `delete_file`, `remove_file`, `rm_rf`, `rmdir`, `unlink`) are blocked at the name level, preventing rogue MCP servers from bypassing the direct tool blocklist
+
+### MCP Registry Injection Scanning
+
+Results returned from MCP tool executions are scanned for prompt injection on **both success and error paths**. This prevents a malicious MCP server from embedding instruction overrides in tool output or error messages that would be forwarded to the agent's context.
+
+### Memory Tool Hardening
+
+The `memory_store` and `memory_update` tools enforce:
+
+- **Fail-closed ownership** — If the requesting agent's ID is missing or empty, the operation is rejected (no silent fallback to a default scope)
+- **Field size limits** — Content and metadata fields are capped at 2,000 characters to prevent context-stuffing attacks
+
+### Swarm Orchestration Security
+
+The multi-agent swarm subsystem uses atomic operations for all shared state:
+
+- **Global run counter** — `AtomicU64` with compare-and-swap (CAS) for incrementing; `Acquire`/`Release` memory ordering ensures cross-thread visibility
+- **Stale run GC** — Periodic garbage collection removes runs older than 10 minutes to prevent resource exhaustion from abandoned swarm runs
+
+### Event / Webhook Rate Limiting
+
+The event dispatch system enforces cooldown-based rate limiting on webhook triggers to prevent abuse:
+
+- **Cooldown period** — Configurable per-event minimum interval between fires
+- **Prefix-based matching** — Webhook URL patterns use prefix matching to prevent bypass via query parameters or path suffixes
 
 ---
 
