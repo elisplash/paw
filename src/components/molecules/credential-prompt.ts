@@ -284,17 +284,34 @@ function _wireEvents(overlay: HTMLElement, req: CredentialRequest): void {
 
         // Bridge integration creds → skill vault & auto-enable skill
         // Pass credentials directly to avoid config-store roundtrip
+        let provisioned = false;
         try {
           await invoke('engine_integrations_provision', {
             serviceId: req.service,
             credentials: creds,
           });
+          provisioned = true;
         } catch (e) {
           console.error('[credential-prompt] provision FAILED — agent tools will not work:', e);
         }
 
-        _state = 'success';
+        // Only mark as connected if provisioning succeeded
+        if (provisioned) {
+          try {
+            await invoke('engine_integrations_connect', {
+              serviceId: req.service,
+              toolCount: req.fields.length,
+            });
+          } catch (e) {
+            console.warn('[credential-prompt] connect:', e);
+          }
+        }
+
+        _state = provisioned ? 'success' : 'error';
         _successDetails = result.details ?? result.message;
+        if (!provisioned) {
+          _errorMessage = 'Credentials verified but skill provisioning failed. Please try again.';
+        }
       } else {
         _state = 'error';
         _errorMessage = result.message;

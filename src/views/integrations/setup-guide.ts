@@ -303,62 +303,92 @@ function _wireGuideEvents(container: HTMLElement, service: ServiceDefinition): v
         btn.classList.add('btn-success');
       }
 
-      // ── Wire: save creds, connect service, bridge → skill vault ──
+      // ── Wire: save creds, provision skill vault, THEN mark connected ──
+      // Order matters: provision must succeed before we mark connected,
+      // otherwise dashboard shows green but agent tools won't work.
       let provisionFailed = false;
+      let saveFailed = false;
+
+      // Step 1: Persist credentials to the integration config store
       try {
-        // Persist credentials to the integration config store
         await invoke('engine_integrations_save_credentials', {
           serviceId: service.id,
           credentials,
         });
       } catch (e) {
         console.warn('[setup-guide] save_credentials:', e);
+        saveFailed = true;
       }
 
-      try {
-        // Mark service as connected (updates connected list & health monitor)
-        await invoke('engine_integrations_connect', {
-          serviceId: service.id,
-          toolCount: service.capabilities?.length ?? 1,
-        });
-      } catch (e) {
-        console.warn('[setup-guide] connect:', e);
+      // Step 2: Bridge integration creds → skill vault & auto-enable skill
+      // This MUST succeed before we mark the service as connected
+      if (!saveFailed) {
+        try {
+          await invoke('engine_integrations_provision', {
+            serviceId: service.id,
+            credentials,
+          });
+        } catch (e) {
+          console.error('[setup-guide] provision FAILED — agent tools will not work:', e);
+          provisionFailed = true;
+        }
       }
 
-      try {
-        // Bridge integration creds → skill vault & auto-enable skill
-        // Pass credentials directly to avoid config-store roundtrip
-        await invoke('engine_integrations_provision', {
-          serviceId: service.id,
-          credentials,
-        });
-      } catch (e) {
-        console.error('[setup-guide] provision FAILED — agent tools will not work:', e);
-        provisionFailed = true;
+      // Step 3: Only mark service as connected if provisioning succeeded
+      if (!provisionFailed && !saveFailed) {
+        try {
+          await invoke('engine_integrations_connect', {
+            serviceId: service.id,
+            toolCount: service.capabilities?.length ?? 1,
+          });
+        } catch (e) {
+          console.warn('[setup-guide] connect:', e);
+        }
+      } else {
+        // Provision or save failed — ensure service is NOT marked as connected
+        // so dashboard and catalog stay consistent
+        try {
+          await invoke('engine_integrations_disconnect', { serviceId: service.id });
+        } catch {
+          // Ignore — may not have been connected
+        }
       }
 
-      // Show provisioning warning if skill vault setup failed
-      if (provisionFailed && feedback) {
+      // Show clear error if provisioning/save failed (not a hidden warning)
+      if ((provisionFailed || saveFailed) && feedback) {
+        _guideState = 'error';
         feedback.innerHTML = `
-          <div class="guide-feedback guide-feedback-warning" style="margin-top: 8px">
-            <span class="ms ms-sm" style="color: var(--warning, #f59e0b)">warning</span>
-            <span>Credentials saved, but skill provisioning failed. Agent tools may not work until you reconnect.</span>
-          </div>${feedback.innerHTML}`;
+          <div class="guide-feedback guide-feedback-error" style="margin-top: 8px">
+            <span class="ms ms-sm" style="color: var(--error, #ef4444)">error</span>
+            <span>
+              ${saveFailed ? 'Failed to save credentials.' : 'Credentials saved, but skill provisioning failed.'}
+              The integration is <strong>not active</strong> — agent tools will not work.
+              Please try reconnecting.
+            </span>
+          </div>`;
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('btn-success');
+          btn.querySelector('.guide-btn-label')!.textContent = 'Test & Save';
+        }
       }
 
       // ── MCP workflow deployment (dynamic tool discovery) ──
       // Auto-deploy an n8n workflow with MCP trigger so the service's
       // tools are discoverable by agents via the MCP bridge.
-      try {
-        await invoke('engine_n8n_deploy_mcp_workflow', {
-          serviceId: service.id,
-          serviceName: service.name,
-          n8nNodeType: service.n8nNodeType,
-        });
-        console.debug(`[setup-guide] MCP workflow deployed for ${service.id}`);
-      } catch (e) {
-        // Non-fatal: MCP is a bonus, not required for basic tool usage
-        console.warn('[setup-guide] MCP workflow deploy (non-fatal):', e);
+      // Only deploy if provisioning succeeded.
+      if (!provisionFailed && !saveFailed) {
+        try {
+          await invoke('engine_n8n_deploy_mcp_workflow', {
+            serviceId: service.id,
+            serviceName: service.name,
+            n8nNodeType: service.n8nNodeType,
+          });
+          console.debug(`[setup-guide] MCP workflow deployed for ${service.id}`);
+        } catch (e) {
+          // Non-fatal: MCP is a bonus, not required for basic tool usage
+          console.warn('[setup-guide] MCP workflow deploy (non-fatal):', e);
+        }
       }
 
       // Notify parent

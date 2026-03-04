@@ -19,12 +19,17 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   font-size: 0.82rem;
-  cursor: default;
-  transition: border-color 0.15s;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .ihealth-chip:hover {
   border-color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.ihealth-chip:hover .ihealth-chip-settings {
+  opacity: 1 !important;
 }
 
 .ihealth-chip-icon {
@@ -247,4 +252,190 @@
   height: 1px;
   background: var(--border);
   margin: 0.5rem 0;
+}
+
+/* ── Connection Test Panel ── */
+.ihealth-test-panel {
+  margin-top: 0.5rem;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent);
+  overflow: hidden;
+  animation: ihealthSlideIn 0.15s ease-out;
+}
+
+@keyframes ihealthSlideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ihealth-test-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+
+.ihealth-test-title {
+  flex: 1;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.ihealth-test-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 2px;
+  border-radius: var(--radius-sm, 4px);
+  transition: color 0.15s, background 0.15s;
+}
+
+.ihealth-test-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary, rgba(0,0,0,0.06));
+}
+
+.ihealth-test-body {
+  padding: 0.75rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ihealth-test-url-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-primary, var(--bg));
+  border: 1px solid var(--border);
+}
+
+.ihealth-test-url-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ihealth-test-url-value {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+  color: var(--accent);
+  word-break: break-all;
+}
+
+.ihealth-test-creds-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ihealth-test-section-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ihealth-test-cred-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-primary, var(--bg));
+  font-size: 0.78rem;
+}
+
+.ihealth-test-cred-label {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.ihealth-test-cred-value {
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary);
+}
+
+.ihealth-test-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.ihealth-test-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.ihealth-test-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ihealth-test-btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.ihealth-test-btn-primary:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.ihealth-test-btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.ihealth-test-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-tertiary, rgba(0,0,0,0.04));
+}
+
+.ihealth-test-result-ok {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--success, #8FB0A0) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success, #8FB0A0) 30%, transparent);
+  font-size: 0.82rem;
+}
+
+.ihealth-test-result-fail {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm, 4px);
+  background: color-mix(in srgb, var(--error, #FF4D4D) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--error, #FF4D4D) 30%, transparent);
+  font-size: 0.82rem;
+}
+
+.ihealth-test-result-details {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-left: auto;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
 }
