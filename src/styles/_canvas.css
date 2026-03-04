@@ -1,6 +1,9 @@
-/* ═══ Agent Canvas View ═══ */
+/* ═══ Agent Canvas View — Kinetic Bento ═══ */
+/* Matches the Today Command Center design language: collapsed borders,
+   sharp edges, k-spring hover, k-materialise entrance, halftone surface. */
+
 .canvas-view {
-  padding: 16px;
+  padding: 0;
   overflow-y: auto;
   height: 100%;
   min-height: 0;
@@ -12,23 +15,28 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
 }
 .canvas-header h2 {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   font-family: var(--font-mono);
-  color: var(--text-primary);
+  color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.1em;
   margin: 0;
+}
+.canvas-header h2 .ms {
+  font-size: 16px;
+  color: var(--accent);
 }
 .canvas-actions {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 /* ── Empty State ─────────────────────────────────────────── */
@@ -38,23 +46,28 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 64px 24px;
+  padding: 80px 24px;
   color: var(--text-muted);
 }
 .canvas-empty .ms-xl {
   font-size: 48px;
   margin-bottom: 12px;
-  opacity: 0.4;
+  opacity: 0.3;
+  color: var(--accent);
 }
 .canvas-empty h3 {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
+  font-family: var(--font-mono);
   color: var(--text-primary);
-  margin: 0 0 8px;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 .canvas-empty p {
   font-size: var(--type-sm);
   margin: 0 0 4px;
+  max-width: 400px;
 }
 .canvas-empty-hint {
   font-family: var(--font-mono);
@@ -63,10 +76,14 @@
   margin-top: 8px !important;
 }
 
-/* ── Bento Grid ──────────────────────────────────────────── */
+/* ── Bento Grid — collapsed borders, sharp edges ─────────── */
 .canvas-grid {
   display: grid;
-  gap: 12px;
+  gap: 0;
+  padding: 0;
+}
+.canvas-grid > * {
+  margin: -0.5px; /* collapse borders like Today bento */
 }
 @media (max-width: 800px) {
   .canvas-grid {
@@ -74,17 +91,43 @@
   }
 }
 
-/* ── Card ────────────────────────────────────────────────── */
+/* ── Card — kinetic bento cell ───────────────────────────── */
 .canvas-card {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--bg-secondary);
   overflow: hidden;
-  transition: box-shadow 0.15s;
+  position: relative;
+  /* k-spring-card hover */
+  transition:
+    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.35s ease,
+    border-color 0.2s ease;
+  /* k-materialise entrance */
+  animation: k-materialise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .canvas-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transform: scale(1.012) translateY(-1px);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.12),
+    0 0 0 1px var(--accent-muted, rgba(212, 101, 74, 0.15));
+  border-color: var(--accent-muted, rgba(212, 101, 74, 0.3));
+  z-index: 1;
 }
+/* Stagger entrance for grid children */
+.canvas-grid > .canvas-card:nth-child(1)  { animation-delay: 0ms; }
+.canvas-grid > .canvas-card:nth-child(2)  { animation-delay: 40ms; }
+.canvas-grid > .canvas-card:nth-child(3)  { animation-delay: 80ms; }
+.canvas-grid > .canvas-card:nth-child(4)  { animation-delay: 120ms; }
+.canvas-grid > .canvas-card:nth-child(5)  { animation-delay: 160ms; }
+.canvas-grid > .canvas-card:nth-child(6)  { animation-delay: 200ms; }
+.canvas-grid > .canvas-card:nth-child(7)  { animation-delay: 240ms; }
+.canvas-grid > .canvas-card:nth-child(8)  { animation-delay: 280ms; }
+.canvas-grid > .canvas-card:nth-child(9)  { animation-delay: 320ms; }
+.canvas-grid > .canvas-card:nth-child(10) { animation-delay: 360ms; }
+.canvas-grid > .canvas-card:nth-child(11) { animation-delay: 400ms; }
+.canvas-grid > .canvas-card:nth-child(12) { animation-delay: 440ms; }
+
 .canvas-card-header {
   display: flex;
   align-items: center;
@@ -92,11 +135,15 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   font-family: var(--font-mono);
-  font-size: var(--type-micro);
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.1em;
   color: var(--text-muted);
+}
+.canvas-card-header .ms {
+  font-size: 14px;
+  color: var(--accent);
 }
 .canvas-card-title {
   flex: 1;
@@ -113,21 +160,36 @@
 }
 .canvas-card-body {
   padding: 12px;
+  position: relative;
+}
+
+/* Halftone surface on card body (subtle dot texture) */
+.canvas-card-body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(circle, var(--kinetic-red, #D4654A) 0.5px, transparent 0.5px);
+  background-size: 6px 6px;
+  opacity: var(--halftone-opacity, 0.02);
 }
 
 /* ── Metric ──────────────────────────────────────────────── */
 .canvas-metric {
   text-align: center;
+  padding: 8px 0;
 }
 .canvas-metric-value {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
   font-family: var(--font-mono);
   color: var(--text-primary);
-  line-height: 1.2;
+  line-height: 1;
+  letter-spacing: -0.02em;
 }
 .canvas-metric-unit {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
   color: var(--text-muted);
   margin-left: 4px;
@@ -140,10 +202,10 @@
   font-size: var(--type-sm);
   font-family: var(--font-mono);
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 6px;
 }
-.canvas-trend-up { color: var(--success, #10b981); }
-.canvas-trend-down { color: var(--error, #ef4444); }
+.canvas-trend-up { color: var(--kinetic-sage, #8FB0A0); }
+.canvas-trend-down { color: var(--kinetic-red, #D4654A); }
 .canvas-metric-detail {
   font-size: var(--type-micro);
   color: var(--text-dim);
@@ -170,17 +232,20 @@
   border-bottom: 1px solid var(--border);
 }
 .canvas-table th {
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  font-size: var(--type-micro);
+  letter-spacing: 0.06em;
+  font-size: 10px;
   position: sticky;
   top: 0;
   background: var(--bg-secondary);
 }
 .canvas-table td {
   color: var(--text-primary);
+}
+.canvas-table tr:hover td {
+  background: var(--accent-subtle, rgba(255, 255, 255, 0.02));
 }
 
 /* ── Chart ───────────────────────────────────────────────── */
@@ -228,7 +293,7 @@
 .canvas-log-entry {
   display: flex;
   gap: 8px;
-  padding: 2px 0;
+  padding: 3px 0;
   border-bottom: 1px solid var(--border-subtle, var(--border));
 }
 .canvas-log-time {
@@ -239,8 +304,8 @@
   color: var(--text-primary);
 }
 .canvas-log-info .canvas-log-text { color: var(--text-primary); }
-.canvas-log-warn .canvas-log-text { color: var(--warning, #f59e0b); }
-.canvas-log-error .canvas-log-text { color: var(--error, #ef4444); }
+.canvas-log-warn .canvas-log-text { color: var(--kinetic-gold, #C4A962); }
+.canvas-log-error .canvas-log-text { color: var(--kinetic-red, #D4654A); }
 
 /* ── Key-Value ───────────────────────────────────────────── */
 .canvas-kv {
@@ -256,13 +321,15 @@
 .canvas-kv-key {
   color: var(--text-muted);
   font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 .canvas-kv-value {
   color: var(--text-primary);
 }
 
 /* ── Card (markdown + actions) ───────────────────────────── */
-.canvas-card-content {}
 .canvas-card-body-text {
   font-size: var(--type-sm);
   color: var(--text-primary);
@@ -277,42 +344,62 @@
   border-top: 1px solid var(--border);
 }
 
-/* ── Status ──────────────────────────────────────────────── */
+/* ── Status — with kinetic breathing indicator ───────────── */
 .canvas-status {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.canvas-status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--kinetic-sage, #8FB0A0);
+  animation: k-breathe-dot 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  flex-shrink: 0;
+}
+.canvas-status-dot.status-warning {
+  background: var(--kinetic-gold, #C4A962);
+}
+.canvas-status-dot.status-error {
+  background: var(--kinetic-red, #D4654A);
+}
+.canvas-status-dot.status-idle {
+  background: var(--text-muted);
+  animation: none;
+  opacity: 0.4;
 }
 .canvas-status-text {
   font-size: var(--type-sm);
   color: var(--text-primary);
 }
 .canvas-status-badge {
-  font-size: var(--type-micro);
+  font-size: 10px;
   font-family: var(--font-mono);
+  font-weight: 600;
   padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--accent-dim, var(--bg-tertiary));
+  border: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--accent, var(--text-muted));
 }
 
 /* ── Progress ────────────────────────────────────────────── */
-.canvas-progress {}
 .canvas-progress-label {
   font-size: var(--type-sm);
+  font-family: var(--font-mono);
   color: var(--text-primary);
   margin-bottom: 6px;
 }
 .canvas-progress-bar {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--bg-tertiary, var(--border));
+  height: 4px;
+  background: var(--border);
   overflow: hidden;
 }
 .canvas-progress-fill {
   height: 100%;
-  border-radius: 3px;
-  background: var(--accent, #6366f1);
+  background: var(--accent, var(--kinetic-red, #D4654A));
   transition: width 0.3s ease;
 }
 .canvas-progress-meta {
@@ -331,6 +418,7 @@
   color: var(--text-primary);
   white-space: pre-wrap;
   margin: 0;
+  line-height: 1.5;
 }
 
 /* ── Form ────────────────────────────────────────────────── */
@@ -341,9 +429,12 @@
 }
 .canvas-form-field label {
   display: block;
-  font-size: var(--type-micro);
+  font-size: 10px;
   font-family: var(--font-mono);
+  font-weight: 600;
   color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   margin-bottom: 2px;
 }
 .canvas-form-submit {
@@ -357,13 +448,29 @@
   color: var(--text-muted);
   text-align: center;
   margin: 8px 0;
+  font-family: var(--font-mono);
 }
 .canvas-raw {
   font-family: var(--font-mono);
   font-size: var(--type-micro);
-  background: var(--bg-tertiary, var(--bg-primary));
+  background: var(--bg-primary);
   padding: 8px;
-  border-radius: 4px;
+  border: 1px solid var(--border);
   overflow-x: auto;
   margin: 0;
+}
+
+/* ── Reduced Motion ──────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .canvas-card {
+    animation: none;
+    transition: border-color 0.2s ease;
+  }
+  .canvas-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .canvas-status-dot {
+    animation: none;
+  }
 }

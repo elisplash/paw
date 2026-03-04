@@ -32,6 +32,9 @@ export function formatMarkdown(text: string): string {
   html = escHtml(html);
 
   // 3. Apply inline markdown transforms on the escaped text
+  //    :icon_name: → Material Symbol (only known-safe ligature chars a-z_0-9)
+  html = html.replace(/:([a-z][a-z0-9_]{1,30}):/g, '<span class="ms ms-sm">$1</span>');
+
   html = html
     .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')

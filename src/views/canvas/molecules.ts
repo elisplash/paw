@@ -274,10 +274,20 @@ function renderStatus(data: Record<string, unknown>): string {
   const icon = dataStr(data, 'icon', 'info');
   const text = dataStr(data, 'text');
   const badge = dataStr(data, 'badge');
+  const level = dataStr(data, 'level', 'ok');
+  const dotClass =
+    level === 'error'
+      ? 'status-error'
+      : level === 'warning' || level === 'warn'
+        ? 'status-warning'
+        : level === 'idle'
+          ? 'status-idle'
+          : '';
 
   return `
     <div class="canvas-status">
-      <span class="ms">${escHtml(icon)}</span>
+      <span class="canvas-status-dot ${dotClass}"></span>
+      <span class="ms ms-sm">${escHtml(icon)}</span>
       <span class="canvas-status-text">${escHtml(text)}</span>
       ${badge ? `<span class="canvas-status-badge">${escHtml(badge)}</span>` : ''}
     </div>
