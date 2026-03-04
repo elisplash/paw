@@ -93,6 +93,11 @@ pub async fn execute(
     args: &serde_json::Value,
     app_handle: &tauri::AppHandle,
 ) -> Option<Result<String, String>> {
+    // Only handle sol_* tool names — return None for everything else
+    // so the dispatch chain can continue to MCP and other modules.
+    if !name.starts_with("sol_") {
+        return None;
+    }
     let creds = match super::get_skill_creds("solana_dex", app_handle) {
         Ok(c) => c,
         Err(e) => return Some(Err(e.to_string())),
