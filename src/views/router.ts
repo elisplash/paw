@@ -19,6 +19,7 @@ import * as TodayModule from './today';
 // import * as PawzHubModule from './pawzhub';
 import * as IntegrationsModule from './integrations';
 import * as FlowsModule from './flows';
+import * as CanvasModule from './canvas';
 
 export const allViewIds = [
   'setup-view',
@@ -41,6 +42,7 @@ export const allViewIds = [
   // 'pawzhub-view', // removed — redirects to integrations
   'integrations-view',
   'flows-view',
+  'canvas-view',
 ];
 
 const viewMap: Record<string, string> = {
@@ -66,6 +68,7 @@ const viewMap: Record<string, string> = {
   pawzhub: 'integrations-view', // PawzHub merged into Integrations
   integrations: 'integrations-view',
   flows: 'flows-view',
+  canvas: 'canvas-view',
 };
 
 /** Check whether the app has been initialised (engine mode active). */
@@ -212,6 +215,9 @@ export function switchView(viewName: string) {
       break;
     case 'flows':
       FlowsModule.loadFlows();
+      break;
+    case 'canvas':
+      CanvasModule.loadCanvas();
       break;
     default:
       break;

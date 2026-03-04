@@ -121,7 +121,9 @@ export interface EngineEvent {
     | 'complete'
     | 'error'
     | 'thinking_delta'
-    | 'tool_auto_approved';
+    | 'tool_auto_approved'
+    | 'canvas_push'
+    | 'canvas_update';
   session_id: string;
   run_id: string;
   // delta + thinking_delta
@@ -144,6 +146,24 @@ export interface EngineEvent {
   tool_name?: string;
   // multi-agent: which agent produced this event
   agent_id?: string;
+  // canvas_push
+  component_id?: string;
+  component?: CanvasComponent;
+  // canvas_update
+  patch?: CanvasComponentPatch;
+  // ── Inspector metadata (Phase 4) ──
+  /** Current round in the agent loop (on tool_request) */
+  round_number?: number;
+  /** Tools currently loaded for this turn (on tool_request) */
+  loaded_tools?: string[];
+  /** Estimated context token count (on tool_request) */
+  context_tokens?: number;
+  /** Tool execution duration in ms (on tool_result) */
+  duration_ms?: number;
+  /** Total rounds executed in this turn (on complete) */
+  total_rounds?: number;
+  /** Max rounds configured (on complete) */
+  max_rounds?: number;
 }
 
 export interface EngineStatus {
@@ -278,6 +298,175 @@ export interface SkillOutput {
   data: string;
   created_at: string;
   updated_at: string;
+}
+
+// ── Agent Canvas ─────────────────────────────────────────────────────
+
+/** Canvas component types — extends skill_output widget types. */
+export type CanvasComponentType =
+  | 'metric'
+  | 'table'
+  | 'chart'
+  | 'log'
+  | 'kv'
+  | 'card'
+  | 'status'
+  | 'progress'
+  | 'form'
+  | 'markdown';
+
+/** A persisted canvas component row from the backend. */
+export interface CanvasComponentRow {
+  id: string;
+  session_id: string | null;
+  dashboard_id: string | null;
+  agent_id: string;
+  component_type: CanvasComponentType;
+  title: string;
+  /** JSON-encoded structured data. */
+  data: string;
+  /** JSON-encoded grid position hint. */
+  position: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Live canvas component (parsed from CanvasComponentRow). */
+export interface CanvasComponent {
+  component_type: CanvasComponentType;
+  title: string;
+  data: Record<string, unknown>;
+  position?: CanvasPosition;
+}
+
+/** Grid placement hint for bento layout. */
+export interface CanvasPosition {
+  col?: number;
+  row?: number;
+  width?: number;
+  height?: number;
+}
+
+/** Partial update patch for a canvas component. */
+export interface CanvasComponentPatch {
+  title?: string;
+  data?: Record<string, unknown>;
+  position?: CanvasPosition;
+}
+
+// ── Saved Dashboards (Canvas Phase 2) ────────────────────────────────
+
+/** A saved dashboard row from the backend. */
+export interface DashboardRow {
+  id: string;
+  name: string;
+  icon: string;
+  agent_id: string;
+  source_session_id: string | null;
+  template_id: string | null;
+  pinned: boolean;
+  refresh_interval: string | null;
+  refresh_prompt: string | null;
+  last_refreshed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A dashboard template row from the backend. */
+export interface DashboardTemplateRow {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  /** JSON-encoded array of component skeletons. */
+  components: string;
+  /** JSON-encoded array of string tags. */
+  tags: string;
+  setup_prompt: string | null;
+  source: 'builtin' | 'user' | 'community';
+  created_at: string;
+}
+
+// ── Dashboard Tabs & Windows (Canvas Phase 3) ────────────────────────
+
+/** A persisted tab state row from the backend. */
+export interface DashboardTabRow {
+  id: string;
+  dashboard_id: string;
+  tab_order: number;
+  active: boolean;
+  window_id: string;
+  created_at: string;
+}
+
+/** Persisted pop-out window geometry for a dashboard. */
+export interface DashboardWindowRow {
+  dashboard_id: string;
+  x: number | null;
+  y: number | null;
+  width: number;
+  height: number;
+  monitor: number | null;
+  popped_out: boolean;
+  updated_at: string;
+}
+
+// ── Telemetry (Canvas Phase 5) ───────────────────────────────────────
+
+/** A single per-turn telemetry metric row from the backend. */
+export interface TelemetryMetricRow {
+  id: number;
+  date: string;
+  session_id: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  tool_calls: number;
+  tool_duration_ms: number;
+  llm_duration_ms: number;
+  total_duration_ms: number;
+  rounds: number;
+  created_at: string;
+}
+
+/** Aggregated metrics for a single day. */
+export interface TelemetryDailySummary {
+  date: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  tool_calls: number;
+  tool_duration_ms: number;
+  llm_duration_ms: number;
+  total_duration_ms: number;
+  rounds: number;
+  turn_count: number;
+}
+
+/** Per-model cost breakdown for a single day. */
+export interface TelemetryModelBreakdown {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  turn_count: number;
+}
+
+/** Turn summary emitted via telemetry-flush Tauri event. */
+export interface TelemetryTurnSummary {
+  session_id: string;
+  run_id: string;
+  model: string | null;
+  total_duration_ms: number;
+  llm_duration_ms: number;
+  tool_duration_ms: number;
+  rounds: number;
+  tool_calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+  timestamp: string;
 }
 
 // ── Community Skills (skills.sh) ─────────────────────────────────────

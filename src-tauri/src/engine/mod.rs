@@ -39,6 +39,7 @@ pub mod sol_dex;
 pub mod swarm;
 pub mod tasks;
 pub mod telegram;
+pub mod telemetry;
 pub mod tool_index;
 pub mod twitch;
 pub mod web;

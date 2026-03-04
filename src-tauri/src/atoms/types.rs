@@ -151,6 +151,16 @@ pub enum EngineEvent {
         /// Tool classification: "safe", "reversible", "external", "dangerous", "unknown"
         #[serde(skip_serializing_if = "Option::is_none")]
         tool_tier: Option<String>,
+        // ── Inspector metadata (Phase 4) ──
+        /// Current round number in the agent loop
+        #[serde(skip_serializing_if = "Option::is_none")]
+        round_number: Option<u32>,
+        /// Which tools are currently loaded for this agent turn
+        #[serde(skip_serializing_if = "Option::is_none")]
+        loaded_tools: Option<Vec<String>>,
+        /// Estimated context token count at this point
+        #[serde(skip_serializing_if = "Option::is_none")]
+        context_tokens: Option<u32>,
     },
     /// A tool finished executing
     #[serde(rename = "tool_result")]
@@ -160,6 +170,10 @@ pub enum EngineEvent {
         tool_call_id: String,
         output: String,
         success: bool,
+        // ── Inspector metadata (Phase 4) ──
+        /// Duration of the tool execution in milliseconds
+        #[serde(skip_serializing_if = "Option::is_none")]
+        duration_ms: Option<u64>,
     },
     /// The full assistant turn is complete
     #[serde(rename = "complete")]
@@ -173,6 +187,13 @@ pub enum EngineEvent {
         /// The actual model that responded (from the API, not config)
         #[serde(skip_serializing_if = "Option::is_none")]
         model: Option<String>,
+        // ── Inspector metadata (Phase 4) ──
+        /// Total rounds executed in this agent turn
+        #[serde(skip_serializing_if = "Option::is_none")]
+        total_rounds: Option<u32>,
+        /// Max rounds configured for this agent
+        #[serde(skip_serializing_if = "Option::is_none")]
+        max_rounds: Option<u32>,
     },
     /// A thinking/reasoning delta from extended-thinking models
     #[serde(rename = "thinking_delta")]
@@ -196,6 +217,160 @@ pub enum EngineEvent {
         run_id: String,
         message: String,
     },
+    /// Agent pushes a new component to the canvas.
+    #[serde(rename = "canvas_push")]
+    CanvasPush {
+        session_id: String,
+        run_id: String,
+        agent_id: String,
+        component_id: String,
+        component: CanvasComponent,
+    },
+    /// Agent updates an existing canvas component in-place.
+    #[serde(rename = "canvas_update")]
+    CanvasUpdate {
+        session_id: String,
+        run_id: String,
+        agent_id: String,
+        component_id: String,
+        patch: CanvasComponentPatch,
+    },
+}
+
+// ── Canvas Components (Agent Canvas) ──────────────────────────────────
+
+/// The type of a canvas component — determines rendering strategy.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum CanvasComponentType {
+    Metric,
+    Table,
+    Chart,
+    Log,
+    Kv,
+    Card,
+    Status,
+    Progress,
+    Form,
+    Markdown,
+}
+
+/// A single canvas component created by an agent tool call.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CanvasComponent {
+    pub component_type: CanvasComponentType,
+    pub title: String,
+    pub data: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position: Option<CanvasPosition>,
+}
+
+/// Grid placement hint for bento-style layout.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CanvasPosition {
+    pub col: Option<u32>,
+    pub row: Option<u32>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+}
+
+/// Partial update patch for an existing canvas component.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CanvasComponentPatch {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position: Option<CanvasPosition>,
+}
+
+/// A persisted canvas component row, returned to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CanvasComponentRow {
+    pub id: String,
+    pub session_id: Option<String>,
+    pub dashboard_id: Option<String>,
+    pub agent_id: String,
+    pub component_type: String,
+    pub title: String,
+    pub data: String,
+    pub position: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// A saved dashboard record, returned to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardRow {
+    pub id: String,
+    pub name: String,
+    pub icon: String,
+    pub agent_id: String,
+    pub source_session_id: Option<String>,
+    pub template_id: Option<String>,
+    pub pinned: bool,
+    pub refresh_interval: Option<String>,
+    pub refresh_prompt: Option<String>,
+    pub last_refreshed_at: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+/// A dashboard template record, returned to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardTemplateRow {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub icon: String,
+    pub components: String,
+    pub tags: String,
+    pub setup_prompt: Option<String>,
+    pub source: String,
+    pub created_at: String,
+}
+
+/// A dashboard tab state row, returned to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardTabRow {
+    pub id: String,
+    pub dashboard_id: String,
+    pub tab_order: i32,
+    pub active: bool,
+    pub window_id: String,
+    pub created_at: String,
+}
+
+/// Persisted pop-out window geometry for a dashboard.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardWindowRow {
+    pub dashboard_id: String,
+    pub x: Option<i32>,
+    pub y: Option<i32>,
+    pub width: i32,
+    pub height: i32,
+    pub monitor: Option<i32>,
+    pub popped_out: bool,
+    pub updated_at: String,
+}
+
+/// A single telemetry metric row stored per agent turn.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TelemetryMetricRow {
+    pub id: i64,
+    pub date: String,
+    pub session_id: String,
+    pub model: String,
+    pub input_tokens: u64,
+    pub output_tokens: u64,
+    pub cost_usd: f64,
+    pub tool_calls: u32,
+    pub tool_duration_ms: u64,
+    pub llm_duration_ms: u64,
+    pub total_duration_ms: u64,
+    pub rounds: u32,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

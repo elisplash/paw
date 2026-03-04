@@ -68,6 +68,8 @@ import { restoreShowcase, enableShowcase } from './components/showcase';
 import { shouldShowWizard, initWizard } from './views/onboarding';
 import { initLockScreen } from './views/lock-screen';
 import { sidebarNavEntrance } from './components/animations';
+import { toggleInspector } from './views/inspector/index';
+import { startTelemetryListener } from './views/inspector/telemetry-bridge';
 
 // ── Tauri bridge ─────────────────────────────────────────────────────────
 interface TauriWindow {
@@ -212,6 +214,8 @@ function handlePaletteAction(action: string) {
   } else if (action === 'showcase-toggle') {
     enableShowcase();
     switchView('today');
+  } else if (action === 'toggle-inspector') {
+    toggleInspector();
   } else if (action.startsWith('skill-toggle:')) {
     const skillId = action.replace('skill-toggle:', '');
     pawEngine.skillSetEnabled(skillId, true).catch((e) => {
@@ -255,6 +259,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         );
       });
     }
+
+    // ── Inspector keyboard shortcut (Ctrl+Shift+I / Cmd+Shift+I) ─────
+    document.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.shiftKey && (e.ctrlKey || e.metaKey) && e.key === 'I') {
+        e.preventDefault();
+        toggleInspector();
+      }
+    });
+
+    // ── Telemetry listener (Canvas Phase 5) ─────────────────────────
+    startTelemetryListener().catch((err) =>
+      console.warn('[main] Failed to start telemetry listener:', err),
+    );
 
     try {
       const prevLog = localStorage.getItem('paw-crash-log');

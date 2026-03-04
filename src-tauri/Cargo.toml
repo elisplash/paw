@@ -104,6 +104,10 @@ parking_lot = "0.12"
 rustls-pemfile = "2"
 hkdf = "0.12"
 
+# ── Telemetry & Tracing (Canvas Phase 5) ─────────────────────
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
 # ── Tests: single binary to avoid OOM on codespace ──────────
 [[test]]
 name = "integration"

@@ -23,7 +23,11 @@ use std::path::PathBuf;
 
 mod agent_files;
 mod agent_messages;
+mod canvas;
 mod config;
+mod dashboard_tabs;
+mod dashboard_windows;
+mod dashboards;
 pub(crate) mod embedding;
 mod engram;
 mod flows;
@@ -38,6 +42,8 @@ mod skill_outputs;
 mod skill_storage;
 mod squads;
 mod tasks;
+pub(crate) mod telemetry;
+mod templates;
 mod trades;
 
 // ── Re-exports (preserve crate::engine::sessions::* API) ─────────────────────

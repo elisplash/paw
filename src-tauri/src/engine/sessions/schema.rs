@@ -440,6 +440,113 @@ pub(crate) fn run_migrations(conn: &Connection) -> EngineResult<()> {
     // ── Unified Signed Audit Log ────────────────────────────────────
     conn.execute_batch(crate::engine::audit::UNIFIED_AUDIT_SCHEMA)?;
 
+    // ── Canvas Components (Agent Canvas) ────────────────────────────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS canvas_components (
+            id TEXT PRIMARY KEY,
+            session_id TEXT,
+            dashboard_id TEXT,
+            agent_id TEXT NOT NULL DEFAULT 'default',
+            component_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            data TEXT NOT NULL DEFAULT '{}',
+            position TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_canvas_session ON canvas_components(session_id);
+        CREATE INDEX IF NOT EXISTS idx_canvas_dashboard ON canvas_components(dashboard_id);
+        CREATE INDEX IF NOT EXISTS idx_canvas_agent ON canvas_components(agent_id);",
+    )
+    .ok();
+
+    // ── Saved Dashboards (Agent Canvas Phase 2) ─────────────────────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS dashboards (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            icon TEXT NOT NULL DEFAULT 'dashboard',
+            agent_id TEXT NOT NULL DEFAULT 'default',
+            source_session_id TEXT,
+            template_id TEXT,
+            pinned INTEGER NOT NULL DEFAULT 0,
+            refresh_interval TEXT,
+            refresh_prompt TEXT,
+            last_refreshed_at TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_dashboards_pinned ON dashboards(pinned);",
+    )
+    .ok();
+
+    // ── Dashboard Templates (Agent Canvas Phase 2) ──────────────────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS dashboard_templates (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT '',
+            icon TEXT NOT NULL DEFAULT 'dashboard_customize',
+            components TEXT NOT NULL DEFAULT '[]',
+            tags TEXT NOT NULL DEFAULT '[]',
+            setup_prompt TEXT,
+            source TEXT NOT NULL DEFAULT 'builtin',
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );",
+    )
+    .ok();
+
+    // ── Dashboard Tabs (Agent Canvas Phase 3) ───────────────────────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS dashboard_tabs (
+            id TEXT PRIMARY KEY,
+            dashboard_id TEXT NOT NULL,
+            tab_order INTEGER NOT NULL DEFAULT 0,
+            active INTEGER NOT NULL DEFAULT 0,
+            window_id TEXT NOT NULL DEFAULT 'main',
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_dashboard_tabs_window ON dashboard_tabs(window_id);",
+    )
+    .ok();
+
+    // ── Dashboard Windows / Geometry (Agent Canvas Phase 3) ─────────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS dashboard_windows (
+            dashboard_id TEXT PRIMARY KEY,
+            x INTEGER,
+            y INTEGER,
+            width INTEGER NOT NULL DEFAULT 900,
+            height INTEGER NOT NULL DEFAULT 700,
+            monitor INTEGER,
+            popped_out INTEGER NOT NULL DEFAULT 0,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );",
+    )
+    .ok();
+
+    // ── Telemetry Metrics (Agent Canvas Phase 5) ────────────────────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS telemetry_metrics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            date TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            model TEXT NOT NULL,
+            input_tokens INTEGER NOT NULL DEFAULT 0,
+            output_tokens INTEGER NOT NULL DEFAULT 0,
+            cost_usd REAL NOT NULL DEFAULT 0.0,
+            tool_calls INTEGER NOT NULL DEFAULT 0,
+            tool_duration_ms INTEGER NOT NULL DEFAULT 0,
+            llm_duration_ms INTEGER NOT NULL DEFAULT 0,
+            total_duration_ms INTEGER NOT NULL DEFAULT 0,
+            rounds INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_telemetry_date ON telemetry_metrics(date);
+        CREATE INDEX IF NOT EXISTS idx_telemetry_session ON telemetry_metrics(session_id);",
+    )
+    .ok();
+
     Ok(())
 }
 

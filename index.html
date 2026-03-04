@@ -153,6 +153,10 @@
               <span class="ms nav-icon">account_tree</span>
               <span class="nav-label">Flows</span>
             </div>
+            <div class="nav-item" data-view="canvas">
+              <span class="ms nav-icon">dashboard_customize</span>
+              <span class="nav-label">Canvas</span>
+            </div>
           </div>
 
           <div class="nav-section">
@@ -2854,6 +2858,11 @@
           </button>
         </div>
 
+        <!-- ═══ Canvas View — Agent Canvas Dashboard ═══ -->
+        <div class="view canvas-view" id="canvas-view">
+          <!-- Populated by src/views/canvas/molecules.ts -->
+        </div>
+
         <!-- ═══ Foundry View — Models & Modes ═══ -->
         <div class="view foundry-view" id="foundry-view">
           <!-- Kinetic hero header -->
@@ -3834,6 +3843,9 @@
         </div>
       </div>
     </div>
+
+    <!-- Inspector Panel (Agent X-Ray) — Phase 4 -->
+    <div id="inspector-panel"></div>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

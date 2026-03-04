@@ -337,6 +337,37 @@ pub fn run() {
             commands::skills::engine_pawzhub_install,
             // ── Skill Outputs (Phase F.2) ──
             commands::skills::engine_list_skill_outputs,
+            // ── Agent Canvas ──
+            commands::canvas::engine_canvas_list_by_session,
+            commands::canvas::engine_canvas_list_by_dashboard,
+            commands::canvas::engine_canvas_delete_component,
+            commands::canvas::engine_canvas_clear_session,
+            // ── Dashboards & Templates (Canvas Phase 2) ──
+            commands::dashboards::engine_list_dashboards,
+            commands::dashboards::engine_list_pinned_dashboards,
+            commands::dashboards::engine_get_dashboard,
+            commands::dashboards::engine_delete_dashboard,
+            commands::dashboards::engine_list_templates,
+            commands::dashboards::engine_get_template,
+            commands::dashboards::engine_delete_template,
+            commands::dashboards::engine_seed_templates,
+            // ── Tabs & Windows (Canvas Phase 3) ──
+            commands::dashboard_tabs::engine_open_tab,
+            commands::dashboard_tabs::engine_close_tab,
+            commands::dashboard_tabs::engine_activate_tab,
+            commands::dashboard_tabs::engine_reorder_tab,
+            commands::dashboard_tabs::engine_list_tabs,
+            commands::dashboard_tabs::engine_list_all_tabs,
+            commands::dashboard_tabs::engine_save_window_geometry,
+            commands::dashboard_tabs::engine_get_window_geometry,
+            commands::dashboard_tabs::engine_list_popped_out_windows,
+            commands::dashboard_tabs::engine_mark_window_closed,
+            // ── Telemetry (Canvas Phase 5) ──
+            commands::telemetry::engine_get_daily_metrics,
+            commands::telemetry::engine_get_metrics_range,
+            commands::telemetry::engine_get_model_breakdown,
+            commands::telemetry::engine_list_session_metrics,
+            commands::telemetry::engine_purge_old_metrics,
             // ── Skill Wizard (Phase F.5) ──
             commands::skill_wizard::engine_wizard_generate_toml,
             commands::skill_wizard::engine_wizard_publish_url,

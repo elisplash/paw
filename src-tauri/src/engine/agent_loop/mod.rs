@@ -8,10 +8,11 @@ mod trading;
 use crate::atoms::error::EngineResult;
 use crate::engine::providers::AnyProvider;
 use crate::engine::state::{DailyTokenTracker, PendingApprovals};
+use crate::engine::telemetry::{integration as telem, RunCollector};
 use crate::engine::tools;
 use crate::engine::types::*;
 use log::{info, warn};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
 use trading::check_trading_auto_approve;
 
@@ -44,6 +45,13 @@ pub async fn run_agent_turn(
     let mut final_text = String::new();
     let mut last_input_tokens: u64 = 0; // Only the LAST round's input (= actual context size)
     let mut total_output_tokens: u64 = 0; // Sum of all rounds' output tokens
+
+    // ── Telemetry: per-turn collector (Canvas Phase 5) ────────────────
+    let mut telem_collector = RunCollector::new(session_id, run_id, model);
+    let telem_root_id = telem_collector.root_span("agent_turn");
+    let turn_start = Instant::now();
+    let mut tool_duration_total_ms: u64 = 0;
+    let mut tool_call_count: u32 = 0;
 
     // Circuit breaker: track consecutive failures per tool name.
     // After MAX_CONSECUTIVE_TOOL_FAILS of the same tool, inject a system nudge.
@@ -87,6 +95,8 @@ pub async fn run_agent_turn(
                         tool_calls_count: 0,
                         usage: None,
                         model: None,
+                        total_rounds: Some(round),
+                        max_rounds: Some(max_rounds),
                     },
                 );
                 return Ok(final_text);
@@ -115,6 +125,8 @@ pub async fn run_agent_turn(
                         tool_calls_count: 0,
                         usage: None,
                         model: None,
+                        total_rounds: Some(round),
+                        max_rounds: Some(max_rounds),
                     },
                 );
             }
@@ -359,8 +371,30 @@ pub async fn run_agent_turn(
                     tool_calls_count: 0,
                     usage,
                     model: confirmed_model.clone(),
+                    total_rounds: Some(round),
+                    max_rounds: Some(max_rounds),
                 },
             );
+
+            // ── Telemetry flush (Canvas Phase 5) ──────────────────────
+            {
+                let total_ms = turn_start.elapsed().as_millis() as u64;
+                let llm_ms = total_ms.saturating_sub(tool_duration_total_ms);
+                let mut summary = telem_collector.build_summary(
+                    last_input_tokens,
+                    total_output_tokens,
+                    round,
+                    tool_call_count,
+                );
+                summary.total_duration_ms = total_ms;
+                summary.llm_duration_ms = llm_ms;
+                summary.tool_duration_ms = tool_duration_total_ms;
+
+                if let Some(es) = app_handle.try_state::<crate::engine::state::EngineState>() {
+                    telem::persist_summary(&es.store, &summary);
+                }
+                telem::emit_summary(app_handle, &summary);
+            }
 
             return Ok(final_text);
         }
@@ -718,6 +752,9 @@ pub async fn run_agent_turn(
                         run_id: run_id.to_string(),
                         tool_call: tc.clone(),
                         tool_tier: Some(_tool_tier.to_string()),
+                        round_number: Some(round + 1),
+                        loaded_tools: None,
+                        context_tokens: None,
                     },
                 );
 
@@ -768,6 +805,7 @@ pub async fn run_agent_turn(
                         tool_call_id: tc.id.clone(),
                         output: "Tool execution denied by user.".into(),
                         success: false,
+                        duration_ms: None,
                     },
                 );
 
@@ -783,7 +821,11 @@ pub async fn run_agent_turn(
             }
 
             // Execute the tool (pass agent_id so tools know which agent is calling)
+            let tool_timer = telem::ToolTimer::start(&tc.function.name);
             let result = tools::execute_tool(tc, app_handle, agent_id).await;
+            let tool_ms = tool_timer.finish(&telem_collector, &telem_root_id, result.success);
+            tool_duration_total_ms += tool_ms;
+            tool_call_count += 1;
 
             info!(
                 "[engine] Tool result: {} success={} output_len={}",
@@ -815,6 +857,7 @@ pub async fn run_agent_turn(
                     tool_call_id: tc.id.clone(),
                     output: result.output.clone(),
                     success: result.success,
+                    duration_ms: Some(tool_ms),
                 },
             );
 

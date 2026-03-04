@@ -1,0 +1,163 @@
+/* ═══ Canvas Tab Bar (Phase 3) ═══ */
+
+/* ── Tab Bar Container ───────────────────────────────────── */
+.canvas-tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  height: 36px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-secondary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.canvas-tab-list {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Individual Tab ──────────────────────────────────────── */
+.canvas-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  height: 28px;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 160px;
+  transition: background 0.15s, color 0.15s;
+  user-select: none;
+  position: relative;
+}
+
+.canvas-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.canvas-tab-active {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--accent);
+}
+
+.canvas-tab-pinned .canvas-tab-icon {
+  color: var(--accent);
+}
+
+/* ── Tab Elements ────────────────────────────────────────── */
+.canvas-tab-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.canvas-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.canvas-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.canvas-tab:hover .canvas-tab-close {
+  opacity: 1;
+}
+
+.canvas-tab-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ── Live Indicator ──────────────────────────────────────── */
+.canvas-tab-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+  animation: canvas-tab-pulse 2s ease-in-out infinite;
+}
+
+@keyframes canvas-tab-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── Add Button ──────────────────────────────────────────── */
+.canvas-tab-add {
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+/* ── Overflow Dropdown ───────────────────────────────────── */
+.canvas-tab-overflow {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.canvas-tab-overflow-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  min-width: 180px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: var(--shadow-md);
+}
+
+.canvas-tab-overflow-open {
+  display: flex;
+  flex-direction: column;
+}
+
+.canvas-tab-overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+  border-radius: 4px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.canvas-tab-overflow-item:hover {
+  background: var(--bg-hover);
+}

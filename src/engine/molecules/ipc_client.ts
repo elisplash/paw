@@ -66,6 +66,14 @@ import type {
   McpServerConfig,
   McpServerStatus,
   SkillOutput,
+  CanvasComponentRow,
+  DashboardRow,
+  DashboardTemplateRow,
+  DashboardTabRow,
+  DashboardWindowRow,
+  TelemetryMetricRow,
+  TelemetryDailySummary,
+  TelemetryModelBreakdown,
   EngineSquad,
   EngineSquadMember,
   EngineAgentMessage,
@@ -434,6 +442,138 @@ export class PawEngineClient {
 
   async listSkillOutputs(skillId?: string, agentId?: string): Promise<SkillOutput[]> {
     return invoke<SkillOutput[]>('engine_list_skill_outputs', { skillId, agentId });
+  }
+
+  // ── Agent Canvas ─────────────────────────────────────────────────────
+
+  async canvasListBySession(sessionId: string): Promise<CanvasComponentRow[]> {
+    return invoke<CanvasComponentRow[]>('engine_canvas_list_by_session', { sessionId });
+  }
+
+  async canvasListByDashboard(dashboardId: string): Promise<CanvasComponentRow[]> {
+    return invoke<CanvasComponentRow[]>('engine_canvas_list_by_dashboard', { dashboardId });
+  }
+
+  async canvasDeleteComponent(componentId: string): Promise<boolean> {
+    return invoke<boolean>('engine_canvas_delete_component', { componentId });
+  }
+
+  async canvasClearSession(sessionId: string): Promise<number> {
+    return invoke<number>('engine_canvas_clear_session', { sessionId });
+  }
+
+  // ── Dashboards & Templates (Canvas Phase 2) ──────────────────────────
+
+  async listDashboards(): Promise<DashboardRow[]> {
+    return invoke<DashboardRow[]>('engine_list_dashboards');
+  }
+
+  async listPinnedDashboards(): Promise<DashboardRow[]> {
+    return invoke<DashboardRow[]>('engine_list_pinned_dashboards');
+  }
+
+  async getDashboard(dashboardId: string): Promise<DashboardRow | null> {
+    return invoke<DashboardRow | null>('engine_get_dashboard', { dashboardId });
+  }
+
+  async deleteDashboard(dashboardId: string): Promise<boolean> {
+    return invoke<boolean>('engine_delete_dashboard', { dashboardId });
+  }
+
+  async listTemplates(source?: string): Promise<DashboardTemplateRow[]> {
+    return invoke<DashboardTemplateRow[]>('engine_list_templates', { source: source ?? null });
+  }
+
+  async getTemplate(templateId: string): Promise<DashboardTemplateRow | null> {
+    return invoke<DashboardTemplateRow | null>('engine_get_template', { templateId });
+  }
+
+  async deleteTemplate(templateId: string): Promise<boolean> {
+    return invoke<boolean>('engine_delete_template', { templateId });
+  }
+
+  async seedTemplates(): Promise<number> {
+    return invoke<number>('engine_seed_templates');
+  }
+
+  // ── Tabs & Windows (Canvas Phase 3) ──────────────────────────────────
+
+  async openTab(tabId: string, dashboardId: string, windowId = 'main'): Promise<void> {
+    return invoke<void>('engine_open_tab', { tabId, dashboardId, windowId });
+  }
+
+  async closeTab(tabId: string): Promise<boolean> {
+    return invoke<boolean>('engine_close_tab', { tabId });
+  }
+
+  async activateTab(tabId: string, windowId = 'main'): Promise<void> {
+    return invoke<void>('engine_activate_tab', { tabId, windowId });
+  }
+
+  async reorderTab(tabId: string, newOrder: number): Promise<void> {
+    return invoke<void>('engine_reorder_tab', { tabId, newOrder });
+  }
+
+  async listTabs(windowId = 'main'): Promise<DashboardTabRow[]> {
+    return invoke<DashboardTabRow[]>('engine_list_tabs', { windowId });
+  }
+
+  async listAllTabs(): Promise<DashboardTabRow[]> {
+    return invoke<DashboardTabRow[]>('engine_list_all_tabs');
+  }
+
+  async saveWindowGeometry(
+    dashboardId: string,
+    x: number | null,
+    y: number | null,
+    width: number,
+    height: number,
+    monitor: number | null,
+    poppedOut: boolean,
+  ): Promise<void> {
+    return invoke<void>('engine_save_window_geometry', {
+      dashboardId,
+      x,
+      y,
+      width,
+      height,
+      monitor,
+      poppedOut,
+    });
+  }
+
+  async getWindowGeometry(dashboardId: string): Promise<DashboardWindowRow | null> {
+    return invoke<DashboardWindowRow | null>('engine_get_window_geometry', { dashboardId });
+  }
+
+  async listPoppedOutWindows(): Promise<DashboardWindowRow[]> {
+    return invoke<DashboardWindowRow[]>('engine_list_popped_out_windows');
+  }
+
+  async markWindowClosed(dashboardId: string): Promise<boolean> {
+    return invoke<boolean>('engine_mark_window_closed', { dashboardId });
+  }
+
+  // ── Telemetry (Canvas Phase 5) ───────────────────────────────────────
+
+  async getDailyMetrics(date: string): Promise<TelemetryDailySummary> {
+    return invoke<TelemetryDailySummary>('engine_get_daily_metrics', { date });
+  }
+
+  async getMetricsRange(startDate: string, endDate: string): Promise<TelemetryDailySummary[]> {
+    return invoke<TelemetryDailySummary[]>('engine_get_metrics_range', { startDate, endDate });
+  }
+
+  async getModelBreakdown(date: string): Promise<TelemetryModelBreakdown[]> {
+    return invoke<TelemetryModelBreakdown[]>('engine_get_model_breakdown', { date });
+  }
+
+  async listSessionMetrics(sessionId: string): Promise<TelemetryMetricRow[]> {
+    return invoke<TelemetryMetricRow[]>('engine_list_session_metrics', { sessionId });
+  }
+
+  async purgeOldMetrics(cutoffDate: string): Promise<number> {
+    return invoke<number>('engine_purge_old_metrics', { cutoffDate });
   }
 
   // ── PawzHub Registry (Phase F.4) ─────────────────────────────────────

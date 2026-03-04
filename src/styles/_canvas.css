@@ -1,0 +1,369 @@
+/* ═══ Agent Canvas View ═══ */
+.canvas-view {
+  padding: 16px;
+  overflow-y: auto;
+  height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.canvas-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.canvas-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+}
+.canvas-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Empty State ─────────────────────────────────────────── */
+.canvas-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 64px 24px;
+  color: var(--text-muted);
+}
+.canvas-empty .ms-xl {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+.canvas-empty h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+.canvas-empty p {
+  font-size: var(--type-sm);
+  margin: 0 0 4px;
+}
+.canvas-empty-hint {
+  font-family: var(--font-mono);
+  font-size: var(--type-micro);
+  color: var(--text-dim);
+  margin-top: 8px !important;
+}
+
+/* ── Bento Grid ──────────────────────────────────────────── */
+.canvas-grid {
+  display: grid;
+  gap: 12px;
+}
+@media (max-width: 800px) {
+  .canvas-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── Card ────────────────────────────────────────────────── */
+.canvas-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+.canvas-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.canvas-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: var(--type-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+.canvas-card-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-card-remove {
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.canvas-card:hover .canvas-card-remove {
+  opacity: 1;
+}
+.canvas-card-body {
+  padding: 12px;
+}
+
+/* ── Metric ──────────────────────────────────────────────── */
+.canvas-metric {
+  text-align: center;
+}
+.canvas-metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+.canvas-metric-unit {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+.canvas-metric-change {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: var(--type-sm);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.canvas-trend-up { color: var(--success, #10b981); }
+.canvas-trend-down { color: var(--error, #ef4444); }
+.canvas-metric-detail {
+  font-size: var(--type-micro);
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ── Table ───────────────────────────────────────────────── */
+.canvas-table-wrap {
+  overflow-x: auto;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.canvas-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-sm);
+  font-family: var(--font-mono);
+}
+.canvas-table th,
+.canvas-table td {
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+}
+.canvas-table th {
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--type-micro);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+}
+.canvas-table td {
+  color: var(--text-primary);
+}
+
+/* ── Chart ───────────────────────────────────────────────── */
+.canvas-chart {
+  width: 100%;
+  height: auto;
+}
+.canvas-chart-label {
+  fill: var(--text-muted);
+  font-size: 9px;
+  font-family: var(--font-mono);
+}
+.canvas-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: var(--type-micro);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+.canvas-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.canvas-chart-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.canvas-sparkline {
+  width: 120px;
+  height: 32px;
+}
+
+/* ── Log ─────────────────────────────────────────────────── */
+.canvas-log {
+  max-height: 240px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: var(--type-micro);
+}
+.canvas-log-entry {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+.canvas-log-time {
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.canvas-log-text {
+  color: var(--text-primary);
+}
+.canvas-log-info .canvas-log-text { color: var(--text-primary); }
+.canvas-log-warn .canvas-log-text { color: var(--warning, #f59e0b); }
+.canvas-log-error .canvas-log-text { color: var(--error, #ef4444); }
+
+/* ── Key-Value ───────────────────────────────────────────── */
+.canvas-kv {
+  font-family: var(--font-mono);
+  font-size: var(--type-sm);
+}
+.canvas-kv-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border-subtle, var(--border));
+}
+.canvas-kv-key {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+.canvas-kv-value {
+  color: var(--text-primary);
+}
+
+/* ── Card (markdown + actions) ───────────────────────────── */
+.canvas-card-content {}
+.canvas-card-body-text {
+  font-size: var(--type-sm);
+  color: var(--text-primary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.canvas-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Status ──────────────────────────────────────────────── */
+.canvas-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.canvas-status-text {
+  font-size: var(--type-sm);
+  color: var(--text-primary);
+}
+.canvas-status-badge {
+  font-size: var(--type-micro);
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent-dim, var(--bg-tertiary));
+  color: var(--accent, var(--text-muted));
+}
+
+/* ── Progress ────────────────────────────────────────────── */
+.canvas-progress {}
+.canvas-progress-label {
+  font-size: var(--type-sm);
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.canvas-progress-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary, var(--border));
+  overflow: hidden;
+}
+.canvas-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent, #6366f1);
+  transition: width 0.3s ease;
+}
+.canvas-progress-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--type-micro);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── Markdown ────────────────────────────────────────────── */
+.canvas-markdown pre {
+  font-family: var(--font-mono);
+  font-size: var(--type-sm);
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+/* ── Form ────────────────────────────────────────────────── */
+.canvas-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.canvas-form-field label {
+  display: block;
+  font-size: var(--type-micro);
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.canvas-form-submit {
+  align-self: flex-end;
+  margin-top: 4px;
+}
+
+/* ── Utilities ───────────────────────────────────────────── */
+.canvas-muted {
+  font-size: var(--type-sm);
+  color: var(--text-muted);
+  text-align: center;
+  margin: 8px 0;
+}
+.canvas-raw {
+  font-family: var(--font-mono);
+  font-size: var(--type-micro);
+  background: var(--bg-tertiary, var(--bg-primary));
+  padding: 8px;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 0;
+}

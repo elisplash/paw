@@ -1,0 +1,416 @@
+/* Inspector Panel — Agent X-Ray Styles
+   Right-side collapsible drawer showing agent internals. */
+
+/* ── Panel Container ─────────────────────────────────────────────── */
+
+#inspector-panel {
+  position: fixed;
+  top: var(--titlebar-height, 38px);
+  right: 0;
+  bottom: 0;
+  width: 360px;
+  background: var(--bg-secondary, #1e1e2e);
+  border-left: 1px solid var(--border, #363648);
+  z-index: 100;
+  transform: translateX(100%);
+  transition: transform 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#inspector-panel.inspector-open {
+  transform: translateX(0);
+}
+
+/* Push main content when inspector is visible */
+body.inspector-visible .main-content,
+body.inspector-visible .chat-container {
+  margin-right: 360px;
+  transition: margin-right 0.25s ease;
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+
+.inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border, #363648);
+  flex-shrink: 0;
+}
+
+.inspector-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary, #cdd6f4);
+}
+
+.inspector-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green, #a6e3a1);
+  animation: inspector-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes inspector-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.inspector-close-btn {
+  opacity: 0.6;
+}
+.inspector-close-btn:hover {
+  opacity: 1;
+}
+
+/* ── Body ────────────────────────────────────────────────────────── */
+
+.inspector-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Sections ────────────────────────────────────────────────────── */
+
+.inspector-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inspector-section-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #a6adc8);
+  cursor: default;
+  user-select: none;
+}
+
+/* ── Round Counter ───────────────────────────────────────────────── */
+
+.inspector-rounds {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.inspector-ring {
+  flex-shrink: 0;
+}
+
+.inspector-round-label {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.inspector-round-num {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary, #cdd6f4);
+}
+
+.inspector-round-max {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #a6adc8);
+}
+
+.inspector-round-pct {
+  margin-left: auto;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent, #89b4fa);
+}
+
+/* ── Model Badge ─────────────────────────────────────────────────── */
+
+.inspector-model {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #a6adc8);
+  padding: 2px 0;
+}
+
+/* ── Context Bar ─────────────────────────────────────────────────── */
+
+.inspector-ctx-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bg-tertiary, #313244);
+  overflow: hidden;
+}
+
+.inspector-ctx-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.inspector-ctx-ok .inspector-ctx-fill {
+  background: var(--accent, #89b4fa);
+}
+
+.inspector-ctx-warn .inspector-ctx-fill {
+  background: var(--yellow, #f9e2af);
+}
+
+.inspector-ctx-critical .inspector-ctx-fill {
+  background: var(--red, #f38ba8);
+}
+
+.inspector-ctx-label {
+  font-size: 0.7rem;
+  color: var(--text-secondary, #a6adc8);
+  text-align: right;
+}
+
+/* ── Token Usage Grid ────────────────────────────────────────────── */
+
+.inspector-usage-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  font-size: 0.75rem;
+}
+
+.inspector-usage-label {
+  color: var(--text-secondary, #a6adc8);
+}
+
+.inspector-usage-val {
+  color: var(--text-primary, #cdd6f4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tool Chips ──────────────────────────────────────────────────── */
+
+.inspector-tool-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.inspector-chip {
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 3px;
+  background: var(--bg-tertiary, #313244);
+  color: var(--text-secondary, #a6adc8);
+  font-family: var(--font-mono, monospace);
+}
+
+/* ── Tool Timeline ───────────────────────────────────────────────── */
+
+.inspector-timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.inspector-tool-entry {
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: var(--bg-tertiary, #313244);
+  border-left: 3px solid transparent;
+}
+
+.inspector-tool-ok {
+  border-left-color: var(--green, #a6e3a1);
+}
+
+.inspector-tool-fail {
+  border-left-color: var(--red, #f38ba8);
+}
+
+.inspector-tool-running {
+  border-left-color: var(--yellow, #f9e2af);
+}
+
+.inspector-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+}
+
+.inspector-tool-status {
+  font-size: 14px;
+}
+
+.inspector-tool-ok .inspector-tool-status {
+  color: var(--green, #a6e3a1);
+}
+
+.inspector-tool-fail .inspector-tool-status {
+  color: var(--red, #f38ba8);
+}
+
+.inspector-tool-running .inspector-tool-status {
+  color: var(--yellow, #f9e2af);
+  animation: inspector-pulse 1s ease-in-out infinite;
+}
+
+.inspector-tool-name {
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary, #cdd6f4);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspector-tool-tier {
+  font-size: 13px;
+  color: var(--text-secondary, #a6adc8);
+  opacity: 0.6;
+}
+
+.inspector-tool-auto {
+  font-size: 0.6rem;
+  padding: 0 4px;
+  border-radius: 2px;
+  background: var(--accent-dim, rgba(137, 180, 250, 0.15));
+  color: var(--accent, #89b4fa);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.inspector-tool-round {
+  font-size: 0.65rem;
+  color: var(--text-secondary, #a6adc8);
+  opacity: 0.7;
+}
+
+.inspector-tool-dur {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #a6adc8);
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Duration bar */
+.inspector-tool-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: var(--bg-secondary, #1e1e2e);
+  margin-top: 3px;
+  overflow: hidden;
+}
+
+.inspector-tool-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent, #89b4fa);
+  opacity: 0.5;
+}
+
+/* Output preview */
+.inspector-tool-output {
+  margin-top: 4px;
+}
+
+.inspector-tool-output-toggle {
+  font-size: 0.68rem;
+  color: var(--text-secondary, #a6adc8);
+  cursor: pointer;
+  user-select: none;
+}
+
+.inspector-tool-output-pre {
+  font-size: 0.68rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-secondary, #a6adc8);
+  background: var(--bg-secondary, #1e1e2e);
+  padding: 6px 8px;
+  border-radius: 3px;
+  margin-top: 3px;
+  max-height: 100px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Thinking Trace ──────────────────────────────────────────────── */
+
+.inspector-thinking-body {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.inspector-thinking-pre {
+  font-size: 0.72rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--text-secondary, #a6adc8);
+  background: var(--bg-tertiary, #313244);
+  padding: 8px 10px;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+/* ── Collapsible ─────────────────────────────────────────────────── */
+
+.inspector-collapsible > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.inspector-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+.inspector-collapsible > summary::before {
+  content: '▸ ';
+  font-size: 0.7rem;
+  transition: transform 0.15s;
+}
+
+.inspector-collapsible[open] > summary::before {
+  content: '▾ ';
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  #inspector-panel {
+    width: 100%;
+    top: auto;
+    bottom: 0;
+    height: 50vh;
+    border-left: none;
+    border-top: 1px solid var(--border, #363648);
+    transform: translateY(100%);
+  }
+
+  #inspector-panel.inspector-open {
+    transform: translateY(0);
+  }
+
+  body.inspector-visible .main-content,
+  body.inspector-visible .chat-container {
+    margin-right: 0;
+    margin-bottom: 50vh;
+  }
+}

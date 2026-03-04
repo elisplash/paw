@@ -219,6 +219,8 @@ pub(crate) async fn run_orchestrator_loop(
                         tool_calls_count: 0,
                         usage: None,
                         model: confirmed_model.clone(),
+                        total_rounds: Some(round),
+                        max_rounds: Some(max_rounds),
                     },
                 );
             }
@@ -302,6 +304,7 @@ pub(crate) async fn run_orchestrator_loop(
                         tool_call_id: tc.id.clone(),
                         output: output.clone(),
                         success: true,
+                        duration_ms: None,
                     },
                 );
 
@@ -332,6 +335,9 @@ pub(crate) async fn run_orchestrator_loop(
                         run_id: run_id.to_string(),
                         tool_call: tc.clone(),
                         tool_tier: None,
+                        round_number: Some(round + 1),
+                        loaded_tools: None,
+                        context_tokens: None,
                     },
                 );
                 match tokio::time::timeout(
@@ -369,6 +375,7 @@ pub(crate) async fn run_orchestrator_loop(
                     tool_call_id: tc.id.clone(),
                     output: result.output.clone(),
                     success: result.success,
+                    duration_ms: None,
                 },
             );
             messages.push(Message {

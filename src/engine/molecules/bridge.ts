@@ -8,6 +8,7 @@ import { getAgentAllowedTools, ALL_TOOLS } from '../../features/agent-policies';
 import { getIntegrationHint } from './auto-discover-bridge';
 import { getUserApprovedTools } from '../../components/chat-mission-panel';
 import { appState } from '../../state';
+import { routeInspectorEvent } from '../../views/inspector/bridge';
 
 type AgentEventHandler = (payload: unknown) => void;
 type ToolApprovalHandler = (event: EngineEvent) => void;
@@ -73,6 +74,9 @@ export async function startEngineBridge(): Promise<void> {
   pawEngine.on('*', (event: EngineEvent) => {
     // Kinetic pulse: flash UI indicators on engine events
     kineticPulse(event.kind);
+
+    // Inspector tap: forward all events to the Inspector panel
+    routeInspectorEvent(event);
 
     if (event.kind === 'tool_request') {
       for (const h of _toolApprovalHandlers) {

@@ -191,7 +191,8 @@
             "pages": [
               "reference/librarian-method",
               "reference/foreman-protocol",
-              "reference/conductor-protocol"
+              "reference/conductor-protocol",
+              "reference/agent-canvas"
             ]
           }
         ]

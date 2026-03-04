@@ -916,6 +916,8 @@ pub async fn engine_chat_send(
                         tool_calls_count: 0,
                         usage: None,
                         model: None,
+                        total_rounds: None,
+                        max_rounds: None,
                     },
                 );
             } else {

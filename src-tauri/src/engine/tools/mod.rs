@@ -14,6 +14,9 @@ use tauri::Manager;
 
 pub mod agent_comms;
 pub mod agents;
+pub mod canvas;
+pub mod canvas_dashboards;
+pub mod canvas_templates;
 pub mod coinbase;
 pub mod dex;
 pub mod discord;
@@ -52,6 +55,9 @@ impl ToolDefinition {
         tools.extend(skills_tools::definitions());
         tools.extend(skill_output::definitions());
         tools.extend(skill_storage::definitions());
+        tools.extend(canvas::definitions());
+        tools.extend(canvas_dashboards::definitions());
+        tools.extend(canvas_templates::definitions());
         tools.extend(agent_comms::definitions());
         tools.extend(squads::definitions());
         tools.extend(request_tools::definitions());
@@ -175,6 +181,9 @@ pub async fn execute_tool(
         .or(skills_tools::execute(name, &args, app_handle, agent_id).await)
         .or(skill_output::execute(name, &args, app_handle, agent_id).await)
         .or(skill_storage::execute(name, &args, app_handle, agent_id).await)
+        .or(canvas::execute(name, &args, app_handle, agent_id).await)
+        .or(canvas_dashboards::execute(name, &args, app_handle, agent_id).await)
+        .or(canvas_templates::execute(name, &args, app_handle, agent_id).await)
         .or(agent_comms::execute(name, &args, app_handle, agent_id).await)
         .or(squads::execute(name, &args, app_handle, agent_id).await)
         .or(request_tools::execute(name, &args, app_handle, agent_id).await)
