@@ -20,6 +20,7 @@ pub mod server;
 use crate::atoms::error::EngineResult;
 use crate::atoms::types::*;
 use crate::engine::state::EngineState;
+use crate::engine::util::safe_truncate;
 use log::warn;
 use serde_json::Value;
 use std::time::Duration;
@@ -172,7 +173,7 @@ pub(crate) async fn discord_request(
             return Err(format!(
                 "Discord API {} (after retry): {}",
                 status2,
-                &text2[..text2.len().min(300)]
+                safe_truncate(&text2, 300)
             )
             .into());
         }
@@ -185,7 +186,7 @@ pub(crate) async fn discord_request(
     }
 
     if !status.is_success() {
-        return Err(format!("Discord API {}: {}", status, &text[..text.len().min(300)]).into());
+        return Err(format!("Discord API {}: {}", status, safe_truncate(&text, 300)).into());
     }
 
     serde_json::from_str(&text).or_else(|_| Ok(Value::String(text)))

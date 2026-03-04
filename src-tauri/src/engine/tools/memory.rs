@@ -6,6 +6,7 @@ use crate::atoms::types::*;
 use crate::engine::engram;
 use crate::engine::memory;
 use crate::engine::state::EngineState;
+use crate::engine::util::safe_truncate;
 use log::info;
 use tauri::Manager;
 
@@ -270,7 +271,7 @@ async fn execute_memory_search(
     let limit = args["limit"].as_u64().unwrap_or(10) as usize;
     info!(
         "[engine] memory_search: query='{}' limit={} agent={}",
-        &query[..query.len().min(100)],
+        safe_truncate(query, 100),
         limit,
         agent_id
     );
@@ -311,7 +312,7 @@ async fn execute_memory_search(
                 mem.category,
                 mem.memory_type,
                 mem.content,
-                &mem.memory_id[..mem.memory_id.len().min(8)],
+                safe_truncate(&mem.memory_id, 8),
                 mem.trust_score.composite(),
             ));
         }
@@ -401,7 +402,7 @@ async fn execute_memory_knowledge(
         subject,
         predicate,
         object,
-        &id[..id.len().min(8)]
+        safe_truncate(&id, 8)
     ))
 }
 
@@ -441,12 +442,12 @@ fn execute_memory_delete(
     if deleted {
         Ok(format!(
             "Memory {} deleted successfully.",
-            &memory_id[..memory_id.len().min(8)]
+            safe_truncate(&memory_id, 8)
         ))
     } else {
         Ok(format!(
             "Memory {} not found or already deleted.",
-            &memory_id[..memory_id.len().min(8)]
+            safe_truncate(&memory_id, 8)
         ))
     }
 }
@@ -489,12 +490,12 @@ async fn execute_memory_update(
     if updated {
         Ok(format!(
             "Memory {} updated successfully.",
-            &memory_id[..memory_id.len().min(8)]
+            safe_truncate(&memory_id, 8)
         ))
     } else {
         Ok(format!(
             "Memory {} not found — cannot update.",
-            &memory_id[..memory_id.len().min(8)]
+            safe_truncate(&memory_id, 8)
         ))
     }
 }
@@ -535,7 +536,7 @@ fn execute_memory_list(
             i + 1,
             mem.category,
             mem.content.full,
-            &mem.id[..mem.id.len().min(8)],
+            safe_truncate(&mem.id, 8),
             mem.strength,
         ));
     }
@@ -558,9 +559,9 @@ fn execute_memory_feedback(
 
     info!(
         "[engine] memory_feedback: id={} helpful={} context={:?}",
-        &memory_id[..memory_id.len().min(8)],
+        safe_truncate(&memory_id, 8),
         helpful,
-        context.map(|c| &c[..c.len().min(50)])
+        context.map(|c| safe_truncate(&c, 50))
     );
 
     let state = app_handle
@@ -581,7 +582,7 @@ fn execute_memory_feedback(
 
         Ok(format!(
             "Positive feedback recorded for memory {}. It will rank higher in future searches.",
-            &memory_id[..memory_id.len().min(8)]
+            safe_truncate(&memory_id, 8)
         ))
     } else {
         // Negative feedback: reduce importance
@@ -591,15 +592,15 @@ fn execute_memory_feedback(
             state.store.engram_add_negative_context(memory_id, ctx)?;
             Ok(format!(
                 "Negative feedback recorded for memory {} in context '{}'. It will be suppressed when similar context arises.",
-                &memory_id[..memory_id.len().min(8)],
-                &ctx[..ctx.len().min(50)]
+                safe_truncate(&memory_id, 8),
+                safe_truncate(&ctx, 50)
             ))
         } else {
             // General negative feedback — reduce strength
             state.store.engram_record_access(memory_id, -0.15)?;
             Ok(format!(
                 "Negative feedback recorded for memory {}. It will rank lower in future searches.",
-                &memory_id[..memory_id.len().min(8)]
+                safe_truncate(&memory_id, 8)
             ))
         }
     }
@@ -627,9 +628,9 @@ fn execute_memory_relate(
 
     info!(
         "[engine] memory_relate: {}--[{}]--> {} (w={:.2})",
-        &source_id[..source_id.len().min(8)],
+        safe_truncate(&source_id, 8),
         relation,
-        &target_id[..target_id.len().min(8)],
+        safe_truncate(&target_id, 8),
         weight,
     );
 
@@ -654,9 +655,9 @@ fn execute_memory_relate(
 
     Ok(format!(
         "Relationship created: {} --[{}]--> {}. This strengthens multi-hop retrieval.",
-        &source_id[..source_id.len().min(8)],
+        safe_truncate(&source_id, 8),
         relation,
-        &target_id[..target_id.len().min(8)]
+        safe_truncate(&target_id, 8)
     ))
 }
 
@@ -779,7 +780,7 @@ mod tests {
             mem.category,
             mem.memory_type,
             mem.content,
-            &mem.memory_id[..mem.memory_id.len().min(8)],
+            safe_truncate(&mem.memory_id, 8),
             mem.trust_score.composite(),
         );
 
@@ -818,7 +819,7 @@ mod tests {
     fn test_memory_id_truncation_short_id() {
         // Edge case: memory_id shorter than 8 chars
         let short_id = "abc";
-        let truncated = &short_id[..short_id.len().min(8)];
+        let truncated = safe_truncate(&short_id, 8);
         assert_eq!(truncated, "abc", "Short IDs should not panic on truncation");
     }
 

@@ -22,6 +22,7 @@ use log::{info, warn};
 use tauri::{Emitter, Manager};
 
 use crate::atoms::error::EngineResult;
+use crate::engine::util::safe_truncate;
 use agent_loop::{run_orchestrator_loop, AgentRole};
 use sub_agent::resolve_provider_for_model;
 use tools::boss_tools;
@@ -373,7 +374,7 @@ You are the **Boss Agent** orchestrating project "{}".
                 {
                     Ok(Some(id)) => info!(
                         "[orchestrator] Project outcome stored in Engram (id={})",
-                        &id[..id.len().min(8)]
+                        safe_truncate(&id, 8)
                     ),
                     Ok(None) => {}
                     Err(e) => warn!("[orchestrator] Failed to store project outcome: {}", e),

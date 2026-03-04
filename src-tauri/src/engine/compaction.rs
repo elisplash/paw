@@ -7,6 +7,7 @@ use crate::engine::engram;
 use crate::engine::providers::AnyProvider;
 use crate::engine::sessions::SessionStore;
 use crate::engine::types::*;
+use crate::engine::util::safe_truncate;
 use log::{info, warn};
 use std::sync::Arc;
 
@@ -242,7 +243,7 @@ pub async fn compact_session(
         {
             Ok(Some(id)) => info!(
                 "[compaction] Compaction summary stored in Engram (id={})",
-                &id[..id.len().min(8)]
+                safe_truncate(&id, 8)
             ),
             Ok(None) => info!("[compaction] Compaction summary skipped (near-duplicate)"),
             Err(e) => warn!(

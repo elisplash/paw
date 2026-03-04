@@ -13,6 +13,8 @@
 // Security:
 //   - Access token required (auto-generated or user-set)
 //   - Token is never embedded in HTML — exchanged via POST /auth for a session cookie
+
+use crate::engine::util::safe_truncate;
 //   - Standard allowlist / pairing / open DM policy
 //   - Binds to 127.0.0.1 (localhost) by default; set bind_address to "0.0.0.0" for LAN
 //   - Optional TLS for HTTPS/WSS (recommended when binding to 0.0.0.0)
@@ -263,7 +265,7 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 debug!(
                     "[webchat] {} says: {}",
                     username,
-                    &user_text[..user_text.len().min(80)]
+                    safe_truncate(&user_text, 80)
                 );
 
                 // Send typing indicator

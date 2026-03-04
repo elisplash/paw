@@ -12,6 +12,7 @@ use crate::atoms::error::EngineResult;
 use crate::atoms::types::*;
 use crate::engine::state::EngineState;
 use crate::engine::tool_index;
+use crate::engine::util::safe_truncate;
 use log::info;
 use tauri::Manager;
 
@@ -70,7 +71,7 @@ async fn execute_request_tools(
 
     info!(
         "[tool-rag] request_tools: query='{}' domain={:?} agent={}",
-        &query[..query.len().min(100)],
+        safe_truncate(query, 100),
         domain,
         agent_id
     );

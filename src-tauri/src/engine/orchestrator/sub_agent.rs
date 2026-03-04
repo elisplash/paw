@@ -15,6 +15,7 @@ use super::agent_loop::{run_orchestrator_loop, AgentRole};
 use super::handlers::get_store;
 use super::tools::worker_tools;
 use crate::atoms::error::EngineResult;
+use crate::engine::util::safe_truncate;
 
 /// Resolve a provider config for a given model string.
 /// Uses smart prefix matching (gemini → Google, claude → Anthropic, etc.)
@@ -318,7 +319,7 @@ When told to install a package:
                     from_agent: agent_id.to_string(),
                     to_agent: Some("boss".into()),
                     kind: "result".into(),
-                    content: format!("Task completed: {}", &text[..text.len().min(500)]),
+                    content: format!("Task completed: {}", safe_truncate(&text, 500)),
                     metadata: None,
                     created_at: chrono::Utc::now().to_rfc3339(),
                 };

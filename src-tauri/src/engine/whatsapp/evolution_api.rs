@@ -5,6 +5,7 @@
 use super::config::{WhatsAppConfig, CONFIG_KEY};
 use crate::atoms::error::EngineResult;
 use crate::engine::channels;
+use crate::engine::util::safe_truncate;
 use log::{info, warn};
 use serde_json::json;
 
@@ -46,7 +47,7 @@ pub(crate) async fn create_evolution_instance(config: &WhatsAppConfig) -> Engine
     info!(
         "[whatsapp] Instance create response [{}]: {}",
         status,
-        &text[..text.len().min(500)]
+        safe_truncate(&text, 500)
     );
 
     if !status.is_success() {
@@ -85,7 +86,7 @@ pub(crate) async fn create_evolution_instance(config: &WhatsAppConfig) -> Engine
             info!(
                 "[whatsapp] Instance create (retry) response [{}]: {}",
                 status2,
-                &text2[..text2.len().min(500)]
+                safe_truncate(&text2, 500)
             );
 
             if !status2.is_success() {
@@ -105,7 +106,7 @@ pub(crate) async fn create_evolution_instance(config: &WhatsAppConfig) -> Engine
     info!(
         "[whatsapp] Instance create response [{}]: {}",
         status,
-        &text[..text.len().min(500)]
+        safe_truncate(&text, 500)
     );
 
     // Parse QR code from response
@@ -146,7 +147,7 @@ pub(crate) fn extract_qr_from_response(resp: &serde_json::Value) -> String {
         info!(
             "[whatsapp] QR code extracted ({} bytes, starts with: {})",
             qr.len(),
-            &qr[..qr.len().min(40)]
+            safe_truncate(&qr, 40)
         );
     }
 
@@ -173,7 +174,7 @@ pub(crate) async fn delete_evolution_instance(config: &WhatsAppConfig) {
             info!(
                 "[whatsapp] Delete instance response [{}]: {}",
                 status,
-                &text[..text.len().min(200)]
+                safe_truncate(&text, 200)
             );
         }
         Err(e) => {
@@ -202,7 +203,7 @@ pub(crate) async fn connect_evolution_instance(config: &WhatsAppConfig) -> Engin
     let text = resp.text().await.unwrap_or_default();
     info!(
         "[whatsapp] Connect instance response: {}",
-        &text[..text.len().min(500)]
+        safe_truncate(&text, 500)
     );
     let resp_json: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
 

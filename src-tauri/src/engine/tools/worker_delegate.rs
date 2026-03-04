@@ -15,6 +15,7 @@ use crate::atoms::types::*;
 use crate::engine::providers::AnyProvider;
 use crate::engine::state::EngineState;
 use crate::engine::tools;
+use crate::engine::util::safe_truncate;
 use log::{info, warn};
 use tauri::Manager;
 
@@ -258,7 +259,7 @@ async fn run_worker_loop(
             info!(
                 "[worker-delegate] Worker executing: {} args={}",
                 tc.function.name,
-                &tc.function.arguments[..tc.function.arguments.len().min(200)]
+                safe_truncate(&tc.function.arguments, 200)
             );
 
             let result = execute_worker_tool(tc, app_handle, agent_id).await;

@@ -19,6 +19,7 @@
 use crate::atoms::error::EngineResult;
 use crate::atoms::types::ToolDefinition;
 use crate::engine::memory::EmbeddingClient;
+use crate::engine::util::safe_truncate;
 use log::{info, warn};
 use std::collections::{HashMap, HashSet};
 
@@ -460,7 +461,7 @@ impl ToolIndex {
 
         info!(
             "[tool-index] Search '{}' → {} tools (from {} domains)",
-            &query[..query.len().min(60)],
+            safe_truncate(query, 60),
             results.len(),
             matched_domains.len()
         );

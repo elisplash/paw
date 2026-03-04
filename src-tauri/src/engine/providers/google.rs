@@ -10,6 +10,7 @@ use crate::engine::providers::openai::{
     is_retryable_status, parse_retry_after, retry_delay, MAX_RETRIES,
 };
 use crate::engine::types::*;
+use crate::engine::util::safe_truncate;
 use async_trait::async_trait;
 use futures::StreamExt;
 use log::{error, info, warn};
@@ -507,15 +508,11 @@ impl GoogleProvider {
                     .and_then(|v| v.to_str().ok())
                     .and_then(parse_retry_after);
                 let body_text = response.text().await.unwrap_or_default();
-                last_error = format!(
-                    "API error {}: {}",
-                    status,
-                    &body_text[..body_text.len().min(200)]
-                );
+                last_error = format!("API error {}: {}", status, safe_truncate(&body_text, 200));
                 error!(
                     "[engine] Google error {}: {}",
                     status,
-                    &body_text[..body_text.len().min(500)]
+                    safe_truncate(&body_text, 500)
                 );
 
                 GOOGLE_CIRCUIT.record_failure();
@@ -595,7 +592,7 @@ impl GoogleProvider {
                                             warn!(
                                                 "[engine] Google: empty content chunk — finishReason={} safety={}",
                                                 reason,
-                                                &safety_info[..safety_info.len().min(500)]
+                                                safe_truncate(&safety_info, 500)
                                             );
                                             if reason != "STOP" {
                                                 // Emit a visible error chunk so the agent loop can surface it

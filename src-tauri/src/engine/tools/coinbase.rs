@@ -4,6 +4,7 @@
 use crate::atoms::error::{EngineError, EngineResult};
 use crate::atoms::types::*;
 use crate::engine::state::EngineState;
+use crate::engine::util::safe_truncate;
 use log::{info, warn};
 use std::time::Duration;
 use tauri::Manager;
@@ -371,12 +372,12 @@ async fn cdp_request(
             status,
             method,
             path,
-            &text[..text.len().min(500)]
+            safe_truncate(&text, 500)
         );
         return Err(format!(
             "Coinbase API error (HTTP {}): {}",
             status.as_u16(),
-            &text[..text.len().min(500)]
+            safe_truncate(&text, 500)
         )
         .into());
     }
@@ -387,7 +388,7 @@ async fn cdp_request(
         EngineError::Other(format!(
             "Parse Coinbase response: {} — raw: {}",
             e,
-            &text[..text.len().min(300)]
+            safe_truncate(&text, 300)
         ))
     })
 }
@@ -587,7 +588,7 @@ async fn execute_coinbase_transfer(
         "[skill:coinbase] Transfer {} {} to {} (reason: {})",
         amount,
         currency,
-        &to_address[..to_address.len().min(12)],
+        safe_truncate(to_address, 12),
         reason
     );
 
@@ -642,7 +643,7 @@ async fn execute_coinbase_transfer(
 
     Ok(format!(
         "Transfer initiated!\n  {} {} -> {}\n  Network: {}\n  Status: {}\n  TX ID: {}\n  Reason: {}",
-        amount, currency.to_uppercase(), &to_address[..to_address.len().min(20)],
+        amount, currency.to_uppercase(), safe_truncate(to_address, 20),
         tx_network, status, tx_id, reason
     ))
 }

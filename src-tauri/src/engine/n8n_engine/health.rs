@@ -3,6 +3,7 @@
 // Pure network probes with no container/process lifecycle side-effects.
 
 use super::types::*;
+use crate::engine::util::safe_truncate;
 
 // ── Probing ────────────────────────────────────────────────────────────
 
@@ -175,7 +176,7 @@ pub async fn setup_owner_if_needed(base_url: &str) -> Result<(), String> {
             Err(format!(
                 "Owner setup returned HTTP {}: {}",
                 status,
-                &body[..body.len().min(200)]
+                safe_truncate(&body, 200)
             ))
         }
     }
@@ -219,7 +220,7 @@ pub async fn enable_mcp_access(base_url: &str) -> Result<(), String> {
         return Err(format!(
             "Login for MCP enable failed (HTTP {}): {}",
             status,
-            &body[..body.len().min(200)]
+            safe_truncate(&body, 200)
         ));
     }
 
@@ -243,7 +244,7 @@ pub async fn enable_mcp_access(base_url: &str) -> Result<(), String> {
             Err(format!(
                 "MCP enable failed (HTTP {}): {}",
                 status,
-                &body[..body.len().min(200)]
+                safe_truncate(&body, 200)
             ))
         }
     }
@@ -293,7 +294,7 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
         return Err(format!(
             "Login failed (HTTP {}): {}",
             status,
-            &body[..body.len().min(200)]
+            safe_truncate(&body, 200)
         ));
     }
 
@@ -316,7 +317,7 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
         return Err(format!(
             "MCP API key retrieval failed (HTTP {}): {}",
             mcp_status,
-            &body[..body.len().min(500)]
+            safe_truncate(&body, 500)
         ));
     }
 
@@ -376,7 +377,7 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
     let resp_str = serde_json::to_string(&mcp_data).unwrap_or_default();
     Err(format!(
         "MCP API key response missing data.apiKey: {}",
-        &resp_str[..resp_str.len().min(300)]
+        safe_truncate(&resp_str, 300)
     ))
 }
 
@@ -418,7 +419,7 @@ pub async fn session_client(base_url: &str) -> Result<reqwest::Client, String> {
         return Err(format!(
             "n8n session login HTTP {}: {}",
             status,
-            &body[..body.len().min(200)]
+            safe_truncate(&body, 200)
         ));
     }
 

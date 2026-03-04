@@ -5,6 +5,7 @@
 use super::{authorized_client, discord_request, get_bot_token, resolve_server_id, DISCORD_API};
 use crate::atoms::error::EngineResult;
 use crate::atoms::types::*;
+use crate::engine::util::safe_truncate;
 use log::info;
 use serde_json::{json, Value};
 use std::time::Duration;
@@ -211,7 +212,7 @@ fn format_channel(ch: &Value) -> String {
         _ => "•",
     };
     let topic_str = if !topic.is_empty() {
-        format!(" — {}", &topic[..topic.len().min(60)])
+        format!(" — {}", safe_truncate(topic, 60))
     } else {
         String::new()
     };
