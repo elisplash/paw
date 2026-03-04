@@ -9,6 +9,7 @@ use super::toml::scan_toml_skills;
 use super::types::CredentialField;
 use crate::atoms::error::EngineResult;
 use crate::engine::sessions::SessionStore;
+use crate::engine::util::safe_truncate;
 
 /// Collect agent instructions from all enabled skills.
 /// Returns a combined string to be injected into the system prompt.
@@ -276,7 +277,7 @@ fn compress_skill_sections(sections: &[String], community: &str, budget: usize) 
     if !community.is_empty() {
         let remaining = budget.saturating_sub(result.len());
         if remaining > 100 {
-            let truncated = &community[..community.len().min(remaining)];
+            let truncated = safe_truncate(&community, remaining);
             result.push_str(truncated);
         }
     }

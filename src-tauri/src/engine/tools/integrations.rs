@@ -3,6 +3,7 @@
 
 use crate::atoms::error::EngineResult;
 use crate::atoms::types::*;
+use crate::engine::util::safe_truncate;
 use log::info;
 use std::time::Duration;
 
@@ -211,13 +212,13 @@ async fn execute_webhook_send(
         Ok(format!(
             "Webhook delivered (HTTP {}). Response: {}",
             status,
-            &body[..body.len().min(1000)]
+            safe_truncate(&body, 1000)
         ))
     } else {
         Err(format!(
             "Webhook failed (HTTP {}): {}",
             status,
-            &body[..body.len().min(1000)]
+            safe_truncate(&body, 1000)
         )
         .into())
     }
@@ -246,7 +247,7 @@ async fn execute_image_generate(
 
     info!(
         "[skill:image_gen] Generating image for prompt: {}",
-        &prompt[..prompt.len().min(80)]
+        safe_truncate(prompt, 80)
     );
 
     let client = reqwest::Client::builder()
@@ -277,7 +278,7 @@ async fn execute_image_generate(
         return Err(format!(
             "Gemini API error (HTTP {}): {}",
             status,
-            &resp_text[..resp_text.len().min(500)]
+            safe_truncate(&resp_text, 500)
         )
         .into());
     }

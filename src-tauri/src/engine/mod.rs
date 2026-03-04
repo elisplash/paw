@@ -42,6 +42,7 @@ pub mod telegram;
 pub mod telemetry;
 pub mod tool_index;
 pub mod twitch;
+pub mod util;
 pub mod web;
 pub mod webchat;
 pub mod webhook;

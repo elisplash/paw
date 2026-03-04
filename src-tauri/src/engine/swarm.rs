@@ -13,6 +13,7 @@ use crate::engine::providers::AnyProvider;
 use crate::engine::skills;
 use crate::engine::state::{normalize_model_name, resolve_provider_for_model, EngineState};
 use crate::engine::types::*;
+use crate::engine::util::safe_truncate;
 use log::{info, warn};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -166,7 +167,7 @@ pub fn spawn_swarm_reply(
                         "agent_id": recipient_id,
                         "squad_id": squad_id,
                         "status": "completed",
-                        "summary": &text[..text.len().min(200)],
+                        "summary": safe_truncate(&text, 200),
                     }),
                 );
             }

@@ -12,6 +12,7 @@
 
 use paw_temp_lib::engine::chat::detect_response_loop;
 use paw_temp_lib::engine::types::{Message, MessageContent, Role};
+use paw_temp_lib::engine::util::safe_truncate;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -488,7 +489,7 @@ fn detect_user_override_escalates_on_repeated_overrides() {
     assert!(
         text.contains("2nd time") || text.contains("ignored"),
         "Second override should show escalation: got '{}'",
-        &text[..text.len().min(100)]
+        safe_truncate(&text, 100)
     );
 }
 

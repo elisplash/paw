@@ -9,6 +9,7 @@ use crate::atoms::error::EngineResult;
 use crate::atoms::types::*;
 use crate::engine::skills;
 use crate::engine::state::EngineState;
+use crate::engine::util::safe_truncate;
 use log::info;
 use tauri::Manager;
 
@@ -115,7 +116,7 @@ pub async fn execute_tool(
         "[engine] Executing tool: {} agent={} args={}",
         name,
         agent_id,
-        &args_str[..args_str.len().min(200)]
+        safe_truncate(args_str, 200)
     );
 
     // Default empty/whitespace args to {} — models sometimes send no args
@@ -129,7 +130,7 @@ pub async fn execute_tool(
     let args: serde_json::Value = match serde_json::from_str(args_str) {
         Ok(v) => v,
         Err(parse_err) => {
-            let truncated = &args_str[..args_str.len().min(300)];
+            let truncated = safe_truncate(args_str, 300);
             log::warn!(
                 "[engine] Malformed tool args for '{}' — JSON parse failed: {}. Args: {}",
                 name,

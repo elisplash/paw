@@ -10,6 +10,7 @@
 
 pub mod integration;
 
+use crate::engine::util::safe_truncate;
 use chrono::Utc;
 use log::info;
 use parking_lot::Mutex;
@@ -235,7 +236,7 @@ impl RunCollector {
         info!(
             "[telemetry] Turn summary: session={} run={} model={} rounds={} tools={} total={}ms",
             self.session_id,
-            &self.run_id[..self.run_id.len().min(12)],
+            safe_truncate(&self.run_id, 12),
             self.model,
             rounds,
             tool_calls,

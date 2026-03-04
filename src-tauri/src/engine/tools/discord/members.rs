@@ -5,6 +5,7 @@
 use super::{authorized_client, discord_request, get_bot_token, resolve_server_id, DISCORD_API};
 use crate::atoms::error::EngineResult;
 use crate::atoms::types::*;
+use crate::engine::util::safe_truncate;
 use log::info;
 use serde_json::{json, Value};
 
@@ -156,7 +157,7 @@ async fn exec_list(args: &Value, app_handle: &tauri::AppHandle) -> EngineResult<
         };
         let joined = m["joined_at"]
             .as_str()
-            .map(|j| format!(" | joined: {}", &j[..j.len().min(10)]))
+            .map(|j| format!(" | joined: {}", safe_truncate(j, 10)))
             .unwrap_or_default();
         lines.push(format!(
             "• **{}**{}{} (id: {}){}{}",
@@ -237,7 +238,7 @@ async fn exec_kick(args: &Value, app_handle: &tauri::AppHandle) -> EngineResult<
     let resp = req.send().await.map_err(|e| format!("HTTP error: {}", e))?;
     if !resp.status().is_success() {
         let text = resp.text().await.unwrap_or_default();
-        return Err(format!("Discord API error: {}", &text[..text.len().min(300)]).into());
+        return Err(format!("Discord API error: {}", safe_truncate(&text, 300)).into());
     }
 
     info!("[discord] Kicked user {} from guild {}", user_id, server_id);
@@ -271,7 +272,7 @@ async fn exec_ban(args: &Value, app_handle: &tauri::AppHandle) -> EngineResult<S
     let resp = req.send().await.map_err(|e| format!("HTTP error: {}", e))?;
     if !resp.status().is_success() {
         let text = resp.text().await.unwrap_or_default();
-        return Err(format!("Discord API error: {}", &text[..text.len().min(300)]).into());
+        return Err(format!("Discord API error: {}", safe_truncate(&text, 300)).into());
     }
 
     info!("[discord] Banned user {} from guild {}", user_id, server_id);

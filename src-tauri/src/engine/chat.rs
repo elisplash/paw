@@ -15,6 +15,7 @@ use crate::engine::skills;
 use crate::engine::tool_index;
 use crate::engine::tools;
 use crate::engine::types::*;
+use crate::engine::util::safe_truncate;
 use log::{info, warn};
 
 // ── Tool builder ───────────────────────────────────────────────────────────────
@@ -736,7 +737,7 @@ fn inject_loop_break(messages: &mut Vec<Message>, prior_redirect_count: usize) {
             STOP everything else. Respond ONLY to the text above. If the user said \
             'yes', 'do it', 'go ahead', etc. — proceed immediately. Call tools NOW.",
             prior_redirect_count,
-            &last_user_text[..last_user_text.len().min(300)]
+            safe_truncate(&last_user_text, 300)
         )
     } else {
         format!(
@@ -745,7 +746,7 @@ fn inject_loop_break(messages: &mut Vec<Message>, prior_redirect_count: usize) {
             Take action NOW. Use your tools to do what the user asked. \
             If they said 'yes', 'both', 'do it', 'go ahead', or similar — proceed with ALL \
             the options you mentioned. Do NOT ask another question. Call the relevant tools immediately.",
-            &last_user_text[..last_user_text.len().min(300)]
+            safe_truncate(&last_user_text, 300)
         )
     };
 
@@ -788,7 +789,7 @@ fn inject_topic_redirect(messages: &mut Vec<Message>, prior_redirect_count: usiz
             Respond ONLY to this message RIGHT NOW. Do NOT continue the previous thread. \
             Every word of your response must address what the user just said.",
             prior_redirect_count,
-            &last_user_text[..last_user_text.len().min(300)]
+            safe_truncate(&last_user_text, 300)
         )
     } else {
         format!(
@@ -797,7 +798,7 @@ fn inject_topic_redirect(messages: &mut Vec<Message>, prior_redirect_count: usiz
             \"{}\"\n\n\
             Respond directly to this. Do not continue the previous topic unless \
             the user explicitly asks to return to it.",
-            &last_user_text[..last_user_text.len().min(300)]
+            safe_truncate(&last_user_text, 300)
         )
     };
 
@@ -876,7 +877,7 @@ pub fn detect_user_override(messages: &mut Vec<Message>) -> bool {
             5. If they are giving you a new task, start it from scratch\n\
             6. Acknowledge that you heard them before proceeding",
             prior_override_count + 1,
-            &last_user_text[..last_user_text.len().min(500)],
+            safe_truncate(&last_user_text, 500),
             times = if prior_override_count == 2 { "multiple times" } else { "repeatedly" },
         )
         } else if prior_override_count == 1 {
@@ -885,7 +886,7 @@ pub fn detect_user_override(messages: &mut Vec<Message>) -> bool {
             >>> {} <<<\n\n\
             You ignored them once already. STOP your current task. Address ONLY what the user \
             just said. Do NOT continue the previous topic. Acknowledge the user's control.",
-            &last_user_text[..last_user_text.len().min(500)]
+            safe_truncate(&last_user_text, 500)
         )
         } else {
             format!(
@@ -894,14 +895,14 @@ pub fn detect_user_override(messages: &mut Vec<Message>) -> bool {
             STOP your current task and respond ONLY to this message. The user is in control — \
             follow their direction immediately. Do NOT continue the previous topic unless they \
             explicitly ask you to return to it.",
-            &last_user_text[..last_user_text.len().min(500)]
+            safe_truncate(&last_user_text, 500)
         )
         };
 
     warn!(
         "[engine] User override detected (escalation level {}): \"{}\"",
         prior_override_count,
-        &last_user_text[..last_user_text.len().min(80)]
+        safe_truncate(&last_user_text, 80)
     );
 
     messages.push(Message {

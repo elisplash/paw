@@ -4,6 +4,7 @@ use crate::engine::channels;
 use crate::engine::n8n_engine;
 use crate::engine::skills;
 use crate::engine::state::EngineState;
+use crate::engine::util::safe_truncate;
 use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
@@ -1660,7 +1661,7 @@ pub async fn engine_n8n_community_packages_install(
                     "[n8n] Failed to parse install response for {}: {} — body: {}",
                     package_name,
                     e,
-                    &body_text[..body_text.len().min(500)]
+                    safe_truncate(&body_text, 500)
                 );
                 format!("Failed to parse response: {}", e)
             })?;

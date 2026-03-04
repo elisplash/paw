@@ -8,6 +8,7 @@ use super::{get_stop_signal, NostrConfig, MESSAGE_COUNT};
 
 use crate::atoms::error::{EngineError, EngineResult};
 use crate::engine::channels;
+use crate::engine::util::safe_truncate;
 use futures::{SinkExt, StreamExt};
 use log::{debug, error, info, warn};
 use serde_json::json;
@@ -141,7 +142,7 @@ pub(crate) async fn run_relay_loop(
                         Err(e) => {
                             warn!(
                                 "[nostr] Failed to decrypt DM from {}...{}: {}",
-                                &sender_pk[..sender_pk.len().min(8)],
+                                safe_truncate(&sender_pk, 8),
                                 &sender_pk[sender_pk.len().saturating_sub(4)..],
                                 e
                             );

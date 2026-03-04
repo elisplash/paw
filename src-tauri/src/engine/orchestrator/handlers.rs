@@ -6,6 +6,7 @@
 
 use crate::engine::sessions::SessionStore;
 use crate::engine::types::*;
+use crate::engine::util::safe_truncate;
 use log::error;
 use tauri::Emitter;
 
@@ -222,11 +223,7 @@ fn handle_check_agent_status(
                     let last_msg = recent
                         .last()
                         .map(|m| {
-                            format!(
-                                " | Last: [{}] {}",
-                                m.kind,
-                                &m.content[..m.content.len().min(100)]
-                            )
+                            format!(" | Last: [{}] {}", m.kind, safe_truncate(&m.content, 100))
                         })
                         .unwrap_or_default();
 

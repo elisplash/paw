@@ -6,6 +6,7 @@
 use super::{authorized_client, discord_request, get_bot_token, resolve_channel_id, DISCORD_API};
 use crate::atoms::error::EngineResult;
 use crate::atoms::types::*;
+use crate::engine::util::safe_truncate;
 use log::info;
 use serde_json::{json, Value};
 
@@ -361,7 +362,7 @@ async fn exec_get(args: &Value, app_handle: &tauri::AppHandle) -> EngineResult<S
         };
         lines.push(format!(
             "[{}] {}{}: {} (id: {})",
-            &ts[..ts.len().min(16)],
+            safe_truncate(ts, 16),
             content,
             author,
             preview,

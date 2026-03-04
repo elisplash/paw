@@ -18,6 +18,7 @@ use crate::engine::engram;
 use crate::engine::memory;
 use crate::engine::providers::AnyProvider;
 use crate::engine::types::*;
+use crate::engine::util::safe_truncate;
 
 // ── Chat ─────────────────────────────────────────────────────────────────────
 
@@ -782,7 +783,7 @@ pub async fn engine_chat_send(
                             Ok(Some(id)) => info!(
                                 "[engine] Session summary stored ({} chars, id={})",
                                 session_summary.len(),
-                                &id[..id.len().min(8)]
+                                safe_truncate(&id, 8)
                             ),
                             Ok(None) => info!("[engine] Session summary skipped (near-duplicate)"),
                             Err(e) => warn!("[engine] Session summary store failed: {}", e),

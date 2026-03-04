@@ -7,6 +7,7 @@
 // Both are wrapped by McpTransportHandle for unified API.
 
 use super::types::{JsonRpcRequest, JsonRpcResponse};
+use crate::engine::util::safe_truncate;
 use log::{debug, error, info, warn};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -105,9 +106,10 @@ impl StdioTransport {
                                         }
                                     } else {
                                         // Notification (no id) — log and discard
+                                        let data_str = String::from_utf8_lossy(&data);
                                         debug!(
-                                            "[mcp] Received notification: {:?}",
-                                            &data[..data.len().min(200)]
+                                            "[mcp] Received notification: {}",
+                                            safe_truncate(&data_str, 200)
                                         );
                                     }
                                 }
@@ -433,16 +435,16 @@ impl SseTransport {
                                                                 debug!("[mcp:sse] Response for unknown id={}", id);
                                                             }
                                                         } else {
-                                                            debug!("[mcp:sse] Notification: {}", &data[..data.len().min(200)]);
+                                                            debug!("[mcp:sse] Notification: {}", safe_truncate(&data, 200));
                                                         }
                                                     }
                                                     Err(e) => {
-                                                        warn!("[mcp:sse] Failed to parse response: {} — data: {}", e, &data[..data.len().min(300)]);
+                                                        warn!("[mcp:sse] Failed to parse response: {} — data: {}", e, safe_truncate(&data, 300));
                                                     }
                                                 }
                                             }
                                             other => {
-                                                debug!("[mcp:sse] Unknown event type '{}': {}", other, &data[..data.len().min(200)]);
+                                                debug!("[mcp:sse] Unknown event type '{}': {}", other, safe_truncate(&data, 200));
                                             }
                                         }
                                     }

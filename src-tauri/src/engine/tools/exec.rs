@@ -5,6 +5,7 @@ use crate::atoms::error::EngineResult;
 use crate::atoms::types::*;
 use crate::engine::sandbox;
 use crate::engine::state::EngineState;
+use crate::engine::util::safe_truncate;
 use log::{info, warn};
 use tauri::Manager;
 
@@ -57,7 +58,7 @@ async fn execute_exec(
         .as_str()
         .ok_or("exec: missing 'command' argument")?;
 
-    info!("[engine] exec: {}", &command[..command.len().min(200)]);
+    info!("[engine] exec: {}", safe_truncate(command, 200));
 
     // Block installing packages that duplicate built-in skill tools
     let cmd_lower = command.to_lowercase();
