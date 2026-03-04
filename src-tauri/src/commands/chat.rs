@@ -415,8 +415,36 @@ pub async fn engine_chat_send(
                     name: None,
                 });
             }
-            // Convert (role, content) pairs to Message for the agent loop
+            // Convert (role, content) pairs to Message for the agent loop.
+            // Cross-reference against raw_messages to restore tool_calls and
+            // tool_call_id metadata that the ContextBuilder's (String, String)
+            // pairs lost. Without this, the OpenAI API rejects the request
+            // with "messages with role 'tool' must be a response to a
+            // preceding message with 'tool_calls'" once prior tool exchanges
+            // survive context trimming.
+            let mut raw_cursor = 0; // track position in raw_messages for matching
             for (role, content) in &ctx.messages {
+                // Try to find the matching raw StoredMessage so we can
+                // restore tool_calls_json / tool_call_id / name.
+                let mut tool_calls: Option<Vec<ToolCall>> = None;
+                let mut tool_call_id: Option<String> = None;
+                let mut msg_name: Option<String> = None;
+
+                // Linear scan from raw_cursor — messages appear in the same
+                // order, but trim_history may have dropped some from the front.
+                for (i, rm) in raw_messages.iter().enumerate().skip(raw_cursor) {
+                    if rm.role == *role && rm.content == *content {
+                        tool_calls = rm
+                            .tool_calls_json
+                            .as_ref()
+                            .and_then(|json| serde_json::from_str(json).ok());
+                        tool_call_id = rm.tool_call_id.clone();
+                        msg_name = rm.name.clone();
+                        raw_cursor = i + 1;
+                        break;
+                    }
+                }
+
                 chat_messages.push(Message {
                     role: match role.as_str() {
                         "assistant" => Role::Assistant,
@@ -425,11 +453,17 @@ pub async fn engine_chat_send(
                         _ => Role::User,
                     },
                     content: MessageContent::Text(content.clone()),
-                    tool_calls: None,
-                    tool_call_id: None,
-                    name: None,
+                    tool_calls,
+                    tool_call_id,
+                    name: msg_name,
                 });
             }
+
+            // Sanitize after reconstruction: context trimming may have
+            // dropped assistant messages while keeping their tool results
+            // (or vice versa). This prevents 400 errors from the API.
+            crate::engine::agent_loop::helpers::sanitize_tool_pairs(&mut chat_messages);
+
             (ctx.system_prompt, chat_messages, ctx.budget)
         }
         Err(e) => {

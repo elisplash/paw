@@ -13,11 +13,24 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// Track whether we've already tried to pull the model this session.
 static MODEL_PULL_ATTEMPTED: AtomicBool = AtomicBool::new(false);
 
+/// Optional fallback to an OpenAI-compatible provider when Ollama is not running.
+#[derive(Clone, Debug)]
+pub struct OpenAiFallback {
+    pub api_key: String,
+    pub base_url: String,
+    /// Model for embeddings (e.g. "text-embedding-3-small")
+    pub embedding_model: String,
+    /// Model for classification/PII scanning (e.g. "gpt-4.1-mini")
+    pub chat_model: String,
+}
+
 /// Embedding client — calls Ollama or OpenAI-compatible embedding API.
 pub struct EmbeddingClient {
     client: Client,
     base_url: String,
     model: String,
+    /// If set, used as a fallback when Ollama is unreachable.
+    openai_fallback: Option<OpenAiFallback>,
 }
 
 impl EmbeddingClient {
@@ -26,7 +39,14 @@ impl EmbeddingClient {
             client: Client::new(),
             base_url: config.embedding_base_url.clone(),
             model: config.embedding_model.clone(),
+            openai_fallback: None,
         }
+    }
+
+    /// Set an OpenAI-compatible provider as fallback when Ollama is unreachable.
+    pub fn with_openai_fallback(mut self, fallback: OpenAiFallback) -> Self {
+        self.openai_fallback = Some(fallback);
+        self
     }
 
     /// The model name used for embeddings.
@@ -79,16 +99,33 @@ impl EmbeddingClient {
             }
         }
 
-        // Try OpenAI-compatible format: POST /v1/embeddings
+        // Try OpenAI-compatible format at the same base_url: POST /v1/embeddings
         let openai_result = self.embed_openai(safe_text).await;
         if let Ok(vec) = openai_result {
             return Ok(vec);
         }
+        let openai_err = openai_result.unwrap_err();
+
+        // ── Fallback: use the user's configured OpenAI provider ──────
+        // If Ollama is unreachable but the user has an OpenAI (or compatible)
+        // provider configured, use it for embeddings instead of failing.
+        if let Some(ref fb) = self.openai_fallback {
+            info!("[memory] Ollama unavailable, falling back to OpenAI provider for embeddings");
+            let fb_result = self.embed_openai_provider(safe_text, fb).await;
+            if let Ok(vec) = fb_result {
+                return Ok(vec);
+            }
+            let fb_err = fb_result.unwrap_err();
+            return Err(format!(
+                "Embedding failed. Ollama: {} | Same-URL OpenAI: {} | Provider fallback: {}",
+                ollama_err, openai_err, fb_err
+            )
+            .into());
+        }
 
         Err(format!(
             "Embedding failed. Ollama: {} | OpenAI: {}",
-            ollama_err,
-            openai_result.unwrap_err()
+            ollama_err, openai_err
         )
         .into())
     }
@@ -238,6 +275,71 @@ impl EmbeddingClient {
         Ok(vec)
     }
 
+    /// Call the user's configured OpenAI provider for embeddings.
+    async fn embed_openai_provider(
+        &self,
+        text: &str,
+        fb: &OpenAiFallback,
+    ) -> EngineResult<Vec<f32>> {
+        let base = fb.base_url.trim_end_matches('/');
+        let url = if base.contains(".azure.com") {
+            // Azure: embeddings endpoint with api-version
+            if base.contains('?') {
+                format!("{}/embeddings", base)
+            } else {
+                format!("{}/embeddings?api-version=2024-05-01-preview", base)
+            }
+        } else {
+            format!("{}/embeddings", base)
+        };
+
+        let body = json!({
+            "model": fb.embedding_model,
+            "input": text,
+        });
+
+        let mut req = self
+            .client
+            .post(&url)
+            .json(&body)
+            .timeout(std::time::Duration::from_secs(30));
+
+        // Azure uses api-key header; standard OpenAI uses Bearer token
+        if fb.base_url.contains(".azure.com") {
+            req = req.header("api-key", &fb.api_key);
+        } else {
+            req = req.bearer_auth(&fb.api_key);
+        }
+
+        let resp = req
+            .send()
+            .await
+            .map_err(|e| format!("OpenAI provider embed request failed: {}", e))?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let text = resp.text().await.unwrap_or_default();
+            return Err(format!("OpenAI provider embed {} — {}", status, text).into());
+        }
+
+        let v: Value = resp.json().await?;
+        let embedding = v["data"][0]["embedding"]
+            .as_array()
+            .ok_or_else(|| "No 'data[0].embedding' in OpenAI provider response".to_string())?;
+
+        let vec: Vec<f32> = embedding
+            .iter()
+            .filter_map(|v| v.as_f64().map(|f| f as f32))
+            .collect();
+
+        if vec.is_empty() {
+            return Err("Empty embedding vector from OpenAI provider".into());
+        }
+
+        info!("[memory] OpenAI provider embedding OK ({} dims)", vec.len());
+        Ok(vec)
+    }
+
     /// Check if the embedding service is reachable and the model works.
     pub async fn test_connection(&self) -> EngineResult<usize> {
         let vec = self.embed("test connection").await?;
@@ -260,29 +362,105 @@ impl EmbeddingClient {
             }
         });
 
-        let resp = self
+        let ollama_result = self
             .client
             .post(&url)
             .json(&body)
             .timeout(std::time::Duration::from_secs(30))
             .send()
+            .await;
+
+        match ollama_result {
+            Ok(resp) if resp.status().is_success() => {
+                let v: Value = resp.json().await?;
+                let response_text = v["response"].as_str().unwrap_or("").trim().to_string();
+                if !response_text.is_empty() {
+                    return Ok(response_text);
+                }
+            }
+            Ok(resp) => {
+                let status = resp.status();
+                let text = resp.text().await.unwrap_or_default();
+                warn!("[memory] Ollama classify returned {} — {}", status, text);
+            }
+            Err(e) => {
+                warn!("[memory] Ollama classify unreachable: {}", e);
+            }
+        }
+
+        // ── Fallback: use the user's configured OpenAI provider ──────
+        if let Some(ref fb) = self.openai_fallback {
+            info!("[memory] Ollama unavailable, falling back to OpenAI provider for PII classify");
+            return self.classify_text_openai(prompt, fb).await;
+        }
+
+        Err(
+            "LLM classify request failed: Ollama not reachable and no provider fallback configured"
+                .into(),
+        )
+    }
+
+    /// Classify text using the user's configured OpenAI-compatible provider.
+    async fn classify_text_openai(
+        &self,
+        prompt: &str,
+        fb: &OpenAiFallback,
+    ) -> EngineResult<String> {
+        let base = fb.base_url.trim_end_matches('/');
+        let url = if base.contains(".azure.com") {
+            if base.contains('?') {
+                format!("{}/chat/completions", base)
+            } else {
+                format!("{}/chat/completions?api-version=2024-05-01-preview", base)
+            }
+        } else {
+            format!("{}/chat/completions", base)
+        };
+
+        let body = json!({
+            "model": fb.chat_model,
+            "messages": [
+                { "role": "user", "content": prompt }
+            ],
+            "temperature": 0.0,
+            "max_tokens": 256,
+        });
+
+        let mut req = self
+            .client
+            .post(&url)
+            .json(&body)
+            .timeout(std::time::Duration::from_secs(30));
+
+        if fb.base_url.contains(".azure.com") {
+            req = req.header("api-key", &fb.api_key);
+        } else {
+            req = req.bearer_auth(&fb.api_key);
+        }
+
+        let resp = req
+            .send()
             .await
-            .map_err(|e| format!("LLM classify request failed: {}", e))?;
+            .map_err(|e| format!("OpenAI provider classify failed: {}", e))?;
 
         if !resp.status().is_success() {
             let status = resp.status();
             let text = resp.text().await.unwrap_or_default();
-            return Err(format!("LLM classify {} — {}", status, text).into());
+            return Err(format!("OpenAI provider classify {} — {}", status, text).into());
         }
 
         let v: Value = resp.json().await?;
-        let response_text = v["response"].as_str().unwrap_or("").trim().to_string();
+        let text = v["choices"][0]["message"]["content"]
+            .as_str()
+            .unwrap_or("")
+            .trim()
+            .to_string();
 
-        if response_text.is_empty() {
-            return Err("Empty response from LLM classify".into());
+        if text.is_empty() {
+            return Err("Empty response from OpenAI provider classify".into());
         }
 
-        Ok(response_text)
+        Ok(text)
     }
 
     /// Check if Ollama is reachable.

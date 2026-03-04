@@ -2,7 +2,7 @@
 // The core orchestration loop: send to model → tool calls → execute → repeat.
 // This is the core agent loop that drives Pawz AI interactions.
 
-mod helpers;
+pub(crate) mod helpers;
 mod trading;
 
 use crate::atoms::error::EngineResult;

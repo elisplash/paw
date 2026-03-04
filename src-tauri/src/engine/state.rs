@@ -450,11 +450,52 @@ impl EngineState {
     }
 
     /// Get an EmbeddingClient from the current memory config, if configured.
+    /// Automatically adds a fallback to the user's configured OpenAI (or
+    /// compatible) provider so embeddings and PII scans work even without
+    /// a local Ollama instance.
     pub fn embedding_client(&self) -> Option<EmbeddingClient> {
         let cfg = self.memory_config.lock();
         if cfg.embedding_base_url.is_empty() || cfg.embedding_model.is_empty() {
             return None;
         }
-        Some(EmbeddingClient::new(&cfg))
+        let mut client = EmbeddingClient::new(&cfg);
+
+        // Build fallback from the user's configured provider (if any).
+        let engine_cfg = self.config.lock();
+        let provider = engine_cfg
+            .default_provider
+            .as_ref()
+            .and_then(|dp| engine_cfg.providers.iter().find(|p| &p.id == dp))
+            .or_else(|| engine_cfg.providers.first());
+
+        if let Some(p) = provider {
+            if !p.api_key.is_empty() {
+                let base_url = p
+                    .base_url
+                    .clone()
+                    .unwrap_or_else(|| p.kind.default_base_url().to_string());
+                let chat_model = p
+                    .default_model
+                    .clone()
+                    .unwrap_or_else(|| "gpt-4o-mini".to_string());
+                // Use a dedicated small embedding model for cost efficiency
+                let embedding_model = if base_url.contains(".azure.com") {
+                    // Azure deployments: use the same model as default
+                    // (user must have an embedding deployment; fall back gracefully)
+                    "text-embedding-3-small".to_string()
+                } else {
+                    "text-embedding-3-small".to_string()
+                };
+                client =
+                    client.with_openai_fallback(crate::engine::memory::embedding::OpenAiFallback {
+                        api_key: p.api_key.clone(),
+                        base_url,
+                        embedding_model,
+                        chat_model,
+                    });
+            }
+        }
+
+        Some(client)
     }
 }
