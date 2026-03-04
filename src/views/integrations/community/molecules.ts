@@ -28,7 +28,7 @@ import {
 
 let _tab: CommunityTab = 'browse';
 let _query = '';
-let _sortOption: CommunitySortOption = 'downloads';
+let _sortOption: CommunitySortOption = 'relevance';
 let _results: CommunityPackage[] = [];
 let _installed: InstalledPackage[] = [];
 let _loading = false;
@@ -157,7 +157,7 @@ function _renderBrowseTab(): string {
   return `
     <div class="community-toolbar">
       <div class="community-search-wrap">
-        <span class="ms ms-sm">search</span>
+        <span class="ms ms-sm">${_loading ? 'progress_activity' : 'search'}</span>
         <input type="text" class="community-search"
                placeholder="Search 25,000+ community packages…"
                value="${escHtml(_query)}" />
@@ -536,15 +536,42 @@ function _renderCredentialForm(schema: N8nCredentialSchema): string {
 
 // ── Data fetching ──────────────────────────────────────────────────────
 
+/**
+ * Swap the search icon between spinner and magnifying glass without
+ * touching the input or results.
+ */
+function _updateSearchIcon(): void {
+  const icon = _container?.querySelector('.community-search-wrap .ms');
+  if (icon) icon.textContent = _loading ? 'progress_activity' : 'search';
+}
+
+/**
+ * Patch only the `.community-results` area and re-wire result-area events.
+ * This avoids destroying the search input (and its focus / cursor) on every
+ * search tick.
+ */
+function _updateResultsOnly(): void {
+  const resultsEl = _container?.querySelector('.community-results');
+  if (!resultsEl) {
+    // Fallback: full render (e.g. container was never rendered yet)
+    _render();
+    return;
+  }
+  resultsEl.innerHTML = _loading ? _renderLoading() : _renderPackageList();
+  _wireResultEvents();
+  _updateSearchIcon();
+}
+
 async function _search(query: string, append = false): Promise<void> {
   if (append) {
     _loadingMore = true;
   } else {
     _loading = true;
-    _results = [];
+    // Keep previous results visible while loading (no jarring flash).
+    // Only the search icon swaps to a spinner.
     _hasMore = true;
   }
-  _render();
+  _updateSearchIcon();
 
   try {
     const from = append ? _results.length : 0;
@@ -570,7 +597,7 @@ async function _search(query: string, append = false): Promise<void> {
   } finally {
     _loading = false;
     _loadingMore = false;
-    _render();
+    _updateResultsOnly();
     // Stagger animate results
     const grid = _container?.querySelector('.community-package-grid');
     if (grid) kineticStagger(grid as HTMLElement, '.community-card');
@@ -786,38 +813,12 @@ function _wireEvents(): void {
   if (sortSelect) {
     sortSelect.addEventListener('change', () => {
       _sortOption = sortSelect.value as CommunitySortOption;
-      _render();
+      _updateResultsOnly();
     });
   }
 
-  // Install buttons
-  _container.querySelectorAll('.community-install-btn[data-pkg]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const pkg = (btn as HTMLElement).dataset.pkg;
-      if (pkg) _enqueueInstall(pkg);
-    });
-  });
-
-  // Cancel install buttons
-  _container.querySelectorAll('.community-cancel-btn[data-pkg]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const pkg = (btn as HTMLElement).dataset.pkg;
-      if (pkg) _cancelInstall(pkg);
-    });
-  });
-
-  // Uninstall buttons
-  _container.querySelectorAll('.community-uninstall-btn[data-pkg]').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const pkg = (btn as HTMLElement).dataset.pkg;
-      if (pkg && (await confirmModal(`Uninstall ${pkg}?`, 'Uninstall Package'))) {
-        _uninstallPackage(pkg);
-      }
-    });
-  });
+  // Result-area buttons (install / cancel / uninstall) — shared with _wireResultEvents
+  _wireResultEvents();
 
   // Configure credentials buttons (installed tab)
   _container.querySelectorAll('.community-configure-btn[data-pkg]').forEach((btn) => {
@@ -871,4 +872,39 @@ function _wireEvents(): void {
   // Stagger installed rows
   const installedList = _container.querySelector('.community-installed-list');
   if (installedList) kineticStagger(installedList as HTMLElement, '.community-installed-row');
+}
+
+/**
+ * Wire only result-area events (install / cancel / uninstall buttons, scroll).
+ * Used by `_updateResultsOnly()` so non-result elements like the search input
+ * keep their existing listeners and focus state.
+ */
+function _wireResultEvents(): void {
+  if (!_container) return;
+
+  _container.querySelectorAll('.community-install-btn[data-pkg]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pkg = (btn as HTMLElement).dataset.pkg;
+      if (pkg) _enqueueInstall(pkg);
+    });
+  });
+
+  _container.querySelectorAll('.community-cancel-btn[data-pkg]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pkg = (btn as HTMLElement).dataset.pkg;
+      if (pkg) _cancelInstall(pkg);
+    });
+  });
+
+  _container.querySelectorAll('.community-uninstall-btn[data-pkg]').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const pkg = (btn as HTMLElement).dataset.pkg;
+      if (pkg && (await confirmModal(`Uninstall ${pkg}?`, 'Uninstall Package'))) {
+        _uninstallPackage(pkg);
+      }
+    });
+  });
 }

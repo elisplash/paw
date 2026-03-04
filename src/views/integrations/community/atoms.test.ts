@@ -161,6 +161,11 @@ describe('sortPackages', () => {
     expect(result.map((p) => p.package_name)).toEqual(['bravo', 'charlie', 'alpha']);
   });
 
+  it('preserves original order for relevance', () => {
+    const result = sortPackages([pkgC, pkgA, pkgB], 'relevance');
+    expect(result.map((p) => p.package_name)).toEqual(['charlie', 'alpha', 'bravo']);
+  });
+
   it('sorts by last_updated descending', () => {
     const result = sortPackages([pkgA, pkgB, pkgC], 'updated');
     expect(result.map((p) => p.package_name)).toEqual(['bravo', 'charlie', 'alpha']);
@@ -283,12 +288,13 @@ describe('getRequiredPackage', () => {
 // ── Constants ──────────────────────────────────────────────────────────────
 
 describe('SORT_OPTIONS', () => {
-  it('has three sort options', () => {
-    expect(SORT_OPTIONS).toHaveLength(3);
+  it('has four sort options', () => {
+    expect(SORT_OPTIONS).toHaveLength(4);
   });
 
-  it('includes downloads, updated, and a-z', () => {
+  it('includes relevance, downloads, updated, and a-z', () => {
     const values = SORT_OPTIONS.map((o) => o.value);
+    expect(values).toContain('relevance');
     expect(values).toContain('downloads');
     expect(values).toContain('updated');
     expect(values).toContain('a-z');

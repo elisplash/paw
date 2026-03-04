@@ -653,7 +653,9 @@ pub async fn engine_n8n_search_ncnodes(
         .build()
         .map_err(|e| e.to_string())?;
 
-    // npm registry search API — filter by the n8n community node keyword
+    // npm registry search API — filter by the n8n community node keyword.
+    // npm returns results in relevance order by default; we preserve that
+    // order on the frontend via the "Best Match" sort option.
     let encoded_query = url::form_urlencoded::Serializer::new(String::new())
         .append_pair(
             "text",

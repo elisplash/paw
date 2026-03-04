@@ -54,11 +54,12 @@ export interface PackageCredentialInfo {
 }
 
 export type CommunityTab = 'browse' | 'installed';
-export type CommunitySortOption = 'downloads' | 'updated' | 'a-z';
+export type CommunitySortOption = 'relevance' | 'downloads' | 'updated' | 'a-z';
 
 // ── Constants ──────────────────────────────────────────────────────────
 
 export const SORT_OPTIONS: Array<{ value: CommunitySortOption; label: string }> = [
+  { value: 'relevance', label: 'Best Match' },
   { value: 'downloads', label: 'Most Downloaded' },
   { value: 'updated', label: 'Recently Updated' },
   { value: 'a-z', label: 'A–Z' },
@@ -108,6 +109,8 @@ export function sortPackages(
 ): CommunityPackage[] {
   const copy = [...pkgs];
   switch (sort) {
+    case 'relevance':
+      return copy;
     case 'downloads':
       return copy.sort((a, b) => b.weekly_downloads - a.weekly_downloads);
     case 'updated':
