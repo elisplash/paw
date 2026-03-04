@@ -88,6 +88,13 @@ fn tool_domain(name: &str) -> &'static str {
         // Skills Ecosystem
         "skill_search" | "skill_install" | "skill_list" => "skills",
 
+        // Canvas (Agent Canvas — bento-grid dashboard widgets)
+        "canvas_push" | "canvas_update" | "canvas_remove" | "canvas_clear" => "canvas",
+        "canvas_save" | "canvas_load" | "canvas_list_dashboards" | "canvas_delete_dashboard" => {
+            "canvas"
+        }
+        "canvas_list_templates" | "canvas_from_template" | "canvas_create_template" => "canvas",
+
         // Dashboard & Storage
         "skill_output" | "delete_skill_output" => "dashboard",
         "skill_store_set" | "skill_store_get" | "skill_store_list" | "skill_store_delete" => {
@@ -190,6 +197,11 @@ pub fn domain_summaries() -> Vec<(&'static str, &'static str, &'static str)> {
             "dashboard",
             "dashboard",
             "Push data to the Today dashboard widgets",
+        ),
+        (
+            "canvas",
+            "grid_view",
+            "Agent Canvas — create, update, and manage bento-grid dashboard widgets, save/load dashboards, use templates",
         ),
         (
             "storage",
