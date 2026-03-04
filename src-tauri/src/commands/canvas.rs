@@ -29,6 +29,18 @@ pub fn engine_canvas_list_by_dashboard(
         .map_err(|e| e.to_string())
 }
 
+/// List the most recent canvas components across all sessions.
+#[tauri::command]
+pub fn engine_canvas_list_recent(
+    state: State<'_, EngineState>,
+    limit: Option<u32>,
+) -> Result<Vec<CanvasComponentRow>, String> {
+    state
+        .store
+        .list_canvas_recent(limit.unwrap_or(50))
+        .map_err(|e| e.to_string())
+}
+
 /// Delete a single canvas component by ID.
 #[tauri::command]
 pub fn engine_canvas_delete_component(

@@ -84,6 +84,22 @@ impl SessionStore {
         Ok(rows)
     }
 
+    /// List the most recent canvas components across all sessions (fallback view).
+    pub fn list_canvas_recent(&self, limit: u32) -> EngineResult<Vec<CanvasComponentRow>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, session_id, dashboard_id, agent_id, component_type,
+                    title, data, position, created_at, updated_at
+             FROM canvas_components
+             ORDER BY updated_at DESC
+             LIMIT ?1",
+        )?;
+        let rows = stmt
+            .query_map(params![limit], map_row)?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
     /// Update a canvas component partially (patch).
     pub fn patch_canvas_component(
         &self,

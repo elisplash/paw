@@ -454,6 +454,10 @@ export class PawEngineClient {
     return invoke<CanvasComponentRow[]>('engine_canvas_list_by_dashboard', { dashboardId });
   }
 
+  async canvasListRecent(limit?: number): Promise<CanvasComponentRow[]> {
+    return invoke<CanvasComponentRow[]>('engine_canvas_list_recent', { limit: limit ?? null });
+  }
+
   async canvasDeleteComponent(componentId: string): Promise<boolean> {
     return invoke<boolean>('engine_canvas_delete_component', { componentId });
   }

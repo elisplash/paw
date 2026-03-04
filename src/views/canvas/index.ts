@@ -12,6 +12,7 @@ import {
 import { pawEngine } from '../../engine';
 import type { CanvasComponent, CanvasComponentPatch, EngineEvent } from '../../engine/atoms/types';
 import { staggerCards } from '../../components/animations';
+import { appState } from '../../state';
 import {
   initTabBar,
   loadTabs,
@@ -95,6 +96,9 @@ export async function loadCanvas(sessionId?: string): Promise<void> {
   if (sessionId) {
     _sessionId = sessionId;
     _dashboardId = null;
+  } else if (!_sessionId && appState.currentSessionKey) {
+    // Fall back to the current app session so components are visible
+    _sessionId = appState.currentSessionKey;
   }
   console.debug('[canvas] loadCanvas called, session:', _sessionId);
 
@@ -152,11 +156,20 @@ function subscribeToEvents(): void {
     const componentId = event.component_id as string;
     const component = event.component as CanvasComponent;
 
-    // Match by session OR dashboard
+    // Track the session from incoming events if we don't have one yet
+    if (!_sessionId && event.session_id) {
+      _sessionId = event.session_id;
+    }
+
+    // Match by session, dashboard, or accept when no filter is active
     const matchSession = _sessionId && event.session_id === _sessionId;
+    const matchCurrentSession =
+      !_sessionId && appState.currentSessionKey && event.session_id === appState.currentSessionKey;
     const ev = event as unknown as Record<string, unknown>;
     const matchDashboard = _dashboardId && ev.dashboard_id === _dashboardId;
-    if (matchSession || matchDashboard) {
+    // Also accept when canvas is open with no specific filter (show all)
+    const noFilter = !_sessionId && !_dashboardId;
+    if (matchSession || matchCurrentSession || matchDashboard || noFilter) {
       pushComponent(componentId, component);
     }
   });
@@ -167,9 +180,12 @@ function subscribeToEvents(): void {
     const patch = event.patch as CanvasComponentPatch;
 
     const matchSession = _sessionId && event.session_id === _sessionId;
+    const matchCurrentSession =
+      !_sessionId && appState.currentSessionKey && event.session_id === appState.currentSessionKey;
     const ev = event as unknown as Record<string, unknown>;
     const matchDashboard = _dashboardId && ev.dashboard_id === _dashboardId;
-    if (matchSession || matchDashboard) {
+    const noFilter = !_sessionId && !_dashboardId;
+    if (matchSession || matchCurrentSession || matchDashboard || noFilter) {
       updateComponent(componentId, patch);
     }
   });

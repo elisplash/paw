@@ -47,9 +47,11 @@ export function initMoleculesState() {
 /** Load canvas components for the current session from the backend. */
 export async function fetchCanvasComponents(): Promise<void> {
   const sid = _state.getSessionId();
-  if (!sid) return;
   try {
-    const rows = await pawEngine.canvasListBySession(sid);
+    // If we have a session, load by session; otherwise load recent components
+    const rows = sid
+      ? await pawEngine.canvasListBySession(sid)
+      : await pawEngine.canvasListRecent(50);
     _state.setComponents(rows.map(parseComponent));
   } catch (e) {
     console.warn('[canvas] Failed to load components:', e);

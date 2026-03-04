@@ -340,6 +340,7 @@ pub fn run() {
             // ── Agent Canvas ──
             commands::canvas::engine_canvas_list_by_session,
             commands::canvas::engine_canvas_list_by_dashboard,
+            commands::canvas::engine_canvas_list_recent,
             commands::canvas::engine_canvas_delete_component,
             commands::canvas::engine_canvas_clear_session,
             // ── Dashboards & Templates (Canvas Phase 2) ──
