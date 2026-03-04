@@ -250,19 +250,23 @@ Memory in Pawz is protected at multiple levels:
 
 | Layer | Protection |
 |-------|-----------|
-| **PII encryption** | Two-layer PII defense: 17 regex patterns (emails, SSNs, credit cards, JWTs, AWS keys, private keys, IBAN, etc.) detect and encrypt sensitive content with AES-256-GCM before storage. Encryption key stored in OS keychain (`paw-memory-vault`). |
-| **At rest** | Sensitive database fields encrypted with AES-256-GCM, key stored in OS keychain |
+| **PII encryption** | Two-layer PII defense: Layer 1 uses 17 regex patterns (emails, SSNs, credit cards, JWTs, AWS keys, private keys, IBAN, etc.) to detect and encrypt sensitive content with AES-256-GCM. Layer 2 uses LLM-assisted scanning for context-dependent PII ("mother's maiden name", "born in Springfield"). Encryption key derived per-agent via HKDF from OS keychain (`paw-memory-vault`). |
+| **At rest** | Per-agent HKDF-derived AES-256-GCM keys — each agent's memories are cryptographically isolated. Key versioned (`enc:v1:` prefix) with automated 90-day rotation. |
 | **In transit** | TLS certificate-pinned connections to embedding providers (Mozilla root CAs only, OS trust store excluded) |
 | **In RAM** | Provider API keys wrapped in `Zeroizing<String>` — automatically zeroed from memory on drop |
 | **Outbound** | Every embedding request SHA-256 signed and logged to a 500-entry audit ring buffer |
 | **Query sanitization** | All search query operators stripped before execution to prevent injection |
 | **Prompt injection** | 10-pattern scanner redacts prompt injection attempts in memory content with `[REDACTED:injection]` markers |
-| **Inter-agent trust** | Memory bus enforces capability tokens (HMAC-SHA256 signed), scope/importance ceilings, per-agent rate limits, and trust-weighted contradiction resolution |
-| **Anti-forensic** | Database padded to 512KB boundaries; two-phase secure delete prevents plaintext recovery |
+| **Inter-agent trust** | Memory bus enforces capability tokens (HMAC-SHA256 signed) on both publish and read paths — scope/importance ceilings, per-agent rate limits, signed scope tokens with 4-step verification, and trust-weighted contradiction resolution |
+| **Anti-forensic** | Database padded to 512KB boundaries; two-phase secure delete prevents plaintext recovery; snapshot HMAC detects tampering |
 | **GDPR compliance** | Article 17 purge command deletes all memories, embeddings, search index, and graph edges for a user |
 
 :::info PII auto-encryption
-Unlike the previous memory system which stored content unencrypted, Engram automatically scans memory content for PII patterns (emails, phone numbers, SSNs, credit cards, etc.) and encrypts matching content with field-level AES-256-GCM before writing to SQLite. Decryption happens transparently on retrieval.
+Engram automatically scans memory content for PII using a two-layer defense:
+- **Layer 1 (regex):** 17 patterns detect emails, phone numbers, SSNs, credit cards, JWTs, AWS keys, etc.
+- **Layer 2 (LLM):** An LLM-assisted scanner catches context-dependent PII that regex misses (e.g., "my mother's maiden name is Smith"). Content flagged by Layer 1 or exceeding a size threshold is sent to the active model for classification.
+
+All PII-containing content is encrypted with per-agent AES-256-GCM keys (derived via HKDF from the OS keychain). Decryption happens transparently on retrieval.
 :::
 
 ## Consolidation engine
@@ -273,12 +277,27 @@ Engram runs a background consolidation cycle every 5 minutes that maintains memo
 |-----------|---------|
 | **Pattern clustering** | Groups related memories by semantic similarity |
 | **Contradiction detection** | Identifies conflicting facts and resolves them |
-| **Strength decay** | Applies Ebbinghaus-inspired forgetting curve — unused memories fade over time |
+| **FadeMem dual-layer decay** | Importance-weighted Ebbinghaus curve (Layer 1) + LRU access-frequency boost (Layer 2) — high-importance and frequently-accessed memories resist decay |
 | **Garbage collection** | Removes memories whose strength has fallen below threshold |
+| **GraphRAG community detection** | Louvain modularity clustering identifies knowledge communities in the memory graph for enhanced retrieval |
 
 ### Memory strength
 
-Each memory has a strength score (0.0–1.0) that decays over time. Accessing a memory boosts its strength. Important memories (importance > 0.7) decay slower. This ensures frequently-used knowledge persists while stale information is naturally pruned.
+Each memory has a strength score (0.0–1.0) managed by the **FadeMem dual-layer decay** system:
+
+- **Layer 1 (Ebbinghaus curve):** Time-based exponential decay with configurable half-life. High-importance memories (importance > 0.7) decay at half the rate. The decay factor is: `0.5^(age_days / half_life) × importance_weight`.
+- **Layer 2 (LRU boost):** Each memory access (search hit, recall, explicit read) increments a frequency counter. Frequently-accessed memories receive a boost that counteracts decay: `min(access_count × 0.05, 0.3)`.
+
+The combined strength determines garbage collection eligibility. This ensures frequently-used knowledge persists while truly stale information is naturally pruned.
+
+### GraphRAG community detection
+
+The memory graph is periodically analyzed using Louvain modularity optimization to discover clusters of related knowledge:
+
+- **Community labels** are assigned to memories, enabling community-scoped retrieval
+- **Modularity score** tracks cluster quality — higher scores indicate well-separated knowledge domains
+- **Cross-community edges** highlight connections between knowledge areas
+- Communities are re-computed during consolidation cycles as new memories arrive
 
 ## Agent memory tools
 

@@ -1,11 +1,11 @@
 ---
 title: "Security"
-description: "OpenPawz is designed with defense-in-depth: 10 security layers protect against prompt injection, data exfiltration, MITM attacks, memory forensics, and unauthorized actions."
+description: "OpenPawz is designed with defense-in-depth: 12 security layers protect against prompt injection, data exfiltration, MITM attacks, memory forensics, agent fixation, and unauthorized actions."
 ---
 
 # Security
 
-OpenPawz is designed with defense-in-depth: **10 security layers** protect against prompt injection, data exfiltration, MITM attacks, memory forensics, and unauthorized actions.
+OpenPawz is designed with defense-in-depth: **12 security layers** protect against prompt injection, data exfiltration, MITM attacks, memory forensics, agent fixation, and unauthorized actions.
 
 ## Zero Attack Surface by Default
 
@@ -36,8 +36,16 @@ No cryptographic key is ever stored on the filesystem. All keys live in the **OS
 |-----|-----------------|---------|
 | DB encryption key | `paw-db-encryption` | AES-256-GCM database field encryption |
 | Skill vault key | `paw-skill-vault` | AES-256-GCM skill credential encryption |
-| Memory vault key | `paw-memory-vault` | AES-256-GCM PII memory encryption |
+| Memory vault key | `paw-memory-vault` | Master key for HKDF per-agent memory encryption |
 | Lock screen hash | `paw-lock-screen` | SHA-256 hashed passphrase |
+
+From the memory vault key, three independent key families are derived via **HKDF-SHA256 domain separation**:
+
+| Domain | HKDF Salt | Purpose |
+|--------|-----------|----------|
+| Agent encryption | `engram-agent-key-v1` | Per-agent AES-256-GCM memory encryption |
+| Snapshot HMAC | `engram-snapshot-hmac-v1` | Tamper detection for working memory snapshots |
+| Capability signing | `engram-platform-cap-v1` | HMAC-SHA256 signing of capability tokens |
 
 There is no `device.json`, no key file, and no config file containing secrets. If the OS keychain is unavailable, the app **refuses to store credentials** rather than falling back to plaintext.
 
@@ -317,17 +325,20 @@ Before storage, every memory passes through a two-layer PII scanner with 17 rege
 | 16 | Credentials (passwords) | `password=`, `secret=` patterns | Confidential |
 | 17 | Dates of birth | `1990-01-15` | Sensitive |
 
-**Layer 2 (planned):** LLM-assisted secondary scan for context-dependent PII that static regex cannot catch.
+**Layer 2 (LLM):** An LLM-assisted secondary scanner catches context-dependent PII that static regex cannot detect (e.g., "my mother's maiden name is Smith", "born in Springfield"). Content flagged by Layer 1 or exceeding a configurable character threshold is sent to the active model for classification. The LLM returns structured JSON with detected PII types and confidence scores.
 
 ### Encryption details
 
 | Property | Detail |
 |----------|--------|
 | Algorithm | AES-256-GCM (authenticated encryption) |
-| Key storage | OS keychain via `keyring` crate (service: `paw-memory-vault`) |
+| Key derivation | HKDF-SHA256 per-agent from OS keychain master key (`paw-memory-vault`) |
+| Key versioning | `enc:v1:` prefix for forward-compatible upgrades |
+| Key rotation | Automated 90-day scheduler; atomic re-encryption with rollback on failure |
 | Granularity | Field-level — only PII-containing content is encrypted |
-| Format | `enc:base64(nonce ‖ ciphertext ‖ tag)` |
-| Decryption | Transparent on retrieval — callers see plaintext |
+| Format | `enc:v1:base64(nonce ‖ ciphertext ‖ tag)` |
+| Decryption | Transparent on retrieval using per-agent derived key |
+| Agent isolation | Cross-agent decryption is mathematically impossible without the master key |
 | Tier classification | Cleartext (no PII) / Sensitive (encrypted) / Confidential (encrypted) |
 
 ### Query sanitization
@@ -366,6 +377,17 @@ Each agent holds an `AgentCapability` signed with HMAC-SHA256 against a platform
 
 Every `publish()` call verifies the token signature in constant time before any bus operation.
 
+### Read-path token verification (signed scope tokens)
+
+Every `gated_search()` call performs 4-step cryptographic verification:
+
+1. **HMAC signature integrity** — Token signature verified against platform signing key (HKDF-derived)
+2. **Identity binding** — Token `agent_id` must match the requesting agent
+3. **Scope ceiling check** — Requested search scope must not exceed the token's `max_scope`
+4. **Membership verification** — For squad/project scopes, SQL membership checks confirm the agent belongs to the relevant squad or project
+
+This prevents confused-deputy attacks where an agent could be tricked into reading another agent's memories.
+
 ### Publish-side defenses
 
 | Defense | Detail |
@@ -393,6 +415,40 @@ The memory with the higher effective importance is retained. Trust scores are pe
 | Low-trust agent overwrites high-trust facts | Trust-weighted contradiction resolution |
 | Agent publishes beyond its authority scope | Scope ceiling enforcement |
 | Forged capability token | HMAC-SHA256 verification against platform secret |
+| Cross-agent memory reads via confused deputy | Signed read-path tokens with identity binding + membership verification |
+
+### Snapshot HMAC
+
+Working memory snapshots (saved on agent switch or session end) include an HMAC-SHA256 integrity tag computed from a dedicated HKDF-derived key. On restore, the HMAC is verified before the snapshot is loaded — tampered snapshots are rejected and logged.
+
+## Anti-fixation defenses
+
+Five defense layers prevent agents from ignoring user instructions or getting stuck on old topics:
+
+| Defense | Layer | Description |
+|---------|-------|-------------|
+| **Response loop detection** | Pre-turn | Jaccard similarity, question loops, topic fixation checks with system redirect injection — active on ALL channels (Discord, Telegram, Slack, etc.) and chat UI |
+| **User override detection** | Pre-turn | Detects explicit stop/redirect commands ("stop", "focus on my question", "I am in control", "that's not what I asked") with 3-level escalation (gentle → firm → hard block) |
+| **Unidirectional topic ignorance** | Pre-turn | Catches unique-but-wrong responses after a prior redirect — fires when model's response has zero entity overlap with user keywords |
+| **Momentum clearing** | Cognitive | Clears working memory trajectory embeddings on user override so recalled context serves the new topic, not the old trajectory |
+| **Tool-call loop breaker** | Intra-loop | Hash-based signature detection stops repeated identical tool calls after 3 consecutive matches; injects redirect or hard-breaks the turn |
+
+### User override detection
+
+Explicit user commands to stop or redirect the agent are recognized via phrase matching across 5 categories:
+
+| Category | Example phrases |
+|----------|----------------|
+| **Stop commands** | "stop", "pawz stop", "enough", "cut it out" |
+| **Focus commands** | "focus on my question", "listen to me", "pay attention", "I am in control" |
+| **Correction commands** | "that's not what I asked", "I asked you to...", "I'm asking about..." |
+| **Topic switch commands** | "new topic", "change the subject", "forget about that", "drop it" |
+| **Frustration + instruction** | "you're ignoring my instructions", "stop ignoring what I said" |
+
+Escalation levels:
+- **Level 0:** Gentle redirect — "Stop your current task, respond to this message"
+- **Level 1:** Firm redirect — "You ignored them once already. STOP."
+- **Level 2+:** Hard override — "USER COMMAND: The user has told you {N} times to stop"
 
 ## Anti-forensic vault-size quantization
 

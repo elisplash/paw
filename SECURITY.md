@@ -6,13 +6,14 @@ Pawz is a Tauri v2 desktop AI agent. Every system call flows through the Rust ba
 
 | Metric | Value |
 |--------|-------|
-| Automated tests | 530 (164 Rust + 366 TypeScript) |
+| Automated tests | 739 (673 Rust + 66 integration) + TypeScript |
 | CI jobs | 3 parallel (Rust + TypeScript + Security Audit) |
 | Clippy warnings | 0 (enforced via `-D warnings`) |
 | Known CVEs | 0 (`cargo audit` + `npm audit` in CI) |
-| Credential encryption | AES-256-GCM (OS keychain for key storage) |
+| Credential encryption | AES-256-GCM (OS keychain + HKDF per-agent key derivation) |
 | Error handling | 12-variant typed `EngineError` enum (no `String` errors) |
 | Network attack surface | Zero open ports (Tauri IPC only) |
+| Memory encryption layers | 3 (HKDF per-agent keys + SQL scope filtering + signed capability tokens) |
 
 ---
 
@@ -211,7 +212,7 @@ Memories containing personally identifiable information (PII) are automatically 
 | 16 | Credentials (passwords) | `password=`, `secret=` patterns | Confidential |
 | 17 | Dates of birth | `1990-01-15` | Sensitive |
 
-**Layer 2 (planned):** LLM-assisted secondary scan for context-dependent PII that static regex cannot catch (e.g., "my mother's maiden name is Smith").
+**Layer 2: LLM PII scan** — An LLM-assisted secondary scanner catches context-dependent PII that static regex cannot detect (e.g., "my mother's maiden name is Smith", "I was born in Springfield"). Content flagged by Layer 1 or exceeding a configurable character threshold is sent to the active LLM model for classification. The LLM returns structured JSON with detected PII types and a confidence score. Results above the confidence threshold trigger encryption, with the LLM classification stored alongside the regex tier for auditability.
 
 **Three security tiers:**
 
@@ -253,12 +254,13 @@ The cross-agent memory bus (pub/sub system for sharing memories between agents) 
 | Defense | Implementation |
 |---------|----------------|
 | **Capability tokens** | Each agent holds an `AgentCapability` with HMAC-SHA256 signature — specifies max publication scope, importance ceiling, rate limit, and write permission |
-| **Signature verification** | Every publish call requires a valid capability token; HMAC is verified in constant time (`subtle` crate) before any bus operation |
-| **Scope enforcement** | Agents cannot publish beyond their assigned scope (e.g., an agent scoped to `Agent` cannot publish to `Global`) |
+| **Signature verification** | Every publish and read call requires a valid capability token; HMAC is verified in constant time (`subtle` crate) before any bus operation |
+| **Scope enforcement** | Agents cannot publish or read beyond their assigned scope (e.g., an agent scoped to `Agent` cannot publish to `Global`) |
 | **Importance ceiling** | Publication importance is clamped to the agent's maximum — prevents low-trust agents from asserting high-confidence facts |
 | **Per-agent rate limiting** | Publish count tracked per GC window; agents exceeding their rate limit are rejected |
 | **Publish-side injection scan** | All publication content is scanned for prompt injection patterns before entering the bus |
 | **Trust-weighted contradiction resolution** | When two agents publish contradictory facts, the memory with the higher trust-weighted importance wins. Trust scores are per-agent and adjustable. |
+| **Signed scope tokens on read path** | Every `gated_search()` call verifies a signed capability token: (1) HMAC signature integrity, (2) identity binding (token agent_id == requester), (3) scope ceiling check, (4) squad/project membership verification |
 
 **Threat model:**
 
@@ -268,6 +270,27 @@ The cross-agent memory bus (pub/sub system for sharing memories between agents) 
 | Low-trust agent overwrites high-trust facts | Trust-weighted contradiction resolution — lower trust score reduces effective importance |
 | Agent publishes beyond its authority scope | Scope ceiling enforcement — publish rejected if scope exceeds capability |
 | Forged capability token | HMAC-SHA256 verification against platform-held secret key |
+| Unauthorized cross-agent memory reads | Signed read-path tokens with 4-step verification (signature, identity, scope ceiling, membership) |
+
+### Per-Agent Key Derivation (HKDF)
+
+Every agent's memory is encrypted with a **unique derived key** using HKDF-SHA256 domain separation. A single master key in the OS keychain produces three independent key families:
+
+| Domain | HKDF Salt | Purpose |
+|--------|-----------|----------|
+| Agent encryption | `engram-agent-key-v1` | Per-agent AES-256-GCM memory encryption |
+| Snapshot HMAC | `engram-snapshot-hmac-v1` | Tamper detection for working memory snapshots |
+| Capability signing | `engram-platform-cap-v1` | HMAC-SHA256 signing of capability tokens |
+
+This means: even if an attacker compromises one agent's derived key, other agents' memories remain cryptographically isolated. Cross-agent decryption is **mathematically impossible** without the master key.
+
+### Key Versioning & Rotation
+
+Encrypted content is prefixed with a version tag (`enc:v1:`) for forward-compatible upgrades. An automated key rotation scheduler runs on a configurable interval (default: 90 days) and re-encrypts all agent memories with fresh HKDF-derived keys. The rotation is atomic — if any re-encryption fails, the entire batch rolls back.
+
+### Snapshot HMAC
+
+Working memory snapshots (saved on agent switch or session end) include an HMAC-SHA256 integrity tag computed over the serialized snapshot content. On restore, the HMAC is verified before the snapshot is loaded — tampered snapshots are rejected and logged.
 
 ### GDPR Right to Erasure
 
@@ -277,6 +300,20 @@ Article 17 compliance via the `engine_memory_purge_user` Tauri command:
 - Purges working memory snapshots and audit log entries
 - Two-phase deletion: content zeroed before row deletion
 - Returns a count of erased records for compliance reporting
+
+---
+
+## Anti-Fixation Defenses (§59)
+
+Five defense layers prevent agents from ignoring user instructions or getting stuck on old topics:
+
+| Defense | Layer | Description |
+|---------|-------|-------------|
+| **Response loop detection** | Pre-turn | Jaccard similarity, question loops, topic fixation checks with system redirect injection (now active on ALL channels, not just chat UI) |
+| **User override detection** | Pre-turn | Detects explicit stop/redirect commands ("stop", "focus on my question", "that's not what I asked") with 3-level escalation |
+| **Unidirectional topic ignorance** | Pre-turn | Catches unique-but-wrong responses after a prior redirect — fires when model's response has zero entity overlap with user keywords |
+| **Momentum clearing** | Cognitive | Clears working memory trajectory embeddings on topic switch so recalled context serves the new topic |
+| **Tool-call loop breaker** | Intra-loop | Hash-based signature detection stops repeated identical tool calls after 3 consecutive matches |
 
 ---
 
