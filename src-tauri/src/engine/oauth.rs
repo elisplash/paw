@@ -49,6 +49,44 @@ pub struct OAuthConfig {
     pub revoke_url: Option<&'static str>,
 }
 
+impl OAuthConfig {
+    /// Get the effective client ID at runtime.
+    ///
+    /// Priority: compiled-in value (via `option_env!`) > runtime env var.
+    /// This fallback handles cases where `build.rs` couldn't inject the value
+    /// (e.g., different build toolchain, CI, or local dev without re-compile).
+    /// The `Box::leak` is acceptable — this runs at most once per service
+    /// in a desktop app's lifetime.
+    pub fn effective_client_id(&self) -> &str {
+        if !self.client_id.starts_with("REPLACE_WITH_") {
+            return self.client_id;
+        }
+        let env_key = format!("OPENPAWZ_{}_CLIENT_ID", self.env_prefix);
+        if let Ok(val) = std::env::var(&env_key) {
+            if !val.is_empty() {
+                return Box::leak(val.into_boxed_str());
+            }
+        }
+        self.client_id
+    }
+
+    /// Get the effective client secret at runtime.
+    ///
+    /// Same fallback logic as `effective_client_id`.
+    pub fn effective_client_secret(&self) -> Option<&str> {
+        if self.client_secret.is_some() {
+            return self.client_secret;
+        }
+        let env_key = format!("OPENPAWZ_{}_CLIENT_SECRET", self.env_prefix);
+        if let Ok(val) = std::env::var(&env_key) {
+            if !val.is_empty() {
+                return Some(Box::leak(val.into_boxed_str()));
+            }
+        }
+        None
+    }
+}
+
 /// Stored OAuth tokens (encrypted in skill vault).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OAuthTokens {
@@ -770,8 +808,13 @@ pub async fn start_oauth_flow(
         ))
     })?;
 
+    // Resolve effective client ID (compile-time or runtime env var)
+    let client_id = config.effective_client_id();
+    // Warm the client_secret cache too (so exchange_code picks it up)
+    let _ = config.effective_client_secret();
+
     // Fail early if Client ID hasn't been registered
-    if config.client_id.starts_with("REPLACE_WITH_") {
+    if client_id.starts_with("REPLACE_WITH_") {
         return Err(EngineError::Other(format!(
             "OAuth not configured for {} yet. The Client ID needs to be registered \
              at the {} developer portal. Set the OPENPAWZ_{}_CLIENT_ID environment \
@@ -804,7 +847,7 @@ pub async fn start_oauth_flow(
     let mut auth_url = format!(
         "{}?response_type=code&client_id={}&redirect_uri={}&code_challenge={}&code_challenge_method=S256",
         config.auth_url,
-        urlencoding::encode(config.client_id),
+        urlencoding::encode(client_id),
         urlencoding::encode(&redirect_uri),
         urlencoding::encode(&code_challenge),
     );
@@ -957,15 +1000,19 @@ async fn exchange_code(
 ) -> EngineResult<OAuthTokens> {
     let client = reqwest::Client::new();
 
+    // Resolve effective credentials (compile-time or runtime env var)
+    let client_id = config.effective_client_id();
+    let client_secret = config.effective_client_secret();
+
     let mut params = HashMap::new();
     params.insert("grant_type", "authorization_code");
     params.insert("code", code);
     params.insert("redirect_uri", redirect_uri);
-    params.insert("client_id", config.client_id);
+    params.insert("client_id", client_id);
     params.insert("code_verifier", code_verifier);
 
     // Some providers (e.g., Google Desktop) require client_secret even with PKCE
-    if let Some(secret) = config.client_secret {
+    if let Some(secret) = client_secret {
         params.insert("client_secret", secret);
     }
 
@@ -1030,13 +1077,17 @@ pub async fn refresh_access_token(
 
     let client = reqwest::Client::new();
 
+    // Resolve effective credentials (compile-time or runtime env var)
+    let client_id = config.effective_client_id();
+    let client_secret = config.effective_client_secret();
+
     let mut params = HashMap::new();
     params.insert("grant_type", "refresh_token");
     params.insert("refresh_token", refresh_token);
-    params.insert("client_id", config.client_id);
+    params.insert("client_id", client_id);
 
     // Some providers require client_secret for refresh too
-    if let Some(secret) = config.client_secret {
+    if let Some(secret) = client_secret {
         params.insert("client_secret", secret);
     }
 
