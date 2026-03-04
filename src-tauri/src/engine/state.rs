@@ -455,12 +455,22 @@ impl EngineState {
     /// a local Ollama instance.
     pub fn embedding_client(&self) -> Option<EmbeddingClient> {
         let cfg = self.memory_config.lock();
-        if cfg.embedding_base_url.is_empty() || cfg.embedding_model.is_empty() {
+
+        // For provider-based modes we don't require base_url/model to be set
+        // because we'll derive them from the chat provider config.
+        let needs_explicit_url = matches!(
+            cfg.embedding_provider,
+            EmbeddingProvider::Auto | EmbeddingProvider::Ollama
+        );
+        if needs_explicit_url
+            && (cfg.embedding_base_url.is_empty() || cfg.embedding_model.is_empty())
+        {
             return None;
         }
+
         let mut client = EmbeddingClient::new(&cfg);
 
-        // Build fallback from the user's configured provider (if any).
+        // Build fallback from the user's configured chat provider (if any).
         let engine_cfg = self.config.lock();
         let provider = engine_cfg
             .default_provider
@@ -478,14 +488,14 @@ impl EngineState {
                     .default_model
                     .clone()
                     .unwrap_or_else(|| "gpt-4o-mini".to_string());
-                // Use a dedicated small embedding model for cost efficiency
-                let embedding_model = if base_url.contains(".azure.com") {
-                    // Azure deployments: use the same model as default
-                    // (user must have an embedding deployment; fall back gracefully)
-                    "text-embedding-3-small".to_string()
-                } else {
-                    "text-embedding-3-small".to_string()
+
+                // Pick an appropriate embedding model per provider kind
+                let embedding_model = match p.kind {
+                    ProviderKind::Google => "text-embedding-004".to_string(),
+                    ProviderKind::Mistral => "mistral-embed".to_string(),
+                    _ => "text-embedding-3-small".to_string(),
                 };
+
                 client =
                     client.with_openai_fallback(crate::engine::memory::embedding::OpenAiFallback {
                         api_key: p.api_key.clone(),

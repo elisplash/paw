@@ -37,7 +37,7 @@ Thanks for your interest in contributing! Whether you write Rust, TypeScript, do
 
 ```bash
 git clone https://github.com/OpenPawz/openpawz.git
-cd paw
+cd openpawz
 pnpm install          # installs all deps including anime.js for UI animations
 prek install          # set up git hooks
 pnpm tauri dev

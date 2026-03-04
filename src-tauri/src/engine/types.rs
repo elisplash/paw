@@ -145,6 +145,7 @@ impl Default for TradingPolicy {
 impl Default for MemoryConfig {
     fn default() -> Self {
         MemoryConfig {
+            embedding_provider: EmbeddingProvider::Auto,
             embedding_base_url: "http://localhost:11434".into(),
             embedding_model: "nomic-embed-text".into(),
             embedding_dims: 768,
