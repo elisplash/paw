@@ -468,6 +468,45 @@ export class PawEngineClient {
 
   // ── Dashboards & Templates (Canvas Phase 2) ──────────────────────────
 
+  async createDashboard(
+    dashboardId: string,
+    name: string,
+    icon?: string,
+    agentId?: string,
+    sourceSessionId?: string,
+    pinned?: boolean,
+  ): Promise<void> {
+    return invoke<void>('engine_create_dashboard', {
+      dashboardId,
+      name,
+      icon: icon ?? null,
+      agentId: agentId ?? null,
+      sourceSessionId: sourceSessionId ?? null,
+      pinned: pinned ?? null,
+    });
+  }
+
+  async updateDashboard(
+    dashboardId: string,
+    name?: string,
+    icon?: string,
+    pinned?: boolean,
+  ): Promise<boolean> {
+    return invoke<boolean>('engine_update_dashboard', {
+      dashboardId,
+      name: name ?? null,
+      icon: icon ?? null,
+      pinned: pinned ?? null,
+    });
+  }
+
+  async cloneCanvasToDashboard(sourceSessionId: string, dashboardId: string): Promise<number> {
+    return invoke<number>('engine_clone_canvas_to_dashboard', {
+      sourceSessionId,
+      dashboardId,
+    });
+  }
+
   async listDashboards(): Promise<DashboardRow[]> {
     return invoke<DashboardRow[]>('engine_list_dashboards');
   }

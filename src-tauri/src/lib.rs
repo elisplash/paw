@@ -344,6 +344,9 @@ pub fn run() {
             commands::canvas::engine_canvas_delete_component,
             commands::canvas::engine_canvas_clear_session,
             // ── Dashboards & Templates (Canvas Phase 2) ──
+            commands::dashboards::engine_create_dashboard,
+            commands::dashboards::engine_update_dashboard,
+            commands::dashboards::engine_clone_canvas_to_dashboard,
             commands::dashboards::engine_list_dashboards,
             commands::dashboards::engine_list_pinned_dashboards,
             commands::dashboards::engine_get_dashboard,

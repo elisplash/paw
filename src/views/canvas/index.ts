@@ -12,6 +12,7 @@ import {
 import { pawEngine } from '../../engine';
 import type { CanvasComponent, CanvasComponentPatch, EngineEvent } from '../../engine/atoms/types';
 import { staggerCards } from '../../components/animations';
+import { showToast } from '../../components/toast';
 import { appState } from '../../state';
 import {
   initTabBar,
@@ -28,6 +29,7 @@ import {
 let _components: ParsedCanvasComponent[] = [];
 let _sessionId: string | null = null;
 let _dashboardId: string | null = null;
+let _dashboardName: string | null = null;
 let _subscribed = false;
 
 // ── State bridge ──────────────────────────────────────────────────────
@@ -40,8 +42,67 @@ setMoleculesState({
   },
   getSessionId: () => _sessionId,
   getDashboardId: () => _dashboardId,
+  getDashboardName: () => _dashboardName,
   getTabBarHtml: () => renderTabBar(),
   wireTabBar: () => wireTabEvents(),
+
+  onSave: async (name: string) => {
+    const sid = _sessionId;
+    if (!sid) throw new Error('No active session');
+    const id = `dash-${Date.now().toString(36)}`;
+    await pawEngine.createDashboard(id, name, undefined, undefined, sid);
+    await pawEngine.cloneCanvasToDashboard(sid, id);
+    _dashboardId = id;
+    _dashboardName = name;
+    // Open as a tab
+    const dash = await pawEngine.getDashboard(id);
+    if (dash) await addTab(id, dash);
+    await fetchDashboardComponents(id);
+    renderCanvas();
+    staggerCards('.canvas-card');
+  },
+
+  onRename: async (name: string) => {
+    if (!_dashboardId) return;
+    await pawEngine.updateDashboard(_dashboardId, name);
+    _dashboardName = name;
+    renderCanvas();
+  },
+
+  onPin: async () => {
+    if (!_dashboardId) return;
+    const dash = await pawEngine.getDashboard(_dashboardId);
+    if (!dash) return;
+    const newPinned = !dash.pinned;
+    await pawEngine.updateDashboard(_dashboardId, undefined, undefined, newPinned);
+    showToast(newPinned ? 'Dashboard pinned' : 'Dashboard unpinned', 'success');
+  },
+
+  onPopOut: async () => {
+    if (!_dashboardId || !_dashboardName) return;
+    await pawEngine.popOutDashboard(_dashboardId, _dashboardName);
+  },
+
+  onOpenDashboard: async (dashboardId: string) => {
+    const dash = await pawEngine.getDashboard(dashboardId);
+    if (!dash) return;
+    _dashboardId = dashboardId;
+    _dashboardName = dash.name;
+    _sessionId = null;
+    await addTab(dashboardId, dash);
+    await fetchDashboardComponents(dashboardId);
+    renderCanvas();
+    staggerCards('.canvas-card');
+  },
+
+  onDelete: async () => {
+    if (!_dashboardId) return;
+    await pawEngine.deleteDashboard(_dashboardId);
+    _dashboardId = null;
+    _dashboardName = null;
+    _components = [];
+    renderCanvas();
+  },
 });
 
 // ── Init Tab Bar ──────────────────────────────────────────────────────
@@ -50,6 +111,8 @@ initTabBar('main', {
   onActivate: async (_tabId, dashboardId) => {
     _dashboardId = dashboardId;
     _sessionId = null;
+    const dash = await pawEngine.getDashboard(dashboardId);
+    _dashboardName = dash?.name ?? null;
     await fetchDashboardComponents(dashboardId);
     renderCanvas();
     staggerCards('.canvas-card');
@@ -59,10 +122,12 @@ initTabBar('main', {
     const active = getActiveTab();
     if (active) {
       _dashboardId = active.dashboardId;
+      _dashboardName = active.name;
       _sessionId = null;
       await fetchDashboardComponents(active.dashboardId);
     } else {
       _dashboardId = null;
+      _dashboardName = null;
       _components = [];
     }
     renderCanvas();
@@ -79,6 +144,7 @@ initTabBar('main', {
       const dash = dashboards[0];
       const tab = await addTab(dash.id, dash);
       _dashboardId = tab.dashboardId;
+      _dashboardName = tab.name;
       _sessionId = null;
       await fetchDashboardComponents(tab.dashboardId);
       renderCanvas();
@@ -141,6 +207,7 @@ export async function loadDashboard(dashboardId: string): Promise<void> {
   // Open as a tab if not already open
   const dash = await pawEngine.getDashboard(dashboardId);
   if (dash) {
+    _dashboardName = dash.name;
     await addTab(dashboardId, dash);
   }
 
@@ -153,6 +220,7 @@ export async function loadDashboard(dashboardId: string): Promise<void> {
 export function setSession(sessionId: string): void {
   _sessionId = sessionId;
   _dashboardId = null;
+  _dashboardName = null;
 }
 
 // ── Engine Event Subscriptions ────────────────────────────────────────
