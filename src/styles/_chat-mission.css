@@ -103,6 +103,20 @@
 
 .mission-gauge {
   flex-shrink: 0;
+  position: relative;
+}
+
+/* Tesseract centred inside the progress ring */
+.mission-gauge-tesseract {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
 }
 
 .mission-gauge-stats {

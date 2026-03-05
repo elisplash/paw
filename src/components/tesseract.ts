@@ -201,19 +201,23 @@ export function createTesseract(
 
     // ── Project vertices ──
     const pts2d: [number, number][] = [];
+    // At small sizes, use a tighter projection for better visibility
+    const projScale = size < 16 ? size * 0.42 : size * 0.38;
     for (const v of VERTS) {
       let r = v;
       r = rotXY(r, a1);
       r = rotXZ(r, a2);
       r = rotXW(r, a3);
       r = rotYZ(r, a4);
-      r = rotYW(r, a5);
-      r = rotZW(r, a6);
+      // Skip some rotations at tiny sizes for visual clarity
+      if (size >= 16) {
+        r = rotYW(r, a5);
+        r = rotZW(r, a6);
+      }
       const p3 = project4to3(r, 2.0);
       const p2 = project3to2(p3, 2.5);
       // Scale to canvas (centre + scale)
-      const scale = size * 0.38;
-      pts2d.push([size / 2 + p2[0] * scale, size / 2 + p2[1] * scale]);
+      pts2d.push([size / 2 + p2[0] * projScale, size / 2 + p2[1] * projScale]);
     }
 
     // ── Colour ──
@@ -245,8 +249,8 @@ export function createTesseract(
     // ── Main wireframe ──
     ctx.save();
     ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = size > 20 ? 1.0 : 0.7;
-    ctx.globalAlpha = 0.85;
+    ctx.lineWidth = size >= 24 ? 1.0 : size >= 16 ? 0.8 : 1.2;
+    ctx.globalAlpha = size < 16 ? 1.0 : 0.85;
     ctx.beginPath();
     for (const [a, b] of EDGES) {
       ctx.moveTo(pts2d[a][0], pts2d[a][1]);

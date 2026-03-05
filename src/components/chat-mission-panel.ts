@@ -10,6 +10,7 @@ import { getPopularTemplates } from '../views/integrations/automations/templates
 import { getPopularQueries, QUERY_CATALOG } from '../views/integrations/queries/catalog';
 import type { AutomationTemplate } from '../views/integrations/automations/atoms';
 import type { ServiceQuery } from '../views/integrations/queries/atoms';
+import { createTesseract, type TesseractInstance, type TesseractState } from './tesseract';
 
 // ── Shared app state reference ─────────────────────────────────────────
 // We read from the global appState rather than importing it to avoid
@@ -20,6 +21,23 @@ function $(id: string): HTMLElement | null {
 }
 
 // ── Context Gauge ──────────────────────────────────────────────────────
+
+// ── Tesseract inside Context Gauge ─────────────────────────────────────
+let _gaugeTesseract: TesseractInstance | null = null;
+
+/** Set the context-window tesseract animation state (call on stream start/stop). */
+export function setMissionTesseractState(state: TesseractState): void {
+  if (_gaugeTesseract) _gaugeTesseract.setState(state);
+}
+
+function ensureGaugeTesseract(gauge: HTMLElement): void {
+  if (_gaugeTesseract) return;
+  // Create a mount positioned at the centre of the progress ring
+  const mount = document.createElement('span');
+  mount.className = 'mission-gauge-tesseract';
+  gauge.appendChild(mount);
+  _gaugeTesseract = createTesseract(mount, { size: 32, state: 'idle' });
+}
 
 export function updateMissionGauge(tokensUsed: number, contextLimit: number): void {
   const gauge = $('mission-ctx-gauge');
@@ -32,6 +50,7 @@ export function updateMissionGauge(tokensUsed: number, contextLimit: number): vo
   const color = pct >= 80 ? 'var(--error)' : pct >= 60 ? 'var(--warning)' : 'var(--accent)';
 
   gauge.innerHTML = progressRing(pct, color, 56);
+  ensureGaugeTesseract(gauge);
 
   if (usedEl) {
     usedEl.textContent = fmtK(tokensUsed);

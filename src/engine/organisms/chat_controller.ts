@@ -20,7 +20,11 @@ import {
 // helpers & toast moved to chat_listeners molecule
 import * as AgentsModule from '../../views/agents';
 import * as SettingsModule from '../../views/settings-main';
-import { addActiveJob, clearActiveJobs } from '../../components/chat-mission-panel';
+import {
+  addActiveJob,
+  clearActiveJobs,
+  setMissionTesseractState,
+} from '../../components/chat-mission-panel';
 import {
   interceptSlashCommand,
   getSessionOverrides as getSlashOverrides,
@@ -172,6 +176,7 @@ function teardownStream(sessionKey: string, reason: string): void {
   // Clean up streaming UI
   document.getElementById('streaming-message')?.remove();
   clearActiveJobs();
+  setMissionTesseractState('idle');
   const actionsBar = document.getElementById('chat-stream-actions');
   if (actionsBar) actionsBar.style.display = 'none';
   hideInlineStop();
@@ -278,6 +283,7 @@ export function showStreamingMessage(): void {
   const modelName =
     ($('chat-model-select') as HTMLSelectElement | null)?.selectedOptions?.[0]?.text ?? 'model';
   addActiveJob(`Streaming · ${modelName}`);
+  setMissionTesseractState('streaming');
 }
 
 export function appendStreamingDelta(text: string): void {
@@ -311,6 +317,7 @@ export function finalizeStreaming(
 ): void {
   $('streaming-message')?.remove();
   clearActiveJobs();
+  setMissionTesseractState('idle');
 
   const key = streamSessionKey ?? appState.currentSessionKey ?? '';
   const ss = appState.activeStreams.get(key);
