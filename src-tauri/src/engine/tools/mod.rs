@@ -25,6 +25,7 @@ pub mod discourse;
 pub mod exec;
 pub mod fetch;
 pub mod filesystem;
+pub mod google;
 pub mod integrations;
 pub mod memory;
 pub mod n8n;
@@ -96,6 +97,7 @@ impl ToolDefinition {
                 "coinbase" => tools.extend(coinbase::definitions()),
                 "solana_dex" => tools.extend(solana::definitions()),
                 "dex" => tools.extend(dex::definitions()),
+                "google_workspace" => tools.extend(google::definitions()),
                 _ => {}
             }
         }
@@ -197,7 +199,8 @@ pub async fn execute_tool(
         .or(solana::execute(name, &args, app_handle).await)
         .or(dex::execute(name, &args, app_handle).await)
         .or(discord::execute(name, &args, app_handle).await)
-        .or(discourse::execute(name, &args, app_handle).await);
+        .or(discourse::execute(name, &args, app_handle).await)
+        .or(google::execute(name, &args, app_handle).await);
 
     // Try MCP tools (prefixed with `mcp_`) if no built-in handled it.
     // When a worker_model is configured, delegate MCP calls to the local

@@ -3541,6 +3541,15 @@ pub(crate) fn map_integration_to_skill(
             }
             "rest_api"
         }
+        // ── Google Workspace: tools read from vault directly, but we
+        // map here so the skill auto-enables on OAuth connect ──
+        "google" | "gmail" | "google-drive" | "google-calendar" | "google-sheets"
+        | "google-docs" => {
+            // No credential mapping needed — tools use key_vault::get("oauth:google")
+            // But we store a sentinel so provision_oauth_to_skill_vault enables the skill.
+            mapped.insert("GOOGLE_OAUTH_CONNECTED".into(), "true".into());
+            "google_workspace"
+        }
         // ── Fallback: store raw creds under service_id as a REST API skill ──
         other => {
             // For any unknown service, map all credentials as-is
