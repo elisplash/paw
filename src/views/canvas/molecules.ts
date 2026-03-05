@@ -4,6 +4,7 @@
 import { pawEngine } from '../../engine';
 import { $, escHtml, promptModal } from '../../components/helpers';
 import { showToast } from '../../components/toast';
+import { formatMarkdown } from '../../components/molecules/markdown';
 import {
   type ParsedCanvasComponent,
   parseComponent,
@@ -252,7 +253,12 @@ function renderTable(data: Record<string, unknown>): string {
 
   if (!columns.length) return '<p class="canvas-muted">No columns defined</p>';
 
-  const thead = columns.map((c) => `<th>${escHtml(String(c))}</th>`).join('');
+  const thead = columns
+    .map(
+      (c, i) =>
+        `<th data-col-index="${i}" class="canvas-th-sortable">${escHtml(String(c))} <span class="canvas-sort-icon"></span></th>`,
+    )
+    .join('');
   const tbody = rows
     .slice(0, 50) // cap at 50 rows for performance
     .map(
@@ -263,7 +269,7 @@ function renderTable(data: Record<string, unknown>): string {
 
   return `
     <div class="canvas-table-wrap">
-      <table class="canvas-table">
+      <table class="canvas-table" data-canvas-sortable>
         <thead><tr>${thead}</tr></thead>
         <tbody>${tbody}</tbody>
       </table>
@@ -280,20 +286,28 @@ function renderLog(data: Record<string, unknown>): string {
   const entries = dataArr(data, 'entries') as Record<string, unknown>[];
   if (!entries.length) return '<p class="canvas-muted">No log entries</p>';
 
+  // Determine which levels are present so we can render filter buttons
+  const levels = [...new Set(entries.map((e) => dataStr(e, 'level', 'info')))];
+
   const rows = entries
     .slice(-100) // last 100 entries
     .map((e) => {
       const time = dataStr(e, 'time');
       const text = dataStr(e, 'text');
       const level = dataStr(e, 'level', 'info');
-      return `<div class="canvas-log-entry canvas-log-${escHtml(level)}">
+      return `<div class="canvas-log-entry canvas-log-${escHtml(level)}" data-log-level="${escHtml(level)}">
         ${time ? `<span class="canvas-log-time">${escHtml(time)}</span>` : ''}
         <span class="canvas-log-text">${escHtml(text)}</span>
       </div>`;
     })
     .join('');
 
-  return `<div class="canvas-log">${rows}</div>`;
+  const filters =
+    levels.length > 1
+      ? `<div class="canvas-log-filters">${levels.map((l) => `<button class="btn btn-xs canvas-log-filter-btn canvas-log-filter-active" data-log-filter="${escHtml(l)}">${escHtml(l)}</button>`).join('')}</div>`
+      : '';
+
+  return `<div class="canvas-log">${filters}${rows}</div>`;
 }
 
 function renderKv(data: Record<string, unknown>): string {
@@ -318,13 +332,14 @@ function renderCard(data: Record<string, unknown>): string {
   const actionBtns = actions
     .map((a) => {
       const label = dataStr(a, 'label', 'Action');
-      return `<button class="btn btn-sm btn-ghost canvas-action-btn">${escHtml(label)}</button>`;
+      const action = dataStr(a, 'action', label);
+      return `<button class="btn btn-sm btn-ghost canvas-action-btn" data-canvas-action="${escHtml(action)}">${escHtml(label)}</button>`;
     })
     .join('');
 
   return `
     <div class="canvas-card-content">
-      <div class="canvas-card-body-text">${escHtml(body)}</div>
+      <div class="canvas-card-body-text">${formatMarkdown(body)}</div>
       ${actionBtns ? `<div class="canvas-card-actions">${actionBtns}</div>` : ''}
     </div>
   `;
@@ -363,7 +378,7 @@ function renderProgress(data: Record<string, unknown>): string {
     <div class="canvas-progress">
       <div class="canvas-progress-label">${escHtml(label)}</div>
       <div class="canvas-progress-bar">
-        <div class="canvas-progress-fill" style="width: ${pct}%"></div>
+        <div class="canvas-progress-fill canvas-progress-animate" data-target-width="${pct}" style="width: 0%"></div>
       </div>
       <div class="canvas-progress-meta">
         <span>${pct}%</span>
@@ -374,10 +389,8 @@ function renderProgress(data: Record<string, unknown>): string {
 }
 
 function renderMarkdown(data: Record<string, unknown>): string {
-  // Simple markdown rendering — just escape and preserve whitespace.
-  // Full markdown can be added later without a library.
   const text = dataStr(data, 'text') || dataStr(data, 'body');
-  return `<div class="canvas-markdown"><pre>${escHtml(text)}</pre></div>`;
+  return `<div class="canvas-markdown">${formatMarkdown(text)}</div>`;
 }
 
 function renderForm(data: Record<string, unknown>): string {
@@ -389,14 +402,16 @@ function renderForm(data: Record<string, unknown>): string {
       const name = dataStr(f, 'name');
       const label = dataStr(f, 'label', name);
       const type = dataStr(f, 'type', 'text');
+      const placeholder = dataStr(f, 'placeholder');
+      const required = f.required === true;
       return `<div class="canvas-form-field">
-        <label>${escHtml(label)}</label>
-        <input type="${escHtml(type)}" name="${escHtml(name)}" class="input input-sm" />
+        <label>${escHtml(label)}${required ? ' <span class="canvas-form-required">*</span>' : ''}</label>
+        <input type="${escHtml(type)}" name="${escHtml(name)}" class="input input-sm" ${placeholder ? `placeholder="${escHtml(placeholder)}"` : ''} ${required ? 'required' : ''} />
       </div>`;
     })
     .join('');
 
-  return `<div class="canvas-form">${inputs}<button class="btn btn-sm btn-primary canvas-form-submit">Submit</button></div>`;
+  return `<form class="canvas-form" data-canvas-form>${inputs}<button type="submit" class="btn btn-sm btn-primary canvas-form-submit">Submit</button></form>`;
 }
 
 // ── Timeline ──────────────────────────────────────────────────────────
@@ -445,7 +460,7 @@ function renderChecklist(data: Record<string, unknown>, componentId: string): st
     .map((it, i) => {
       const label = dataStr(it, 'label', `Item ${i + 1}`);
       const checked = it.checked === true || it.done === true;
-      return `<div class="canvas-cl-item${checked ? ' canvas-cl-done' : ''}">
+      return `<div class="canvas-cl-item${checked ? ' canvas-cl-done' : ''}" data-cl-index="${i}" data-cl-component="${escHtml(componentId)}" role="button" tabindex="0" style="cursor:pointer">
         <span class="canvas-cl-check">${checked ? '&#10003;' : ''}</span>
         <span class="canvas-cl-label">${escHtml(label)}</span>
       </div>`;
@@ -677,6 +692,9 @@ export function updateComponent(id: string, patch: CanvasComponentPatch): void {
 /** Active countdown intervals — tracked for cleanup. */
 const _countdownIntervals: Map<string, ReturnType<typeof setInterval>> = new Map();
 
+/** Track elements that have already been wired for interactivity. */
+const _wiredElements = new WeakSet<Element>();
+
 /**
  * Activate dynamic canvas widgets (countdown tickers, gauge entrance animations).
  * Called after full render and after individual push/update.
@@ -733,6 +751,145 @@ function activateLiveWidgets(scope?: HTMLElement): void {
     requestAnimationFrame(() => {
       arc.style.transition = 'stroke-dashoffset 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)';
       arc.style.strokeDashoffset = finalOffset;
+    });
+  });
+
+  // ── Progress bar entrance animation ─────────────────────────────────
+  root.querySelectorAll<HTMLElement>('.canvas-progress-animate').forEach((fill) => {
+    if (fill.classList.contains('canvas-progress-animated')) return;
+    fill.classList.add('canvas-progress-animated');
+    const target = fill.dataset.targetWidth ?? '0';
+    requestAnimationFrame(() => {
+      fill.style.transition = 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      fill.style.width = `${target}%`;
+    });
+  });
+
+  // ── Checklist toggle ────────────────────────────────────────────────
+  root.querySelectorAll<HTMLElement>('.canvas-cl-item').forEach((item) => {
+    if (item.dataset.wired) return;
+    item.dataset.wired = '1';
+    item.addEventListener('click', () => {
+      const isDone = item.classList.toggle('canvas-cl-done');
+      const chk = item.querySelector('.canvas-cl-check');
+      if (chk) chk.innerHTML = isDone ? '&#10003;' : '';
+
+      // Update progress bar
+      const checklist = item.closest('.canvas-checklist');
+      if (checklist) {
+        const items = checklist.querySelectorAll('.canvas-cl-item');
+        const doneCount = checklist.querySelectorAll('.canvas-cl-done').length;
+        const pct = Math.round((doneCount / items.length) * 100);
+        const fill = checklist.querySelector<HTMLElement>('.canvas-cl-progress-fill');
+        const txt = checklist.querySelector<HTMLElement>('.canvas-cl-progress-text');
+        if (fill) fill.style.width = `${pct}%`;
+        if (txt) txt.textContent = `${doneCount}/${items.length}`;
+      }
+    });
+  });
+
+  // ── Form submit ─────────────────────────────────────────────────────
+  root.querySelectorAll<HTMLFormElement>('[data-canvas-form]').forEach((form) => {
+    if (_wiredElements.has(form)) return;
+    _wiredElements.add(form);
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const values: Record<string, string> = {};
+      formData.forEach((v, k) => {
+        values[k] = String(v);
+      });
+
+      // Dispatch event for external handlers (agents, automation)
+      document.dispatchEvent(new CustomEvent('canvas:form-submit', { detail: values }));
+      showToast('Form submitted', 'success');
+
+      // Visual feedback — briefly highlight submit button
+      const btn = form.querySelector<HTMLButtonElement>('.canvas-form-submit');
+      if (btn) {
+        btn.textContent = 'Submitted ✓';
+        btn.disabled = true;
+        setTimeout(() => {
+          btn.textContent = 'Submit';
+          btn.disabled = false;
+        }, 2000);
+      }
+    });
+  });
+
+  // ── Card action buttons ─────────────────────────────────────────────
+  root.querySelectorAll<HTMLElement>('.canvas-action-btn').forEach((btn) => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.canvasAction ?? btn.textContent ?? 'action';
+      document.dispatchEvent(new CustomEvent('canvas:action', { detail: { action } }));
+      showToast(`Action: ${action}`, 'info');
+    });
+  });
+
+  // ── Table column sorting ────────────────────────────────────────────
+  root.querySelectorAll<HTMLTableElement>('[data-canvas-sortable]').forEach((table) => {
+    if (_wiredElements.has(table)) return;
+    _wiredElements.add(table);
+    const headers = table.querySelectorAll<HTMLElement>('.canvas-th-sortable');
+    headers.forEach((th) => {
+      th.style.cursor = 'pointer';
+      th.addEventListener('click', () => {
+        const colIdx = parseInt(th.dataset.colIndex ?? '0', 10);
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+
+        // Determine sort direction
+        const asc = th.dataset.sortDir !== 'asc';
+        th.dataset.sortDir = asc ? 'asc' : 'desc';
+
+        // Reset other headers
+        headers.forEach((h) => {
+          if (h !== th) {
+            h.dataset.sortDir = '';
+            const icon = h.querySelector('.canvas-sort-icon');
+            if (icon) icon.textContent = '';
+          }
+        });
+        const icon = th.querySelector('.canvas-sort-icon');
+        if (icon) icon.textContent = asc ? ' ▲' : ' ▼';
+
+        // Sort rows
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rows.sort((a, b) => {
+          const aText = a.children[colIdx]?.textContent ?? '';
+          const bText = b.children[colIdx]?.textContent ?? '';
+          const aNum = parseFloat(aText);
+          const bNum = parseFloat(bText);
+          if (!isNaN(aNum) && !isNaN(bNum)) return asc ? aNum - bNum : bNum - aNum;
+          return asc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+        });
+        rows.forEach((r) => tbody.appendChild(r));
+      });
+    });
+  });
+
+  // ── Log level filtering ─────────────────────────────────────────────
+  root.querySelectorAll<HTMLElement>('.canvas-log-filter-btn').forEach((btn) => {
+    if (btn.dataset.wired) return;
+    btn.dataset.wired = '1';
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('canvas-log-filter-active');
+      const logContainer = btn.closest('.canvas-log');
+      if (!logContainer) return;
+
+      // Get all active filter levels
+      const activeFilters = Array.from(
+        logContainer.querySelectorAll<HTMLElement>('.canvas-log-filter-active'),
+      ).map((b) => b.dataset.logFilter ?? '');
+
+      // Show/hide entries based on active filters
+      logContainer.querySelectorAll<HTMLElement>('.canvas-log-entry').forEach((entry) => {
+        const entryLevel = entry.dataset.logLevel ?? 'info';
+        entry.style.display =
+          activeFilters.length === 0 || activeFilters.includes(entryLevel) ? '' : 'none';
+      });
     });
   });
 }
