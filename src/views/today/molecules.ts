@@ -916,8 +916,13 @@ function bindEvents() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/png,image/jpeg,image/gif,image/webp';
+    // Tauri WebView requires the input to be in the DOM for programmatic click
+    input.style.display = 'none';
+    document.body.appendChild(input);
     input.addEventListener('change', async () => {
       const file = input.files?.[0];
+      // Clean up the hidden input from DOM
+      input.remove();
       if (!file) return;
       if (file.size > 5 * 1024 * 1024) {
         showToast('Image must be under 5 MB', 'error');

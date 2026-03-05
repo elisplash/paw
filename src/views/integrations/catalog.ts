@@ -817,6 +817,59 @@ const AUTO: ServiceDefinition[] = [
     '',
     false,
   ),
+  svc(
+    'discourse',
+    'Discourse',
+    'forum',
+    '#231F20',
+    'communication',
+    'Community forum platform with topics, categories, and rich discussions',
+    ['Create topics', 'Reply to posts', 'Manage categories', 'Search topics', 'User management'],
+    'n8n-nodes-base.discourse',
+    'https://docs.discourse.org',
+    true,
+    [
+      {
+        key: 'url',
+        label: 'Forum URL',
+        type: 'text',
+        placeholder: 'https://community.example.com',
+        required: true,
+      },
+      {
+        key: 'api_key',
+        label: 'API Key',
+        type: 'password',
+        placeholder: 'Paste your Discourse API key',
+        required: true,
+      },
+      {
+        key: 'username',
+        label: 'API Username',
+        type: 'text',
+        placeholder: 'system',
+        required: true,
+      },
+    ],
+    {
+      title: 'Connect Discourse',
+      steps: [
+        { instruction: 'Log into your Discourse forum as an admin.' },
+        { instruction: 'Go to Admin → API → API Keys and click "New API Key".' },
+        {
+          instruction:
+            'Choose "Single User" scope with a bot account, or "All Users" for full access.',
+        },
+        { instruction: 'Copy the generated API key and paste it below.' },
+        {
+          instruction: 'Enter the bot username and your forum URL, then click "Test & Save".',
+        },
+      ],
+      estimatedTime: '2-3 minutes',
+    },
+    ['Search forum topics about deployment', 'Find unanswered questions in the support category'],
+    ['Auto-reply to new support topics', 'Create a weekly summary topic from recent activity'],
+  ),
 
   // Development
   svc(
