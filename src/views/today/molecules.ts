@@ -36,6 +36,10 @@ import {
   kineticDot,
   type KineticStatus,
 } from '../../components/kinetic-row';
+import { createTesseract, type TesseractInstance } from '../../components/tesseract';
+
+// ── Hero tesseract instance ──────────────────────────────────────────
+let _heroTesseract: TesseractInstance | null = null;
 
 // ── Tauri bridge (no pawEngine equivalent for these commands) ──────────
 interface TauriWindow {
@@ -646,6 +650,7 @@ export function renderToday() {
         <div class="today-greeting">${greeting}${userName ? `, ${escHtml(userName)}` : ''}</div>
         <div class="today-date">${dateStr}</div>
       </div>
+      <div class="today-tesseract-cell" id="today-tesseract"></div>
       <div class="today-header-right">
         <div class="today-usage-strip">
           <span class="today-usage-item"><span class="today-usage-val" id="cmd-tokens">${formatTokens(tokensUsed)}</span> <span class="today-usage-lbl">tokens</span></span>
@@ -792,6 +797,13 @@ export function renderToday() {
       </div>
     </div>
   `;
+
+  // ── Hydrate the hero tesseract ──
+  const tesseractCell = $('today-tesseract');
+  if (tesseractCell) {
+    _heroTesseract?.destroy();
+    _heroTesseract = createTesseract(tesseractCell, { size: 80, state: 'idle' });
+  }
 
   bindEvents();
 }

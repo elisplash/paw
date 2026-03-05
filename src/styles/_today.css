@@ -82,6 +82,20 @@
   padding: 12px;
   border-right: 1px solid var(--border);
 }
+.today-tesseract-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 80px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  position: relative;
+  overflow: hidden;
+}
+.today-tesseract-cell canvas {
+  filter: drop-shadow(0 0 12px rgba(99, 102, 241, 0.15));
+}
 .today-header-right {
   display: flex;
   flex-direction: column;
@@ -158,6 +172,11 @@
   .today-greeting-cell {
     border-right: none;
     border-bottom: 1px solid var(--border);
+  }
+  .today-tesseract-cell {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    min-height: 80px;
   }
   .today-header-right {
     min-width: unset;
