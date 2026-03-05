@@ -632,7 +632,7 @@ fn provision_oauth_to_skill_vault(
 
 /// Map an OAuth service ID to the n8n node type and display name
 /// for MCP workflow deployment.
-fn oauth_service_to_n8n_node(service_id: &str) -> Option<(&'static str, &'static str)> {
+pub(crate) fn oauth_service_to_n8n_node(service_id: &str) -> Option<(&'static str, &'static str)> {
     match service_id {
         "gmail" | "google" | "google-workspace" => Some(("n8n-nodes-base.gmail", "Gmail")),
         "google-drive" => Some(("n8n-nodes-base.googleDrive", "Google Drive")),

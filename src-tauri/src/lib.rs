@@ -663,6 +663,7 @@ pub fn run() {
             commands::integrations::engine_integrations_touch,
             commands::integrations::engine_integrations_overview,
             commands::integrations::engine_calendar_events_today,
+            commands::integrations::engine_integration_preflight,
             // ── MCP Servers (Phase E) ──
             commands::mcp::engine_mcp_list_servers,
             commands::mcp::engine_mcp_save_server,

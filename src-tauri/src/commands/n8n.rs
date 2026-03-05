@@ -3577,9 +3577,9 @@ pub fn service_to_skill_id(service_id: &str) -> String {
         "notion" | "linear" | "stripe" | "todoist" | "clickup" | "airtable" | "sendgrid"
         | "jira" | "zendesk" | "hubspot" | "shopify" | "pagerduty" | "twilio"
         | "microsoft-teams" => "rest_api".into(),
-        "google" | "google-workspace" => "google-workspace".into(),
+        "google" | "google-workspace" => "google_workspace".into(),
         "gmail" | "google-drive" | "google-calendar" | "google-sheets" | "google-docs" => {
-            "google-workspace".into()
+            "google_workspace".into()
         }
         // Fallback: skill_id == service_id
         other => other.into(),
@@ -3663,5 +3663,235 @@ mod tests {
         assert!(is_heavy_package("n8n-nodes-puppeteer"));
         assert!(is_heavy_package("n8n-nodes-playwright-extra"));
         assert!(!is_heavy_package("n8n-nodes-telegram"));
+    }
+
+    // ── Integration→Skill mapping tests ────────────────────────────
+
+    #[test]
+    fn map_google_workspace_returns_correct_skill_id() {
+        let creds =
+            std::collections::HashMap::from([("access_token".to_string(), "tok_123".to_string())]);
+        for service_id in &[
+            "google",
+            "google-workspace",
+            "gmail",
+            "google-drive",
+            "google-calendar",
+            "google-sheets",
+            "google-docs",
+        ] {
+            let (skill_id, mapped) = map_integration_to_skill(service_id, &creds);
+            assert_eq!(
+                skill_id, "google_workspace",
+                "Service '{}' should map to skill 'google_workspace'",
+                service_id
+            );
+            assert_eq!(
+                mapped.get("GOOGLE_OAUTH_CONNECTED"),
+                Some(&"true".to_string()),
+                "Google mapping should set GOOGLE_OAUTH_CONNECTED sentinel"
+            );
+        }
+    }
+
+    #[test]
+    fn map_slack_extracts_bot_token() {
+        let creds = std::collections::HashMap::from([
+            ("bot_token".to_string(), "xoxb-123".to_string()),
+            ("default_channel".to_string(), "#general".to_string()),
+        ]);
+        let (skill_id, mapped) = map_integration_to_skill("slack", &creds);
+        assert_eq!(skill_id, "slack");
+        assert_eq!(mapped.get("SLACK_BOT_TOKEN"), Some(&"xoxb-123".to_string()));
+        assert_eq!(
+            mapped.get("SLACK_DEFAULT_CHANNEL"),
+            Some(&"#general".to_string())
+        );
+    }
+
+    #[test]
+    fn map_discord_extracts_credentials() {
+        let creds = std::collections::HashMap::from([
+            ("bot_token".to_string(), "disc_tok".to_string()),
+            ("server_id".to_string(), "123456".to_string()),
+        ]);
+        let (skill_id, mapped) = map_integration_to_skill("discord", &creds);
+        assert_eq!(skill_id, "discord");
+        assert_eq!(
+            mapped.get("DISCORD_BOT_TOKEN"),
+            Some(&"disc_tok".to_string())
+        );
+        assert_eq!(mapped.get("DISCORD_SERVER_ID"), Some(&"123456".to_string()));
+    }
+
+    #[test]
+    fn map_github_accepts_access_token() {
+        let creds =
+            std::collections::HashMap::from([("access_token".to_string(), "ghp_abc".to_string())]);
+        let (skill_id, mapped) = map_integration_to_skill("github", &creds);
+        assert_eq!(skill_id, "github");
+        assert_eq!(mapped.get("GITHUB_TOKEN"), Some(&"ghp_abc".to_string()));
+    }
+
+    #[test]
+    fn map_telegram_extracts_bot_token() {
+        let creds =
+            std::collections::HashMap::from([("bot_token".to_string(), "123:ABC".to_string())]);
+        let (skill_id, mapped) = map_integration_to_skill("telegram", &creds);
+        assert_eq!(skill_id, "telegram");
+        assert_eq!(
+            mapped.get("TELEGRAM_BOT_TOKEN"),
+            Some(&"123:ABC".to_string())
+        );
+    }
+
+    #[test]
+    fn map_notion_to_rest_api() {
+        let creds =
+            std::collections::HashMap::from([("api_key".to_string(), "secret_abc".to_string())]);
+        let (skill_id, mapped) = map_integration_to_skill("notion", &creds);
+        assert_eq!(skill_id, "rest_api");
+        assert_eq!(mapped.get("API_KEY"), Some(&"secret_abc".to_string()));
+        assert_eq!(
+            mapped.get("API_BASE_URL"),
+            Some(&"https://api.notion.com/v1".to_string())
+        );
+    }
+
+    #[test]
+    fn map_jira_uses_basic_auth() {
+        let creds = std::collections::HashMap::from([
+            ("domain".to_string(), "myco.atlassian.net".to_string()),
+            ("email".to_string(), "user@co.com".to_string()),
+            ("api_token".to_string(), "jira_tok_123".to_string()),
+        ]);
+        let (skill_id, mapped) = map_integration_to_skill("jira", &creds);
+        assert_eq!(skill_id, "rest_api");
+        assert!(
+            mapped
+                .get("API_BASE_URL")
+                .unwrap()
+                .contains("myco.atlassian.net"),
+            "Jira base URL should contain the domain"
+        );
+        assert_eq!(mapped.get("API_AUTH_PREFIX"), Some(&"Basic".to_string()));
+    }
+
+    #[test]
+    fn map_unknown_service_falls_through() {
+        let creds =
+            std::collections::HashMap::from([("api_key".to_string(), "key_123".to_string())]);
+        let (skill_id, mapped) = map_integration_to_skill("some-unknown-service", &creds);
+        assert_eq!(skill_id, "some-unknown-service");
+        assert_eq!(mapped.get("API_KEY"), Some(&"key_123".to_string()));
+    }
+
+    // ── service_to_skill_id mapping ────────────────────────────────
+
+    #[test]
+    fn service_to_skill_id_google_unified() {
+        assert_eq!(service_to_skill_id("google"), "google_workspace");
+        assert_eq!(service_to_skill_id("google-workspace"), "google_workspace");
+        assert_eq!(service_to_skill_id("gmail"), "google_workspace");
+        assert_eq!(service_to_skill_id("google-drive"), "google_workspace");
+        assert_eq!(service_to_skill_id("google-calendar"), "google_workspace");
+        assert_eq!(service_to_skill_id("google-sheets"), "google_workspace");
+        assert_eq!(service_to_skill_id("google-docs"), "google_workspace");
+    }
+
+    #[test]
+    fn service_to_skill_id_dedicated_skills() {
+        assert_eq!(service_to_skill_id("slack"), "slack");
+        assert_eq!(service_to_skill_id("discord"), "discord");
+        assert_eq!(service_to_skill_id("telegram"), "telegram");
+        assert_eq!(service_to_skill_id("github"), "github");
+    }
+
+    #[test]
+    fn service_to_skill_id_rest_api_group() {
+        for service in &[
+            "notion", "linear", "stripe", "todoist", "clickup", "airtable", "sendgrid", "jira",
+            "zendesk", "hubspot",
+        ] {
+            assert_eq!(
+                service_to_skill_id(service),
+                "rest_api",
+                "Service '{}' should map to 'rest_api'",
+                service
+            );
+        }
+    }
+
+    #[test]
+    fn service_to_skill_id_unknown_is_identity() {
+        assert_eq!(service_to_skill_id("acme-api"), "acme-api");
+        assert_eq!(service_to_skill_id("custom-thing"), "custom-thing");
+    }
+
+    // ── OAuth→n8n node mapping ─────────────────────────────────────
+
+    #[test]
+    fn oauth_service_to_n8n_node_google_variants() {
+        // All Google variants should map to Gmail n8n node
+        for service in &["gmail", "google", "google-workspace"] {
+            let result = crate::commands::oauth::oauth_service_to_n8n_node(service);
+            assert!(
+                result.is_some(),
+                "Service '{}' should have an n8n node mapping",
+                service
+            );
+            let (node_type, _name) = result.unwrap();
+            assert_eq!(node_type, "n8n-nodes-base.gmail");
+        }
+    }
+
+    #[test]
+    fn oauth_service_to_n8n_node_known_services() {
+        // Verify all known service mappings exist
+        let known = vec![
+            ("github", "n8n-nodes-base.github"),
+            ("slack", "n8n-nodes-base.slack"),
+            ("discord", "n8n-nodes-base.discord"),
+            ("notion", "n8n-nodes-base.notion"),
+        ];
+        for (service, expected_node) in known {
+            let result = crate::commands::oauth::oauth_service_to_n8n_node(service);
+            assert!(result.is_some(), "Missing n8n mapping for '{}'", service);
+            assert_eq!(result.unwrap().0, expected_node);
+        }
+    }
+
+    #[test]
+    fn oauth_service_to_n8n_node_unknown_returns_none() {
+        assert!(crate::commands::oauth::oauth_service_to_n8n_node("acme-crm").is_none());
+        assert!(crate::commands::oauth::oauth_service_to_n8n_node("").is_none());
+    }
+
+    // ── map_integration_to_skill consistency with service_to_skill_id ──
+
+    #[test]
+    fn map_integration_skill_id_matches_service_to_skill_id() {
+        // For services that both functions know about, they should agree.
+        let empty_creds = std::collections::HashMap::new();
+        let test_cases = vec![
+            "slack",
+            "discord",
+            "github",
+            "telegram",
+            "google",
+            "google-workspace",
+            "gmail",
+            "google-drive",
+            "google-calendar",
+        ];
+        for service in &test_cases {
+            let (map_skill, _) = map_integration_to_skill(service, &empty_creds);
+            let direct_skill = service_to_skill_id(service);
+            assert_eq!(
+                map_skill, direct_skill,
+                "Skill ID mismatch for '{}': map_integration='{}' vs service_to_skill='{}'",
+                service, map_skill, direct_skill
+            );
+        }
     }
 }

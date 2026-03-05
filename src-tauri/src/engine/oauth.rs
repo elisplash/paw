@@ -1360,4 +1360,233 @@ mod tests {
             "Enter API key manually"
         );
     }
+
+    // ── Google Workspace unified routing ───────────────────────────
+
+    #[test]
+    fn test_google_workspace_all_aliases_share_config() {
+        let aliases = [
+            "google",
+            "google-workspace",
+            "gmail",
+            "google-drive",
+            "google-calendar",
+            "google-sheets",
+            "google-docs",
+        ];
+        // All aliases must resolve to the same OAuthConfig (GOOGLE_OAUTH)
+        for alias in &aliases {
+            let config = get_oauth_config(alias);
+            assert!(
+                config.is_some(),
+                "Alias '{}' must resolve to an OAuth config",
+                alias
+            );
+            let config = config.unwrap();
+            assert_eq!(
+                config.name, "Google",
+                "Alias '{}' should resolve to the Google config",
+                alias
+            );
+        }
+    }
+
+    #[test]
+    fn test_google_workspace_all_aliases_are_tier1() {
+        let aliases = [
+            "google",
+            "google-workspace",
+            "gmail",
+            "google-drive",
+            "google-calendar",
+            "google-sheets",
+            "google-docs",
+        ];
+        for alias in &aliases {
+            assert_eq!(
+                resolve_tier(alias),
+                OAuthTier::ShippedPkce,
+                "All Google aliases must be Tier 1 (ShippedPkce), but '{}' is {:?}",
+                alias,
+                resolve_tier(alias)
+            );
+        }
+    }
+
+    #[test]
+    fn test_google_scopes_cover_all_services() {
+        let config = get_oauth_config("google").unwrap();
+        let scopes: Vec<&str> = config.default_scopes.to_vec();
+        // Gmail
+        assert!(
+            scopes.iter().any(|s| s.contains("gmail")),
+            "Google scopes must include Gmail"
+        );
+        // Calendar
+        assert!(
+            scopes.iter().any(|s| s.contains("calendar")),
+            "Google scopes must include Calendar"
+        );
+        // Drive
+        assert!(
+            scopes.iter().any(|s| s.contains("drive")),
+            "Google scopes must include Drive"
+        );
+        // Sheets
+        assert!(
+            scopes.iter().any(|s| s.contains("spreadsheets")),
+            "Google scopes must include Sheets"
+        );
+        // Docs
+        assert!(
+            scopes.iter().any(|s| s.contains("documents")),
+            "Google scopes must include Docs"
+        );
+    }
+
+    #[test]
+    fn test_google_uses_https_for_all_endpoints() {
+        let config = get_oauth_config("google").unwrap();
+        assert!(config.auth_url.starts_with("https://"));
+        assert!(config.token_url.starts_with("https://"));
+        if let Some(revoke) = config.revoke_url {
+            assert!(revoke.starts_with("https://"));
+        }
+    }
+
+    #[test]
+    fn test_google_n8n_type_consistent_for_all_aliases() {
+        let aliases = [
+            "google",
+            "google-workspace",
+            "gmail",
+            "google-drive",
+            "google-calendar",
+            "google-sheets",
+            "google-docs",
+        ];
+        for alias in &aliases {
+            let n8n_type = get_n8n_oauth_type(alias);
+            assert_eq!(
+                n8n_type,
+                Some("googleOAuth2Api"),
+                "Alias '{}' should map to 'googleOAuth2Api' in n8n, got {:?}",
+                alias,
+                n8n_type
+            );
+        }
+    }
+
+    #[test]
+    fn test_google_has_offline_access_hint() {
+        // The PKCE flow should request offline access for Google to get refresh tokens.
+        // We can't test the full flow, but we can verify the config has a revoke URL
+        // (which implies token management is expected).
+        let config = get_oauth_config("google").unwrap();
+        assert!(
+            config.revoke_url.is_some(),
+            "Google config should have a revoke URL for token management"
+        );
+    }
+
+    // ── All shipped services have HTTPS + non-empty client_id ──────
+
+    #[test]
+    fn test_all_shipped_services_have_valid_config() {
+        for service_id in oauth_service_ids() {
+            if let Some(config) = get_oauth_config(service_id) {
+                assert!(
+                    config.auth_url.starts_with("https://"),
+                    "Service '{}' auth_url must use HTTPS: {}",
+                    service_id,
+                    config.auth_url
+                );
+                assert!(
+                    config.token_url.starts_with("https://"),
+                    "Service '{}' token_url must use HTTPS: {}",
+                    service_id,
+                    config.token_url
+                );
+                assert!(
+                    !config.client_id.is_empty(),
+                    "Service '{}' must have a non-empty client_id",
+                    service_id
+                );
+            }
+        }
+    }
+
+    // ── RFC 7591 configs have valid URL templates ──────────────────
+
+    #[test]
+    fn test_rfc7591_configs_have_valid_urls() {
+        for service_id in rfc7591_service_ids() {
+            let config = get_rfc7591_config(service_id).unwrap();
+            // URLs should be HTTPS templates
+            assert!(
+                config.registration_url.starts_with("https://"),
+                "RFC 7591 registration URL for '{}' must use HTTPS",
+                service_id
+            );
+            assert!(
+                config.auth_url.starts_with("https://"),
+                "RFC 7591 auth URL for '{}' must use HTTPS",
+                service_id
+            );
+            assert!(
+                config.token_url.starts_with("https://"),
+                "RFC 7591 token URL for '{}' must use HTTPS",
+                service_id
+            );
+        }
+    }
+
+    // ── n8n delegation coverage ────────────────────────────────────
+
+    #[test]
+    fn test_n8n_oauth_service_ids_all_have_types() {
+        for service_id in n8n_oauth_service_ids() {
+            assert!(
+                get_n8n_oauth_type(service_id).is_some(),
+                "n8n service '{}' is listed in n8n_oauth_service_ids but has no type mapping",
+                service_id
+            );
+        }
+    }
+
+    #[test]
+    fn test_no_tier_routing_gap() {
+        // Every service in oauth_service_ids must route to Tier 1 (ShippedPkce)
+        for service_id in oauth_service_ids() {
+            assert_eq!(
+                resolve_tier(service_id),
+                OAuthTier::ShippedPkce,
+                "Service '{}' in oauth_service_ids should be Tier 1, got {:?}",
+                service_id,
+                resolve_tier(service_id)
+            );
+        }
+
+        // Every service in n8n_oauth_service_ids should route to either
+        // Tier 1 (if also shipped) or Tier 2 (n8n delegation)
+        for service_id in n8n_oauth_service_ids() {
+            let tier = resolve_tier(service_id);
+            assert!(
+                tier == OAuthTier::ShippedPkce || tier == OAuthTier::N8nDelegation,
+                "n8n service '{}' should be Tier 1 or 2, got {:?}",
+                service_id,
+                tier
+            );
+        }
+
+        // Every service in rfc7591_service_ids must route to Tier 3
+        for service_id in rfc7591_service_ids() {
+            assert_eq!(
+                resolve_tier(service_id),
+                OAuthTier::DynamicRegistration,
+                "RFC 7591 service '{}' should be Tier 3",
+                service_id
+            );
+        }
+    }
 }

@@ -426,3 +426,99 @@ pub async fn session_client(base_url: &str) -> Result<reqwest::Client, String> {
     log::debug!("[n8n] Session login successful — cookie-authenticated client ready");
     Ok(client)
 }
+
+// ── Version guard ──────────────────────────────────────────────────────
+
+/// Minimum n8n version required for full MCP support.
+/// n8n 1.76.0 introduced the instance-level MCP endpoint.
+pub const MIN_N8N_VERSION_MCP: &str = "1.76.0";
+
+/// Parse a semver-ish version string (e.g. "1.76.2") into (major, minor, patch).
+/// Returns (0, 0, 0) if parsing fails.
+pub fn parse_version(version: &str) -> (u32, u32, u32) {
+    let parts: Vec<u32> = version
+        .split('.')
+        .filter_map(|s| s.trim().parse().ok())
+        .collect();
+    (
+        parts.first().copied().unwrap_or(0),
+        parts.get(1).copied().unwrap_or(0),
+        parts.get(2).copied().unwrap_or(0),
+    )
+}
+
+/// Check if the running n8n version meets the minimum for MCP.
+/// Returns Ok(version_string) if the version is sufficient,
+/// or Err with an actionable message if it's too old.
+pub async fn check_n8n_version_for_mcp(base_url: &str, api_key: &str) -> Result<String, String> {
+    let version = get_n8n_version(base_url, api_key).await.unwrap_or_default();
+
+    if version.is_empty() {
+        return Err(
+            "Could not determine n8n version — ensure n8n is running and API key is correct".into(),
+        );
+    }
+
+    let (major, minor, patch) = parse_version(&version);
+    let (req_major, req_minor, req_patch) = parse_version(MIN_N8N_VERSION_MCP);
+
+    let meets_minimum = (major, minor, patch) >= (req_major, req_minor, req_patch);
+
+    if meets_minimum {
+        Ok(version)
+    } else {
+        Err(format!(
+            "n8n version {} is too old for MCP support (requires >= {}). \
+             Update n8n: docker pull n8nio/n8n:latest or npx n8n@latest",
+            version, MIN_N8N_VERSION_MCP
+        ))
+    }
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_version_basic() {
+        assert_eq!(parse_version("1.76.0"), (1, 76, 0));
+        assert_eq!(parse_version("1.76.2"), (1, 76, 2));
+        assert_eq!(parse_version("2.0.0"), (2, 0, 0));
+    }
+
+    #[test]
+    fn parse_version_partial() {
+        assert_eq!(parse_version("1.76"), (1, 76, 0));
+        assert_eq!(parse_version("1"), (1, 0, 0));
+    }
+
+    #[test]
+    fn parse_version_invalid() {
+        assert_eq!(parse_version(""), (0, 0, 0));
+        assert_eq!(parse_version("abc"), (0, 0, 0));
+        // "1.x.2" → filter_map skips "x", collects [1, 2] → (1, 2, 0)
+        assert_eq!(parse_version("1.x.2"), (1, 2, 0));
+    }
+
+    #[test]
+    fn version_comparison() {
+        // 1.76.0 >= 1.76.0
+        let (major, minor, patch) = parse_version("1.76.0");
+        let (req_major, req_minor, req_patch) = parse_version(MIN_N8N_VERSION_MCP);
+        assert!((major, minor, patch) >= (req_major, req_minor, req_patch));
+
+        // 1.80.0 >= 1.76.0
+        let (major, minor, patch) = parse_version("1.80.0");
+        assert!((major, minor, patch) >= (req_major, req_minor, req_patch));
+
+        // 1.75.0 < 1.76.0
+        let (major, minor, patch) = parse_version("1.75.0");
+        assert!((major, minor, patch) < (req_major, req_minor, req_patch));
+
+        // 2.0.0 >= 1.76.0
+        let (major, minor, patch) = parse_version("2.0.0");
+        assert!((major, minor, patch) >= (req_major, req_minor, req_patch));
+    }
+}
