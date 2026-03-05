@@ -635,6 +635,7 @@ export function renderToday() {
   });
   const greeting = getGreeting();
   const userName = localStorage.getItem('paw-user-name') || '';
+  const userAvatar = localStorage.getItem('paw-user-avatar') || '';
 
   const pendingTasks = tasks.filter((t) => !t.done);
   const completedToday = tasks.filter((t) => t.done && isToday(t.createdAt));
@@ -643,12 +644,27 @@ export function renderToday() {
   const tokensUsed = showcase ? showcase.tokenCount : appState.sessionTokensUsed;
   const cost = showcase ? showcase.cost : appState.sessionCost;
 
+  // Build avatar HTML — profile picture or initials or default icon
+  const avatarInner = userAvatar
+    ? `<img src="${escHtml(userAvatar)}" alt="" class="today-avatar-img">`
+    : userName
+      ? `<span class="today-avatar-initials">${escHtml(userName.charAt(0).toUpperCase())}</span>`
+      : '<span class="ms ms-sm">person</span>';
+
   container.innerHTML = `
     <div class="today-header bento-row">
       <div class="today-greeting-cell">
-        <div class="today-label">MISSION CONTROL</div>
-        <div class="today-greeting">${greeting}${userName ? `, ${escHtml(userName)}` : ''}</div>
-        <div class="today-date">${dateStr}</div>
+        <div class="today-profile-row">
+          <button class="today-avatar" id="today-avatar" title="Upload profile picture">
+            ${avatarInner}
+            <span class="today-avatar-overlay"><span class="ms ms-xs">photo_camera</span></span>
+          </button>
+          <div class="today-profile-text">
+            <div class="today-label">MISSION CONTROL</div>
+            <div class="today-greeting">${greeting}${userName ? `, <span class="today-user-name" id="today-user-name" title="Click to edit">${escHtml(userName)}</span>` : '<button class="today-set-name-btn" id="today-set-name">Set your name</button>'}</div>
+            <div class="today-date">${dateStr}</div>
+          </div>
+        </div>
       </div>
       <div class="today-tesseract-cell" id="today-tesseract"></div>
       <div class="today-header-right">
@@ -808,9 +824,80 @@ export function renderToday() {
   bindEvents();
 }
 
+// ── Inline name editor ────────────────────────────────────────────────
+
+function showNameEditor(anchor: HTMLElement) {
+  // Replace the name span/button with an inline input
+  const current = localStorage.getItem('paw-user-name') || '';
+  const wrapper = document.createElement('span');
+  wrapper.className = 'today-name-editor';
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = current;
+  input.placeholder = 'Your name';
+  input.className = 'today-name-input';
+  input.maxLength = 40;
+  wrapper.appendChild(input);
+
+  const save = () => {
+    const name = input.value.trim();
+    if (name) {
+      localStorage.setItem('paw-user-name', name);
+      showToast(`Welcome, ${name}!`, 'success');
+    } else {
+      localStorage.removeItem('paw-user-name');
+    }
+    _state.getRenderToday()();
+  };
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') save();
+    if (e.key === 'Escape') _state.getRenderToday()();
+  });
+  input.addEventListener('blur', save);
+
+  anchor.replaceWith(wrapper);
+  input.focus();
+  input.select();
+}
+
 // ── Events ────────────────────────────────────────────────────────────
 
 function bindEvents() {
+  // ── Profile avatar upload ───────────────────────────────────────────
+  $('today-avatar')?.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/png,image/jpeg,image/gif,image/webp';
+    input.addEventListener('change', () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 2 * 1024 * 1024) {
+        showToast('Image must be under 2 MB', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        localStorage.setItem('paw-user-avatar', dataUrl);
+        showToast('Profile picture updated', 'success');
+        _state.getRenderToday()();
+      };
+      reader.readAsDataURL(file);
+    });
+    input.click();
+  });
+
+  // ── Inline name editing ─────────────────────────────────────────────
+  const nameEl = document.getElementById('today-user-name');
+  if (nameEl) {
+    nameEl.addEventListener('click', () => showNameEditor(nameEl));
+  }
+  const setNameBtn = document.getElementById('today-set-name');
+  if (setNameBtn) {
+    setNameBtn.addEventListener('click', () => showNameEditor(setNameBtn));
+  }
+
   $('today-content')
     ?.querySelector('.today-add-task-btn')
     ?.addEventListener('click', () => {

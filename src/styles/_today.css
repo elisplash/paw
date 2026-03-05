@@ -82,6 +82,106 @@
   padding: 12px;
   border-right: 1px solid var(--border);
 }
+
+/* ── Profile row (avatar + text) ──────────────────────── */
+.today-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.today-avatar {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+  flex-shrink: 0;
+  transition: border-color 0.2s;
+  padding: 0;
+  color: var(--text-muted);
+}
+.today-avatar:hover {
+  border-color: var(--accent, var(--kinetic-red, #D4654A));
+}
+.today-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.today-avatar-initials {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+.today-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.today-avatar:hover .today-avatar-overlay {
+  opacity: 1;
+}
+.today-profile-text {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Name editing ─────────────────────────────────────── */
+.today-user-name {
+  cursor: pointer;
+  border-bottom: 1px dashed var(--text-dim);
+  transition: border-color 0.2s, color 0.2s;
+}
+.today-user-name:hover {
+  border-color: var(--accent, var(--kinetic-red, #D4654A));
+  color: var(--accent, var(--kinetic-red, #D4654A));
+}
+.today-set-name-btn {
+  background: none;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+  margin-left: 4px;
+}
+.today-set-name-btn:hover {
+  border-color: var(--accent, var(--kinetic-red, #D4654A));
+  color: var(--text-primary);
+}
+.today-name-editor {
+  display: inline-flex;
+}
+.today-name-input {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent, var(--kinetic-red, #D4654A));
+  color: var(--text-primary);
+  padding: 2px 6px;
+  outline: none;
+  width: 140px;
+}
 .today-tesseract-cell {
   display: flex;
   align-items: center;
