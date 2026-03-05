@@ -36,10 +36,10 @@ import {
   kineticDot,
   type KineticStatus,
 } from '../../components/kinetic-row';
-import { createTesseract, type TesseractInstance } from '../../components/tesseract';
+import { createHeroTesseract, type HeroTesseractInstance } from '../../components/tesseract';
 
 // ── Hero tesseract instance ──────────────────────────────────────────
-let _heroTesseract: TesseractInstance | null = null;
+let _heroTesseract: HeroTesseractInstance | null = null;
 
 // ── Tauri bridge (no pawEngine equivalent for these commands) ──────────
 interface TauriWindow {
@@ -802,7 +802,7 @@ export function renderToday() {
   const tesseractCell = $('today-tesseract');
   if (tesseractCell) {
     _heroTesseract?.destroy();
-    _heroTesseract = createTesseract(tesseractCell, { size: 80, state: 'idle' });
+    _heroTesseract = createHeroTesseract(tesseractCell);
   }
 
   bindEvents();

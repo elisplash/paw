@@ -92,9 +92,15 @@
   background: var(--surface);
   position: relative;
   overflow: hidden;
+  cursor: grab;
+}
+.today-tesseract-cell:active {
+  cursor: grabbing;
 }
 .today-tesseract-cell canvas {
-  filter: drop-shadow(0 0 12px rgba(99, 102, 241, 0.15));
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 .today-header-right {
   display: flex;

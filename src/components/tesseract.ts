@@ -297,6 +297,254 @@ export function createTesseract(
   };
 }
 
+// ── Hero Tesseract (full-bleed, interactive, colour-cycling) ────────────────
+
+/** Colour palette for cycling — kinetic design system colours */
+const HERO_PALETTE: [number, number, number][] = [
+  [99, 102, 241], // indigo/accent
+  [255, 77, 77], // atmo red
+  [212, 168, 83], // kinetic gold
+  [143, 176, 160], // kinetic sage
+  [168, 85, 247], // purple
+];
+
+export interface HeroTesseractInstance {
+  canvas: HTMLCanvasElement;
+  destroy(): void;
+  resize(): void;
+}
+
+/**
+ * Create a large, interactive tesseract that fills its container.
+ * Colour cycles over time, reacts to mouse/touch pointer for 3D camera orbit.
+ * No fixed size — uses a ResizeObserver to stay full-bleed.
+ */
+export function createHeroTesseract(container: HTMLElement): HeroTesseractInstance {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+  const canvas = document.createElement('canvas');
+  canvas.className = 'tesseract-hero';
+  canvas.style.display = 'block';
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  container.appendChild(canvas);
+
+  const ctxRaw = canvas.getContext('2d');
+  if (!ctxRaw) {
+    return {
+      canvas,
+      destroy() {
+        canvas.remove();
+      },
+      resize() {},
+    };
+  }
+  const ctx = ctxRaw;
+
+  let destroyed = false;
+  let frameId = 0;
+  const t0 = performance.now();
+
+  // Pointer state (normalised -1 to 1)
+  let pointerX = 0;
+  let pointerY = 0;
+  let targetPX = 0;
+  let targetPY = 0;
+
+  function onPointerMove(e: PointerEvent | MouseEvent) {
+    const rect = canvas.getBoundingClientRect();
+    targetPX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+    targetPY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+  }
+  function onPointerLeave() {
+    targetPX = 0;
+    targetPY = 0;
+  }
+  function onTouchMove(e: TouchEvent) {
+    if (e.touches.length === 0) return;
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    targetPX = ((touch.clientX - rect.left) / rect.width - 0.5) * 2;
+    targetPY = ((touch.clientY - rect.top) / rect.height - 0.5) * 2;
+  }
+
+  canvas.addEventListener('pointermove', onPointerMove);
+  canvas.addEventListener('pointerleave', onPointerLeave);
+  canvas.addEventListener('touchmove', onTouchMove, { passive: true });
+  canvas.style.touchAction = 'none';
+
+  function syncSize() {
+    const rect = container.getBoundingClientRect();
+    const w = Math.round(rect.width * dpr);
+    const h = Math.round(rect.height * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+  }
+  syncSize();
+
+  const ro = new ResizeObserver(() => syncSize());
+  ro.observe(container);
+
+  const d4 = 3.0;
+
+  function frame() {
+    if (destroyed) return;
+
+    const now = performance.now();
+    const t = (now - t0) / 1000;
+
+    // Smooth pointer follow
+    pointerX += (targetPX - pointerX) * 0.08;
+    pointerY += (targetPY - pointerY) * 0.08;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+
+    // ── Colour cycling ──
+    const colourSpeed = 0.15; // full palette cycle period ~= palette.length / speed
+    const cp =
+      (((t * colourSpeed) % HERO_PALETTE.length) + HERO_PALETTE.length) % HERO_PALETTE.length;
+    const ci = Math.floor(cp);
+    const cf = cp - ci;
+    const ni = (ci + 1) % HERO_PALETTE.length;
+    const [r1, g1, b1] = HERO_PALETTE[ci];
+    const [r2, g2, b2] = HERO_PALETTE[ni];
+    const r = Math.round(r1 + (r2 - r1) * cf);
+    const g = Math.round(g1 + (g2 - g1) * cf);
+    const b = Math.round(b1 + (b2 - b1) * cf);
+
+    // ── 4D rotation angles ──
+    const xw = t * 0.25 + Math.sin(t * 0.15) * 0.8;
+    const yz = t * 0.15 + Math.sin(t * 0.12 + 1.2) * 0.6;
+    const zw = t * 0.3;
+
+    // ── 3D camera orbit driven by pointer ──
+    const yRot = t * 0.08 + pointerX * 0.4;
+    const xRot = pointerY * 0.2;
+
+    const scale = Math.min(w, h) * 0.08;
+    const fl = Math.min(w, h) * 0.4;
+    const vd = 6.0 * dpr;
+
+    // ── Project all 16 vertices ──
+    const sv: ([number, number] | null)[] = [];
+    for (let i = 0; i < 16; i++) {
+      const rv = rot4D(VERTS[i], xw, yz, zw);
+      const den = d4 - rv[3] || 0.001;
+      const s = d4 / den;
+      const x = rv[0] * s * scale;
+      const y = rv[1] * s * scale;
+      const z = rv[2] * s * scale;
+
+      // Y-rotation (pointer horizontal)
+      const cY = Math.cos(yRot),
+        sY = Math.sin(yRot);
+      const rx = x * cY - z * sY;
+      const rz = x * sY + z * cY;
+      // X-rotation (pointer vertical)
+      const cX = Math.cos(xRot),
+        sX = Math.sin(xRot);
+      const ry = y * cX - rz * sX;
+      const rz2 = y * sX + rz * cX;
+
+      const depth = rz2 + vd;
+      if (depth < 0.5) {
+        sv.push(null);
+        continue;
+      }
+      const ps = fl / depth;
+      sv.push([cx + rx * ps, cy - ry * ps]);
+    }
+
+    // ── Clear ──
+    ctx.clearRect(0, 0, w, h);
+
+    // ── PASS 1: Glow edges ──
+    ctx.save();
+    ctx.strokeStyle = `rgba(${r},${g},${b},0.5)`;
+    ctx.lineWidth = 3 * dpr;
+    ctx.shadowColor = `rgb(${r},${g},${b})`;
+    ctx.shadowBlur = 20 * dpr;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const [ai, bi] of EDGES) {
+      const a = sv[ai],
+        bv = sv[bi];
+      if (a && bv) {
+        ctx.moveTo(a[0], a[1]);
+        ctx.lineTo(bv[0], bv[1]);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // ── PASS 2: Bright core edges ──
+    ctx.save();
+    const br = Math.min(255, r + 60),
+      bg = Math.min(255, g + 60),
+      bb = Math.min(255, b + 60);
+    ctx.strokeStyle = `rgba(${br},${bg},${bb},0.85)`;
+    ctx.lineWidth = 1.5 * dpr;
+    ctx.shadowColor = `rgb(${r},${g},${b})`;
+    ctx.shadowBlur = 8 * dpr;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const [ai, bi] of EDGES) {
+      const a = sv[ai],
+        bv = sv[bi];
+      if (a && bv) {
+        ctx.moveTo(a[0], a[1]);
+        ctx.lineTo(bv[0], bv[1]);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // ── PASS 3: Vertex dots ──
+    ctx.save();
+    const vr = Math.min(255, r + 80),
+      vg = Math.min(255, g + 80),
+      vb = Math.min(255, b + 80);
+    ctx.fillStyle = `rgb(${vr},${vg},${vb})`;
+    ctx.shadowColor = `rgb(${r},${g},${b})`;
+    ctx.shadowBlur = 15 * dpr;
+    const dotR = 2.5 * dpr;
+    for (const p of sv) {
+      if (p) {
+        ctx.beginPath();
+        ctx.arc(p[0], p[1], dotR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+
+    frameId = requestAnimationFrame(frame);
+  }
+
+  frameId = requestAnimationFrame(frame);
+
+  return {
+    canvas,
+    resize() {
+      syncSize();
+    },
+    destroy() {
+      destroyed = true;
+      cancelAnimationFrame(frameId);
+      frameId = 0;
+      ro.disconnect();
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
+      canvas.removeEventListener('touchmove', onTouchMove);
+      canvas.remove();
+    },
+  };
+}
+
 // ── Inline HTML helper ──────────────────────────────────────────────────────
 
 /**
