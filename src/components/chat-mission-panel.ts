@@ -30,13 +30,31 @@ export function setMissionTesseractState(state: TesseractState): void {
   if (_gaugeTesseract) _gaugeTesseract.setState(state);
 }
 
-function ensureGaugeTesseract(gauge: HTMLElement): void {
-  if (_gaugeTesseract) return;
-  // Create a mount positioned at the centre of the progress ring
-  const mount = document.createElement('span');
-  mount.className = 'mission-gauge-tesseract';
-  gauge.appendChild(mount);
-  _gaugeTesseract = createTesseract(mount, { size: 32, state: 'idle' });
+/**
+ * Ensure the gauge has a stable DOM structure:
+ *   <div#mission-ctx-gauge>
+ *     <div.mission-gauge-ring>  ← progress ring SVG goes here (safe to innerHTML)
+ *     <span.mission-gauge-tesseract>  ← tesseract canvas lives here (never wiped)
+ *   </div>
+ */
+function ensureGaugeStructure(gauge: HTMLElement): { ring: HTMLElement; mount: HTMLElement } {
+  let ring = gauge.querySelector<HTMLElement>('.mission-gauge-ring');
+  let mount = gauge.querySelector<HTMLElement>('.mission-gauge-tesseract');
+
+  if (!ring) {
+    ring = document.createElement('div');
+    ring.className = 'mission-gauge-ring';
+    gauge.appendChild(ring);
+  }
+  if (!mount) {
+    mount = document.createElement('span');
+    mount.className = 'mission-gauge-tesseract';
+    gauge.appendChild(mount);
+    // Recreate the tesseract since the old mount was destroyed
+    _gaugeTesseract = createTesseract(mount, { size: 32, state: 'idle' });
+  }
+
+  return { ring, mount };
 }
 
 export function updateMissionGauge(tokensUsed: number, contextLimit: number): void {
@@ -49,8 +67,9 @@ export function updateMissionGauge(tokensUsed: number, contextLimit: number): vo
 
   const color = pct >= 80 ? 'var(--error)' : pct >= 60 ? 'var(--warning)' : 'var(--accent)';
 
-  gauge.innerHTML = progressRing(pct, color, 56);
-  ensureGaugeTesseract(gauge);
+  // Use stable child structure so the ring SVG update never wipes the tesseract
+  const { ring } = ensureGaugeStructure(gauge);
+  ring.innerHTML = progressRing(pct, color, 56);
 
   if (usedEl) {
     usedEl.textContent = fmtK(tokensUsed);

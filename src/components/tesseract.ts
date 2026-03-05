@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // OpenPawz — Tesseract Indicator Component
-// A reactive 4D wireframe tesseract (hypercube) projected to 2D canvas.
-// Used as an activity/status indicator throughout the app.
-// States control rotation speed, glow, and color oscillation.
+// Ported from the OpenPawz website TesseractViewport renderer.
+// 4D wireframe hypercube with glow + core dual-pass edges and vertex dots.
+// States control rotation speed, colour, and glow intensity.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Indicator state drives rotation speed, glow intensity, and colour cycling. */
@@ -26,15 +26,15 @@ export interface TesseractInstance {
   destroy(): void;
 }
 
-// ── 4-D geometry ────────────────────────────────────────────────────────────
+// ── 4-D geometry (matches website TesseractViewport) ────────────────────────
 
-/** 16 vertices of a unit hypercube centred at the origin (±0.5 in each axis) */
+/** 16 vertices of a unit tesseract at ±1 in each axis */
 const VERTS: number[][] = [];
 for (let i = 0; i < 16; i++) {
-  VERTS.push([i & 1 ? 0.5 : -0.5, i & 2 ? 0.5 : -0.5, i & 4 ? 0.5 : -0.5, i & 8 ? 0.5 : -0.5]);
+  VERTS.push([i & 1 ? 1 : -1, i & 2 ? 1 : -1, i & 4 ? 1 : -1, i & 8 ? 1 : -1]);
 }
 
-/** 32 edges of the hypercube — pairs of vertex indices that differ in exactly one bit */
+/** 32 edges — vertex pairs differing in exactly one bit */
 const EDGES: [number, number][] = [];
 for (let a = 0; a < 16; a++) {
   for (let b = a + 1; b < 16; b++) {
@@ -43,64 +43,41 @@ for (let a = 0; a < 16; a++) {
   }
 }
 
-// ── Rotation matrices (4-D planes) ─────────────────────────────────────────
+// ── 4D rotation (website-style: XW, YZ, ZW planes) ─────────────────────────
 
-function rotXY(v: number[], a: number): number[] {
-  const c = Math.cos(a),
-    s = Math.sin(a);
-  return [c * v[0] - s * v[1], s * v[0] + c * v[1], v[2], v[3]];
-}
-function rotXZ(v: number[], a: number): number[] {
-  const c = Math.cos(a),
-    s = Math.sin(a);
-  return [c * v[0] - s * v[2], v[1], s * v[0] + c * v[2], v[3]];
-}
-function rotXW(v: number[], a: number): number[] {
-  const c = Math.cos(a),
-    s = Math.sin(a);
-  return [c * v[0] - s * v[3], v[1], v[2], s * v[0] + c * v[3]];
-}
-function rotYZ(v: number[], a: number): number[] {
-  const c = Math.cos(a),
-    s = Math.sin(a);
-  return [v[0], c * v[1] - s * v[2], s * v[1] + c * v[2], v[3]];
-}
-function rotYW(v: number[], a: number): number[] {
-  const c = Math.cos(a),
-    s = Math.sin(a);
-  return [v[0], c * v[1] - s * v[3], v[2], s * v[1] + c * v[3]];
-}
-function rotZW(v: number[], a: number): number[] {
-  const c = Math.cos(a),
-    s = Math.sin(a);
-  return [v[0], v[1], c * v[2] - s * v[3], s * v[2] + c * v[3]];
+function rot4D(v: number[], xw: number, yz: number, zw: number): number[] {
+  let [x, y, z, w] = v;
+  // XW rotation
+  const c1 = Math.cos(xw),
+    s1 = Math.sin(xw);
+  const nx = x * c1 - w * s1,
+    nw = x * s1 + w * c1;
+  x = nx;
+  w = nw;
+  // YZ rotation
+  const c2 = Math.cos(yz),
+    s2 = Math.sin(yz);
+  const ny = y * c2 - z * s2,
+    nz = y * s2 + z * c2;
+  y = ny;
+  z = nz;
+  // ZW rotation
+  const c3 = Math.cos(zw),
+    s3 = Math.sin(zw);
+  const nz2 = z * c3 - w * s3,
+    nw2 = z * s3 + w * c3;
+  z = nz2;
+  w = nw2;
+  return [x, y, z, w];
 }
 
-// ── Projection helpers ──────────────────────────────────────────────────────
+// ── Colour palettes per state (RGB, matching website kinetic colours) ───────
 
-/** Stereographic-style 4D → 3D projection */
-function project4to3(v: number[], d: number): [number, number, number] {
-  const w = 1 / (d - v[3]);
-  return [v[0] * w, v[1] * w, v[2] * w];
-}
-
-/** Simple perspective 3D → 2D projection */
-function project3to2(v: [number, number, number], d: number): [number, number] {
-  const w = 1 / (d - v[2]);
-  return [v[0] * w, v[1] * w];
-}
-
-// ── Colour palette ──────────────────────────────────────────────────────────
-
-/** HSL colour cycling palettes per state */
-const STATE_PALETTES: Record<
-  TesseractState,
-  { hueBase: number; hueRange: number; sat: number; lum: number }
-> = {
-  idle: { hueBase: 220, hueRange: 60, sat: 55, lum: 65 }, // cool blue-purple drift
-  thinking: { hueBase: 270, hueRange: 90, sat: 70, lum: 60 }, // purple-magenta cycle
-  streaming: { hueBase: 340, hueRange: 120, sat: 85, lum: 58 }, // hot pink-orange-red
-  done: { hueBase: 150, hueRange: 30, sat: 60, lum: 60 }, // sage green settle
+const STATE_COLORS: Record<TesseractState, { r: number; g: number; b: number }> = {
+  idle: { r: 99, g: 102, b: 241 }, // indigo/accent
+  thinking: { r: 168, g: 85, b: 247 }, // purple
+  streaming: { r: 255, g: 77, b: 77 }, // kinetic red (atmo)
+  done: { r: 143, g: 176, b: 160 }, // kinetic sage
 };
 
 /** Speed multipliers per state */
@@ -113,31 +90,24 @@ const STATE_SPEEDS: Record<TesseractState, number> = {
 
 /** Glow intensity per state (0–1) */
 const STATE_GLOW: Record<TesseractState, number> = {
-  idle: 0.15,
-  thinking: 0.4,
-  streaming: 0.85,
-  done: 0.0,
+  idle: 0.4,
+  thinking: 0.7,
+  streaming: 1.0,
+  done: 0.1,
 };
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
 /**
  * Create a tesseract indicator and attach it to the given container.
- * The returned controller lets you change state and tear it down.
- *
- * ```ts
- * const t = createTesseract(myDiv, { size: 32, state: 'thinking' });
- * t.setState('streaming');
- * // later …
- * t.destroy();
- * ```
+ * Rendering matches the website TesseractViewport: glow pass, core pass, vertex dots.
  */
 export function createTesseract(
   container: HTMLElement,
   opts: TesseractOptions = {},
 ): TesseractInstance {
   const size = opts.size ?? 24;
-  const dpr = window.devicePixelRatio || 1;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
   const canvas = document.createElement('canvas');
   canvas.className = 'tesseract-indicator';
@@ -148,7 +118,7 @@ export function createTesseract(
   container.appendChild(canvas);
 
   const ctxRaw = canvas.getContext('2d');
-  // In test environments (jsdom) canvas context may be null — render a static dot fallback
+  // In test environments (jsdom) canvas context may be null — static dot fallback
   if (!ctxRaw) {
     canvas.style.borderRadius = '50%';
     canvas.style.background = 'var(--accent, #6366f1)';
@@ -163,17 +133,22 @@ export function createTesseract(
     };
   }
   const ctx = ctxRaw;
-  ctx.scale(dpr, dpr);
 
   let state: TesseractState = opts.state ?? 'idle';
-  const overrideColor = opts.color;
   let destroyed = false;
   let frameId = 0;
-  let t = 0; // accumulated time
-  let currentSpeed = STATE_SPEEDS[state]; // lerped
-  let currentGlow = STATE_GLOW[state]; // lerped
+  let t = 0;
+  let currentSpeed = STATE_SPEEDS[state];
+  let currentGlow = STATE_GLOW[state];
 
-  // ── Render loop ───────────────────────────────────────────────────
+  const w = size * dpr;
+  const h = size * dpr;
+  const cx = w / 2;
+  const cy = h / 2;
+
+  // Scale factor — how big the tesseract appears relative to canvas
+  const fl = Math.min(w, h) * 0.4;
+  const d4 = 3.0; // 4D projection distance (matches website)
 
   let lastTs = 0;
 
@@ -184,89 +159,114 @@ export function createTesseract(
     lastTs = ts;
 
     // Smooth-lerp speed & glow towards target
-    const targetSpeed = STATE_SPEEDS[state];
-    const targetGlow = STATE_GLOW[state];
-    currentSpeed += (targetSpeed - currentSpeed) * Math.min(1, dt * 4);
-    currentGlow += (targetGlow - currentGlow) * Math.min(1, dt * 3);
+    currentSpeed += (STATE_SPEEDS[state] - currentSpeed) * Math.min(1, dt * 4);
+    currentGlow += (STATE_GLOW[state] - currentGlow) * Math.min(1, dt * 3);
 
     t += dt * currentSpeed;
 
-    // ── Angles (6 rotation planes, each at different rates) ──
-    const a1 = t * 0.7;
-    const a2 = t * 0.5;
-    const a3 = t * 0.3;
-    const a4 = t * 0.9;
-    const a5 = t * 0.4;
-    const a6 = t * 0.6;
-
-    // ── Project vertices ──
-    const pts2d: [number, number][] = [];
-    // At small sizes, use a tighter projection for better visibility
-    const projScale = size < 16 ? size * 0.42 : size * 0.38;
-    for (const v of VERTS) {
-      let r = v;
-      r = rotXY(r, a1);
-      r = rotXZ(r, a2);
-      r = rotXW(r, a3);
-      r = rotYZ(r, a4);
-      // Skip some rotations at tiny sizes for visual clarity
-      if (size >= 16) {
-        r = rotYW(r, a5);
-        r = rotZW(r, a6);
-      }
-      const p3 = project4to3(r, 2.0);
-      const p2 = project3to2(p3, 2.5);
-      // Scale to canvas (centre + scale)
-      pts2d.push([size / 2 + p2[0] * projScale, size / 2 + p2[1] * projScale]);
-    }
+    // ── 4D rotation angles (website-style) ──
+    const xw = t * 0.8 + Math.sin(t * 0.15) * 0.8;
+    const yz = t * 0.5 + Math.sin(t * 0.12 + 1.2) * 0.6;
+    const zw = t * 0.3;
 
     // ── Colour ──
-    const palette = STATE_PALETTES[state];
-    const hue = palette.hueBase + Math.sin(t * 1.5) * palette.hueRange;
-    const strokeColor = overrideColor ?? `hsl(${hue}, ${palette.sat}%, ${palette.lum}%)`;
-    const glowColor = overrideColor ?? `hsl(${hue}, ${palette.sat}%, ${palette.lum}%)`;
+    const col = STATE_COLORS[state];
+    const r = col.r,
+      g = col.g,
+      b = col.b;
 
-    // ── Clear ──
-    ctx.clearRect(0, 0, size, size);
-
-    // ── Glow layer ──
-    if (currentGlow > 0.02) {
-      ctx.save();
-      ctx.globalAlpha = currentGlow * 0.6;
-      ctx.shadowColor = glowColor;
-      ctx.shadowBlur = size * 0.25;
-      ctx.strokeStyle = glowColor;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      for (const [a, b] of EDGES) {
-        ctx.moveTo(pts2d[a][0], pts2d[a][1]);
-        ctx.lineTo(pts2d[b][0], pts2d[b][1]);
+    // ── Project all 16 vertices ──
+    const sv: ([number, number] | null)[] = [];
+    for (let i = 0; i < 16; i++) {
+      const rv = rot4D(VERTS[i], xw, yz, zw);
+      const den = d4 - rv[3] || 0.001;
+      const s = d4 / den;
+      const x3 = rv[0] * s;
+      const y3 = rv[1] * s;
+      const z3 = rv[2] * s;
+      // Scale based on canvas size
+      const sc = size * 0.16 * dpr;
+      const x = x3 * sc;
+      const y = y3 * sc;
+      const z = z3 * sc;
+      // Depth projection
+      const depth = z + 5 * dpr;
+      if (depth < 0.5) {
+        sv.push(null);
+        continue;
       }
-      ctx.stroke();
-      ctx.restore();
+      const ps = fl / depth;
+      sv.push([cx + x * ps, cy - y * ps]);
     }
 
-    // ── Main wireframe ──
+    // ── Clear ──
+    ctx.clearRect(0, 0, w, h);
+
+    // ── PASS 1: Glow (thick lines + shadowBlur) ──
     ctx.save();
-    ctx.strokeStyle = strokeColor;
-    ctx.lineWidth = size >= 24 ? 1.0 : size >= 16 ? 0.8 : 1.2;
-    ctx.globalAlpha = size < 16 ? 1.0 : 0.85;
+    ctx.strokeStyle = `rgba(${r},${g},${b},${0.5 * currentGlow})`;
+    ctx.lineWidth = 3 * dpr * (size < 16 ? 0.5 : size < 24 ? 0.7 : 1);
+    ctx.shadowColor = `rgb(${r},${g},${b})`;
+    ctx.shadowBlur = 12 * dpr * currentGlow;
+    ctx.lineCap = 'round';
     ctx.beginPath();
-    for (const [a, b] of EDGES) {
-      ctx.moveTo(pts2d[a][0], pts2d[a][1]);
-      ctx.lineTo(pts2d[b][0], pts2d[b][1]);
+    for (const [ai, bi] of EDGES) {
+      const a = sv[ai],
+        bv = sv[bi];
+      if (a && bv) {
+        ctx.moveTo(a[0], a[1]);
+        ctx.lineTo(bv[0], bv[1]);
+      }
     }
     ctx.stroke();
     ctx.restore();
 
-    // ── Done state: scale-down animation ──
-    if (state === 'done') {
-      const scaleDown = Math.max(0, 1 - t * 0.3);
-      if (scaleDown <= 0.01) {
-        ctx.clearRect(0, 0, size, size);
-        // Don't request another frame — just sit cleared
-        return;
+    // ── PASS 2: Bright core (thin lines) ──
+    ctx.save();
+    const br = Math.min(255, r + 60),
+      bg = Math.min(255, g + 60),
+      bb = Math.min(255, b + 60);
+    ctx.strokeStyle = `rgba(${br},${bg},${bb},0.85)`;
+    ctx.lineWidth = 1.5 * dpr * (size < 16 ? 0.4 : size < 24 ? 0.6 : 1);
+    ctx.shadowColor = `rgb(${r},${g},${b})`;
+    ctx.shadowBlur = 4 * dpr * currentGlow;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const [ai, bi] of EDGES) {
+      const a = sv[ai],
+        bv = sv[bi];
+      if (a && bv) {
+        ctx.moveTo(a[0], a[1]);
+        ctx.lineTo(bv[0], bv[1]);
       }
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // ── PASS 3: Vertex dots (only for sizes ≥ 16) ──
+    if (size >= 16) {
+      ctx.save();
+      const vr = Math.min(255, r + 80),
+        vg = Math.min(255, g + 80),
+        vb = Math.min(255, b + 80);
+      ctx.fillStyle = `rgb(${vr},${vg},${vb})`;
+      ctx.shadowColor = `rgb(${r},${g},${b})`;
+      ctx.shadowBlur = 8 * dpr * currentGlow;
+      const dotR = Math.max(1, 1.5 * dpr * (size < 24 ? 0.5 : 1));
+      for (const p of sv) {
+        if (p) {
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], dotR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    // ── Done state: fade-out and stop ──
+    if (state === 'done' && t > 3) {
+      ctx.clearRect(0, 0, w, h);
+      return;
     }
 
     frameId = requestAnimationFrame(frame);
@@ -280,17 +280,12 @@ export function createTesseract(
     setState(s: TesseractState) {
       if (s === state) return;
       state = s;
-      // If restarting from 'done', reset time and ensure loop is running
-      if (s !== 'done') {
-        if (!frameId) {
-          lastTs = 0;
-          t = 0;
-          frameId = requestAnimationFrame(frame);
-        }
+      if (s !== 'done' && !frameId) {
+        lastTs = 0;
+        t = 0;
+        frameId = requestAnimationFrame(frame);
       }
-      if (s === 'done') {
-        t = 0; // reset for the collapse animation
-      }
+      if (s === 'done') t = 0;
     },
 
     destroy() {
