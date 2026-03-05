@@ -105,6 +105,44 @@ Do NOT run exec/curl to call the Discord API — use your built-in tools."#.into
             default_enabled: false,
         },
         SkillDefinition {
+            id: "google_workspace".into(),
+            name: "Google Workspace".into(),
+            description: "Gmail, Calendar, Drive, Sheets, and Docs — full read/write access via Google OAuth. Connect once, control everything.".into(),
+            icon: "☁️".into(),
+            category: SkillCategory::Vault,
+            tier: SkillTier::Integration,
+            required_credentials: vec![],
+            tool_names: vec![
+                "google_gmail_list".into(), "google_gmail_read".into(), "google_gmail_send".into(),
+                "google_calendar_list".into(), "google_calendar_create".into(),
+                "google_drive_list".into(), "google_drive_read".into(),
+                "google_drive_upload".into(), "google_drive_share".into(),
+                "google_sheets_read".into(), "google_sheets_append".into(),
+                "google_docs_create".into(), "google_api".into(),
+            ],
+            required_binaries: vec![], required_env_vars: vec![],
+            install_hint: "Connect Google in the Integrations view — one OAuth login grants access to Gmail, Calendar, Drive, Sheets, and Docs. No API keys needed.".into(),
+            agent_instructions: r#"You have full Google Workspace access with 13 built-in tools:
+
+**Gmail**: google_gmail_list (search/list), google_gmail_read (read full email), google_gmail_send (send email)
+**Calendar**: google_calendar_list (list events), google_calendar_create (create event)
+**Drive**: google_drive_list (search files), google_drive_read (read/export), google_drive_upload (upload text), google_drive_share (share with user)
+**Sheets**: google_sheets_read (read ranges), google_sheets_append (add rows)
+**Docs**: google_docs_create (create document)
+**Generic**: google_api (any Google API call)
+
+RULES:
+- Always CONFIRM with the user before sending emails, creating events, sharing files, or modifying data
+- Use Gmail search syntax: 'is:unread', 'from:user@co.com', 'subject:invoice after:2025/01/01'
+- Use A1 notation for Sheets: 'Sheet1!A1:D10'
+- Use Drive query syntax: "name contains 'report'", "mimeType='application/pdf'"
+- Get IDs from list tools before using read/update tools
+- For Sheets, prefer google_sheets_read/append over google_api
+- Summarize email/document content rather than dumping raw data
+- NEVER use exec/curl to call Google APIs — use your built-in tools"#.into(),
+            default_enabled: false,
+        },
+        SkillDefinition {
             id: "discourse".into(),
             name: "Discourse".into(),
             description: "Full Discourse forum management — topics, posts, categories, users, search, tags, badges, groups, site settings, backups, and more".into(),
