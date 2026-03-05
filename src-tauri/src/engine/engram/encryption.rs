@@ -2,7 +2,7 @@
 //
 // Defense-in-depth encryption for sensitive memory content.
 // Uses a SEPARATE AES-256-GCM key from the skill vault, stored under
-// a different OS keychain entry ("paw-memory-vault" / "field-encryption-key").
+// the unified key vault (purpose: "memory-vault").
 //
 // Three security tiers:
 //   - Cleartext: stored as-is (fast full-text search), e.g. "User prefers dark mode"
@@ -325,19 +325,20 @@ static MEMORY_KEY_CACHE: std::sync::RwLock<Option<zeroize::Zeroizing<Vec<u8>>>> 
 /// - RwLock for concurrent reads without contention.
 /// - Poison-safe — recovers from panicked threads instead of crashing.
 /// - Key length validated before caching.
-pub fn get_memory_encryption_key() -> EngineResult<Vec<u8>> {
+/// - Returns `Zeroizing<Vec<u8>>` so callers' copies are also zeroed on drop.
+pub fn get_memory_encryption_key() -> EngineResult<zeroize::Zeroizing<Vec<u8>>> {
     // Fast path: return cached key (read lock — many readers allowed)
     {
         let guard = MEMORY_KEY_CACHE.read().unwrap_or_else(|e| e.into_inner());
         if let Some(ref key) = *guard {
-            return Ok(key.to_vec());
+            return Ok(zeroize::Zeroizing::new(key.to_vec()));
         }
     }
     // Slow path: acquire write lock and double-check (prevents TOCTOU race
     // where two threads both see None in the read lock above)
     let mut guard = MEMORY_KEY_CACHE.write().unwrap_or_else(|e| e.into_inner());
     if let Some(ref key) = *guard {
-        return Ok(key.to_vec());
+        return Ok(zeroize::Zeroizing::new(key.to_vec()));
     }
     // Read from OS keychain (only happens once per session)
     let key = load_memory_key_from_keychain()?;
@@ -353,7 +354,7 @@ pub fn get_memory_encryption_key() -> EngineResult<Vec<u8>> {
             EXPECTED_KEY_LEN
         )));
     }
-    let result = key.to_vec();
+    let result = zeroize::Zeroizing::new(key.to_vec());
     *guard = Some(key); // key is already Zeroizing<Vec<u8>> from load fn
     info!("[engram-encryption] Memory key loaded and cached from OS keychain");
     Ok(result)
@@ -376,8 +377,10 @@ fn load_memory_key_from_keychain() -> EngineResult<zeroize::Zeroizing<Vec<u8>>> 
     // No key exists — generate a new random 256-bit key using OS CSPRNG
     let mut key = zeroize::Zeroizing::new(vec![0u8; 32]);
     OsRng.fill_bytes(&mut key);
-    let key_b64 =
-        base64::Engine::encode(&base64::engine::general_purpose::STANDARD, key.as_slice());
+    let key_b64 = zeroize::Zeroizing::new(base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        key.as_slice(),
+    ));
     key_vault::set(key_vault::PURPOSE_MEMORY_VAULT, &key_b64);
     info!("[engram-encryption] Created new field encryption key in unified vault");
     Ok(key)

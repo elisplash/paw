@@ -1,86 +1,66 @@
 // ── Unified Key Vault ──────────────────────────────────────────────────────
 //
 // Consolidates all OS keychain entries into a SINGLE keychain item stored as
-// a JSON blob.  This reduces macOS Keychain Access prompts from 6 to 1:
+// a JSON blob.  This reduces macOS Keychain Access prompts from 6+ to 1:
 //
-//   Before: paw-db-encryption, paw-lock-screen, paw-skill-vault,
-//           paw-memory-vault, paw-n8n-encryption, paw-audit-chain
-//           → 6 separate prompts on first launch / binary change
-//
-//   After:  ONE "openpawz" / "key-vault" entry → 1 prompt
+//   ONE "openpawz" / "key-vault" entry → 1 prompt
 //
 // Architecture:
 //   - Single keychain entry: service="openpawz", user="key-vault"
-//   - In-memory HashMap<String, String> protected by RwLock (read-many)
+//   - In-memory HashMap<String, Zeroizing<String>> protected by RwLock
 //   - Each subsystem calls get()/set() with a purpose constant
-//   - First-run migration: reads legacy per-entry items, consolidates,
-//     persists the unified blob, then deletes the old entries
+//   - Keys are generated on first access if missing
 //
 // Security:
-//   - All key material passes through as String (hex or base64) — same
-//     as the legacy per-entry approach.
+//   - All in-memory key material is wrapped in `Zeroizing<String>` so it
+//     is securely overwritten with zeroes when dropped or replaced —
+//     prevents secrets from lingering in freed heap memory.
 //   - The vault blob is stored in the OS keychain (encrypted at rest by
 //     macOS Keychain / GNOME Keyring / Windows Credential Manager).
-//   - In-memory cache is process-scoped — cleared on exit.
+//   - In-memory cache is process-scoped — cleared (and zeroed) on exit.
 //   - Write operations hold the lock across read-check + insert + persist
 //     to prevent TOCTOU races between concurrent threads.
+//   - Lock poison is recovered with a logged warning — a panicked thread
+//     should not permanently brick the vault for the rest of the app.
 
 use log::{debug, error, info, warn};
 use std::collections::HashMap;
 use std::sync::RwLock;
+use zeroize::Zeroizing;
 
 const VAULT_SERVICE: &str = "openpawz";
 const VAULT_USER: &str = "key-vault";
 
-/// Legacy keychain entry descriptor — used only during migration.
-struct LegacyEntry {
-    purpose: &'static str,
-    service: &'static str,
-    user: &'static str,
-}
-
-/// All legacy per-entry keychain items we migrate from.
-const LEGACY_ENTRIES: &[LegacyEntry] = &[
-    LegacyEntry {
-        purpose: PURPOSE_DB_ENCRYPTION,
-        service: "paw-db-encryption",
-        user: "paw-db-key",
-    },
-    LegacyEntry {
-        purpose: PURPOSE_LOCK_SCREEN,
-        service: "paw-lock-screen",
-        user: "paw-lock-passphrase",
-    },
-    LegacyEntry {
-        purpose: PURPOSE_SKILL_VAULT,
-        service: "paw-skill-vault",
-        user: "encryption-key",
-    },
-    LegacyEntry {
-        purpose: PURPOSE_MEMORY_VAULT,
-        service: "paw-memory-vault",
-        user: "field-encryption-key",
-    },
-    LegacyEntry {
-        purpose: PURPOSE_N8N_ENCRYPTION,
-        service: "paw-n8n-encryption",
-        user: "openpawz-n8n",
-    },
-    LegacyEntry {
-        purpose: PURPOSE_AUDIT_CHAIN,
-        service: "paw-audit-chain",
-        user: "hmac-signing-key",
-    },
-    LegacyEntry {
-        purpose: PURPOSE_NOSTR_KEY,
-        service: "paw-nostr",
-        user: "private-key",
-    },
-];
+/// Type alias: all in-memory key material is wrapped in `Zeroizing` so it
+/// is securely overwritten with zeroes when dropped or replaced.
+type VaultMap = HashMap<String, Zeroizing<String>>;
 
 /// In-memory cache of the vault contents.
 /// None = not yet loaded, Some = loaded (possibly empty on fresh install).
-static VAULT_CACHE: RwLock<Option<HashMap<String, String>>> = RwLock::new(None);
+/// Values are `Zeroizing<String>` — zeroed on drop.
+static VAULT_CACHE: RwLock<Option<VaultMap>> = RwLock::new(None);
+
+// ── Lock helpers ───────────────────────────────────────────────────────────
+// Recover from a poisoned RwLock (another thread panicked while holding it)
+// but always log a warning so we know something went wrong.  The alternative
+// — `.unwrap()` — would crash the entire app, which is worse than operating
+// on potentially stale data.
+
+fn read_lock(lock: &RwLock<Option<VaultMap>>) -> std::sync::RwLockReadGuard<'_, Option<VaultMap>> {
+    lock.read().unwrap_or_else(|poisoned| {
+        warn!("[key-vault] RwLock was poisoned (read) — recovering");
+        poisoned.into_inner()
+    })
+}
+
+fn write_lock(
+    lock: &RwLock<Option<VaultMap>>,
+) -> std::sync::RwLockWriteGuard<'_, Option<VaultMap>> {
+    lock.write().unwrap_or_else(|poisoned| {
+        warn!("[key-vault] RwLock was poisoned (write) — recovering");
+        poisoned.into_inner()
+    })
+}
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -98,7 +78,7 @@ pub const PURPOSE_NOSTR_KEY: &str = "nostr-key";
 /// Call this early in app startup (before subsystems initialise).
 pub fn prefetch() {
     ensure_loaded();
-    let guard = VAULT_CACHE.read().unwrap_or_else(|e| e.into_inner());
+    let guard = read_lock(&VAULT_CACHE);
     let count = guard.as_ref().map_or(0, |m| m.len());
     info!("[key-vault] Prefetch complete — {} keys available", count);
 }
@@ -107,18 +87,21 @@ pub fn prefetch() {
 /// Returns `true` if `prefetch()` (or any `get()`/`set()`) has populated
 /// the in-memory cache — meaning the OS keychain was reachable.
 pub fn is_loaded() -> bool {
-    VAULT_CACHE
-        .read()
-        .unwrap_or_else(|e| e.into_inner())
-        .is_some()
+    read_lock(&VAULT_CACHE).is_some()
 }
 
 /// Get a value from the vault by purpose key.
 /// Returns `None` if the key has never been stored.
+///
+/// The returned `String` is a plain clone — callers that cache it
+/// long-term should wrap it in their own `Zeroizing<String>`.
 pub fn get(purpose: &str) -> Option<String> {
     ensure_loaded();
-    let guard = VAULT_CACHE.read().unwrap_or_else(|e| e.into_inner());
-    guard.as_ref().and_then(|map| map.get(purpose).cloned())
+    let guard = read_lock(&VAULT_CACHE);
+    guard
+        .as_ref()
+        .and_then(|map| map.get(purpose))
+        .map(|v| String::from(v.as_str()))
 }
 
 /// Store a value in the vault and persist the whole blob to the keychain.
@@ -127,24 +110,21 @@ pub fn get(purpose: &str) -> Option<String> {
 /// Thread-safe: holds the write lock across read-check + insert + persist
 /// to prevent TOCTOU races between concurrent callers.
 pub fn set(purpose: &str, value: &str) {
-    // Ensure vault is loaded under the write lock — avoids a
-    // release-then-reacquire gap that would let another thread
-    // clobber our insert.
-    let mut guard = VAULT_CACHE.write().unwrap_or_else(|e| e.into_inner());
+    let mut guard = write_lock(&VAULT_CACHE);
     if guard.is_none() {
-        *guard = Some(read_or_migrate());
+        *guard = Some(read_vault());
     }
-    let map = guard.get_or_insert_with(HashMap::new);
-    map.insert(purpose.to_string(), value.to_string());
+    let map = guard.get_or_insert_with(VaultMap::new);
+    map.insert(purpose.to_string(), Zeroizing::new(value.to_string()));
     persist_vault(map);
 }
 
 /// Remove a value from the vault and persist.
 /// Used by lock_screen_remove_passphrase(), oauth revoke, etc.
 pub fn remove(purpose: &str) {
-    let mut guard = VAULT_CACHE.write().unwrap_or_else(|e| e.into_inner());
+    let mut guard = write_lock(&VAULT_CACHE);
     if guard.is_none() {
-        *guard = Some(read_or_migrate());
+        *guard = Some(read_vault());
     }
     if let Some(map) = guard.as_mut() {
         if map.remove(purpose).is_some() {
@@ -157,129 +137,71 @@ pub fn remove(purpose: &str) {
 // ── Internal ───────────────────────────────────────────────────────────────
 
 /// Ensure the vault is loaded into memory (double-checked lock pattern).
-/// On first call, reads the keychain (1 OS prompt max).
-/// On missing vault, migrates from legacy per-entry keychain items.
+/// On first call, reads the unified keychain entry (1 OS prompt max).
+/// If no vault exists yet, creates an empty in-memory map (no prompt).
 fn ensure_loaded() {
     // Fast path: already cached
     {
-        let guard = VAULT_CACHE.read().unwrap_or_else(|e| e.into_inner());
-        if guard.is_some() {
+        if read_lock(&VAULT_CACHE).is_some() {
             return;
         }
     }
     // Slow path: acquire write lock and double-check
-    let mut guard = VAULT_CACHE.write().unwrap_or_else(|e| e.into_inner());
+    let mut guard = write_lock(&VAULT_CACHE);
     if guard.is_some() {
         return;
     }
-    *guard = Some(read_or_migrate());
+    *guard = Some(read_vault());
 }
 
-/// Try to read the unified vault from keychain.
-/// Falls back to migrating legacy entries if the vault doesn't exist.
-fn read_or_migrate() -> HashMap<String, String> {
+/// Read the unified vault JSON from the keychain.
+/// If no vault exists yet, returns an empty map.
+fn read_vault() -> VaultMap {
     match keyring::Entry::new(VAULT_SERVICE, VAULT_USER) {
         Ok(entry) => match entry.get_password() {
-            Ok(json_str) => match serde_json::from_str::<HashMap<String, String>>(&json_str) {
-                Ok(map) => {
-                    info!("[key-vault] Loaded unified vault ({} keys)", map.len());
-                    map
+            Ok(json_str) => {
+                // Deserialise into plain HashMap first, then wrap values
+                match serde_json::from_str::<HashMap<String, String>>(&json_str) {
+                    Ok(plain) => {
+                        let count = plain.len();
+                        let map: VaultMap = plain
+                            .into_iter()
+                            .map(|(k, v)| (k, Zeroizing::new(v)))
+                            .collect();
+                        info!("[key-vault] Loaded unified vault ({} keys)", count);
+                        map
+                    }
+                    Err(e) => {
+                        error!("[key-vault] Corrupt vault JSON: {} — starting fresh", e);
+                        VaultMap::new()
+                    }
                 }
-                Err(e) => {
-                    error!(
-                        "[key-vault] Corrupt vault JSON: {} — rebuilding from legacy",
-                        e
-                    );
-                    migrate_legacy_entries()
-                }
-            },
+            }
             Err(keyring::Error::NoEntry) => {
-                info!("[key-vault] No unified vault found — migrating from legacy entries");
-                migrate_legacy_entries()
+                info!("[key-vault] No unified vault found — will create on first write");
+                VaultMap::new()
             }
             Err(e) => {
-                warn!(
-                    "[key-vault] Keychain read error: {} — trying legacy migration",
-                    e
-                );
-                migrate_legacy_entries()
+                warn!("[key-vault] Keychain read error: {} — starting fresh", e);
+                VaultMap::new()
             }
         },
         Err(e) => {
             error!("[key-vault] Keyring init failed: {}", e);
-            HashMap::new()
-        }
-    }
-}
-
-/// Read values from legacy individual keychain entries, consolidate them into
-/// the unified vault, persist it, and delete the old entries.
-fn migrate_legacy_entries() -> HashMap<String, String> {
-    let mut map = HashMap::new();
-
-    for legacy in LEGACY_ENTRIES {
-        match keyring::Entry::new(legacy.service, legacy.user) {
-            Ok(entry) => match entry.get_password() {
-                Ok(value) if !value.is_empty() => {
-                    info!(
-                        "[key-vault] Migrated '{}' from legacy entry ({}/{})",
-                        legacy.purpose, legacy.service, legacy.user
-                    );
-                    map.insert(legacy.purpose.to_string(), value);
-                }
-                Ok(_) => {}                        // empty value — skip
-                Err(keyring::Error::NoEntry) => {} // not set — skip
-                Err(e) => {
-                    warn!(
-                        "[key-vault] Could not read legacy entry '{}': {}",
-                        legacy.purpose, e
-                    );
-                }
-            },
-            Err(e) => {
-                warn!(
-                    "[key-vault] Could not init legacy entry '{}': {}",
-                    legacy.purpose, e
-                );
-            }
-        }
-    }
-
-    // Persist the consolidated vault
-    if !map.is_empty() {
-        persist_vault(&map);
-    }
-
-    // Clean up legacy entries (best-effort — errors are non-fatal)
-    cleanup_legacy_entries();
-
-    map
-}
-
-/// Delete legacy individual keychain entries after successful migration.
-/// Best-effort — failures are logged but don't block startup.
-fn cleanup_legacy_entries() {
-    for legacy in LEGACY_ENTRIES {
-        if let Ok(entry) = keyring::Entry::new(legacy.service, legacy.user) {
-            match entry.delete_credential() {
-                Ok(()) => info!(
-                    "[key-vault] Deleted legacy entry {}/{}",
-                    legacy.service, legacy.user
-                ),
-                Err(keyring::Error::NoEntry) => {} // already gone
-                Err(e) => warn!(
-                    "[key-vault] Could not delete legacy entry {}/{}: {}",
-                    legacy.service, legacy.user, e
-                ),
-            }
+            VaultMap::new()
         }
     }
 }
 
 /// Serialise the vault map to JSON and write to the single keychain entry.
-fn persist_vault(map: &HashMap<String, String>) {
-    let json = match serde_json::to_string(map) {
-        Ok(j) => j,
+/// Accepts `VaultMap` (Zeroizing values) — unwraps to plain strings for
+/// JSON serialisation only; the serialised JSON lives briefly on the stack.
+fn persist_vault(map: &VaultMap) {
+    // Build a plain HashMap for serde (Zeroizing<String> doesn't impl Serialize)
+    let plain: HashMap<&str, &str> = map.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+
+    let json = match serde_json::to_string(&plain) {
+        Ok(j) => Zeroizing::new(j),
         Err(e) => {
             error!("[key-vault] Failed to serialise vault: {}", e);
             return;

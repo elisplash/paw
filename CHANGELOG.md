@@ -23,7 +23,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Token retry** — MCP token retrieval retries up to 2 times with 2s delay for fresh n8n starts where the MCP module initialises after the health endpoint
 
 #### n8n Engine Lifecycle
-- **Encryption key in OS keychain** — n8n encryption key now stored in macOS Keychain / Windows Credential Manager / Linux Secret Service (`paw-n8n-encryption`), with migration from n8n's plaintext config file and sync back to prevent mismatch errors
+- **Encryption key in OS keychain** — n8n encryption key now stored in the unified OS keychain vault (`openpawz`) via macOS Keychain / Windows Credential Manager / Linux Secret Service, with sync to n8n’s config file to prevent mismatch errors
 - **Space-free data dir** — n8n data moved to `~/.openpawz/n8n-data` (auto-migrated from old `~/Library/Application Support/` path) to fix node-gyp build failures on macOS
 - **Process restart safety** — `kill_port()` now uses `-sTCP:LISTEN` to only kill the listening process, not client connections; prefers PID-based kill over port-based
 - **App self-kill prevention** — restart logic no longer accidentally kills the Tauri app process when both share port 5678 connections

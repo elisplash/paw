@@ -73,8 +73,6 @@ pub struct N8nEngineConfig {
     pub container_id: Option<String>,
     #[serde(default)]
     pub container_port: Option<u16>,
-    #[serde(default)]
-    pub encryption_key: Option<String>,
 
     // ── Process mode (npx n8n) ─────────────────────────────────────
     #[serde(default)]
@@ -105,7 +103,6 @@ impl Default for N8nEngineConfig {
             api_key: String::new(),
             container_id: None,
             container_port: None,
-            encryption_key: None,
             process_pid: None,
             process_port: None,
             mcp_token: None,
@@ -132,13 +129,19 @@ pub struct N8nEngineStatus {
 // ── Pure utility functions ─────────────────────────────────────────────
 
 /// Generate a random 32-byte hex string for API keys / encryption keys.
+/// Uses the OS CSPRNG (OsRng) for cryptographic strength.
 pub fn generate_random_key() -> String {
-    use std::fmt::Write;
+    use rand::rngs::OsRng;
+    use rand::RngCore;
+    let mut bytes = [0u8; 32];
+    OsRng.fill_bytes(&mut bytes);
     let mut key = String::with_capacity(64);
-    for _ in 0..32 {
-        let byte: u8 = rand::random();
-        let _ = write!(key, "{:02x}", byte);
+    for b in &bytes {
+        use std::fmt::Write;
+        let _ = write!(key, "{:02x}", b);
     }
+    // Zero the raw bytes immediately
+    zeroize::Zeroize::zeroize(&mut bytes);
     key
 }
 

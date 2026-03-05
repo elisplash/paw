@@ -294,7 +294,7 @@ Alternatively, agents can discover and install packages conversationally:
 - Community packages are installed from the **official npm registry**
 - MCP transport uses **localhost-only** connections (127.0.0.1:5678)
 - MCP auth uses a **JWT with `mcp-server-api` audience** — separate from the REST API key. Stale/redacted keys are auto-rotated via `/rest/mcp/api-key/rotate`
-- The n8n encryption key is stored in your **OS keychain** (`paw-n8n-encryption`), not on the filesystem
+- The n8n encryption key is stored in your **unified OS keychain vault** (`openpawz`), not on the filesystem
 - All tool calls go through OpenPawz's **Human-in-the-Loop approval** system
 - Credential injection for n8n nodes uses the same **AES-256-GCM encrypted vault**
 - The MCP Bridge inherits all 10 security layers from the core platform

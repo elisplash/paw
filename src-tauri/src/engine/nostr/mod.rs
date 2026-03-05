@@ -132,8 +132,11 @@ pub fn start_bridge(app_handle: tauri::AppHandle) -> EngineResult<()> {
         return Err("Nostr bridge is disabled.".into());
     }
 
-    // Validate and derive pubkey from private key
-    let sk_bytes = hex_decode(&config.private_key_hex).map_err(|_| "Invalid private key hex")?;
+    // Validate and derive pubkey from private key.
+    // Wrap secret key bytes in Zeroizing so they are securely zeroed on drop.
+    let sk_bytes = zeroize::Zeroizing::new(
+        hex_decode(&config.private_key_hex).map_err(|_| "Invalid private key hex")?,
+    );
     if sk_bytes.len() != 32 {
         return Err("Private key must be 32 bytes (64 hex chars)".into());
     }
@@ -225,22 +228,9 @@ pub fn get_status(app_handle: &tauri::AppHandle) -> ChannelStatus {
 pub fn load_config(app_handle: &tauri::AppHandle) -> EngineResult<NostrConfig> {
     let mut config: NostrConfig = channels::load_channel_config(app_handle, CONFIG_KEY)?;
 
-    // Hydrate private key from OS keychain
+    // Hydrate private key from OS keychain (vault)
     if let Ok(Some(key)) = keychain_get_private_key() {
         config.private_key_hex = key;
-    }
-
-    // Auto-migrate: if DB still has a plaintext key, move it to keychain
-    if !config.private_key_hex.is_empty() {
-        let mut db_config: NostrConfig = channels::load_channel_config(app_handle, CONFIG_KEY)?;
-        if !db_config.private_key_hex.is_empty() {
-            // Key is still in the DB — migrate it to keychain and clear from DB
-            if keychain_set_private_key(&db_config.private_key_hex).is_ok() {
-                db_config.private_key_hex = String::new();
-                let _ = channels::save_channel_config(app_handle, CONFIG_KEY, &db_config);
-                info!("[nostr] Migrated private key from config DB to OS keychain");
-            }
-        }
     }
 
     Ok(config)

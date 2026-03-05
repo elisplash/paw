@@ -228,7 +228,7 @@ You can also create your own skills repository — just add SKILL.md files anywh
 
 ## Credential security
 
-Credentials are stored in SQLite and encrypted with XOR using a 32-byte random key stored in your OS keychain (service: `paw-skill-vault`, key: `encryption-key`).
+Credentials are stored in SQLite and encrypted with AES-256-GCM using a 32-byte random key stored in your unified OS keychain vault (service: `openpawz`).
 
 High-risk credentials (Coinbase, DEX) are **server-side only** — they are never injected into agent prompts. The engine uses them directly when executing trades.
 

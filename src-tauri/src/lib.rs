@@ -87,10 +87,8 @@ pub fn run() {
 
     // ── Unified Key Vault ─────────────────────────────────────────────────
     // Pre-load all encryption keys from a single OS keychain entry.
-    // This triggers at most ONE keychain prompt instead of 5–6 individual
-    // prompts that would otherwise appear as each subsystem lazily accesses
-    // its own key.  On first run, migrates any existing per-entry keys
-    // into the unified vault.
+    // This triggers at most ONE keychain prompt instead of individual
+    // prompts per subsystem.  Keys are generated on first access if missing.
     engine::key_vault::prefetch();
 
     // Initialize the cognitive event bus (§47.6 observability infrastructure).

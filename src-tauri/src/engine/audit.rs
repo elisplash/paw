@@ -157,17 +157,24 @@ const GENESIS_HASH: &str = "0000000000000000000000000000000000000000000000000000
 
 /// Get or create the HMAC signing key from the unified key vault.
 /// Separate from memory encryption key and skill vault key.
-fn get_audit_signing_key() -> EngineResult<Vec<u8>> {
+/// Returns `Zeroizing<Vec<u8>>` so intermediate copies are zeroed on drop.
+fn get_audit_signing_key() -> EngineResult<zeroize::Zeroizing<Vec<u8>>> {
     if let Some(key_b64) = key_vault::get(key_vault::PURPOSE_AUDIT_CHAIN) {
-        return base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &key_b64)
-            .map_err(|e| EngineError::Other(format!("Failed to decode audit signing key: {}", e)));
+        let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &key_b64)
+            .map_err(|e| {
+                EngineError::Other(format!("Failed to decode audit signing key: {}", e))
+            })?;
+        return Ok(zeroize::Zeroizing::new(decoded));
     }
     // No key exists — generate a new random key using OS CSPRNG
     use rand::rngs::OsRng;
     use rand::RngCore;
-    let mut key = vec![0u8; 32];
+    let mut key = zeroize::Zeroizing::new(vec![0u8; 32]);
     OsRng.fill_bytes(&mut key);
-    let key_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &key);
+    let key_b64 = zeroize::Zeroizing::new(base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        key.as_slice(),
+    ));
     key_vault::set(key_vault::PURPOSE_AUDIT_CHAIN, &key_b64);
     info!("[audit] Created new HMAC signing key in unified vault");
     Ok(key)
@@ -177,7 +184,7 @@ fn get_audit_signing_key() -> EngineResult<Vec<u8>> {
 /// Wrapped in `Zeroizing` to securely zero key material on drop.
 static SIGNING_KEY: LazyLock<Option<zeroize::Zeroizing<Vec<u8>>>> =
     LazyLock::new(|| match get_audit_signing_key() {
-        Ok(key) => Some(zeroize::Zeroizing::new(key)),
+        Ok(key) => Some(key),
         Err(e) => {
             warn!(
                 "[audit] Could not load signing key: {}. Audit signatures will be empty.",

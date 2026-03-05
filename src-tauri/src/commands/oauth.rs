@@ -26,9 +26,6 @@ use log::{error, info, warn};
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 
-/// Vault key prefix for OAuth tokens (separate from manual API keys).
-const OAUTH_VAULT_PREFIX: &str = "oauth_tokens_";
-
 /// Check which services support OAuth (frontend uses this to show OAuth buttons).
 /// Now includes tier information for the hybrid OAuth system.
 #[tauri::command]
@@ -496,44 +493,20 @@ fn store_oauth_tokens(service_id: &str, tokens: &OAuthTokens) -> Result<(), Stri
 }
 
 /// Load OAuth tokens from the unified key vault.
-/// Falls back to the legacy per-entry keychain for migration.
 fn load_oauth_tokens(service_id: &str) -> Result<Option<OAuthTokens>, String> {
     let vault_key = get_vault_key().map_err(|e| format!("Vault key error: {}", e))?;
 
     let vault_purpose = format!("oauth:{}", service_id);
 
-    // Try unified vault first
-    if let Some(encrypted) = key_vault::get(&vault_purpose) {
-        let json = decrypt_credential(&encrypted, &vault_key)
-            .map_err(|e| format!("Decrypt error: {}", e))?;
-        let tokens: OAuthTokens =
-            serde_json::from_str(&json).map_err(|e| format!("Deserialize error: {}", e))?;
-        return Ok(Some(tokens));
-    }
-
-    // Fall back to legacy per-entry keychain and migrate if found
-    let legacy_key = format!("{}{}", OAUTH_VAULT_PREFIX, service_id);
-    match keyring::Entry::new("paw-skill-vault", &legacy_key) {
-        Ok(entry) => match entry.get_password() {
-            Ok(encrypted) => {
-                // Migrate to unified vault
-                key_vault::set(&vault_purpose, &encrypted);
-                // Delete legacy entry (best-effort)
-                let _ = entry.delete_credential();
-                info!(
-                    "[oauth] Migrated tokens for '{}' from legacy keychain to unified vault",
-                    service_id
-                );
-                let json = decrypt_credential(&encrypted, &vault_key)
-                    .map_err(|e| format!("Decrypt error: {}", e))?;
-                let tokens: OAuthTokens =
-                    serde_json::from_str(&json).map_err(|e| format!("Deserialize error: {}", e))?;
-                Ok(Some(tokens))
-            }
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(format!("Failed to load OAuth tokens: {}", e)),
-        },
-        Err(_) => Ok(None),
+    match key_vault::get(&vault_purpose) {
+        Some(encrypted) => {
+            let json = decrypt_credential(&encrypted, &vault_key)
+                .map_err(|e| format!("Decrypt error: {}", e))?;
+            let tokens: OAuthTokens =
+                serde_json::from_str(&json).map_err(|e| format!("Deserialize error: {}", e))?;
+            Ok(Some(tokens))
+        }
+        None => Ok(None),
     }
 }
 

@@ -212,7 +212,7 @@ Blocked requests return an error to the agent without making any network call.
 
 ### Audit Chain Integrity (HMAC)
 
-Every entry in the security audit log is signed with **HMAC-SHA256** using a dedicated signing key stored in the OS keychain (`paw-audit-chain`), separate from all encryption keys. The signing key is cached in a `LazyLock<Option<Zeroizing<Vec<u8>>>>` and generated with `OsRng` on first use. Each audit entry's HMAC covers the timestamp, category, action, agent ID, session ID, and the previous entry's hash — forming a tamper-evident hash chain. Chain integrity can be verified end-to-end via `verify_chain()`.
+Every entry in the security audit log is signed with **HMAC-SHA256** using a dedicated signing key stored in the unified key vault (`audit-chain` purpose), separate from all encryption keys. The signing key is cached in a `LazyLock<Option<Zeroizing<Vec<u8>>>>` and generated with `OsRng` on first use. Each audit entry's HMAC covers the timestamp, category, action, agent ID, session ID, and the previous entry's hash — forming a tamper-evident hash chain. Chain integrity can be verified end-to-end via `verify_chain()`.
 
 ### Inter-Agent Communication Security
 
@@ -258,7 +258,7 @@ The Engram memory subsystem applies defense-in-depth to all stored agent memorie
 
 ### Field-Level Encryption
 
-Memories containing personally identifiable information (PII) are automatically encrypted before storage using **AES-256-GCM** with a dedicated keychain key (`paw-memory-vault`), separate from the credential vault key.
+Memories containing personally identifiable information (PII) are automatically encrypted before storage using **AES-256-GCM** with a dedicated key vault entry (`memory-vault` purpose), separate from the credential vault key.
 
 **Automatic PII detection** uses a two-layer defense scanning memory content for 17 pattern types before storage:
 
