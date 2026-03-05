@@ -37,6 +37,7 @@ export const CHANNEL_CLASSES: Record<string, string> = {
   nostr: 'nostr',
   twitch: 'twitch',
   whatsapp: 'whatsapp',
+  discourse: 'discourse',
 };
 
 export const CHANNEL_SETUPS: ChannelSetupDef[] = [
@@ -622,6 +623,93 @@ export const CHANNEL_SETUPS: ChannelSetupDef[] = [
       dm_policy: (v.dmPolicy as string) || 'open',
     }),
   },
+  {
+    id: 'discourse',
+    name: 'Discourse',
+    icon: 'DS',
+    description:
+      'Connect to a Discourse forum via the REST API. Your agent can read topics, reply to posts, and create new topics — great for community support.',
+    fields: [
+      {
+        key: 'url',
+        label: 'Forum URL',
+        type: 'text',
+        placeholder: 'https://community.example.com',
+        hint: 'Your Discourse forum URL (no trailing slash)',
+        required: true,
+      },
+      {
+        key: 'apiKey',
+        label: 'API Key',
+        type: 'password',
+        placeholder: '',
+        hint: 'Admin → API → New API Key (select "All Users" scope for bot operations)',
+        required: true,
+        sensitive: true,
+      },
+      {
+        key: 'username',
+        label: 'Bot Username',
+        type: 'text',
+        placeholder: 'paw-bot',
+        hint: 'The Discourse username the API key is scoped to (create a dedicated bot account)',
+        required: true,
+      },
+      {
+        key: 'categories',
+        label: 'Categories to Monitor',
+        type: 'text',
+        placeholder: 'general, support, feedback',
+        hint: 'Comma-separated category slugs. Leave blank to monitor all categories.',
+      },
+      {
+        key: 'respondToTopics',
+        label: 'Reply to new topics automatically',
+        type: 'toggle',
+        defaultValue: true,
+      },
+      {
+        key: 'autoCreateTopics',
+        label: 'Allow agent to create new topics',
+        type: 'toggle',
+        defaultValue: false,
+      },
+      {
+        key: 'pollInterval',
+        label: 'Poll Interval (seconds)',
+        type: 'text',
+        placeholder: '30',
+        defaultValue: '30',
+        hint: 'How often to check for new posts (minimum 10 seconds)',
+      },
+      {
+        key: 'dmPolicy',
+        label: 'Access Policy',
+        type: 'select',
+        options: [
+          { value: 'open', label: 'Open (respond to all posts)' },
+          { value: 'allowlist', label: 'Allowlist only (by username)' },
+          { value: 'pairing', label: 'Pairing (approve first-time users)' },
+        ],
+        defaultValue: 'open',
+      },
+      { key: 'agentId', label: 'Agent ID (optional)', type: 'text', placeholder: '' },
+    ],
+    buildConfig: (v) => ({
+      url: (v.url as string).replace(/\/+$/, ''),
+      api_key: v.apiKey as string,
+      username: v.username as string,
+      categories: ((v.categories as string) || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+      enabled: true,
+      respond_to_topics: v.respondToTopics !== false,
+      auto_create_topics: !!v.autoCreateTopics,
+      poll_interval_seconds: Math.max(10, parseInt(v.pollInterval as string) || 30),
+      dm_policy: (v.dmPolicy as string) || 'open',
+    }),
+  },
 ];
 
 // ── Pure predicates ────────────────────────────────────────────────────────
@@ -646,6 +734,8 @@ export function isChannelConfigured(ch: string, config: Record<string, unknown>)
       return !!config.oauth_token && !!config.bot_username;
     case 'whatsapp':
       return !!config.enabled;
+    case 'discourse':
+      return !!config.url && !!config.api_key && !!config.username;
     default:
       return false;
   }
@@ -695,6 +785,17 @@ export function emptyChannelConfig(ch: string): Record<string, unknown> {
         webhook_port: 8086,
         respond_in_groups: false,
         session_connected: false,
+      };
+    case 'discourse':
+      return {
+        ...base,
+        url: '',
+        api_key: '',
+        username: '',
+        categories: [],
+        respond_to_topics: true,
+        auto_create_topics: false,
+        poll_interval_seconds: 30,
       };
     default:
       return base;

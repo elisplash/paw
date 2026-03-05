@@ -35,6 +35,18 @@ describe('isChannelConfigured', () => {
     expect(isChannelConfigured('whatsapp', {})).toBe(false);
   });
 
+  it('discourse: needs url, api_key, and username', () => {
+    expect(
+      isChannelConfigured('discourse', {
+        url: 'https://community.example.com',
+        api_key: 'abc123',
+        username: 'paw-bot',
+      }),
+    ).toBe(true);
+    expect(isChannelConfigured('discourse', { url: 'https://community.example.com' })).toBe(false);
+    expect(isChannelConfigured('discourse', {})).toBe(false);
+  });
+
   it('returns false for unknown channels', () => {
     expect(isChannelConfigured('unknown', {})).toBe(false);
   });
@@ -61,6 +73,16 @@ describe('emptyChannelConfig', () => {
     const config = emptyChannelConfig('unknown_channel');
     expect(config.enabled).toBe(false);
     expect(config.dm_policy).toBe('pairing');
+  });
+
+  it('returns base config for discourse', () => {
+    const config = emptyChannelConfig('discourse');
+    expect(config.url).toBe('');
+    expect(config.api_key).toBe('');
+    expect(config.username).toBe('');
+    expect(config.respond_to_topics).toBe(true);
+    expect(config.auto_create_topics).toBe(false);
+    expect(config.poll_interval_seconds).toBe(30);
   });
 });
 

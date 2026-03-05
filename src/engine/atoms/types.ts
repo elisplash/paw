@@ -902,6 +902,21 @@ export interface WhatsAppConfig {
   qr_code?: string;
 }
 
+export interface DiscourseConfig {
+  url: string;
+  api_key: string;
+  username: string;
+  categories: string[];
+  enabled: boolean;
+  dm_policy: string;
+  allowed_users: string[];
+  pending_users: ChannelPendingUser[];
+  agent_id?: string;
+  respond_to_topics: boolean;
+  auto_create_topics: boolean;
+  poll_interval_seconds: number;
+}
+
 // ── Browser Profiles & Sandbox ────────────────────────────────────────
 
 export interface BrowserProfile {

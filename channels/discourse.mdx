@@ -1,0 +1,97 @@
+---
+title: "Discourse"
+description: "Connect your agent to a Discourse community forum."
+---
+
+# Discourse
+
+Connect your agent to a Discourse forum. Your agent monitors topics, replies to posts, and can create new threads — perfect for community support, FAQ automation, and engagement.
+
+## Setup
+
+1. Create a **dedicated bot account** on your Discourse forum (e.g., `paw-bot`)
+2. As an admin, go to **Admin → API → New API Key**
+3. Set the scope to **Single User** and select the bot account
+4. Copy the API key
+5. In Pawz, go to **Settings → Channels**
+6. Select **Discourse**
+7. Enter:
+   - **Forum URL** — e.g., `https://community.example.com`
+   - **API Key** — from step 4
+   - **Bot Username** — the bot account username
+8. Start the channel
+
+## Configuration
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Forum URL | Yes | Your Discourse instance URL (no trailing slash) |
+| API Key | Yes | Admin-generated API key scoped to the bot user |
+| Bot Username | Yes | The Discourse username the API key is scoped to |
+| Categories to Monitor | No | Comma-separated category slugs (blank = all categories) |
+| Reply to Topics | Yes | Whether the agent auto-replies to new topics |
+| Create Topics | No | Whether the agent can create new topics |
+| Poll Interval | No | How often to check for new posts (default: 30s, minimum: 10s) |
+
+## Connection
+
+Pawz connects via Discourse's **REST API**, polling for new posts at the configured interval. The bot authenticates using the API key + username headers on every request. No inbound webhooks or public URLs are needed — this is a fully outbound connection.
+
+### API Key Setup (Step-by-Step)
+
+1. Log in to your Discourse forum as an **admin**
+2. Navigate to `/admin/api/keys`
+3. Click **New API Key**
+4. Description: `Paw Agent Bot`
+5. User Level: **Single User** → select your bot account
+6. Click **Save**
+7. Copy the key (you won't see it again)
+
+<Tip>
+Use a **Single User** scope rather than a global API key. This limits the bot to actions the bot account is allowed to perform.
+</Tip>
+
+## Features
+
+- **Topic monitoring** — watches categories for new topics and replies
+- **Auto-reply** — responds to posts with context-aware answers
+- **Topic creation** — agent can create new discussion threads (opt-in)
+- **Category filtering** — monitor specific categories or all categories
+- **Per-user sessions** — persistent memory across conversations with each user
+- **Thread context** — reads the full topic thread before replying for context
+- **Prompt injection scanning** on all incoming posts
+- **Agent routing** — assign a specific agent to handle Discourse
+
+## Discourse Bot Account Tips
+
+<Tip>
+- Create a dedicated bot account (`paw-bot`) rather than using your admin account
+- Set the bot's **trust level** to at least **1 (Basic)** so it can post without restrictions
+- Add a clear **bio** like "I'm an AI assistant powered by Pawz" for transparency
+- Upload a recognizable **avatar** (the Pawz logo works great)
+- Consider setting the bot as a **moderator** if you want it to manage categories
+</Tip>
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| 403 Forbidden | API key may be expired or scoped to wrong user — regenerate it in Admin → API |
+| Bot doesn't reply | Check that "Reply to Topics" is enabled and the bot account has posting permissions |
+| Posts in wrong category | Verify category slugs match exactly (case-sensitive, use hyphens not spaces) |
+| Rate limited | Increase the poll interval (Discourse default rate limit is 60 req/min) |
+| Bot replies to itself | Bot username must match exactly — the agent filters out its own posts |
+| Connection timeout | Verify the forum URL is correct and accessible from your machine |
+
+## Category Slugs
+
+Category slugs are the URL-safe versions of category names. For example:
+
+| Category Name | Slug |
+|---------------|------|
+| General Discussion | `general-discussion` |
+| Support | `support` |
+| Feature Requests | `feature-requests` |
+
+Find slugs by navigating to a category — the slug is the last part of the URL:
+`https://community.example.com/c/support/5` → slug is `support`

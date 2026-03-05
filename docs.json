@@ -2,7 +2,7 @@
   "$schema": "https://mintlify.com/docs.json",
   "theme": "maple",
   "name": "OpenPawz",
-  "description": "Your AI, your rules. The open-source AI agent OS with 25,000+ integrations via MCP bridge, 11 channels, multi-agent orchestration — all running locally on your desktop.",
+  "description": "Your AI, your rules. The open-source AI agent OS with 25,000+ integrations via MCP bridge, 12 channels, multi-agent orchestration — all running locally on your desktop.",
   "logo": {
     "dark": "/images/pawz-logo-text-dark.png",
     "light": "/images/pawz-logo-text-light.png"
@@ -148,7 +148,8 @@
               "channels/nostr",
               "channels/twitch",
               "channels/webchat",
-              "channels/whatsapp"
+              "channels/whatsapp",
+              "channels/discourse"
             ]
           }
         ]
