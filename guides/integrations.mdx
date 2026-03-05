@@ -48,7 +48,7 @@ When you install a community package (e.g. `n8n-nodes-slack`), Paw auto-deploys 
 
 ```mermaid actions={false}
 graph TD
-    A["User enters API key\nin Skills tab"] --> B["XOR-encrypted\n32-byte key in OS keychain"]
+    A["User enters API key\nin Skills tab"] --> B["AES-256-GCM encrypted\nkey in unified OS keychain vault"]
     B --> C["Stored in SQLite\nEncrypted blob"]
     C --> D["On prompt build:\ndecrypted in memory"]
     D --> E["Injected into system prompt\nNOTION_API_KEY = secret_abc..."]
@@ -132,7 +132,7 @@ type = "badge"
 
 #### `[[credentials]]` — Optional, repeatable
 
-Declare API keys, tokens, or secrets the integration requires. Users enter these in the Skills tab. Pawz encrypts them with XOR (32-byte random key in the OS keychain) and injects decrypted values into the agent's system prompt at runtime.
+Declare API keys, tokens, or secrets the integration requires. Users enter these in the Skills tab. Pawz encrypts them with AES-256-GCM (32-byte random key in the unified OS keychain vault) and injects decrypted values into the agent's system prompt at runtime.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -143,7 +143,7 @@ Declare API keys, tokens, or secrets the integration requires. Users enter these
 | `placeholder` | string | — | Example value in the input field. |
 
 :::info Credential Security
-Credentials are never stored in plain text. They are encrypted in SQLite using XOR with a 32-byte random key stored in your OS keychain (service: `paw-skill-vault`). Decrypted values exist only in the agent's system prompt at runtime — never logged, never written to disk unencrypted, never transmitted externally. An AES-GCM upgrade is planned.
+Credentials are never stored in plain text. They are encrypted in SQLite using AES-256-GCM with a 32-byte random key stored in your unified OS keychain vault (service: `openpawz`). Decrypted values exist only in the agent’s system prompt at runtime — never logged, never written to disk unencrypted, never transmitted externally.
 :::
 
 #### `[instructions]` — Required
@@ -442,7 +442,7 @@ The agent fetches the API docs, generates a complete `pawz-skill.toml` with endp
 
 | Layer | Protection |
 |-------|-----------|
-| **Credentials** | XOR-encrypted, 32-byte key in OS keychain |
+| **Credentials** | AES-256-GCM encrypted, 32-byte key in unified OS keychain vault |
 | **Network** | Domain allowlist/blocklist on every `fetch` |
 | **Shell** | Docker sandbox routing when enabled |
 | **File system** | Engine source read-blocked |

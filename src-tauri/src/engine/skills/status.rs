@@ -3,12 +3,12 @@
 // Also merges TOML manifest skills from ~/.paw/skills/ (Phase F.1).
 
 use super::builtins::builtin_skills;
-use super::crypto::{decrypt_credential, encrypt_credential, get_vault_key, is_legacy_encrypted};
+use super::crypto::{decrypt_credential, get_vault_key};
 use super::toml::scan_toml_skills;
 use super::types::{SkillSource, SkillStatus};
 use crate::atoms::error::EngineResult;
 use crate::engine::sessions::SessionStore;
-use log::{info, warn};
+use log::warn;
 
 /// Build a SkillStatus from a SkillDefinition + stored DB state.
 fn build_skill_status(
@@ -152,21 +152,6 @@ pub fn get_skill_credentials(
         if let Some(encrypted) = store.get_skill_credential(skill_id, &key)? {
             match decrypt_credential(&encrypted, &vault_key) {
                 Ok(value) => {
-                    // Auto-migrate legacy XOR → AES-256-GCM on read
-                    if is_legacy_encrypted(&encrypted) {
-                        let re_encrypted = encrypt_credential(&value, &vault_key);
-                        if let Err(e) = store.set_skill_credential(skill_id, &key, &re_encrypted) {
-                            warn!(
-                                "[vault] Failed to migrate {}:{} to AES-GCM: {}",
-                                skill_id, key, e
-                            );
-                        } else {
-                            info!(
-                                "[vault] Migrated {}:{} from XOR to AES-256-GCM",
-                                skill_id, key
-                            );
-                        }
-                    }
                     creds.insert(key, value);
                 }
                 Err(e) => {

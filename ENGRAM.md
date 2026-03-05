@@ -1012,7 +1012,7 @@ All calculations use `ceil()` to round up and are UTF-8 safe (truncation never s
 
 ### Field-Level Encryption
 
-Memories containing PII are encrypted with AES-256-GCM before storage. The encryption key is stored in the OS keychain under a dedicated entry (`paw-memory-vault`), separate from the credential vault key.
+Memories containing PII are encrypted with AES-256-GCM before storage. The encryption key is stored in the unified OS keychain vault (`openpawz`) alongside all other purpose keys.
 
 **Automatic PII detection** uses a two-layer approach:
 

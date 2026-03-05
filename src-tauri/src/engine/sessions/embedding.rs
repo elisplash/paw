@@ -86,7 +86,7 @@ mod tests {
 
     #[test]
     fn bytes_f32_roundtrip() {
-        let original = vec![1.0f32, -2.5, 3.14159, 0.0];
+        let original = vec![1.0f32, -2.5, std::f32::consts::PI, 0.0];
         let bytes = f32_vec_to_bytes(&original);
         let restored = bytes_to_f32_vec(&bytes);
         assert_eq!(original, restored);

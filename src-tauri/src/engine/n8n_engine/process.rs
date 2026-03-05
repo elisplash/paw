@@ -82,34 +82,14 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
         .unwrap_or_else(generate_random_key);
 
     // Priority for encryption key:
-    //   1. OS keychain (authoritative, secure store)
-    //   2. n8n's own config file (plaintext fallback — migrated to keychain)
-    //   3. Our saved config (from a previous provision)
-    //   4. Generate a new random key (first-ever run)
-    let encryption_key = get_n8n_encryption_key_from_keychain()
-        .or_else(|| {
-            // Migrate from n8n's plaintext config → keychain
-            let key = read_n8n_encryption_key(&data_dir)?;
-            log::info!("[n8n] Migrating encryption key from n8n config file to OS keychain");
-            store_n8n_encryption_key_in_keychain(&key);
-            Some(key)
-        })
-        .or_else(|| {
-            prev_config
-                .as_ref()
-                .and_then(|c| c.encryption_key.clone())
-                .filter(|k| !k.is_empty())
-                .inspect(|key| {
-                    log::info!("[n8n] Migrating encryption key from saved config to OS keychain");
-                    store_n8n_encryption_key_in_keychain(key);
-                })
-        })
-        .unwrap_or_else(|| {
-            log::info!("[n8n] No existing encryption key found — generating new one");
-            let key = generate_random_key();
-            store_n8n_encryption_key_in_keychain(&key);
-            key
-        });
+    //   1. OS keychain vault (single source of truth)
+    //   2. Generate a new random key (first-ever run)
+    let encryption_key = get_n8n_encryption_key_from_keychain().unwrap_or_else(|| {
+        log::info!("[n8n] No encryption key in vault — generating new one");
+        let key = generate_random_key();
+        store_n8n_encryption_key_in_keychain(&key);
+        key
+    });
 
     // Sync keychain key → n8n's config file so n8n doesn't see a mismatch.
     sync_encryption_key_to_n8n_config(&data_dir, &encryption_key);
@@ -388,14 +368,13 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
         }
     }
 
-    // Persist config
+    // Persist config (encryption key is NOT included — it lives in the vault)
     let new_config = N8nEngineConfig {
         mode: N8nMode::Process,
         url: url.clone(),
         api_key: api_key.clone(),
         container_id: None,
         container_port: None,
-        encryption_key: Some(encryption_key),
         process_pid: Some(pid),
         process_port: Some(port),
         mcp_token: None,
@@ -433,25 +412,6 @@ pub fn stop_process(pid: u32) {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
-
-/// Read n8n's own encryption key from its config file.
-///
-/// n8n stores `{"encryptionKey": "..."}` in `<N8N_USER_FOLDER>/.n8n/config`.
-/// Used as a migration source — the key is moved to the OS keychain.
-fn read_n8n_encryption_key(data_dir: &std::path::Path) -> Option<String> {
-    let config_path = data_dir.join(".n8n").join("config");
-    let content = std::fs::read_to_string(&config_path).ok()?;
-    let json: serde_json::Value = serde_json::from_str(&content).ok()?;
-    let key = json.get("encryptionKey")?.as_str()?.to_string();
-    if key.is_empty() {
-        return None;
-    }
-    log::info!(
-        "[n8n] Read encryption key from n8n config at {}",
-        config_path.display()
-    );
-    Some(key)
-}
 
 // ── Key vault storage for n8n encryption key ──────────────────────────
 

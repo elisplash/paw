@@ -250,7 +250,7 @@ Memory in Pawz is protected at multiple levels:
 
 | Layer | Protection |
 |-------|-----------|
-| **PII encryption** | Two-layer PII defense: Layer 1 uses 17 regex patterns (emails, SSNs, credit cards, JWTs, AWS keys, private keys, IBAN, etc.) to detect and encrypt sensitive content with AES-256-GCM. Layer 2 uses LLM-assisted scanning for context-dependent PII ("mother's maiden name", "born in Springfield"). Encryption key derived per-agent via HKDF from OS keychain (`paw-memory-vault`). |
+| **PII encryption** | Two-layer PII defense: Layer 1 uses 17 regex patterns (emails, SSNs, credit cards, JWTs, AWS keys, private keys, IBAN, etc.) to detect and encrypt sensitive content with AES-256-GCM. Layer 2 uses LLM-assisted scanning for context-dependent PII ("mother's maiden name", "born in Springfield"). Encryption key derived per-agent via HKDF from unified OS keychain vault (`openpawz`). |
 | **At rest** | Per-agent HKDF-derived AES-256-GCM keys — each agent's memories are cryptographically isolated. Key versioned (`enc:v1:` prefix) with automated 90-day rotation. |
 | **In transit** | TLS certificate-pinned connections to embedding providers (Mozilla root CAs only, OS trust store excluded) |
 | **In RAM** | Provider API keys wrapped in `Zeroizing<String>` — automatically zeroed from memory on drop |

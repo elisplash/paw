@@ -6,6 +6,7 @@
 use super::health::poll_n8n_ready;
 use super::types::*;
 use crate::atoms::error::{EngineError, EngineResult};
+use crate::engine::key_vault;
 use bollard::container::{
     Config as ContainerConfig, CreateContainerOptions, ListContainersOptions,
     RemoveContainerOptions, StartContainerOptions,
@@ -74,24 +75,27 @@ pub async fn provision_docker_container(
 
     let port = find_available_port(DEFAULT_PORT);
 
-    // Reuse encryption key and API key from previous config if they exist.
-    // The n8n data directory is a persistent bind mount — if we generate a
-    // new encryption key on re-provision, n8n will see a mismatch between
-    // the env var and the key saved in /home/node/.n8n/config and crash.
+    // Determine data volume path
+    let data_dir = super::n8n_data_dir(app_handle);
+
+    // Reuse API key from previous config if it exists.
     let prev_config = super::load_config(app_handle).ok();
     let api_key = prev_config
         .as_ref()
         .filter(|c| !c.api_key.is_empty())
         .map(|c| c.api_key.clone())
         .unwrap_or_else(generate_random_key);
-    let encryption_key = prev_config
-        .as_ref()
-        .and_then(|c| c.encryption_key.clone())
-        .filter(|k| !k.is_empty())
-        .unwrap_or_else(generate_random_key);
 
-    // Determine data volume path (space-free to avoid node-gyp issues)
-    let data_dir = super::n8n_data_dir(app_handle);
+    // Encryption key: vault is the single source of truth.
+    // Generate a new key if none exists yet (first-ever run).
+    let encryption_key = key_vault::get(key_vault::PURPOSE_N8N_ENCRYPTION).unwrap_or_else(|| {
+        log::info!("[n8n] No encryption key in vault — generating new one");
+        let key = generate_random_key();
+        key_vault::set(key_vault::PURPOSE_N8N_ENCRYPTION, &key);
+        key
+    });
+
+    // Ensure data dir exists
     std::fs::create_dir_all(&data_dir)
         .map_err(|e| EngineError::Other(format!("Failed to create n8n data dir: {}", e)))?;
 
@@ -254,14 +258,13 @@ pub async fn provision_docker_container(
         }
     }
 
-    // Persist config
+    // Persist config (encryption key is NOT included — it lives in the vault)
     let new_config = N8nEngineConfig {
         mode: N8nMode::Embedded,
         url: url.clone(),
         api_key: api_key.clone(),
         container_id: Some(container.id),
         container_port: Some(port),
-        encryption_key: Some(encryption_key),
         process_pid: None,
         process_port: None,
         mcp_token: None,

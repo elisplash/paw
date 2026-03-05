@@ -28,7 +28,7 @@ pub use community::{
     get_community_skill_instructions, install_community_skill, parse_skill_md,
     search_community_skills, search_pawzhub, CommunitySkill, DiscoveredSkill, PawzHubEntry,
 };
-pub use crypto::{decrypt_credential, encrypt_credential, get_vault_key, is_legacy_encrypted};
+pub use crypto::{decrypt_credential, encrypt_credential, get_vault_key};
 pub use prompt::get_enabled_skill_instructions;
 pub use status::{get_all_skill_status, get_skill_credentials};
 pub use toml::{

@@ -225,14 +225,14 @@ The widget refreshes every 5 minutes.
 | Installed tab shows 0 packages | The REST API returns 404 on n8n 2.9.x — Paw falls back to reading `package.json` from the data dir. If the data dir is empty, packages may not have installed correctly. |
 | Uninstall button does nothing | Ensure you're running the latest build. Older versions used `window.confirm()` which doesn't render in Tauri's WKWebView on macOS. |
 | MCP token retrieval fails | Check logs for "MCP API key is redacted" — Paw auto-rotates stale keys. If n8n is mid-restart, wait a few seconds and retry. |
-| Encryption key mismatch on restart | The encryption key is stored in your OS keychain (`paw-n8n-encryption`). If you cleared the keychain, delete `~/.openpawz/n8n-data` for a fresh start. |
+| Encryption key mismatch on restart | The encryption key is stored in your unified OS keychain vault (`openpawz`). If you cleared the keychain, delete `~/.openpawz/n8n-data` for a fresh start. |
 
 ---
 
 ## Security notes
 
-- Your n8n API key is **encrypted** in the Pawz vault (XOR, 32-byte key in OS keychain) — never stored in plain text
-- The **n8n encryption key** is stored in the OS keychain (`paw-n8n-encryption`), never on the filesystem in plain text. It's synced to n8n's config file only to prevent startup mismatch errors.
+- Your n8n API key is **encrypted** in the Pawz vault (AES-256-GCM, key in unified OS keychain) — never stored in plain text
+- The **n8n encryption key** is stored in the unified OS keychain vault (`openpawz`), never on the filesystem in plain text. It’s synced to n8n’s config file only to prevent startup mismatch errors.
 - The **MCP API key** is a JWT with `mcp-server-api` audience, separate from the REST API key. Stale/redacted keys are auto-rotated.
 - In RAM, the API key is wrapped in `Zeroizing<String>` — automatically zeroed from memory when the provider is dropped
 - API calls go directly from your machine to your n8n instance — no cloud relay

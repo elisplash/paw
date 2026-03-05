@@ -3,9 +3,8 @@
 // Rationale: collecting constants in one place eliminates magic strings,
 // makes auditing easier, and keeps every layer's code self-documenting.
 
-// NOTE: Legacy keychain identifiers (DB_KEY_SERVICE, DB_KEY_USER,
-// LOCK_SERVICE, LOCK_USER) have been removed.  All keychain keys are now
-// stored in the unified key vault — see engine::key_vault.
+// All keychain keys are stored in the unified key vault.
+// See engine::key_vault for purpose constants.
 
 // ── Cron task execution cost-control limits ────────────────────────────────
 // Used by `run_cron_heartbeat()` in engine/commands.rs.

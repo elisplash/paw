@@ -30,14 +30,20 @@ Changing `bind_address` to `0.0.0.0` on any listener exposes it to your local ne
 
 ### Cryptographic key storage
 
-No cryptographic key is ever stored on the filesystem. All keys live in the **OS keychain** (macOS Keychain / Windows Credential Manager / Linux Secret Service):
+No cryptographic key is ever stored on the filesystem. All keys live in the **OS keychain** (macOS Keychain / Windows Credential Manager / Linux Secret Service) inside a **unified key vault** — a single keychain entry (`openpawz` / `key-vault`) storing a JSON blob of all purpose keys. This reduces OS keychain prompts from 7+ to **1** on launch or binary change.
 
-| Key | Keychain service | Purpose |
-|-----|-----------------|---------|
-| DB encryption key | `paw-db-encryption` | AES-256-GCM database field encryption |
-| Skill vault key | `paw-skill-vault` | AES-256-GCM skill credential encryption |
-| Memory vault key | `paw-memory-vault` | Master key for HKDF per-agent memory encryption |
-| Lock screen hash | `paw-lock-screen` | SHA-256 hashed passphrase |
+| Purpose key | Vault constant | Function |
+|-------------|---------------|----------|
+| `db-encryption` | `PURPOSE_DB_ENCRYPTION` | AES-256-GCM database field encryption |
+| `skill-vault` | `PURPOSE_SKILL_VAULT` | AES-256-GCM skill credential encryption |
+| `memory-vault` | `PURPOSE_MEMORY_VAULT` | Master key for HKDF per-agent memory encryption |
+| `lock-screen` | `PURPOSE_LOCK_SCREEN` | SHA-256 hashed passphrase |
+| `n8n-encryption` | `PURPOSE_N8N_ENCRYPTION` | n8n integration engine encryption key |
+| `audit-chain` | `PURPOSE_AUDIT_CHAIN` | HMAC-SHA256 audit log signing key |
+| `nostr-key` | `PURPOSE_NOSTR_KEY` | Nostr bridge private key |
+| `oauth:{service}` | (dynamic) | Per-service encrypted OAuth tokens |
+
+All in-memory key material is wrapped in `Zeroizing<String>` (via the `zeroize` crate) so secrets are securely overwritten with zeroes when dropped or replaced — preventing key material from lingering in freed heap memory.
 
 From the memory vault key, three independent key families are derived via **HKDF-SHA256 domain separation**:
 
@@ -205,10 +211,9 @@ Credentials are protected by two independent encryption layers:
 ### Layer 1: Skill credential encryption (AES-256-GCM)
 
 - API keys encrypted with **AES-256-GCM** using a 32-byte random key
-- Encryption key stored in OS keychain (`paw-skill-vault`)
+- Encryption key stored in the unified OS keychain vault (`openpawz`)
 - High-risk credentials (Coinbase, DEX) are **server-side only** — never injected into prompts
 - Credentials are decrypted only at execution time
-- Legacy XOR-encrypted values are auto-migrated to AES-256-GCM on first read
 
 ### Layer 2: Database field encryption (AES-256-GCM)
 
@@ -219,12 +224,12 @@ Sensitive database fields are encrypted with **AES-256-GCM** via the Web Crypto 
 | Algorithm | AES-256-GCM (authenticated encryption) |
 | Key size | 256 bits |
 | IV | 12-byte random IV per encryption |
-| Key source | Generated on first launch, stored in OS keychain (`paw-db-encryption`) |
+| Key source | Generated on first launch, stored in the unified OS keychain vault (`openpawz`) |
 | Storage format | `enc:<base64(IV + ciphertext)>` |
 | Fallback | Graceful — stores plaintext if encryption is unavailable |
 
 :::info Two independent layers
-The XOR layer protects skill credentials stored in the `skill_credentials` table. The AES-256-GCM layer protects other sensitive fields across the database. Both derive their keys from the OS keychain but use separate keychain entries.
+The AES-256-GCM skill layer protects skill credentials stored in the `skill_credentials` table. The AES-256-GCM database layer protects other sensitive fields across the database. Both derive their keys from the unified OS keychain vault (`openpawz`) using separate purpose keys.
 :::
 
 ## TLS certificate pinning
@@ -333,7 +338,7 @@ Before storage, every memory passes through a two-layer PII scanner with 17 rege
 | Property | Detail |
 |----------|--------|
 | Algorithm | AES-256-GCM (authenticated encryption) |
-| Key derivation | HKDF-SHA256 per-agent from OS keychain master key (`paw-memory-vault`) |
+| Key derivation | HKDF-SHA256 per-agent from unified OS keychain vault master key (`openpawz`) |
 | Key versioning | `enc:v1:` prefix for forward-compatible upgrades |
 | Key rotation | Automated 90-day scheduler; atomic re-encryption with rollback on failure |
 | Granularity | Field-level — only PII-containing content is encrypted |
@@ -641,12 +646,12 @@ Blocked requests return an error without making any network call. This prevents 
 
 ## Audit chain integrity (HMAC)
 
-Every entry in the security audit log is signed with **HMAC-SHA256** using a dedicated signing key stored in the OS keychain (`paw-audit-chain`), separate from all encryption keys.
+Every entry in the security audit log is signed with **HMAC-SHA256** using a dedicated signing key stored in the unified OS keychain vault (`openpawz`), separate from all encryption keys.
 
 | Property | Detail |
 |----------|--------|
 | Algorithm | HMAC-SHA256 |
-| Key storage | OS keychain (`paw-audit-chain`), generated with `OsRng` |
+| Key storage | Unified OS keychain vault (`openpawz`), generated with `OsRng` |
 | Key caching | `LazyLock<Option<Zeroizing<Vec<u8>>>>` — loaded once, zeroed on process exit |
 | Chain structure | Each entry's HMAC covers timestamp + category + action + agent ID + session ID + previous entry hash |
 | Verification | `verify_chain()` walks the full log and validates every HMAC — returns the broken row ID if tampered |
