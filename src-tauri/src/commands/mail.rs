@@ -1,6 +1,7 @@
-// commands/mail.rs — Himalaya email bridge commands.
+// commands/mail.rs — Himalaya email bridge commands + Gmail API bridge.
 
-use log::info;
+use log::{info, warn};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::process::Command;
 
@@ -404,4 +405,181 @@ pub fn set_email_flag(
         return Err(format!("himalaya failed: {}", stderr));
     }
     Ok(())
+}
+
+// ── Gmail API Inbox ────────────────────────────────────────────────────
+
+/// A single Gmail message returned to the frontend.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GmailMessage {
+    pub id: String,
+    pub from: String,
+    pub subject: String,
+    pub snippet: String,
+    pub date: String,
+    pub read: bool,
+}
+
+/// Fetch inbox messages via Gmail API using the stored Google OAuth token.
+/// Returns an empty list if Gmail/Google is not connected.
+#[tauri::command]
+pub async fn engine_gmail_inbox(page_size: Option<u32>) -> Result<Vec<GmailMessage>, String> {
+    use crate::engine::key_vault;
+    use crate::engine::skills::crypto::{decrypt_credential, get_vault_key};
+
+    // ── 1. Load the OAuth access token ───────────────────────────────
+    let vault_key = get_vault_key().map_err(|e| format!("Vault key error: {e}"))?;
+    let encrypted = match key_vault::get("oauth:google") {
+        Some(v) => v,
+        None => {
+            info!("[gmail] No Google OAuth tokens found");
+            return Ok(vec![]);
+        }
+    };
+    let json =
+        decrypt_credential(&encrypted, &vault_key).map_err(|e| format!("Decrypt error: {e}"))?;
+
+    #[derive(Deserialize)]
+    struct Tokens {
+        access_token: String,
+    }
+    let tokens: Tokens =
+        serde_json::from_str(&json).map_err(|e| format!("Deserialize error: {e}"))?;
+
+    // ── 2. List messages from inbox ──────────────────────────────────
+    let max = page_size.unwrap_or(20).min(50);
+    let list_url = format!(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults={}&labelIds=INBOX",
+        max
+    );
+
+    let client = reqwest::Client::new();
+    let list_resp = client
+        .get(&list_url)
+        .bearer_auth(&tokens.access_token)
+        .timeout(std::time::Duration::from_secs(10))
+        .send()
+        .await
+        .map_err(|e| format!("Gmail list request failed: {e}"))?;
+
+    if !list_resp.status().is_success() {
+        let status = list_resp.status();
+        let body = list_resp.text().await.unwrap_or_default();
+        warn!(
+            "[gmail] API returned {}: {}",
+            status,
+            &body[..body.len().min(200)]
+        );
+        return Ok(vec![]);
+    }
+
+    #[derive(Deserialize)]
+    struct ListResponse {
+        messages: Option<Vec<MessageRef>>,
+    }
+    #[derive(Deserialize)]
+    struct MessageRef {
+        id: String,
+    }
+
+    let list: ListResponse = list_resp
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Gmail list: {e}"))?;
+
+    let msg_refs = list.messages.unwrap_or_default();
+    if msg_refs.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // ── 3. Fetch message metadata in parallel ────────────────────────
+    let mut messages = Vec::new();
+
+    let futures: Vec<_> = msg_refs
+        .iter()
+        .map(|m| {
+            let url = format!(
+                "https://gmail.googleapis.com/gmail/v1/users/me/messages/{}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date",
+                m.id
+            );
+            client
+                .get(&url)
+                .bearer_auth(&tokens.access_token)
+                .timeout(std::time::Duration::from_secs(10))
+                .send()
+        })
+        .collect();
+
+    let results = futures::future::join_all(futures).await;
+
+    for result in results {
+        let resp = match result {
+            Ok(r) if r.status().is_success() => r,
+            _ => continue,
+        };
+
+        #[derive(Deserialize)]
+        struct GmailMsg {
+            id: String,
+            snippet: Option<String>,
+            #[serde(rename = "labelIds")]
+            label_ids: Option<Vec<String>>,
+            payload: Option<Payload>,
+        }
+        #[derive(Deserialize, Clone)]
+        struct Payload {
+            headers: Option<Vec<Header>>,
+        }
+        #[derive(Deserialize, Clone)]
+        struct Header {
+            name: String,
+            value: String,
+        }
+
+        if let Ok(msg) = resp.json::<GmailMsg>().await {
+            let headers = msg
+                .payload
+                .as_ref()
+                .and_then(|p| p.headers.as_ref())
+                .cloned()
+                .unwrap_or_default();
+
+            let from = headers
+                .iter()
+                .find(|h| h.name.eq_ignore_ascii_case("From"))
+                .map(|h| h.value.clone())
+                .unwrap_or_else(|| "Unknown".to_string());
+
+            let subject = headers
+                .iter()
+                .find(|h| h.name.eq_ignore_ascii_case("Subject"))
+                .map(|h| h.value.clone())
+                .unwrap_or_else(|| "(No subject)".to_string());
+
+            let date = headers
+                .iter()
+                .find(|h| h.name.eq_ignore_ascii_case("Date"))
+                .map(|h| h.value.clone())
+                .unwrap_or_default();
+
+            let read = msg
+                .label_ids
+                .as_ref()
+                .map(|labels| !labels.contains(&"UNREAD".to_string()))
+                .unwrap_or(true);
+
+            messages.push(GmailMessage {
+                id: msg.id,
+                from,
+                subject,
+                snippet: msg.snippet.unwrap_or_default(),
+                date,
+                read,
+            });
+        }
+    }
+
+    info!("[gmail] Fetched {} message(s) from inbox", messages.len());
+    Ok(messages)
 }

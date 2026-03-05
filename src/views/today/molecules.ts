@@ -41,14 +41,22 @@ import { createHeroTesseract, type HeroTesseractInstance } from '../../component
 // ── Hero tesseract instance ──────────────────────────────────────────
 let _heroTesseract: HeroTesseractInstance | null = null;
 
-// ── Tauri bridge (no pawEngine equivalent for these commands) ──────────
-interface TauriWindow {
-  __TAURI__?: {
-    core: { invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T> };
-  };
+// ── Tauri bridge (lazy — resolves at call time, not module load) ──────
+// The @tauri-apps/api/core invoke is always available in the Tauri
+// desktop app. Using a lazy getter avoids the race condition where
+// window.__TAURI__ isn't injected yet when the module first loads.
+function getInvoke() {
+  const w = window as unknown as Record<string, unknown>;
+  return w.__TAURI__
+    ? (
+        w.__TAURI__ as {
+          core: {
+            invoke: <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
+          };
+        }
+      ).core.invoke
+    : undefined;
 }
-const tauriWindow = window as unknown as TauriWindow;
-const invoke = tauriWindow.__TAURI__?.core?.invoke;
 
 // ── State bridge ──────────────────────────────────────────────────────
 
@@ -130,6 +138,7 @@ export async function fetchWeather() {
   try {
     let json: string | null = null;
 
+    const invoke = getInvoke();
     if (invoke) {
       // Desktop: backend reads config + auto-detects location
       json = await invoke<string>('fetch_weather');
@@ -249,6 +258,7 @@ export async function fetchUnreadEmails() {
   const emailsEl = $('today-emails');
   if (!emailsEl) return;
 
+  const invoke = getInvoke();
   if (!invoke) {
     emailsEl.innerHTML = `<div class="today-section-empty">Email requires the desktop app</div>`;
     return;
@@ -259,7 +269,7 @@ export async function fetchUnreadEmails() {
       from: string;
       subject: string;
       date: Date | null;
-      source: 'himalaya';
+      source: 'himalaya' | 'google';
     }
     const unreadItems: UnreadItem[] = [];
 
@@ -320,8 +330,27 @@ export async function fetchUnreadEmails() {
       }
     }
 
+    // ── Gmail API emails ─────────────────────────────────────────────
+    let hasGmail = false;
+    try {
+      const gmailMessages = await pawEngine.gmailInbox(10);
+      if (gmailMessages.length > 0) hasGmail = true;
+      for (const gm of gmailMessages) {
+        if (!gm.read) {
+          unreadItems.push({
+            from: gm.from,
+            subject: gm.subject,
+            date: gm.date ? new Date(gm.date) : null,
+            source: 'google',
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[today] Gmail email fetch failed:', e);
+    }
+
     // ── No email sources configured ───────────────────────────────
-    if (unreadItems.length === 0 && himalayaAccounts.length === 0) {
+    if (unreadItems.length === 0 && himalayaAccounts.length === 0 && !hasGmail) {
       emailsEl.innerHTML = `<div class="today-section-empty">Set up email in the <a href="#" class="today-link-mail">Mail</a> view to see messages here</div>`;
       emailsEl.querySelector('.today-link-mail')?.addEventListener('click', (e) => {
         e.preventDefault();
@@ -379,6 +408,7 @@ export async function fetchCalendarEvents() {
   const calEl = $('today-calendar');
   if (!calEl) return;
 
+  const invoke = getInvoke();
   if (!invoke) {
     calEl.innerHTML = `<div class="today-section-empty">Calendar requires the desktop app</div>`;
     return;
@@ -1263,6 +1293,7 @@ async function loadIntegrationsDashboard() {
     let health = await loadServiceHealth();
 
     // Fallback: if health check returned nothing, try listing connected IDs directly
+    const invoke = getInvoke();
     if (health.length === 0 && invoke) {
       try {
         const ids = await invoke<string[]>('engine_integrations_list_connected');

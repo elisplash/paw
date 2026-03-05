@@ -113,6 +113,21 @@ export async function renderMailAccounts(
     }
   }
 
+  // ── Google OAuth account (check if Gmail API is connected) ───────
+  try {
+    const gmailTest = await pawEngine.gmailInbox(1);
+    // If the call succeeds (even with 0 messages), Google is connected
+    if (gmailTest !== undefined) {
+      // Only add if there's no Himalaya account already covering this email
+      const hasGoogle = _mailAccounts.some((a) => a.name === '__google__');
+      if (!hasGoogle) {
+        _mailAccounts.push({ name: '__google__', email: 'Google (OAuth)' });
+      }
+    }
+  } catch {
+    /* Google not connected — skip */
+  }
+
   // Himalaya is "ready" if we found at least one configured account
   _mailHimalayaReady = _mailAccounts.length > 0;
 
@@ -419,6 +434,24 @@ export async function loadMailInbox() {
     } catch (e) {
       console.warn('[mail] Himalaya inbox load failed:', e);
     }
+  }
+
+  // ── Load Gmail API messages (Google OAuth) ──────────────────────────
+  try {
+    const gmailMessages = await pawEngine.gmailInbox(50);
+    for (const gm of gmailMessages) {
+      _mailMessages.push({
+        id: `gmail:${gm.id}`,
+        from: gm.from,
+        subject: gm.subject,
+        snippet: gm.snippet,
+        date: gm.date ? new Date(gm.date) : new Date(),
+        read: gm.read,
+        source: 'google',
+      });
+    }
+  } catch (e) {
+    console.warn('[mail] Gmail inbox load failed:', e);
   }
 
   // Sort all messages by date (newest first)

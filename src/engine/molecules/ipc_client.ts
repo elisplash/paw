@@ -1403,6 +1403,13 @@ export class PawEngineClient {
     return invoke('delete_email', { account: account ?? null, id });
   }
 
+  /** Fetch Gmail inbox via the Google OAuth token stored in the vault. */
+  async gmailInbox(pageSize?: number): Promise<GmailMessage[]> {
+    return invoke<GmailMessage[]>('engine_gmail_inbox', {
+      pageSize: pageSize ?? null,
+    });
+  }
+
   // ── Agent Messages ────────────────────────────────────────────────────
 
   /** Fetch agent-to-agent messages, optionally filtered by channel. */
@@ -1469,6 +1476,16 @@ export interface StoragePaths {
   browser_dir: string;
   browser_size: number;
   workspace_path: string | null;
+}
+
+/** A single Gmail message returned by engine_gmail_inbox. */
+export interface GmailMessage {
+  id: string;
+  from: string;
+  subject: string;
+  snippet: string;
+  date: string;
+  read: boolean;
 }
 
 /** Create a new engine client instance — useful for testing or custom wiring. */

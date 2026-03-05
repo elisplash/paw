@@ -250,6 +250,7 @@ pub fn run() {
             commands::mail::move_email,
             commands::mail::delete_email,
             commands::mail::set_email_flag,
+            commands::mail::engine_gmail_inbox,
             // ── Utility (keychain, weather, db crypto, lock screen) ──
             commands::utility::keyring_has_password,
             commands::utility::keyring_delete_password,
