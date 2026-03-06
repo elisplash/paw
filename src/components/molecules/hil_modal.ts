@@ -80,6 +80,41 @@ function generatePattern(toolName: string, args?: Record<string, unknown>): stri
 }
 
 // ── Inline chat approval bubble ─────────────────────────────────────
+// VS Code pattern: ChatConfirmationWidget with title → content → button bar.
+// Resolved state collapses to a single-line summary (no faded full card).
+
+/** Human-friendly labels for internal tool names */
+const TOOL_LABELS: Record<string, string> = {
+  exec: 'Run command',
+  run_command: 'Run command',
+  write_file: 'Write file',
+  append_file: 'Append to file',
+  delete_file: 'Delete file',
+  email_send: 'Send email',
+  webhook_send: 'Send webhook',
+  rest_api_call: 'Call REST API',
+  slack_send: 'Send Slack message',
+  github_api: 'GitHub API call',
+  sol_swap: 'Swap tokens (Solana)',
+  sol_transfer: 'Transfer SOL',
+  dex_swap: 'DEX swap',
+  dex_transfer: 'DEX transfer',
+  coinbase_trade: 'Coinbase trade',
+  coinbase_transfer: 'Coinbase transfer',
+};
+
+/** Material icon for the tool tier */
+function tierIcon(tier: string): string {
+  switch (tier) {
+    case 'dangerous':
+      return 'warning';
+    case 'external':
+      return 'send';
+    default:
+      return 'gavel';
+  }
+}
+
 function injectChatBubble(
   toolCallId: string,
   toolName: string,
@@ -97,55 +132,83 @@ function injectChatBubble(
   bubble.className = `chat-approval-bubble${tier === 'external' ? ' bubble-external' : tier === 'dangerous' ? ' bubble-dangerous' : ''}`;
   bubble.dataset.toolCallId = toolCallId;
 
-  const riskHint = risk
-    ? ` — <span style="color: var(--status-error)">${escHtml(risk.level)}: ${escHtml(risk.label)}</span>`
-    : '';
+  const humanLabel = TOOL_LABELS[toolName] ?? toolName;
   const argsJson = args ? JSON.stringify(args, null, 2) : '';
-  const tierLabel =
-    tier === 'external'
-      ? 'External action'
-      : tier === 'dangerous'
-        ? 'Dangerous'
-        : 'Requires approval';
 
+  // Risk pill (only for elevated risk)
+  const riskPill = risk
+    ? `<span class="approval-risk-pill risk-${escHtml(risk.level)}">${escHtml(risk.level)}</span>`
+    : '';
+
+  // Build the card: title bar → content → button bar (VS Code layout)
   bubble.innerHTML = `
-    <div class="chat-approval-bubble-header">
-      <span class="ms">${tier === 'dangerous' ? 'warning' : tier === 'external' ? 'send' : 'gavel'}</span>
-      ${escHtml(tierLabel)}: <span class="chat-approval-bubble-tool">${escHtml(toolName)}</span>
-      ${riskHint}
+    <div class="chat-approval-title">
+      <span class="ms approval-tier-icon">${tierIcon(tier)}</span>
+      <span class="approval-title-text">${escHtml(humanLabel)}</span>
+      ${riskPill}
     </div>
-    ${argsJson ? `<div class="chat-approval-bubble-args">${escHtml(argsJson)}</div>` : ''}
-    <div class="chat-approval-bubble-actions">
-      <button class="btn btn-primary btn-sm bubble-allow-btn">Continue</button>
-      <button class="btn btn-secondary btn-sm bubble-deny-btn">Deny</button>
-      <button class="btn btn-ghost btn-sm bubble-always-btn" title="Always auto-approve this tool">Always allow</button>
-      ${argsJson ? '<button class="btn btn-ghost btn-sm bubble-details-btn" style="margin-left: auto; font-size: 11px; color: var(--text-muted)">▸ Details</button>' : ''}
+    <div class="chat-approval-subtitle"><code>${escHtml(toolName)}</code>${args && 'command' in args ? ` — <span class="approval-cmd-preview">${escHtml(String(args.command).slice(0, 120))}</span>` : ''}</div>
+    ${argsJson ? `
+    <details class="chat-approval-details">
+      <summary>Parameters</summary>
+      <pre class="chat-approval-args-code"><code>${escHtml(argsJson)}</code></pre>
+    </details>` : ''}
+    <div class="chat-approval-buttons">
+      <div class="approval-primary-group">
+        <button class="btn btn-primary btn-sm bubble-allow-btn">Continue</button>
+        <button class="btn btn-primary btn-sm approval-dropdown-toggle bubble-more-btn" title="More options">
+          <span class="ms" style="font-size:12px">expand_more</span>
+        </button>
+        <div class="approval-dropdown-menu" style="display:none">
+          <button class="approval-dropdown-item bubble-always-btn">
+            <span class="ms" style="font-size:14px">verified</span> Always allow <strong>${escHtml(toolName)}</strong>
+          </button>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm bubble-deny-btn">Skip</button>
     </div>
-    <div class="chat-approval-bubble-result approved">✓ Approved</div>
-    <div class="chat-approval-bubble-result denied">✕ Denied</div>
+    <div class="chat-approval-resolved approved">
+      <span class="ms" style="font-size:14px">check_circle</span> Approved
+    </div>
+    <div class="chat-approval-resolved denied">
+      <span class="ms" style="font-size:14px">cancel</span> Denied
+    </div>
   `;
 
   chatMessages.appendChild(bubble);
-  // Auto-scroll
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
   // Wire actions
   const allowBtn = bubble.querySelector('.bubble-allow-btn');
   const denyBtn = bubble.querySelector('.bubble-deny-btn');
   const alwaysBtn = bubble.querySelector('.bubble-always-btn');
-  const detailsBtn = bubble.querySelector('.bubble-details-btn');
-  const argsEl = bubble.querySelector('.chat-approval-bubble-args');
+  const moreBtn = bubble.querySelector('.bubble-more-btn');
+  const dropdownMenu = bubble.querySelector('.approval-dropdown-menu') as HTMLElement | null;
 
   const resolve = (approved: boolean) => {
     bubble.classList.add('resolved');
-    const approvedEl = bubble.querySelector('.chat-approval-bubble-result.approved') as HTMLElement;
-    const deniedEl = bubble.querySelector('.chat-approval-bubble-result.denied') as HTMLElement;
+    const approvedEl = bubble.querySelector('.chat-approval-resolved.approved') as HTMLElement;
+    const deniedEl = bubble.querySelector('.chat-approval-resolved.denied') as HTMLElement;
     if (approved) {
-      if (approvedEl) approvedEl.style.display = 'block';
+      if (approvedEl) approvedEl.style.display = 'flex';
     } else {
-      if (deniedEl) deniedEl.style.display = 'block';
+      if (deniedEl) deniedEl.style.display = 'flex';
     }
   };
+
+  // Dropdown toggle
+  moreBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (dropdownMenu) {
+      dropdownMenu.style.display = dropdownMenu.style.display === 'none' ? 'flex' : 'none';
+    }
+  });
+
+  // Close dropdown on outside click
+  const closeDropdown = () => {
+    if (dropdownMenu) dropdownMenu.style.display = 'none';
+  };
+  document.addEventListener('click', closeDropdown, { once: true });
 
   allowBtn?.addEventListener('click', () => {
     resolve(true);
@@ -156,16 +219,9 @@ function injectChatBubble(
     onDeny();
   });
   alwaysBtn?.addEventListener('click', () => {
+    closeDropdown();
     resolve(true);
     onAlwaysAllow();
-  });
-  detailsBtn?.addEventListener('click', () => {
-    argsEl?.classList.toggle('expanded');
-    if (detailsBtn.textContent?.includes('▸')) {
-      detailsBtn.textContent = '▾ Details';
-    } else {
-      detailsBtn.textContent = '▸ Details';
-    }
   });
 
   return bubble;
@@ -574,13 +630,13 @@ export function initHILModal(): void {
       if (chatBubble) {
         chatBubble.classList.add('resolved');
         const approvedEl = chatBubble.querySelector(
-          '.chat-approval-bubble-result.approved',
+          '.chat-approval-resolved.approved',
         ) as HTMLElement;
         const deniedEl = chatBubble.querySelector(
-          '.chat-approval-bubble-result.denied',
+          '.chat-approval-resolved.denied',
         ) as HTMLElement;
-        if (approved && approvedEl) approvedEl.style.display = 'block';
-        if (!approved && deniedEl) deniedEl.style.display = 'block';
+        if (approved && approvedEl) approvedEl.style.display = 'flex';
+        if (!approved && deniedEl) deniedEl.style.display = 'flex';
       }
     };
 
