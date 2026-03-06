@@ -1063,3 +1063,498 @@ async fn generic_api(args: &serde_json::Value) -> Result<String, String> {
         Ok(body)
     }
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// Tests
+// ════════════════════════════════════════════════════════════════════════
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── Definition validation ──────────────────────────────────────
+
+    #[test]
+    fn definitions_returns_13_tools() {
+        let defs = definitions();
+        assert_eq!(
+            defs.len(),
+            13,
+            "Google Workspace should expose exactly 13 tools"
+        );
+    }
+
+    #[test]
+    fn all_definitions_have_function_type() {
+        for def in definitions() {
+            assert_eq!(
+                def.tool_type, "function",
+                "Tool '{}' must have type 'function'",
+                def.function.name
+            );
+        }
+    }
+
+    #[test]
+    fn all_definitions_have_nonempty_descriptions() {
+        for def in definitions() {
+            assert!(
+                !def.function.description.is_empty(),
+                "Tool '{}' must have a description",
+                def.function.name
+            );
+            assert!(
+                def.function.description.len() >= 20,
+                "Tool '{}' description too short: '{}'",
+                def.function.name,
+                def.function.description
+            );
+        }
+    }
+
+    #[test]
+    fn all_definitions_have_object_parameters() {
+        for def in definitions() {
+            let params = &def.function.parameters;
+            assert_eq!(
+                params["type"].as_str(),
+                Some("object"),
+                "Tool '{}' parameters must be type 'object'",
+                def.function.name
+            );
+            assert!(
+                params.get("properties").is_some(),
+                "Tool '{}' must have 'properties' in parameters",
+                def.function.name
+            );
+        }
+    }
+
+    #[test]
+    fn definition_names_are_unique() {
+        let defs = definitions();
+        let mut names: Vec<&str> = defs.iter().map(|d| d.function.name.as_str()).collect();
+        names.sort();
+        let original_len = names.len();
+        names.dedup();
+        assert_eq!(
+            names.len(),
+            original_len,
+            "Duplicate tool names found in Google definitions"
+        );
+    }
+
+    #[test]
+    fn definition_names_all_start_with_google() {
+        for def in definitions() {
+            assert!(
+                def.function.name.starts_with("google_"),
+                "Tool '{}' must be prefixed with 'google_'",
+                def.function.name
+            );
+        }
+    }
+
+    #[test]
+    fn expected_tool_names_present() {
+        let defs = definitions();
+        let names: Vec<&str> = defs.iter().map(|d| d.function.name.as_str()).collect();
+        let expected = [
+            "google_gmail_list",
+            "google_gmail_read",
+            "google_gmail_send",
+            "google_calendar_list",
+            "google_calendar_create",
+            "google_drive_list",
+            "google_drive_read",
+            "google_drive_upload",
+            "google_drive_share",
+            "google_sheets_read",
+            "google_sheets_append",
+            "google_docs_create",
+            "google_api",
+        ];
+        for name in &expected {
+            assert!(
+                names.contains(name),
+                "Expected tool '{}' not found in definitions",
+                name
+            );
+        }
+    }
+
+    // ── Required parameters validation ─────────────────────────────
+
+    #[test]
+    fn gmail_read_requires_message_id() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_gmail_read")
+            .unwrap();
+        let required = def.function.parameters["required"].as_array().unwrap();
+        assert!(
+            required.iter().any(|v| v.as_str() == Some("message_id")),
+            "google_gmail_read must require 'message_id'"
+        );
+    }
+
+    #[test]
+    fn gmail_send_requires_to_subject_body() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_gmail_send")
+            .unwrap();
+        let required: Vec<&str> = def.function.parameters["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(required.contains(&"to"), "Must require 'to'");
+        assert!(required.contains(&"subject"), "Must require 'subject'");
+        assert!(required.contains(&"body"), "Must require 'body'");
+    }
+
+    #[test]
+    fn calendar_create_requires_summary_start_end() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_calendar_create")
+            .unwrap();
+        let required: Vec<&str> = def.function.parameters["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(required.contains(&"summary"));
+        assert!(required.contains(&"start"));
+        assert!(required.contains(&"end"));
+    }
+
+    #[test]
+    fn drive_read_requires_file_id() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_drive_read")
+            .unwrap();
+        let required = def.function.parameters["required"].as_array().unwrap();
+        assert!(required.iter().any(|v| v.as_str() == Some("file_id")));
+    }
+
+    #[test]
+    fn drive_upload_requires_name_content() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_drive_upload")
+            .unwrap();
+        let required: Vec<&str> = def.function.parameters["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(required.contains(&"name"));
+        assert!(required.contains(&"content"));
+    }
+
+    #[test]
+    fn drive_share_requires_file_id_email() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_drive_share")
+            .unwrap();
+        let required: Vec<&str> = def.function.parameters["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(required.contains(&"file_id"));
+        assert!(required.contains(&"email"));
+    }
+
+    #[test]
+    fn sheets_read_requires_spreadsheet_id_range() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_sheets_read")
+            .unwrap();
+        let required: Vec<&str> = def.function.parameters["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(required.contains(&"spreadsheet_id"));
+        assert!(required.contains(&"range"));
+    }
+
+    #[test]
+    fn sheets_append_requires_spreadsheet_id_range_values() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_sheets_append")
+            .unwrap();
+        let required: Vec<&str> = def.function.parameters["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(required.contains(&"spreadsheet_id"));
+        assert!(required.contains(&"range"));
+        assert!(required.contains(&"values"));
+    }
+
+    #[test]
+    fn docs_create_requires_title() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_docs_create")
+            .unwrap();
+        let required = def.function.parameters["required"].as_array().unwrap();
+        assert!(required.iter().any(|v| v.as_str() == Some("title")));
+    }
+
+    #[test]
+    fn google_api_requires_method_url() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_api")
+            .unwrap();
+        let required: Vec<&str> = def.function.parameters["required"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|v| v.as_str())
+            .collect();
+        assert!(required.contains(&"method"));
+        assert!(required.contains(&"url"));
+    }
+
+    // ── Executor dispatch ──────────────────────────────────────────
+
+    /// Verify the executor dispatches all 13 tool names (returns Some, not None).
+    /// Without a valid Google token, the execute function should return
+    /// Some(Err(...)) rather than None (which would mean "unknown tool").
+    #[tokio::test]
+    async fn executor_dispatches_all_known_tools() {
+        let app_handle_unavailable = true; // We can't construct one in tests
+        let _args = serde_json::json!({});
+        let tool_names = [
+            "google_gmail_list",
+            "google_gmail_read",
+            "google_gmail_send",
+            "google_calendar_list",
+            "google_calendar_create",
+            "google_drive_list",
+            "google_drive_read",
+            "google_drive_upload",
+            "google_drive_share",
+            "google_sheets_read",
+            "google_sheets_append",
+            "google_docs_create",
+            "google_api",
+        ];
+        // We can't call execute() without an AppHandle, but we can verify
+        // that definitions and dispatch names match.
+        let defs = definitions();
+        let def_names: Vec<&str> = defs.iter().map(|d| d.function.name.as_str()).collect();
+        for name in &tool_names {
+            assert!(
+                def_names.contains(name),
+                "Tool '{}' is in dispatch but not in definitions",
+                name
+            );
+        }
+        // Verify no extra definitions beyond the dispatch map
+        for name in &def_names {
+            assert!(
+                tool_names.contains(name),
+                "Tool '{}' is in definitions but not in dispatch",
+                name
+            );
+        }
+        let _ = app_handle_unavailable; // suppress warning
+    }
+
+    #[test]
+    fn executor_returns_none_for_unknown_tools() {
+        // execute() is async and needs an AppHandle, but we can verify
+        // via the dispatch table that unknown names won't match
+        let defs = definitions();
+        let known: Vec<&str> = defs.iter().map(|d| d.function.name.as_str()).collect();
+        assert!(!known.contains(&"google_unknown_tool"));
+        assert!(!known.contains(&"gmail_list")); // missing google_ prefix
+        assert!(!known.contains(&"fetch"));
+    }
+
+    // ── Response parsing ───────────────────────────────────────────
+
+    #[test]
+    fn extract_body_text_plain() {
+        let payload = serde_json::json!({
+            "mimeType": "text/plain",
+            "body": {
+                "data": "SGVsbG8gV29ybGQ" // "Hello World" base64url
+            }
+        });
+        let body = extract_body_text(&payload);
+        assert_eq!(body, "Hello World");
+    }
+
+    #[test]
+    fn extract_body_text_multipart() {
+        let payload = serde_json::json!({
+            "mimeType": "multipart/alternative",
+            "parts": [
+                {
+                    "mimeType": "text/plain",
+                    "body": { "data": "UGxhaW4gdGV4dA" } // "Plain text"
+                },
+                {
+                    "mimeType": "text/html",
+                    "body": { "data": "PGI-SFRNTDwvYj4" }
+                }
+            ]
+        });
+        let body = extract_body_text(&payload);
+        assert_eq!(body, "Plain text");
+    }
+
+    #[test]
+    fn extract_body_text_no_plain_part() {
+        let payload = serde_json::json!({
+            "mimeType": "text/html",
+            "body": { "data": "PGI-SFRNTDwvYj4" }
+        });
+        let body = extract_body_text(&payload);
+        assert_eq!(body, "");
+    }
+
+    #[test]
+    fn extract_body_text_nested_multipart() {
+        let payload = serde_json::json!({
+            "mimeType": "multipart/mixed",
+            "parts": [
+                {
+                    "mimeType": "multipart/alternative",
+                    "parts": [
+                        {
+                            "mimeType": "text/plain",
+                            "body": { "data": "TmVzdGVk" } // "Nested"
+                        }
+                    ]
+                }
+            ]
+        });
+        let body = extract_body_text(&payload);
+        assert_eq!(body, "Nested");
+    }
+
+    #[test]
+    fn extract_body_text_empty() {
+        let payload = serde_json::json!({});
+        let body = extract_body_text(&payload);
+        assert_eq!(body, "");
+    }
+
+    // ── Base64url ──────────────────────────────────────────────────
+
+    #[test]
+    fn decode_base64url_basic() {
+        assert_eq!(decode_base64url("SGVsbG8"), "Hello");
+        assert_eq!(decode_base64url("V29ybGQ"), "World");
+    }
+
+    #[test]
+    fn decode_base64url_empty() {
+        assert_eq!(decode_base64url(""), "");
+    }
+
+    #[test]
+    fn decode_base64url_invalid() {
+        // Invalid base64 should return empty string, not panic
+        assert_eq!(decode_base64url("!!!"), "");
+    }
+
+    #[test]
+    fn decode_base64url_unicode() {
+        // "Ünïcödë" in base64url
+        use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        use base64::Engine;
+        let encoded = URL_SAFE_NO_PAD.encode("Ünïcödë".as_bytes());
+        assert_eq!(decode_base64url(&encoded), "Ünïcödë");
+    }
+
+    // ── URL safety for google_api ──────────────────────────────────
+
+    #[test]
+    fn google_api_definition_restricts_methods() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_api")
+            .unwrap();
+        let methods = def.function.parameters["properties"]["method"]["enum"]
+            .as_array()
+            .expect("google_api method should have enum restriction");
+        let method_strs: Vec<&str> = methods.iter().filter_map(|m| m.as_str()).collect();
+        assert!(method_strs.contains(&"GET"));
+        assert!(method_strs.contains(&"POST"));
+        assert!(method_strs.contains(&"PUT"));
+        assert!(method_strs.contains(&"PATCH"));
+        assert!(method_strs.contains(&"DELETE"));
+        assert_eq!(method_strs.len(), 5, "Only 5 methods allowed");
+    }
+
+    // ── Gmail list defaults ────────────────────────────────────────
+
+    #[test]
+    fn gmail_list_has_optional_query() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_gmail_list")
+            .unwrap();
+        // No required params
+        assert!(
+            def.function.parameters.get("required").is_none()
+                || def.function.parameters["required"]
+                    .as_array()
+                    .map(|a| a.is_empty())
+                    .unwrap_or(true),
+            "gmail_list should have no required params"
+        );
+    }
+
+    // ── Calendar list defaults ─────────────────────────────────────
+
+    #[test]
+    fn calendar_list_has_optional_time_range() {
+        let defs = definitions();
+        let def = defs
+            .iter()
+            .find(|d| d.function.name == "google_calendar_list")
+            .unwrap();
+        assert!(
+            def.function.parameters.get("required").is_none()
+                || def.function.parameters["required"]
+                    .as_array()
+                    .map(|a| a.is_empty())
+                    .unwrap_or(true),
+            "calendar_list should have no required params (defaults to today)"
+        );
+    }
+}

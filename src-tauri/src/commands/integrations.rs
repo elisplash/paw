@@ -358,3 +358,172 @@ pub async fn engine_calendar_events_today(
     info!("[calendar] Fetched {} event(s) for today", events.len());
     Ok(events)
 }
+
+// ── Integration Pipeline Preflight Check ───────────────────────────────
+//
+// Validates the integration pipeline is correctly wired before runtime.
+// Called by the frontend's Integration Hub to surface configuration
+// issues proactively rather than failing silently at OAuth time.
+
+/// Result of a preflight check for the integration pipeline.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IntegrationPreflightResult {
+    /// Overall readiness: true = all checks passed.
+    pub ready: bool,
+    /// Individual check results.
+    pub checks: Vec<PreflightCheck>,
+}
+
+/// A single preflight check item.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PreflightCheck {
+    pub name: String,
+    pub passed: bool,
+    pub message: String,
+}
+
+/// Run preflight checks on the integration pipeline.
+///
+/// Checks:
+///   1. OAuth engine has at least one service configured
+///   2. Google scopes cover all five services (Gmail, Calendar, Drive, Sheets, Docs)
+///   3. Google tool definitions match dispatch table (no orphan/missing tools)
+///   4. Skill→tool wiring is consistent
+///   5. n8n engine is available (advisory, not blocking)
+#[tauri::command]
+pub async fn engine_integration_preflight(
+    app_handle: tauri::AppHandle,
+) -> Result<IntegrationPreflightResult, String> {
+    use crate::engine::oauth;
+    use crate::engine::tools::google;
+
+    let mut checks = Vec::new();
+
+    // ── Check 1: OAuth services registered ─────────────────────────
+    let oauth_ids = oauth::oauth_service_ids();
+    let has_services = !oauth_ids.is_empty();
+    checks.push(PreflightCheck {
+        name: "oauth_services".into(),
+        passed: has_services,
+        message: if has_services {
+            format!("{} OAuth service(s) registered", oauth_ids.len())
+        } else {
+            "No OAuth services registered — integration hub will be empty".into()
+        },
+    });
+
+    // ── Check 2: Google scopes cover all G Suite services ──────────
+    let google_config = oauth::get_oauth_config("google");
+    let scopes_ok = if let Some(config) = google_config {
+        let scopes = config.default_scopes.join(" ");
+        let has_gmail = scopes.contains("gmail");
+        let has_calendar = scopes.contains("calendar");
+        let has_drive = scopes.contains("drive");
+        let has_sheets = scopes.contains("spreadsheets");
+        let has_docs = scopes.contains("documents");
+        has_gmail && has_calendar && has_drive && has_sheets && has_docs
+    } else {
+        false
+    };
+    checks.push(PreflightCheck {
+        name: "google_scopes".into(),
+        passed: scopes_ok,
+        message: if scopes_ok {
+            "Google OAuth scopes cover Gmail, Calendar, Drive, Sheets, Docs".into()
+        } else {
+            "Google OAuth scopes are incomplete — some services won't work".into()
+        },
+    });
+
+    // ── Check 3: Google tool definitions match dispatch ─────────────
+    let google_defs = google::definitions();
+    let expected_tools = [
+        "google_gmail_list",
+        "google_gmail_read",
+        "google_gmail_send",
+        "google_calendar_list",
+        "google_calendar_create",
+        "google_drive_list",
+        "google_drive_read",
+        "google_drive_upload",
+        "google_drive_share",
+        "google_sheets_read",
+        "google_sheets_append",
+        "google_docs_create",
+        "google_api",
+    ];
+    let def_names: Vec<&str> = google_defs
+        .iter()
+        .map(|d| d.function.name.as_str())
+        .collect();
+    let mut missing_tools: Vec<&str> = Vec::new();
+    for tool in &expected_tools {
+        if !def_names.contains(tool) {
+            missing_tools.push(tool);
+        }
+    }
+    let tools_ok = missing_tools.is_empty() && google_defs.len() == expected_tools.len();
+    checks.push(PreflightCheck {
+        name: "google_tools".into(),
+        passed: tools_ok,
+        message: if tools_ok {
+            format!(
+                "All {} Google tools registered and dispatched",
+                expected_tools.len()
+            )
+        } else if !missing_tools.is_empty() {
+            format!("Missing Google tools: {}", missing_tools.join(", "))
+        } else {
+            format!(
+                "Tool count mismatch: {} definitions vs {} expected",
+                google_defs.len(),
+                expected_tools.len()
+            )
+        },
+    });
+
+    // ── Check 4: Google aliases resolve consistently ───────────────
+    let aliases = [
+        "google",
+        "google-workspace",
+        "gmail",
+        "google-drive",
+        "google-calendar",
+        "google-sheets",
+        "google-docs",
+    ];
+    let alias_ok = aliases.iter().all(|a| {
+        oauth::get_oauth_config(a).is_some()
+            && oauth::get_n8n_oauth_type(a) == Some("googleOAuth2Api")
+    });
+    checks.push(PreflightCheck {
+        name: "google_aliases".into(),
+        passed: alias_ok,
+        message: if alias_ok {
+            "All Google service aliases route correctly".into()
+        } else {
+            "Some Google aliases have broken routing — check oauth.rs match arms".into()
+        },
+    });
+
+    // ── Check 5: n8n engine availability (advisory) ────────────────
+    let n8n_ready = match crate::engine::n8n_engine::load_config(&app_handle) {
+        Ok(config) => config.enabled,
+        Err(_) => false,
+    };
+    checks.push(PreflightCheck {
+        name: "n8n_engine".into(),
+        passed: n8n_ready,
+        message: if n8n_ready {
+            "n8n integration engine enabled".into()
+        } else {
+            "n8n engine not enabled — Tier 2 OAuth services and MCP bridge unavailable (non-blocking)".into()
+        },
+    });
+
+    let all_passed = checks.iter().all(|c| c.passed);
+    Ok(IntegrationPreflightResult {
+        ready: all_passed,
+        checks,
+    })
+}

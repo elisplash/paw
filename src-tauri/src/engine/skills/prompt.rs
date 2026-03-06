@@ -120,6 +120,15 @@ pub fn get_enabled_skill_instructions(
         }
     }
 
+    // ── Dynamic per-service integration skills ─────────────────────────
+    // Services like Linear, Stripe, Jira get their own skill vault (not the
+    // generic rest_api).  Generate instructions so the AI knows what services
+    // are connected and how to call them via rest_api_call(service: "...").
+    let integration_section = build_integration_awareness(store);
+    if !integration_section.is_empty() {
+        sections.push(integration_section);
+    }
+
     let mut result = String::new();
 
     if !sections.is_empty() {
@@ -350,4 +359,72 @@ fn inject_credentials_into_instructions(
         }
         _ => instructions.to_string(),
     }
+}
+
+/// Per-service REST API skills that may have been provisioned via integrations.
+/// These get their own vault (not the old shared `rest_api` slot).
+const INTEGRATION_SERVICES: &[(&str, &str)] = &[
+    ("linear", "Linear"),
+    ("stripe", "Stripe"),
+    ("todoist", "Todoist"),
+    ("clickup", "ClickUp"),
+    ("airtable", "Airtable"),
+    ("sendgrid", "SendGrid"),
+    ("jira", "Jira"),
+    ("zendesk", "Zendesk"),
+    ("hubspot", "HubSpot"),
+    ("twilio", "Twilio"),
+    ("shopify", "Shopify"),
+    ("pagerduty", "PagerDuty"),
+    ("microsoft_teams", "Microsoft Teams"),
+];
+
+/// Build a prompt section listing all connected REST API integration services.
+/// This tells the AI exactly which services it can call with `rest_api_call(service: "...")`.
+fn build_integration_awareness(store: &SessionStore) -> String {
+    let mut connected: Vec<(&str, String, String)> = Vec::new();
+
+    for &(skill_id, default_name) in INTEGRATION_SERVICES {
+        if !store.is_skill_enabled(skill_id).unwrap_or(false) {
+            continue;
+        }
+        // Read stored service metadata
+        let creds = super::status::get_skill_credentials(store, skill_id).unwrap_or_default();
+        let name = creds
+            .get("SERVICE_NAME")
+            .cloned()
+            .unwrap_or_else(|| default_name.to_string());
+        let hint = creds.get("SERVICE_HINT").cloned().unwrap_or_default();
+        let base_url = creds.get("API_BASE_URL").cloned().unwrap_or_default();
+        let description = if !hint.is_empty() {
+            format!("{} ({})", base_url, hint)
+        } else if !base_url.is_empty() {
+            base_url
+        } else {
+            String::new()
+        };
+        connected.push((skill_id, name, description));
+    }
+
+    if connected.is_empty() {
+        return String::new();
+    }
+
+    let mut section = String::from("## Connected REST API Services (integration_awareness)\n\n");
+    section.push_str(
+        "You have the following services connected. Use `rest_api_call` with the `service` \
+         parameter to call any of them. Auth credentials are injected automatically.\n\n",
+    );
+
+    for (skill_id, name, desc) in &connected {
+        if desc.is_empty() {
+            section.push_str(&format!("- **{}** → `rest_api_call({{\"service\": \"{}\", \"path\": \"/...\", \"method\": \"GET\"}})`\n", name, skill_id));
+        } else {
+            section.push_str(&format!("- **{}** — {} → `rest_api_call({{\"service\": \"{}\", \"path\": \"/...\", \"method\": \"GET\"}})`\n", name, desc, skill_id));
+        }
+    }
+
+    section.push_str("\nDo NOT ask the user for API keys or base URLs — they are stored securely. Just use `rest_api_call` with the `service` name.\n");
+
+    section
 }

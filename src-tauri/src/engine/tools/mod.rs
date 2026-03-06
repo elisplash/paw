@@ -288,8 +288,13 @@ pub fn get_skill_creds(
         .unwrap_or(default_enabled);
 
     if !enabled {
+        // For per-service integration skills (e.g., "linear", "stripe"), the
+        // user may not have enabled the skill in the UI but it was auto-enabled
+        // during provisioning (engine_integrations_provision sets enabled=true).
+        // If the skill_id doesn't match any builtin AND is not enabled, give
+        // a helpful error that mentions which services ARE connected.
         return Err(format!(
-            "Skill '{}' is not enabled. Ask the user to enable it in Skills.",
+            "Skill '{}' is not enabled. Ask the user to enable it in Skills or connect the service in Settings → Integrations.",
             skill_id
         )
         .into());

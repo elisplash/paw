@@ -650,6 +650,25 @@
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
 }
 
+/* OAuth not configured banner */
+.integrations-oauth-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--surface-warning, #fff3cd);
+  color: var(--text-warning, #856404);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.integrations-oauth-unavailable .ms {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
 .integrations-detail-section {
   margin-bottom: 24px;
 }

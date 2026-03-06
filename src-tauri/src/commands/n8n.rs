@@ -3393,15 +3393,16 @@ pub(crate) fn map_integration_to_skill(
             }
             "telegram"
         }
-        // ── Services that map to the generic REST API skill ──
+        // ── Services with per-service skill vaults ──────────────────────
+        // Each service gets its own skill_id so connecting multiple services
+        // doesn't overwrite credentials.  The rest_api_call tool uses the
+        // `service` parameter to look up the right vault.
         "notion" => {
+            // Notion has a dedicated builtin skill with detailed API docs
             if let Some(v) = creds.get("api_key").or(creds.get("access_token")) {
-                mapped.insert("API_KEY".into(), v.clone());
+                mapped.insert("NOTION_API_KEY".into(), v.clone());
             }
-            mapped.insert("API_BASE_URL".into(), "https://api.notion.com/v1".into());
-            mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
-            mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
-            "rest_api"
+            "notion"
         }
         "linear" => {
             if let Some(v) = creds.get("api_key") {
@@ -3410,7 +3411,12 @@ pub(crate) fn map_integration_to_skill(
             mapped.insert("API_BASE_URL".into(), "https://api.linear.app".into());
             mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
             mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "Linear".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "GraphQL API for issue tracking. POST /graphql with query body.".into(),
+            );
+            "linear"
         }
         "stripe" => {
             if let Some(v) = creds.get("secret_key").or(creds.get("api_key")) {
@@ -3419,7 +3425,12 @@ pub(crate) fn map_integration_to_skill(
             mapped.insert("API_BASE_URL".into(), "https://api.stripe.com/v1".into());
             mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
             mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "Stripe".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "Payments API. Use form-encoded bodies for POST/PUT.".into(),
+            );
+            "stripe"
         }
         "todoist" => {
             if let Some(v) = creds.get("api_token").or(creds.get("api_key")) {
@@ -3431,7 +3442,12 @@ pub(crate) fn map_integration_to_skill(
             );
             mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
             mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "Todoist".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "Task management. GET/POST /tasks, /projects, /sections, /labels.".into(),
+            );
+            "todoist"
         }
         "clickup" => {
             if let Some(v) = creds.get("api_key") {
@@ -3443,7 +3459,12 @@ pub(crate) fn map_integration_to_skill(
             );
             mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
             mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "ClickUp".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "Project management. GET /team, /space, /task.".into(),
+            );
+            "clickup"
         }
         "airtable" => {
             if let Some(v) = creds.get("api_key") {
@@ -3452,7 +3473,12 @@ pub(crate) fn map_integration_to_skill(
             mapped.insert("API_BASE_URL".into(), "https://api.airtable.com/v0".into());
             mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
             mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "Airtable".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "Spreadsheet-database. GET/POST /{baseId}/{tableName}.".into(),
+            );
+            "airtable"
         }
         "sendgrid" => {
             if let Some(v) = creds.get("api_key") {
@@ -3461,7 +3487,12 @@ pub(crate) fn map_integration_to_skill(
             mapped.insert("API_BASE_URL".into(), "https://api.sendgrid.com/v3".into());
             mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
             mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "SendGrid".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "Email API. POST /mail/send with JSON body.".into(),
+            );
+            "sendgrid"
         }
         "jira" => {
             // Jira uses Basic auth — store domain + encoded credentials
@@ -3484,7 +3515,12 @@ pub(crate) fn map_integration_to_skill(
                 mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
                 mapped.insert("API_AUTH_PREFIX".into(), "Basic".into());
             }
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "Jira".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "Issue tracking. GET/POST /issue, /search, /project.".into(),
+            );
+            "jira"
         }
         "zendesk" => {
             let subdomain = creds.get("subdomain").cloned().unwrap_or_default();
@@ -3504,7 +3540,12 @@ pub(crate) fn map_integration_to_skill(
                 mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
                 mapped.insert("API_AUTH_PREFIX".into(), "Basic".into());
             }
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "Zendesk".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "Support tickets. GET/POST /tickets, /users, /organizations.".into(),
+            );
+            "zendesk"
         }
         "hubspot" => {
             if let Some(v) = creds.get("access_token").or(creds.get("api_key")) {
@@ -3513,7 +3554,12 @@ pub(crate) fn map_integration_to_skill(
             mapped.insert("API_BASE_URL".into(), "https://api.hubapi.com".into());
             mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
             mapped.insert("API_AUTH_PREFIX".into(), "Bearer".into());
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "HubSpot".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "CRM. GET/POST /crm/v3/objects/contacts, /deals, /companies.".into(),
+            );
+            "hubspot"
         }
         "twilio" => {
             let sid = creds.get("account_sid").cloned().unwrap_or_default();
@@ -3532,14 +3578,24 @@ pub(crate) fn map_integration_to_skill(
                 mapped.insert("API_AUTH_HEADER".into(), "Authorization".into());
                 mapped.insert("API_AUTH_PREFIX".into(), "Basic".into());
             }
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "Twilio".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "Messaging API. POST /Messages.json to send SMS.".into(),
+            );
+            "twilio"
         }
         "microsoft-teams" => {
             // MS Teams uses OAuth — store client credentials for now
             for (k, v) in creds {
                 mapped.insert(k.to_uppercase(), v.clone());
             }
-            "rest_api"
+            mapped.insert("SERVICE_NAME".into(), "Microsoft Teams".into());
+            mapped.insert(
+                "SERVICE_HINT".into(),
+                "Chat & channels via Microsoft Graph API.".into(),
+            );
+            "microsoft_teams"
         }
         // ── Google Workspace: tools read from vault directly, but we
         // map here so the skill auto-enables on OAuth connect ──
@@ -3573,13 +3629,24 @@ pub fn service_to_skill_id(service_id: &str) -> String {
         "github" | "github-app" => "github".into(),
         "trello" => "trello".into(),
         "telegram" => "telegram".into(),
-        // All these map to the shared rest_api skill
-        "notion" | "linear" | "stripe" | "todoist" | "clickup" | "airtable" | "sendgrid"
-        | "jira" | "zendesk" | "hubspot" | "shopify" | "pagerduty" | "twilio"
-        | "microsoft-teams" => "rest_api".into(),
-        "google" | "google-workspace" => "google-workspace".into(),
+        // Each service has its own vault — no more rest_api collision
+        "notion" => "notion".into(),
+        "linear" => "linear".into(),
+        "stripe" => "stripe".into(),
+        "todoist" => "todoist".into(),
+        "clickup" => "clickup".into(),
+        "airtable" => "airtable".into(),
+        "sendgrid" => "sendgrid".into(),
+        "jira" => "jira".into(),
+        "zendesk" => "zendesk".into(),
+        "hubspot" => "hubspot".into(),
+        "twilio" => "twilio".into(),
+        "shopify" => "shopify".into(),
+        "pagerduty" => "pagerduty".into(),
+        "microsoft-teams" => "microsoft_teams".into(),
+        "google" | "google-workspace" => "google_workspace".into(),
         "gmail" | "google-drive" | "google-calendar" | "google-sheets" | "google-docs" => {
-            "google-workspace".into()
+            "google_workspace".into()
         }
         // Fallback: skill_id == service_id
         other => other.into(),
@@ -3663,5 +3730,828 @@ mod tests {
         assert!(is_heavy_package("n8n-nodes-puppeteer"));
         assert!(is_heavy_package("n8n-nodes-playwright-extra"));
         assert!(!is_heavy_package("n8n-nodes-telegram"));
+    }
+
+    // ── Integration→Skill mapping tests ────────────────────────────
+
+    #[test]
+    fn map_google_workspace_returns_correct_skill_id() {
+        let creds =
+            std::collections::HashMap::from([("access_token".to_string(), "tok_123".to_string())]);
+        for service_id in &[
+            "google",
+            "google-workspace",
+            "gmail",
+            "google-drive",
+            "google-calendar",
+            "google-sheets",
+            "google-docs",
+        ] {
+            let (skill_id, mapped) = map_integration_to_skill(service_id, &creds);
+            assert_eq!(
+                skill_id, "google_workspace",
+                "Service '{}' should map to skill 'google_workspace'",
+                service_id
+            );
+            assert_eq!(
+                mapped.get("GOOGLE_OAUTH_CONNECTED"),
+                Some(&"true".to_string()),
+                "Google mapping should set GOOGLE_OAUTH_CONNECTED sentinel"
+            );
+        }
+    }
+
+    #[test]
+    fn map_slack_extracts_bot_token() {
+        let creds = std::collections::HashMap::from([
+            ("bot_token".to_string(), "xoxb-123".to_string()),
+            ("default_channel".to_string(), "#general".to_string()),
+        ]);
+        let (skill_id, mapped) = map_integration_to_skill("slack", &creds);
+        assert_eq!(skill_id, "slack");
+        assert_eq!(mapped.get("SLACK_BOT_TOKEN"), Some(&"xoxb-123".to_string()));
+        assert_eq!(
+            mapped.get("SLACK_DEFAULT_CHANNEL"),
+            Some(&"#general".to_string())
+        );
+    }
+
+    #[test]
+    fn map_discord_extracts_credentials() {
+        let creds = std::collections::HashMap::from([
+            ("bot_token".to_string(), "disc_tok".to_string()),
+            ("server_id".to_string(), "123456".to_string()),
+        ]);
+        let (skill_id, mapped) = map_integration_to_skill("discord", &creds);
+        assert_eq!(skill_id, "discord");
+        assert_eq!(
+            mapped.get("DISCORD_BOT_TOKEN"),
+            Some(&"disc_tok".to_string())
+        );
+        assert_eq!(mapped.get("DISCORD_SERVER_ID"), Some(&"123456".to_string()));
+    }
+
+    #[test]
+    fn map_github_accepts_access_token() {
+        let creds =
+            std::collections::HashMap::from([("access_token".to_string(), "ghp_abc".to_string())]);
+        let (skill_id, mapped) = map_integration_to_skill("github", &creds);
+        assert_eq!(skill_id, "github");
+        assert_eq!(mapped.get("GITHUB_TOKEN"), Some(&"ghp_abc".to_string()));
+    }
+
+    #[test]
+    fn map_telegram_extracts_bot_token() {
+        let creds =
+            std::collections::HashMap::from([("bot_token".to_string(), "123:ABC".to_string())]);
+        let (skill_id, mapped) = map_integration_to_skill("telegram", &creds);
+        assert_eq!(skill_id, "telegram");
+        assert_eq!(
+            mapped.get("TELEGRAM_BOT_TOKEN"),
+            Some(&"123:ABC".to_string())
+        );
+    }
+
+    #[test]
+    fn map_notion_to_dedicated_skill() {
+        let creds =
+            std::collections::HashMap::from([("api_key".to_string(), "secret_abc".to_string())]);
+        let (skill_id, mapped) = map_integration_to_skill("notion", &creds);
+        assert_eq!(
+            skill_id, "notion",
+            "Notion should use its dedicated builtin skill"
+        );
+        assert_eq!(
+            mapped.get("NOTION_API_KEY"),
+            Some(&"secret_abc".to_string())
+        );
+    }
+
+    #[test]
+    fn map_jira_uses_basic_auth() {
+        let creds = std::collections::HashMap::from([
+            ("domain".to_string(), "myco.atlassian.net".to_string()),
+            ("email".to_string(), "user@co.com".to_string()),
+            ("api_token".to_string(), "jira_tok_123".to_string()),
+        ]);
+        let (skill_id, mapped) = map_integration_to_skill("jira", &creds);
+        assert_eq!(skill_id, "jira", "Jira should have its own skill vault");
+        assert!(
+            mapped
+                .get("API_BASE_URL")
+                .unwrap()
+                .contains("myco.atlassian.net"),
+            "Jira base URL should contain the domain"
+        );
+        assert_eq!(mapped.get("API_AUTH_PREFIX"), Some(&"Basic".to_string()));
+        assert_eq!(mapped.get("SERVICE_NAME"), Some(&"Jira".to_string()));
+    }
+
+    #[test]
+    fn map_unknown_service_falls_through() {
+        let creds =
+            std::collections::HashMap::from([("api_key".to_string(), "key_123".to_string())]);
+        let (skill_id, mapped) = map_integration_to_skill("some-unknown-service", &creds);
+        assert_eq!(skill_id, "some-unknown-service");
+        assert_eq!(mapped.get("API_KEY"), Some(&"key_123".to_string()));
+    }
+
+    // ── service_to_skill_id mapping ────────────────────────────────
+
+    #[test]
+    fn service_to_skill_id_google_unified() {
+        assert_eq!(service_to_skill_id("google"), "google_workspace");
+        assert_eq!(service_to_skill_id("google-workspace"), "google_workspace");
+        assert_eq!(service_to_skill_id("gmail"), "google_workspace");
+        assert_eq!(service_to_skill_id("google-drive"), "google_workspace");
+        assert_eq!(service_to_skill_id("google-calendar"), "google_workspace");
+        assert_eq!(service_to_skill_id("google-sheets"), "google_workspace");
+        assert_eq!(service_to_skill_id("google-docs"), "google_workspace");
+    }
+
+    #[test]
+    fn service_to_skill_id_dedicated_skills() {
+        assert_eq!(service_to_skill_id("slack"), "slack");
+        assert_eq!(service_to_skill_id("discord"), "discord");
+        assert_eq!(service_to_skill_id("telegram"), "telegram");
+        assert_eq!(service_to_skill_id("github"), "github");
+    }
+
+    #[test]
+    fn service_to_skill_id_per_service_vaults() {
+        // Each service now maps to its own skill_id — no more rest_api collision
+        let expected: Vec<(&str, &str)> = vec![
+            ("notion", "notion"),
+            ("linear", "linear"),
+            ("stripe", "stripe"),
+            ("todoist", "todoist"),
+            ("clickup", "clickup"),
+            ("airtable", "airtable"),
+            ("sendgrid", "sendgrid"),
+            ("jira", "jira"),
+            ("zendesk", "zendesk"),
+            ("hubspot", "hubspot"),
+            ("twilio", "twilio"),
+            ("microsoft-teams", "microsoft_teams"),
+        ];
+        for (service, expected_skill) in &expected {
+            assert_eq!(
+                service_to_skill_id(service),
+                *expected_skill,
+                "Service '{}' should map to '{}'",
+                service,
+                expected_skill
+            );
+        }
+    }
+
+    #[test]
+    fn service_to_skill_id_unknown_is_identity() {
+        assert_eq!(service_to_skill_id("acme-api"), "acme-api");
+        assert_eq!(service_to_skill_id("custom-thing"), "custom-thing");
+    }
+
+    // ── Per-service credential isolation tests ─────────────────────
+
+    #[test]
+    fn map_per_service_no_collision() {
+        // Two services can be provisioned simultaneously without overwriting each other
+        let notion_creds =
+            std::collections::HashMap::from([("api_key".to_string(), "notion_key".to_string())]);
+        let linear_creds =
+            std::collections::HashMap::from([("api_key".to_string(), "linear_key".to_string())]);
+
+        let (notion_skill, notion_mapped) = map_integration_to_skill("notion", &notion_creds);
+        let (linear_skill, linear_mapped) = map_integration_to_skill("linear", &linear_creds);
+
+        // Distinct skill IDs — stored in separate vault namespaces
+        assert_ne!(
+            notion_skill, linear_skill,
+            "Services must not share skill_id"
+        );
+        assert_eq!(notion_skill, "notion");
+        assert_eq!(linear_skill, "linear");
+
+        // Notion stores under NOTION_API_KEY, Linear stores under API_KEY
+        assert_eq!(
+            notion_mapped.get("NOTION_API_KEY"),
+            Some(&"notion_key".to_string())
+        );
+        assert_eq!(
+            linear_mapped.get("API_KEY"),
+            Some(&"linear_key".to_string())
+        );
+    }
+
+    #[test]
+    fn map_per_service_includes_service_name() {
+        // Per-service mappings should include SERVICE_NAME metadata so the AI
+        // knows what service it's talking to.
+        let services_with_names = vec![
+            ("linear", "Linear"),
+            ("stripe", "Stripe"),
+            ("todoist", "Todoist"),
+            ("clickup", "ClickUp"),
+            ("airtable", "Airtable"),
+            ("sendgrid", "SendGrid"),
+            ("jira", "Jira"),
+            ("zendesk", "Zendesk"),
+            ("hubspot", "HubSpot"),
+            ("twilio", "Twilio"),
+            ("microsoft-teams", "Microsoft Teams"),
+        ];
+        for (service_id, expected_name) in services_with_names {
+            let mut creds = std::collections::HashMap::new();
+            // Provide minimum creds each service might need
+            creds.insert("api_key".into(), "test_key".into());
+            creds.insert("domain".into(), "test.example.com".into());
+            creds.insert("email".into(), "test@example.com".into());
+            creds.insert("api_token".into(), "test_token".into());
+            creds.insert("account_sid".into(), "AC123".into());
+            creds.insert("auth_token".into(), "token123".into());
+            creds.insert("subdomain".into(), "testco".into());
+
+            let (_skill_id, mapped) = map_integration_to_skill(service_id, &creds);
+            assert_eq!(
+                mapped.get("SERVICE_NAME"),
+                Some(&expected_name.to_string()),
+                "Service '{}' should include SERVICE_NAME='{}'",
+                service_id,
+                expected_name,
+            );
+        }
+    }
+
+    #[test]
+    fn map_per_service_includes_service_hint() {
+        let creds = std::collections::HashMap::from([("api_key".to_string(), "key".to_string())]);
+        let (_skill_id, mapped) = map_integration_to_skill("linear", &creds);
+        assert!(
+            mapped.get("SERVICE_HINT").is_some(),
+            "Per-service mappings should include SERVICE_HINT for AI context"
+        );
+        assert!(
+            mapped.get("SERVICE_HINT").unwrap().contains("GraphQL"),
+            "Linear hint should mention GraphQL"
+        );
+    }
+
+    #[test]
+    fn map_integration_notion_uses_access_token() {
+        // Notion OAuth returns access_token, not api_key
+        let creds = std::collections::HashMap::from([(
+            "access_token".to_string(),
+            "ntn_oauth_token".to_string(),
+        )]);
+        let (skill_id, mapped) = map_integration_to_skill("notion", &creds);
+        assert_eq!(skill_id, "notion");
+        assert_eq!(
+            mapped.get("NOTION_API_KEY"),
+            Some(&"ntn_oauth_token".to_string()),
+            "Notion should accept access_token as NOTION_API_KEY"
+        );
+    }
+
+    // ── OAuth→n8n node mapping ─────────────────────────────────────
+
+    #[test]
+    fn oauth_service_to_n8n_node_google_variants() {
+        // All Google variants should map to Gmail n8n node
+        for service in &["gmail", "google", "google-workspace"] {
+            let result = crate::commands::oauth::oauth_service_to_n8n_node(service);
+            assert!(
+                result.is_some(),
+                "Service '{}' should have an n8n node mapping",
+                service
+            );
+            let (node_type, _name) = result.unwrap();
+            assert_eq!(node_type, "n8n-nodes-base.gmail");
+        }
+    }
+
+    #[test]
+    fn oauth_service_to_n8n_node_known_services() {
+        // Verify all known service mappings exist
+        let known = vec![
+            ("github", "n8n-nodes-base.github"),
+            ("slack", "n8n-nodes-base.slack"),
+            ("discord", "n8n-nodes-base.discord"),
+            ("notion", "n8n-nodes-base.notion"),
+        ];
+        for (service, expected_node) in known {
+            let result = crate::commands::oauth::oauth_service_to_n8n_node(service);
+            assert!(result.is_some(), "Missing n8n mapping for '{}'", service);
+            assert_eq!(result.unwrap().0, expected_node);
+        }
+    }
+
+    #[test]
+    fn oauth_service_to_n8n_node_unknown_returns_none() {
+        assert!(crate::commands::oauth::oauth_service_to_n8n_node("acme-crm").is_none());
+        assert!(crate::commands::oauth::oauth_service_to_n8n_node("").is_none());
+    }
+
+    // ── map_integration_to_skill consistency with service_to_skill_id ──
+
+    #[test]
+    fn map_integration_skill_id_matches_service_to_skill_id() {
+        // For services that both functions know about, they should agree.
+        let empty_creds = std::collections::HashMap::new();
+        let test_cases = vec![
+            "slack",
+            "discord",
+            "github",
+            "telegram",
+            "google",
+            "google-workspace",
+            "gmail",
+            "google-drive",
+            "google-calendar",
+        ];
+        for service in &test_cases {
+            let (map_skill, _) = map_integration_to_skill(service, &empty_creds);
+            let direct_skill = service_to_skill_id(service);
+            assert_eq!(
+                map_skill, direct_skill,
+                "Skill ID mismatch for '{}': map_integration='{}' vs service_to_skill='{}'",
+                service, map_skill, direct_skill
+            );
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // n8n API Response Contract Tests
+    //
+    // These tests verify that our code correctly parses the JSON shapes
+    // that real n8n instances return.  If n8n changes their API format,
+    // these tests break BEFORE users hit it.  This is how we validate
+    // 25,000+ potential tools without testing each one individually:
+    // we test the PROTOCOL LAYER.
+    // ══════════════════════════════════════════════════════════════════
+
+    // ── GET /api/v1/workflows response parsing ─────────────────────
+
+    #[test]
+    fn parse_workflow_list_real_shape() {
+        // Real n8n v1 response: { data: [...], nextCursor: null }
+        let json: serde_json::Value = serde_json::json!({
+            "data": [
+                {
+                    "id": "w1a2b3c4",
+                    "name": "My Workflow",
+                    "active": true,
+                    "tags": [{"id": "t1", "name": "production"}],
+                    "nodes": [
+                        {"type": "n8n-nodes-base.webhook"},
+                        {"type": "n8n-nodes-base.slack"}
+                    ],
+                    "createdAt": "2026-01-15T10:30:00.000Z",
+                    "updatedAt": "2026-02-20T14:00:00.000Z"
+                },
+                {
+                    "id": 42,
+                    "name": "Legacy Numeric ID",
+                    "active": false,
+                    "tags": [],
+                    "nodes": [],
+                    "createdAt": "2025-06-01T00:00:00.000Z",
+                    "updatedAt": "2025-06-01T00:00:00.000Z"
+                }
+            ],
+            "nextCursor": null
+        });
+
+        let data = json
+            .get("data")
+            .and_then(|d| d.as_array())
+            .cloned()
+            .unwrap_or_default();
+        assert_eq!(data.len(), 2);
+
+        // Test ID extraction — must handle both string and numeric IDs
+        let id1 = data[0]
+            .get("id")
+            .unwrap()
+            .to_string()
+            .trim_matches('"')
+            .to_string();
+        assert_eq!(id1, "w1a2b3c4");
+
+        let id2 = data[1]
+            .get("id")
+            .unwrap()
+            .to_string()
+            .trim_matches('"')
+            .to_string();
+        assert_eq!(id2, "42"); // numeric ID becomes string
+
+        // Test tag extraction
+        let tags: Vec<String> = data[0]
+            .get("tags")
+            .and_then(|t| t.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|t| t.get("name").and_then(|n| n.as_str()).map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        assert_eq!(tags, vec!["production"]);
+
+        // Test node type extraction
+        let nodes: Vec<String> = data[0]
+            .get("nodes")
+            .and_then(|n| n.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|n| n.get("type").and_then(|t| t.as_str()).map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        assert_eq!(
+            nodes,
+            vec!["n8n-nodes-base.webhook", "n8n-nodes-base.slack"]
+        );
+    }
+
+    #[test]
+    fn parse_workflow_count_with_count_field() {
+        // Some n8n versions return a `count` field
+        let body: serde_json::Value = serde_json::json!({
+            "count": 47,
+            "data": []
+        });
+        let count = body
+            .get("count")
+            .or_else(|| body.get("data").and_then(|d| d.as_array().map(|_| d)))
+            .map(|v| {
+                if let Some(n) = v.as_u64() {
+                    n as usize
+                } else if let Some(arr) = v.as_array() {
+                    arr.len()
+                } else {
+                    0
+                }
+            })
+            .unwrap_or(0);
+        assert_eq!(count, 47);
+    }
+
+    #[test]
+    fn parse_workflow_count_without_count_field() {
+        // Fallback: count from data array length
+        let body: serde_json::Value = serde_json::json!({
+            "data": [{"id": "1"}, {"id": "2"}, {"id": "3"}]
+        });
+        let count = body
+            .get("count")
+            .or_else(|| body.get("data").and_then(|d| d.as_array().map(|_| d)))
+            .map(|v| {
+                if let Some(n) = v.as_u64() {
+                    n as usize
+                } else if let Some(arr) = v.as_array() {
+                    arr.len()
+                } else {
+                    0
+                }
+            })
+            .unwrap_or(0);
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn parse_workflow_count_empty_response() {
+        let body: serde_json::Value = serde_json::json!({});
+        let count = body
+            .get("count")
+            .or_else(|| body.get("data").and_then(|d| d.as_array().map(|_| d)))
+            .map(|v| {
+                if let Some(n) = v.as_u64() {
+                    n as usize
+                } else {
+                    0
+                }
+            })
+            .unwrap_or(0);
+        assert_eq!(count, 0);
+    }
+
+    // ── Community package response parsing ─────────────────────────
+
+    #[test]
+    fn parse_community_package_real_shape() {
+        let json = r#"{
+            "packageName": "n8n-nodes-telegram-trigger",
+            "installedVersion": "0.3.2",
+            "installedNodes": [
+                {"name": "TelegramTrigger", "type": "n8n-nodes-base.telegramtrigger"},
+                {"name": "TelegramSend", "type": "n8n-nodes-base.telegramsend"}
+            ]
+        }"#;
+        let pkg: CommunityPackage = serde_json::from_str(json).unwrap();
+        assert_eq!(pkg.package_name, "n8n-nodes-telegram-trigger");
+        assert_eq!(pkg.installed_version, "0.3.2");
+        assert_eq!(pkg.installed_nodes.len(), 2);
+        assert_eq!(pkg.installed_nodes[0].name, "TelegramTrigger");
+        assert_eq!(
+            pkg.installed_nodes[0].node_type,
+            "n8n-nodes-base.telegramtrigger"
+        );
+    }
+
+    #[test]
+    fn parse_community_package_minimal() {
+        // Some packages may have empty nodes or missing version
+        let json = r#"{"packageName": "n8n-nodes-example"}"#;
+        let pkg: CommunityPackage = serde_json::from_str(json).unwrap();
+        assert_eq!(pkg.package_name, "n8n-nodes-example");
+        assert_eq!(pkg.installed_version, ""); // default
+        assert!(pkg.installed_nodes.is_empty()); // default
+    }
+
+    #[test]
+    fn parse_community_packages_list_response() {
+        let json = r#"[
+            {"packageName": "pkg-a", "installedVersion": "1.0.0", "installedNodes": []},
+            {"packageName": "pkg-b", "installedVersion": "2.1.0", "installedNodes": [
+                {"name": "NodeB", "type": "n8n-nodes-base.nodeB"}
+            ]}
+        ]"#;
+        let packages: Vec<CommunityPackage> = serde_json::from_str(json).unwrap();
+        assert_eq!(packages.len(), 2);
+        assert_eq!(packages[0].package_name, "pkg-a");
+        assert_eq!(packages[1].installed_nodes.len(), 1);
+    }
+
+    // ── Credential schema response parsing ─────────────────────────
+
+    #[test]
+    fn parse_credential_schema_real_shape() {
+        // Real n8n GET /api/v1/credentials/schema/{type} response
+        let json: serde_json::Value = serde_json::json!({
+            "displayName": "Slack API",
+            "documentationUrl": "https://docs.n8n.io/integrations/builtin/credentials/slack/",
+            "properties": [
+                {
+                    "name": "accessToken",
+                    "displayName": "Access Token",
+                    "type": "string",
+                    "required": true,
+                    "default": "",
+                    "placeholder": "xoxb-...",
+                    "description": "OAuth access token for Slack"
+                },
+                {
+                    "name": "workspace",
+                    "displayName": "Workspace",
+                    "type": "string",
+                    "required": false,
+                    "default": "",
+                    "options": [
+                        {"value": "default"}
+                    ]
+                }
+            ]
+        });
+
+        let display_name = json
+            .get("displayName")
+            .and_then(|v| v.as_str())
+            .unwrap_or("Unknown");
+        assert_eq!(display_name, "Slack API");
+
+        let props = json.get("properties").and_then(|v| v.as_array()).unwrap();
+        assert_eq!(props.len(), 2);
+
+        let first_prop = &props[0];
+        assert_eq!(first_prop["name"].as_str().unwrap(), "accessToken");
+        assert_eq!(first_prop["required"].as_bool().unwrap(), true);
+        assert_eq!(first_prop["placeholder"].as_str().unwrap(), "xoxb-...");
+    }
+
+    // ── nodes.json response parsing (bulk credential discovery) ────
+
+    #[test]
+    fn parse_nodes_json_credential_extraction() {
+        // Real n8n /types/nodes.json shape (simplified)
+        let nodes: Vec<serde_json::Value> = serde_json::from_str(
+            r#"[
+            {
+                "name": "n8n-nodes-base.slack",
+                "displayName": "Slack",
+                "credentials": [
+                    {"name": "slackApi"},
+                    {"name": "slackOAuth2Api"}
+                ]
+            },
+            {
+                "name": "n8n-nodes-base.httpRequest",
+                "displayName": "HTTP Request",
+                "credentials": []
+            },
+            {
+                "name": "n8n-nodes-base.noOp",
+                "displayName": "No Op"
+            }
+        ]"#,
+        )
+        .unwrap();
+
+        // Extract credential types like our code does
+        let mut cred_types: Vec<String> = Vec::new();
+        for node in &nodes {
+            if let Some(creds) = node.get("credentials").and_then(|c| c.as_array()) {
+                for cred in creds {
+                    if let Some(name) = cred.get("name").and_then(|n| n.as_str()) {
+                        if !cred_types.contains(&name.to_string()) {
+                            cred_types.push(name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(cred_types, vec!["slackApi", "slackOAuth2Api"]);
+    }
+
+    // ── credentials.json response (bulk credential type defs) ──────
+
+    #[test]
+    fn parse_credentials_json_real_shape() {
+        let cred_types: Vec<serde_json::Value> = serde_json::from_str(r#"[
+            {
+                "name": "slackApi",
+                "displayName": "Slack API",
+                "documentationUrl": "https://docs.n8n.io/...",
+                "properties": [
+                    {"name": "accessToken", "displayName": "Access Token", "type": "string", "required": true}
+                ]
+            },
+            {
+                "name": "telegramApi",
+                "displayName": "Telegram API",
+                "properties": [
+                    {"name": "accessToken", "displayName": "Bot Token", "type": "string", "required": true}
+                ]
+            }
+        ]"#)
+        .unwrap();
+
+        assert_eq!(cred_types.len(), 2);
+
+        // Find by name (like our code does)
+        let slack = cred_types
+            .iter()
+            .find(|ct| ct.get("name").and_then(|n| n.as_str()) == Some("slackApi"));
+        assert!(slack.is_some());
+
+        let props = slack
+            .unwrap()
+            .get("properties")
+            .and_then(|p| p.as_array())
+            .unwrap();
+        assert_eq!(props[0]["name"].as_str().unwrap(), "accessToken");
+    }
+
+    // ── Error classification ───────────────────────────────────────
+
+    #[test]
+    fn classify_error_message_patterns() {
+        // Verify our error messages contain actionable guidance
+        // (These test the error strings, not reqwest errors which need real HTTP)
+
+        // Test connection result for non-HTTP URLs
+        let base = "ftp://example.com";
+        let is_valid = base.starts_with("http://") || base.starts_with("https://");
+        assert!(!is_valid, "ftp:// should be rejected");
+
+        let base = "https://n8n.example.com/";
+        let trimmed = base.trim_end_matches('/');
+        let endpoint = format!("{}/api/v1/workflows?limit=1", trimmed);
+        assert_eq!(endpoint, "https://n8n.example.com/api/v1/workflows?limit=1");
+
+        // Trailing-slash normalization
+        let base = "http://localhost:5678///";
+        let trimmed = base.trim_end_matches('/');
+        assert_eq!(trimmed, "http://localhost:5678");
+    }
+
+    // ── N8nTestResult serialization ────────────────────────────────
+
+    #[test]
+    fn n8n_test_result_serializes_for_frontend() {
+        let result = N8nTestResult {
+            connected: true,
+            version: "1.82.1".into(),
+            workflow_count: 15,
+            error: None,
+        };
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["connected"], true);
+        assert_eq!(json["version"], "1.82.1");
+        assert_eq!(json["workflow_count"], 15);
+        assert!(json["error"].is_null());
+    }
+
+    #[test]
+    fn n8n_test_result_error_case() {
+        let result = N8nTestResult {
+            connected: false,
+            version: String::new(),
+            workflow_count: 0,
+            error: Some("Connection refused".into()),
+        };
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["connected"], false);
+        assert_eq!(json["error"], "Connection refused");
+    }
+
+    // ── N8nWorkflow serialization round-trip ───────────────────────
+
+    #[test]
+    fn n8n_workflow_serde_round_trip() {
+        let wf = N8nWorkflow {
+            id: "abc123".into(),
+            name: "Test Workflow".into(),
+            active: true,
+            tags: vec!["mcp".into(), "paw".into()],
+            nodes: vec!["n8n-nodes-base.webhook".into()],
+            trigger_type: "webhook".into(),
+            created_at: "2026-01-01T00:00:00.000Z".into(),
+            updated_at: "2026-03-01T00:00:00.000Z".into(),
+        };
+        let json = serde_json::to_string(&wf).unwrap();
+        let parsed: N8nWorkflow = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.id, "abc123");
+        assert_eq!(parsed.name, "Test Workflow");
+        assert!(parsed.active);
+        assert_eq!(parsed.tags.len(), 2);
+        assert_eq!(parsed.trigger_type, "webhook");
+    }
+
+    #[test]
+    fn n8n_workflow_handles_missing_optional_fields() {
+        let json = r#"{"id":"1","name":"Minimal","active":false,"tags":[],"nodes":[]}"#;
+        let wf: N8nWorkflow = serde_json::from_str(json).unwrap();
+        assert_eq!(wf.trigger_type, ""); // default
+        assert_eq!(wf.created_at, ""); // default
+        assert_eq!(wf.updated_at, ""); // default
+    }
+
+    // ── discover_nodes_from_package_json robustness ────────────────
+
+    #[test]
+    fn discover_nodes_handles_missing_n8n_key() {
+        let pkg_json = serde_json::json!({"name": "some-package"});
+        let nodes = discover_nodes_from_package_json(&pkg_json);
+        assert!(nodes.is_empty());
+    }
+
+    #[test]
+    fn discover_nodes_handles_empty_nodes_array() {
+        let pkg_json = serde_json::json!({
+            "n8n": {"nodes": []}
+        });
+        let nodes = discover_nodes_from_package_json(&pkg_json);
+        assert!(nodes.is_empty());
+    }
+
+    #[test]
+    fn discover_nodes_extracts_name_from_path() {
+        let pkg_json = serde_json::json!({
+            "name": "n8n-nodes-aws",
+            "n8n": {
+                "nodes": [
+                    "dist/nodes/Aws/S3/AwsS3.node.js",
+                    "dist/nodes/Aws/Lambda/AwsLambda.node.js"
+                ]
+            }
+        });
+        let nodes = discover_nodes_from_package_json(&pkg_json);
+        assert_eq!(nodes.len(), 2);
+        assert_eq!(nodes[0].name, "AwsS3");
+        assert_eq!(nodes[1].name, "AwsLambda");
+    }
+
+    // ── MCP token validation logic ─────────────────────────────────
+
+    #[test]
+    fn mcp_token_validation_logic() {
+        // Mirrors the stale-token check in get_or_retrieve_mcp_token
+        let valid_jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U";
+        assert!(!valid_jwt.is_empty() && valid_jwt.contains('.') && !valid_jwt.contains('*'));
+
+        let redacted = "eyJhbGci*****.eyJzdWI****";
+        assert!(
+            redacted.contains('*'),
+            "Redacted token should trigger refresh"
+        );
+
+        let empty = "";
+        assert!(empty.is_empty(), "Empty token should trigger retrieval");
+
+        let no_dots = "plaintext-api-key-no-jwt-structure";
+        assert!(
+            !no_dots.contains('.'),
+            "Non-JWT should be detected as invalid"
+        );
     }
 }

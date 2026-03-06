@@ -13,10 +13,11 @@ pub fn definitions() -> Vec<ToolDefinition> {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "rest_api_call".into(),
-                description: "Make an authenticated API call using stored credentials. The API key is injected automatically — never include credentials in the request.".into(),
+                description: "Make an authenticated API call using stored credentials. The API key is injected automatically — never include credentials in the request. Use the 'service' parameter to specify which connected service to call (e.g., 'linear', 'stripe', 'todoist').".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
+                        "service": { "type": "string", "description": "Which connected service to call (e.g., 'linear', 'stripe', 'jira'). Required when multiple services are connected." },
                         "path": { "type": "string", "description": "API endpoint path (appended to the stored base URL)" },
                         "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"], "description": "HTTP method (default: GET)" },
                         "headers": { "type": "object", "description": "Additional headers (auth is added automatically)" },
@@ -58,7 +59,26 @@ pub fn definitions() -> Vec<ToolDefinition> {
     ]
 }
 
-/// Return definitions only for the given skill_id ("rest_api", "webhook", "image_gen")
+/// Services that use the rest_api_call tool with per-service credential vaults.
+/// These were previously all mapped to "rest_api" causing credential collisions.
+const REST_API_SERVICES: &[&str] = &[
+    "linear",
+    "stripe",
+    "todoist",
+    "clickup",
+    "airtable",
+    "sendgrid",
+    "jira",
+    "zendesk",
+    "hubspot",
+    "twilio",
+    "shopify",
+    "pagerduty",
+    "microsoft_teams",
+];
+
+/// Return definitions only for the given skill_id ("rest_api", "webhook", "image_gen",
+/// or a per-service ID like "linear", "stripe", etc.)
 pub fn definitions_for(skill_id: &str) -> Vec<ToolDefinition> {
     definitions()
         .into_iter()
@@ -66,6 +86,7 @@ pub fn definitions_for(skill_id: &str) -> Vec<ToolDefinition> {
             "rest_api" => d.function.name == "rest_api_call",
             "webhook" => d.function.name == "webhook_send",
             "image_gen" => d.function.name == "image_generate",
+            s if REST_API_SERVICES.contains(&s) => d.function.name == "rest_api_call",
             _ => false,
         })
         .collect()
@@ -77,14 +98,39 @@ pub async fn execute(
     app_handle: &tauri::AppHandle,
 ) -> Option<Result<String, String>> {
     let skill_id = match name {
-        "rest_api_call" => "rest_api",
-        "webhook_send" => "webhook",
-        "image_generate" => "image_gen",
+        "rest_api_call" => {
+            // Resolve per-service vault: check `service` param, fall back to "rest_api"
+            if let Some(svc) = args.get("service").and_then(|v| v.as_str()) {
+                let normalized = svc.replace('-', "_");
+                if REST_API_SERVICES.contains(&normalized.as_str()) {
+                    normalized
+                } else {
+                    // Unknown service — try it as skill_id directly (forward compat)
+                    normalized
+                }
+            } else {
+                "rest_api".to_string()
+            }
+        }
+        "webhook_send" => "webhook".to_string(),
+        "image_generate" => "image_gen".to_string(),
         _ => return None,
     };
-    let creds = match super::get_skill_creds(skill_id, app_handle) {
+    let creds = match super::get_skill_creds(&skill_id, app_handle) {
         Ok(c) => c,
-        Err(e) => return Some(Err(e.to_string())),
+        Err(e) => {
+            // If the skill isn't found, list available services for a helpful error
+            if name == "rest_api_call" {
+                let available = find_connected_rest_services(app_handle);
+                if !available.is_empty() {
+                    return Some(Err(format!(
+                        "{}. Available services: {}. Specify the service name with the 'service' parameter.",
+                        e, available.join(", ")
+                    )));
+                }
+            }
+            return Some(Err(e.to_string()));
+        }
     };
     Some(match name {
         "rest_api_call" => execute_rest_api_call(args, &creds)
@@ -98,6 +144,33 @@ pub async fn execute(
             .map_err(|e| e.to_string()),
         _ => unreachable!(),
     })
+}
+
+/// Find which REST API services the user has connected (enabled with credentials).
+fn find_connected_rest_services(app_handle: &tauri::AppHandle) -> Vec<String> {
+    use crate::engine::state::EngineState;
+    use tauri::Manager;
+
+    let state = match app_handle.try_state::<EngineState>() {
+        Some(s) => s,
+        None => return vec![],
+    };
+    let mut connected = Vec::new();
+    for svc in REST_API_SERVICES {
+        if state.store.is_skill_enabled(svc).unwrap_or(false) {
+            // Use SERVICE_NAME if stored, else the raw skill_id
+            let svc_name = crate::engine::skills::get_skill_credentials(&state.store, svc)
+                .ok()
+                .and_then(|c| c.get("SERVICE_NAME").cloned())
+                .unwrap_or_else(|| svc.to_string());
+            connected.push(svc_name);
+        }
+    }
+    // Also check legacy "rest_api"
+    if state.store.is_skill_enabled("rest_api").unwrap_or(false) {
+        connected.push("rest_api (legacy)".into());
+    }
+    connected
 }
 
 async fn execute_rest_api_call(
@@ -369,4 +442,66 @@ async fn execute_image_generate(
     }
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn definitions_for_rest_api() {
+        let defs = definitions_for("rest_api");
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].function.name, "rest_api_call");
+    }
+
+    #[test]
+    fn definitions_for_per_service_returns_rest_api_call() {
+        // Each per-service skill should enable the rest_api_call tool
+        for service in REST_API_SERVICES {
+            let defs = definitions_for(service);
+            assert_eq!(
+                defs.len(),
+                1,
+                "Service '{}' should have exactly 1 tool definition",
+                service
+            );
+            assert_eq!(
+                defs[0].function.name, "rest_api_call",
+                "Service '{}' should provide rest_api_call tool",
+                service
+            );
+        }
+    }
+
+    #[test]
+    fn definitions_for_webhook() {
+        let defs = definitions_for("webhook");
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].function.name, "webhook_send");
+    }
+
+    #[test]
+    fn definitions_for_image_gen() {
+        let defs = definitions_for("image_gen");
+        assert_eq!(defs.len(), 1);
+        assert_eq!(defs[0].function.name, "image_generate");
+    }
+
+    #[test]
+    fn definitions_for_unknown_returns_empty() {
+        let defs = definitions_for("nonexistent_skill");
+        assert!(defs.is_empty());
+    }
+
+    #[test]
+    fn rest_api_call_has_service_parameter() {
+        let defs = definitions_for("rest_api");
+        let params = &defs[0].function.parameters;
+        let props = params.get("properties").unwrap();
+        assert!(
+            props.get("service").is_some(),
+            "rest_api_call must have a 'service' parameter"
+        );
+    }
 }

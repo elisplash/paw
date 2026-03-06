@@ -35,6 +35,8 @@ pub async fn engine_oauth_services() -> Result<Vec<OAuthServiceInfo>, String> {
     // Tier 1: Shipped PKCE services
     for id in oauth_service_ids() {
         if let Some(config) = get_oauth_config(id) {
+            let effective_id = config.effective_client_id();
+            let is_configured = !effective_id.starts_with("REPLACE_WITH_");
             services.push(OAuthServiceInfo {
                 service_id: id.to_string(),
                 name: config.name.to_string(),
@@ -46,6 +48,7 @@ pub async fn engine_oauth_services() -> Result<Vec<OAuthServiceInfo>, String> {
                 write_scopes: config.write_scopes.iter().map(|s| s.to_string()).collect(),
                 tier: OAuthTier::ShippedPkce,
                 tier_label: tier_label(OAuthTier::ShippedPkce).to_string(),
+                configured: is_configured,
             });
         }
     }
@@ -64,6 +67,7 @@ pub async fn engine_oauth_services() -> Result<Vec<OAuthServiceInfo>, String> {
                 write_scopes: config.write_scopes.iter().map(|s| s.to_string()).collect(),
                 tier: OAuthTier::DynamicRegistration,
                 tier_label: tier_label(OAuthTier::DynamicRegistration).to_string(),
+                configured: true, // RFC 7591 uses dynamic registration, always available
             });
         }
     }
@@ -82,6 +86,7 @@ pub async fn engine_oauth_services() -> Result<Vec<OAuthServiceInfo>, String> {
                 write_scopes: vec![],
                 tier: OAuthTier::N8nDelegation,
                 tier_label: tier_label(OAuthTier::N8nDelegation).to_string(),
+                configured: true, // n8n delegation handles its own credentials
             });
         }
     }
@@ -521,6 +526,9 @@ pub struct OAuthServiceInfo {
     pub write_scopes: Vec<String>,
     pub tier: OAuthTier,
     pub tier_label: String,
+    /// Whether the OAuth client ID is actually configured (not a placeholder).
+    /// When false, the frontend should hide the OAuth button and show manual setup.
+    pub configured: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -632,7 +640,7 @@ fn provision_oauth_to_skill_vault(
 
 /// Map an OAuth service ID to the n8n node type and display name
 /// for MCP workflow deployment.
-fn oauth_service_to_n8n_node(service_id: &str) -> Option<(&'static str, &'static str)> {
+pub(crate) fn oauth_service_to_n8n_node(service_id: &str) -> Option<(&'static str, &'static str)> {
     match service_id {
         "gmail" | "google" | "google-workspace" => Some(("n8n-nodes-base.gmail", "Gmail")),
         "google-drive" => Some(("n8n-nodes-base.googleDrive", "Google Drive")),

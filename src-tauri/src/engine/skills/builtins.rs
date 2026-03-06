@@ -35,7 +35,7 @@ pub fn builtin_skills() -> Vec<SkillDefinition> {
             ],
             tool_names: vec!["rest_api_call".into()],
             required_binaries: vec![], required_env_vars: vec![], install_hint: String::new(),
-            agent_instructions: "You can make authenticated REST API calls to a pre-configured service. Use rest_api_call with method, path, and optional body/headers.".into(),
+            agent_instructions: "You can make authenticated REST API calls to connected services. Use rest_api_call with method, path, and optional body/headers. When multiple services are connected, specify which one with the 'service' parameter (e.g., rest_api_call({\"service\": \"linear\", \"path\": \"/issues\"})). Check the Connected REST API Services section in your instructions to see what's available.".into(),
             default_enabled: false,
         },
         SkillDefinition {

@@ -35,6 +35,36 @@ const buildGuide = (id: string, name: string, docsUrl: string): SetupGuide => {
     };
   }
 
+  // OAuth services: users don't need API keys, they click "Connect"
+  if (OAUTH_SERVICE_IDS.has(id)) {
+    return {
+      title: `Connect ${name}`,
+      steps: [
+        {
+          instruction: `Click the "Connect ${name}" button below to sign in with your ${name} account.`,
+        },
+        { instruction: `Authorize OpenPawz to access your ${name} data.` },
+        {
+          instruction: `Once connected, your agent can use ${name} tools immediately — no API key needed.`,
+        },
+      ],
+      estimatedTime: '< 1 minute',
+    };
+  }
+
+  // n8n OAuth delegation: user connects through n8n's credential UI
+  if (N8N_OAUTH_SERVICE_IDS.has(id)) {
+    return {
+      title: `Connect ${name}`,
+      steps: [
+        { instruction: `Click "Connect via n8n" below to open the OAuth authorization flow.` },
+        { instruction: `Sign into your ${name} account and authorize the connection.` },
+        { instruction: `Once authorized, your agent can call ${name} APIs automatically.` },
+      ],
+      estimatedTime: '1-2 minutes',
+    };
+  }
+
   const steps: { instruction: string; link?: string; tip?: string }[] = [];
 
   if (url) {
@@ -5781,24 +5811,21 @@ const OAUTH_SERVICE_IDS = new Set([
 // ── n8n OAuth delegation (Tier 2) ─────────────────────────────────────
 // Services where OAuth is handled by n8n's built-in credential UI.
 // User clicks "Connect via n8n" → opens n8n credential creation page.
+// IMPORTANT: Only include services that ACTUALLY use OAuth, not API keys.
+// Services like Stripe, Todoist, ClickUp use API keys and should NOT be here.
 
 const N8N_OAUTH_SERVICE_IDS = new Set([
   'hubspot',
   'salesforce',
   'jira',
-  'stripe',
   'shopify',
-  'airtable',
-  'trello',
   'asana',
   'mailchimp',
   'quickbooks',
   'zendesk',
   'freshdesk',
   'monday',
-  'clickup',
   'basecamp',
-  'todoist',
   'microsoft-teams',
   'microsoft-outlook',
   'onedrive',
@@ -5824,9 +5851,6 @@ const N8N_OAUTH_SERVICE_IDS = new Set([
   'copper',
   'freshsales',
   'xero',
-  'harvest',
-  'toggl',
-  'clockify',
   'miro',
 ]);
 

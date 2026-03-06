@@ -79,6 +79,31 @@ let _sortOption: SortOption = 'popular';
 let _viewMode: 'grid' | 'list' | 'matrix' = 'matrix';
 let _mainTab: 'services' | 'automations' | 'queries' | 'community' = 'services';
 
+// ── OAuth availability cache ───────────────────────────────────────────
+// Only services with real Client IDs (not placeholder REPLACE_WITH_) are
+// in this set. Populated once on init via engine_oauth_services.
+
+const _configuredOAuthIds = new Set<string>();
+
+/**
+ * Fetch which OAuth services are actually configured (have real client IDs)
+ * and cache the result. Services without client IDs fall back to manual setup.
+ */
+export async function fetchOAuthAvailability(): Promise<void> {
+  try {
+    const services =
+      await invoke<{ service_id: string; configured: boolean }[]>('engine_oauth_services');
+    _configuredOAuthIds.clear();
+    for (const svc of services) {
+      if (svc.configured) {
+        _configuredOAuthIds.add(svc.service_id);
+      }
+    }
+  } catch (e) {
+    console.warn('[integrations] Failed to fetch OAuth availability:', e);
+  }
+}
+
 // ── Main render ────────────────────────────────────────────────────────
 
 export function renderIntegrations(): void {
@@ -698,7 +723,7 @@ function _renderCards(): void {
               ${
                 isConnected
                   ? `<button class="btn btn-ghost btn-sm integrations-connect-btn" data-service-id="${s.id}">Edit</button>`
-                  : `<button class="btn btn-ghost btn-sm integrations-connect-btn" data-service-id="${s.id}">${s.authType === 'oauth' ? 'Connect' : 'Setup'}</button>`
+                  : `<button class="btn btn-ghost btn-sm integrations-connect-btn" data-service-id="${s.id}">${s.authType === 'oauth' && _configuredOAuthIds.has(s.id) ? 'Connect' : 'Setup'}</button>`
               }
             </div>
           </div>`;
@@ -775,7 +800,7 @@ function _renderDetail(service: ServiceDefinition): void {
       ${
         isConnected
           ? '<span class="integrations-status connected"><span class="ms ms-sm">check_circle</span> Connected</span>'
-          : service.authType === 'oauth'
+          : service.authType === 'oauth' && _configuredOAuthIds.has(service.id)
             ? `<div class="integrations-connect-options">
                 <button class="btn btn-primary btn-sm" id="detail-oauth-btn">
                   <span class="ms ms-sm">link</span> Connect ${escHtml(service.name)}
@@ -784,8 +809,18 @@ function _renderDetail(service: ServiceDefinition): void {
                   <span class="ms ms-sm">key</span> Enter credentials manually
                 </button>
               </div>`
-            : service.authType === 'n8n-oauth'
+            : service.authType === 'oauth' && !_configuredOAuthIds.has(service.id)
               ? `<div class="integrations-connect-options">
+                  <div class="integrations-oauth-unavailable">
+                    <span class="ms ms-sm">info</span>
+                    <span>OAuth not configured for this build. Use API key setup below.</span>
+                  </div>
+                  <button class="btn btn-primary btn-sm" id="detail-connect-btn">
+                    <span class="ms ms-sm">key</span> Setup ${escHtml(service.name)}
+                  </button>
+                </div>`
+              : service.authType === 'n8n-oauth'
+                ? `<div class="integrations-connect-options">
                   <button class="btn btn-primary btn-sm btn-n8n-oauth" id="detail-n8n-oauth-btn">
                     <span class="ms ms-sm">swap_horiz</span> Connect via n8n
                   </button>
@@ -793,8 +828,8 @@ function _renderDetail(service: ServiceDefinition): void {
                     <span class="ms ms-sm">key</span> Enter credentials manually
                   </button>
                 </div>`
-              : service.authType === 'rfc7591'
-                ? `<div class="integrations-connect-options">
+                : service.authType === 'rfc7591'
+                  ? `<div class="integrations-connect-options">
                     <button class="btn btn-primary btn-sm btn-rfc7591" id="detail-rfc7591-btn">
                       <span class="ms ms-sm">auto_fix_high</span> Auto-connect ${escHtml(service.name)}
                     </button>
@@ -802,7 +837,7 @@ function _renderDetail(service: ServiceDefinition): void {
                       <span class="ms ms-sm">key</span> Enter credentials manually
                     </button>
                   </div>`
-                : `<button class="btn btn-primary btn-sm" id="detail-connect-btn">
+                  : `<button class="btn btn-primary btn-sm" id="detail-connect-btn">
                     <span class="ms ms-sm">power</span> Connect ${escHtml(service.name)}
                   </button>`
       }

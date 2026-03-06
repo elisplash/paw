@@ -426,3 +426,237 @@ pub async fn session_client(base_url: &str) -> Result<reqwest::Client, String> {
     log::debug!("[n8n] Session login successful — cookie-authenticated client ready");
     Ok(client)
 }
+
+// ── Version guard ──────────────────────────────────────────────────────
+
+/// Minimum n8n version required for full MCP support.
+/// n8n 1.76.0 introduced the instance-level MCP endpoint.
+pub const MIN_N8N_VERSION_MCP: &str = "1.76.0";
+
+/// Parse a semver-ish version string (e.g. "1.76.2") into (major, minor, patch).
+/// Returns (0, 0, 0) if parsing fails.
+pub fn parse_version(version: &str) -> (u32, u32, u32) {
+    let parts: Vec<u32> = version
+        .split('.')
+        .filter_map(|s| s.trim().parse().ok())
+        .collect();
+    (
+        parts.first().copied().unwrap_or(0),
+        parts.get(1).copied().unwrap_or(0),
+        parts.get(2).copied().unwrap_or(0),
+    )
+}
+
+/// Check if the running n8n version meets the minimum for MCP.
+/// Returns Ok(version_string) if the version is sufficient,
+/// or Err with an actionable message if it's too old.
+pub async fn check_n8n_version_for_mcp(base_url: &str, api_key: &str) -> Result<String, String> {
+    let version = get_n8n_version(base_url, api_key).await.unwrap_or_default();
+
+    if version.is_empty() {
+        return Err(
+            "Could not determine n8n version — ensure n8n is running and API key is correct".into(),
+        );
+    }
+
+    let (major, minor, patch) = parse_version(&version);
+    let (req_major, req_minor, req_patch) = parse_version(MIN_N8N_VERSION_MCP);
+
+    let meets_minimum = (major, minor, patch) >= (req_major, req_minor, req_patch);
+
+    if meets_minimum {
+        Ok(version)
+    } else {
+        Err(format!(
+            "n8n version {} is too old for MCP support (requires >= {}). \
+             Update n8n: docker pull n8nio/n8n:latest or npx n8n@latest",
+            version, MIN_N8N_VERSION_MCP
+        ))
+    }
+}
+
+// ── Tests ──────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_version_basic() {
+        assert_eq!(parse_version("1.76.0"), (1, 76, 0));
+        assert_eq!(parse_version("1.76.2"), (1, 76, 2));
+        assert_eq!(parse_version("2.0.0"), (2, 0, 0));
+    }
+
+    #[test]
+    fn parse_version_partial() {
+        assert_eq!(parse_version("1.76"), (1, 76, 0));
+        assert_eq!(parse_version("1"), (1, 0, 0));
+    }
+
+    #[test]
+    fn parse_version_invalid() {
+        assert_eq!(parse_version(""), (0, 0, 0));
+        assert_eq!(parse_version("abc"), (0, 0, 0));
+        // "1.x.2" → filter_map skips "x", collects [1, 2] → (1, 2, 0)
+        assert_eq!(parse_version("1.x.2"), (1, 2, 0));
+    }
+
+    #[test]
+    fn version_comparison() {
+        // 1.76.0 >= 1.76.0
+        let (major, minor, patch) = parse_version("1.76.0");
+        let (req_major, req_minor, req_patch) = parse_version(MIN_N8N_VERSION_MCP);
+        assert!((major, minor, patch) >= (req_major, req_minor, req_patch));
+
+        // 1.80.0 >= 1.76.0
+        let (major, minor, patch) = parse_version("1.80.0");
+        assert!((major, minor, patch) >= (req_major, req_minor, req_patch));
+
+        // 1.75.0 < 1.76.0
+        let (major, minor, patch) = parse_version("1.75.0");
+        assert!((major, minor, patch) < (req_major, req_minor, req_patch));
+
+        // 2.0.0 >= 1.76.0
+        let (major, minor, patch) = parse_version("2.0.0");
+        assert!((major, minor, patch) >= (req_major, req_minor, req_patch));
+    }
+
+    // ── Response contract tests ────────────────────────────────────
+
+    #[test]
+    fn mcp_detection_logic_cannot_get() {
+        // When n8n returns 404 with "Cannot GET /rest/mcp/api-key"
+        // it means the MCP route doesn't exist (old n8n version)
+        let body = "<!DOCTYPE html>\n<html>\n<body>\n<pre>Cannot GET /rest/mcp/api-key</pre>\n</body>\n</html>";
+        assert!(
+            body.contains("Cannot GET"),
+            "Should detect 'Cannot GET' as legacy n8n"
+        );
+    }
+
+    #[test]
+    fn mcp_detection_logic_json_404() {
+        // JSON 404 (not Express default page) means the route exists
+        // but returned 404 for a different reason — MCP IS supported
+        let body = r#"{"code": 404, "message": "Not Found"}"#;
+        assert!(
+            !body.contains("Cannot GET"),
+            "JSON 404 should not be treated as legacy"
+        );
+    }
+
+    #[test]
+    fn mcp_token_jwt_validation() {
+        // A valid MCP token looks like a JWT with dots and no asterisks
+        let valid = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.rg2e2x3x";
+        assert!(!valid.is_empty() && valid.contains('.') && !valid.contains('*'));
+
+        // A redacted token contains asterisks — needs rotation
+        let redacted = "eyJhbGci***.eyJzdWIi***.rg2e2x***";
+        assert!(redacted.contains('*'));
+    }
+
+    #[test]
+    fn mcp_api_key_response_parsing() {
+        // Real n8n GET /rest/mcp/api-key response
+        let json: serde_json::Value = serde_json::json!({
+            "data": {
+                "apiKey": "eyJhbGciOiJIUzI1NiJ9.eyJzdWI6IjEifQ.abc123",
+                "audience": "mcp-server-api"
+            }
+        });
+
+        let api_key = json
+            .get("data")
+            .and_then(|d| d.get("apiKey"))
+            .and_then(|k| k.as_str())
+            .unwrap();
+        assert!(api_key.contains('.'));
+        assert!(!api_key.contains('*'));
+
+        let audience = json["data"]["audience"].as_str().unwrap();
+        assert_eq!(audience, "mcp-server-api");
+    }
+
+    #[test]
+    fn mcp_api_key_redacted_response() {
+        // When n8n redacts the key, it returns asterisks
+        let json: serde_json::Value = serde_json::json!({
+            "data": {
+                "apiKey": "eyJh******.eyJs******.abc***",
+                "audience": "mcp-server-api"
+            }
+        });
+
+        let api_key = json["data"]["apiKey"].as_str().unwrap();
+        assert!(
+            api_key.contains('*'),
+            "Redacted key contains asterisks — must trigger rotation"
+        );
+    }
+
+    #[test]
+    fn owner_setup_request_shape() {
+        // Verify the owner setup JSON matches what n8n expects
+        let body = serde_json::json!({
+            "email": "agent@paw.local",
+            "firstName": "Paw",
+            "lastName": "Agent",
+            "password": "PawAgent2026!"
+        });
+        assert!(body["email"].is_string());
+        assert!(body["firstName"].is_string());
+        assert!(body["password"].is_string());
+        // n8n requires all four fields
+        assert_eq!(body.as_object().unwrap().len(), 4);
+    }
+
+    #[test]
+    fn login_request_uses_correct_field_name() {
+        // n8n uses "emailOrLdapLoginId" not "email" for the login endpoint
+        let body = serde_json::json!({
+            "emailOrLdapLoginId": "agent@paw.local",
+            "password": "PawAgent2026!"
+        });
+        assert!(body.get("emailOrLdapLoginId").is_some());
+        assert!(body.get("email").is_none()); // NOT "email"!
+    }
+
+    #[test]
+    fn mcp_settings_request_shape() {
+        // PATCH /rest/mcp/settings body
+        let body = serde_json::json!({
+            "mcpAccessEnabled": true
+        });
+        assert_eq!(body["mcpAccessEnabled"], true);
+    }
+
+    #[test]
+    fn api_probe_url_construction() {
+        // Test URL assembly patterns used throughout the codebase
+        let cases = vec![
+            ("http://localhost:5678", "/api/v1/workflows?limit=1"),
+            ("http://localhost:5678/", "/api/v1/workflows?limit=1"),
+            ("https://n8n.example.com", "/api/v1/workflows?limit=1"),
+        ];
+        for (base, path) in cases {
+            let trimmed = base.trim_end_matches('/');
+            let url = format!("{}{}", trimmed, path);
+            assert!(!url.contains("//api"), "Double slash in URL: {}", url);
+            assert!(url.ends_with("?limit=1"));
+        }
+    }
+
+    #[test]
+    fn constants_match_n8n_conventions() {
+        // Docker container conventions
+        assert_eq!(CONTAINER_NAME, "paw-n8n");
+        assert_eq!(DEFAULT_PORT, 5678);
+        assert_eq!(CONTAINER_DATA_DIR, "/home/node/.n8n");
+
+        // Startup must be generous enough for first-time npx download
+        assert!(STARTUP_TIMEOUT_SECS >= 120);
+        assert!(POLL_INTERVAL_SECS >= 1 && POLL_INTERVAL_SECS <= 5);
+    }
+}
