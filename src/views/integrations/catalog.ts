@@ -7,6 +7,69 @@ import type { ServiceDefinition, ServiceCategory, CredentialField, SetupGuide } 
 import API_DOCS from './api-docs';
 import { CREDENTIAL_OVERRIDES } from './credential-data';
 
+// ── OAuth-capable services ─────────────────────────────────────────────
+// Tier 1: Services with shipped Client IDs — one-click PKCE.
+// Matching IDs get authType:'oauth'; all others remain manual/apikey.
+// NOTE: Must be declared before buildGuide() which references them.
+
+const OAUTH_SERVICE_IDS = new Set([
+  'github',
+  'google-workspace',
+  'discord',
+  'slack',
+  'notion',
+  'dropbox',
+  'linear',
+  'figma',
+  'reddit',
+]);
+
+// ── n8n OAuth delegation (Tier 2) ─────────────────────────────────────
+// Services where OAuth is handled by n8n's built-in credential UI.
+// User clicks "Connect via n8n" → opens n8n credential creation page.
+// IMPORTANT: Only include services that ACTUALLY use OAuth, not API keys.
+// Services like Stripe, Todoist, ClickUp use API keys and should NOT be here.
+
+const N8N_OAUTH_SERVICE_IDS = new Set([
+  'hubspot',
+  'salesforce',
+  'jira',
+  'shopify',
+  'asana',
+  'mailchimp',
+  'quickbooks',
+  'zendesk',
+  'freshdesk',
+  'monday',
+  'basecamp',
+  'microsoft-teams',
+  'microsoft-outlook',
+  'onedrive',
+  'sharepoint',
+  'box',
+  'twitch',
+  'spotify',
+  'youtube',
+  'twitter',
+  'facebook',
+  'instagram',
+  'linkedin',
+  'pinterest',
+  'tiktok',
+  'zoom',
+  'webex',
+  'calendly',
+  'typeform',
+  'surveymonkey',
+  'intercom',
+  'drift',
+  'pipedrive',
+  'copper',
+  'freshsales',
+  'xero',
+  'miro',
+]);
+
 // ── Helpers for auto-generation ────────────────────────────────────────
 
 const apiKeyField: CredentialField = {
@@ -5791,68 +5854,6 @@ const AUTO: ServiceDefinition[] = [
     false,
   ),
 ];
-
-// ── OAuth-capable services ─────────────────────────────────────────────
-// Tier 1: Services with shipped Client IDs — one-click PKCE.
-// Matching IDs get authType:'oauth'; all others remain manual/apikey.
-
-const OAUTH_SERVICE_IDS = new Set([
-  'github',
-  'google-workspace',
-  'discord',
-  'slack',
-  'notion',
-  'dropbox',
-  'linear',
-  'figma',
-  'reddit',
-]);
-
-// ── n8n OAuth delegation (Tier 2) ─────────────────────────────────────
-// Services where OAuth is handled by n8n's built-in credential UI.
-// User clicks "Connect via n8n" → opens n8n credential creation page.
-// IMPORTANT: Only include services that ACTUALLY use OAuth, not API keys.
-// Services like Stripe, Todoist, ClickUp use API keys and should NOT be here.
-
-const N8N_OAUTH_SERVICE_IDS = new Set([
-  'hubspot',
-  'salesforce',
-  'jira',
-  'shopify',
-  'asana',
-  'mailchimp',
-  'quickbooks',
-  'zendesk',
-  'freshdesk',
-  'monday',
-  'basecamp',
-  'microsoft-teams',
-  'microsoft-outlook',
-  'onedrive',
-  'sharepoint',
-  'box',
-  'twitch',
-  'spotify',
-  'youtube',
-  'twitter',
-  'facebook',
-  'instagram',
-  'linkedin',
-  'pinterest',
-  'tiktok',
-  'zoom',
-  'webex',
-  'calendly',
-  'typeform',
-  'surveymonkey',
-  'intercom',
-  'drift',
-  'pipedrive',
-  'copper',
-  'freshsales',
-  'xero',
-  'miro',
-]);
 
 // ── RFC 7591 dynamic registration (Tier 3) ────────────────────────────
 // OIDC providers that support automatic client registration.
