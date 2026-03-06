@@ -96,7 +96,9 @@ export function renderSetupGuide(container: HTMLElement, service: ServiceDefinit
           .join('')}
       </ol>
 
-      <div class="setup-guide-credentials">
+      ${
+        fields.length > 0
+          ? `<div class="setup-guide-credentials">
         <h3 class="setup-guide-cred-title">
           <span class="ms ms-sm">key</span> Your Credentials
         </h3>
@@ -109,7 +111,18 @@ export function renderSetupGuide(container: HTMLElement, service: ServiceDefinit
           <span class="guide-btn-label">Test &amp; Save</span>
         </button>
         <button class="btn btn-ghost" id="guide-cancel">Cancel</button>
+      </div>`
+          : `<div class="setup-guide-credentials">
+        <div class="integrations-oauth-unavailable" style="margin:0">
+          <span class="ms ms-sm">info</span>
+          <span>This service uses OAuth (one-click sign-in). No API keys needed — just click <strong>Connect</strong> on the detail page.</span>
+        </div>
       </div>
+
+      <div class="setup-guide-actions">
+        <button class="btn btn-ghost" id="guide-cancel">Back</button>
+      </div>`
+      }
 
       <div class="setup-guide-feedback" id="guide-feedback" style="display:none;"></div>
     </div>
