@@ -639,10 +639,9 @@ static GOOGLE_OAUTH: OAuthConfig = OAuthConfig {
         // Chat & communication
         "https://www.googleapis.com/auth/chat.messages",
         "https://www.googleapis.com/auth/chat.spaces.readonly",
-        // Tasks, Contacts, Keep
+        // Tasks, Contacts
         "https://www.googleapis.com/auth/tasks",
         "https://www.googleapis.com/auth/contacts.readonly",
-        "https://www.googleapis.com/auth/keep",
         // Forms (read-only)
         "https://www.googleapis.com/auth/forms.body.readonly",
         "https://www.googleapis.com/auth/forms.responses.readonly",
@@ -658,10 +657,9 @@ static GOOGLE_OAUTH: OAuthConfig = OAuthConfig {
         "https://www.googleapis.com/auth/drive",
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/documents",
-        // Chat, Tasks, Keep (read/write)
+        // Chat, Tasks (read/write)
         "https://www.googleapis.com/auth/chat.messages",
         "https://www.googleapis.com/auth/tasks",
-        "https://www.googleapis.com/auth/keep",
         // Vertex AI Vector Search
         "https://www.googleapis.com/auth/cloud-platform",
     ],
