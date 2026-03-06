@@ -69,8 +69,8 @@ describe('getAvailableModelsList', () => {
 // ── Constants ──────────────────────────────────────────────────────────
 
 describe('PROVIDER_KINDS', () => {
-  it('has 10 providers', () => {
-    expect(PROVIDER_KINDS).toHaveLength(10);
+  it('has 11 providers', () => {
+    expect(PROVIDER_KINDS).toHaveLength(11);
   });
 
   it('each entry has value and label', () => {

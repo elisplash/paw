@@ -520,7 +520,16 @@ function buildAddProviderForm(config: EngineConfig): HTMLDivElement {
     if (!urlInp.value || Object.values(DEFAULT_BASE_URLS).includes(urlInp.value)) {
       urlInp.value = DEFAULT_BASE_URLS[kind] ?? '';
     }
-    urlInp.placeholder = DEFAULT_BASE_URLS[kind] ?? '';
+    // Azure AI Foundry needs a resource-specific URL — show a helpful placeholder
+    if (kind === 'azurefoundry') {
+      urlInp.placeholder = 'https://your-resource.services.ai.azure.com';
+      const sub = urlRow.querySelector('small');
+      if (sub) sub.textContent = 'Paste your Foundry resource URL — path is auto-normalised';
+    } else {
+      urlInp.placeholder = DEFAULT_BASE_URLS[kind] ?? '';
+      const sub = urlRow.querySelector('small');
+      if (sub) sub.textContent = 'Leave blank for default';
+    }
     if (!idInp.value) {
       idInp.value = kind;
     }
