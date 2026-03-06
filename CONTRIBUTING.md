@@ -88,6 +88,14 @@ pnpm tauri build
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full breakdown.
 
+## Developer Guides
+
+If you want a faster codebase walkthrough, start with these contributor-focused docs:
+
+- [Engine module guide](docs/engine-module-guide.md)
+- [Frontend patterns](docs/frontend-patterns.md)
+- [Channel bridge guide](docs/channel-bridge-guide.md)
+
 ---
 
 ## Code Style
