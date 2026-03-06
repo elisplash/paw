@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:tauri": "npm run dev & sleep 2 && cargo build --manifest-path src-tauri/Cargo.toml && xattr -cr src-tauri/target/debug/openpawz && codesign --force --sign - src-tauri/target/debug/openpawz && src-tauri/target/debug/openpawz",
-    "dev:tauri:clean": "pkill -f 'n8n@latest' 2>/dev/null; rm -rf ~/.paw ~/.openpawz ~/Documents/Paw ~/.config/himalaya ~/Library/WebKit/openpawz ~/Library/Logs/com.openpawz.openpawz ~/Library/Application\\ Support/com.openpawz.openpawz && security delete-generic-password -s openpawz 2>/dev/null; echo '✓ Clean slate' && npm run dev:tauri",
+    "dev:tauri:clean": "pkill -f 'n8n@latest' 2>/dev/null; rm -rf ~/.paw ~/.openpawz ~/Documents/Paw ~/.config/himalaya ~/Library/WebKit/com.openpawz.openpawz ~/Library/WebKit/openpawz ~/Library/Logs/com.openpawz.openpawz ~/Library/Application\\ Support/com.openpawz.openpawz ~/Library/Caches/com.openpawz.openpawz && security delete-generic-password -s openpawz 2>/dev/null; echo '✓ Clean slate' && npm run dev:tauri",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
