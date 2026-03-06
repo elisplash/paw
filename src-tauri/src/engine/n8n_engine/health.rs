@@ -130,7 +130,7 @@ pub async fn get_n8n_version(base_url: &str, api_key: &str) -> Option<String> {
 
 /// The owner credentials used for headless n8n operation.
 const OWNER_EMAIL: &str = "agent@paw.local";
-const OWNER_PASSWORD: &str = "PawAgent2026!";
+const OWNER_PASSWORD: &str = "***REMOVED***";
 
 /// Set up the n8n owner account if one doesn't exist yet.
 ///
@@ -603,7 +603,7 @@ mod tests {
             "email": "agent@paw.local",
             "firstName": "Paw",
             "lastName": "Agent",
-            "password": "PawAgent2026!"
+            "password": "***REMOVED***"
         });
         assert!(body["email"].is_string());
         assert!(body["firstName"].is_string());
@@ -617,7 +617,7 @@ mod tests {
         // n8n uses "emailOrLdapLoginId" not "email" for the login endpoint
         let body = serde_json::json!({
             "emailOrLdapLoginId": "agent@paw.local",
-            "password": "PawAgent2026!"
+            "password": "***REMOVED***"
         });
         assert!(body.get("emailOrLdapLoginId").is_some());
         assert!(body.get("email").is_none()); // NOT "email"!
