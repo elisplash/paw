@@ -282,4 +282,87 @@ mod tests {
         let content: Vec<McpContent> = vec![];
         assert_eq!(extract_text_content(&content), "");
     }
+
+    #[test]
+    fn test_extract_text_content_only_images() {
+        let content = vec![
+            McpContent::Image {
+                data: "abc".into(),
+                mime_type: "image/png".into(),
+            },
+            McpContent::Image {
+                data: "def".into(),
+                mime_type: "image/jpeg".into(),
+            },
+        ];
+        assert_eq!(extract_text_content(&content), "");
+    }
+
+    #[test]
+    fn test_extract_text_content_resource_ignored() {
+        let content = vec![
+            McpContent::Text {
+                text: "Before".into(),
+            },
+            McpContent::Resource {
+                resource: serde_json::json!({"uri": "file:///tmp/out.csv"}),
+            },
+            McpContent::Text {
+                text: "After".into(),
+            },
+        ];
+        assert_eq!(extract_text_content(&content), "Before\nAfter");
+    }
+
+    #[test]
+    fn test_extract_text_content_large_multiline() {
+        // MCP servers can return multi-line text blocks
+        let content = vec![McpContent::Text {
+            text: "Line 1\nLine 2\nLine 3\n\nLine 5".into(),
+        }];
+        let result = extract_text_content(&content);
+        assert!(result.contains("Line 1"));
+        assert!(result.contains("Line 5"));
+        assert_eq!(result.lines().count(), 5);
+    }
+
+    #[test]
+    fn test_extract_text_content_unicode() {
+        let content = vec![McpContent::Text {
+            text: "日本語テスト 🚀 émojis".into(),
+        }];
+        assert_eq!(extract_text_content(&content), "日本語テスト 🚀 émojis");
+    }
+
+    #[test]
+    fn test_protocol_version_is_correct() {
+        // Verify we declare the right MCP protocol version
+        assert_eq!(PROTOCOL_VERSION, "2024-11-05");
+    }
+
+    #[test]
+    fn test_tool_call_timeout_is_generous() {
+        // Tool calls can be slow (workflow execution) — ensure timeout is adequate
+        assert!(
+            TOOL_CALL_TIMEOUT >= 60,
+            "Tool call timeout should be at least 60s"
+        );
+        assert!(
+            TOOL_CALL_TIMEOUT <= 300,
+            "Tool call timeout shouldn't be excessive"
+        );
+    }
+
+    #[test]
+    fn test_max_tools_per_server_is_reasonable() {
+        // Cap prevents a single server from overwhelming the agent
+        assert!(
+            MAX_TOOLS_PER_SERVER >= 100,
+            "Should allow at least 100 tools"
+        );
+        assert!(
+            MAX_TOOLS_PER_SERVER <= 500,
+            "Should cap to prevent overload"
+        );
+    }
 }

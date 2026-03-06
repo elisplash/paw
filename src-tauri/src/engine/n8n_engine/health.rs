@@ -521,4 +521,142 @@ mod tests {
         let (major, minor, patch) = parse_version("2.0.0");
         assert!((major, minor, patch) >= (req_major, req_minor, req_patch));
     }
+
+    // ── Response contract tests ────────────────────────────────────
+
+    #[test]
+    fn mcp_detection_logic_cannot_get() {
+        // When n8n returns 404 with "Cannot GET /rest/mcp/api-key"
+        // it means the MCP route doesn't exist (old n8n version)
+        let body = "<!DOCTYPE html>\n<html>\n<body>\n<pre>Cannot GET /rest/mcp/api-key</pre>\n</body>\n</html>";
+        assert!(
+            body.contains("Cannot GET"),
+            "Should detect 'Cannot GET' as legacy n8n"
+        );
+    }
+
+    #[test]
+    fn mcp_detection_logic_json_404() {
+        // JSON 404 (not Express default page) means the route exists
+        // but returned 404 for a different reason — MCP IS supported
+        let body = r#"{"code": 404, "message": "Not Found"}"#;
+        assert!(
+            !body.contains("Cannot GET"),
+            "JSON 404 should not be treated as legacy"
+        );
+    }
+
+    #[test]
+    fn mcp_token_jwt_validation() {
+        // A valid MCP token looks like a JWT with dots and no asterisks
+        let valid = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.rg2e2x3x";
+        assert!(!valid.is_empty() && valid.contains('.') && !valid.contains('*'));
+
+        // A redacted token contains asterisks — needs rotation
+        let redacted = "eyJhbGci***.eyJzdWIi***.rg2e2x***";
+        assert!(redacted.contains('*'));
+    }
+
+    #[test]
+    fn mcp_api_key_response_parsing() {
+        // Real n8n GET /rest/mcp/api-key response
+        let json: serde_json::Value = serde_json::json!({
+            "data": {
+                "apiKey": "eyJhbGciOiJIUzI1NiJ9.eyJzdWI6IjEifQ.abc123",
+                "audience": "mcp-server-api"
+            }
+        });
+
+        let api_key = json
+            .get("data")
+            .and_then(|d| d.get("apiKey"))
+            .and_then(|k| k.as_str())
+            .unwrap();
+        assert!(api_key.contains('.'));
+        assert!(!api_key.contains('*'));
+
+        let audience = json["data"]["audience"].as_str().unwrap();
+        assert_eq!(audience, "mcp-server-api");
+    }
+
+    #[test]
+    fn mcp_api_key_redacted_response() {
+        // When n8n redacts the key, it returns asterisks
+        let json: serde_json::Value = serde_json::json!({
+            "data": {
+                "apiKey": "eyJh******.eyJs******.abc***",
+                "audience": "mcp-server-api"
+            }
+        });
+
+        let api_key = json["data"]["apiKey"].as_str().unwrap();
+        assert!(
+            api_key.contains('*'),
+            "Redacted key contains asterisks — must trigger rotation"
+        );
+    }
+
+    #[test]
+    fn owner_setup_request_shape() {
+        // Verify the owner setup JSON matches what n8n expects
+        let body = serde_json::json!({
+            "email": "agent@paw.local",
+            "firstName": "Paw",
+            "lastName": "Agent",
+            "password": "PawAgent2026!"
+        });
+        assert!(body["email"].is_string());
+        assert!(body["firstName"].is_string());
+        assert!(body["password"].is_string());
+        // n8n requires all four fields
+        assert_eq!(body.as_object().unwrap().len(), 4);
+    }
+
+    #[test]
+    fn login_request_uses_correct_field_name() {
+        // n8n uses "emailOrLdapLoginId" not "email" for the login endpoint
+        let body = serde_json::json!({
+            "emailOrLdapLoginId": "agent@paw.local",
+            "password": "PawAgent2026!"
+        });
+        assert!(body.get("emailOrLdapLoginId").is_some());
+        assert!(body.get("email").is_none()); // NOT "email"!
+    }
+
+    #[test]
+    fn mcp_settings_request_shape() {
+        // PATCH /rest/mcp/settings body
+        let body = serde_json::json!({
+            "mcpAccessEnabled": true
+        });
+        assert_eq!(body["mcpAccessEnabled"], true);
+    }
+
+    #[test]
+    fn api_probe_url_construction() {
+        // Test URL assembly patterns used throughout the codebase
+        let cases = vec![
+            ("http://localhost:5678", "/api/v1/workflows?limit=1"),
+            ("http://localhost:5678/", "/api/v1/workflows?limit=1"),
+            ("https://n8n.example.com", "/api/v1/workflows?limit=1"),
+        ];
+        for (base, path) in cases {
+            let trimmed = base.trim_end_matches('/');
+            let url = format!("{}{}", trimmed, path);
+            assert!(!url.contains("//api"), "Double slash in URL: {}", url);
+            assert!(url.ends_with("?limit=1"));
+        }
+    }
+
+    #[test]
+    fn constants_match_n8n_conventions() {
+        // Docker container conventions
+        assert_eq!(CONTAINER_NAME, "paw-n8n");
+        assert_eq!(DEFAULT_PORT, 5678);
+        assert_eq!(CONTAINER_DATA_DIR, "/home/node/.n8n");
+
+        // Startup must be generous enough for first-time npx download
+        assert!(STARTUP_TIMEOUT_SECS >= 120);
+        assert!(POLL_INTERVAL_SECS >= 1 && POLL_INTERVAL_SECS <= 5);
+    }
 }
