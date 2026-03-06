@@ -49,7 +49,6 @@ ed25519-dalek = { version = "2", features = ["rand_core", "pkcs8", "pem"] }
 sha2 = "0.10"
 hmac = "0.12"
 subtle = "2"
-jsonwebtoken = "9"
 p256 = { version = "0.13", features = ["ecdsa", "pem"] }
 base64 = "0.22"
 
@@ -79,7 +78,7 @@ webpki-roots = "1.0"
 bollard = "0.16"
 
 # ── Matrix E2EE (Olm/Megolm via vodozemac) ──────────────────────
-matrix-sdk = { version = "0.10", default-features = false, features = ["e2e-encryption", "rustls-tls", "sqlite"] }
+matrix-sdk = { version = "0.10", default-features = false, features = ["e2e-encryption", "sqlite", "rustls-tls"] }
 
 # ── DEX / Ethereum Wallet ──────────────────────────────────────
 k256 = { version = "0.13", features = ["ecdsa", "schnorr", "ecdh"] }
