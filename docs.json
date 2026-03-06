@@ -193,7 +193,8 @@
               "reference/librarian-method",
               "reference/foreman-protocol",
               "reference/conductor-protocol",
-              "reference/agent-canvas"
+              "reference/agent-canvas",
+              "reference/agent-execution-roadmap"
             ]
           }
         ]

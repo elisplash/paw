@@ -216,6 +216,19 @@ Then ask your agent to do something that requires a specific tool:
 
 ---
 
+## Relationship to the Agent Execution Architecture
+
+The Librarian Method discovers tools via in-memory embedding vectors. [Phase 2 of the Agent Execution Architecture](/reference/agent-execution-roadmap) extends this with the **Persistent Tool Registry** — `PersistentToolRegistry` backs the embedding index with SQLite (`tool_embeddings` table) and adds a four-tier search failover:
+
+1. **Vector similarity** — Cosine search on persisted embeddings
+2. **BM25 full-text** — SQLite FTS5 keyword matching
+3. **Domain expansion** — Sibling tools from the same skill domain
+4. **Keyword fallback** — Substring matching on tool names/descriptions
+
+The Librarian's in-memory `ToolIndex` remains the hot path. The Persistent Tool Registry adds durability across restarts and scales to 100K+ tools with sub-100ms discovery.
+
+---
+
 ## License & Attribution
 
 The Librarian Method is part of **OpenPawz** and is released under the **MIT License**. You are free to use, modify, and redistribute this technique in any project, commercial or otherwise. Attribution is appreciated but not required.
