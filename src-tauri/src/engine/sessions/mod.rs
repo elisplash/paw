@@ -20,6 +20,7 @@ use log::info;
 use parking_lot::Mutex;
 use rusqlite::Connection;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 mod agent_files;
 mod agent_messages;
@@ -59,9 +60,9 @@ pub fn engine_db_path() -> PathBuf {
 
 /// Thread-safe database wrapper.
 pub struct SessionStore {
-    /// The SQLite connection, protected by a Mutex.
+    /// The SQLite connection, protected by a Mutex and shareable via Arc.
     /// `pub` for integration tests that need to construct an in-memory store.
-    pub conn: Mutex<Connection>,
+    pub conn: Arc<Mutex<Connection>>,
 }
 
 impl SessionStore {
@@ -87,8 +88,14 @@ impl SessionStore {
         schema::run_migrations(&conn)?;
 
         Ok(SessionStore {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         })
+    }
+
+    /// Get a cloneable reference to the database connection.
+    /// Used by subsystems that need `Arc<Mutex<Connection>>` (e.g., tool_registry, speculative).
+    pub fn conn(&self) -> Arc<Mutex<Connection>> {
+        Arc::clone(&self.conn)
     }
 
     /// Open an in-memory database for tests.
@@ -97,7 +104,7 @@ impl SessionStore {
         let conn = Connection::open_in_memory()?;
         schema::run_migrations(&conn)?;
         Ok(SessionStore {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         })
     }
 }

@@ -70,6 +70,26 @@ pub async fn run_agent_turn(
     let mut round_signatures: Vec<u64> = Vec::new();
     const MAX_REPEATED_SIGNATURES: usize = 3;
 
+    // ── Phase 3: Binary IPC delta batcher ─────────────────────────────
+    // Batches streaming text deltas before emitting IPC events to the frontend.
+    // Reduces per-token IPC overhead for fast models (50-100 tokens/sec).
+    let mut delta_batcher = crate::engine::binary_ipc::EventBatcher::new(
+        session_id,
+        run_id,
+        crate::engine::binary_ipc::BatchConfig::default(),
+    );
+
+    // ── Phase 4: Speculative tool execution tracking ──────────────────
+    // Track the previously-executed tool name so the speculative engine can
+    // record A→B transitions and predict the next tool call.
+    let mut previous_tool: Option<String> = None;
+    // Load speculation config and stats tracker from engine state
+    let speculation_config = app_handle
+        .try_state::<crate::engine::state::EngineState>()
+        .map(|es| es.speculation_config.clone())
+        .unwrap_or_default();
+    let mut speculation_stats = crate::engine::speculative::SpeculationStats::default();
+
     loop {
         round += 1;
 
@@ -186,15 +206,18 @@ pub async fn run_agent_turn(
             if let Some(dt) = &chunk.delta_text {
                 text_accum.push_str(dt);
 
-                // Emit streaming delta to frontend
-                let _ = app_handle.emit(
-                    "engine-event",
-                    EngineEvent::Delta {
-                        session_id: session_id.to_string(),
-                        run_id: run_id.to_string(),
-                        text: dt.clone(),
-                    },
-                );
+                // Phase 3: Batch deltas before emitting to reduce IPC overhead.
+                // push_delta returns Some(batch) when flush is needed.
+                if let Some(batch) = delta_batcher.push_delta(dt) {
+                    let _ = app_handle.emit(
+                        "engine-event",
+                        EngineEvent::Delta {
+                            session_id: session_id.to_string(),
+                            run_id: run_id.to_string(),
+                            text: batch.combined_text,
+                        },
+                    );
+                }
             }
 
             // Emit thinking/reasoning text to frontend
@@ -416,6 +439,23 @@ pub async fn run_agent_turn(
                 }
                 telem::emit_summary(app_handle, &summary);
             }
+
+            // ── Phase 3: Flush remaining batched deltas ───────────────
+            if let Some(batch) = delta_batcher.flush() {
+                let _ = app_handle.emit(
+                    "engine-event",
+                    EngineEvent::Delta {
+                        session_id: session_id.to_string(),
+                        run_id: run_id.to_string(),
+                        text: batch.combined_text,
+                    },
+                );
+            }
+            // Log binary IPC batcher stats for the session
+            crate::engine::binary_ipc::log_session_stats(&delta_batcher.stats(), 0);
+
+            // ── Phase 4: Log speculation stats for the session ────────
+            crate::engine::speculative::log_session_speculation_stats(&speculation_stats);
 
             return Ok(final_text);
         }
@@ -1055,6 +1095,48 @@ pub async fn run_agent_turn(
                 // Reset counter on success
                 tool_fail_counter.remove(&tc.function.name);
             }
+
+            // ── Phase 4: Record tool transition & predict next tool ───
+            // After each tool execution, record the A→B transition in SQLite
+            // and predict the next likely tool call for speculative pre-warming.
+            if let Some(es) = app_handle.try_state::<crate::engine::state::EngineState>() {
+                let conn = es.store.conn();
+                let db = conn.lock();
+                if let Some(candidate) = crate::engine::speculative::predict_and_record(
+                    &db,
+                    previous_tool.as_deref(),
+                    &tc.function.name,
+                    &speculation_config,
+                ) {
+                    speculation_stats.predictions += 1;
+                    info!(
+                        "[speculative] Predicted next tool: {} (p={:.2})",
+                        candidate.tool_name, candidate.probability
+                    );
+
+                    // Pre-warm connection for the predicted tool's API domain
+                    if speculation_config.warm_connections {
+                        if let Some(target) =
+                            crate::engine::speculative::warm_target_for_domain(&candidate.tool_name)
+                        {
+                            if let Ok(dur) = crate::engine::speculative::warm_connection(&target) {
+                                speculation_stats.connections_warmed += 1;
+                                info!(
+                                    "[speculative] Pre-warmed connection to {}:{} in {:.1}ms",
+                                    target.host,
+                                    target.port,
+                                    dur.as_secs_f64() * 1000.0
+                                );
+                            }
+                        }
+                    }
+                } else {
+                    // Still record transition even if no prediction
+                    // (predict_and_record already does this internally)
+                }
+            }
+            // Update previous_tool for the next iteration's transition recording
+            previous_tool = Some(tc.function.name.clone());
         }
 
         // ── 6. Tool RAG: refresh tools if request_tools was called ─────

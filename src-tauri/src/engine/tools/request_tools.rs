@@ -12,6 +12,7 @@ use crate::atoms::error::EngineResult;
 use crate::atoms::types::*;
 use crate::engine::state::EngineState;
 use crate::engine::tool_index;
+use crate::engine::tool_registry::PersistentToolRegistry;
 use crate::engine::util::safe_truncate;
 use log::info;
 use tauri::Manager;
@@ -119,31 +120,93 @@ async fn execute_request_tools(
     }
 
     // ── Semantic search for the best matching tools ────────────────────────
-    let emb_client = state.embedding_client().ok_or(
-        "Embedding client not configured — cannot search tool index. \
-        Try requesting a specific domain instead (e.g., domain='email').",
-    )?;
+    let emb_client = state.embedding_client();
 
-    // Ensure the tool index is built
+    // Grab MCP tools first (separate lock) so they're included in the index.
+    let mcp_tools = {
+        let reg = state.mcp_registry.lock().await;
+        reg.all_tool_definitions()
+    };
+
+    let all_tools = build_all_tools_for_index(&state, &mcp_tools);
+
+    // ── Phase 2: Persistent Tool Registry with four-tier failover ───────
+    // Ensure persistent registry is indexed (incremental: only embeds new tools).
+    // This populates the SQLite tool_embeddings table for BM25/domain fallback
+    // even when embedding APIs are unavailable.
     {
-        // Grab MCP tools first (separate lock) so they're included in the index.
-        // This is what lets the Librarian discover mcp_n8n_* workflow tools via semantic search.
-        let mcp_tools = {
-            let reg = state.mcp_registry.lock().await;
-            reg.all_tool_definitions()
-        };
-
-        let mut tool_index = state.tool_index.lock().await;
-        if !tool_index.is_ready() {
-            info!("[tool-rag] Tool index not ready, building on first request ({} MCP tools available)...", mcp_tools.len());
-            let all_tools = build_all_tools_for_index(&state, &mcp_tools);
-            tool_index.build(&all_tools, &emb_client).await;
+        let mut registry = state.persistent_tool_registry.lock().await;
+        let conn = state.store.conn();
+        if let Some(ref client) = emb_client {
+            registry.incremental_index(&all_tools, client, &conn).await;
+        } else {
+            // Even without embeddings, ensure all tools are registered for BM25/keyword search.
+            // Save tools with empty embeddings so BM25 (Tier 3) and domain keyword (Tier 4) work.
+            let cached_names = {
+                let db = conn.lock();
+                PersistentToolRegistry::cached_tool_names(&db).unwrap_or_default()
+            };
+            let now = chrono::Utc::now().timestamp();
+            for tool in &all_tools {
+                if !cached_names.contains(&tool.function.name) {
+                    let record = crate::engine::tool_registry::ToolEmbeddingRecord {
+                        tool_name: tool.function.name.clone(),
+                        description: tool.function.description.clone(),
+                        embedding: Vec::new(),
+                        domain: tool_index::tool_domain(&tool.function.name).to_string(),
+                        source: if tool.function.name.starts_with("mcp_") {
+                            crate::engine::tool_registry::ToolSource::Mcp
+                        } else {
+                            crate::engine::tool_registry::ToolSource::Builtin
+                        },
+                        updated_at: now,
+                    };
+                    let db = conn.lock();
+                    PersistentToolRegistry::save_embedding(&db, &record).ok();
+                }
+            }
         }
     }
 
-    // Search
-    let tool_index = state.tool_index.lock().await;
-    let results = tool_index.search(query, 6, &emb_client).await?;
+    // Search using the persistent registry (four-tier failover: Vector → BM25 → Domain keyword)
+    let registry = state.persistent_tool_registry.lock().await;
+    let conn = state.store.conn();
+    let search_results = registry
+        .search(query, 6, emb_client.as_ref(), &conn)
+        .await
+        .unwrap_or_default();
+    drop(registry);
+
+    // Convert ToolSearchResult → ToolDefinition by looking up the full definition
+    let tool_map: std::collections::HashMap<&str, &ToolDefinition> = all_tools
+        .iter()
+        .map(|t| (t.function.name.as_str(), t))
+        .collect();
+
+    let results: Vec<ToolDefinition> = search_results
+        .iter()
+        .filter_map(|sr| tool_map.get(sr.tool_name.as_str()).map(|t| (*t).clone()))
+        .collect();
+
+    // Fallback: if persistent registry returned nothing, try old in-memory index
+    let results = if results.is_empty() {
+        if let Some(ref client) = emb_client {
+            // Build & search the in-memory index as last resort
+            {
+                let mut tool_index = state.tool_index.lock().await;
+                if !tool_index.is_ready() {
+                    info!("[tool-rag] Falling back to in-memory tool index ({} MCP tools available)...", mcp_tools.len());
+                    tool_index.build(&all_tools, client).await;
+                }
+            }
+            let tool_index = state.tool_index.lock().await;
+            tool_index.search(query, 6, client).await.unwrap_or_default()
+        } else {
+            Vec::new()
+        }
+    } else {
+        results
+    };
 
     if results.is_empty() {
         return Ok(format!(
