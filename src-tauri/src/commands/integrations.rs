@@ -237,13 +237,14 @@ pub async fn engine_calendar_events_today(
 
     // ── 2. Load the OAuth access token ───────────────────────────────
     let vault_key = get_vault_key().map_err(|e| format!("Vault key error: {e}"))?;
-    let encrypted = match key_vault::get("oauth:google") {
-        Some(v) => v,
-        None => {
-            info!("[calendar] No Google OAuth tokens found — skipping");
-            return Ok(vec![]);
-        }
-    };
+    let encrypted =
+        match key_vault::get("oauth:google-workspace").or_else(|| key_vault::get("oauth:google")) {
+            Some(v) => v,
+            None => {
+                info!("[calendar] No Google OAuth tokens found — skipping");
+                return Ok(vec![]);
+            }
+        };
     let json =
         decrypt_credential(&encrypted, &vault_key).map_err(|e| format!("Decrypt error: {e}"))?;
 

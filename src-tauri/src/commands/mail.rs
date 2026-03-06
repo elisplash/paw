@@ -430,13 +430,14 @@ pub async fn engine_gmail_inbox(page_size: Option<u32>) -> Result<Vec<GmailMessa
 
     // ── 1. Load the OAuth access token ───────────────────────────────
     let vault_key = get_vault_key().map_err(|e| format!("Vault key error: {e}"))?;
-    let encrypted = match key_vault::get("oauth:google") {
-        Some(v) => v,
-        None => {
-            info!("[gmail] No Google OAuth tokens found");
-            return Ok(vec![]);
-        }
-    };
+    let encrypted =
+        match key_vault::get("oauth:google-workspace").or_else(|| key_vault::get("oauth:google")) {
+            Some(v) => v,
+            None => {
+                info!("[gmail] No Google OAuth tokens found");
+                return Ok(vec![]);
+            }
+        };
     let json =
         decrypt_credential(&encrypted, &vault_key).map_err(|e| format!("Decrypt error: {e}"))?;
 

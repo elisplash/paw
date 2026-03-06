@@ -32,7 +32,9 @@ fn load_google_token() -> Result<String, String> {
     use crate::engine::skills::crypto::{decrypt_credential, get_vault_key};
 
     let vault_key = get_vault_key().map_err(|e| format!("Vault key error: {e}"))?;
-    let encrypted = key_vault::get("oauth:google")
+    // Try 'google-workspace' first (OAuth service_id), fallback to legacy 'google'
+    let encrypted = key_vault::get("oauth:google-workspace")
+        .or_else(|| key_vault::get("oauth:google"))
         .ok_or("Google is not connected. Ask the user to connect Google in the Integrations view → Google → Connect.")?;
     let json =
         decrypt_credential(&encrypted, &vault_key).map_err(|e| format!("Decrypt error: {e}"))?;
