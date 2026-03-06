@@ -67,7 +67,7 @@ export function formatMarkdown(text: string): string {
 
   //    Bold and italic — use non-greedy matching with word-boundary awareness
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '<em>$1</em>');
+  html = html.replace(/(^|[^*])\*([^*]+)\*(?!\*)/g, '$1<em>$2</em>');
 
   //    Headings (only at line start)
   html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
