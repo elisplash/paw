@@ -147,7 +147,10 @@ pub async fn ensure_node_available(app_handle: &tauri::AppHandle) -> EngineResul
         use std::os::unix::fs::PermissionsExt;
         let _ = std::fs::set_permissions(&node_bin, std::fs::Permissions::from_mode(0o755));
         // Also make npx executable
-        let npx_bin = node_bin.parent().unwrap().join("npx");
+        let npx_bin = node_bin
+            .parent()
+            .ok_or_else(|| EngineError::Other("node binary has no parent directory".into()))?
+            .join("npx");
         let _ = std::fs::set_permissions(&npx_bin, std::fs::Permissions::from_mode(0o755));
     }
 

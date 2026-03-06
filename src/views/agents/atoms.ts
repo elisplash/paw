@@ -163,6 +163,11 @@ export function spriteAvatar(avatar: string, size = 32): string {
     if (id < 1 || id > SPRITE_AVATARS.length) id = ((id - 1) % SPRITE_AVATARS.length) + 1;
     return `<img src="/src/assets/avatars/${id}.png" alt="" width="${size}" height="${size}" style="display:block;border-radius:50%">`;
   }
-  // Legacy emoji fallback
-  return `<span style="font-size:${Math.round(size * 0.7)}px;line-height:1">${avatar}</span>`;
+  // Legacy emoji fallback — escape to prevent XSS from config-injected values
+  const safe = avatar
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+  return `<span style="font-size:${Math.round(size * 0.7)}px;line-height:1">${safe}</span>`;
 }

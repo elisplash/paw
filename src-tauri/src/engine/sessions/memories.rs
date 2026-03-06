@@ -333,19 +333,38 @@ impl SessionStore {
         let conn = self.conn.lock();
         let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
         let today_start = format!("{} 00:00:00", today);
-        let mut stmt = conn.prepare(
+
+        // Fetch non-session memories (preferences, facts, etc.) — up to 7
+        let mut stmt_other = conn.prepare(
             "SELECT content, category FROM memories
              WHERE created_at >= ?1 AND (agent_id = ?2 OR agent_id = '')
+               AND category != 'session'
              ORDER BY importance DESC, created_at DESC
-             LIMIT 10",
+             LIMIT 7",
         )?;
-
-        let rows: Vec<(String, String)> = stmt
+        let other_rows: Vec<(String, String)> = stmt_other
             .query_map(params![today_start, agent_id], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
             })?
             .filter_map(|r| r.ok())
             .collect();
+
+        // Fetch session memories — cap at 3 to prevent topic domination
+        let mut stmt_session = conn.prepare(
+            "SELECT content, category FROM memories
+             WHERE created_at >= ?1 AND (agent_id = ?2 OR agent_id = '')
+               AND category = 'session'
+             ORDER BY created_at DESC
+             LIMIT 3",
+        )?;
+        let session_rows: Vec<(String, String)> = stmt_session
+            .query_map(params![today_start, agent_id], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        let rows: Vec<(String, String)> = other_rows.into_iter().chain(session_rows).collect();
 
         if rows.is_empty() {
             return Ok(None);

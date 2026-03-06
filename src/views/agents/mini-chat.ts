@@ -29,6 +29,8 @@ interface MiniChatWindow {
 
 export const _miniChats: Map<string, MiniChatWindow> = new Map();
 
+let _miniChatMsgCounter = 0;
+
 const MINI_CHAT_WIDTH = 320;
 const MINI_CHAT_GAP = 12;
 const DOCK_RESERVED = 72; /* 48px dock + 12px right margin + 12px gap */
@@ -185,6 +187,30 @@ function finalizeMiniChatStreaming(mc: MiniChatWindow) {
     // Render final content with markdown formatting
     mc.streamingEl.innerHTML = miniChatMd(mc.streamingContent);
     mc.streamingEl.classList.remove('mini-chat-streaming');
+
+    // Add feedback buttons (thumbs up / down)
+    if (mc.sessionId) {
+      const msgId = `mc-${mc.agentId}-${++_miniChatMsgCounter}`;
+      const feedbackRow = document.createElement('div');
+      feedbackRow.className = 'mini-chat-feedback';
+
+      const thumbUp = document.createElement('button');
+      thumbUp.className = 'mini-chat-fb-btn';
+      thumbUp.title = 'Helpful';
+      thumbUp.innerHTML = '&#x1F44D;';
+      thumbUp.addEventListener('click', () => submitFeedback(mc, msgId, true, feedbackRow));
+
+      const thumbDown = document.createElement('button');
+      thumbDown.className = 'mini-chat-fb-btn';
+      thumbDown.title = 'Not helpful';
+      thumbDown.innerHTML = '&#x1F44E;';
+      thumbDown.addEventListener('click', () => submitFeedback(mc, msgId, false, feedbackRow));
+
+      feedbackRow.appendChild(thumbUp);
+      feedbackRow.appendChild(thumbDown);
+      mc.streamingEl.appendChild(feedbackRow);
+    }
+
     mc.streamingEl = null;
   }
   // Track unread when minimized
@@ -195,6 +221,25 @@ function finalizeMiniChatStreaming(mc: MiniChatWindow) {
   }
   mc.inputEl.disabled = false;
   mc.inputEl.focus();
+}
+
+async function submitFeedback(
+  mc: MiniChatWindow,
+  messageId: string,
+  helpful: boolean,
+  feedbackRow: HTMLElement,
+) {
+  // Disable buttons immediately to prevent double-click
+  feedbackRow.querySelectorAll('button').forEach((b) => ((b as HTMLButtonElement).disabled = true));
+  const sessionId = mc.sessionId;
+  if (!sessionId) return;
+  try {
+    await pawEngine.messageFeedback(sessionId, messageId, mc.agentId, helpful);
+    feedbackRow.innerHTML = `<span class="mini-chat-fb-done">${helpful ? '👍' : '👎'} Thanks!</span>`;
+  } catch (e) {
+    console.error('[mini-chat] Feedback error:', e);
+    feedbackRow.innerHTML = '<span class="mini-chat-fb-done">Error saving</span>';
+  }
 }
 
 async function sendMiniChatMessage(agentId: string) {

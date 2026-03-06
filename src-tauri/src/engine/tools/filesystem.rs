@@ -22,6 +22,16 @@ const SENSITIVE_PATHS: &[&str] = &[
     ".docker/config.json",
     ".kube/config",
     ".local/share/keyrings",
+    // Password managers
+    ".config/1password",
+    ".config/op",
+    "Library/Group Containers/2BUA8C4S2C.com.1password",
+    ".local/share/bitwarden",
+    ".config/Bitwarden",
+    ".local/share/keepassxc",
+    ".lastpass",
+    // macOS Keychain
+    "Library/Keychains",
     // Shell config & history (credential/token leakage)
     ".bashrc",
     ".bash_profile",
@@ -36,6 +46,11 @@ const SENSITIVE_PATHS: &[&str] = &[
     ".config/chromium",
     "Library/Application Support/Google/Chrome",
     "Library/Application Support/Firefox",
+    "Library/Application Support/Microsoft Edge",
+    "Library/Application Support/Arc",
+    "Library/Application Support/BraveSoftware",
+    ".config/microsoft-edge",
+    ".config/BraveSoftware",
     // System
     "/etc/shadow",
     "/etc/passwd",

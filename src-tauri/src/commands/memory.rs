@@ -288,3 +288,53 @@ pub fn engine_memory_purge_user(
         "identifiers_processed": result.identifiers_processed,
     }))
 }
+
+// ── Message Feedback (RLHF) ───────────────────────────────────────────
+
+/// Record user feedback (thumbs up/down) on an assistant message.
+/// Updates trust scores on the agent's episodic memories to improve
+/// future memory relevance through reinforcement learning.
+#[tauri::command]
+pub fn engine_message_feedback(
+    state: State<'_, EngineState>,
+    session_id: String,
+    message_id: String,
+    agent_id: String,
+    helpful: bool,
+    context: Option<String>,
+) -> Result<serde_json::Value, String> {
+    // Store the feedback record
+    let feedback_id = state
+        .store
+        .store_message_feedback(
+            &session_id,
+            &message_id,
+            &agent_id,
+            helpful,
+            context.as_deref(),
+        )
+        .map_err(|e| e.to_string())?;
+
+    // Update trust scores on the agent's episodic memories
+    let updated = state
+        .store
+        .update_trust_from_feedback(&agent_id, helpful)
+        .unwrap_or(0);
+
+    info!(
+        "[engine] Message feedback recorded: {} (helpful={}, trust updated {} memories)",
+        &feedback_id[..8.min(feedback_id.len())],
+        helpful,
+        updated
+    );
+
+    // Get cumulative stats
+    let (pos, neg) = state.store.get_feedback_stats(&agent_id).unwrap_or((0, 0));
+
+    Ok(serde_json::json!({
+        "feedback_id": feedback_id,
+        "memories_updated": updated,
+        "total_positive": pos,
+        "total_negative": neg,
+    }))
+}

@@ -458,10 +458,164 @@ pub async fn backfill_embeddings(
 
 // ── Fact Extraction ────────────────────────────────────────────────────
 
-/// Auto-capture: extract memorable facts from an assistant response.
-/// Uses a simple heuristic approach — no LLM call needed.
-/// Returns content strings suitable for memory storage.
-pub fn extract_memorable_facts(
+/// System prompt for LLM-powered fact extraction.
+/// Structured JSON output for reliable parsing.
+const FACT_EXTRACTION_PROMPT: &str = r#"You are a memory extraction system. Analyze the conversation and extract memorable facts worth remembering for future conversations.
+
+Extract facts in these categories:
+- "preference": User likes, dislikes, preferred tools, languages, styles
+- "context": Technical environment, project details, team info, codebase facts
+- "instruction": Standing orders ("always", "never", "remember to")
+- "skill": User expertise, experience level, domains of knowledge
+- "decision": Architectural decisions, technology choices, agreed-upon approaches
+- "finding": Key discoveries, root causes, solutions found during tool work
+
+Rules:
+- Only extract facts worth remembering across sessions (skip ephemeral chitchat)
+- Each fact should be a self-contained statement (understandable without context)
+- Maximum 5 facts per exchange
+- If nothing is worth remembering, return an empty array
+- Keep facts concise (under 200 chars each)
+
+Respond with ONLY a JSON array, no markdown fencing:
+[{"fact": "User prefers TypeScript over JavaScript", "category": "preference"}, ...]
+Or [] if nothing is memorable."#;
+
+/// LLM-powered fact extraction — uses the chat provider to extract structured
+/// knowledge from conversation turns. Falls back to heuristic extraction on failure.
+pub async fn extract_memorable_facts_llm(
+    user_message: &str,
+    assistant_response: &str,
+    provider: &crate::engine::providers::AnyProvider,
+    model: &str,
+) -> Vec<(String, String)> {
+    use crate::engine::types::{Message, MessageContent, Role};
+
+    // Skip trivially short exchanges — not worth an LLM call
+    if user_message.len() < 10 && assistant_response.len() < 50 {
+        return Vec::new();
+    }
+
+    // Truncate to avoid wasting tokens on extraction
+    let user_trunc = if user_message.len() > 1000 {
+        format!(
+            "{}…",
+            &user_message[..user_message.floor_char_boundary(1000)]
+        )
+    } else {
+        user_message.to_string()
+    };
+    let asst_trunc = if assistant_response.len() > 2000 {
+        format!(
+            "{}…",
+            &assistant_response[..assistant_response.floor_char_boundary(2000)]
+        )
+    } else {
+        assistant_response.to_string()
+    };
+
+    let messages = vec![
+        Message {
+            role: Role::System,
+            content: MessageContent::Text(FACT_EXTRACTION_PROMPT.to_string()),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+        },
+        Message {
+            role: Role::User,
+            content: MessageContent::Text(format!(
+                "User: {}\n\nAssistant: {}",
+                user_trunc, asst_trunc
+            )),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+        },
+    ];
+
+    match provider
+        .chat_stream(&messages, &[], model, Some(0.0), None)
+        .await
+    {
+        Ok(chunks) => {
+            let raw: String = chunks
+                .iter()
+                .filter_map(|c| c.delta_text.as_deref())
+                .collect();
+
+            parse_extracted_facts(&raw)
+        }
+        Err(e) => {
+            warn!(
+                "[memory] LLM fact extraction failed, falling back to heuristic: {}",
+                e
+            );
+            extract_memorable_facts_heuristic(user_message, assistant_response)
+        }
+    }
+}
+
+/// Parse JSON array of extracted facts from LLM response.
+fn parse_extracted_facts(raw: &str) -> Vec<(String, String)> {
+    // Strip markdown code fences if present
+    let trimmed = raw.trim();
+    let json_str = if trimmed.starts_with("```") {
+        trimmed
+            .trim_start_matches("```json")
+            .trim_start_matches("```")
+            .trim_end_matches("```")
+            .trim()
+    } else {
+        trimmed
+    };
+
+    // Find the JSON array boundaries
+    let start = match json_str.find('[') {
+        Some(i) => i,
+        None => return Vec::new(),
+    };
+    let end = match json_str.rfind(']') {
+        Some(i) => i + 1,
+        None => return Vec::new(),
+    };
+
+    match serde_json::from_str::<Vec<serde_json::Value>>(&json_str[start..end]) {
+        Ok(arr) => {
+            arr.iter()
+                .filter_map(|v| {
+                    let fact = v.get("fact")?.as_str()?.to_string();
+                    let category = v
+                        .get("category")
+                        .and_then(|c| c.as_str())
+                        .unwrap_or("context")
+                        .to_string();
+                    // Validate category
+                    let valid_cat = match category.as_str() {
+                        "preference" | "context" | "instruction" | "skill" | "decision"
+                        | "finding" => category,
+                        _ => "context".to_string(),
+                    };
+                    if fact.len() < 5 || fact.len() > 500 {
+                        return None;
+                    }
+                    // Strip HTML tags as defense-in-depth against stored XSS
+                    let sanitized = fact.replace('<', "&lt;").replace('>', "&gt;");
+                    Some((sanitized, valid_cat))
+                })
+                .take(5)
+                .collect()
+        }
+        Err(e) => {
+            warn!("[memory] Failed to parse LLM extraction JSON: {}", e);
+            Vec::new()
+        }
+    }
+}
+
+/// Legacy heuristic fact extraction — fast, no LLM call, but only catches ~20%
+/// of memorable facts. Used as fallback when LLM extraction fails.
+pub fn extract_memorable_facts_heuristic(
     user_message: &str,
     assistant_response: &str,
 ) -> Vec<(String, String)> {
@@ -526,8 +680,7 @@ pub fn extract_memorable_facts(
         }
     }
 
-    // Extract facts from assistant response — capture key findings,
-    // decisions, and discoveries the agent made during tool use.
+    // Extract facts from assistant response — capture key findings
     if assistant_response.len() > 100 {
         let resp_lower = assistant_response.to_lowercase();
         let assistant_fact_patterns = [
@@ -545,8 +698,6 @@ pub fn extract_memorable_facts(
         ];
         for pattern in &assistant_fact_patterns {
             if resp_lower.contains(pattern) {
-                // Store a condensed version (first 300 chars) to avoid bloat
-                // Use floor_char_boundary to avoid panicking on multi-byte chars
                 let condensed = if assistant_response.len() > 300 {
                     format!(
                         "Agent finding: {}…",
@@ -562,4 +713,192 @@ pub fn extract_memorable_facts(
     }
 
     facts
+}
+
+// ── Session Summaries ──────────────────────────────────────────────────
+
+/// LLM-powered session summary — generates a concise summary of the exchange
+/// for long-term memory. Falls back to naive truncation on failure.
+pub async fn generate_session_summary(
+    user_message: &str,
+    assistant_response: &str,
+    provider: &crate::engine::providers::AnyProvider,
+    model: &str,
+) -> String {
+    use crate::engine::types::{Message, MessageContent, Role};
+
+    let user_trunc = if user_message.len() > 500 {
+        format!(
+            "{}…",
+            &user_message[..user_message.floor_char_boundary(500)]
+        )
+    } else {
+        user_message.to_string()
+    };
+    let asst_trunc = if assistant_response.len() > 3000 {
+        format!(
+            "{}…",
+            &assistant_response[..assistant_response.floor_char_boundary(3000)]
+        )
+    } else {
+        assistant_response.to_string()
+    };
+
+    let messages = vec![
+        Message {
+            role: Role::System,
+            content: MessageContent::Text(
+                "Summarize this exchange in 1-2 sentences for future reference. \
+                 Focus on what was accomplished, decisions made, and any important outcomes. \
+                 Be specific and concise. Respond with ONLY the summary text, no formatting."
+                    .to_string(),
+            ),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+        },
+        Message {
+            role: Role::User,
+            content: MessageContent::Text(format!(
+                "User: {}\n\nAssistant: {}",
+                user_trunc, asst_trunc
+            )),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+        },
+    ];
+
+    match provider
+        .chat_stream(&messages, &[], model, Some(0.0), None)
+        .await
+    {
+        Ok(chunks) => {
+            let summary: String = chunks
+                .iter()
+                .filter_map(|c| c.delta_text.as_deref())
+                .collect();
+            let trimmed = summary.trim().to_string();
+            if trimmed.is_empty() {
+                fallback_session_summary(user_message, assistant_response)
+            } else {
+                trimmed
+            }
+        }
+        Err(e) => {
+            warn!("[memory] LLM session summary failed, using fallback: {}", e);
+            fallback_session_summary(user_message, assistant_response)
+        }
+    }
+}
+
+/// Fallback summary when LLM is unavailable — naive truncation.
+fn fallback_session_summary(user_message: &str, assistant_response: &str) -> String {
+    let summary = if assistant_response.len() > 300 {
+        format!(
+            "{}…",
+            &assistant_response[..assistant_response.floor_char_boundary(300)]
+        )
+    } else {
+        assistant_response.to_string()
+    };
+    format!(
+        "Session work: User asked: \"{}\". Agent responded: {}",
+        crate::engine::types::truncate_utf8(user_message, 150),
+        summary,
+    )
+}
+
+// ── History Compression ────────────────────────────────────────────────
+
+/// Compress a batch of old messages into a single summary message.
+/// Used during context window truncation to preserve information from
+/// dropped messages instead of losing them entirely.
+///
+/// Note: Currently available for future integration from the async agent loop.
+/// The sync truncation path in messages.rs uses a lightweight inline recap instead.
+#[allow(dead_code)]
+pub async fn compress_history(
+    messages_to_compress: &[crate::engine::types::Message],
+    provider: &crate::engine::providers::AnyProvider,
+    model: &str,
+) -> Option<String> {
+    use crate::engine::types::{Message, MessageContent, Role};
+
+    if messages_to_compress.is_empty() {
+        return None;
+    }
+
+    // Build a condensed view of the messages to compress
+    let mut history_text = String::with_capacity(4000);
+    for msg in messages_to_compress {
+        let role_label = match msg.role {
+            Role::User => "User",
+            Role::Assistant => "Assistant",
+            Role::Tool => "Tool",
+            Role::System => continue,
+        };
+        let text = msg.content.as_text();
+        if text.is_empty() {
+            continue;
+        }
+        let truncated = if text.len() > 500 {
+            format!("{}…", &text[..text.floor_char_boundary(500)])
+        } else {
+            text
+        };
+        history_text.push_str(&format!("{}: {}\n", role_label, truncated));
+        if history_text.len() > 4000 {
+            break;
+        }
+    }
+
+    if history_text.is_empty() {
+        return None;
+    }
+
+    let messages = vec![
+        Message {
+            role: Role::System,
+            content: MessageContent::Text(
+                "Summarize the following conversation history into a brief recap (3-5 sentences). \
+                 Preserve key facts, decisions, file paths, error messages, and action items. \
+                 This summary will replace the original messages in the context window. \
+                 Respond with ONLY the summary text."
+                    .to_string(),
+            ),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+        },
+        Message {
+            role: Role::User,
+            content: MessageContent::Text(history_text),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+        },
+    ];
+
+    match provider
+        .chat_stream(&messages, &[], model, Some(0.0), None)
+        .await
+    {
+        Ok(chunks) => {
+            let summary: String = chunks
+                .iter()
+                .filter_map(|c| c.delta_text.as_deref())
+                .collect();
+            let trimmed = summary.trim().to_string();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(format!("[Previous conversation summary: {}]", trimmed))
+            }
+        }
+        Err(e) => {
+            warn!("[memory] History compression failed: {}", e);
+            None
+        }
+    }
 }

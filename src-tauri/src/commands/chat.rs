@@ -551,6 +551,15 @@ pub async fn engine_chat_send(
             agent_id_owned
         );
     }
+    // ── Detect implicit topic shifts ──────────────────────────────────────
+    // After a tool-heavy exchange, if the user sends a short message that
+    // doesn't look like a task continuation ("option 1", "yes", "go ahead"),
+    // inject a gentle nudge and clear momentum so recall isn't biased.
+    else if chat_org::detect_implicit_topic_shift(&mut messages) {
+        let cognitive_lock = state.get_cognitive_state(&agent_id_owned);
+        let mut cog = cognitive_lock.lock().await;
+        cog.working_memory.clear_momentum();
+    }
 
     // Note: Topic detection and retry-override injection have been removed.
     // VS Code pattern: failed messages are deleted from history entirely
@@ -650,8 +659,14 @@ pub async fn engine_chat_send(
                     // cause the model to mimic the empty-response pattern.
                     for msg in messages.iter().skip(pre_loop_msg_count) {
                         if msg.role == Role::Assistant || msg.role == Role::Tool {
-                            // Don't persist empty or near-empty assistant messages
-                            if msg.role == Role::Assistant {
+                            // Don't persist empty assistant messages that have
+                            // no tool_calls. Assistant messages WITH tool_calls
+                            // must always be persisted even if their text is
+                            // empty — otherwise tool result messages become
+                            // orphans and corrupt the conversation history.
+                            if msg.role == Role::Assistant
+                                && msg.tool_calls.as_ref().is_none_or(|tc| tc.is_empty())
+                            {
                                 let text = msg.content.as_text();
                                 if text.trim().is_empty() {
                                     info!("[engine] Skipping empty assistant message (not persisting)");
@@ -698,9 +713,17 @@ pub async fn engine_chat_send(
                     }
 
                     // Auto-capture memorable facts (with dedup guard)
+                    // Uses LLM-powered extraction for 5x better fact coverage.
+                    // Falls back to heuristic extraction if LLM call fails.
                     if auto_capture_on && !final_text.is_empty() {
-                        let facts =
-                            memory::extract_memorable_facts(&user_message_for_capture, &final_text);
+                        let extraction_provider = AnyProvider::from_config(&provider_config);
+                        let facts = memory::extract_memorable_facts_llm(
+                            &user_message_for_capture,
+                            &final_text,
+                            &extraction_provider,
+                            &model,
+                        )
+                        .await;
                         if !facts.is_empty() {
                             let emb_client = engine_state.embedding_client();
                             for (content, category) in &facts {
@@ -747,6 +770,7 @@ pub async fn engine_chat_send(
                     }
 
                     // Session-end summary (powers "Today's Memory Notes" in future sessions)
+                    // Uses LLM to generate a concise summary instead of truncating.
                     // Only store when actual tool work was done — plain chat responses
                     // are not worth memorizing and cause memory bloat.
                     // Rate-limit: skip if a session summary was stored in the last 5 minutes
@@ -759,16 +783,14 @@ pub async fn engine_chat_send(
                                 .unwrap_or(false)
                     });
                     if had_tool_calls && !final_text.is_empty() {
-                        let summary = if final_text.len() > 300 {
-                            format!("{}…", &final_text[..final_text.floor_char_boundary(300)])
-                        } else {
-                            final_text.clone()
-                        };
-                        let session_summary = format!(
-                            "Session work: User asked: \"{}\". Agent responded: {}",
-                            crate::engine::types::truncate_utf8(&user_message_for_capture, 150),
-                            summary,
-                        );
+                        // Generate a concise LLM summary instead of naive truncation
+                        let session_summary = memory::generate_session_summary(
+                            &user_message_for_capture,
+                            &final_text,
+                            &AnyProvider::from_config(&provider_config),
+                            &model,
+                        )
+                        .await;
                         let emb_client = engine_state.embedding_client();
                         match memory::store_memory_dedup(
                             &engine_state.store,

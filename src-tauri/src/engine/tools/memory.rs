@@ -243,9 +243,9 @@ async fn execute_memory_store(
     )
     .await?;
 
-    // Also store in legacy system for backward compatibility
+    // Also store in legacy system for backward compatibility (with dedup)
     let legacy_importance = (importance * 10.0).round().clamp(0.0, 255.0) as u8;
-    let _ = memory::store_memory(
+    let _ = memory::store_memory_dedup(
         &state.store,
         content,
         category,

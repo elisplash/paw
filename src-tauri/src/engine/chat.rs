@@ -1043,6 +1043,219 @@ pub fn is_user_override_phrase(lower: &str) -> bool {
     false
 }
 
+// ── Implicit Topic Shift Detection ─────────────────────────────────────────────
+
+/// Detect an implicit topic shift: the user sends a short message that
+/// doesn't look like a continuation of the previous tool-heavy exchange.
+///
+/// Unlike `detect_user_override` (which catches explicit "stop" / "new topic"),
+/// this uses **inverted matching**: after a tool-heavy exchange, ANY short
+/// message is treated as a topic break UNLESS it looks like a task continuation
+/// (e.g. "yes", "option 1", "go ahead", "do that"). This avoids brittleness
+/// from trying to enumerate every possible casual phrase — "I'm hungry",
+/// "tell me a joke", "hello", etc. all get caught naturally.
+///
+/// When a shift is detected, this function:
+/// 1. Strips all tool-call assistant messages and tool-result messages from history
+///    (these dominate the context and anchor the model to the old task)
+/// 2. Injects a strong system nudge at position 1 (right after the main system prompt)
+///    so the model sees it BEFORE any remaining conversation history
+///
+/// Returns `true` if a topic shift was detected and momentum should be cleared.
+pub fn detect_implicit_topic_shift(messages: &mut Vec<Message>) -> bool {
+    // Need at least 3 messages: system + assistant + user
+    if messages.len() < 3 {
+        return false;
+    }
+
+    // Get the last user message
+    let last_user = match messages.iter().rev().find(|m| m.role == Role::User) {
+        Some(m) => m.content.as_text_ref().to_string(),
+        None => return false,
+    };
+
+    let trimmed = last_user.trim();
+    let lower = trimmed.to_lowercase();
+
+    // Only consider short messages — long messages carry enough context
+    // for the model to figure out the topic on its own.
+    if trimmed.len() > 80 {
+        return false;
+    }
+
+    // ── Check if recent context was tool-heavy ─────────────────────────
+    let recent_msgs: Vec<&Message> = messages.iter().rev().take(20).collect();
+    let tool_call_count = recent_msgs
+        .iter()
+        .filter(|m| {
+            m.role == Role::Assistant && m.tool_calls.as_ref().is_some_and(|tc| !tc.is_empty())
+        })
+        .count();
+    let tool_result_count = recent_msgs.iter().filter(|m| m.role == Role::Tool).count();
+    let total_tool_activity = tool_call_count + tool_result_count;
+
+    // Also check if the last assistant response was very long
+    let last_assistant_long = recent_msgs
+        .iter()
+        .find(|m| m.role == Role::Assistant)
+        .is_some_and(|m| m.content.as_text_ref().len() > 500);
+
+    // Only fire if there was significant prior activity
+    if total_tool_activity < 2 && !last_assistant_long {
+        return false;
+    }
+
+    // ── Inverted match: skip if it looks like a task CONTINUATION ───────
+    // These are phrases where the user clearly wants the previous task
+    // to continue. Everything else is treated as a potential topic break.
+    if is_task_continuation(&lower) {
+        return false;
+    }
+
+    // ── Aggressively strip tool messages from history ──────────────────
+    // Tool-call + tool-result pairs dominate the context window and anchor
+    // the model to the old task. Remove them so the model sees a clean slate.
+    let before_len = messages.len();
+    messages.retain(|m| {
+        // Keep all user messages (conversation continuity)
+        if m.role == Role::User {
+            return true;
+        }
+        // Keep system messages
+        if m.role == Role::System {
+            return true;
+        }
+        // Strip tool-result messages entirely
+        if m.role == Role::Tool {
+            return false;
+        }
+        // Strip assistant messages that had tool_calls (these are the
+        // "I'll now use canvas_create..." messages that anchor the old task)
+        if m.role == Role::Assistant && m.tool_calls.as_ref().is_some_and(|tc| !tc.is_empty()) {
+            return false;
+        }
+        // Keep regular assistant text responses (conversation memory)
+        true
+    });
+    let stripped = before_len - messages.len();
+
+    // ── Inject strong system nudge at position 1 ──────────────────────
+    // Place it right after the main system prompt so the model sees it
+    // BEFORE any remaining conversation history.
+    let nudge = format!(
+        "** CONTEXT SHIFT: The user's latest message is: \"{}\"\n\n\
+         This is NOT a continuation of the previous task. {} tool interaction messages \
+         have been cleared from context. Respond ONLY to what the user just said. \
+         Do NOT reference, resume, or continue any previous task (canvas, generation, etc.) \
+         unless the user explicitly asks you to.",
+        safe_truncate(trimmed, 60),
+        stripped
+    );
+
+    log::info!(
+        "[engine] Implicit topic shift: \"{}\" — stripped {} tool messages, {} remain",
+        safe_truncate(trimmed, 40),
+        stripped,
+        messages.len()
+    );
+
+    // Insert at position 1 (after system prompt) or 0 if no system prompt
+    let insert_pos = if !messages.is_empty() && messages[0].role == Role::System {
+        1
+    } else {
+        0
+    };
+    messages.insert(
+        insert_pos,
+        Message {
+            role: Role::System,
+            content: MessageContent::Text(nudge),
+            tool_calls: None,
+            tool_call_id: None,
+            name: None,
+        },
+    );
+
+    true
+}
+
+/// Check if a short user message looks like a continuation of the previous task.
+/// Returns `true` for affirmative/selection responses that clearly reference
+/// the ongoing exchange. Everything not matching here is treated as a topic shift.
+fn is_task_continuation(lower: &str) -> bool {
+    // Direct affirmatives / go-ahead signals
+    let continuations = [
+        "yes",
+        "yeah",
+        "yep",
+        "yup",
+        "sure",
+        "ok",
+        "okay",
+        "k",
+        "kk",
+        "go ahead",
+        "go for it",
+        "do it",
+        "do that",
+        "proceed",
+        "continue",
+        "sounds good",
+        "looks good",
+        "perfect",
+        "great",
+        "let's go",
+        "lets go",
+        "make it so",
+        "ship it",
+        "send it",
+        "run it",
+        "yes please",
+        "yeah do it",
+        "yes do it",
+        "go",
+        "confirmed",
+        "approved",
+        "accept",
+        "yes that",
+        "yep that",
+    ];
+    if continuations.contains(&lower) {
+        return true;
+    }
+
+    // Numbered/lettered option selections (e.g. "1", "option 2", "#3", "b")
+    let s = lower.trim_start_matches('#');
+    if s.len() <= 3 && s.chars().all(|c| c.is_ascii_digit()) {
+        return true;
+    }
+    if lower.starts_with("option ") || lower.starts_with("number ") || lower.starts_with("choice ")
+    {
+        return true;
+    }
+    // Single letter a-e (menu selection)
+    if lower.len() == 1 && lower.chars().next().is_some_and(|c| c.is_ascii_lowercase()) {
+        return true;
+    }
+
+    // Explicit resume/continue references
+    if lower.contains("keep going")
+        || lower.contains("carry on")
+        || lower.contains("as i said")
+        || lower.contains("like i said")
+        || lower.contains("what i asked")
+        || lower.contains("resume")
+        || lower.contains("finish it")
+        || lower.contains("finish that")
+        || lower.contains("complete it")
+        || lower.contains("complete that")
+    {
+        return true;
+    }
+
+    false
+}
+
 // ── Attachment processor ───────────────────────────────────────────────────────
 
 /// Convert chat attachments into multi-modal content blocks on the last user message.

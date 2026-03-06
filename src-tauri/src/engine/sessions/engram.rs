@@ -156,6 +156,71 @@ impl SessionStore {
         Ok(())
     }
 
+    // ── Message Feedback (RLHF) ─────────────────────────────────────────
+
+    /// Store user feedback (thumbs up/down) for a message.
+    pub fn store_message_feedback(
+        &self,
+        session_id: &str,
+        message_id: &str,
+        agent_id: &str,
+        helpful: bool,
+        context: Option<&str>,
+    ) -> EngineResult<String> {
+        let id = uuid::Uuid::new_v4().to_string();
+        let conn = self.conn.lock();
+        // UNIQUE(message_id, agent_id) prevents duplicate feedback;
+        // ON CONFLICT UPDATE allows the user to change their mind.
+        conn.execute(
+            "INSERT INTO message_feedback (id, session_id, message_id, agent_id, helpful, context)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+             ON CONFLICT(message_id, agent_id) DO UPDATE SET
+               helpful = excluded.helpful,
+               context = excluded.context,
+               created_at = datetime('now')",
+            params![
+                id,
+                session_id,
+                message_id,
+                agent_id,
+                helpful as i32,
+                context
+            ],
+        )?;
+        Ok(id)
+    }
+
+    /// Update trust_user_feedback on all episodic memories for an agent
+    /// based on accumulated feedback. Positive feedback boosts utility,
+    /// negative feedback reduces it.
+    pub fn update_trust_from_feedback(&self, agent_id: &str, helpful: bool) -> EngineResult<usize> {
+        let conn = self.conn.lock();
+        let delta: f32 = if helpful { 0.05 } else { -0.08 };
+        let affected = conn.execute(
+            "UPDATE episodic_memories
+             SET trust_user_feedback = MAX(0.0, MIN(1.0, trust_user_feedback + ?2))
+             WHERE scope_agent_id = ?1
+               AND trust_user_feedback BETWEEN 0.0 AND 1.0",
+            params![agent_id, delta],
+        )?;
+        Ok(affected)
+    }
+
+    /// Get feedback stats for an agent (total positive/negative counts).
+    pub fn get_feedback_stats(&self, agent_id: &str) -> EngineResult<(i64, i64)> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT
+               COALESCE(SUM(CASE WHEN helpful = 1 THEN 1 ELSE 0 END), 0),
+               COALESCE(SUM(CASE WHEN helpful = 0 THEN 1 ELSE 0 END), 0)
+             FROM message_feedback WHERE agent_id = ?1",
+        )?;
+        let (pos, neg) = stmt.query_row(params![agent_id], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?))
+        })?;
+        Ok((pos, neg))
+    }
+
     /// Update the consolidation state.
     pub fn engram_set_consolidation_state(
         &self,
@@ -235,6 +300,53 @@ impl SessionStore {
         Ok(rows)
     }
 
+    /// List episodic memories whose embedding_model differs from the current model.
+    /// These need re-embedding to produce valid cosine similarity scores.
+    pub fn engram_list_stale_embeddings(
+        &self,
+        current_model: &str,
+        limit: usize,
+    ) -> EngineResult<Vec<EpisodicMemory>> {
+        let conn = self.conn.lock();
+        let mut stmt = conn.prepare(
+            "SELECT id, content_full, content_summary, content_key_fact, content_tags,
+                    category, importance, agent_id, session_id, source,
+                    consolidation_state,
+                    scope_global, scope_project_id, scope_squad_id, scope_agent_id,
+                    scope_channel, scope_channel_user_id,
+                    embedding, embedding_model,
+                    created_at, last_accessed_at, access_count
+             FROM episodic_memories
+             WHERE embedding IS NOT NULL
+               AND (embedding_model IS NULL OR embedding_model != ?1)
+             ORDER BY importance DESC, last_accessed_at DESC
+             LIMIT ?2",
+        )?;
+
+        let rows = stmt
+            .query_map(
+                params![current_model, limit as i64],
+                Self::episodic_from_row,
+            )?
+            .filter_map(|r| r.ok())
+            .collect();
+
+        Ok(rows)
+    }
+
+    /// Count episodic memories with stale embeddings.
+    pub fn engram_count_stale_embeddings(&self, current_model: &str) -> EngineResult<usize> {
+        let conn = self.conn.lock();
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM episodic_memories
+             WHERE embedding IS NOT NULL
+               AND (embedding_model IS NULL OR embedding_model != ?1)",
+            params![current_model],
+            |row| row.get(0),
+        )?;
+        Ok(count as usize)
+    }
+
     /// BM25 full-text search on episodic memories.
     pub fn engram_search_episodic_bm25(
         &self,
@@ -310,9 +422,12 @@ impl SessionStore {
     }
 
     /// Vector similarity search on episodic memories.
+    /// Only compares embeddings produced by the same model as the query
+    /// to avoid garbage cosine scores from mismatched vector spaces.
     pub fn engram_search_episodic_vector(
         &self,
         query_embedding: &[f32],
+        current_model: &str,
         scope: &MemoryScope,
         limit: usize,
         threshold: f64,
@@ -335,6 +450,10 @@ impl SessionStore {
             .query_map([], Self::episodic_from_row)?
             .filter_map(|r| r.ok())
             .filter(|mem| scope_matches(scope, &mem.scope))
+            // Only compare embeddings from the same model
+            .filter(|mem| {
+                !current_model.is_empty() && mem.embedding_model.as_deref() == Some(current_model)
+            })
             .filter_map(|mem| {
                 mem.embedding.clone().as_ref().map(|emb| {
                     let sim = cosine_similarity(emb, query_embedding);

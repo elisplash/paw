@@ -311,6 +311,21 @@ export class PawEngineClient {
     return invoke('engine_memory_backfill');
   }
 
+  async messageFeedback(
+    sessionId: string,
+    messageId: string,
+    agentId: string,
+    helpful: boolean,
+    context?: string,
+  ): Promise<{
+    feedback_id: string;
+    memories_updated: number;
+    total_positive: number;
+    total_negative: number;
+  }> {
+    return invoke('engine_message_feedback', { sessionId, messageId, agentId, helpful, context });
+  }
+
   // ── Embedding config (legacy Tauri commands) ─────────────────────────
 
   async getEmbeddingProvider(): Promise<string | null> {

@@ -223,10 +223,10 @@ pub async fn run_agent_turn(
                 });
 
                 if let Some(id) = &tc_delta.id {
-                    entry.0 = id.clone();
+                    entry.0.push_str(id);
                 }
                 if let Some(name) = &tc_delta.function_name {
-                    entry.1 = name.clone();
+                    entry.1.push_str(name);
                 }
                 if let Some(args_delta) = &tc_delta.arguments_delta {
                     entry.2.push_str(args_delta);
@@ -418,10 +418,29 @@ pub async fn run_agent_turn(
         sorted_indices.sort();
 
         for idx in sorted_indices {
-            let (id, name, arguments, thought_sig, thoughts) = tool_call_map.get(&idx).unwrap();
+            let entry = match tool_call_map.get(&idx) {
+                Some(e) => e,
+                None => continue, // skip missing indices (shouldn't happen)
+            };
+            let (id, name, arguments, thought_sig, thoughts) = entry;
 
-            // Generate ID if provider didn't supply one
-            let call_id = if id.is_empty() {
+            info!(
+                "[engine] tool_call_map[{}]: id={:?} name={:?} args_len={}",
+                idx,
+                id,
+                name,
+                arguments.len()
+            );
+
+            // Generate ID if provider didn't supply one, or if the
+            // accumulated ID is suspiciously short (SSE chunk corruption).
+            let call_id = if id.is_empty() || (id.len() < 8 && !id.starts_with("call_")) {
+                if !id.is_empty() {
+                    warn!(
+                        "[engine] Replacing suspicious tool_call id '{}' (len={}) with generated UUID",
+                        id, id.len()
+                    );
+                }
                 format!("call_{}", uuid::Uuid::new_v4())
             } else {
                 id.clone()

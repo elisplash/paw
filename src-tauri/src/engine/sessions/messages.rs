@@ -222,11 +222,66 @@ impl SessionStore {
                 keep_from = i + 1;
             }
 
+            // Collect a brief recap of dropped messages
+            let dropped_recap = if keep_from > 0 {
+                let mut recap_parts: Vec<String> = Vec::new();
+                for m in &messages[..keep_from] {
+                    let text_ref: std::borrow::Cow<str> = match &m.content {
+                        MessageContent::Text(t) => std::borrow::Cow::Borrowed(t.as_str()),
+                        MessageContent::Blocks(blocks) => std::borrow::Cow::Owned(
+                            blocks
+                                .iter()
+                                .filter_map(|b| match b {
+                                    ContentBlock::Text { text } => Some(text.as_str()),
+                                    _ => None,
+                                })
+                                .collect::<Vec<_>>()
+                                .join(" "),
+                        ),
+                    };
+                    let truncated = if text_ref.len() > 120 {
+                        &text_ref[..text_ref.floor_char_boundary(120)]
+                    } else {
+                        &text_ref
+                    };
+                    recap_parts.push(format!("[{:?}] {}", m.role, truncated));
+                }
+                if recap_parts.is_empty() {
+                    None
+                } else {
+                    Some(format!(
+                        "[Earlier conversation recap — {} messages trimmed]\n{}",
+                        keep_from,
+                        recap_parts.join("\n")
+                    ))
+                }
+            } else {
+                None
+            };
+
             messages = messages.split_off(keep_from);
 
             // Re-insert system prompt at the front
             if let Some(sys) = system_msg {
                 messages.insert(0, sys);
+            }
+
+            // Inject recap of dropped messages so the model keeps some context
+            if let Some(recap) = dropped_recap {
+                messages.insert(
+                    if !messages.is_empty() && messages[0].role == Role::System {
+                        1
+                    } else {
+                        0
+                    },
+                    Message {
+                        role: Role::System,
+                        content: MessageContent::Text(recap),
+                        tool_calls: None,
+                        tool_call_id: None,
+                        name: None,
+                    },
+                );
             }
 
             log::info!(

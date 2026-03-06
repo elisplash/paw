@@ -105,6 +105,12 @@ fn compute_shared_secret(
 }
 
 /// NIP-04 encrypt: AES-256-CBC with ECDH shared key.
+///
+/// # Security Warning
+/// NIP-04 is **deprecated** — it uses AES-256-CBC without authentication (no HMAC),
+/// making it vulnerable to padding oracle attacks. Migrate to NIP-44
+/// (XChaCha20 + HMAC-SHA256) with NIP-17 gift wrapping when relay support is
+/// sufficient. See: <https://github.com/nostr-protocol/nips/blob/master/44.md>
 pub(crate) fn nip04_encrypt(
     secret_key: &[u8],
     receiver_pk_hex: &str,
@@ -131,6 +137,9 @@ pub(crate) fn nip04_encrypt(
 }
 
 /// NIP-04 decrypt: AES-256-CBC with ECDH shared key.
+///
+/// # Security Warning
+/// NIP-04 is **deprecated** — see `nip04_encrypt` doc comment for details.
 pub(crate) fn nip04_decrypt(
     secret_key: &[u8],
     sender_pk_hex: &str,

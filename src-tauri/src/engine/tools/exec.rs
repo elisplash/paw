@@ -65,51 +65,75 @@ async fn execute_exec(
     // These are blocked even when the user approves the tool call.
     let cmd_lower = command.to_lowercase();
     {
-        const EXFIL_PATTERNS: &[&str] = &[
-            // Credential exfiltration
-            "cat.*id_rsa",
-            "cat.*id_ed25519",
-            "cat.*/etc/shadow",
-            "base64.*\\.ssh",
-            "base64.*\\.gnupg",
-            "tar.*\\.ssh",
-            "zip.*\\.ssh",
-            "cp.*\\.ssh",
-            "scp.*\\.ssh",
-            // Reverse shells
-            "nc -e",
-            "nc -c",
-            "ncat -e",
-            "bash -i >& /dev/tcp",
-            "python.*-c.*import.*socket",
-            "python.*-c.*import.*subprocess",
-            "perl.*socket.*connect",
-            "ruby.*tcpsocket",
-            "php.*fsockopen",
-            // Credential harvesting
-            "cat.*\\.aws/credentials",
-            "cat.*\\.npmrc",
-            "cat.*\\.env",
-            "printenv.*secret",
-            "printenv.*token",
-            "printenv.*password",
-            "echo.*\\$.*secret",
-            "echo.*\\$.*token",
-            "echo.*\\$.*password",
-        ];
+        use std::sync::OnceLock;
+        static EXFIL_RE: OnceLock<Vec<(regex::Regex, &'static str)>> = OnceLock::new();
+        let patterns = EXFIL_RE.get_or_init(|| {
+            let raw: &[&str] = &[
+                // Credential exfiltration
+                r"cat\s.*id_rsa",
+                r"cat\s.*id_ed25519",
+                r"cat\s.*/etc/shadow",
+                r"base64\s.*\.ssh",
+                r"base64\s.*\.gnupg",
+                r"tar\s.*\.ssh",
+                r"zip\s.*\.ssh",
+                r"cp\s.*\.ssh",
+                r"scp\s.*\.ssh",
+                // Reverse shells
+                r"nc\s+-e",
+                r"nc\s+-c",
+                r"ncat\s+-e",
+                r"bash\s+-i\s*>&\s*/dev/tcp",
+                r"python.*-c.*import\s+socket",
+                r"python.*-c.*import\s+subprocess",
+                r"perl.*socket.*connect",
+                r"ruby.*tcpsocket",
+                r"php.*fsockopen",
+                // Credential harvesting
+                r"cat\s.*\.aws/credentials",
+                r"cat\s.*\.npmrc",
+                r"cat\s.*\.env\b",
+                r"printenv.*secret",
+                r"printenv.*token",
+                r"printenv.*password",
+                r"echo\s.*\$.*secret",
+                r"echo\s.*\$.*token",
+                r"echo\s.*\$.*password",
+                // Data exfiltration via curl/wget
+                r"curl\s.*-d\s.*@",
+                r"curl\s.*--data.*@",
+                r"curl\s.*--upload-file",
+                r"wget\s.*--post-file",
+                // macOS-specific
+                r"osascript\s+-e",
+                r"security\s+find-(generic|internet)-password",
+                // Clipboard exfiltration
+                r"pbpaste\s*\|",
+                r"xclip\s+-o\s*\|",
+                r"xsel\s+--output\s*\|",
+            ];
+            raw.iter()
+                .map(|p| {
+                    (
+                        regex::Regex::new(p).expect("invalid exfil pattern regex"),
+                        *p,
+                    )
+                })
+                .collect()
+        });
 
-        for pattern in EXFIL_PATTERNS {
-            if cmd_lower.contains(pattern) {
+        for (re, label) in patterns {
+            if re.is_match(&cmd_lower) {
                 warn!(
                     "[engine] exec: BLOCKED dangerous command pattern '{}' (agent={}): {}",
-                    pattern,
+                    label,
                     agent_id,
                     safe_truncate(command, 100)
                 );
                 return Err(format!(
                     "exec: command blocked by security policy — matches dangerous pattern '{}'. \
                      Credential access and reverse shells are not permitted.",
-                    pattern
+                    label
                 )
                 .into());
             }

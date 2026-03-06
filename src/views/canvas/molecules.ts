@@ -247,23 +247,86 @@ function renderMetric(data: Record<string, unknown>): string {
   `;
 }
 
-function renderTable(data: Record<string, unknown>): string {
-  const columns = dataArr(data, 'columns') as string[];
-  const rows = dataArr(data, 'rows') as unknown[][];
+/** Convert a cell value to a display string — handles objects, arrays, and primitives. */
+function cellToString(cell: unknown): string {
+  if (cell == null) return '';
+  if (typeof cell === 'string' || typeof cell === 'number' || typeof cell === 'boolean')
+    return String(cell);
+  if (Array.isArray(cell)) return cell.map(cellToString).join(', ');
+  if (typeof cell === 'object') {
+    // Try common label-like keys first
+    const obj = cell as Record<string, unknown>;
+    for (const k of ['name', 'label', 'title', 'value', 'text', 'id']) {
+      if (typeof obj[k] === 'string' || typeof obj[k] === 'number') return String(obj[k]);
+    }
+    return JSON.stringify(cell);
+  }
+  return String(cell);
+}
 
-  if (!columns.length) return '<p class="canvas-muted">No columns defined</p>';
+function renderTable(data: Record<string, unknown>): string {
+  const rawColumns = dataArr(data, 'columns') as unknown[];
+  let rows = dataArr(data, 'rows') as unknown[][];
+
+  if (!rawColumns.length) return '<p class="canvas-muted">No columns defined</p>';
+
+  // Normalise columns: accept strings OR objects like {key, label, header, name}
+  const columns = rawColumns.map((c) => {
+    if (typeof c === 'string') return { key: c, label: c };
+    if (typeof c === 'object' && c !== null) {
+      const obj = c as Record<string, unknown>;
+      const label = String(obj.label ?? obj.header ?? obj.name ?? obj.key ?? obj.title ?? '');
+      const key = String(obj.key ?? obj.field ?? obj.id ?? label);
+      return { key, label };
+    }
+    return { key: String(c), label: String(c) };
+  });
+
+  // If rows are objects (not arrays), convert using column keys
+  if (
+    rows.length > 0 &&
+    !Array.isArray(rows[0]) &&
+    typeof rows[0] === 'object' &&
+    rows[0] !== null
+  ) {
+    const objRows = rows as unknown as Record<string, unknown>[];
+    const normalise = (s: string) => s.toLowerCase().replace(/[\s_-]+/g, '');
+    rows = objRows.map((r) => {
+      const keyMap = new Map(Object.keys(r).map((k) => [normalise(k), k]));
+      return columns.map((col) => {
+        // Try exact key first, then normalised fuzzy match
+        if (col.key in r) return r[col.key];
+        const norm = normalise(col.key);
+        const actualKey = keyMap.get(norm);
+        if (actualKey !== undefined) return r[actualKey];
+        // Try label as fallback
+        const normLabel = normalise(col.label);
+        const labelKey = keyMap.get(normLabel);
+        return labelKey !== undefined ? r[labelKey] : undefined;
+      });
+    });
+  }
 
   const thead = columns
     .map(
       (c, i) =>
-        `<th data-col-index="${i}" class="canvas-th-sortable">${escHtml(String(c))} <span class="canvas-sort-icon"></span></th>`,
+        `<th data-col-index="${i}" class="canvas-th-sortable">${escHtml(c.label)} <span class="canvas-sort-icon"></span></th>`,
     )
     .join('');
+
+  if (!rows.length) {
+    return `
+      <div class="canvas-table-wrap">
+        <table class="canvas-table"><thead><tr>${thead}</tr></thead></table>
+        <p class="canvas-muted">No data yet</p>
+      </div>`;
+  }
+
   const tbody = rows
-    .slice(0, 50) // cap at 50 rows for performance
+    .slice(0, 50)
     .map(
       (row) =>
-        `<tr>${(row as unknown[]).map((cell) => `<td>${escHtml(String(cell ?? ''))}</td>`).join('')}</tr>`,
+        `<tr>${(row as unknown[]).map((cell) => `<td>${escHtml(cellToString(cell))}</td>`).join('')}</tr>`,
     )
     .join('');
 
@@ -417,7 +480,12 @@ function renderForm(data: Record<string, unknown>): string {
 // ── Timeline ──────────────────────────────────────────────────────────
 
 function renderTimeline(data: Record<string, unknown>): string {
-  const events = dataArr(data, 'events') as Record<string, unknown>[];
+  // Accept 'events', 'items', 'entries', 'steps', or 'milestones' as the array key
+  let events = dataArr(data, 'events') as Record<string, unknown>[];
+  if (!events.length) events = dataArr(data, 'items') as Record<string, unknown>[];
+  if (!events.length) events = dataArr(data, 'entries') as Record<string, unknown>[];
+  if (!events.length) events = dataArr(data, 'steps') as Record<string, unknown>[];
+  if (!events.length) events = dataArr(data, 'milestones') as Record<string, unknown>[];
   if (!events.length) return '<p class="canvas-muted">No timeline events</p>';
 
   const items = events

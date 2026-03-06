@@ -955,6 +955,48 @@
   position: relative;
 }
 
+/* ─── Feedback Buttons (thumbs up/down) ─── */
+.chat-feedback-row {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.message:hover .chat-feedback-row {
+  opacity: 1;
+}
+.chat-fb-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.chat-fb-btn .ms {
+  font-size: 16px;
+}
+.chat-fb-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+.chat-fb-btn:active {
+  transform: scale(0.9);
+}
+.chat-fb-done {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 26px;
+}
+
 /* ─── Voice Settings ─── */
 .toggle-label {
   display: flex;

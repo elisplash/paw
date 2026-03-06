@@ -36,6 +36,29 @@ impl StdioTransport {
         args: &[String],
         env: &HashMap<String, String>,
     ) -> Result<Self, String> {
+        // §Security: Validate command before spawning — block path-traversal
+        // and temp/writable directory patterns that could be attacker-controlled.
+        let cmd_path = std::path::Path::new(command);
+        if command.contains("..") {
+            return Err(format!(
+                "MCP server command rejected: path traversal detected in '{}'",
+                command
+            ));
+        }
+        const UNSAFE_PREFIXES: &[&str] = &["/tmp/", "/var/tmp/", "/dev/shm/"];
+        let cmd_lower = command.to_lowercase();
+        for prefix in UNSAFE_PREFIXES {
+            if cmd_lower.starts_with(prefix) {
+                return Err(format!(
+                    "MCP server command rejected: executable in unsafe directory '{}'",
+                    command
+                ));
+            }
+        }
+        if cmd_path.is_absolute() && !cmd_path.exists() {
+            return Err(format!("MCP server command not found: '{}'", command));
+        }
+
         info!("[mcp] Spawning: {} {}", command, args.join(" "));
 
         let mut cmd = Command::new(command);

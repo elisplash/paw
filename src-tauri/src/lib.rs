@@ -313,6 +313,7 @@ pub fn run() {
             commands::memory::engine_working_memory_save,
             commands::memory::engine_working_memory_restore,
             commands::memory::engine_memory_purge_user,
+            commands::memory::engine_message_feedback,
             // ── Skill Vault ──
             commands::skills::engine_skills_list,
             commands::skills::engine_skill_set_enabled,

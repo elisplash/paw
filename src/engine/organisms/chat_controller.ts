@@ -194,6 +194,14 @@ function buildRenderOpts(): RenderOpts {
       speakMessage(text, btn, _ttsState);
       syncTtsToAppState();
     },
+    onFeedback: (messageId: string, helpful: boolean) => {
+      const sessionId = appState.currentSessionKey;
+      const agentId = agent?.id ?? 'default';
+      if (!sessionId) return;
+      pawEngine
+        .messageFeedback(sessionId, messageId, agentId, helpful)
+        .catch((e) => console.warn('[chat] Feedback error:', e));
+    },
     isStreaming: appState.activeStreams.has(appState.currentSessionKey ?? ''),
   };
 }

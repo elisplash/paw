@@ -17,6 +17,8 @@ export interface RenderOpts {
   agentAvatar?: string;
   onRetry?: (content: string) => void;
   onSpeak?: (text: string, btn: HTMLButtonElement) => void;
+  /** Feedback callback: called when user clicks thumbs up/down on a message */
+  onFeedback?: (messageId: string, helpful: boolean) => void;
   /** For multi-agent: map of agentId → display info */
   agentMap?: Map<string, { name: string; avatar?: string; color?: string }>;
   /** Whether to show retry button (e.g. disable during streaming) */
@@ -232,6 +234,46 @@ export function renderSingleMessage(
     const msgContent = msg.content;
     ttsBtn.addEventListener('click', () => opts.onSpeak!(msgContent, ttsBtn));
     div.appendChild(ttsBtn);
+  }
+
+  // Feedback buttons (thumbs up / down)
+  if (
+    msg.role === 'assistant' &&
+    msg.content &&
+    !msg.content.startsWith('Error:') &&
+    opts.onFeedback &&
+    !opts.isStreaming
+  ) {
+    const feedbackRow = document.createElement('div');
+    feedbackRow.className = 'chat-feedback-row';
+
+    const msgId = msg.id ?? `msg-${index}`;
+
+    const thumbUp = document.createElement('button');
+    thumbUp.className = 'chat-fb-btn';
+    thumbUp.title = 'Helpful';
+    thumbUp.innerHTML = `<span class="ms">thumb_up</span>`;
+    thumbUp.addEventListener('click', () => {
+      thumbUp.disabled = true;
+      thumbDown.disabled = true;
+      opts.onFeedback!(msgId, true);
+      feedbackRow.innerHTML = '<span class="chat-fb-done">👍 Thanks!</span>';
+    });
+
+    const thumbDown = document.createElement('button');
+    thumbDown.className = 'chat-fb-btn';
+    thumbDown.title = 'Not helpful';
+    thumbDown.innerHTML = `<span class="ms">thumb_down</span>`;
+    thumbDown.addEventListener('click', () => {
+      thumbUp.disabled = true;
+      thumbDown.disabled = true;
+      opts.onFeedback!(msgId, false);
+      feedbackRow.innerHTML = '<span class="chat-fb-done">👎 Noted</span>';
+    });
+
+    feedbackRow.appendChild(thumbUp);
+    feedbackRow.appendChild(thumbDown);
+    div.appendChild(feedbackRow);
   }
 
   return div;

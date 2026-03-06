@@ -285,8 +285,22 @@ impl ToolIndex {
 
         let mut success = 0;
         let mut failed = 0;
+        let mut consecutive_failures = 0;
+        let mut embed_disabled = false;
 
         for tool in all_tools {
+            // Circuit breaker: if we've had 3+ consecutive failures, skip embedding
+            // for the rest (the provider likely doesn't support embeddings at all).
+            if embed_disabled {
+                self.tools.push(IndexedTool {
+                    definition: tool.clone(),
+                    embedding: Vec::new(),
+                    domain: tool_domain(&tool.function.name).to_string(),
+                });
+                failed += 1;
+                continue;
+            }
+
             let text = format!("{}: {}", tool.function.name, tool.function.description);
             match client.embed(&text).await {
                 Ok(embedding) => {
@@ -296,12 +310,17 @@ impl ToolIndex {
                         domain: tool_domain(&tool.function.name).to_string(),
                     });
                     success += 1;
+                    consecutive_failures = 0;
                 }
                 Err(e) => {
-                    warn!(
-                        "[tool-index] Failed to embed tool '{}': {}",
-                        tool.function.name, e
-                    );
+                    let err_str = e.to_string();
+                    if failed == 0 {
+                        // Only log the full error once
+                        warn!(
+                            "[tool-index] Failed to embed tool '{}': {}",
+                            tool.function.name, err_str
+                        );
+                    }
                     // Still add the tool without embedding — it can be found by name or domain
                     self.tools.push(IndexedTool {
                         definition: tool.clone(),
@@ -309,6 +328,17 @@ impl ToolIndex {
                         domain: tool_domain(&tool.function.name).to_string(),
                     });
                     failed += 1;
+                    consecutive_failures += 1;
+
+                    // After 3 consecutive failures, give up embedding entirely
+                    if consecutive_failures >= 3 {
+                        warn!(
+                            "[tool-index] Embedding unavailable after {} consecutive failures — skipping remaining {} tools",
+                            consecutive_failures,
+                            all_tools.len() - success - failed
+                        );
+                        embed_disabled = true;
+                    }
                 }
             }
         }

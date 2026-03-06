@@ -22,7 +22,12 @@ fn get_sessions() -> &'static parking_lot::Mutex<HashMap<String, Session>> {
 /// Create a new session for `username`, returning the session ID cookie value.
 /// Also prunes expired sessions (> 24 h).
 pub(crate) fn create_session(username: String) -> String {
-    let session_id = uuid::Uuid::new_v4().to_string();
+    // §Security: Use 256-bit CSPRNG token instead of UUIDv4 (122-bit)
+    // for stronger session ID entropy.
+    use rand::RngCore;
+    let mut buf = [0u8; 32];
+    rand::rngs::OsRng.fill_bytes(&mut buf);
+    let session_id: String = buf.iter().map(|b| format!("{:02x}", b)).collect();
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()

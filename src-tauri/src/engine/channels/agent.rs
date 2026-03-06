@@ -637,7 +637,7 @@ pub async fn run_channel_agent(
 
         let auto_capture = engine_state.memory_config.lock().auto_capture;
         if auto_capture && !final_text.is_empty() {
-            let facts = memory::extract_memorable_facts(message, final_text);
+            let facts = memory::extract_memorable_facts_heuristic(message, final_text);
             if !facts.is_empty() {
                 let emb_client = engine_state.embedding_client();
                 for (content, category) in &facts {

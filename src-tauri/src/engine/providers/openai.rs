@@ -101,9 +101,22 @@ impl OpenAiProvider {
                 });
                 if let Some(tc) = &msg.tool_calls {
                     m["tool_calls"] = json!(tc);
+                    // Debug: log tool_call IDs being sent to API
+                    for t in tc {
+                        log::debug!(
+                            "[format-msg] assistant tool_call: id={:?} fn={}\",",
+                            t.id,
+                            t.function.name
+                        );
+                    }
                 }
                 if let Some(id) = &msg.tool_call_id {
                     m["tool_call_id"] = json!(id);
+                    log::debug!(
+                        "[format-msg] tool result: tool_call_id={:?} role={:?}",
+                        id,
+                        msg.role
+                    );
                 }
                 if let Some(name) = &msg.name {
                     m["name"] = json!(name);
@@ -161,6 +174,14 @@ impl OpenAiProvider {
                 let func = &tc["function"];
                 let function_name = func["name"].as_str().map(|s| s.to_string());
                 let arguments_delta = func["arguments"].as_str().map(|s| s.to_string());
+                if id.is_some() || function_name.is_some() {
+                    log::debug!(
+                        "[sse-debug] tool_call delta: index={} id={:?} name={:?}",
+                        index,
+                        id,
+                        function_name
+                    );
+                }
                 tool_calls.push(ToolCallDelta {
                     index,
                     id,
@@ -230,7 +251,7 @@ impl AiProvider for OpenAiProvider {
             if base.contains('?') {
                 format!("{}/chat/completions", base)
             } else {
-                format!("{}/chat/completions?api-version=2024-05-01-preview", base)
+                format!("{}/chat/completions?api-version=2025-03-01-preview", base)
             }
         } else {
             format!("{}/chat/completions", self.base_url.trim_end_matches('/'))
@@ -359,20 +380,28 @@ impl AiProvider for OpenAiProvider {
                 };
             }
 
-            // ── Read SSE stream (exact logic preserved) ──────────────────
+            // ── Read SSE stream ─────────────────────────────────────────
+            // Accumulate raw bytes to avoid `from_utf8_lossy` corrupting
+            // multi-byte UTF-8 sequences that span TCP packet boundaries.
             let mut chunks = Vec::new();
             let mut byte_stream = response.bytes_stream();
-            let mut buffer = String::new();
+            let mut raw_buf: Vec<u8> = Vec::new();
 
             while let Some(result) = byte_stream.next().await {
                 let bytes = result
                     .map_err(|e| ProviderError::Transport(format!("Stream read error: {}", e)))?;
-                buffer.push_str(&String::from_utf8_lossy(&bytes));
+                raw_buf.extend_from_slice(&bytes);
 
-                // Process complete SSE lines
-                while let Some(line_end) = buffer.find('\n') {
-                    let line = buffer[..line_end].trim().to_string();
-                    buffer = buffer[line_end + 1..].to_string();
+                // Process complete SSE lines (delimited by \n)
+                while let Some(pos) = raw_buf.iter().position(|&b| b == b'\n') {
+                    let line_bytes = raw_buf[..pos].to_vec();
+                    raw_buf = raw_buf[pos + 1..].to_vec();
+
+                    // Convert the complete line to UTF-8 (lossless for valid data)
+                    let line = match std::str::from_utf8(&line_bytes) {
+                        Ok(s) => s.trim().to_string(),
+                        Err(_) => continue, // skip malformed lines
+                    };
 
                     if let Some(data) = line.strip_prefix("data: ") {
                         if let Some(chunk) = Self::parse_sse_chunk(data) {

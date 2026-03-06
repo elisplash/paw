@@ -131,17 +131,26 @@ pub fn empty_response_fallback() -> String {
 /// active tool list so the model can use them in the next round.
 pub fn refresh_tool_rag(app_handle: &tauri::AppHandle, tools: &mut Vec<ToolDefinition>) {
     let Some(state) = app_handle.try_state::<crate::engine::state::EngineState>() else {
+        warn!("[tool-rag] No engine state available");
         return;
     };
 
     let loaded = state.loaded_tools.lock().clone();
+    info!("[tool-rag] refresh_tool_rag: loaded_tools={:?}", loaded);
     let current_names: std::collections::HashSet<String> =
         tools.iter().map(|t| t.function.name.clone()).collect();
     let new_names: Vec<String> = loaded.difference(&current_names).cloned().collect();
 
     if new_names.is_empty() {
+        info!(
+            "[tool-rag] No new tools to inject (loaded={}, current={})",
+            loaded.len(),
+            current_names.len()
+        );
         return;
     }
+
+    info!("[tool-rag] Will try to inject: {:?}", new_names);
 
     // Build the full tool registry to find the definitions
     let mut all_defs = ToolDefinition::builtins();

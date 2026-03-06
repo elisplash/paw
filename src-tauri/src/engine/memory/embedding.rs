@@ -18,6 +18,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// Track whether we've already tried to pull the model this session.
 static MODEL_PULL_ATTEMPTED: AtomicBool = AtomicBool::new(false);
 
+/// Circuit breaker: once the provider returns "OperationNotSupported" (e.g.
+/// Azure chat model that cannot embed), skip the provider fallback for the
+/// rest of this process to avoid spamming 400s.
+static PROVIDER_EMBED_UNSUPPORTED: AtomicBool = AtomicBool::new(false);
+
 /// Optional fallback to an OpenAI-compatible provider when Ollama is not running.
 #[derive(Clone, Debug)]
 pub struct OpenAiFallback {
@@ -135,12 +140,27 @@ impl EmbeddingClient {
 
         // ── Fallback: use the user's configured provider ─────────────
         if let Some(ref fb) = self.openai_fallback {
+            // Circuit breaker: skip if we already know this provider can't embed
+            if PROVIDER_EMBED_UNSUPPORTED.load(Ordering::Relaxed) {
+                return Err(format!(
+                    "Embedding failed. Ollama: {} | Same-URL OpenAI: {} | Provider fallback: skipped (model does not support embeddings)",
+                    ollama_err, openai_err
+                ).into());
+            }
             info!("[memory] Ollama unavailable, falling back to provider for embeddings");
             let fb_result = self.embed_openai_provider(text, fb).await;
             if let Ok(vec) = fb_result {
                 return Ok(vec);
             }
             let fb_err = fb_result.unwrap_err();
+            // Detect "OperationNotSupported" and flip the circuit breaker
+            let fb_err_str = fb_err.to_string();
+            if fb_err_str.contains("OperationNotSupported")
+                || fb_err_str.contains("does not work with the specified model")
+            {
+                warn!("[memory] Provider does not support embeddings — disabling provider fallback for this session");
+                PROVIDER_EMBED_UNSUPPORTED.store(true, Ordering::Relaxed);
+            }
             return Err(format!(
                 "Embedding failed. Ollama: {} | Same-URL OpenAI: {} | Provider fallback: {}",
                 ollama_err, openai_err, fb_err

@@ -70,6 +70,7 @@ pub const PURPOSE_LOCK_SCREEN: &str = "lock-screen";
 pub const PURPOSE_SKILL_VAULT: &str = "skill-vault";
 pub const PURPOSE_MEMORY_VAULT: &str = "memory-vault";
 pub const PURPOSE_N8N_ENCRYPTION: &str = "n8n-encryption";
+pub const PURPOSE_N8N_OWNER: &str = "n8n-owner";
 pub const PURPOSE_AUDIT_CHAIN: &str = "audit-chain";
 pub const PURPOSE_NOSTR_KEY: &str = "nostr-key";
 

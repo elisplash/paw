@@ -130,7 +130,34 @@ pub async fn get_n8n_version(base_url: &str, api_key: &str) -> Option<String> {
 
 /// The owner credentials used for headless n8n operation.
 const OWNER_EMAIL: &str = "agent@paw.local";
-const OWNER_PASSWORD: &str = "***REMOVED***";
+
+/// Get or generate the n8n owner password.
+///
+/// Uses `OsRng` (CSPRNG) to generate 32 bytes of entropy, hex-encoded to a
+/// 64-char password.  The raw bytes are wrapped in `Zeroizing` so they are
+/// securely wiped from memory after encoding.  The password is stored in the
+/// OS keychain via the unified vault — never hardcoded, unique per install.
+fn owner_password() -> String {
+    use crate::engine::key_vault;
+
+    if let Some(pw) = key_vault::get(key_vault::PURPOSE_N8N_OWNER) {
+        return pw;
+    }
+
+    // CSPRNG — 32 bytes = 256 bits of entropy, zeroized after use
+    use rand::rngs::OsRng;
+    use rand::RngCore;
+    use zeroize::Zeroizing;
+
+    let mut bytes = Zeroizing::new([0u8; 32]);
+    OsRng.fill_bytes(bytes.as_mut());
+    let pw: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    // `bytes` is zeroized on drop here
+
+    key_vault::set(key_vault::PURPOSE_N8N_OWNER, &pw);
+    log::info!("[n8n] Generated new owner password (256-bit CSPRNG) and stored in vault");
+    pw
+}
 
 /// Set up the n8n owner account if one doesn't exist yet.
 ///
@@ -146,11 +173,12 @@ pub async fn setup_owner_if_needed(base_url: &str) -> Result<(), String> {
 
     let setup_url = format!("{}/rest/owner/setup", base_url.trim_end_matches('/'));
 
+    let password = owner_password();
     let body = serde_json::json!({
         "email": OWNER_EMAIL,
         "firstName": "Paw",
         "lastName": "Agent",
-        "password": OWNER_PASSWORD
+        "password": password
     });
 
     let resp = client
@@ -200,10 +228,11 @@ pub async fn enable_mcp_access(base_url: &str) -> Result<(), String> {
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
     // Sign in to get session
+    let password = owner_password();
     let login_url = format!("{}/rest/login", base);
     let login_body = serde_json::json!({
         "emailOrLdapLoginId": OWNER_EMAIL,
-        "password": OWNER_PASSWORD
+        "password": password
     });
 
     let login_resp = client
@@ -274,10 +303,11 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
     // Step 1: Sign in to get session cookie
+    let password = owner_password();
     let login_url = format!("{}/rest/login", base);
     let login_body = serde_json::json!({
         "emailOrLdapLoginId": OWNER_EMAIL,
-        "password": OWNER_PASSWORD
+        "password": password
     });
 
     let login_resp = client
@@ -327,8 +357,9 @@ pub async fn retrieve_mcp_token(base_url: &str) -> Result<String, String> {
         .map_err(|e| format!("Parse MCP API key response: {}", e))?;
 
     log::debug!(
-        "[n8n] MCP API key response: {}",
-        serde_json::to_string(&mcp_data).unwrap_or_default()
+        "[n8n] MCP API key response: status={}, has_data={}",
+        mcp_status,
+        mcp_data.get("data").is_some()
     );
 
     // Extract the JWT from data.apiKey
@@ -399,10 +430,11 @@ pub async fn session_client(base_url: &str) -> Result<reqwest::Client, String> {
         .build()
         .map_err(|e| format!("HTTP client error: {}", e))?;
 
+    let password = owner_password();
     let login_url = format!("{}/rest/login", base);
     let login_body = serde_json::json!({
         "emailOrLdapLoginId": OWNER_EMAIL,
-        "password": OWNER_PASSWORD
+        "password": password
     });
 
     let resp = client

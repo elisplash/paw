@@ -281,7 +281,7 @@ async fn handle_auth(
 
     let resp_body = json!({"ok": true}).to_string();
     let cookie = format!(
-        "paw_session={}; HttpOnly; SameSite=Strict; Path=/; Max-Age=86400",
+        "paw_session={}; HttpOnly; SameSite=Strict; Secure; Path=/; Max-Age=86400",
         session_id,
     );
     let response = format!(

@@ -31,5 +31,17 @@ fn main() {
         }
     }
 
+    // §Security: Warn at build time if the updater pubkey is still a placeholder.
+    // The app must not ship with auto-updates enabled but no real signing key.
+    if let Ok(conf) = std::fs::read_to_string("tauri.conf.json") {
+        if conf.contains("GENERATE_WITH_tauri_signer_generate_AND_REPLACE_THIS") {
+            println!(
+                "cargo:warning=SECURITY: tauri.conf.json still has the placeholder updater pubkey. \
+                 Run `tauri signer generate` and replace it before release builds."
+            );
+        }
+    }
+    println!("cargo:rerun-if-changed=tauri.conf.json");
+
     tauri_build::build()
 }

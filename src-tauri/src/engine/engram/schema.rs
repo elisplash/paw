@@ -455,4 +455,24 @@ const ENGRAM_SCHEMA: &str = "
         ON memory_audit_log(agent_id);
     CREATE INDEX IF NOT EXISTS idx_audit_time
         ON memory_audit_log(created_at);
+
+    -- ═══════════════════════════════════════════════════════════════
+    -- Message Feedback (Reinforcement Learning from Human Feedback)
+    -- Stores thumbs-up/down per message for trust score updates.
+    -- ═══════════════════════════════════════════════════════════════
+    CREATE TABLE IF NOT EXISTS message_feedback (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        agent_id TEXT NOT NULL DEFAULT '',
+        helpful INTEGER NOT NULL,  -- 1 = thumbs up, 0 = thumbs down
+        context TEXT,              -- optional user comment
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(message_id, agent_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_feedback_session
+        ON message_feedback(session_id);
+    CREATE INDEX IF NOT EXISTS idx_feedback_agent
+        ON message_feedback(agent_id);
 ";

@@ -150,6 +150,33 @@
 .mini-chat-streaming {
   opacity: 0.85;
 }
+
+/* Feedback buttons */
+.mini-chat-feedback {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.mini-chat-fb-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s;
+}
+.mini-chat-fb-btn:hover {
+  opacity: 1;
+  background: var(--bg-secondary);
+}
+.mini-chat-fb-done {
+  font-size: 11px;
+  color: var(--text-muted);
+}
 .mini-chat-dots {
   animation: miniChatDots 1s infinite;
   display: inline-block;

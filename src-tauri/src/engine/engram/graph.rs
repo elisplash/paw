@@ -305,6 +305,7 @@ pub async fn search(
 
                 vec_episodic = store.engram_search_episodic_vector(
                     &search_emb,
+                    client.model_name(),
                     scope,
                     search_limit,
                     config.similarity_threshold as f64,

@@ -329,7 +329,7 @@ async fn handle_request(
 
     // ── CORS preflight ──────────────────────────────────────────────
     if method == "OPTIONS" {
-        let resp = "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: POST, GET, OPTIONS\r\nAccess-Control-Allow-Headers: Authorization, Content-Type\r\nConnection: close\r\n\r\n";
+        let resp = "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: http://localhost:1420\r\nAccess-Control-Allow-Methods: POST, GET, OPTIONS\r\nAccess-Control-Allow-Headers: Authorization, Content-Type\r\nVary: Origin\r\nConnection: close\r\n\r\n";
         stream
             .write_all(resp.as_bytes())
             .await
@@ -544,7 +544,7 @@ async fn send_json(
     };
     let json = serde_json::to_string(body).map_err(|e| format!("Serialize error: {}", e))?;
     let resp = format!(
-        "HTTP/1.1 {} {}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: *\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        "HTTP/1.1 {} {}\r\nContent-Type: application/json\r\nAccess-Control-Allow-Origin: http://localhost:1420\r\nVary: Origin\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
         status, status_text, json.len(), json
     );
     stream
