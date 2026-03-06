@@ -3,7 +3,12 @@
 // Thin barrel: owns module state, re-exports public surface.
 
 import type { ServiceDefinition, ConnectedService } from './atoms';
-import { renderIntegrations, initMoleculesState, setNativeIntegrations } from './molecules';
+import {
+  renderIntegrations,
+  initMoleculesState,
+  setNativeIntegrations,
+  fetchOAuthAvailability,
+} from './molecules';
 import {
   updateIntegrationsHeroStats,
   renderHealthList,
@@ -124,6 +129,9 @@ export async function loadIntegrations(): Promise<void> {
 
     // ── Auto-detect Rust skill vault connections ──
     _autoDetectSkillConnections(nativeSkills);
+
+    // ── Check which OAuth services have real Client IDs ──
+    await fetchOAuthAvailability();
   }
   renderIntegrations();
 
