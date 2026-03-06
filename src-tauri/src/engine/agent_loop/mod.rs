@@ -329,7 +329,15 @@ pub async fn run_agent_turn(
             final_text = text_accum.clone();
 
             // Retry on malformed tool calls (Gemini JSON issues)
-            if helpers::handle_malformed_tool_call(&final_text, messages, round, max_rounds) {
+            // Skip retry when constrained decoding is active — the parse failure
+            // indicates a deeper issue, not a model formatting mistake.
+            let constraint_level =
+                crate::engine::constrained::detect_constraints(provider.kind(), model).level;
+            let constrained_active =
+                constraint_level != crate::engine::constrained::ConstraintLevel::None;
+            if !constrained_active
+                && helpers::handle_malformed_tool_call(&final_text, messages, round, max_rounds)
+            {
                 continue;
             }
 

@@ -16,6 +16,7 @@ pub mod types;
 pub mod channels;
 pub mod chat;
 pub mod compaction;
+pub mod constrained;
 pub mod dex;
 pub mod discord;
 pub mod engram;

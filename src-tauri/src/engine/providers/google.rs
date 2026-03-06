@@ -19,6 +19,9 @@ use serde_json::{json, Value};
 use std::sync::LazyLock;
 use zeroize::Zeroizing;
 
+// Import constrained decoding for function_calling_config
+use crate::engine::constrained;
+
 /// Circuit breaker shared across all Google/Gemini requests.
 static GOOGLE_CIRCUIT: LazyLock<CircuitBreaker> = LazyLock::new(|| CircuitBreaker::new(5, 60));
 
@@ -361,6 +364,10 @@ impl GoogleProvider {
         }
         if !tools.is_empty() {
             body["tools"] = Self::format_tools(tools);
+
+            // Apply function_calling_config for structured tool calling
+            let constraint_config = constrained::detect_constraints(ProviderKind::Google, model);
+            constrained::apply_google_tool_config(&mut body, &constraint_config);
         }
         if let Some(temp) = temperature {
             body["generationConfig"] = json!({"temperature": temp, "maxOutputTokens": 8192});
