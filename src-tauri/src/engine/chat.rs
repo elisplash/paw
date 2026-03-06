@@ -243,6 +243,14 @@ pub fn build_foreman_awareness() -> &'static str {
     include_str!("prompts/foreman.md")
 }
 
+/// Build the Action DAG (execute_plan) awareness block.
+///
+/// Loaded from `prompts/plan.md` at compile time. Instructs the model
+/// to use the execute_plan tool for parallelizable multi-step tasks.
+pub fn build_plan_awareness() -> &'static str {
+    include_str!("prompts/plan.md")
+}
+
 /// Build a lightweight agent roster showing known agents and their specialties.
 /// Injected into the system prompt so the agent can delegate tasks to the right agent
 /// without needing to call `agent_list` first.
@@ -316,6 +324,9 @@ pub fn compose_chat_system_prompt(
     // Foreman Protocol — always injected. This is the ONLY way external
     // services work. The model must always know about MCP delegation.
     parts.push(build_foreman_awareness().to_string());
+    // Action DAG planning awareness — always injected so the model knows
+    // it can use execute_plan for multi-step parallel tasks.
+    parts.push(build_plan_awareness().to_string());
     // Coding guidelines are heavy (~5K chars). Only inject when coding/dev skills
     // are actually enabled, to keep the system prompt lean for everyday tasks.
     if skill_instructions.contains("development") || skill_instructions.contains("## Code") {
@@ -388,10 +399,12 @@ pub fn compose_chat_system_prompt_budgeted(
     let sep = "\n\n---\n\n";
 
     // ── Priority 1 (always included): core platform identity ───────────
-    let mut parts: Vec<String> = Vec::new();
-    parts.push(build_platform_awareness());
-    parts.push(build_foreman_awareness().to_string());
-    parts.push(runtime_context);
+    let mut parts: Vec<String> = vec![
+        build_platform_awareness(),
+        build_foreman_awareness().to_string(),
+        build_plan_awareness().to_string(),
+        runtime_context,
+    ];
 
     // ── Priority 2: soul files ─────────────────────────────────────────
     // Always include the soul hint, soul content is already capped at 3K each

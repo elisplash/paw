@@ -123,7 +123,7 @@ pub async fn ensure_n8n_ready(app_handle: &tauri::AppHandle) -> EngineResult<N8n
             if health::probe_n8n(&url, &config.api_key).await {
                 // Ensure owner + MCP are set up (idempotent, handles external restarts)
                 let _ = health::setup_owner_if_needed(&url).await;
-                let _ = health::enable_mcp_access(&url).await;
+                let _ = health::enable_mcp_access(&url, &config.api_key).await;
                 return Ok(N8nEndpoint {
                     url,
                     api_key: config.api_key,
@@ -147,7 +147,7 @@ pub async fn ensure_n8n_ready(app_handle: &tauri::AppHandle) -> EngineResult<N8n
                     // This is idempotent and handles the case where a previous
                     // MCP setup failed silently or n8n was restarted externally.
                     let _ = health::setup_owner_if_needed(&url).await;
-                    let _ = health::enable_mcp_access(&url).await;
+                    let _ = health::enable_mcp_access(&url, &config.api_key).await;
                     return Ok(N8nEndpoint {
                         url,
                         api_key: config.api_key,

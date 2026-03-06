@@ -349,7 +349,7 @@ pub async fn start_n8n_process(app_handle: &tauri::AppHandle) -> EngineResult<N8
 
     // Enable MCP access with retry (disabled by default even after owner creation)
     for attempt in 1..=3 {
-        match super::health::enable_mcp_access(&url).await {
+        match super::health::enable_mcp_access(&url, &api_key).await {
             Ok(_) => break,
             Err(e) if attempt < 3 => {
                 log::info!(

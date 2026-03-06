@@ -35,7 +35,7 @@ mod memories;
 mod messages;
 mod positions;
 mod projects;
-mod schema;
+pub(crate) mod schema;
 #[allow(clippy::module_inception)]
 mod sessions;
 mod skill_outputs;

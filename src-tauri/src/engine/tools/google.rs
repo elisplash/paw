@@ -153,16 +153,18 @@ pub fn definitions() -> Vec<ToolDefinition> {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "google_calendar_create".into(),
-                description: "Create a Google Calendar event. Confirm with the user before creating. Returns the created event details.".into(),
+                description: "Create a Google Calendar event. Supports recurring events via RRULE. Confirm with the user before creating. Returns the created event details.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
                         "summary": { "type": "string", "description": "Event title" },
-                        "start": { "type": "string", "description": "Start time (RFC3339, e.g. '2025-03-05T10:00:00-05:00')" },
-                        "end": { "type": "string", "description": "End time (RFC3339)" },
+                        "start": { "type": "string", "description": "Start time (RFC3339, e.g. '2025-03-05T10:00:00-05:00') or date for all-day events ('2025-03-05')" },
+                        "end": { "type": "string", "description": "End time (RFC3339) or date for all-day events ('2025-03-06' — must be day AFTER start for all-day)" },
                         "description": { "type": "string", "description": "Event description (optional)" },
                         "location": { "type": "string", "description": "Event location (optional)" },
                         "attendees": { "type": "string", "description": "Comma-separated attendee email addresses (optional)" },
+                        "recurrence": { "type": "array", "items": { "type": "string" }, "description": "RRULE recurrence strings (e.g. ['RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR']). Optional." },
+                        "timezone": { "type": "string", "description": "IANA timezone (e.g. 'America/New_York'). Optional — defaults to UTC." },
                         "calendar_id": { "type": "string", "description": "Calendar ID (default: 'primary')" }
                     },
                     "required": ["summary", "start", "end"]
@@ -632,12 +634,30 @@ async fn calendar_create(args: &serde_json::Value) -> Result<String, String> {
     let summary = args["summary"].as_str().ok_or("'summary' is required")?;
     let start = args["start"].as_str().ok_or("'start' is required")?;
     let end = args["end"].as_str().ok_or("'end' is required")?;
+    let timezone = args["timezone"].as_str();
 
-    let mut event = serde_json::json!({
-        "summary": summary,
-        "start": { "dateTime": start },
-        "end": { "dateTime": end },
-    });
+    // Detect all-day events (date-only format: YYYY-MM-DD, exactly 10 chars)
+    let is_all_day = start.len() == 10 && start.chars().nth(4) == Some('-');
+
+    let mut event = if is_all_day {
+        serde_json::json!({
+            "summary": summary,
+            "start": { "date": start },
+            "end": { "date": end },
+        })
+    } else {
+        let mut start_obj = serde_json::json!({ "dateTime": start });
+        let mut end_obj = serde_json::json!({ "dateTime": end });
+        if let Some(tz) = timezone {
+            start_obj["timeZone"] = serde_json::json!(tz);
+            end_obj["timeZone"] = serde_json::json!(tz);
+        }
+        serde_json::json!({
+            "summary": summary,
+            "start": start_obj,
+            "end": end_obj,
+        })
+    };
 
     if let Some(desc) = args["description"].as_str() {
         event["description"] = serde_json::json!(desc);
@@ -651,6 +671,10 @@ async fn calendar_create(args: &serde_json::Value) -> Result<String, String> {
             .map(|e| serde_json::json!({ "email": e.trim() }))
             .collect();
         event["attendees"] = serde_json::json!(attendees);
+    }
+    // Recurrence rules (e.g. ["RRULE:FREQ=WEEKLY;BYDAY=MO,WE,FR"])
+    if let Some(recurrence) = args["recurrence"].as_array() {
+        event["recurrence"] = serde_json::json!(recurrence);
     }
 
     let url = format!(
@@ -1035,12 +1059,26 @@ async fn generic_api(args: &serde_json::Value) -> Result<String, String> {
 
     let builder = builder.bearer_auth(&token);
     let builder = if let Some(body) = args.get("body") {
-        if !body.is_null() {
+        if body.is_null() {
+            builder
+        } else if let Some(s) = body.as_str() {
+            // LLM sometimes sends body as a JSON string — parse it back to an object
+            match serde_json::from_str::<serde_json::Value>(s) {
+                Ok(parsed) => builder
+                    .header("Content-Type", "application/json")
+                    .json(&parsed),
+                Err(_) => {
+                    // Not valid JSON — send as raw string body
+                    builder
+                        .header("Content-Type", "application/json")
+                        .body(s.to_string())
+                }
+            }
+        } else {
+            // Already a proper JSON value (object/array) — send directly
             builder
                 .header("Content-Type", "application/json")
                 .json(body)
-        } else {
-            builder
         }
     } else {
         builder

@@ -547,6 +547,34 @@ pub(crate) fn run_migrations(conn: &Connection) -> EngineResult<()> {
     )
     .ok();
 
+    // ── Tool Registry: persistent embedding index (Phase 2) ─────────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS tool_embeddings (
+            tool_name TEXT PRIMARY KEY,
+            description TEXT NOT NULL DEFAULT '',
+            embedding BLOB NOT NULL DEFAULT x'',
+            domain TEXT NOT NULL DEFAULT 'other',
+            source TEXT NOT NULL DEFAULT 'builtin',
+            updated_at INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_tool_embeddings_domain ON tool_embeddings(domain);
+        CREATE INDEX IF NOT EXISTS idx_tool_embeddings_source ON tool_embeddings(source);",
+    )
+    .ok();
+
+    // ── Speculative Execution: tool transition patterns (Phase 4) ────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS tool_sequences (
+            from_tool TEXT NOT NULL,
+            to_tool TEXT NOT NULL,
+            count INTEGER NOT NULL DEFAULT 1,
+            last_seen INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (from_tool, to_tool)
+        );
+        CREATE INDEX IF NOT EXISTS idx_tool_sequences_from ON tool_sequences(from_tool);",
+    )
+    .ok();
+
     Ok(())
 }
 
@@ -594,5 +622,7 @@ mod tests {
         assert!(tables.contains(&"memories".to_string()));
         assert!(tables.contains(&"tasks".to_string()));
         assert!(tables.contains(&"engine_config".to_string()));
+        assert!(tables.contains(&"tool_embeddings".to_string()));
+        assert!(tables.contains(&"tool_sequences".to_string()));
     }
 }

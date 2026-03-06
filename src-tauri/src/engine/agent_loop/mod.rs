@@ -329,7 +329,15 @@ pub async fn run_agent_turn(
             final_text = text_accum.clone();
 
             // Retry on malformed tool calls (Gemini JSON issues)
-            if helpers::handle_malformed_tool_call(&final_text, messages, round, max_rounds) {
+            // Skip retry when constrained decoding is active — the parse failure
+            // indicates a deeper issue, not a model formatting mistake.
+            let constraint_level =
+                crate::engine::constrained::detect_constraints(provider.kind(), model).level;
+            let constrained_active =
+                constraint_level != crate::engine::constrained::ConstraintLevel::None;
+            if !constrained_active
+                && helpers::handle_malformed_tool_call(&final_text, messages, round, max_rounds)
+            {
                 continue;
             }
 
@@ -560,6 +568,102 @@ pub async fn run_agent_turn(
         //  T4 — DANGEROUS: Shell exec, financial trades, destructive ops → always prompt
         //
         let tc_count = tool_calls.len();
+
+        // ── Plan interception: if the model called execute_plan, hand off
+        // to the DAG executor instead of normal tool-by-tool execution ──
+        if tool_calls.len() == 1 && tool_calls[0].function.name == "execute_plan" {
+            let tc = &tool_calls[0];
+            info!("[engine] Intercepting execute_plan — routing to DAG executor");
+
+            let args_str = &tc.function.arguments;
+            let args: serde_json::Value =
+                match serde_json::from_str(if args_str.trim().is_empty() {
+                    "{}"
+                } else {
+                    args_str
+                }) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        let err_msg = format!(
+                            "Failed to parse execute_plan arguments: {}. \
+                         Please provide a valid JSON plan with 'nodes' array.",
+                            e
+                        );
+                        messages.push(Message {
+                            role: Role::Tool,
+                            content: MessageContent::Text(err_msg),
+                            tool_calls: None,
+                            tool_call_id: Some(tc.id.clone()),
+                            name: Some("execute_plan".to_string()),
+                        });
+                        continue;
+                    }
+                };
+
+            // Parse the plan
+            let plan = match crate::engine::plan::parse_plan(&args) {
+                Ok(p) => p,
+                Err(e) => {
+                    messages.push(Message {
+                        role: Role::Tool,
+                        content: MessageContent::Text(format!(
+                            "Plan parsing failed: {}. Fix the plan and retry, or call tools individually.",
+                            e
+                        )),
+                        tool_calls: None,
+                        tool_call_id: Some(tc.id.clone()),
+                        name: Some("execute_plan".to_string()),
+                    });
+                    continue;
+                }
+            };
+
+            // Validate against available tools
+            let validation_errors = crate::engine::plan::validate_plan(&plan, tools);
+            if !validation_errors.is_empty() {
+                let err_list: Vec<String> =
+                    validation_errors.iter().map(|e| e.to_string()).collect();
+                messages.push(Message {
+                    role: Role::Tool,
+                    content: MessageContent::Text(format!(
+                        "Plan validation failed:\n- {}\nFix these issues and retry, or call tools individually.",
+                        err_list.join("\n- ")
+                    )),
+                    tool_calls: None,
+                    tool_call_id: Some(tc.id.clone()),
+                    name: Some("execute_plan".to_string()),
+                });
+                continue;
+            }
+
+            // Execute the plan (parallel DAG execution)
+            let results =
+                crate::engine::plan::execute_plan(&plan, app_handle, agent_id, session_id, run_id)
+                    .await;
+
+            // Build results context for the model
+            let results_context = crate::engine::plan::build_results_context(&plan, &results);
+
+            // Track tool calls and timing for telemetry
+            let plan_node_count = plan.nodes.len() as u32;
+            tool_call_count += plan_node_count;
+
+            messages.push(Message {
+                role: Role::Tool,
+                content: MessageContent::Text(results_context),
+                tool_calls: None,
+                tool_call_id: Some(tc.id.clone()),
+                name: Some("execute_plan".to_string()),
+            });
+
+            // Continue the loop — model will synthesize results into a response
+            info!(
+                "[engine] Plan execution complete: {} nodes executed, feeding results back to model",
+                plan_node_count
+            );
+            continue;
+        }
+
         for tc in &tool_calls {
             info!("[engine] Tool call: {} id={}", tc.function.name, tc.id);
 
@@ -621,6 +725,7 @@ pub async fn run_agent_turn(
                 "trello_search",
                 "trello_get_labels",
                 "trello_get_members",
+                "execute_plan",
             ];
 
             // ─── T2: Reversible — local writes, can be undone (auto-approve) ───

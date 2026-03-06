@@ -582,15 +582,17 @@ async fn get_or_retrieve_mcp_token(app_handle: &tauri::AppHandle) -> Option<Stri
     };
 
     // Ensure owner exists and MCP access is enabled before retrieving token.
-    // These are idempotent — safe to call every time.
-    let _ = n8n_engine::health::setup_owner_if_needed(&url).await;
-    let _ = n8n_engine::health::enable_mcp_access(&url).await;
+    // NOTE: setup_owner_if_needed() and enable_mcp_access() are already called
+    // by the provisioning / reconnect code paths (process.rs, docker.rs, mod.rs)
+    // before we reach this function.  Calling them again here caused duplicate
+    // log lines and doubled the 401 failures when vault credentials mismatch.
+    // We skip them here and only retrieve the token.
 
     // Retry token retrieval up to 2 times.  On a fresh n8n start the
     // MCP module may take a moment to initialise after the health
     // endpoint responds.
     for attempt in 1..=2 {
-        match n8n_engine::health::retrieve_mcp_token(&url).await {
+        match n8n_engine::health::retrieve_mcp_token(&url, &config.api_key).await {
             Ok(token) => {
                 log::info!("[n8n] MCP token retrieved and cached");
                 // Save token to config for future use

@@ -56,7 +56,7 @@ pub const CORE_TOOLS: &[&str] = &[
 ];
 
 /// Map tool names to their skill domain for grouping.
-fn tool_domain(name: &str) -> &'static str {
+pub fn tool_domain(name: &str) -> &'static str {
     match name {
         // System & Files
         "exec" => "system",

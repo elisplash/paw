@@ -252,7 +252,7 @@ pub async fn provision_docker_container(
 
     // Enable MCP access with retry (disabled by default even after owner creation)
     for attempt in 1..=3 {
-        match super::health::enable_mcp_access(&url).await {
+        match super::health::enable_mcp_access(&url, &api_key).await {
             Ok(_) => break,
             Err(e) if attempt < 3 => {
                 log::info!(
@@ -387,7 +387,7 @@ pub async fn restart_existing_container(
         }
         // Ensure MCP access is enabled (with retry)
         for attempt in 1..=3 {
-            match super::health::enable_mcp_access(&url).await {
+            match super::health::enable_mcp_access(&url, &config.api_key).await {
                 Ok(_) => break,
                 Err(e) if attempt < 3 => {
                     log::info!(

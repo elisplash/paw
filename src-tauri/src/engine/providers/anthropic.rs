@@ -18,6 +18,9 @@ use serde_json::{json, Value};
 use std::sync::LazyLock;
 use zeroize::Zeroizing;
 
+// Import constrained decoding for explicit tool_choice
+use crate::engine::constrained;
+
 /// Circuit breaker shared across all Anthropic requests.
 static ANTHROPIC_CIRCUIT: LazyLock<CircuitBreaker> = LazyLock::new(|| CircuitBreaker::new(5, 60));
 
@@ -461,6 +464,10 @@ impl AnthropicProvider {
                 }
             }
             body["tools"] = json!(tool_list);
+
+            // Apply explicit tool_choice: {type: "auto"} for structured tool calling
+            let constraint_config = constrained::detect_constraints(ProviderKind::Anthropic, model);
+            constrained::apply_anthropic_tool_choice(&mut body, &constraint_config);
         }
         if let Some(temp) = temperature {
             body["temperature"] = json!(temp);
