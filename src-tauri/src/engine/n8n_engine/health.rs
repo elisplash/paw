@@ -131,27 +131,40 @@ pub async fn get_n8n_version(base_url: &str, api_key: &str) -> Option<String> {
 /// The owner credentials used for headless n8n operation.
 const OWNER_EMAIL: &str = "agent@paw.local";
 
-/// Get or generate the n8n owner password.
+/// Get or derive the n8n owner password.
 ///
-/// Uses `OsRng` (CSPRNG) to generate 32 bytes of entropy, hex-encoded to a
-/// 64-char password.  The raw bytes are wrapped in `Zeroizing` so they are
-/// securely wiped from memory after encoding.  The password is stored in the
-/// OS keychain via the unified vault — never hardcoded, unique per install.
+/// Derives the password deterministically from the n8n encryption key
+/// using HMAC-SHA256.  The encryption key is already stored in the vault
+/// and synced to n8n's config by the provisioning code, so the password
+/// is always reproducible — no separate vault entry that can drift.
 ///
-/// If the vault already has a password, it is returned as-is. A new one
-/// is only generated when the vault has no entry (fresh install or vault
-/// cleared). When the vault is cleared but n8n's database still has the
-/// old owner, the 401 recovery path in `enable_mcp_access()` /
-/// `retrieve_mcp_token()` handles the mismatch by resetting the owner
-/// in the database and recreating it with the new password.
+/// Falls back to a vault-backed random password only when the encryption
+/// key is not yet available (before first provisioning).
+///
+/// On 401 (password mismatch with existing n8n owner), the recovery path
+/// in `enable_mcp_access()` / `retrieve_mcp_token()` resets the owner
+/// in n8n's database and recreates it with the current derived password.
 fn owner_password() -> String {
     use crate::engine::key_vault;
 
+    // Primary: derive from the n8n encryption key via HMAC-SHA256
+    if let Some(enc_key) = key_vault::get(key_vault::PURPOSE_N8N_ENCRYPTION) {
+        use hmac::{Hmac, Mac};
+        use sha2::Sha256;
+
+        type HmacSha256 = Hmac<Sha256>;
+        let mut mac =
+            HmacSha256::new_from_slice(enc_key.as_bytes()).expect("HMAC accepts any key size");
+        mac.update(b"paw-n8n-owner-v1");
+        let result = mac.finalize().into_bytes();
+        return result.iter().map(|b| format!("{:02x}", b)).collect();
+    }
+
+    // Fallback: no encryption key yet (before first provisioning)
     if let Some(pw) = key_vault::get(key_vault::PURPOSE_N8N_OWNER) {
         return pw;
     }
 
-    // CSPRNG — 32 bytes = 256 bits of entropy, zeroized after use
     use rand::rngs::OsRng;
     use rand::RngCore;
     use zeroize::Zeroizing;
@@ -159,10 +172,9 @@ fn owner_password() -> String {
     let mut bytes = Zeroizing::new([0u8; 32]);
     OsRng.fill_bytes(bytes.as_mut());
     let pw: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
-    // `bytes` is zeroized on drop here
 
     key_vault::set(key_vault::PURPOSE_N8N_OWNER, &pw);
-    log::info!("[n8n] Generated new owner password (256-bit CSPRNG) and stored in vault");
+    log::info!("[n8n] Generated temporary owner password (pre-provisioning fallback)");
     pw
 }
 
