@@ -4367,6 +4367,7 @@ dependencies = [
  "rand 0.8.5",
  "regex",
  "reqwest 0.12.28",
+ "rmp-serde",
  "rusqlite",
  "rustls 0.23.36",
  "rustls-pemfile",

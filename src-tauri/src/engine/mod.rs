@@ -4,6 +4,7 @@
 
 pub mod agent_loop;
 pub mod audit;
+pub mod binary_ipc;
 pub mod http;
 pub mod paths;
 pub mod pricing;
