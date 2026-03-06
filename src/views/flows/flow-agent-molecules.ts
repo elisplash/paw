@@ -441,8 +441,8 @@ function appendMessageEl(msg: FlowAgentMessage): void {
   if (msg.role === 'assistant') {
     const prefix = document.createElement('span');
     prefix.className = 'message-prefix';
-    prefix.textContent = `${getAgentLabel()} ›`;
-    contentEl.appendChild(prefix);
+    prefix.textContent = getAgentLabel();
+    div.appendChild(prefix);
 
     const body = document.createElement('span');
     body.innerHTML = formatMarkdown(msg.content);
@@ -477,8 +477,8 @@ function showStreamingPlaceholder(): void {
 
   const prefix = document.createElement('span');
   prefix.className = 'message-prefix';
-  prefix.textContent = `${getAgentLabel()} ›`;
-  contentEl.appendChild(prefix);
+  prefix.textContent = getAgentLabel();
+  div.appendChild(prefix);
 
   const streamSpan = document.createElement('span');
   streamSpan.className = 'stream-text';
@@ -736,7 +736,7 @@ function renderStreamContent(): void {
     _streamingEl.innerHTML = '';
     const prefix = document.createElement('span');
     prefix.className = 'message-prefix';
-    prefix.textContent = `${getAgentLabel()} ›`;
+    prefix.textContent = getAgentLabel();
     _streamingEl.appendChild(prefix);
     textSpan = document.createElement('span');
     textSpan.className = 'stream-text';

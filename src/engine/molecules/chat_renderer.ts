@@ -153,24 +153,23 @@ export function renderSingleMessage(
   const contentEl = document.createElement('div');
   contentEl.className = 'message-content';
 
-  // Terminal-style prefix: YOU › or AGENT ›
-  // For multi-agent (squad) messages, use per-agent name and color from agentMap
-  const prefix = document.createElement('span');
-  prefix.className = 'message-prefix';
-  if (msg.role === 'user') {
-    prefix.textContent = 'YOU ›';
-  } else if (msg.role === 'assistant') {
-    const agentInfo = msg.agentId && opts.agentMap?.get(msg.agentId);
-    if (agentInfo) {
-      prefix.textContent = `${(agentInfo.name ?? msg.agentId).toUpperCase()} ›`;
-      if (agentInfo.color) prefix.style.color = agentInfo.color;
+  // Agent name prefix (only for assistant/system — user bubbles speak for themselves)
+  if (msg.role !== 'user') {
+    const prefix = document.createElement('span');
+    prefix.className = 'message-prefix';
+    if (msg.role === 'assistant') {
+      const agentInfo = msg.agentId && opts.agentMap?.get(msg.agentId);
+      if (agentInfo) {
+        prefix.textContent = agentInfo.name ?? msg.agentId;
+        if (agentInfo.color) prefix.style.color = agentInfo.color;
+      } else {
+        prefix.textContent = msg.agentName ?? opts.agentName ?? 'Agent';
+      }
     } else {
-      prefix.textContent = `${(msg.agentName ?? opts.agentName ?? 'AGENT').toUpperCase()} ›`;
+      prefix.textContent = 'System';
     }
-  } else {
-    prefix.textContent = 'SYS ›';
+    div.appendChild(prefix);
   }
-  contentEl.appendChild(prefix);
 
   const textNode = document.createElement('span');
   if (msg.role === 'assistant' || msg.role === 'system') {
@@ -331,11 +330,11 @@ export function showStreamingMessage(container: HTMLElement, agentName: string):
   const contentEl = document.createElement('div');
   contentEl.className = 'message-content';
 
-  // Terminal-style prefix for streaming
+  // Agent name prefix above content
   const prefix = document.createElement('span');
   prefix.className = 'message-prefix';
-  prefix.textContent = `${(agentName ?? 'AGENT').toUpperCase()} ›`;
-  contentEl.appendChild(prefix);
+  prefix.textContent = agentName ?? 'Agent';
+  div.appendChild(prefix);
 
   const streamSpan = document.createElement('span');
   streamSpan.innerHTML = tesseractPlaceholder(20, 'streaming');
