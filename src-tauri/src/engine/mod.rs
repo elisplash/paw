@@ -44,6 +44,7 @@ pub mod tasks;
 pub mod telegram;
 pub mod telemetry;
 pub mod tool_index;
+pub mod tool_registry;
 pub mod twitch;
 pub mod util;
 pub mod web;
