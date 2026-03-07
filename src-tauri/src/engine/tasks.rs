@@ -399,6 +399,7 @@ pub async fn execute_task(
         let sem_clone = sem.clone();
         let task_daily_tokens_clone = task_daily_tokens.clone();
         let task_daily_budget_clone = task_daily_budget;
+        let task_prompt_clone = task_prompt.clone();
 
         let effective_max_rounds = if is_recurring {
             max_rounds.min(CRON_MAX_TOOL_ROUNDS)
@@ -494,6 +495,51 @@ pub async fn execute_task(
                             ),
                             Err(e) => {
                                 warn!("[task] Failed to capture task result in Engram: {}", e)
+                            }
+                        }
+
+                        // §13 Skill Library: auto-extract reusable skill from successful task
+                        // Only attempt extraction if the task produced substantive output.
+                        if task_result_content.len() > 100 {
+                            let trigger = truncate_utf8(&task_prompt_clone, 200).to_string();
+                            let steps = vec![
+                                crate::atoms::engram_types::ProceduralStep {
+                                    description: format!(
+                                        "Execute task: {}",
+                                        truncate_utf8(&trigger, 100)
+                                    ),
+                                    tool_name: None,
+                                    args_pattern: None,
+                                    expected_outcome: Some(
+                                        truncate_utf8(&task_result_content, 200).to_string(),
+                                    ),
+                                },
+                                crate::atoms::engram_types::ProceduralStep {
+                                    description: truncate_utf8(&task_result_content, 500)
+                                        .to_string(),
+                                    tool_name: None,
+                                    args_pattern: None,
+                                    expected_outcome: None,
+                                },
+                            ];
+                            match crate::engine::engram::skill_library::auto_extract_skill(
+                                &temp_store,
+                                &trigger,
+                                &steps,
+                                &agent_id,
+                                &[], // tools validated at agent level
+                            ) {
+                                Ok(result) => {
+                                    if let Some(ref skill) = result.skill {
+                                        info!(
+                                            "[task] Skill auto-extracted from task '{}': {}",
+                                            task_id_clone, skill.id
+                                        );
+                                    }
+                                }
+                                Err(e) => {
+                                    log::debug!("[task] Skill extraction skipped: {}", e);
+                                }
                             }
                         }
                     }

@@ -849,6 +849,176 @@ impl Default for EngramConfig {
     }
 }
 
+impl EngramConfig {
+    /// Preset: conservative defaults — forgiving thresholds, longer retention.
+    pub fn preset_conservative() -> Self {
+        Self::default()
+    }
+
+    /// Preset: FadeMem paper parameters — optimized for storage efficiency
+    /// with proven quality preservation (F1=29.43, 82.1% critical fact retention
+    /// at 55% storage).
+    pub fn preset_fadem() -> Self {
+        Self {
+            dedup_threshold: 0.75,
+            consolidation_merge_threshold: 0.75,
+            consolidation_interval_secs: 300,
+            strength_half_life_days: 14.0,
+            gc_strength_threshold: 0.10,
+            search: MemorySearchConfig {
+                similarity_threshold: 0.2,
+                ..MemorySearchConfig::default()
+            },
+            ..Self::default()
+        }
+    }
+}
+
+/// Named configuration presets for the Engram memory system.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
+pub enum ConfigPreset {
+    /// Forgiving thresholds, longer retention. Default for most users.
+    #[default]
+    Conservative,
+    /// Exact parameters from the FadeMem research paper.
+    /// Optimized for storage efficiency with proven quality preservation.
+    FadeMemPaper,
+}
+
+impl ConfigPreset {
+    pub fn to_config(self) -> EngramConfig {
+        match self {
+            ConfigPreset::Conservative => EngramConfig::preset_conservative(),
+            ConfigPreset::FadeMemPaper => EngramConfig::preset_fadem(),
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 6b: Memory Conflict Types (§9.1)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Classification of the relationship between two conflicting memories.
+/// Used during consolidation and memory fusion to determine resolution strategy.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+pub enum ConflictType {
+    /// Both memories are true simultaneously — fuse into a unified entry.
+    Compatible,
+    /// Mutually exclusive claims — most recent wins, loser's confidence
+    /// transferred, `Contradicts` edge created.
+    Contradictory,
+    /// New memory is a superset of old — absorb old into new.
+    Subsumes,
+    /// Old memory is a superset of new — keep old, boost strength, discard new.
+    Subsumed,
+}
+
+impl std::fmt::Display for ConflictType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConflictType::Compatible => write!(f, "compatible"),
+            ConflictType::Contradictory => write!(f, "contradictory"),
+            ConflictType::Subsumes => write!(f, "subsumes"),
+            ConflictType::Subsumed => write!(f, "subsumed"),
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 6c: Retrieval Mode
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// How aggressively the retrieval pipeline searches for memories.
+/// Maps to the retrieval gate's 5-mode decision space.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub enum RetrievalMode {
+    /// No retrieval needed — trivial query.
+    Skip,
+    /// Standard hybrid search with normal budget.
+    #[default]
+    Retrieve,
+    /// Deep retrieval with expanded graph traversal and larger candidate pool.
+    DeepRetrieve,
+    /// Explicitly refused — quality gate blocked results.
+    Refuse,
+    /// Deferred — query is ambiguous, needs user disambiguation.
+    Defer,
+}
+
+impl std::fmt::Display for RetrievalMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RetrievalMode::Skip => write!(f, "skip"),
+            RetrievalMode::Retrieve => write!(f, "retrieve"),
+            RetrievalMode::DeepRetrieve => write!(f, "deep_retrieve"),
+            RetrievalMode::Refuse => write!(f, "refuse"),
+            RetrievalMode::Defer => write!(f, "defer"),
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 6d: Context Continuity — Checkpoint System (§24)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// A workspace checkpoint capturing cognitive state at a specific point.
+/// Enables checkpoint-and-continue across context boundaries.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkspaceCheckpoint {
+    /// Unique checkpoint identifier.
+    pub id: String,
+    /// Agent this checkpoint belongs to.
+    pub agent_id: String,
+    /// Session this checkpoint belongs to.
+    pub session_id: String,
+    /// Full message history up to the checkpoint.
+    pub conversation_snapshot: Vec<CheckpointMessage>,
+    /// Working memory slots at checkpoint time.
+    pub working_memory: WorkingMemorySnapshot,
+    /// File state — hashes of files read or modified.
+    pub file_hashes: HashMap<String, String>,
+    /// Pending work items / task progress.
+    pub task_progress: Vec<TaskCheckpoint>,
+    /// Key decisions made so far.
+    pub key_decisions: Vec<String>,
+    /// When the checkpoint was created.
+    pub created_at: String,
+}
+
+/// A message in a checkpoint snapshot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CheckpointMessage {
+    pub role: String,
+    pub content: String,
+    pub timestamp: String,
+}
+
+/// Task progress state within a checkpoint.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskCheckpoint {
+    pub task_id: String,
+    pub description: String,
+    pub status: TaskCheckpointStatus,
+}
+
+/// Status of a checkpointed task.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum TaskCheckpointStatus {
+    Pending,
+    InProgress,
+    Completed,
+    Failed,
+}
+
+/// How to continue after a context limit is reached.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum ContinuationMode {
+    /// Automatically summarize and continue (agent loops, tasks).
+    Automatic,
+    /// Present options to the user (interactive chat).
+    Manual,
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // SECTION 7: Audit Trail
 // ═══════════════════════════════════════════════════════════════════════════

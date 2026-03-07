@@ -483,7 +483,7 @@ pub async fn search(
         all_results = rerank_results(
             &all_results,
             query,
-            None, // TODO: pass query embedding for MMR diversity
+            raw_query_embedding.as_deref(),
             config.rerank_strategy,
             config.mmr_lambda,
         );

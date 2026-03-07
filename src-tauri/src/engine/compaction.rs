@@ -191,7 +191,41 @@ pub async fn compact_session(
         summary_text.len()
     );
 
-    // 4. Delete old messages from DB
+    // 4. §24 Checkpoint: snapshot before destructive compaction
+    {
+        let checkpoint_msgs: Vec<crate::atoms::engram_types::CheckpointMessage> = old_messages
+            .iter()
+            .map(|m| crate::atoms::engram_types::CheckpointMessage {
+                role: m.role.clone(),
+                content: m.content.clone(),
+                timestamp: m.created_at.clone(),
+            })
+            .collect();
+        let empty_wm = crate::atoms::engram_types::WorkingMemorySnapshot {
+            agent_id: String::new(),
+            slots: vec![],
+            momentum_embeddings: vec![],
+            saved_at: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+        };
+        let empty_hashes = std::collections::HashMap::new();
+        let req = engram::context_continuity::CaptureCheckpointRequest {
+            agent_id: "", // no specific agent at compaction time
+            session_id,
+            messages: &checkpoint_msgs,
+            working_memory: &empty_wm,
+            file_hashes: &empty_hashes,
+            tasks: &[],
+            key_decisions: &[],
+        };
+        if let Err(e) = engram::context_continuity::capture_checkpoint(store, &req) {
+            warn!(
+                "[compaction] Failed to capture pre-compaction checkpoint: {}",
+                e
+            );
+        }
+    }
+
+    // 4b. Delete old messages from DB
     {
         let conn = store.conn.lock();
         for msg in old_messages {

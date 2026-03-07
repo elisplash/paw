@@ -22,7 +22,8 @@
 //   - Quality-refused results → Refuse (CRAG Incorrect tier)
 
 use crate::atoms::engram_types::{
-    IntentClassification, MemoryScope, MemorySearchConfig, RetrievalQualityMetrics, RetrievedMemory,
+    IntentClassification, MemoryScope, MemorySearchConfig, RecallResult, RetrievalQualityMetrics,
+    RetrievedMemory,
 };
 use crate::atoms::error::EngineResult;
 use crate::engine::engram::cognitive_event;
@@ -601,6 +602,18 @@ pub async fn gated_search(
     )
     .await?;
 
+    // ── 4b. GraphRAG community-augmented retrieval (§12) ─────────────────
+    // For DeepRetrieve queries, augment results with community-scoped search.
+    // Three-stage pipeline inspired by Deep GraphRAG:
+    //   Stage 1: Inter-community filter — identify communities of top results
+    //   Stage 2: Intra-community retrieval — find additional members from those communities
+    //   Stage 3: Knowledge integration — merge, dedup, re-rank
+    let recall_result = if gate == GateDecision::DeepRetrieve {
+        community_augmented_search(store, recall_result, effective_budget)?
+    } else {
+        recall_result
+    };
+
     // ── 5. CRAG quality check ────────────────────────────────────────────
     // Classify result quality and take corrective action if needed.
     let quality_tier = if recall_result.memories.is_empty() {
@@ -941,6 +954,172 @@ fn decompose_query(query: &str) -> Vec<String> {
     // Cap to prevent runaway sub-query proliferation
     parts.truncate(MAX_DECOMPOSE_SUB_QUERIES);
     parts
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// GraphRAG Community-Augmented Retrieval (§12)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Three-stage Deep GraphRAG pipeline for DeepRetrieve queries.
+///
+/// Stage 1: Inter-community filter — identify communities of top results
+/// Stage 2: Intra-community retrieval — find additional members from those communities
+/// Stage 3: Knowledge integration — merge, dedup, re-rank
+///
+/// This augments the standard hybrid search with community-scoped retrieval,
+/// enabling global queries ("summarize everything about X") to surface related
+/// memories that may not share keywords or embedding similarity with the query
+/// but belong to the same knowledge cluster.
+fn community_augmented_search(
+    store: &SessionStore,
+    mut recall_result: RecallResult,
+    budget_tokens: usize,
+) -> EngineResult<RecallResult> {
+    use crate::atoms::engram_types::{CompressionLevel, MemoryType, TrustScore};
+    use crate::engine::engram::tokenizer::Tokenizer;
+
+    if recall_result.memories.is_empty() {
+        return Ok(recall_result);
+    }
+
+    // Stage 1: Inter-community filter — find community IDs of top results
+    let top_ids: Vec<&str> = recall_result
+        .memories
+        .iter()
+        .take(5)
+        .map(|m| m.memory_id.as_str())
+        .collect();
+
+    let community_ids: HashSet<String> = {
+        let conn = store.conn.lock();
+        let mut ids = HashSet::new();
+        for mem_id in &top_ids {
+            let ok = conn.query_row(
+                "SELECT community_id FROM episodic_memories WHERE id = ?1 AND community_id IS NOT NULL",
+                rusqlite::params![mem_id],
+                |row| row.get::<_, String>(0),
+            );
+            if let Ok(cid) = ok {
+                ids.insert(cid);
+            }
+        }
+        ids
+    };
+
+    if community_ids.is_empty() {
+        return Ok(recall_result);
+    }
+
+    // Stage 2: Intra-community retrieval — fetch members of those communities
+    let existing_ids: HashSet<&str> = recall_result
+        .memories
+        .iter()
+        .map(|m| m.memory_id.as_str())
+        .collect();
+
+    let mut community_memories: Vec<RetrievedMemory> = Vec::new();
+    {
+        let conn = store.conn.lock();
+        let tok = Tokenizer::heuristic();
+        for cid in &community_ids {
+            let mut stmt = conn.prepare(
+                "SELECT id, content_full, category, created_at, agent_id, importance,
+                        trust_source, trust_consistency, trust_recency, trust_user_feedback
+                 FROM episodic_memories
+                 WHERE community_id = ?1
+                 ORDER BY importance DESC, trust_recency DESC
+                 LIMIT 10",
+            )?;
+
+            let rows: Vec<_> = stmt
+                .query_map(rusqlite::params![cid], |row| {
+                    Ok((
+                        row.get::<_, String>(0)?,
+                        row.get::<_, String>(1)?,
+                        row.get::<_, String>(2)?,
+                        row.get::<_, String>(3)?,
+                        row.get::<_, String>(4)?,
+                        row.get::<_, i32>(5).unwrap_or(5),
+                        row.get::<_, f32>(6).unwrap_or(0.5),
+                        row.get::<_, f32>(7).unwrap_or(0.5),
+                        row.get::<_, f32>(8).unwrap_or(1.0),
+                        row.get::<_, f32>(9).unwrap_or(0.5),
+                    ))
+                })?
+                .filter_map(|r| r.ok())
+                .collect();
+
+            for (
+                id,
+                content,
+                category,
+                created_at,
+                agent_id,
+                importance,
+                source,
+                consistency,
+                recency,
+                _user_fb,
+            ) in rows
+            {
+                if existing_ids.contains(id.as_str()) {
+                    continue;
+                }
+
+                let trust = TrustScore {
+                    relevance: ((source + consistency) / 2.0) * 0.8, // slight discount for community-sourced
+                    accuracy: source,
+                    freshness: recency,
+                    utility: (importance as f32) / 10.0,
+                };
+
+                community_memories.push(RetrievedMemory {
+                    token_cost: tok.count_tokens(&content),
+                    content,
+                    compression_level: CompressionLevel::Full,
+                    memory_id: id,
+                    memory_type: MemoryType::Episodic,
+                    trust_score: trust,
+                    category,
+                    created_at,
+                    agent_id,
+                });
+            }
+        }
+    }
+
+    if community_memories.is_empty() {
+        return Ok(recall_result);
+    }
+
+    let community_count = community_memories.len();
+
+    // Stage 3: Knowledge integration — merge and budget-trim
+    recall_result.memories.extend(community_memories);
+    recall_result.memories.sort_by(|a, b| {
+        b.trust_score
+            .composite()
+            .partial_cmp(&a.trust_score.composite())
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    // Budget-trim: keep within token budget
+    let mut used_tokens = 0usize;
+    recall_result.memories.retain(|m| {
+        if budget_tokens > 0 && used_tokens + m.token_cost > budget_tokens {
+            return false;
+        }
+        used_tokens += m.token_cost;
+        true
+    });
+
+    info!(
+        "[gated_search] GraphRAG community augmentation: {} communities, {} additional memories",
+        community_ids.len(),
+        community_count,
+    );
+
+    Ok(recall_result)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

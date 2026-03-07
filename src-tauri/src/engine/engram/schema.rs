@@ -133,6 +133,21 @@ pub fn run_engram_migrations(conn: &Connection) -> EngineResult<()> {
         [],
     );
 
+    // ── Context Continuity: Checkpoint table (§24) ──────────────────────
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS workspace_checkpoints (
+            id TEXT PRIMARY KEY,
+            agent_id TEXT NOT NULL,
+            session_id TEXT NOT NULL,
+            checkpoint_json TEXT NOT NULL,
+            message_count INTEGER DEFAULT 0,
+            task_count INTEGER DEFAULT 0,
+            created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_checkpoints_session
+            ON workspace_checkpoints(session_id, created_at DESC);",
+    )?;
+
     // ── Anti-forensic padding (KDBX-equivalent vault-size quantization) ──
     // Inflate the database to the next PADDING_BUCKET boundary so the
     // file size only reveals a coarse bucket, not the exact row count.

@@ -1153,6 +1153,51 @@ pub async fn run_agent_turn(
         helpers::refresh_tool_rag(app_handle, tools);
 
         // ── 7. Mid-loop context truncation ─────────────────────────────
+        // §24 Checkpoint: snapshot conversation state before truncation destroys messages
+        if let Some(es) = app_handle.try_state::<crate::engine::state::EngineState>() {
+            let checkpoint_msgs: Vec<crate::atoms::engram_types::CheckpointMessage> = messages
+                .iter()
+                .map(|m| crate::atoms::engram_types::CheckpointMessage {
+                    role: format!("{:?}", m.role).to_lowercase(),
+                    content: match &m.content {
+                        MessageContent::Text(t) => t.clone(),
+                        MessageContent::Blocks(blocks) => blocks
+                            .iter()
+                            .filter_map(|b| match b {
+                                ContentBlock::Text { text } => Some(text.as_str()),
+                                _ => None,
+                            })
+                            .collect::<Vec<_>>()
+                            .join("\n"),
+                    },
+                    timestamp: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+                })
+                .collect();
+            let empty_wm = crate::atoms::engram_types::WorkingMemorySnapshot {
+                agent_id: agent_id.to_string(),
+                slots: vec![],
+                momentum_embeddings: vec![],
+                saved_at: chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            };
+            let empty_hashes = std::collections::HashMap::new();
+            let req = crate::engine::engram::context_continuity::CaptureCheckpointRequest {
+                agent_id,
+                session_id,
+                messages: &checkpoint_msgs,
+                working_memory: &empty_wm,
+                file_hashes: &empty_hashes,
+                tasks: &[],
+                key_decisions: &[],
+            };
+            if let Err(e) =
+                crate::engine::engram::context_continuity::capture_checkpoint(&es.store, &req)
+            {
+                warn!(
+                    "[engine] Failed to capture pre-truncation checkpoint: {}",
+                    e
+                );
+            }
+        }
         helpers::truncate_mid_loop(app_handle, messages);
 
         // ── 8. Loop: send tool results back to model ──────────────────

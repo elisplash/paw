@@ -33,6 +33,7 @@ pub mod cognitive_state;
 pub mod community_detection;
 pub mod consolidation;
 pub mod context_builder;
+pub mod context_continuity;
 pub mod dream_replay;
 pub mod emotional_memory;
 pub mod encryption;
@@ -49,6 +50,7 @@ pub mod reranking;
 pub mod retrieval_quality;
 pub mod schema;
 pub mod sensory_buffer;
+pub mod skill_library;
 pub mod temporal_search;
 pub mod tokenizer;
 pub mod working_memory;
@@ -62,6 +64,11 @@ pub use community_detection::{
 };
 pub use consolidation::{run_consolidation, ConsolidationReport, GapKind, KnowledgeGap};
 pub use context_builder::{AssembledContext, BudgetReport, ContextBuilder};
+pub use context_continuity::{
+    capture_checkpoint, ensure_checkpoint_table, list_checkpoints, restore_checkpoint,
+    select_continuation_mode, summarize_for_continuation, CaptureCheckpointRequest,
+    CheckpointSummary,
+};
 pub use dream_replay::run_replay;
 pub use emotional_memory::{
     affect_congruent_boost, affect_to_emotional_context, modulated_encoding_strength,
@@ -97,6 +104,10 @@ pub use retrieval_quality::{
     compute_ndcg,
 };
 pub use sensory_buffer::SensoryBuffer;
+pub use skill_library::{
+    auto_extract_skill, link_sub_skill, record_outcome, suggest_skills, ExtractionResult,
+    FailureAnalysis, SkillOutcome, SkillSuggestion,
+};
 pub use temporal_search::{cluster_temporal, recency_score, temporal_search};
 pub use tokenizer::Tokenizer;
 pub use working_memory::WorkingMemory;
