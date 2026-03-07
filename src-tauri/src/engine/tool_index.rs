@@ -124,6 +124,11 @@ pub fn tool_domain(name: &str) -> &'static str {
         // Google Workspace
         n if n.starts_with("google_") => "google",
 
+        // Microsoft 365
+        n if n.starts_with("outlook_") || n.starts_with("onedrive_") || n.starts_with("teams_")
+            || n.starts_with("ms_tasks_") || n.starts_with("onenote_")
+            || n == "microsoft_api" => "microsoft",
+
         // Integrations
         "rest_api_call" | "webhook_send" | "image_generate" => "integrations",
 
@@ -217,6 +222,11 @@ pub fn domain_summaries() -> Vec<(&'static str, &'static str, &'static str)> {
             "google",
             "mail",
             "Google Workspace — Gmail, Calendar, Drive, Sheets, Docs, Chat, Tasks, Contacts, Forms, YouTube, and Vertex AI. Use dedicated tools for Gmail/Calendar/Drive/Sheets/Docs, or google_api for Chat/Tasks/Contacts/Forms/YouTube/Vertex AI.",
+        ),
+        (
+            "microsoft",
+            "window",
+            "Microsoft 365 — Outlook Mail, Calendar, OneDrive, Teams, To Do Tasks, OneNote, Contacts, and SharePoint. Use dedicated tools or microsoft_api for the full Graph API.",
         ),
         ("messaging", "forum", "Slack and Telegram messaging"),
         (
@@ -686,6 +696,17 @@ mod tests {
         assert_eq!(tool_domain("google_calendar"), "google");
         assert_eq!(tool_domain("google_drive"), "google");
         assert_eq!(tool_domain("google_sheets"), "google");
+    }
+
+    #[test]
+    fn microsoft_prefix_tools() {
+        assert_eq!(tool_domain("outlook_mail_list"), "microsoft");
+        assert_eq!(tool_domain("outlook_calendar_list"), "microsoft");
+        assert_eq!(tool_domain("onedrive_list"), "microsoft");
+        assert_eq!(tool_domain("teams_list_teams"), "microsoft");
+        assert_eq!(tool_domain("ms_tasks_list"), "microsoft");
+        assert_eq!(tool_domain("onenote_list"), "microsoft");
+        assert_eq!(tool_domain("microsoft_api"), "microsoft");
     }
 
     #[test]

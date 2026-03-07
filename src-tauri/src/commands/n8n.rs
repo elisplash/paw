@@ -3587,17 +3587,17 @@ pub(crate) fn map_integration_to_skill(
             );
             "twilio"
         }
-        "microsoft-teams" => {
-            // MS Teams uses OAuth — store client credentials for now
+        "microsoft-teams" | "microsoft" | "microsoft-365" | "outlook" | "onedrive" => {
+            // MS 365 uses OAuth — store client credentials for now
             for (k, v) in creds {
                 mapped.insert(k.to_uppercase(), v.clone());
             }
-            mapped.insert("SERVICE_NAME".into(), "Microsoft Teams".into());
+            mapped.insert("SERVICE_NAME".into(), "Microsoft 365".into());
             mapped.insert(
                 "SERVICE_HINT".into(),
-                "Chat & channels via Microsoft Graph API.".into(),
+                "Outlook, Calendar, OneDrive, Teams, Tasks, OneNote via Microsoft Graph API.".into(),
             );
-            "microsoft_teams"
+            "microsoft_365"
         }
         // ── Google Workspace: tools read from vault directly, but we
         // map here so the skill auto-enables on OAuth connect ──
@@ -3645,7 +3645,8 @@ pub fn service_to_skill_id(service_id: &str) -> String {
         "twilio" => "twilio".into(),
         "shopify" => "shopify".into(),
         "pagerduty" => "pagerduty".into(),
-        "microsoft-teams" => "microsoft_teams".into(),
+        "microsoft-teams" => "microsoft_365".into(),
+        "outlook" | "onedrive" | "microsoft" | "microsoft-365" => "microsoft_365".into(),
         "google" | "google-workspace" => "google_workspace".into(),
         "gmail" | "google-drive" | "google-calendar" | "google-sheets" | "google-docs" => {
             "google_workspace".into()
@@ -3894,7 +3895,7 @@ mod tests {
             ("zendesk", "zendesk"),
             ("hubspot", "hubspot"),
             ("twilio", "twilio"),
-            ("microsoft-teams", "microsoft_teams"),
+            ("microsoft-teams", "microsoft_365"),
         ];
         for (service, expected_skill) in &expected {
             assert_eq!(
@@ -4069,6 +4070,9 @@ mod tests {
             "gmail",
             "google-drive",
             "google-calendar",
+            "microsoft-teams",
+            "microsoft",
+            "outlook",
         ];
         for service in &test_cases {
             let (map_skill, _) = map_integration_to_skill(service, &empty_creds);

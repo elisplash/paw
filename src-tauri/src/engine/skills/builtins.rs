@@ -193,6 +193,87 @@ RULES:
             default_enabled: false,
         },
         SkillDefinition {
+            id: "microsoft_365".into(),
+            name: "Microsoft 365".into(),
+            description: "Outlook Mail, Calendar, OneDrive, Teams, To Do Tasks, OneNote, Contacts, SharePoint, and Presence — full Microsoft 365 access via OAuth. Connect once, control everything.".into(),
+            icon: "🪟".into(),
+            category: SkillCategory::Vault,
+            tier: SkillTier::Integration,
+            required_credentials: vec![],
+            tool_names: vec![
+                "outlook_mail_list".into(), "outlook_mail_read".into(), "outlook_mail_send".into(),
+                "outlook_calendar_list".into(), "outlook_calendar_create".into(),
+                "onedrive_list".into(), "onedrive_read".into(), "onedrive_upload".into(),
+                "teams_list_teams".into(), "teams_send_message".into(),
+                "ms_tasks_list".into(), "ms_tasks_create".into(),
+                "onenote_list".into(), "microsoft_api".into(),
+            ],
+            required_binaries: vec![], required_env_vars: vec![],
+            install_hint: "Connect Microsoft 365 in the Integrations view — one OAuth login grants access to Outlook, Calendar, OneDrive, Teams, Tasks, OneNote, Contacts, and SharePoint. No API keys needed.".into(),
+            agent_instructions: r#"You have full Microsoft 365 access with 13 dedicated tools PLUS the microsoft_api escape hatch for the full Graph API.
+
+## Dedicated Tools (use these first)
+
+**Outlook Mail** (read + write):
+  outlook_mail_list — list/search inbox messages. Supports $search and OData $filter.
+  outlook_mail_read — read full email by ID (get IDs from outlook_mail_list)
+  outlook_mail_send — send email (to, subject, body, cc, bcc). Supports HTML.
+
+**Calendar** (read + write):
+  outlook_calendar_list — list events in a date range (defaults to today)
+  outlook_calendar_create — create event with attendees, location, timezone, all-day
+
+**OneDrive** (read + write):
+  onedrive_list — list/search files, browse folders
+  onedrive_read — read text file content or get metadata + download URL
+  onedrive_upload — upload a text file to a path
+
+**Teams** (read + write):
+  teams_list_teams — list joined teams and their channels
+  teams_send_message — send message to a channel (team_id + channel_id) or chat (chat_id)
+
+**To Do Tasks** (read + write):
+  ms_tasks_list — list task lists, or tasks within a list. Supports OData filter.
+  ms_tasks_create — create a task in a list (title, body, due_date, importance)
+
+**OneNote** (read):
+  onenote_list — list notebooks and sections
+
+## microsoft_api — Generic Escape Hatch (Full Graph API)
+  microsoft_api — make any authenticated call to graph.microsoft.com. Use this for endpoints without dedicated tools.
+
+## Additional Endpoints via microsoft_api
+
+Your OAuth token ALSO grants access to these. Use microsoft_api:
+
+**Contacts** (read):
+  GET https://graph.microsoft.com/v1.0/me/contacts — list contacts
+  GET https://graph.microsoft.com/v1.0/me/contacts/{id} — get contact details
+
+**People** (read):
+  GET https://graph.microsoft.com/v1.0/me/people — people relevant to user
+
+**Presence** (read):
+  GET https://graph.microsoft.com/v1.0/me/presence — user's presence status
+
+**SharePoint Sites** (read):
+  GET https://graph.microsoft.com/v1.0/sites?search={query} — search sites
+  GET https://graph.microsoft.com/v1.0/sites/{site-id}/lists — site lists
+
+**User Profile** (read):
+  GET https://graph.microsoft.com/v1.0/me — current user profile
+  GET https://graph.microsoft.com/v1.0/me/photo/$value — profile photo
+
+RULES:
+- Always CONFIRM with the user before sending emails, creating events, sending Teams messages, or modifying data
+- Get IDs from list tools before using read/update tools
+- For Outlook/Calendar/OneDrive/Teams/Tasks — use dedicated tools, NOT microsoft_api
+- Summarize email/document content rather than dumping raw data
+- NEVER use exec/curl to call Microsoft APIs — use your built-in tools or microsoft_api
+- Contacts are READ-ONLY. Do not attempt to create/modify contacts."#.into(),
+            default_enabled: false,
+        },
+        SkillDefinition {
             id: "discourse".into(),
             name: "Discourse".into(),
             description: "Full Discourse forum management — topics, posts, categories, users, search, tags, badges, groups, site settings, backups, and more".into(),

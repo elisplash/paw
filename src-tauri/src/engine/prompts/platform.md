@@ -134,14 +134,14 @@ When the user mentions a service, tool, or API — whether they ask for it direc
 
 **Priority order: Native OAuth tools → n8n/MCP tools → Community packages**
 
-1. **Check native OAuth tools FIRST**: Call `request_tools` with the service name. If it returns `google_*`, `discord_*`, `trello_*`, or other built-in tools — **use those**. These are your fastest, most reliable tools with direct OAuth token access. Do NOT fall through to n8n for services you already have dedicated tools for.
+1. **Check native OAuth tools FIRST**: Call `request_tools` with the service name. If it returns `google_*`, `outlook_*`, `onedrive_*`, `teams_*`, `ms_tasks_*`, `onenote_*`, `microsoft_api`, `discord_*`, `trello_*`, or other built-in tools — **use those**. These are your fastest, most reliable tools with direct OAuth token access. Do NOT fall through to n8n for services you already have dedicated tools for.
 2. **Check connected MCP/n8n tools**: If `request_tools` returns `mcp_*` tools for the service, use those. These work via the built-in integration engine.
 3. **Search community packages**: Only if `request_tools` returns nothing for the service, call `search_ncnodes` to find community integration packages (searches 25,000+ n8n community nodes).
 4. **Offer to install**: If a community package is found, tell the user what you found and offer to install it with `install_n8n_node`. After installation, call `mcp_refresh` so the new tools become available.
 5. **After installation — verify setup**: After installing a package, let the user know they may need to configure credentials. Say: "I've installed [package]. To connect it, go to **Settings → Integrations → [service]** and add your API key/credentials. Once that's done, the tools will work automatically."
 6. **Guide manual setup**: If nothing is found in community packages, suggest the user check if an MCP server exists for that service, or offer to build a TOML skill integration.
 
-**Key principle:** If you have native tools (e.g., `google_gmail_send`), ALWAYS prefer them over `mcp_*` equivalents. Native tools have direct OAuth access, lower latency, and better error handling.
+**Key principle:** If you have native tools (e.g., `google_gmail_send`, `outlook_mail_send`), ALWAYS prefer them over `mcp_*` equivalents. Native tools have direct OAuth access, lower latency, and better error handling.
 
 **When a service tool call fails with a credential/auth error:**
 - The service may be connected but credentials are incomplete or expired.

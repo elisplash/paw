@@ -28,6 +28,7 @@ pub mod filesystem;
 pub mod google;
 pub mod integrations;
 pub mod memory;
+pub mod microsoft;
 pub mod n8n;
 pub mod request_tools;
 pub mod skill_output;
@@ -155,6 +156,7 @@ impl ToolDefinition {
                 "solana_dex" => tools.extend(solana::definitions()),
                 "dex" => tools.extend(dex::definitions()),
                 "google_workspace" => tools.extend(google::definitions()),
+                "microsoft_365" => tools.extend(microsoft::definitions()),
                 _ => {}
             }
         }
@@ -254,7 +256,8 @@ pub async fn execute_tool(
         .or(dex::execute(name, &args, app_handle).await)
         .or(discord::execute(name, &args, app_handle).await)
         .or(discourse::execute(name, &args, app_handle).await)
-        .or(google::execute(name, &args, app_handle).await);
+        .or(google::execute(name, &args, app_handle).await)
+        .or(microsoft::execute(name, &args, app_handle).await);
 
     // Try MCP tools (prefixed with `mcp_`) if no built-in handled it.
     // When a worker_model is configured, delegate MCP calls to the local
