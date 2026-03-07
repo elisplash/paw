@@ -193,6 +193,9 @@ function injectChatBubble(opts: BubbleOptions): HTMLElement | null {
 
   // Session override dropdown items (not for dangerous tools)
   const sessionItems = isDangerous ? '' : `
+          <button class="approval-dropdown-item bubble-session-btn" data-minutes="480">
+            <span class="ms" style="font-size:14px">check_circle</span> Allow all for this session
+          </button>
           <div class="approval-dropdown-divider"></div>
           <div class="approval-dropdown-label">Auto-approve for…</div>
           <button class="approval-dropdown-item bubble-session-btn" data-minutes="15">
@@ -225,14 +228,15 @@ function injectChatBubble(opts: BubbleOptions): HTMLElement | null {
       <div class="approval-primary-group">
         <button class="btn btn-primary btn-sm bubble-allow-btn"${isCritical && requireTypeToConfirm ? ' disabled' : ''}>Continue</button>
         <button class="btn btn-primary btn-sm approval-dropdown-toggle bubble-more-btn" title="More options">
-          <span class="ms" style="font-size:12px">expand_more</span>
+          <span class="ms">keyboard_arrow_down</span>
         </button>
         <div class="approval-dropdown-menu" style="display:none">
+          ${sessionItems}
+          ${sessionItems ? '<div class="approval-dropdown-divider"></div>' : ''}
           <button class="approval-dropdown-item bubble-always-btn">
             <span class="ms" style="font-size:14px">verified</span> Always allow <strong>${escHtml(toolName)}</strong>
           </button>
           ${patternItemHtml}
-          ${sessionItems}
         </div>
       </div>
       <button class="btn btn-ghost btn-sm bubble-deny-btn">Skip</button>

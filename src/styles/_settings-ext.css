@@ -579,9 +579,13 @@
 .approval-dropdown-toggle {
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
-  border-left: 1px solid rgba(255,255,255,0.15);
-  padding: 4px 6px !important;
+  border-left: 1px solid rgba(255,255,255,0.18);
+  padding: 4px 8px !important;
   min-width: 0;
+}
+.approval-dropdown-toggle .ms {
+  font-size: 16px;
+  line-height: 1;
 }
 .approval-dropdown-menu {
   position: absolute;
@@ -593,8 +597,21 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-  min-width: 200px;
+  min-width: 240px;
   margin-top: 4px;
+}
+.approval-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.approval-dropdown-label {
+  padding: 4px 14px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
 }
 .approval-dropdown-item {
   display: flex;
