@@ -143,6 +143,40 @@ pub fn engine_remove_provider(
     Ok(())
 }
 
+/// List available models from a provider (e.g. Azure AI Foundry model discovery).
+#[tauri::command]
+pub async fn engine_list_provider_models(
+    state: State<'_, EngineState>,
+    provider_id: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    let provider_config = {
+        let cfg = state.config.lock();
+        cfg.providers
+            .iter()
+            .find(|p| p.id == provider_id)
+            .cloned()
+            .ok_or_else(|| format!("Provider '{}' not found", provider_id))?
+    };
+
+    let provider = crate::engine::providers::AnyProvider::from_config(&provider_config);
+    let models = provider
+        .list_models()
+        .await
+        .map_err(|e| format!("Failed to list models: {}", e))?;
+
+    Ok(models
+        .into_iter()
+        .map(|m| {
+            serde_json::json!({
+                "id": m.id,
+                "name": m.name,
+                "context_window": m.context_window,
+                "max_output": m.max_output,
+            })
+        })
+        .collect())
+}
+
 /// Check if the engine is configured and ready to use.
 #[tauri::command]
 pub fn engine_status(state: State<'_, EngineState>) -> Result<serde_json::Value, String> {

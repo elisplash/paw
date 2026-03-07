@@ -2,7 +2,7 @@
 // Handles: OpenAI, OpenRouter, Ollama, Azure OpenAI, and any OpenAI-compatible REST API.
 // Implements the AiProvider Golden Trait.
 
-use crate::atoms::traits::{AiProvider, ProviderError};
+use crate::atoms::traits::{AiProvider, ModelInfo, ProviderError};
 use crate::engine::types::{
     ContentBlock, Message, MessageContent, ProviderConfig, ProviderKind, StreamChunk, TokenUsage,
     ToolCallDelta, ToolDefinition,
@@ -396,13 +396,16 @@ impl AiProvider for OpenAiProvider {
                     .and_then(parse_retry_after);
                 let body_text = response.text().await.unwrap_or_default();
                 last_error = format!(
-                    "API error {}: {}",
+                    "API error {} at {}: {}",
                     status,
+                    url,
                     crate::engine::types::truncate_utf8(&body_text, 200)
                 );
                 error!(
-                    "[engine] OpenAI error {}: {}",
+                    "[engine] OpenAI error {} — url={} model={}: {}",
                     status,
+                    url,
+                    model,
                     crate::engine::types::truncate_utf8(&body_text, 500)
                 );
 
@@ -479,5 +482,89 @@ impl AiProvider for OpenAiProvider {
                 message: last_error,
             }),
         }
+    }
+
+    /// List available models from the provider.
+    /// For Azure AI Foundry this calls `GET /models?api-version=…` which
+    /// returns all deployed models in the resource.
+    /// For Ollama this calls `GET /api/tags`.
+    /// For other OpenAI-compatible APIs this calls `GET /models`.
+    async fn list_models(&self) -> Result<Vec<ModelInfo>, ProviderError> {
+        let url = if self.is_azure {
+            let base = self.base_url.trim_end_matches('/');
+            format!("{}?api-version=2025-03-01-preview", base)
+        } else if self.provider_kind == ProviderKind::Ollama {
+            // Ollama's model list endpoint is /api/tags, not /v1/models
+            let base = self.base_url.trim_end_matches('/');
+            let host = base.split("/v1").next().unwrap_or(base);
+            format!("{}/api/tags", host)
+        } else {
+            let base = self.base_url.trim_end_matches('/');
+            format!("{}/models", base)
+        };
+
+        info!("[engine] Listing models from {}", url);
+
+        let mut req = self.client.get(&url);
+        if self.is_azure {
+            req = req.header("api-key", self.api_key.as_str());
+        } else {
+            req = req.header("Authorization", format!("Bearer {}", self.api_key.as_str()));
+        }
+
+        let response = req
+            .send()
+            .await
+            .map_err(|e| ProviderError::Transport(format!("list_models request failed: {}", e)))?;
+
+        if !response.status().is_success() {
+            let status = response.status().as_u16();
+            let body = response.text().await.unwrap_or_default();
+            return Err(ProviderError::Api {
+                status,
+                message: format!("list_models error: {}", body),
+            });
+        }
+
+        let body: Value = response
+            .json()
+            .await
+            .map_err(|e| ProviderError::Transport(format!("list_models parse error: {}", e)))?;
+
+        let mut models = Vec::new();
+
+        // Azure AI Foundry returns { "data": [ { "id": "...", ... } ] }
+        // OpenAI returns the same format.
+        // Ollama returns { "models": [ { "name": "...", ... } ] }
+        let items = body["data"]
+            .as_array()
+            .or_else(|| body["models"].as_array());
+
+        if let Some(arr) = items {
+            for item in arr {
+                let id = item["id"]
+                    .as_str()
+                    .or_else(|| item["name"].as_str())
+                    .unwrap_or_default()
+                    .to_string();
+                if id.is_empty() {
+                    continue;
+                }
+                let name = item["name"]
+                    .as_str()
+                    .or_else(|| item["id"].as_str())
+                    .unwrap_or(&id)
+                    .to_string();
+                models.push(ModelInfo {
+                    id: id.clone(),
+                    name,
+                    context_window: item["context_window"].as_u64(),
+                    max_output: item["max_output"].as_u64(),
+                });
+            }
+        }
+
+        info!("[engine] Found {} models", models.len());
+        Ok(models)
     }
 }

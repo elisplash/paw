@@ -119,6 +119,12 @@ export const POPULAR_MODELS: Record<string, string[]> = {
     'DeepSeek-R1',
     'Phi-4',
     'Mistral-large-2411',
+    'grok-4-1-fast-reasoning',
+    'claude-sonnet-4-20250514',
+    'Meta-Llama-3.1-405B-Instruct',
+    'Codestral-2501',
+    'Cohere-command-r-plus',
+    'AI21-Jamba-1.5-Large',
   ],
   custom: ['deepseek-chat', 'deepseek-reasoner'],
 };

@@ -737,6 +737,57 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
     card.appendChild(chipsWrap);
   }
 
+  // "Discover Models" button — queries the provider for available models
+  {
+    const discoverWrap = document.createElement('div');
+    discoverWrap.style.cssText = 'margin-top:8px';
+    const discoverBtn = document.createElement('button');
+    discoverBtn.className = 'btn btn-ghost btn-sm';
+    discoverBtn.style.cssText =
+      'font-size:12px;display:inline-flex;align-items:center;gap:4px';
+    discoverBtn.innerHTML =
+      '<span class="material-symbols-rounded" style="font-size:16px">travel_explore</span> Discover Models';
+    discoverBtn.addEventListener('click', async () => {
+      discoverBtn.disabled = true;
+      discoverBtn.textContent = 'Discovering…';
+      try {
+        const models = await pawEngine.listProviderModels(provider.id);
+        if (!models.length) {
+          showToast('No models found — check URL and API key', 'error');
+          return;
+        }
+        // Show discovered models as clickable chips
+        const existing = discoverWrap.querySelector('.discovered-chips');
+        if (existing) existing.remove();
+        const chips = document.createElement('div');
+        chips.className = 'discovered-chips';
+        chips.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;margin-top:8px';
+        for (const m of models) {
+          const chip = document.createElement('button');
+          chip.className = 'btn btn-ghost btn-sm';
+          chip.style.cssText =
+            'font-size:11px;padding:2px 8px;border-radius:12px;border:1px solid var(--accent);color:var(--accent)';
+          chip.textContent = m.id;
+          chip.title = m.name + (m.context_window ? ` (${m.context_window} ctx)` : '');
+          chip.addEventListener('click', () => {
+            modelInp.value = m.id;
+          });
+          chips.appendChild(chip);
+        }
+        discoverWrap.appendChild(chips);
+        showToast(`Found ${models.length} model(s)`, 'success');
+      } catch (e) {
+        showToast(`Discovery failed: ${e instanceof Error ? e.message : e}`, 'error');
+      } finally {
+        discoverBtn.disabled = false;
+        discoverBtn.innerHTML =
+          '<span class="material-symbols-rounded" style="font-size:16px">travel_explore</span> Discover Models';
+      }
+    });
+    discoverWrap.appendChild(discoverBtn);
+    card.appendChild(discoverWrap);
+  }
+
   card.appendChild(
     saveReloadButtons(
       async () => {

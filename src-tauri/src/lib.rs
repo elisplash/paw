@@ -284,6 +284,7 @@ pub fn run() {
             commands::config::engine_set_config,
             commands::config::engine_upsert_provider,
             commands::config::engine_remove_provider,
+            commands::config::engine_list_provider_models,
             commands::config::engine_status,
             commands::config::engine_auto_setup,
             // ── Storage Paths ──

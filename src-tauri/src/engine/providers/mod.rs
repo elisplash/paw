@@ -11,7 +11,7 @@ pub use google::GoogleProvider;
 pub use openai::OpenAiProvider;
 
 use crate::atoms::error::EngineResult;
-use crate::atoms::traits::AiProvider;
+use crate::atoms::traits::{AiProvider, ModelInfo};
 use crate::engine::types::{Message, ProviderConfig, ProviderKind, StreamChunk, ToolDefinition};
 
 // ── Provider factory ───────────────────────────────────────────────────────────
@@ -64,5 +64,13 @@ impl AnyProvider {
     /// The ProviderKind discriminant of the underlying provider.
     pub fn kind(&self) -> ProviderKind {
         self.0.kind()
+    }
+
+    /// List available models from the provider.
+    pub async fn list_models(&self) -> EngineResult<Vec<ModelInfo>> {
+        self.0
+            .list_models()
+            .await
+            .map_err(|e| crate::atoms::error::EngineError::Other(e.to_string()))
     }
 }
