@@ -123,6 +123,8 @@ async function refreshModelLabel() {
       defaultLabel: 'Default Model',
       currentValue: currentVal && currentVal !== 'default' ? currentVal : 'default',
       showDefaultModel: defaultModel || undefined,
+      hideOllama: true,
+      hideProviderLabels: true,
     });
   } catch {
     /* leave as-is */

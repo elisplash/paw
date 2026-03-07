@@ -98,9 +98,19 @@ export function populateModelSelect(
     currentValue?: string;
     /** Whether to include the current default model info in the default label */
     showDefaultModel?: string;
+    /** Hide local-only providers (Ollama) from the list */
+    hideOllama?: boolean;
+    /** Hide provider group labels — show a flat list of model names */
+    hideProviderLabels?: boolean;
   } = {},
 ): void {
-  const { defaultLabel = '(use default)', currentValue = '', showDefaultModel } = options;
+  const {
+    defaultLabel = '(use default)',
+    currentValue = '',
+    showDefaultModel,
+    hideOllama = false,
+    hideProviderLabels = false,
+  } = options;
 
   // Save scroll position
   const prevValue = currentValue || select.value;
@@ -117,22 +127,32 @@ export function populateModelSelect(
     select.appendChild(defaultOpt);
   }
 
-  // Group models by provider — only show configured default_model
+  // List models — only show configured default_model, skip local-only providers
   const seen = new Set<string>();
   for (const provider of providers) {
     const kind = provider.kind || 'custom';
+
+    // Skip Ollama (local models) when requested
+    if (hideOllama && kind === 'ollama') continue;
 
     // Only show the provider's configured default model — no hardcoded guesses
     if (!provider.default_model || seen.has(provider.default_model)) continue;
     seen.add(provider.default_model);
 
-    const group = document.createElement('optgroup');
-    group.label = KIND_LABELS[kind] ?? `${kind}`;
-    const opt = document.createElement('option');
-    opt.value = provider.default_model;
-    opt.textContent = provider.default_model;
-    group.appendChild(opt);
-    select.appendChild(group);
+    if (hideProviderLabels) {
+      const opt = document.createElement('option');
+      opt.value = provider.default_model;
+      opt.textContent = provider.default_model;
+      select.appendChild(opt);
+    } else {
+      const group = document.createElement('optgroup');
+      group.label = KIND_LABELS[kind] ?? `${kind}`;
+      const opt = document.createElement('option');
+      opt.value = provider.default_model;
+      opt.textContent = provider.default_model;
+      group.appendChild(opt);
+      select.appendChild(group);
+    }
   }
 
   // If the previously selected value still exists, restore it

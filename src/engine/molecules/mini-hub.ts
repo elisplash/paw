@@ -457,6 +457,8 @@ export function createMiniHub(
       populateModelSelect(modelSelect, providers, {
         defaultLabel: 'Default',
         currentValue: currentModel || '',
+        hideOllama: true,
+        hideProviderLabels: true,
       });
     },
 
