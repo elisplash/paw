@@ -149,26 +149,27 @@ fn owner_password() -> String {
     use crate::engine::key_vault;
 
     if let Some(pw) = key_vault::get(key_vault::PURPOSE_N8N_OWNER) {
-        // Validate that the stored password meets n8n's requirements
-        // (at least 1 uppercase letter).  Older versions of this code
-        // generated lowercase-hex-only passwords that n8n rejects.
-        if pw.chars().any(|c| c.is_ascii_uppercase()) {
+        // Validate that the stored password meets n8n's requirements:
+        //   - at least 1 uppercase letter
+        //   - 8–64 characters long
+        // Older versions of this code generated passwords that failed these.
+        if pw.chars().any(|c| c.is_ascii_uppercase()) && pw.len() <= 64 {
             return pw;
         }
-        log::info!("[n8n] Existing vault password lacks uppercase — regenerating");
+        log::info!("[n8n] Existing vault password fails n8n policy — regenerating");
         key_vault::remove(key_vault::PURPOSE_N8N_OWNER);
     }
 
-    // CSPRNG — 32 bytes = 256 bits of entropy, zeroized after use
+    // CSPRNG — 24 bytes = 192 bits of entropy, zeroized after use
     use rand::rngs::OsRng;
     use rand::RngCore;
     use zeroize::Zeroizing;
 
-    let mut bytes = Zeroizing::new([0u8; 32]);
+    let mut bytes = Zeroizing::new([0u8; 24]);
     OsRng.fill_bytes(bytes.as_mut());
-    // Prefix ensures n8n password-policy compliance:
-    //   "Kx" → uppercase K + lowercase x
-    //   the hex body contributes digits (0-9) + lowercase (a-f)
+    // "Kx" prefix (2) + 48 hex chars (24 bytes) = 50 chars total.
+    // n8n requires 8–64 chars, ≥1 uppercase, ≥1 lowercase, ≥1 digit.
+    // K=uppercase, x=lowercase, hex gives digits+lowercase.
     let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
     let pw = format!("Kx{}", hex);
     // `bytes` is zeroized on drop here
