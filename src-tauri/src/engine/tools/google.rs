@@ -35,9 +35,17 @@ fn load_google_token() -> Result<String, String> {
     // Try 'google-workspace' first (OAuth service_id), fallback to legacy 'google'
     let encrypted = key_vault::get("oauth:google-workspace")
         .or_else(|| key_vault::get("oauth:google"))
-        .ok_or("Google is not connected. Ask the user to connect Google in the Integrations view → Google → Connect.")?;
-    let json =
-        decrypt_credential(&encrypted, &vault_key).map_err(|e| format!("Decrypt error: {e}"))?;
+        .ok_or("Google is not connected. The user needs to reconnect Google — click the Reconnect button below or go to Integrations → Google → Connect.")?;
+    let json = match decrypt_credential(&encrypted, &vault_key) {
+        Ok(j) => j,
+        Err(_) => {
+            // Token exists but can't be decrypted (vault key changed after rebuild).
+            // Clean up the broken entry.
+            key_vault::remove("oauth:google-workspace");
+            key_vault::remove("oauth:google");
+            return Err("Google OAuth token is corrupted (likely after an app update). The user needs to reconnect Google — click the Reconnect button below or go to Integrations → Google → Connect.".to_string());
+        }
+    };
 
     #[derive(serde::Deserialize)]
     struct Tokens {
@@ -66,8 +74,8 @@ async fn check_response(resp: reqwest::Response, api_name: &str) -> Result<Strin
         Ok(body)
     } else {
         let hint = match status.as_u16() {
-            401 => " (token expired — user should reconnect Google in Integrations)",
-            403 => " (insufficient permissions — user may need to reconnect with updated scopes)",
+            401 => " (Google OAuth token expired — user needs to reconnect Google)",
+            403 => " (insufficient Google permissions — user may need to reconnect Google with updated scopes)",
             429 => " (rate limited — wait a moment and retry)",
             _ => "",
         };

@@ -1013,6 +1013,38 @@
   line-height: 26px;
 }
 
+/* ─── OAuth Reconnect Action ─── */
+.oauth-reconnect-row {
+  display: flex;
+  gap: 8px;
+  padding: 8px 0 4px;
+  margin-top: 6px;
+}
+.oauth-reconnect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent, #6366f1);
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.oauth-reconnect-btn:hover {
+  background: color-mix(in srgb, var(--accent, #6366f1) 85%, #000);
+}
+.oauth-reconnect-btn:active {
+  transform: scale(0.97);
+}
+.oauth-reconnect-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
 /* ─── Voice Settings ─── */
 .toggle-label {
   display: flex;

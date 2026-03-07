@@ -105,6 +105,8 @@ export interface RenderOpts {
   onEdit?: (index: number, newContent: string) => void;
   /** Follow-up click callback: called when user clicks a suggested follow-up */
   onFollowUp?: (text: string) => void;
+  /** OAuth reconnect callback: called when user clicks a reconnect button for a service */
+  onOAuthReconnect?: (serviceId: string) => void;
   /** For multi-agent: map of agentId → display info */
   agentMap?: Map<string, { name: string; avatar?: string; color?: string }>;
   /** Whether to show retry button (e.g. disable during streaming) */
@@ -437,7 +439,68 @@ export function renderSingleMessage(
     div.appendChild(feedbackRow);
   }
 
+  // ── OAuth reconnect action button ──────────────────────────────────
+  // Detect when the agent's response mentions OAuth/token failures and
+  // inject an inline reconnect button so users can fix it with one click.
+  if (
+    msg.role === 'assistant' &&
+    !opts.isStreaming &&
+    opts.onOAuthReconnect
+  ) {
+    const detected = detectOAuthError(msg.content);
+    if (detected) {
+      const row = document.createElement('div');
+      row.className = 'oauth-reconnect-row';
+
+      const reconnectBtn = document.createElement('button');
+      reconnectBtn.className = 'oauth-reconnect-btn';
+      const displayName = detected.charAt(0).toUpperCase() + detected.slice(1);
+      reconnectBtn.innerHTML = `<span class="ms" style="font-size:16px">link</span> Reconnect ${escHtml(displayName)}`;
+      reconnectBtn.addEventListener('click', () => {
+        reconnectBtn.disabled = true;
+        reconnectBtn.innerHTML = '<span class="ms" style="font-size:16px;animation:spin 1s linear infinite">sync</span> Connecting…';
+        opts.onOAuthReconnect!(detected);
+      });
+
+      row.appendChild(reconnectBtn);
+      div.appendChild(row);
+    }
+  }
+
   return div;
+}
+
+// ── OAuth error detection ────────────────────────────────────────────────
+
+/** Known OAuth service name patterns and their canonical service IDs. */
+const OAUTH_SERVICE_PATTERNS: Array<[RegExp, string]> = [
+  [/\bgoogle|gmail|g\s?suite|google[\s-]?workspace|google[\s-]?sheets|google[\s-]?calendar|google[\s-]?drive|google[\s-]?docs/i, 'google-workspace'],
+  [/\bgithub/i, 'github'],
+  [/\bdiscord/i, 'discord'],
+  [/\bslack/i, 'slack'],
+  [/\bnotion/i, 'notion'],
+  [/\bdropbox/i, 'dropbox'],
+  [/\blinear/i, 'linear'],
+  [/\bfigma/i, 'figma'],
+  [/\breddit/i, 'reddit'],
+  [/\bspotify/i, 'spotify'],
+];
+
+/**
+ * Detect if an assistant message indicates an OAuth/token error for a
+ * specific service. Returns the canonical service ID, or null if no
+ * OAuth error was detected.
+ */
+function detectOAuthError(content: string): string | null {
+  // Must contain an error indicator
+  const errorIndicators = /\b(401|403|token\s*expired|reconnect|not\s*connected|unauthorized|insufficient\s*permission|credential|re-?authenticate)/i;
+  if (!errorIndicators.test(content)) return null;
+
+  // Match against known services
+  for (const [pattern, serviceId] of OAUTH_SERVICE_PATTERNS) {
+    if (pattern.test(content)) return serviceId;
+  }
+  return null;
 }
 
 // ── Full message list rendering ──────────────────────────────────────────

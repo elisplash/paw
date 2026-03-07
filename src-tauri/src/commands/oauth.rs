@@ -256,6 +256,9 @@ pub async fn engine_oauth_refresh(service_id: String) -> Result<OAuthResult, Str
 }
 
 /// Check OAuth token status for a service.
+/// Returns `connected: false` if tokens are missing OR undecryptable
+/// (e.g. vault key changed after a rebuild). This prevents the UI from
+/// showing a misleading "connected" state for broken tokens.
 #[tauri::command]
 pub async fn engine_oauth_status(service_id: String) -> Result<OAuthTokenStatus, String> {
     let tokens = match load_oauth_tokens(&service_id) {
@@ -269,7 +272,26 @@ pub async fn engine_oauth_status(service_id: String) -> Result<OAuthTokenStatus,
                 expires_at: None,
             });
         }
-        Err(e) => return Err(format!("Failed to check OAuth status: {}", e)),
+        Err(e) => {
+            // Decrypt/parse failure → tokens exist but are unusable
+            // (typically after a rebuild changes the vault key).
+            // Treat this as disconnected rather than erroring out,
+            // so the UI can show a reconnect prompt.
+            warn!(
+                "[oauth-cmd] Tokens for '{}' are corrupt/undecryptable: {} — treating as disconnected",
+                service_id, e
+            );
+            // Clean up the broken vault entry so a fresh connect works
+            let vault_purpose = format!("oauth:{}", service_id);
+            key_vault::remove(&vault_purpose);
+            return Ok(OAuthTokenStatus {
+                service_id,
+                connected: false,
+                expired: false,
+                scopes: vec![],
+                expires_at: None,
+            });
+        }
     };
 
     let now = std::time::SystemTime::now()
@@ -296,7 +318,43 @@ pub async fn engine_oauth_status(service_id: String) -> Result<OAuthTokenStatus,
     })
 }
 
+/// Validate all OAuth tokens and return their status.
+/// Called on startup to detect stale/broken tokens (e.g. after a rebuild
+/// changes the vault key). Broken tokens are cleaned up automatically.
+#[tauri::command]
+pub async fn engine_oauth_validate_all() -> Result<Vec<OAuthTokenStatus>, String> {
+    use crate::engine::oauth::oauth_service_ids;
+
+    let mut results = Vec::new();
+
+    for service_id in oauth_service_ids() {
+        let status = engine_oauth_status(service_id.to_string()).await?;
+        results.push(status);
+    }
+
+    // Also check common aliases/variants
+    for alt_id in &["google", "google-workspace"] {
+        if !results.iter().any(|r| r.service_id == *alt_id) {
+            let status = engine_oauth_status(alt_id.to_string()).await?;
+            if status.connected || status.expired {
+                results.push(status);
+            }
+        }
+    }
+
+    let connected_count = results.iter().filter(|r| r.connected).count();
+    let broken_count = results.iter().filter(|r| !r.connected).count();
+    info!(
+        "[oauth-cmd] Validated all OAuth tokens: {} connected, {} broken/missing",
+        connected_count, broken_count
+    );
+
+    Ok(results)
+}
+
 /// Revoke and delete stored OAuth tokens for a service.
+/// Also clears the legacy token name variant (e.g. "google" vs "google-workspace")
+/// so stale tokens don't survive under an alternate key.
 #[tauri::command]
 pub async fn engine_oauth_revoke(service_id: String) -> Result<(), String> {
     info!("[oauth-cmd] Revoking OAuth tokens for '{}'", service_id);
@@ -304,6 +362,19 @@ pub async fn engine_oauth_revoke(service_id: String) -> Result<(), String> {
     // Delete from unified vault
     let vault_purpose = format!("oauth:{}", service_id);
     key_vault::remove(&vault_purpose);
+
+    // Also remove legacy key variants (e.g. google ↔ google-workspace)
+    let legacy_keys: &[(&str, &str)] = &[
+        ("google-workspace", "google"),
+        ("google", "google-workspace"),
+    ];
+    for (from, to) in legacy_keys {
+        if service_id == *from {
+            let alt = format!("oauth:{}", to);
+            key_vault::remove(&alt);
+        }
+    }
+
     info!("[oauth-cmd] Deleted OAuth tokens for '{}'", service_id);
     Ok(())
 }
@@ -895,11 +966,15 @@ pub async fn oauth_token_refresh_loop(app_handle: tauri::AppHandle) {
                 Ok(Some(t)) => t,
                 Ok(None) => continue, // No tokens for this service
                 Err(e) => {
-                    log::debug!(
-                        "[oauth-refresh] Failed to load tokens for '{}': {}",
+                    // Tokens exist but can't be decrypted — clean them up
+                    log::warn!(
+                        "[oauth-refresh] Tokens for '{}' are corrupt/undecryptable: {} — removing",
                         service_id,
                         e
                     );
+                    let vault_purpose = format!("oauth:{}", service_id);
+                    key_vault::remove(&vault_purpose);
+                    failed += 1;
                     continue;
                 }
             };

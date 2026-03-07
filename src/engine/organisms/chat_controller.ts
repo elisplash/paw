@@ -204,6 +204,9 @@ function buildRenderOpts(): RenderOpts {
         .messageFeedback(sessionId, messageId, agentId, helpful)
         .catch((e) => console.warn('[chat] Feedback error:', e));
     },
+    onOAuthReconnect: (serviceId: string) => {
+      _handleOAuthReconnectFromChat(serviceId);
+    },
     isStreaming: appState.activeStreams.has(appState.currentSessionKey ?? ''),
   };
 }
@@ -909,6 +912,62 @@ export async function sendMessage(): Promise<void> {
     }
     const chatSendBtn = document.getElementById('chat-send') as HTMLButtonElement | null;
     if (chatSendBtn) chatSendBtn.disabled = false;
+  }
+}
+
+// ── OAuth reconnect from chat ────────────────────────────────────────────
+// When the agent detects an OAuth error and the chat renders a reconnect
+// button, this handler launches the OAuth PKCE flow and refreshes state.
+
+async function _handleOAuthReconnectFromChat(serviceId: string): Promise<void> {
+  const { invoke } = await import('@tauri-apps/api/core');
+  const { showToast } = await import('../../components/toast');
+
+  try {
+    // First revoke any stale tokens
+    try {
+      await invoke('engine_oauth_revoke', { serviceId });
+    } catch {
+      /* may not exist */
+    }
+
+    // Launch the OAuth PKCE flow
+    const result = await invoke<{
+      service_id: string;
+      success: boolean;
+      scopes_granted: string[];
+      error?: string;
+    }>('engine_oauth_start', { serviceId });
+
+    if (result.success) {
+      // Record as connected
+      try {
+        await invoke('engine_integrations_connect', {
+          serviceId,
+          toolCount: result.scopes_granted.length || 1,
+        });
+      } catch (e) {
+        console.warn('[oauth-chat] connect record:', e);
+      }
+
+      showToast(`Reconnected to ${serviceId}!`, 'success');
+
+      // Add a system message confirming the reconnection
+      appState.messages.push({
+        role: 'system',
+        content: `✅ ${serviceId} has been reconnected successfully. You can now use ${serviceId} tools again.`,
+        timestamp: new Date(),
+      });
+      renderMessages();
+    } else {
+      showToast(result.error ?? `Failed to reconnect ${serviceId}`, 'error');
+      // Re-enable the button by re-rendering
+      renderMessages();
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    showToast(`OAuth error: ${msg}`, 'error');
+    renderMessages();
   }
 }
 
