@@ -29,10 +29,22 @@ pub(crate) use crate::engine::http::{
 use crate::engine::http::{
     pinned_client, sign_and_log_request, update_last_audit_status, CircuitBreaker,
 };
-use std::sync::LazyLock;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, Mutex};
 
-/// Circuit breaker shared across all OpenAI-compatible requests.
-static OPENAI_CIRCUIT: LazyLock<CircuitBreaker> = LazyLock::new(|| CircuitBreaker::new(5, 60));
+/// Per-endpoint circuit breakers so failures from one provider/model
+/// (e.g. o3-pro on Azure) don't trip the breaker for unrelated providers
+/// (e.g. Claude on Azure).
+static OPENAI_CIRCUITS: LazyLock<Mutex<HashMap<String, Arc<CircuitBreaker>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Get (or create) the circuit breaker for a given base URL.
+fn get_circuit(base_url: &str) -> Arc<CircuitBreaker> {
+    let mut map = OPENAI_CIRCUITS.lock().unwrap();
+    map.entry(base_url.to_string())
+        .or_insert_with(|| Arc::new(CircuitBreaker::new(5, 60)))
+        .clone()
+}
 
 // ── OpenAI provider struct ─────────────────────────────────────────────────
 
@@ -45,6 +57,8 @@ pub struct OpenAiProvider {
     /// The concrete provider variant — needed for constrained decoding
     /// capability detection (e.g. Ollama vs OpenAI vs DeepSeek).
     provider_kind: ProviderKind,
+    /// Per-endpoint circuit breaker — isolates failures to a single provider.
+    circuit: Arc<CircuitBreaker>,
 }
 
 impl OpenAiProvider {
@@ -114,12 +128,14 @@ impl OpenAiProvider {
         }
 
         let is_azure = base_url.contains(".azure.com");
+        let circuit = get_circuit(&base_url);
         OpenAiProvider {
             client: pinned_client(),
             base_url,
             api_key: Zeroizing::new(config.api_key.clone()),
             is_azure,
             provider_kind: config.kind,
+            circuit,
         }
     }
 
@@ -366,7 +382,7 @@ impl AiProvider for OpenAiProvider {
         info!("[engine] OpenAI request to {} model={}", url, model);
 
         // Circuit breaker: reject immediately if too many recent failures
-        if let Err(msg) = OPENAI_CIRCUIT.check() {
+        if let Err(msg) = self.circuit.check() {
             return Err(ProviderError::Transport(msg));
         }
 
@@ -407,7 +423,7 @@ impl AiProvider for OpenAiProvider {
                     r
                 }
                 Err(e) => {
-                    OPENAI_CIRCUIT.record_failure();
+                    self.circuit.record_failure();
                     last_error = format!("HTTP request failed: {}", e);
                     last_status = 0;
                     if attempt < MAX_RETRIES {
@@ -441,7 +457,7 @@ impl AiProvider for OpenAiProvider {
                     crate::engine::types::truncate_utf8(&body_text, 500)
                 );
 
-                OPENAI_CIRCUIT.record_failure();
+                self.circuit.record_failure();
 
                 // Auth errors are never retried
                 if status == 401 || status == 403 {
@@ -491,14 +507,14 @@ impl AiProvider for OpenAiProvider {
                         if let Some(chunk) = Self::parse_sse_chunk(data) {
                             chunks.push(chunk);
                         } else if data == "[DONE]" {
-                            OPENAI_CIRCUIT.record_success();
+                            self.circuit.record_success();
                             return Ok(chunks);
                         }
                     }
                 }
             }
 
-            OPENAI_CIRCUIT.record_success();
+            self.circuit.record_success();
             return Ok(chunks);
         }
 
