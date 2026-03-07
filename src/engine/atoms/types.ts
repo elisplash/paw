@@ -288,6 +288,50 @@ export interface TomlSkillEntry {
   view_icon: string;
 }
 
+// ── FORGE (Certification & Skill Trees) ─────────────────────────────
+
+export interface ForgeCertSummary {
+  uncertified: number;
+  in_training: number;
+  certified: number;
+  expired: number;
+  failed: number;
+}
+
+export interface ForgeSkillRow {
+  memory_id: string;
+  trigger: string;
+  domain: string;
+  skill_tree_path: string;
+  certification_status: string;
+  success_rate: number;
+  certified_at: string | null;
+}
+
+export interface ForgeMetadataRow {
+  certification_status: string;
+  domain: string;
+  skill_tree_path: string;
+  curriculum_source: string | null;
+  certified_at: string | null;
+}
+
+export interface ForgeSkillTreeNode {
+  memory_id: string;
+  trigger: string;
+  domain: string;
+  skill_tree_path: string;
+  certification_status: string;
+  success_rate: number;
+  children: string[];
+}
+
+export interface ForgeDomainSummary {
+  domain: string;
+  total_skills: number;
+  certified_skills: number;
+}
+
 // ── Skill Outputs (Phase F.2 — Dashboard Widgets) ────────────────────
 
 /** A persisted skill output row for dashboard widget rendering. */

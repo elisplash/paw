@@ -346,6 +346,12 @@ pub fn run() {
             commands::skills::engine_pawzhub_install,
             // ── Skill Outputs (Phase F.2) ──
             commands::skills::engine_list_skill_outputs,
+            // ── FORGE (Certification & Skill Trees) ──
+            commands::forge::engine_forge_cert_summary,
+            commands::forge::engine_forge_list_certified,
+            commands::forge::engine_forge_metadata,
+            commands::forge::engine_forge_domain_tree,
+            commands::forge::engine_forge_list_domains,
             // ── Agent Canvas ──
             commands::canvas::engine_canvas_list_by_session,
             commands::canvas::engine_canvas_list_by_dashboard,

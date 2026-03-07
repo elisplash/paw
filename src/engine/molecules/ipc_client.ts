@@ -84,6 +84,11 @@ import type {
   DirectHttpResponse,
   DirectMcpRequest,
   DirectMcpResponse,
+  ForgeCertSummary,
+  ForgeSkillRow,
+  ForgeMetadataRow,
+  ForgeSkillTreeNode,
+  ForgeDomainSummary,
 } from '../atoms/types';
 
 export class PawEngineClient {
@@ -458,6 +463,31 @@ export class PawEngineClient {
 
   async tomlSkillUninstall(skillId: string): Promise<void> {
     return invoke('engine_toml_skill_uninstall', { skillId });
+  }
+
+  // ── FORGE (Certification & Skill Trees) ───────────────────────────
+
+  async forgeCertSummary(agentId: string): Promise<ForgeCertSummary> {
+    return invoke<ForgeCertSummary>('engine_forge_cert_summary', { agentId });
+  }
+
+  async forgeListCertified(agentId: string, domain?: string): Promise<ForgeSkillRow[]> {
+    return invoke<ForgeSkillRow[]>('engine_forge_list_certified', {
+      agentId,
+      domain: domain ?? null,
+    });
+  }
+
+  async forgeMetadata(memoryId: string): Promise<ForgeMetadataRow | null> {
+    return invoke<ForgeMetadataRow | null>('engine_forge_metadata', { memoryId });
+  }
+
+  async forgeDomainTree(agentId: string, domain: string): Promise<ForgeSkillTreeNode[]> {
+    return invoke<ForgeSkillTreeNode[]>('engine_forge_domain_tree', { agentId, domain });
+  }
+
+  async forgeListDomains(agentId: string): Promise<ForgeDomainSummary[]> {
+    return invoke<ForgeDomainSummary[]>('engine_forge_list_domains', { agentId });
   }
 
   // ── Skill Outputs (Phase F.2 — Dashboard Widgets) ────────────────────

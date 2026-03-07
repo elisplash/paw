@@ -17,6 +17,7 @@ pub mod dashboard_tabs;
 pub mod dashboards;
 pub mod export;
 pub mod flows;
+pub mod forge;
 pub mod guardrails;
 pub mod health_monitor;
 pub mod integrations;
