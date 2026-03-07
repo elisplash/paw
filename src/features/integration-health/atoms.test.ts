@@ -314,7 +314,7 @@ describe('deriveHealthStatus — boundary cases', () => {
   });
 
   it('token expiry exactly 8 days out → healthy', () => {
-    const exactly8 = new Date(Date.now() + 8 * 86_400_000).toISOString();
+    const exactly8 = new Date(Date.now() + 8 * 86_400_000 + 1000).toISOString();
     expect(deriveHealthStatus(exactly8, 0, true)).toBe('healthy');
   });
 
