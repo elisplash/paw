@@ -8,6 +8,8 @@
 
 **Every developer portal listed below is free.** You are registering an OAuth *app* (a client ID), not signing up for the paid product. The developer portal is always separate from the product's pricing. Do not skip any service.
 
+**For step-by-step instructions on each service, see the [Registration Guide](oauth-app-registration.md).** It tells you exactly what to click on every portal.
+
 ### What You Need
 
 | Field | Value |
