@@ -46,11 +46,29 @@ fn get_circuit(base_url: &str) -> Arc<CircuitBreaker> {
         .clone()
 }
 
-/// Returns true for OpenAI reasoning models that reject the `temperature`
-/// parameter (only the default value 1 is accepted).
+/// Returns true for OpenAI models that reject non-default `temperature`.
+/// Reasoning models (o1, o3, o4) only accept temperature=1.
+/// gpt-5.1+ models also reject temperature=0.0.
 fn is_reasoning_model(model: &str) -> bool {
     let m = model.to_lowercase();
-    m.starts_with("o1") || m.starts_with("o3") || m.starts_with("o4")
+    m.starts_with("o1") || m.starts_with("o3") || m.starts_with("o4") || m.starts_with("gpt-5")
+}
+
+/// Extract the tool name from an OpenAI "Invalid schema for function 'X'" error.
+///
+/// Returns `Some("X")` if the error body matches, `None` otherwise.
+/// Used for schema-error resilience: drop the offending tool and retry.
+fn extract_invalid_schema_tool(body: &str) -> Option<String> {
+    // Pattern: "Invalid schema for function 'tool_name'"
+    let marker = "Invalid schema for function '";
+    let start = body.find(marker)? + marker.len();
+    let end = body[start..].find('\'')?;
+    let name = &body[start..start + end];
+    if !name.is_empty() && name.len() < 200 {
+        Some(name.to_string())
+    } else {
+        None
+    }
 }
 
 // ── OpenAI provider struct ─────────────────────────────────────────────────
@@ -453,7 +471,35 @@ impl OpenAiProvider {
                     crate::engine::types::truncate_utf8(&body_text, 500)
                 );
 
-                self.circuit.record_failure();
+                // Don't trip circuit breaker on 400 (schema validation is deterministic)
+                if status != 400 {
+                    self.circuit.record_failure();
+                }
+
+                // Schema error resilience — remove the offending tool and retry
+                if status == 400 {
+                    if let Some(bad_tool) = extract_invalid_schema_tool(&body_text) {
+                        if let Some(tools_arr) =
+                            body.get_mut("tools").and_then(|t| t.as_array_mut())
+                        {
+                            let before = tools_arr.len();
+                            tools_arr.retain(|t| {
+                                t.get("name").and_then(|n| n.as_str()) != Some(bad_tool.as_str())
+                            });
+                            let after = tools_arr.len();
+                            if after < before {
+                                warn!(
+                                    "[engine] Responses API: removed tool '{}' due to schema error ({} → {} tools). Retrying.",
+                                    bad_tool, before, after
+                                );
+                                if after == 0 {
+                                    body.as_object_mut().map(|o| o.remove("tools"));
+                                }
+                                continue;
+                            }
+                        }
+                    }
+                }
 
                 if status == 401 || status == 403 {
                     return Err(ProviderError::Auth(last_error));
@@ -772,6 +818,10 @@ impl AiProvider for OpenAiProvider {
 
             // Apply strict mode for OpenAI Structured Outputs (gpt-4o, o1, o3, etc.)
             if let Some(arr) = formatted_tools.as_array_mut() {
+                // Normalize required arrays for ALL OpenAI-compatible APIs (incl. Azure)
+                constrained::normalize_tool_required(arr);
+                // Apply strict: true only to non-MCP tools (MCP schemas may use
+                // unsupported JSON Schema features like $schema, anyOf, default, etc.)
                 constrained::apply_openai_strict(arr, &constraint_config);
             }
 
@@ -886,7 +936,43 @@ impl AiProvider for OpenAiProvider {
                     crate::engine::types::truncate_utf8(&body_text, 500)
                 );
 
-                self.circuit.record_failure();
+                // Only count transient/server errors toward circuit breaker.
+                // 400 (bad request / schema validation) is deterministic — retrying won't help
+                // and shouldn't trip the breaker, which would block ALL subsequent requests.
+                if status != 400 {
+                    self.circuit.record_failure();
+                }
+
+                // ── Schema error resilience ─────────────────────────────
+                // If a tool schema fails validation, remove that tool and
+                // retry rather than blocking ALL communication.
+                if status == 400 {
+                    if let Some(bad_tool) = extract_invalid_schema_tool(&body_text) {
+                        if let Some(tools_arr) =
+                            body.get_mut("tools").and_then(|t| t.as_array_mut())
+                        {
+                            let before = tools_arr.len();
+                            tools_arr.retain(|t| {
+                                t.get("function")
+                                    .and_then(|f| f.get("name"))
+                                    .and_then(|n| n.as_str())
+                                    != Some(bad_tool.as_str())
+                            });
+                            let after = tools_arr.len();
+                            if after < before {
+                                warn!(
+                                    "[engine] Removed tool '{}' due to schema validation error ({} → {} tools). Retrying.",
+                                    bad_tool, before, after
+                                );
+                                // Remove tools key entirely if empty
+                                if after == 0 {
+                                    body.as_object_mut().map(|o| o.remove("tools"));
+                                }
+                                continue; // Retry with the offending tool removed
+                            }
+                        }
+                    }
+                }
 
                 // Auth errors are never retried
                 if status == 401 || status == 403 {

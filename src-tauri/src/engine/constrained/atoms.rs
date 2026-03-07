@@ -150,19 +150,34 @@ pub fn detect_constraints(provider: ProviderKind, model: &str) -> ConstraintConf
             add_additional_properties_false: false,
         },
 
-        // ── Grok, Mistral, Moonshot, Azure AI Foundry ──────────────
+        // ── Grok, Mistral, Moonshot ───────────────────────────────
         // OpenAI-compatible APIs that don't support strict mode.
-        // Foundry hosts heterogeneous models; safest default is no-strict.
-        ProviderKind::Grok
-        | ProviderKind::Mistral
-        | ProviderKind::Moonshot
-        | ProviderKind::AzureFoundry => ConstraintConfig {
+        ProviderKind::Grok | ProviderKind::Mistral | ProviderKind::Moonshot => ConstraintConfig {
             level: ConstraintLevel::Structured,
             strict_tools: false,
             json_format: false,
             explicit_tool_choice: false,
             add_additional_properties_false: false,
         },
+
+        // ── Azure AI Foundry ────────────────────────────────────────
+        // Hosts OpenAI models (gpt-*, o1, o3, o4) alongside others.
+        // OpenAI models on Azure enforce the same strict schema
+        // validation as the native OpenAI API.
+        ProviderKind::AzureFoundry => {
+            let supports_strict = supports_openai_strict(model);
+            ConstraintConfig {
+                level: if supports_strict {
+                    ConstraintLevel::Full
+                } else {
+                    ConstraintLevel::Structured
+                },
+                strict_tools: supports_strict,
+                json_format: false,
+                explicit_tool_choice: false,
+                add_additional_properties_false: supports_strict,
+            }
+        }
 
         // ── Custom ────────────────────────────────────────────────────
         // Unknown provider — no constraints, rely on parse + retry.
@@ -182,6 +197,7 @@ pub fn detect_constraints(provider: ProviderKind, model: &str) -> ConstraintConf
 /// - gpt-4o and variants (gpt-4o-mini, gpt-4o-2024-08-06+)
 /// - o1, o3, o4-mini (reasoning models)
 /// - gpt-4.1, gpt-4.1-mini, gpt-4.1-nano
+/// - gpt-5, gpt-5.1-chat, etc.
 ///
 /// NOT supported by:
 /// - gpt-3.5-turbo (legacy)
@@ -205,6 +221,11 @@ fn supports_openai_strict(model: &str) -> bool {
         return true;
     }
 
+    // GPT-5+ variants — support strict
+    if m.starts_with("gpt-5") {
+        return true;
+    }
+
     // Explicit legacy models that do NOT support strict
     if m.starts_with("gpt-3.5") || m == "gpt-4" || m.starts_with("gpt-4-turbo") {
         return false;
@@ -218,19 +239,38 @@ fn supports_openai_strict(model: &str) -> bool {
 
 /// Ensure a JSON schema has `additionalProperties: false` at every object level.
 ///
-/// OpenAI Structured Outputs requires this. Without it, the API rejects
-/// the schema with a validation error. This recursively patches object
-/// schemas that are missing the field.
+/// OpenAI (including Azure) rejects schemas with `additionalProperties: true`
+/// or `additionalProperties: {}` (object without `type`). This recursively
+/// forces `additionalProperties: false` on all object schemas — both adding
+/// it when missing AND overwriting non-false values.
+///
+/// Handles MCP schemas that may omit `type: "object"` but still have `properties`.
 pub fn enforce_additional_properties_false(schema: &mut serde_json::Value) {
     if let Some(obj) = schema.as_object_mut() {
-        // If this is an object type, add additionalProperties: false
-        if obj.get("type").and_then(|v| v.as_str()) == Some("object")
-            && !obj.contains_key("additionalProperties")
-        {
+        let is_object = obj.get("type").and_then(|v| v.as_str()) == Some("object")
+            || obj.contains_key("properties");
+
+        if is_object {
+            // Force additionalProperties: false (overwrite true, {}, or sub-schemas)
             obj.insert(
                 "additionalProperties".to_string(),
                 serde_json::Value::Bool(false),
             );
+            // Ensure type: "object" is present (OpenAI requires it)
+            if !obj.contains_key("type") {
+                obj.insert(
+                    "type".to_string(),
+                    serde_json::Value::String("object".into()),
+                );
+            }
+        } else if let Some(ap) = obj.get("additionalProperties") {
+            // additionalProperties exists without properties — if it's not false, force it
+            if ap != &serde_json::Value::Bool(false) {
+                obj.insert(
+                    "additionalProperties".to_string(),
+                    serde_json::Value::Bool(false),
+                );
+            }
         }
 
         // Recurse into properties
@@ -253,6 +293,57 @@ pub fn enforce_additional_properties_false(schema: &mut serde_json::Value) {
                 if let Some(arr_items) = arr.as_array_mut() {
                     for item in arr_items.iter_mut() {
                         enforce_additional_properties_false(item);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Ensure every object schema has a `required` array listing all property keys.
+///
+/// OpenAI strict mode rejects schemas where properties exist but aren't
+/// listed in `required`. This recursively patches all object schemas,
+/// adding any missing property keys to the `required` array.
+///
+/// Handles MCP schemas that may omit `type: "object"` but still have `properties`.
+pub fn enforce_required_from_properties(schema: &mut serde_json::Value) {
+    if let Some(obj) = schema.as_object_mut() {
+        // Act on any schema with properties (not just type: "object")
+        if let Some(props) = obj.get("properties").and_then(|p| p.as_object()) {
+            let all_keys: Vec<serde_json::Value> = props
+                .keys()
+                .map(|k| serde_json::Value::String(k.clone()))
+                .collect();
+            // OpenAI strict mode requires `required` to be present and list
+            // ALL property keys — even as an empty array for empty properties.
+            obj.insert("required".to_string(), serde_json::Value::Array(all_keys));
+        } else {
+            // No properties at all — remove any stale required array
+            // (MCP schemas may have required at levels without properties)
+            obj.remove("required");
+        }
+
+        // Recurse into properties
+        if let Some(props) = obj.get_mut("properties") {
+            if let Some(props_obj) = props.as_object_mut() {
+                for (_, v) in props_obj.iter_mut() {
+                    enforce_required_from_properties(v);
+                }
+            }
+        }
+
+        // Recurse into items (array schemas)
+        if let Some(items) = obj.get_mut("items") {
+            enforce_required_from_properties(items);
+        }
+
+        // Recurse into anyOf / oneOf / allOf
+        for key in &["anyOf", "oneOf", "allOf"] {
+            if let Some(arr) = obj.get_mut(*key) {
+                if let Some(arr_items) = arr.as_array_mut() {
+                    for item in arr_items.iter_mut() {
+                        enforce_required_from_properties(item);
                     }
                 }
             }
@@ -386,7 +477,7 @@ mod tests {
     }
 
     #[test]
-    fn test_enforce_preserves_existing() {
+    fn test_enforce_overwrites_non_false() {
         let mut schema = serde_json::json!({
             "type": "object",
             "additionalProperties": true,
@@ -395,7 +486,7 @@ mod tests {
 
         enforce_additional_properties_false(&mut schema);
 
-        // Should NOT overwrite an existing `additionalProperties: true`
-        assert_eq!(schema["additionalProperties"], serde_json::json!(true));
+        // Should overwrite any non-false additionalProperties
+        assert_eq!(schema["additionalProperties"], serde_json::json!(false));
     }
 }

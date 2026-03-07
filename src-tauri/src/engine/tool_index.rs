@@ -53,6 +53,18 @@ pub const CORE_TOOLS: &[&str] = &[
     "write_file",
     "list_directory",
     "request_tools",
+    // Canvas tools — always available since Canvas is a first-class UI panel
+    "canvas_push",
+    "canvas_update",
+    "canvas_remove",
+    "canvas_clear",
+    "canvas_save",
+    "canvas_load",
+    "canvas_list_dashboards",
+    "canvas_delete_dashboard",
+    "canvas_list_templates",
+    "canvas_from_template",
+    "canvas_create_template",
 ];
 
 /// Map tool names to their skill domain for grouping.

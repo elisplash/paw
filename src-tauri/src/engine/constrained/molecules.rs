@@ -6,8 +6,30 @@
 // provider's API endpoint.
 // ─────────────────────────────────────────────────────────────────────────────
 
-use super::atoms::{enforce_additional_properties_false, ConstraintConfig};
+use super::atoms::{
+    enforce_additional_properties_false, enforce_required_from_properties, ConstraintConfig,
+};
 use serde_json::Value;
+
+// ── OpenAI Schema Normalization ─────────────────────────────────────────────
+
+/// Normalize tool schemas for OpenAI-compatible APIs.
+///
+/// OpenAI (including Azure) rejects tool schemas where:
+/// 1. Properties exist but aren't all listed in `required`
+/// 2. `additionalProperties` is anything other than `false` (e.g. `true`, `{}`)
+///
+/// This must run for ALL OpenAI-compatible providers, regardless of strict mode.
+pub fn normalize_tool_required(tools: &mut [Value]) {
+    for tool in tools.iter_mut() {
+        if let Some(func) = tool.get_mut("function") {
+            if let Some(params) = func.get_mut("parameters") {
+                enforce_required_from_properties(params);
+                enforce_additional_properties_false(params);
+            }
+        }
+    }
+}
 
 // ── OpenAI Strict Mode ─────────────────────────────────────────────────────
 
@@ -26,6 +48,18 @@ pub fn apply_openai_strict(tools: &mut [Value], config: &ConstraintConfig) {
 
     for tool in tools.iter_mut() {
         if let Some(func) = tool.get_mut("function") {
+            // Skip strict mode for MCP tools — external schemas use JSON Schema
+            // features (anyOf, $schema, exclusiveMinimum, default, etc.) that
+            // OpenAI strict mode does not support.
+            let is_mcp = func
+                .get("name")
+                .and_then(|n| n.as_str())
+                .map(|n| n.starts_with("mcp_"))
+                .unwrap_or(false);
+            if is_mcp {
+                continue;
+            }
+
             // Set strict: true on the function object
             func["strict"] = Value::Bool(true);
 
@@ -33,6 +67,7 @@ pub fn apply_openai_strict(tools: &mut [Value], config: &ConstraintConfig) {
             if config.add_additional_properties_false {
                 if let Some(params) = func.get_mut("parameters") {
                     enforce_additional_properties_false(params);
+                    enforce_required_from_properties(params);
                 }
             }
         }
@@ -204,5 +239,175 @@ mod tests {
         // No tool_choice or tool_config should be added
         assert!(body.get("tool_choice").is_none());
         assert!(body.get("tool_config").is_none());
+    }
+
+    #[test]
+    fn test_normalize_tool_required_fills_missing() {
+        let mut tools = vec![json!({
+            "type": "function",
+            "function": {
+                "name": "list_directory",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "path": {"type": "string"},
+                        "recursive": {"type": "boolean"},
+                        "max_depth": {"type": "integer"}
+                    }
+                }
+            }
+        })];
+
+        normalize_tool_required(&mut tools);
+
+        let req = tools[0]["function"]["parameters"]["required"]
+            .as_array()
+            .unwrap();
+        assert_eq!(req.len(), 3);
+        assert!(req.contains(&json!("path")));
+        assert!(req.contains(&json!("recursive")));
+        assert!(req.contains(&json!("max_depth")));
+    }
+
+    #[test]
+    fn test_normalize_tool_required_completes_partial() {
+        let mut tools = vec![json!({
+            "type": "function",
+            "function": {
+                "name": "exec",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "command": {"type": "string"},
+                        "timeout": {"type": "integer"}
+                    },
+                    "required": ["command"]
+                }
+            }
+        })];
+
+        normalize_tool_required(&mut tools);
+
+        let req = tools[0]["function"]["parameters"]["required"]
+            .as_array()
+            .unwrap();
+        assert_eq!(req.len(), 2);
+        assert!(req.contains(&json!("command")));
+        assert!(req.contains(&json!("timeout")));
+    }
+
+    #[test]
+    fn test_normalize_tool_required_empty_properties() {
+        let mut tools = vec![json!({
+            "type": "function",
+            "function": {
+                "name": "no_args",
+                "parameters": {
+                    "type": "object",
+                    "properties": {}
+                }
+            }
+        })];
+
+        normalize_tool_required(&mut tools);
+
+        // No required field should be added for empty properties
+        assert!(tools[0]["function"]["parameters"].get("required").is_none());
+        // additionalProperties: false is added (object with properties key)
+        assert_eq!(
+            tools[0]["function"]["parameters"]["additionalProperties"],
+            json!(false)
+        );
+    }
+
+    #[test]
+    fn test_normalize_mcp_nested_anyof_without_type() {
+        // Simulates n8n MCP schema: deeply nested anyOf with objects
+        // missing "type": "object" and additionalProperties as sub-schemas
+        let mut tools = vec![json!({
+            "type": "function",
+            "function": {
+                "name": "mcp_n8n_execute_workflow",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "workflowId": {"type": "string"},
+                        "inputs": {
+                            "anyOf": [
+                                {"type": "string"},
+                                {
+                                    "properties": {
+                                        "formData": {
+                                            "additionalProperties": {
+                                                "properties": {
+                                                    "key": {"type": "string"}
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        })];
+
+        normalize_tool_required(&mut tools);
+
+        let params = &tools[0]["function"]["parameters"];
+        // Top-level required
+        let req = params["required"].as_array().unwrap();
+        assert!(req.contains(&json!("workflowId")));
+        assert!(req.contains(&json!("inputs")));
+
+        // anyOf[1] should now have type: "object", required, and additionalProperties: false
+        let any1 = &params["properties"]["inputs"]["anyOf"][1];
+        assert_eq!(any1["type"], "object");
+        assert_eq!(any1["additionalProperties"], false);
+        let any1_req = any1["required"].as_array().unwrap();
+        assert!(any1_req.contains(&json!("formData")));
+
+        // formData's additionalProperties should be forced to false
+        let form = &any1["properties"]["formData"];
+        assert_eq!(form["additionalProperties"], false);
+    }
+
+    #[test]
+    fn test_normalize_strips_stale_required_without_properties() {
+        // MCP schemas may have required: ["formData"] at a level that has
+        // no "properties" field (e.g. anyOf variant with additionalProperties)
+        let mut tools = vec![json!({
+            "type": "function",
+            "function": {
+                "name": "mcp_n8n_execute_workflow",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "workflowId": {"type": "string"},
+                        "inputs": {
+                            "anyOf": [
+                                {"type": "string"},
+                                {
+                                    "type": "object",
+                                    "required": ["formData"],
+                                    "additionalProperties": {
+                                        "type": "string"
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        })];
+
+        normalize_tool_required(&mut tools);
+
+        let any1 = &tools[0]["function"]["parameters"]["properties"]["inputs"]["anyOf"][1];
+        // Stale required should be removed since anyOf[1] has no properties
+        assert!(any1.get("required").is_none());
+        // additionalProperties forced to false
+        assert_eq!(any1["additionalProperties"], false);
     }
 }

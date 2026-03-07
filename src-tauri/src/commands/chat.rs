@@ -559,6 +559,26 @@ pub async fn engine_chat_send(
         let cognitive_lock = state.get_cognitive_state(&agent_id_owned);
         let mut cog = cognitive_lock.lock().await;
         cog.working_memory.clear_momentum();
+        cog.working_memory.clear();
+
+        // Strip today's memory notes from the system prompt — they anchor
+        // the model to the old topic even after tool messages are stripped.
+        if let Some(sys_msg) = messages.first_mut() {
+            if sys_msg.role == Role::System {
+                if let MessageContent::Text(ref mut text) = sys_msg.content {
+                    if let Some(start) = text.find("## Today's Memory Notes") {
+                        // Find the next section boundary (\n## or end)
+                        let rest = &text[start..];
+                        let end = rest[1..]
+                            .find("\n## ")
+                            .map(|i| start + 1 + i)
+                            .unwrap_or(text.len());
+                        text.replace_range(start..end, "");
+                        log::info!("[engine] Stripped today's memory notes from system prompt (topic shift)");
+                    }
+                }
+            }
+        }
     }
 
     // Note: Topic detection and retry-override injection have been removed.
