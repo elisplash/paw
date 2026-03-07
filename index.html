@@ -2549,6 +2549,10 @@
                 <span class="ms ms-sm">hub</span>
                 Map
               </button>
+              <button class="palace-tab" data-palace-tab="forge">
+                <span class="ms ms-sm">verified</span>
+                Forge
+              </button>
               <button class="palace-tab" data-palace-tab="remember">
                 <span class="ms ms-sm">add</span>
                 Remember
@@ -2597,6 +2601,18 @@
                   height="600"
                   style="display: none"
                 ></canvas>
+              </div>
+            </div>
+            <!-- Forge Panel -->
+            <div class="palace-panel" id="palace-forge-panel" style="display:none">
+              <div class="palace-forge-container" id="palace-forge-content">
+                <div class="empty-state" id="palace-forge-empty">
+                  <div class="empty-icon"><span class="ms" style="font-size: 48px">verified</span></div>
+                  <div class="empty-title">Skill Certification</div>
+                  <div class="empty-subtitle">
+                    Training domains and certified procedural memories from THE FORGE
+                  </div>
+                </div>
               </div>
             </div>
             <!-- Remember Panel -->
@@ -2728,6 +2744,17 @@
 
             <!-- Side panel -->
             <div class="skills-side-panel k-stagger">
+              <!-- FORGE Training Stats -->
+              <div class="skills-panel-card k-row k-spring k-materialise">
+                <div class="skills-panel-card-header">
+                  <span class="ms skills-panel-card-icon">verified</span>
+                  <span class="skills-panel-card-title">FORGE Training</span>
+                </div>
+                <div class="skills-panel-card-body" id="skills-forge-stats">
+                  <p style="color:var(--text-muted);font-size:12px">Loading certification data…</p>
+                </div>
+              </div>
+
               <!-- What Are Skills? -->
               <div class="skills-panel-card k-row k-spring k-materialise">
                 <div class="skills-panel-card-header">

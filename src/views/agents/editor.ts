@@ -143,6 +143,16 @@ function buildEditorHtml(agent: Agent, availableModels: { id: string; name: stri
             ).join('')}
           </div>
 
+          <div id="agent-forge-section" style="margin-top:24px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+              <span class="ms ms-sm">verified</span> FORGE Certification
+            </div>
+            <div class="form-hint" style="margin-bottom:12px">Procedural memories certified through THE FORGE training pipeline.</div>
+            <div id="agent-forge-summary" class="agent-skills-grid">
+              <div style="font-size:12px;color:var(--text-muted);padding:8px">Loading...</div>
+            </div>
+          </div>
+
           <div id="agent-community-skills-section" style="margin-top:24px">
             <div style="font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px">
               <span class="ms ms-sm">extension</span> Community Skills
@@ -420,6 +430,9 @@ export function openAgentEditor(agentId: string, cbs: EditorCallbacks) {
   // Load community skills for this agent
   loadAgentCommunitySkills(modal, agentId, cbs.getAgents());
 
+  // Load FORGE certification data for this agent
+  loadAgentForgeData(modal, agentId);
+
   wireToolPolicyUI(modal, allToolIds, agent.id);
 
   // Tab switching
@@ -574,5 +587,70 @@ async function loadAgentCommunitySkills(
     });
   } catch {
     grid.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px">Could not load community skills</div>`;
+  }
+}
+
+// ── FORGE Certification per-agent summary ────────────────────────────
+
+async function loadAgentForgeData(modal: HTMLElement, agentId: string): Promise<void> {
+  const container = modal.querySelector('#agent-forge-summary');
+  if (!container) return;
+
+  try {
+    const [summary, domains] = await Promise.all([
+      pawEngine.forgeCertSummary(agentId),
+      pawEngine.forgeListDomains(agentId),
+    ]);
+
+    const total =
+      summary.uncertified +
+      summary.in_training +
+      summary.certified +
+      summary.expired +
+      summary.failed;
+
+    if (total === 0 && domains.length === 0) {
+      container.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px">No procedural memories found. FORGE certification will appear here as this agent learns skills.</div>`;
+      return;
+    }
+
+    const statsHtml = `
+      <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+        <span style="font-size:12px;display:flex;align-items:center;gap:4px">
+          <span class="ms ms-sm" style="color:#22c55e">verified</span>
+          <strong>${summary.certified}</strong> certified
+        </span>
+        <span style="font-size:12px;display:flex;align-items:center;gap:4px">
+          <span class="ms ms-sm" style="color:#eab308">model_training</span>
+          <strong>${summary.in_training}</strong> training
+        </span>
+        <span style="font-size:12px;display:flex;align-items:center;gap:4px">
+          <span class="ms ms-sm" style="color:#ef4444">cancel</span>
+          <strong>${summary.expired + summary.failed}</strong> expired/failed
+        </span>
+        <span style="font-size:12px;color:var(--text-muted)">
+          ${summary.uncertified} uncertified
+        </span>
+      </div>`;
+
+    const domainsHtml =
+      domains.length > 0
+        ? `<div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${domains
+            .map(
+              (d) =>
+                `<span style="font-size:11px;padding:3px 8px;border-radius:4px;background:var(--bg-tertiary,rgba(255,255,255,0.06));border:1px solid var(--border-subtle);display:flex;align-items:center;gap:4px">
+                  <span class="ms ms-sm" style="font-size:12px">domain</span>
+                  ${escHtml(d.domain)}
+                  <strong>${d.certified_skills}/${d.total_skills}</strong>
+                </span>`,
+            )
+            .join('')}
+        </div>`
+        : '';
+
+    container.innerHTML = statsHtml + domainsHtml;
+  } catch {
+    container.innerHTML = `<div style="font-size:12px;color:var(--text-muted);padding:8px">Could not load FORGE data</div>`;
   }
 }

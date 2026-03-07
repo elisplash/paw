@@ -484,7 +484,7 @@ export function initPalaceTabs(): void {
   });
 }
 
-/** Programmatically switch to a palace tab (recall, graph, remember, files). */
+/** Programmatically switch to a palace tab (recall, graph, remember, files, forge). */
 export function activatePalaceTab(target: string): void {
   document.querySelectorAll('.palace-tab').forEach((t) => t.classList.remove('active'));
   document.querySelector(`.palace-tab[data-palace-tab="${target}"]`)?.classList.add('active');
@@ -498,6 +498,11 @@ export function activatePalaceTab(target: string): void {
   // Auto-render graph when Map tab is activated
   if (target === 'graph') {
     renderPalaceGraph();
+  }
+
+  // Auto-render forge data when Forge tab is activated
+  if (target === 'forge') {
+    renderPalaceForge();
   }
 }
 
@@ -646,5 +651,154 @@ export async function exportMemories(): Promise<void> {
     showToast(`Export failed: ${e instanceof Error ? e.message : e}`, 'error');
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+// ── FORGE Certification View ───────────────────────────────────────────────
+
+export async function renderPalaceForge(): Promise<void> {
+  const container = $('palace-forge-content');
+  const emptyEl = $('palace-forge-empty');
+  if (!container) return;
+
+  if (emptyEl) {
+    emptyEl.style.display = 'flex';
+    emptyEl.querySelector('.empty-subtitle')!.textContent = 'Loading certification data…';
+  }
+
+  // Read agent filter if available
+  const agentFilter = ($('palace-agent-filter') as HTMLSelectElement)?.value ?? '';
+  const agentId = agentFilter || 'default';
+
+  try {
+    const [summary, domains] = await Promise.all([
+      pawEngine.forgeCertSummary(agentId),
+      pawEngine.forgeListDomains(agentId),
+    ]);
+
+    const total =
+      summary.uncertified +
+      summary.in_training +
+      summary.certified +
+      summary.expired +
+      summary.failed;
+
+    if (total === 0 && domains.length === 0) {
+      if (emptyEl) {
+        emptyEl.style.display = 'flex';
+        emptyEl.querySelector('.empty-subtitle')!.textContent =
+          'No FORGE training data yet. Certified procedural memories will appear here.';
+      }
+      return;
+    }
+
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    // Build stats row
+    const statsHtml = `
+      <div class="palace-forge-stats" style="display:flex;gap:20px;flex-wrap:wrap;padding:16px 0;border-bottom:1px solid var(--border-subtle)">
+        <div style="text-align:center">
+          <div style="font-size:24px;font-weight:700;color:#22c55e">${summary.certified}</div>
+          <div style="font-size:11px;color:var(--text-muted)">Certified</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:24px;font-weight:700;color:#eab308">${summary.in_training}</div>
+          <div style="font-size:11px;color:var(--text-muted)">Training</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:24px;font-weight:700;color:var(--text-muted)">${summary.uncertified}</div>
+          <div style="font-size:11px;color:var(--text-muted)">Uncertified</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:24px;font-weight:700;color:#f97316">${summary.expired}</div>
+          <div style="font-size:11px;color:var(--text-muted)">Expired</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:24px;font-weight:700;color:#ef4444">${summary.failed}</div>
+          <div style="font-size:11px;color:var(--text-muted)">Failed</div>
+        </div>
+      </div>`;
+
+    // Build domains list
+    let domainsHtml = '';
+    if (domains.length > 0) {
+      const domainCards = await Promise.all(
+        domains.map(async (d) => {
+          const pct =
+            d.total_skills > 0 ? Math.round((d.certified_skills / d.total_skills) * 100) : 0;
+          let skillsHtml = '';
+          try {
+            const tree = await pawEngine.forgeDomainTree(agentId, d.domain);
+            skillsHtml = tree
+              .map(
+                (node) =>
+                  `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px">
+                    <span class="ms ms-sm" style="font-size:14px;color:${statusColor(node.certification_status)}">${statusIcon(node.certification_status)}</span>
+                    <span style="flex:1">${escHtml(node.trigger)}</span>
+                    <span style="color:var(--text-muted);font-size:11px">${escHtml(node.skill_tree_path)}</span>
+                    <span style="color:var(--text-muted);font-size:11px">${Math.round(node.success_rate * 100)}%</span>
+                  </div>`,
+              )
+              .join('');
+          } catch {
+            // skill tree fetch failed — show domain only
+          }
+
+          return `
+            <div style="border:1px solid var(--border-subtle);border-radius:8px;padding:12px;margin-bottom:8px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span class="ms ms-sm">domain</span>
+                  <strong style="font-size:14px">${escHtml(d.domain)}</strong>
+                </div>
+                <span style="font-size:12px;color:var(--text-muted)">${d.certified_skills}/${d.total_skills} certified (${pct}%)</span>
+              </div>
+              <div style="height:4px;background:var(--bg-tertiary,rgba(255,255,255,0.06));border-radius:2px;overflow:hidden;margin-bottom:8px">
+                <div style="height:100%;width:${pct}%;background:#22c55e;border-radius:2px;transition:width 0.3s"></div>
+              </div>
+              ${skillsHtml}
+            </div>`;
+        }),
+      );
+      domainsHtml = `<div style="padding-top:12px">${domainCards.join('')}</div>`;
+    }
+
+    container.innerHTML = statsHtml + domainsHtml;
+  } catch (e) {
+    console.warn('[memory] Forge data load failed:', e);
+    if (emptyEl) {
+      emptyEl.style.display = 'flex';
+      emptyEl.querySelector('.empty-subtitle')!.textContent = 'Failed to load FORGE data.';
+    }
+  }
+}
+
+function statusColor(status: string): string {
+  switch (status) {
+    case 'certified':
+      return '#22c55e';
+    case 'in_training':
+      return '#eab308';
+    case 'expired':
+      return '#f97316';
+    case 'failed':
+      return '#ef4444';
+    default:
+      return 'var(--text-muted)';
+  }
+}
+
+function statusIcon(status: string): string {
+  switch (status) {
+    case 'certified':
+      return 'verified';
+    case 'in_training':
+      return 'model_training';
+    case 'expired':
+      return 'schedule';
+    case 'failed':
+      return 'cancel';
+    default:
+      return 'radio_button_unchecked';
   }
 }

@@ -4,8 +4,9 @@
 
 import { pawEngine } from '../../engine';
 import { isEngineMode } from '../../engine-bridge';
-import { $ } from '../../components/helpers';
+import { $, escHtml } from '../../components/helpers';
 import { renderCommunitySection, setCommunityReload, bindCommunityEvents } from './community';
+import { msIcon } from './atoms';
 
 // ── Re-exports (backward compat) ──────────────────────────────────────────
 
@@ -54,6 +55,9 @@ export async function loadSkillsSettings(): Promise<void> {
       bindCommunityEvents();
     }
 
+    // Load FORGE training stats into side panel (non-blocking)
+    loadForgeStats();
+
     // Quick actions in side panel
     $('skills-qa-refresh')?.addEventListener('click', () => loadSkillsSettings());
     $('skills-qa-browse-community')?.addEventListener('click', () => {
@@ -80,5 +84,61 @@ export async function loadSkillsSettings(): Promise<void> {
   } catch (e) {
     console.error('[skills] Load failed:', e);
     if (loading) loading.textContent = `Failed to load skills: ${e}`;
+  }
+}
+
+// ── FORGE Training Stats (side panel) ──────────────────────────────────
+
+async function loadForgeStats(): Promise<void> {
+  const container = $('skills-forge-stats');
+  if (!container) return;
+
+  try {
+    const [summary, domains] = await Promise.all([
+      pawEngine.forgeCertSummary('default'),
+      pawEngine.forgeListDomains('default'),
+    ]);
+
+    const total =
+      summary.uncertified +
+      summary.in_training +
+      summary.certified +
+      summary.expired +
+      summary.failed;
+
+    if (total === 0) {
+      container.innerHTML = `<p style="color:var(--text-muted);font-size:12px">No procedural memories yet. FORGE certification stats will appear here as agents learn skills.</p>`;
+      return;
+    }
+
+    const statsHtml = `
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+        <span style="font-size:12px;display:flex;align-items:center;gap:3px">
+          ${msIcon('verified')} <strong>${summary.certified}</strong> certified
+        </span>
+        <span style="font-size:12px;display:flex;align-items:center;gap:3px">
+          ${msIcon('model_training')} <strong>${summary.in_training}</strong> training
+        </span>
+        <span style="font-size:12px;display:flex;align-items:center;gap:3px;color:var(--text-muted)">
+          ${summary.uncertified} uncertified
+        </span>
+      </div>`;
+
+    const domainsHtml =
+      domains.length > 0
+        ? domains
+            .map(
+              (d) =>
+                `<div style="display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:12px">
+                <span>${escHtml(d.domain)}</span>
+                <span style="color:var(--text-muted)">${d.certified_skills}/${d.total_skills}</span>
+              </div>`,
+            )
+            .join('')
+        : '';
+
+    container.innerHTML = statsHtml + domainsHtml;
+  } catch {
+    container.innerHTML = `<p style="color:var(--text-muted);font-size:12px">Could not load FORGE data.</p>`;
   }
 }

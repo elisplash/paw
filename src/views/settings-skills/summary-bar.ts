@@ -1,12 +1,13 @@
 // My Skills — Summary Bar
 // Renders the at-a-glance stats bar at the top of My Skills workspace.
 
-import type { EngineSkillStatus, McpServerStatus } from '../../engine';
+import type { EngineSkillStatus, McpServerStatus, ForgeCertSummary } from '../../engine';
 import { msIcon } from './atoms';
 
 export interface SummaryData {
   skills: EngineSkillStatus[];
   mcpStatuses: McpServerStatus[];
+  forgeSummary?: ForgeCertSummary | null;
 }
 
 export function renderSummaryBar(data: SummaryData): string {
@@ -16,6 +17,14 @@ export function renderSummaryBar(data: SummaryData): string {
   );
   const mcpConnected = data.mcpStatuses.filter((s) => s.connected);
   const widgets = data.skills.filter((s) => s.enabled && s.has_widget);
+
+  const forge = data.forgeSummary;
+  const forgeHtml =
+    forge && (forge.certified > 0 || forge.in_training > 0)
+      ? `<span class="skills-summary-item" title="FORGE: ${forge.certified} certified, ${forge.in_training} training, ${forge.expired} expired">
+            ${msIcon('verified')} <strong>${forge.certified}</strong> certified
+          </span>`
+      : '';
 
   return `
   <div class="skills-summary-items">
@@ -39,6 +48,7 @@ export function renderSummaryBar(data: SummaryData): string {
           </span>`
         : ''
     }
+    ${forgeHtml}
   </div>`;
 }
 
