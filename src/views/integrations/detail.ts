@@ -249,11 +249,14 @@ export function wireDetailEvents(container: HTMLElement): void {
 
 async function _handleDisconnect(serviceId: string): Promise<void> {
   try {
-    await invoke('engine_health_update_service', {
-      service: serviceId,
-      status: 'unknown',
-      message: 'Disconnected by user',
-    });
+    // Revoke OAuth tokens first (cleans up encrypted vault entry)
+    try {
+      await invoke('engine_oauth_revoke', { serviceId });
+    } catch {
+      /* may not be an OAuth service — that's fine */
+    }
+    // Full teardown: remove from connected list, purge skill vault, disable skill, update health
+    await invoke('engine_integrations_disconnect', { serviceId });
     // Refresh the view
     const event = new CustomEvent('integrations:refresh');
     document.dispatchEvent(event);

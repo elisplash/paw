@@ -107,7 +107,7 @@ Do NOT run exec/curl to call the Discord API — use your built-in tools."#.into
         SkillDefinition {
             id: "google_workspace".into(),
             name: "Google Workspace".into(),
-            description: "Gmail, Calendar, Drive, Sheets, and Docs — full read/write access via Google OAuth. Connect once, control everything.".into(),
+            description: "Gmail, Calendar, Drive, Sheets, Docs, Chat, Tasks, Contacts, Forms, YouTube, and Vertex AI — full Google Workspace access via OAuth. Connect once, control everything.".into(),
             icon: "☁️".into(),
             category: SkillCategory::Vault,
             tier: SkillTier::Integration,
@@ -121,25 +121,201 @@ Do NOT run exec/curl to call the Discord API — use your built-in tools."#.into
                 "google_docs_create".into(), "google_api".into(),
             ],
             required_binaries: vec![], required_env_vars: vec![],
-            install_hint: "Connect Google in the Integrations view — one OAuth login grants access to Gmail, Calendar, Drive, Sheets, and Docs. No API keys needed.".into(),
-            agent_instructions: r#"You have full Google Workspace access with 13 built-in tools:
+            install_hint: "Connect Google in the Integrations view — one OAuth login grants access to Gmail, Calendar, Drive, Sheets, Docs, Chat, Tasks, Contacts, Forms, YouTube, and Vertex AI. No API keys needed.".into(),
+            agent_instructions: r#"You have full Google Workspace access with 13 dedicated tools PLUS the google_api escape hatch for 6 additional services.
 
-**Gmail**: google_gmail_list (search/list), google_gmail_read (read full email), google_gmail_send (send email)
-**Calendar**: google_calendar_list (list events), google_calendar_create (create event)
-**Drive**: google_drive_list (search files), google_drive_read (read/export), google_drive_upload (upload text), google_drive_share (share with user)
-**Sheets**: google_sheets_read (read ranges), google_sheets_append (add rows)
-**Docs**: google_docs_create (create document)
-**Generic**: google_api (any Google API call)
+## Dedicated Tools (use these first)
+
+**Gmail** (read + write):
+  google_gmail_list — search/list messages. Supports Gmail search syntax: 'is:unread', 'from:user@co.com', 'subject:invoice after:2025/01/01'
+  google_gmail_read — read full email content by ID
+  google_gmail_send — send email (to, subject, body, cc, bcc)
+
+**Calendar** (read + write):
+  google_calendar_list — list events in a date range (defaults to today)
+  google_calendar_create — create event with attendees, recurrence, timezone
+
+**Drive** (read + write):
+  google_drive_list — search files. Query syntax: "name contains 'report'", "mimeType='application/pdf'"
+  google_drive_read — read file content; exports Docs/Sheets/Slides as text
+  google_drive_upload — upload a text file, returns file ID and link
+  google_drive_share — share a file with a user (reader/commenter/writer)
+
+**Sheets** (read + write):
+  google_sheets_read — read cell data using A1 notation (e.g. 'Sheet1!A1:D10')
+  google_sheets_append — append rows to a spreadsheet
+
+**Docs** (write):
+  google_docs_create — create a new Google Doc with title and body
+
+## google_api — Generic Escape Hatch (ALL Google APIs)
+  google_api — make any authenticated call to googleapis.com. Use this for services without dedicated tools.
+
+## Additional Services via google_api
+
+Your OAuth token ALSO grants access to these services. Use google_api to call them:
+
+**Google Chat** (read spaces + send messages):
+  GET https://chat.googleapis.com/v1/spaces — list spaces
+  POST https://chat.googleapis.com/v1/spaces/{space}/messages — send message
+  GET https://chat.googleapis.com/v1/spaces/{space}/messages — list messages
+
+**Google Tasks** (read + write):
+  GET https://tasks.googleapis.com/tasks/v1/users/@me/lists — list task lists
+  GET https://tasks.googleapis.com/tasks/v1/lists/{list}/tasks — list tasks
+  POST https://tasks.googleapis.com/tasks/v1/lists/{list}/tasks — create task
+  PATCH https://tasks.googleapis.com/tasks/v1/lists/{list}/tasks/{task} — update task
+
+**Google Contacts** (read-only):
+  GET https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,phoneNumbers — list contacts
+  GET https://people.googleapis.com/v1/people/{resourceName}?personFields=names,emailAddresses — get contact
+
+**Google Forms** (read-only):
+  GET https://forms.googleapis.com/v1/forms/{formId} — get form structure
+  GET https://forms.googleapis.com/v1/forms/{formId}/responses — list responses
+
+**YouTube** (read-only):
+  GET https://www.googleapis.com/youtube/v3/search?part=snippet&q={query} — search videos
+  GET https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&mine=true — my channel
+  GET https://www.googleapis.com/youtube/v3/playlists?part=snippet&mine=true — my playlists
+
+**Vertex AI / Google Cloud** (full access):
+  Custom model endpoints, vector search, Gemini API through cloud-platform scope
 
 RULES:
 - Always CONFIRM with the user before sending emails, creating events, sharing files, or modifying data
-- Use Gmail search syntax: 'is:unread', 'from:user@co.com', 'subject:invoice after:2025/01/01'
-- Use A1 notation for Sheets: 'Sheet1!A1:D10'
-- Use Drive query syntax: "name contains 'report'", "mimeType='application/pdf'"
 - Get IDs from list tools before using read/update tools
 - For Sheets, prefer google_sheets_read/append over google_api
 - Summarize email/document content rather than dumping raw data
-- NEVER use exec/curl to call Google APIs — use your built-in tools"#.into(),
+- NEVER use exec/curl to call Google APIs — use your built-in tools or google_api
+- For Chat, Tasks, Contacts, Forms, YouTube, and Vertex AI — use google_api with the endpoints listed above
+- Contacts and Forms are READ-ONLY. Do not attempt to write to them."#.into(),
+            default_enabled: false,
+        },
+        SkillDefinition {
+            id: "microsoft_365".into(),
+            name: "Microsoft 365".into(),
+            description: "Outlook Mail, Calendar, OneDrive, Teams, To Do Tasks, OneNote, Contacts, SharePoint, and Presence — full Microsoft 365 access via OAuth. Connect once, control everything.".into(),
+            icon: "🪟".into(),
+            category: SkillCategory::Vault,
+            tier: SkillTier::Integration,
+            required_credentials: vec![],
+            tool_names: vec![
+                "outlook_mail_list".into(), "outlook_mail_read".into(), "outlook_mail_send".into(),
+                "outlook_calendar_list".into(), "outlook_calendar_create".into(),
+                "onedrive_list".into(), "onedrive_read".into(), "onedrive_upload".into(),
+                "teams_list_teams".into(), "teams_send_message".into(),
+                "ms_tasks_list".into(), "ms_tasks_create".into(),
+                "onenote_list".into(), "microsoft_api".into(),
+            ],
+            required_binaries: vec![], required_env_vars: vec![],
+            install_hint: "Connect Microsoft 365 in the Integrations view — one OAuth login grants access to Outlook, Calendar, OneDrive, Teams, Tasks, OneNote, Contacts, and SharePoint. No API keys needed.".into(),
+            agent_instructions: r#"You have full Microsoft 365 access with 13 dedicated tools PLUS the microsoft_api escape hatch for the full Graph API.
+
+## Dedicated Tools (use these first)
+
+**Outlook Mail** (read + write):
+  outlook_mail_list — list/search inbox messages. Supports $search and OData $filter.
+  outlook_mail_read — read full email by ID (get IDs from outlook_mail_list)
+  outlook_mail_send — send email (to, subject, body, cc, bcc). Supports HTML.
+
+**Calendar** (read + write):
+  outlook_calendar_list — list events in a date range (defaults to today)
+  outlook_calendar_create — create event with attendees, location, timezone, all-day
+
+**OneDrive** (read + write):
+  onedrive_list — list/search files, browse folders
+  onedrive_read — read text file content or get metadata + download URL
+  onedrive_upload — upload a text file to a path
+
+**Teams** (read + write):
+  teams_list_teams — list joined teams and their channels
+  teams_send_message — send message to a channel (team_id + channel_id) or chat (chat_id)
+
+**To Do Tasks** (read + write):
+  ms_tasks_list — list task lists, or tasks within a list. Supports OData filter.
+  ms_tasks_create — create a task in a list (title, body, due_date, importance)
+
+**OneNote** (read):
+  onenote_list — list notebooks and sections
+
+## microsoft_api — Generic Escape Hatch (Full Graph API)
+  microsoft_api — make any authenticated call to graph.microsoft.com. Use this for endpoints without dedicated tools.
+
+## Additional Endpoints via microsoft_api
+
+Your OAuth token ALSO grants access to these. Use microsoft_api:
+
+**Contacts** (read):
+  GET https://graph.microsoft.com/v1.0/me/contacts — list contacts
+  GET https://graph.microsoft.com/v1.0/me/contacts/{id} — get contact details
+
+**People** (read):
+  GET https://graph.microsoft.com/v1.0/me/people — people relevant to user
+
+**Presence** (read):
+  GET https://graph.microsoft.com/v1.0/me/presence — user's presence status
+
+**SharePoint Sites** (read):
+  GET https://graph.microsoft.com/v1.0/sites?search={query} — search sites
+  GET https://graph.microsoft.com/v1.0/sites/{site-id}/lists — site lists
+
+**User Profile** (read):
+  GET https://graph.microsoft.com/v1.0/me — current user profile
+  GET https://graph.microsoft.com/v1.0/me/photo/$value — profile photo
+
+RULES:
+- Always CONFIRM with the user before sending emails, creating events, sending Teams messages, or modifying data
+- Get IDs from list tools before using read/update tools
+- For Outlook/Calendar/OneDrive/Teams/Tasks — use dedicated tools, NOT microsoft_api
+- Summarize email/document content rather than dumping raw data
+- NEVER use exec/curl to call Microsoft APIs — use your built-in tools or microsoft_api
+- Contacts are READ-ONLY. Do not attempt to create/modify contacts."#.into(),
+            default_enabled: false,
+        },
+        SkillDefinition {
+            id: "connected_services".into(),
+            name: "Connected Services".into(),
+            description: "Generic API access to any OAuth-connected service — HubSpot, Salesforce, Slack, Jira, Notion, Airtable, Shopify, Stripe, Zendesk, ClickUp, Monday, Pipedrive, Intercom, Asana, Trello, Zoom, QuickBooks, Mailchimp, Xero, DocuSign, Calendly, Todoist, Linear, Figma, and 200+ more.".into(),
+            icon: "🔗".into(),
+            category: SkillCategory::Vault,
+            tier: SkillTier::Integration,
+            required_credentials: vec![],
+            tool_names: vec!["service_api".into()],
+            required_binaries: vec![], required_env_vars: vec![],
+            install_hint: "Connect any supported service in the Integrations view — one OAuth login per service. The service_api tool provides REST API access to all connected services.".into(),
+            agent_instructions: r#"You have the service_api tool for making REST API calls to any OAuth-connected service.
+
+## service_api — Universal API Proxy
+  service_api(service, method, path, query?, body?) — call any endpoint on a connected service.
+
+## Supported Services (when connected via OAuth)
+HubSpot, Salesforce, Slack, Jira, Notion, Airtable, Shopify, Stripe, Zendesk,
+ClickUp, Monday, Pipedrive, Intercom, Asana, Trello, Zoom, QuickBooks, Mailchimp,
+Xero, DocuSign, Calendly, Todoist, Linear, Figma, GitHub, LinkedIn, Twitter,
+Spotify, Dropbox, Discord, and 200+ more.
+
+## Usage Pattern
+1. Specify the service name (lowercase, e.g., 'hubspot', 'salesforce', 'slack')
+2. Specify HTTP method (GET, POST, PUT, PATCH, DELETE)
+3. Specify the API path relative to the service's base URL
+4. Optionally include query parameters and/or JSON body
+
+## Examples
+- HubSpot contacts: service_api(service="hubspot", method="GET", path="/crm/v3/objects/contacts")
+- Salesforce query: service_api(service="salesforce", method="GET", path="/services/data/v59.0/query", query={"q": "SELECT Id, Name FROM Account LIMIT 10"})
+- Slack message: service_api(service="slack", method="POST", path="/api/chat.postMessage", body={"channel": "C123", "text": "Hello!"})
+- Jira issues: service_api(service="jira", method="GET", path="/rest/api/3/search", query={"jql": "project=PROJ AND status=Open"})
+- Notion pages: service_api(service="notion", method="POST", path="/v1/search", body={"query": "Meeting Notes"})
+- Airtable records: service_api(service="airtable", method="GET", path="/v0/{baseId}/{tableName}")
+- Linear issues: service_api(service="linear", method="POST", path="/graphql", body={"query": "{ issues { nodes { title state { name } } } }"})
+
+## Rules
+- The service MUST be connected via OAuth first. If you get a "not connected" error, tell the user to connect the service in Integrations.
+- Always CONFIRM with the user before creating, modifying, or deleting data.
+- Use the service's official REST API documentation for endpoint paths.
+- For Google and Microsoft services, prefer dedicated tools (google_* and outlook_*/onedrive_*/teams_*) over service_api.
+- NEVER use exec/curl to call APIs — use service_api instead."#.into(),
             default_enabled: false,
         },
         SkillDefinition {

@@ -660,6 +660,7 @@ pub fn run() {
             commands::oauth::engine_oauth_start,
             commands::oauth::engine_oauth_refresh,
             commands::oauth::engine_oauth_status,
+            commands::oauth::engine_oauth_validate_all,
             commands::oauth::engine_oauth_revoke,
             commands::oauth::engine_oauth_resolve_tier,
             commands::oauth::engine_oauth_n8n_url,

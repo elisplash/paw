@@ -1,0 +1,219 @@
+{
+  "_comment": "OpenPawz OAuth App Registrations. Add your client_id and scopes for any provider defined in providers.json. The PKCE engine handles the rest automatically. Services listed here with real client IDs get one-click OAuth in the app.",
+
+  "hubspot": {
+    "client_id": "REPLACE_WITH_HUBSPOT_CLIENT_ID",
+    "scopes": [
+      "crm.objects.contacts.read",
+      "crm.objects.contacts.write",
+      "crm.objects.deals.read",
+      "crm.objects.deals.write",
+      "crm.objects.companies.read",
+      "crm.lists.read",
+      "content"
+    ]
+  },
+  "salesforce": {
+    "client_id": "REPLACE_WITH_SALESFORCE_CLIENT_ID",
+    "scopes": [
+      "api",
+      "refresh_token",
+      "offline_access"
+    ]
+  },
+  "slack": {
+    "client_id": "REPLACE_WITH_SLACK_CLIENT_ID",
+    "scopes": [
+      "channels:read",
+      "channels:history",
+      "chat:write",
+      "users:read",
+      "files:read",
+      "reactions:read"
+    ]
+  },
+  "jira": {
+    "client_id": "REPLACE_WITH_JIRA_CLIENT_ID",
+    "scopes": [
+      "read:jira-work",
+      "write:jira-work",
+      "read:jira-user"
+    ]
+  },
+  "notion": {
+    "client_id": "REPLACE_WITH_NOTION_CLIENT_ID",
+    "scopes": []
+  },
+  "github": {
+    "client_id": "REPLACE_WITH_GITHUB_CLIENT_ID",
+    "scopes": [
+      "read:user",
+      "repo:status",
+      "read:org"
+    ]
+  },
+  "linear": {
+    "client_id": "REPLACE_WITH_LINEAR_CLIENT_ID",
+    "scopes": [
+      "read",
+      "write"
+    ]
+  },
+  "figma": {
+    "client_id": "REPLACE_WITH_FIGMA_CLIENT_ID",
+    "scopes": [
+      "files:read"
+    ]
+  },
+  "asana": {
+    "client_id": "REPLACE_WITH_ASANA_CLIENT_ID",
+    "scopes": [
+      "default"
+    ]
+  },
+  "airtable": {
+    "client_id": "REPLACE_WITH_AIRTABLE_CLIENT_ID",
+    "scopes": [
+      "data.records:read",
+      "data.records:write",
+      "schema.bases:read"
+    ]
+  },
+  "shopify": {
+    "client_id": "REPLACE_WITH_SHOPIFY_CLIENT_ID",
+    "scopes": [
+      "read_products",
+      "read_orders",
+      "read_customers"
+    ]
+  },
+  "stripe": {
+    "client_id": "REPLACE_WITH_STRIPE_CLIENT_ID",
+    "scopes": [
+      "read_write"
+    ]
+  },
+  "trello": {
+    "client_id": "REPLACE_WITH_TRELLO_CLIENT_ID",
+    "scopes": [
+      "read",
+      "write"
+    ]
+  },
+  "zoom": {
+    "client_id": "REPLACE_WITH_ZOOM_CLIENT_ID",
+    "scopes": [
+      "meeting:read",
+      "meeting:write",
+      "user:read"
+    ]
+  },
+  "quickbooks": {
+    "client_id": "REPLACE_WITH_QUICKBOOKS_CLIENT_ID",
+    "scopes": [
+      "com.intuit.quickbooks.accounting"
+    ]
+  },
+  "mailchimp": {
+    "client_id": "REPLACE_WITH_MAILCHIMP_CLIENT_ID",
+    "scopes": []
+  },
+  "zendesk": {
+    "client_id": "REPLACE_WITH_ZENDESK_CLIENT_ID",
+    "scopes": [
+      "read",
+      "write"
+    ]
+  },
+  "clickup": {
+    "client_id": "REPLACE_WITH_CLICKUP_CLIENT_ID",
+    "scopes": []
+  },
+  "monday": {
+    "client_id": "REPLACE_WITH_MONDAY_CLIENT_ID",
+    "scopes": [
+      "boards:read",
+      "boards:write",
+      "workspaces:read"
+    ]
+  },
+  "pipedrive": {
+    "client_id": "REPLACE_WITH_PIPEDRIVE_CLIENT_ID",
+    "scopes": []
+  },
+  "intercom": {
+    "client_id": "REPLACE_WITH_INTERCOM_CLIENT_ID",
+    "scopes": []
+  },
+  "twitter": {
+    "client_id": "REPLACE_WITH_TWITTER_CLIENT_ID",
+    "scopes": [
+      "tweet.read",
+      "tweet.write",
+      "users.read",
+      "offline.access"
+    ]
+  },
+  "linkedin": {
+    "client_id": "REPLACE_WITH_LINKEDIN_CLIENT_ID",
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "w_member_social"
+    ]
+  },
+  "spotify": {
+    "client_id": "REPLACE_WITH_SPOTIFY_CLIENT_ID",
+    "scopes": [
+      "user-read-private",
+      "user-read-email",
+      "playlist-read-private",
+      "user-library-read"
+    ]
+  },
+  "dropbox": {
+    "client_id": "REPLACE_WITH_DROPBOX_CLIENT_ID",
+    "scopes": [
+      "files.metadata.read",
+      "files.content.read",
+      "files.content.write"
+    ]
+  },
+  "discord": {
+    "client_id": "REPLACE_WITH_DISCORD_CLIENT_ID",
+    "scopes": [
+      "identify",
+      "guilds",
+      "bot"
+    ]
+  },
+  "todoist": {
+    "client_id": "REPLACE_WITH_TODOIST_CLIENT_ID",
+    "scopes": [
+      "data:read_write"
+    ]
+  },
+  "calendly": {
+    "client_id": "REPLACE_WITH_CALENDLY_CLIENT_ID",
+    "scopes": []
+  },
+  "xero": {
+    "client_id": "REPLACE_WITH_XERO_CLIENT_ID",
+    "scopes": [
+      "openid",
+      "profile",
+      "email",
+      "accounting.transactions",
+      "accounting.contacts",
+      "offline_access"
+    ]
+  },
+  "docusign": {
+    "client_id": "REPLACE_WITH_DOCUSIGN_CLIENT_ID",
+    "scopes": [
+      "signature",
+      "extended"
+    ]
+  }
+}

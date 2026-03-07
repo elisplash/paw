@@ -127,6 +127,9 @@ export async function loadIntegrations(): Promise<void> {
       console.warn('[integrations] Failed to fetch connected services:', e);
     }
 
+    // ── Validate OAuth tokens — detect stale/broken connections ──
+    await _validateOAuthConnections();
+
     // ── Auto-detect Rust skill vault connections ──
     _autoDetectSkillConnections(nativeSkills);
 
@@ -173,6 +176,81 @@ export async function refreshConnected(): Promise<void> {
   renderIntegrations();
   updateIntegrationsHeroStats(_connected);
   renderHealthList(_connected);
+}
+
+// ── OAuth Connection Validation ────────────────────────────────────────
+
+/** OAuth service IDs and their linked integration service IDs. */
+const _oauthServiceMapping: Record<string, string[]> = {
+  'google-workspace': [
+    'gmail',
+    'google-sheets',
+    'google-calendar',
+    'google-docs',
+    'google-drive',
+    'google-workspace',
+  ],
+  google: [
+    'gmail',
+    'google-sheets',
+    'google-calendar',
+    'google-docs',
+    'google-drive',
+    'google-workspace',
+  ],
+  github: ['github'],
+  discord: ['discord'],
+  slack: ['slack'],
+  notion: ['notion'],
+  dropbox: ['dropbox'],
+  linear: ['linear'],
+  figma: ['figma'],
+  reddit: ['reddit'],
+  spotify: ['spotify'],
+};
+
+/**
+ * Validate all stored OAuth tokens and disconnect services whose tokens
+ * are broken (e.g. undecryptable after a rebuild). This prevents the UI
+ * from showing a misleading "connected" state.
+ */
+async function _validateOAuthConnections(): Promise<void> {
+  try {
+    const statuses = await invoke<
+      Array<{ service_id: string; connected: boolean; expired: boolean }>
+    >('engine_oauth_validate_all');
+
+    for (const status of statuses) {
+      if (status.connected && !status.expired) continue;
+
+      // This OAuth service has broken or expired tokens.
+      // Find and mark all linked integration services as needing attention.
+      const linkedServices = _oauthServiceMapping[status.service_id] ?? [status.service_id];
+      for (const sid of linkedServices) {
+        const idx = _connected.findIndex((c) => c.serviceId === sid);
+        if (idx !== -1) {
+          if (!status.connected) {
+            // Tokens are gone/broken — remove from connected list
+            console.warn(
+              `[integrations] OAuth tokens for '${status.service_id}' are broken — disconnecting '${sid}'`,
+            );
+            _connected.splice(idx, 1);
+            // Clean up backend state
+            try {
+              await invoke('engine_integrations_disconnect', { serviceId: sid });
+            } catch {
+              /* best effort */
+            }
+          } else if (status.expired) {
+            // Tokens exist but expired — mark as expired so UI shows warning
+            _connected[idx].status = 'expired';
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.debug('[integrations] OAuth validation skipped:', e);
+  }
 }
 
 // ── Auto-detect Skill Connections ──────────────────────────────────────

@@ -125,8 +125,14 @@ pub enum OAuthTier {
 
 /// Resolve which OAuth tier should handle a given service.
 pub fn resolve_tier(service_id: &str) -> OAuthTier {
-    // Tier 1: Services with shipped Client IDs (our PKCE engine)
+    // Tier 1a: Services with shipped static Client IDs (our PKCE engine)
     if get_oauth_config(service_id).is_some() {
+        return OAuthTier::ShippedPkce;
+    }
+
+    // Tier 1b: Dynamic providers with registered (non-placeholder) Client IDs
+    // These come from provider_registry (Nango data + our registrations.json)
+    if crate::engine::provider_registry::is_ready(service_id) {
         return OAuthTier::ShippedPkce;
     }
 
@@ -452,9 +458,8 @@ pub fn get_n8n_oauth_type(service_id: &str) -> Option<&'static str> {
         "youtube" => Some("youtubeOAuth2Api"),
         "zoom" => Some("zoomOAuth2Api"),
         "webex" => Some("webexOAuth2Api"),
-        "microsoft-teams" | "teams" => Some("microsoftTeamsOAuth2Api"),
-        "onedrive" => Some("microsoftOneDriveOAuth2Api"),
-        "outlook" => Some("microsoftOutlookOAuth2Api"),
+        // Microsoft 365 — now handled natively via Tier 1 PKCE (see MICROSOFT_OAUTH)
+        // "microsoft-teams" | "teams" | "onedrive" | "outlook" → Tier 1
         "xero" => Some("xeroOAuth2Api"),
         "typeform" => Some("typeformOAuth2Api"),
         "gitlab" => Some("gitlabOAuth2Api"),
@@ -503,9 +508,7 @@ pub fn n8n_oauth_service_ids() -> Vec<&'static str> {
         "youtube",
         "zoom",
         "webex",
-        "microsoft-teams",
-        "onedrive",
-        "outlook",
+        // microsoft-teams, onedrive, outlook — now Tier 1 (native PKCE)
         "xero",
         "typeform",
         "gitlab",
@@ -552,6 +555,8 @@ pub fn get_oauth_config(service_id: &str) -> Option<&'static OAuthConfig> {
         "github" => Some(&GITHUB_OAUTH),
         "google" | "google-workspace" | "gmail" | "google-drive" | "google-calendar"
         | "google-sheets" | "google-docs" => Some(&GOOGLE_OAUTH),
+        "microsoft" | "microsoft-365" | "outlook" | "onedrive" | "microsoft-teams"
+        | "teams" => Some(&MICROSOFT_OAUTH),
         "discord" => Some(&DISCORD_OAUTH),
         "slack" => Some(&SLACK_OAUTH),
         "notion" => Some(&NOTION_OAUTH),
@@ -574,6 +579,11 @@ pub fn oauth_service_ids() -> Vec<&'static str> {
         "google-drive",
         "google-calendar",
         "google-sheets",
+        "microsoft",
+        "microsoft-365",
+        "outlook",
+        "onedrive",
+        "microsoft-teams",
         "discord",
         "slack",
         "notion",
@@ -786,6 +796,68 @@ static REDDIT_OAUTH: OAuthConfig = OAuthConfig {
     default_scopes: &["identity", "read", "mysubreddits"],
     write_scopes: &["submit", "edit", "privatemessages"],
     revoke_url: Some("https://www.reddit.com/api/v1/revoke_token"),
+};
+
+static MICROSOFT_OAUTH: OAuthConfig = OAuthConfig {
+    name: "Microsoft 365",
+    env_prefix: "MICROSOFT",
+    auth_url: "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    token_url: "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    client_id: match option_env!("OPENPAWZ_MICROSOFT_CLIENT_ID") {
+        Some(v) => v,
+        None => "e1026883-ecd3-4116-a2dd-49cd43eea191",
+    },
+    client_secret: option_env!("OPENPAWZ_MICROSOFT_CLIENT_SECRET"),
+    default_scopes: &[
+        "openid",
+        "profile",
+        "email",
+        "offline_access",
+        "User.Read",
+        // Mail
+        "Mail.Read",
+        "Mail.ReadWrite",
+        "Mail.Send",
+        "MailboxSettings.Read",
+        // Calendar
+        "Calendars.Read",
+        "Calendars.ReadWrite",
+        // Contacts
+        "Contacts.Read",
+        // Files (OneDrive)
+        "Files.Read",
+        "Files.ReadWrite",
+        // Notes (OneNote)
+        "Notes.Read",
+        "Notes.ReadWrite",
+        // Tasks (To Do)
+        "Tasks.Read",
+        "Tasks.ReadWrite",
+        // Teams
+        "Team.ReadBasic.All",
+        "Channel.ReadBasic.All",
+        "Chat.Read",
+        "Chat.ReadWrite",
+        "ChannelMessage.Read.All",
+        "ChannelMessage.Send",
+        // Sites (SharePoint)
+        "Sites.Read.All",
+        // People
+        "People.Read",
+        // Presence
+        "Presence.Read",
+    ],
+    write_scopes: &[
+        "Mail.Send",
+        "Mail.ReadWrite",
+        "Calendars.ReadWrite",
+        "Files.ReadWrite",
+        "Notes.ReadWrite",
+        "Tasks.ReadWrite",
+        "Chat.ReadWrite",
+        "ChannelMessage.Send",
+    ],
+    revoke_url: Some("https://login.microsoftonline.com/common/oauth2/v2.0/logout"),
 };
 
 // ── PKCE ─────────────────────────────────────────────────────────

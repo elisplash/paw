@@ -1,0 +1,4015 @@
+{
+  "accelo": {
+    "auth_url": "https://${connectionConfig.subdomain}.api.accelo.com/oauth2/v0/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.api.accelo.com",
+    "categories": [
+      "invoicing",
+      "ticketing"
+    ],
+    "display_name": "Accelo",
+    "scope_separator": ",",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.api.accelo.com/oauth2/v0/token"
+  },
+  "acuity-scheduling": {
+    "auth_url": "https://acuityscheduling.com/oauth2/authorize",
+    "base_url": "https://acuityscheduling.com/api/v1",
+    "categories": [
+      "productivity"
+    ],
+    "default_scopes": [
+      "api-v1"
+    ],
+    "display_name": "Acuity Scheduling",
+    "token_url": "https://acuityscheduling.com/oauth2/token"
+  },
+  "addepar": {
+    "auth_url": "https://id.addepar.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.addepar.com",
+    "categories": [
+      "analytics"
+    ],
+    "disable_pkce": true,
+    "display_name": "Addepar (OAuth)",
+    "proxy_headers": {
+      "addepar-firm": "${connectionConfig.firmId}"
+    },
+    "retry": {
+      "after": [
+        "x-ratelimit-retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.addepar.com/public/oauth2/token"
+  },
+  "adobe": {
+    "auth_url": "https://ims-na1.adobelogin.com/ims/authorize/v2",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://ims-na1.adobelogin.com/ims",
+    "categories": [
+      "design"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Adobe",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://ims-na1.adobelogin.com/ims/token/v3"
+  },
+  "adobe-workfront": {
+    "auth_url": "https://${connectionConfig.hostname}/integrations/oauth2/authorize",
+    "authorization_method": "header",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.hostname}/attask/api",
+    "body_format": "json",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "Adobe Workfront",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.hostname}/integrations/oauth2/api/v1/token"
+  },
+  "adyen": {
+    "auth_url": "https://ca-${connectionConfig.environment}.adyen.com/ca/ca/oauth/connect.shtml",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.resource}-${connectionConfig.environment}.adyen.com",
+    "categories": [
+      "payment"
+    ],
+    "display_name": "Adyen",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://oauth-${connectionConfig.environment}.adyen.com/v1/token"
+  },
+  "aimfox-oauth": {
+    "auth_url": "https://id.aimfox.com/realms/aimfox-prod/protocol/openid-connect/auth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.aimfox.com/api",
+    "categories": [
+      "surveys"
+    ],
+    "disable_pkce": true,
+    "display_name": "Aimfox (OAuth)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://id.aimfox.com/realms/aimfox-prod/protocol/openid-connect/token"
+  },
+  "aircall": {
+    "auth_url": "https://dashboard.aircall.io/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code",
+      "scope": "public_api"
+    },
+    "base_url": "https://api.aircall.io",
+    "categories": [
+      "support"
+    ],
+    "display_name": "Aircall (OAuth)",
+    "pagination": {
+      "link_path_in_response_body": "meta.next_page_link",
+      "response_path": "results",
+      "type": "link"
+    },
+    "retry": {
+      "at": [
+        "x-aircallapi-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.aircall.io/v1/oauth/token"
+  },
+  "airtable": {
+    "auth_url": "https://airtable.com/oauth2/v1/authorize",
+    "authorization_method": "header",
+    "base_url": "https://api.airtable.com",
+    "categories": [
+      "popular",
+      "productivity"
+    ],
+    "display_name": "Airtable",
+    "token_url": "https://airtable.com/oauth2/v1/token"
+  },
+  "amazon": {
+    "auth_url": "https://www.amazon.com/ap/oa",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.amazon.com",
+    "categories": [
+      "dev-tools",
+      "e-commerce"
+    ],
+    "display_name": "Amazon",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.amazon.${connectionConfig.extension}/auth/o2/token"
+  },
+  "amazon-selling-partner": {
+    "auth_url": "https://${connectionConfig.domain}/apps/authorize/consent",
+    "authorization_params": {
+      "application_id": "${connectionConfig.applicationId}"
+    },
+    "base_url": "https://sellingpartnerapi-${connectionConfig.region}.amazon.com",
+    "categories": [
+      "dev-tools",
+      "e-commerce"
+    ],
+    "disable_pkce": true,
+    "display_name": "Amazon Selling Partner",
+    "proxy_headers": {
+      "x-amz-access-token": "${accessToken}"
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.amazon.com/auth/o2/token"
+  },
+  "amazon-selling-partner-beta": {
+    "auth_url": "https://${connectionConfig.domain}/apps/authorize/consent",
+    "authorization_params": {
+      "application_id": "${connectionConfig.applicationId}",
+      "version": "beta"
+    },
+    "base_url": "https://sandbox.sellingpartnerapi-${connectionConfig.region}.amazon.com",
+    "categories": [
+      "dev-tools",
+      "e-commerce"
+    ],
+    "disable_pkce": true,
+    "display_name": "Amazon Selling Partner (Beta)",
+    "proxy_headers": {
+      "x-amz-access-token": "${accessToken}"
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.amazon.com/auth/o2/token"
+  },
+  "apaleo": {
+    "auth_url": "https://identity.apaleo.com/connect/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.apaleo.com",
+    "categories": [
+      "erp"
+    ],
+    "display_name": "Apaleo",
+    "proxy_headers": {
+      "content-type": "application/json"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://identity.apaleo.com/connect/token"
+  },
+  "apollo-oauth": {
+    "auth_url": "https://app.apollo.io",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://app.apollo.io/api",
+    "body_format": "json",
+    "categories": [
+      "marketing"
+    ],
+    "disable_pkce": true,
+    "display_name": "Apollo (OAuth)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.apollo.io/api/v1/oauth/token"
+  },
+  "asana": {
+    "auth_url": "https://app.asana.com/-/oauth_authorize",
+    "base_url": "https://app.asana.com",
+    "categories": [
+      "productivity",
+      "ticketing"
+    ],
+    "default_scopes": [
+      "default"
+    ],
+    "display_name": "Asana",
+    "pagination": {
+      "cursor_name_in_request": "offset",
+      "cursor_path_in_response": "next_page.offset",
+      "limit_name_in_request": "limit",
+      "response_path": "data",
+      "type": "cursor"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.asana.com/-/oauth_token"
+  },
+  "atlassian": {
+    "auth_url": "https://auth.atlassian.com/authorize",
+    "authorization_params": {
+      "audience": "api.atlassian.com",
+      "prompt": "consent",
+      "response_type": "code"
+    },
+    "base_url": "https://api.atlassian.com",
+    "categories": [
+      "dev-tools"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Atlassian",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://auth.atlassian.com/oauth/token"
+  },
+  "atlassian-government-cloud": {
+    "auth_url": "https://auth.atlassian-us-gov-mod.com/authorize",
+    "authorization_params": {
+      "audience": "api.atlassian-us-gov-mod.com",
+      "prompt": "consent"
+    },
+    "base_url": "https://api.atlassian-us-gov-mod.com",
+    "categories": [
+      "productivity",
+      "ticketing"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Atlassian Government Cloud",
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_url": "https://auth.atlassian-us-gov-mod.com/oauth/token"
+  },
+  "attio": {
+    "auth_url": "https://app.attio.com/authorize",
+    "base_url": "https://api.attio.com",
+    "categories": [
+      "crm"
+    ],
+    "display_name": "Attio",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.attio.com/oauth/token"
+  },
+  "auth0": {
+    "auth_url": "https://${connectionConfig.subdomain}.auth0.com/authorize",
+    "authorization_params": {
+      "response_mode": "query",
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.auth0.com",
+    "categories": [
+      "other"
+    ],
+    "display_name": "Auth0",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.auth0.com/oauth/token"
+  },
+  "autodesk": {
+    "auth_url": "https://developer.api.autodesk.com/authentication/v2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://developer.api.autodesk.com",
+    "categories": [
+      "design"
+    ],
+    "disable_pkce": true,
+    "display_name": "Autodesk",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://developer.api.autodesk.com/authentication/v2/token"
+  },
+  "aws": {
+    "auth_url": "https://${connectionConfig.subdomain}.auth.${connectionConfig.extension}.amazoncognito.com/oauth2/authorize",
+    "base_url": "https://cognito-${apiSubdomain}.amazonaws.com",
+    "categories": [
+      "dev-tools",
+      "e-commerce"
+    ],
+    "default_scopes": [
+      "openid"
+    ],
+    "display_name": "AWS",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.auth.${connectionConfig.extension}.amazoncognito.com/oauth2/token"
+  },
+  "bamboohr": {
+    "auth_url": "https://${connectionConfig.subdomain}.bamboohr.com/authorize.php",
+    "authorization_params": {
+      "request": "authorize",
+      "response_type": "code"
+    },
+    "base_url": "https://api.bamboohr.com/api/gateway.php/${connectionConfig.subdomain}",
+    "categories": [
+      "hr"
+    ],
+    "display_name": "BambooHR (OAuth)",
+    "token_params": {
+      "grant_type": "authorization_code",
+      "request": "token"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.bamboohr.com/token.php"
+  },
+  "basecamp": {
+    "auth_url": "https://launchpad.37signals.com/authorization/new",
+    "authorization_params": {
+      "type": "web_server"
+    },
+    "base_url": "https://3.basecampapi.com/${connectionConfig.accountId}",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "Basecamp",
+    "proxy_headers": {
+      "user-agent": "${connectionConfig.appDetails} || App (support@nango.dev)"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "type": "web_server"
+    },
+    "token_url": "https://launchpad.37signals.com/authorization/token"
+  },
+  "battlenet": {
+    "auth_url": "https://oauth.battle.${connectionConfig.extension}/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.apiDomain}",
+    "categories": [
+      "gaming"
+    ],
+    "display_name": "Battle.net",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://oauth.battle.${connectionConfig.extension}/token"
+  },
+  "bigcommerce": {
+    "auth_url": "https://login.bigcommerce.com/oauth2/authorize",
+    "authorization_params": {
+      "account_uuid": "${connectionConfig.accountUuid}",
+      "context": "stores/${connectionConfig.storeHash}",
+      "response_type": "code"
+    },
+    "base_url": "https://api.bigcommerce.com/stores/${connectionConfig.storeHash}",
+    "categories": [
+      "e-commerce"
+    ],
+    "display_name": "BigCommerce",
+    "token_params": {
+      "context": "stores/${connectionConfig.storeHash}",
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://login.bigcommerce.com/oauth2/token"
+  },
+  "bitbucket": {
+    "auth_url": "https://bitbucket.org/site/oauth2/authorize",
+    "base_url": "https://api.bitbucket.org",
+    "categories": [
+      "dev-tools"
+    ],
+    "display_name": "Bitbucket",
+    "token_url": "https://bitbucket.org/site/oauth2/access_token"
+  },
+  "bitly": {
+    "auth_url": "https://bitly.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api-ssl.bitly.com",
+    "categories": [
+      "marketing",
+      "social"
+    ],
+    "display_name": "Bitly",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api-ssl.bitly.com/oauth/access_token"
+  },
+  "blackbaud": {
+    "auth_url": "https://app.blackbaud.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.sky.blackbaud.com",
+    "categories": [
+      "crm"
+    ],
+    "display_name": "Blackbaud",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://oauth2.sky.blackbaud.com/token"
+  },
+  "boldsign": {
+    "auth_url": "https://account.boldsign.com/connect/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.boldsign.com",
+    "categories": [
+      "legal"
+    ],
+    "display_name": "BoldSign",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://account.boldsign.com/connect/token"
+  },
+  "box": {
+    "auth_url": "https://account.box.com/api/oauth2/authorize",
+    "base_url": "https://api.box.com",
+    "categories": [
+      "knowledge-base",
+      "storage"
+    ],
+    "display_name": "Box",
+    "token_url": "https://api.box.com/oauth2/token"
+  },
+  "braintree": {
+    "auth_url": "https://api.braintreegateway.com/oauth/connect",
+    "authorization_method": "header",
+    "base_url": "https://api.braintreegateway.com",
+    "body_format": "json",
+    "categories": [
+      "payment"
+    ],
+    "display_name": "Braintree",
+    "scope_separator": ",",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.braintreegateway.com/oauth/access_tokens"
+  },
+  "braintree-sandbox": {
+    "auth_url": "https://api.sandbox.braintreegateway.com/oauth/connect",
+    "authorization_method": "header",
+    "base_url": "https://api.sandbox.braintreegateway.com",
+    "body_format": "json",
+    "display_name": "Braintree (Sandbox)",
+    "scope_separator": ",",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.sandbox.braintreegateway.com/oauth/access_tokens"
+  },
+  "brex": {
+    "auth_url": "https://accounts-api.brex.com/oauth2/default/v1/authorize",
+    "base_url": "https://platform.brexapis.com",
+    "categories": [
+      "banking"
+    ],
+    "default_scopes": [
+      "openid",
+      "offline_access"
+    ],
+    "display_name": "Brex (OAuth)",
+    "token_url": "https://accounts-api.brex.com/oauth2/default/v1/token"
+  },
+  "brex-staging": {
+    "auth_url": "https://accounts-api.staging.brexapps.com/oauth2/default/v1/authorize",
+    "base_url": "https://platform.staging.brexapps.com",
+    "display_name": "Brex (Staging OAuth)",
+    "token_url": "https://accounts-api.staging.brexapps.com/oauth2/default/v1/token"
+  },
+  "bullhorn": {
+    "auth_url": "https://auth-west.bullhornstaffing.com/oauth/authorize",
+    "authorization_params": {
+      "action": "Login",
+      "password": "${connectionConfig.password}",
+      "response_type": "code",
+      "username": "${connectionConfig.username}"
+    },
+    "base_url": "${connectionConfig.restUrl}",
+    "categories": [
+      "hr"
+    ],
+    "disable_pkce": true,
+    "display_name": "Bullhorn",
+    "proxy_headers": {
+      "bhresttoken": "${accessToken}"
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://auth-west.bullhornstaffing.com/oauth/token"
+  },
+  "cal-com-oauth": {
+    "auth_url": "https://app.cal.com/auth/oauth2/authorize",
+    "base_url": "https://api.cal.com",
+    "body_format": "json",
+    "categories": [
+      "productivity"
+    ],
+    "disable_pkce": true,
+    "display_name": "Cal.com (OAuth)",
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.cal.com/v2/auth/oauth2/token"
+  },
+  "calendly": {
+    "auth_url": "https://auth.calendly.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.calendly.com",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "Calendly",
+    "pagination": {
+      "link_path_in_response_body": "pagination.next_page",
+      "type": "link"
+    },
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_url": "https://auth.calendly.com/oauth/token"
+  },
+  "candis": {
+    "auth_url": "https://id.my.candis.io/auth/realms/candis/protocol/openid-connect/auth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.candis.io",
+    "categories": [
+      "accounting"
+    ],
+    "disable_pkce": true,
+    "display_name": "Candis",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://id.my.candis.io/auth/realms/candis/protocol/openid-connect/token"
+  },
+  "canva": {
+    "auth_url": "https://www.canva.com/api/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.canva.com",
+    "categories": [
+      "design"
+    ],
+    "display_name": "Canva",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.canva.com/rest/v1/oauth/token"
+  },
+  "canvas-lms": {
+    "auth_url": "https://${connectionConfig.hostname}/login/oauth2/auth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.hostname}",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "Canvas LMS",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.hostname}/login/oauth2/token"
+  },
+  "checkr-partner": {
+    "auth_url": "https://partners.checkr.com/authorize/${connectionConfig.client_id}",
+    "base_url": "https://api.checkr.com",
+    "categories": [
+      "legal"
+    ],
+    "disable_pkce": true,
+    "display_name": "Checkr Partner",
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.checkr.com/oauth/tokens"
+  },
+  "checkr-partner-staging": {
+    "auth_url": "https://partners.checkrhq-staging.net/authorize/${connectionConfig.client_id}",
+    "base_url": "https://api.checkr-staging.com",
+    "categories": [
+      "legal"
+    ],
+    "disable_pkce": true,
+    "display_name": "Checkr Partner (Staging)",
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.checkr-staging.com/oauth/tokens"
+  },
+  "clickup": {
+    "auth_url": "https://app.clickup.com/api",
+    "base_url": "https://api.clickup.com",
+    "categories": [
+      "productivity",
+      "ticketing"
+    ],
+    "display_name": "ClickUp",
+    "token_url": "https://api.clickup.com/api/v2/oauth/token"
+  },
+  "close": {
+    "auth_url": "https://app.close.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.close.com/api",
+    "categories": [
+      "crm"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Close",
+    "token_url": "https://api.close.com/oauth2/token/"
+  },
+  "cloudbeds": {
+    "auth_url": "https://api.cloudbeds.com/api/v1.3/oauth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.cloudbeds.com",
+    "categories": [
+      "other"
+    ],
+    "disable_pkce": true,
+    "display_name": "Cloudbeds",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.cloudbeds.com/api/v1.3/access_token"
+  },
+  "constant-contact": {
+    "auth_url": "https://authz.constantcontact.com/oauth2/default/v1/authorize",
+    "base_url": "https://api.cc.email",
+    "categories": [
+      "marketing"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "disable_pkce": true,
+    "display_name": "Constant Contact",
+    "token_url": "https://authz.constantcontact.com/oauth2/default/v1/token"
+  },
+  "contentful": {
+    "auth_url": "https://be.contentful.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.contentful.com",
+    "categories": [
+      "dev-tools",
+      "design",
+      "cms"
+    ],
+    "display_name": "Contentful",
+    "retry": {
+      "after": [
+        "x-contentful-ratelimit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://be.contentful.com/oauth/token"
+  },
+  "contentstack": {
+    "auth_url": "https://${connectionConfig.subdomain}.contentstack.com/apps/${connectionConfig.appId}/authorize",
+    "base_url": "https://${connectionConfig.apiDomain}",
+    "categories": [
+      "cms"
+    ],
+    "display_name": "Contentstack",
+    "token_url": "https://${connectionConfig.subdomain}.contentstack.com/apps-api/apps/token"
+  },
+  "copper": {
+    "auth_url": "https://app.copper.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.copper.com/developer_api",
+    "categories": [
+      "crm"
+    ],
+    "default_scopes": [
+      "developer/v1/all"
+    ],
+    "display_name": "Copper (OAuth)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.copper.com/oauth/token"
+  },
+  "coros": {
+    "auth_url": "https://open.coros.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://open.coros.com",
+    "categories": [
+      "sports"
+    ],
+    "display_name": "Coros",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://open.coros.com/oauth2/accesstoken"
+  },
+  "coros-sandbox": {
+    "auth_url": "https://opentest.coros.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://opentest.coros.com",
+    "display_name": "Coros (Sandbox)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://opentest.coros.com/oauth2/accesstoken"
+  },
+  "datev": {
+    "auth_url": "https://login.datev.de/openid/authorize",
+    "authorization_params": {
+      "nonce": "AnotherRandomStringDatev",
+      "response_mode": "query",
+      "response_type": "code id_token"
+    },
+    "base_url": "https://api.datev.de",
+    "categories": [
+      "legal",
+      "hr"
+    ],
+    "default_scopes": [
+      "openid"
+    ],
+    "display_name": "Datev",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.datev.de/token"
+  },
+  "datto-rmm": {
+    "auth_url": "https://${connectionConfig.platform}-api.centrastage.net/auth/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.platform}-api.centrastage.net/api",
+    "categories": [
+      "support"
+    ],
+    "disable_pkce": true,
+    "display_name": "Datto RMM",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.platform}-api.centrastage.net/auth/oauth/token"
+  },
+  "deel": {
+    "auth_url": "https://app.deel.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.letsdeel.com",
+    "categories": [
+      "hr"
+    ],
+    "display_name": "Deel",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.deel.com/oauth2/tokens"
+  },
+  "deel-sandbox": {
+    "auth_url": "https://demo.deel.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api-sandbox.demo.deel.com",
+    "display_name": "Deel (Sandbox)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://demo.deel.com/oauth2/tokens"
+  },
+  "dialpad": {
+    "auth_url": "https://dialpad.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://dialpad.com",
+    "categories": [
+      "communication"
+    ],
+    "display_name": "Dialpad",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://dialpad.com/oauth2/token"
+  },
+  "dialpad-sandbox": {
+    "auth_url": "https://sandbox.dialpad.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://sandbox.dialpad.com",
+    "categories": [
+      "communication"
+    ],
+    "display_name": "Dialpad (Sandbox)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://sandbox.dialpad.com/oauth2/token"
+  },
+  "digitalocean": {
+    "auth_url": "https://cloud.digitalocean.com/v1/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.digitalocean.com",
+    "categories": [
+      "dev-tools"
+    ],
+    "display_name": "DigitalOcean",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://cloud.digitalocean.com/v1/oauth/token"
+  },
+  "discord": {
+    "auth_url": "https://discord.com/api/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://discord.com",
+    "categories": [
+      "gaming",
+      "social"
+    ],
+    "display_name": "Discord",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_url": "https://discord.com/api/oauth2/token"
+  },
+  "docusign": {
+    "auth_url": "https://account.docusign.com/oauth/auth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://www.docusign.net",
+    "categories": [
+      "legal"
+    ],
+    "display_name": "DocuSign",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://account.docusign.com/oauth/token"
+  },
+  "docusign-sandbox": {
+    "auth_url": "https://account-d.docusign.com/oauth/auth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://demo.docusign.net",
+    "display_name": "DocuSign (Sandbox)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://account-d.docusign.com/oauth/token"
+  },
+  "drchrono": {
+    "auth_url": "https://app.drchrono.com/o/authorize/",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://app.drchrono.com",
+    "categories": [
+      "other"
+    ],
+    "display_name": "DrChrono",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.drchrono.com/o/token/"
+  },
+  "dropbox": {
+    "auth_url": "https://www.dropbox.com/oauth2/authorize",
+    "authorization_params": {
+      "token_access_type": "offline"
+    },
+    "base_url": "https://api.dropboxapi.com",
+    "categories": [
+      "knowledge-base",
+      "storage"
+    ],
+    "display_name": "Dropbox",
+    "token_url": "https://api.dropboxapi.com/oauth2/token"
+  },
+  "dropbox-sign": {
+    "auth_url": "https://app.hellosign.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.hellosign.com",
+    "categories": [
+      "legal"
+    ],
+    "display_name": "Dropbox Sign",
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.hellosign.com/oauth/token"
+  },
+  "ebay": {
+    "auth_url": "https://auth.ebay.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.ebay.com/",
+    "categories": [
+      "e-commerce"
+    ],
+    "display_name": "eBay",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.ebay.com/identity/v1/oauth2/token"
+  },
+  "ebay-sandbox": {
+    "auth_url": "https://auth.sandbox.ebay.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.sandbox.ebay.com/",
+    "categories": [
+      "e-commerce"
+    ],
+    "display_name": "eBay (Sandbox)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.sandbox.ebay.com/identity/v1/oauth2/token"
+  },
+  "egnyte": {
+    "auth_url": "https://${connectionConfig.subdomain}.egnyte.com/puboauth/token",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.egnyte.com/pubapi",
+    "categories": [
+      "storage"
+    ],
+    "display_name": "Egnyte",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.egnyte.com/puboauth/token"
+  },
+  "employment-hero": {
+    "auth_url": "https://oauth.employmenthero.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.employmenthero.com/api",
+    "categories": [
+      "hr"
+    ],
+    "disable_pkce": true,
+    "display_name": "Employment Hero",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://oauth.employmenthero.com/oauth2/token"
+  },
+  "envoy": {
+    "auth_url": "https://app.envoy.com/a/auth/v0/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.envoy.com",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "Envoy",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.envoy.com/a/auth/v0/token"
+  },
+  "epic-games": {
+    "auth_url": "https://www.epicgames.com/id/authorize",
+    "authorization_method": "header",
+    "base_url": "https://api.epicgames.dev",
+    "categories": [
+      "gaming"
+    ],
+    "display_name": "Epic Games",
+    "token_url": "https://api.epicgames.dev/epic/oauth/v1/token"
+  },
+  "eventbrite": {
+    "auth_url": "https://www.eventbrite.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://www.eventbriteapi.com",
+    "categories": [
+      "marketing"
+    ],
+    "display_name": "Eventbrite",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://www.eventbrite.com/oauth/token"
+  },
+  "exact-online": {
+    "auth_url": "https://start.exactonline.${connectionConfig.extension}/api/oauth2/auth",
+    "authorization_method": "header",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://start.exactonline.${connectionConfig.extension}/",
+    "categories": [
+      "accounting",
+      "erp"
+    ],
+    "display_name": "Exact Online",
+    "pagination": {
+      "link_path_in_response_body": "d.__next",
+      "type": "link"
+    },
+    "proxy_headers": {
+      "accept": "application/json"
+    },
+    "retry": {
+      "at": [
+        "x-ratelimit-minutely-reset",
+        "x-ratelimit-reset"
+      ],
+      "error_code": [
+        "429",
+        "503"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://start.exactonline.${connectionConfig.extension}/api/oauth2/token"
+  },
+  "exist": {
+    "auth_url": "https://exist.io/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://exist.io/",
+    "categories": [
+      "other"
+    ],
+    "display_name": "Exist",
+    "pagination": {
+      "link_path_in_response_body": "next",
+      "type": "link"
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://exist.io/oauth2/access_token"
+  },
+  "facebook": {
+    "auth_url": "https://www.facebook.com/v22.0/dialog/oauth",
+    "base_url": "https://graph.facebook.com",
+    "categories": [
+      "marketing",
+      "social"
+    ],
+    "display_name": "Facebook",
+    "token_url": "https://graph.facebook.com/v22.0/oauth/access_token"
+  },
+  "factorial": {
+    "auth_url": "https://api.factorialhr.com/oauth/authorize",
+    "base_url": "https://api.factorialhr.com/api",
+    "categories": [
+      "hr"
+    ],
+    "disable_pkce": true,
+    "display_name": "Factorial",
+    "token_url": "https://api.factorialhr.com/oauth/token"
+  },
+  "fanvue": {
+    "auth_url": "https://auth.fanvue.com/oauth2/auth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.fanvue.com",
+    "categories": [
+      "other"
+    ],
+    "default_scopes": [
+      "offline_access",
+      "offline"
+    ],
+    "display_name": "Fanvue",
+    "proxy_headers": {
+      "x-fanvue-api-version": "${connectionConfig.version} || 2025-06-26"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://auth.fanvue.com/oauth2/token"
+  },
+  "fathom-oauth": {
+    "auth_url": "https://fathom.video/external/v1/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.fathom.ai",
+    "categories": [
+      "communication",
+      "video"
+    ],
+    "disable_pkce": true,
+    "display_name": "Fathom (OAuth)",
+    "retry": {
+      "at": [
+        "ratelimit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://fathom.video/external/v1/oauth2/token"
+  },
+  "figma": {
+    "auth_url": "https://www.figma.com/oauth",
+    "base_url": "https://api.figma.com",
+    "categories": [
+      "design",
+      "productivity"
+    ],
+    "disable_pkce": true,
+    "display_name": "Figma",
+    "scope_separator": ",",
+    "token_url": "https://api.figma.com/v1/oauth/token"
+  },
+  "fillout": {
+    "auth_url": "https://build.fillout.com/authorize/oauth",
+    "base_url": "${connectionConfig.base_url}",
+    "categories": [
+      "surveys"
+    ],
+    "display_name": "Fillout (Oauth)",
+    "token_url": "https://server.fillout.com/public/oauth/accessToken"
+  },
+  "fitbit": {
+    "auth_url": "https://www.fitbit.com/oauth2/authorize",
+    "authorization_method": "header",
+    "base_url": "https://api.fitbit.com",
+    "categories": [
+      "sports"
+    ],
+    "display_name": "Fitbit",
+    "token_url": "https://api.fitbit.com/oauth2/token"
+  },
+  "fortnox": {
+    "auth_url": "https://apps.fortnox.se/oauth-v1/auth",
+    "authorization_params": {
+      "access_type": "offline",
+      "response_type": "code"
+    },
+    "base_url": "https://api.fortnox.se/3",
+    "categories": [
+      "accounting",
+      "invoicing"
+    ],
+    "display_name": "Fortnox",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://apps.fortnox.se/oauth-v1/token"
+  },
+  "freeagent": {
+    "auth_url": "https://api.freeagent.com/v2/approve_app",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.freeagent.com",
+    "categories": [
+      "accounting",
+      "invoicing"
+    ],
+    "display_name": "FreeAgent",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.freeagent.com/v2/token_endpoint"
+  },
+  "freeagent-sandbox": {
+    "auth_url": "https://api.sandbox.freeagent.com/v2/approve_app",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.sandbox.freeagent.com",
+    "categories": [
+      "accounting",
+      "invoicing"
+    ],
+    "display_name": "FreeAgent (Sandbox)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.sandbox.freeagent.com/v2/token_endpoint"
+  },
+  "freshbooks": {
+    "auth_url": "https://auth.freshbooks.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.freshbooks.com",
+    "categories": [
+      "accounting"
+    ],
+    "display_name": "FreshBooks",
+    "token_url": "https://api.freshbooks.com/auth/oauth/token"
+  },
+  "front": {
+    "auth_url": "https://app.frontapp.com/oauth/authorize",
+    "base_url": "https://api2.frontapp.com",
+    "categories": [
+      "support",
+      "ticketing"
+    ],
+    "display_name": "Front",
+    "pagination": {
+      "link_path_in_response_body": "_pagination.next",
+      "response_path": "_results",
+      "type": "link"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_url": "https://app.frontapp.com/oauth/token"
+  },
+  "github": {
+    "auth_url": "https://github.com/login/oauth/authorize",
+    "base_url": "https://api.github.com",
+    "categories": [
+      "dev-tools",
+      "support",
+      "ticketing"
+    ],
+    "display_name": "GitHub (User OAuth)",
+    "pagination": {
+      "limit_name_in_request": "per_page",
+      "link_rel_in_response_header": "next",
+      "type": "link"
+    },
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ],
+      "error_code": [
+        "403",
+        "5xx",
+        "401",
+        "429"
+      ],
+      "remaining": "x-ratelimit-remaining"
+    },
+    "token_url": "https://github.com/login/oauth/access_token"
+  },
+  "gitlab": {
+    "auth_url": "https://gitlab.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://gitlab.com",
+    "categories": [
+      "dev-tools",
+      "ticketing"
+    ],
+    "display_name": "GitLab",
+    "token_url": "https://gitlab.com/oauth/token"
+  },
+  "gong-oauth": {
+    "auth_url": "https://app.gong.io/oauth2/authorize",
+    "authorization_params": {
+      "access_type": "offline",
+      "response_type": "code"
+    },
+    "base_url": "${connectionConfig.api_base_url_for_customer} || https://api.gong.io",
+    "categories": [
+      "communication",
+      "marketing",
+      "productivity",
+      "video",
+      "popular"
+    ],
+    "disable_pkce": true,
+    "display_name": "Gong (Oauth)",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.gong.io/oauth2/generate-customer-token"
+  },
+  "google": {
+    "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
+    "authorization_params": {
+      "access_type": "offline",
+      "prompt": "consent",
+      "response_type": "code"
+    },
+    "base_url": "https://www.googleapis.com",
+    "categories": [
+      "communication",
+      "dev-tools",
+      "productivity",
+      "social"
+    ],
+    "display_name": "Google",
+    "pagination": {
+      "cursor_name_in_request": "pageToken",
+      "cursor_path_in_response": "nextPageToken",
+      "limit_name_in_request": "maxSize",
+      "response_path": "items",
+      "type": "cursor"
+    },
+    "retry": {
+      "in_body": {
+        "path": "error.message",
+        "strategy": "at",
+        "value": "/User-rate limit exceeded\\. +Retry after (.+)/"
+      }
+    },
+    "token_url": "https://oauth2.googleapis.com/token"
+  },
+  "google-play": {
+    "auth_url": "https://accounts.google.com/o/oauth2/auth",
+    "authorization_params": {
+      "access_type": "offline",
+      "prompt": "consent",
+      "response_type": "code"
+    },
+    "base_url": "https://play.googleapis.com",
+    "categories": [
+      "dev-tools"
+    ],
+    "display_name": "Google Play",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://accounts.google.com/o/oauth2/token"
+  },
+  "gorgias": {
+    "auth_url": "https://${connectionConfig.subdomain}.gorgias.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.gorgias.com",
+    "categories": [
+      "e-commerce"
+    ],
+    "default_scopes": [
+      "offline"
+    ],
+    "display_name": "Gorgias",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.gorgias.com/oauth/token"
+  },
+  "grain": {
+    "auth_url": "https://grain.com/_/public-api/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.grain.com",
+    "categories": [
+      "video",
+      "communication",
+      "productivity"
+    ],
+    "display_name": "Grain (OAuth)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.grain.com/_/public-api/oauth2/token"
+  },
+  "greenhouse": {
+    "auth_url": "https://api.greenhouse.io/oauth/authorize",
+    "base_url": "https://${connectionConfig.resource}.greenhouse.io",
+    "categories": [
+      "ats"
+    ],
+    "display_name": "Greenhouse (OAuth)",
+    "pagination": {
+      "limit_name_in_request": "per_page",
+      "link_rel_in_response_header": "next",
+      "type": "link"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_url": "https://api.greenhouse.io/oauth/token"
+  },
+  "greenhouse-harvest-partner": {
+    "auth_url": "https://auth.greenhouse.io/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://harvest.greenhouse.io",
+    "categories": [
+      "ats"
+    ],
+    "disable_pkce": true,
+    "display_name": "Greenhouse Harvest Partner (V3)",
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://auth.greenhouse.io/token"
+  },
+  "greenhouse-ingestion": {
+    "auth_url": "https://api.greenhouse.io/oauth/authorize",
+    "base_url": "https://api.greenhouse.io",
+    "categories": [
+      "ats"
+    ],
+    "display_name": "Greenhouse (Ingestion API)",
+    "token_url": "https://api.greenhouse.io/oauth/token"
+  },
+  "gumroad": {
+    "auth_url": "https://gumroad.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.gumroad.com",
+    "categories": [
+      "design",
+      "e-commerce",
+      "payment"
+    ],
+    "display_name": "Gumroad",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.gumroad.com/oauth/token"
+  },
+  "gusto": {
+    "auth_url": "https://api.gusto.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.gusto.com",
+    "categories": [
+      "hr"
+    ],
+    "display_name": "Gusto",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.gusto.com/oauth/token"
+  },
+  "gusto-demo": {
+    "auth_url": "https://api.gusto-demo.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.gusto-demo.com",
+    "display_name": "Gusto (Demo)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.gusto-demo.com/oauth/token"
+  },
+  "harvest": {
+    "auth_url": "https://id.getharvest.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.harvestapp.com",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "Harvest",
+    "proxy_headers": {
+      "user-agent": "${connectionConfig.appDetails} || App (support@nango.dev)"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://id.getharvest.com/api/v2/oauth2/token"
+  },
+  "health-gorilla": {
+    "auth_url": "https://api.healthgorilla.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://healthgorilla.com",
+    "display_name": "Health Gorilla",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.healthgorilla.com/oauth/token"
+  },
+  "helpscout-mailbox": {
+    "auth_url": "https://secure.helpscout.net/authentication/authorizeClientApplication",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.helpscout.net",
+    "display_name": "Help Scout Mailbox",
+    "retry": {
+      "after": [
+        "x-ratelimit-retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.helpscout.net/v2/oauth2/token"
+  },
+  "heygen": {
+    "auth_url": "https://app.heygen.com/oauth/authorize",
+    "base_url": "https://api2.heygen.com",
+    "categories": [
+      "video"
+    ],
+    "display_name": "HeyGen",
+    "token_url": "https://api2.heygen.com/v1/oauth/token"
+  },
+  "highlevel": {
+    "auth_url": "https://marketplace.gohighlevel.com/oauth/chooselocation",
+    "base_url": "https://services.leadconnectorhq.com",
+    "categories": [
+      "marketing"
+    ],
+    "disable_pkce": true,
+    "display_name": "HighLevel",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://services.leadconnectorhq.com/oauth/token"
+  },
+  "highlevel-white-label": {
+    "auth_url": "https://marketplace.leadconnectorhq.com/oauth/chooselocation",
+    "base_url": "https://services.leadconnectorhq.com",
+    "categories": [
+      "crm"
+    ],
+    "disable_pkce": true,
+    "display_name": "HighLevel (LeadConnector)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://services.leadconnectorhq.com/oauth/token"
+  },
+  "hover": {
+    "auth_url": "https://hover.to/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.hover.to",
+    "categories": [
+      "productivity"
+    ],
+    "disable_pkce": true,
+    "display_name": "Hover",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://hover.to/oauth/token"
+  },
+  "hubspot": {
+    "auth_url": "https://app.hubspot.com/oauth/authorize",
+    "base_url": "https://api.hubapi.com",
+    "categories": [
+      "marketing",
+      "support",
+      "crm",
+      "popular"
+    ],
+    "display_name": "HubSpot",
+    "pagination": {
+      "cursor_name_in_request": "after",
+      "cursor_path_in_response": "paging.next.after",
+      "limit_name_in_request": "limit",
+      "response_path": "results",
+      "type": "cursor"
+    },
+    "retry": {
+      "remaining": "x-hubspot-ratelimit-remaining"
+    },
+    "token_url": "https://api.hubapi.com/oauth/v1/token"
+  },
+  "instagram": {
+    "auth_url": "https://api.instagram.com/oauth/authorize",
+    "base_url": "https://graph.instagram.com",
+    "categories": [
+      "marketing",
+      "social"
+    ],
+    "display_name": "Instagram",
+    "scope_separator": ",",
+    "token_url": "https://api.instagram.com/oauth/access_token"
+  },
+  "intercom": {
+    "auth_url": "https://app.${connectionConfig.region}.intercom.com/oauth || https://app.intercom.com/oauth",
+    "base_url": "https://api.${connectionConfig.region}.intercom.io || https://api.intercom.io",
+    "categories": [
+      "marketing",
+      "popular",
+      "support",
+      "surveys",
+      "ticketing"
+    ],
+    "display_name": "Intercom",
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_url": "https://api.${connectionConfig.region}.intercom.io/auth/eagle/token || https://api.intercom.io/auth/eagle/token"
+  },
+  "intuit": {
+    "auth_url": "https://appcenter.intuit.com/connect/oauth2",
+    "base_url": "https://quickbooks.api.intuit.com",
+    "categories": [
+      "accounting"
+    ],
+    "display_name": "Intuit",
+    "token_url": "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+  },
+  "ironclad": {
+    "auth_url": "https://ironcladapp.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.ironcladapp.com",
+    "categories": [
+      "legal"
+    ],
+    "disable_pkce": true,
+    "display_name": "Ironclad",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.ironcladapp.com/oauth/token"
+  },
+  "jira": {
+    "auth_url": "https://auth.atlassian.com/authorize",
+    "authorization_params": {
+      "audience": "api.atlassian.com",
+      "prompt": "consent"
+    },
+    "base_url": "https://api.atlassian.com",
+    "categories": [
+      "popular",
+      "productivity",
+      "ticketing"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Jira (OAuth)",
+    "pagination": {
+      "limit_name_in_request": "limit",
+      "link_path_in_response_body": "_links.next",
+      "link_rel_in_response_header": "next",
+      "response_path": "results",
+      "type": "link"
+    },
+    "token_url": "https://auth.atlassian.com/oauth/token"
+  },
+  "jira-data-center": {
+    "auth_url": "https://${connectionConfig.endpointURL}/rest/oauth2/latest/authorize",
+    "authorization_params": {
+      "grant_type": "authorization_code"
+    },
+    "base_url": "https://${connectionConfig.endpointURL}/rest/api/latest",
+    "categories": [
+      "productivity",
+      "ticketing"
+    ],
+    "display_name": "Jira Data Center",
+    "token_url": "https://${connectionConfig.endpointURL}/rest/oauth2/latest/token"
+  },
+  "jobadder": {
+    "auth_url": "https://id.jobadder.com/connect/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.jobadder.com",
+    "categories": [
+      "hr"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Jobadder",
+    "token_url": "https://id.jobadder.com/connect/token"
+  },
+  "jobber": {
+    "auth_url": "https://api.getjobber.com/api/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.getjobber.com/api",
+    "categories": [
+      "crm",
+      "invoicing"
+    ],
+    "display_name": "Jobber",
+    "proxy_headers": {
+      "x-jobber-graphql-version": "${connectionConfig.version} || 2025-01-20"
+    },
+    "token_url": "https://api.getjobber.com/api/oauth/token"
+  },
+  "justworks": {
+    "auth_url": "https://payroll.justworks.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://public-api.justworks.com",
+    "categories": [
+      "hr"
+    ],
+    "display_name": "Justworks",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://public-api.justworks.com/oauth/token"
+  },
+  "keap": {
+    "auth_url": "https://accounts.infusionsoft.com/app/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.infusionsoft.com",
+    "categories": [
+      "marketing"
+    ],
+    "display_name": "Keap",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.infusionsoft.com/token"
+  },
+  "kintone": {
+    "auth_url": "https://${connectionConfig.subdomain}.kintone.com/oauth2/authorization",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.kintone.com",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "Kintone",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.kintone.com/oauth2/token"
+  },
+  "klaviyo-oauth": {
+    "auth_url": "https://www.klaviyo.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://a.klaviyo.com",
+    "categories": [
+      "marketing"
+    ],
+    "display_name": "Klaviyo (OAuth)",
+    "proxy_headers": {
+      "revision": "2024-07-15"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://a.klaviyo.com/oauth/token"
+  },
+  "lever": {
+    "auth_url": "https://auth.lever.co/authorize",
+    "authorization_params": {
+      "audience": "https://api.lever.co/v1/",
+      "response_type": "code"
+    },
+    "base_url": "https://api.lever.co",
+    "categories": [
+      "ats"
+    ],
+    "display_name": "Lever (OAuth)",
+    "token_url": "https://auth.lever.co/oauth/token"
+  },
+  "lever-sandbox": {
+    "auth_url": "https://sandbox-lever.auth0.com/authorize",
+    "authorization_params": {
+      "audience": "https://api.sandbox.lever.co/v1/",
+      "prompt": "consent",
+      "response_type": "code"
+    },
+    "base_url": "https://api.sandbox.lever.co",
+    "display_name": "Lever (OAuth Sandbox)",
+    "token_url": "https://sandbox-lever.auth0.com/oauth/token"
+  },
+  "linear": {
+    "auth_url": "https://linear.app/oauth/authorize",
+    "authorization_params": {
+      "prompt": "consent"
+    },
+    "base_url": "https://api.linear.app",
+    "categories": [
+      "popular",
+      "productivity",
+      "ticketing"
+    ],
+    "disable_pkce": true,
+    "display_name": "Linear",
+    "retry": {
+      "at": [
+        "x-ratelimit-requests-reset"
+      ],
+      "error_code": [
+        "400",
+        "5xx",
+        "401",
+        "429"
+      ],
+      "remaining": "x-ratelimit-requests-remaining"
+    },
+    "scope_separator": ",",
+    "token_url": "https://api.linear.app/oauth/token"
+  },
+  "linkedin": {
+    "auth_url": "https://www.linkedin.com/oauth/v2/authorization",
+    "base_url": "https://api.linkedin.com",
+    "categories": [
+      "ats",
+      "social"
+    ],
+    "disable_pkce": true,
+    "display_name": "LinkedIn",
+    "token_url": "https://www.linkedin.com/oauth/v2/accessToken"
+  },
+  "linkhut": {
+    "auth_url": "https://ln.ht/_/oauth/authorize",
+    "base_url": "https://api.ln.ht",
+    "display_name": "LinkHut",
+    "token_url": "https://api.ln.ht/v1/oauth/token"
+  },
+  "mailchimp": {
+    "auth_url": "https://login.mailchimp.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.dc}.api.mailchimp.com",
+    "categories": [
+      "marketing",
+      "surveys"
+    ],
+    "display_name": "Mailchimp",
+    "token_url": "https://login.mailchimp.com/oauth2/token"
+  },
+  "maximizer": {
+    "auth_url": "https://${connectionConfig.region}.maximizercrmlive.com/oauth2/${connectionConfig.company_alias}/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.region}.maximizercrmlive.com",
+    "categories": [
+      "crm"
+    ],
+    "disable_pkce": true,
+    "display_name": "Maximizer (Cloud)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.region}.maximizercrmlive.com/oauth2/${connectionConfig.company_alias}/token"
+  },
+  "maximizer-on-premise": {
+    "auth_url": "https://${connectionConfig.hostname}/MaximizerWebAuthentication/OAuth2/Authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.hostname}",
+    "categories": [
+      "crm"
+    ],
+    "disable_pkce": true,
+    "display_name": "Maximizer (On-Premise)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.hostname}/MaximizerWebAuthentication/OAuth2/Token"
+  },
+  "mercury": {
+    "auth_url": "https://oauth2.mercury.com/oauth2/auth",
+    "base_url": "https://api.mercury.com",
+    "categories": [
+      "accounting"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Mercury",
+    "token_url": "https://oauth2.mercury.com/oauth2/token"
+  },
+  "microsoft": {
+    "auth_url": "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    "authorization_params": {
+      "response_mode": "query",
+      "response_type": "code"
+    },
+    "base_url": "https://graph.microsoft.com",
+    "categories": [
+      "communication",
+      "dev-tools",
+      "productivity"
+    ],
+    "default_scopes": [
+      "offline_access",
+      ".default"
+    ],
+    "disable_pkce": true,
+    "display_name": "Microsoft",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+  },
+  "microsoft-admin": {
+    "auth_url": "https://login.microsoftonline.com/${connectionConfig.tenantId}/adminconsent",
+    "base_url": "https://graph.microsoft.com",
+    "categories": [
+      "communication",
+      "dev-tools",
+      "productivity"
+    ],
+    "display_name": "Microsoft (Admin)",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_url": "https://login.microsoftonline.com/${connectionConfig.tenantId}/oauth2/v2.0/token"
+  },
+  "microsoft-teams-bot": {
+    "auth_url": "https://login.microsoftonline.com/${connectionConfig.tenantId}/oauth2/v2.0/authorize",
+    "authorization_params": {
+      "response_mode": "query",
+      "response_type": "code"
+    },
+    "base_url": "https://smba.trafficmanager.net/teams",
+    "categories": [
+      "communication"
+    ],
+    "default_scopes": [
+      "offline_access",
+      ".default"
+    ],
+    "disable_pkce": true,
+    "display_name": "Microsoft Teams Bot",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://login.microsoftonline.com/${connectionConfig.tenantId}/oauth2/v2.0/token"
+  },
+  "microsoft-tenant-specific": {
+    "auth_url": "https://login.microsoftonline.com/${connectionConfig.tenant}/oauth2/v2.0/authorize",
+    "authorization_params": {
+      "prompt": "consent",
+      "response_mode": "query",
+      "response_type": "code"
+    },
+    "base_url": "https://graph.microsoft.com",
+    "categories": [
+      "erp"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "disable_pkce": true,
+    "display_name": "Microsoft (Tenant)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://login.microsoftonline.com/${connectionConfig.tenant}/oauth2/v2.0/token"
+  },
+  "miro": {
+    "auth_url": "https://miro.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.miro.com",
+    "categories": [
+      "design",
+      "productivity"
+    ],
+    "display_name": "Miro",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.miro.com/v1/oauth/token"
+  },
+  "mollie": {
+    "auth_url": "https://my.mollie.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.mollie.com",
+    "categories": [
+      "payment"
+    ],
+    "disable_pkce": true,
+    "display_name": "Mollie",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.mollie.com/oauth2/tokens"
+  },
+  "monday": {
+    "auth_url": "https://auth.monday.com/oauth2/authorize",
+    "authorization_params": {
+      "force_install_if_needed": true
+    },
+    "base_url": "https://api.monday.com",
+    "categories": [
+      "productivity",
+      "ticketing"
+    ],
+    "disable_pkce": true,
+    "display_name": "Monday",
+    "token_url": "https://auth.monday.com/oauth2/token"
+  },
+  "mural": {
+    "auth_url": "https://app.mural.co/api/public/v1/authorization/oauth2",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://app.mural.co",
+    "categories": [
+      "design"
+    ],
+    "display_name": "Mural",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.mural.co/api/public/v1/authorization/oauth2/token"
+  },
+  "namely": {
+    "auth_url": "https://${connectionConfig.company}.namely.com/api/v1/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.company}.namely.com/api",
+    "categories": [
+      "hr"
+    ],
+    "display_name": "Namely",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.company}.namely.com/api/v1/oauth2/token"
+  },
+  "nationbuilder": {
+    "auth_url": "https://${connectionConfig.accountId}.nationbuilder.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.accountId}.nationbuilder.com/api",
+    "default_scopes": [
+      "default"
+    ],
+    "display_name": "NationBuilder",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.accountId}.nationbuilder.com/oauth/token"
+  },
+  "netsuite": {
+    "auth_url": "https://${connectionConfig.accountId}.app.netsuite.com/app/login/oauth2/authorize.nl",
+    "authorization_params": {
+      "prompt": "consent"
+    },
+    "base_url": "https://${connectionConfig.accountId}.suitetalk.api.netsuite.com/services/rest/record/v1",
+    "categories": [
+      "accounting",
+      "erp"
+    ],
+    "default_scopes": [
+      "rest_webservices"
+    ],
+    "display_name": "NetSuite (OAuth)",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_url": "https://${connectionConfig.accountId}.suitetalk.api.netsuite.com/services/rest/auth/oauth2/v1/token"
+  },
+  "ninjaone-rmm-oauth2": {
+    "auth_url": "https://app.ninjarmm.com/ws/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://app.ninjarmm.com",
+    "categories": [
+      "support"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "NinjaOne RMM (OAuth2)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.ninjarmm.com/ws/oauth/token"
+  },
+  "notion": {
+    "auth_url": "https://api.notion.com/v1/oauth/authorize",
+    "authorization_method": "header",
+    "authorization_params": {
+      "owner": "user",
+      "response_type": "code"
+    },
+    "base_url": "https://api.notion.com",
+    "body_format": "json",
+    "categories": [
+      "knowledge-base",
+      "popular",
+      "productivity"
+    ],
+    "display_name": "Notion",
+    "pagination": {
+      "cursor_name_in_request": "start_cursor",
+      "cursor_path_in_response": "next_cursor",
+      "limit_name_in_request": "page_size",
+      "response_path": "results",
+      "type": "cursor"
+    },
+    "proxy_headers": {
+      "notion-version": "2022-06-28"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_url": "https://api.notion.com/v1/oauth/token"
+  },
+  "odoo": {
+    "auth_url": "https://${connectionConfig.serverUrl}/restapi/1.0/common/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.serverUrl}",
+    "categories": [
+      "erp"
+    ],
+    "display_name": "Odoo (OAuth)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.serverUrl}/restapi/1.0/common/oauth2/access_token"
+  },
+  "okta": {
+    "auth_url": "https://${connectionConfig.subdomain}.okta.com/oauth2/v1/authorize",
+    "authorization_params": {
+      "response_mode": "query",
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.okta.com",
+    "categories": [
+      "dev-tools"
+    ],
+    "display_name": "Okta",
+    "pagination": {
+      "limit_name_in_request": "limit",
+      "link_rel_in_response_header": "next",
+      "type": "link"
+    },
+    "retry": {
+      "at": [
+        "x-rate-limit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.okta.com/oauth2/v1/token"
+  },
+  "one-drive-personal": {
+    "auth_url": "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize",
+    "authorization_params": {
+      "response_mode": "query",
+      "response_type": "code"
+    },
+    "base_url": "https://api.onedrive.com",
+    "categories": [
+      "knowledge-base",
+      "storage"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "disable_pkce": true,
+    "display_name": "OneDrive Personal",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://login.microsoftonline.com/consumers/oauth2/v2.0/token"
+  },
+  "osu": {
+    "auth_url": "https://osu.ppy.sh/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://osu.ppy.sh",
+    "categories": [
+      "gaming"
+    ],
+    "default_scopes": [
+      "identify"
+    ],
+    "display_name": "Osu",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://osu.ppy.sh/oauth/token"
+  },
+  "oura": {
+    "auth_url": "https://cloud.ouraring.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.ouraring.com",
+    "categories": [
+      "sports"
+    ],
+    "display_name": "Oura",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.ouraring.com/oauth/token"
+  },
+  "outreach": {
+    "auth_url": "https://api.outreach.io/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.outreach.io",
+    "categories": [
+      "marketing"
+    ],
+    "display_name": "Outreach",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.outreach.io/oauth/token"
+  },
+  "pagerduty": {
+    "auth_url": "https://app.pagerduty.com/oauth/authorize",
+    "base_url": "https://api.pagerduty.com",
+    "categories": [
+      "dev-tools"
+    ],
+    "display_name": "PagerDuty",
+    "retry": {
+      "after": [
+        "ratelimit-reset"
+      ]
+    },
+    "token_url": "https://app.pagerduty.com/oauth/token"
+  },
+  "pandadoc": {
+    "auth_url": "https://app.pandadoc.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.pandadoc.com",
+    "categories": [
+      "legal"
+    ],
+    "display_name": "Pandadoc",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.pandadoc.com/oauth2/access_token"
+  },
+  "paycor": {
+    "auth_url": "https://hcm.paycor.com/AppActivation/Authorize",
+    "authorization_params": {
+      "response_type": "code",
+      "subscription-key": "${connectionConfig.subscriptionKey}"
+    },
+    "base_url": "https://apis.paycor.com",
+    "categories": [
+      "hr"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Paycor",
+    "proxy_headers": {
+      "ocp-apim-subscription-key": "${connectionConfig.subscriptionKey}"
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://apis.paycor.com/sts/v1/common/token?subscription-key=${connectionConfig.subscriptionKey}"
+  },
+  "paycor-sandbox": {
+    "auth_url": "https://hcm-demo.paycor.com/AppActivation/Authorize",
+    "authorization_params": {
+      "response_type": "code",
+      "subscription-key": "${connectionConfig.subscriptionKey}"
+    },
+    "base_url": "https://apis-sandbox.paycor.com",
+    "categories": [
+      "hr"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Paycor (Sandbox)",
+    "proxy_headers": {
+      "ocp-apim-subscription-key": "${connectionConfig.subscriptionKey}"
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://apis-sandbox.paycor.com/sts/v1/common/token?subscription-key=${connectionConfig.subscriptionKey}"
+  },
+  "payfit": {
+    "auth_url": "https://oauth.payfit.com/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://partner-api.payfit.com",
+    "categories": [
+      "hr"
+    ],
+    "display_name": "Payfit",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.pagerduty.com/oauth/token"
+  },
+  "paypal": {
+    "auth_url": "https://www.paypal.com/signin/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api-m.paypal.com",
+    "categories": [
+      "payment"
+    ],
+    "display_name": "Paypal",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.paypal.com/v1/oauth2/token"
+  },
+  "paypal-sandbox": {
+    "auth_url": "https://www.sandbox.paypal.com/signin/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api-m.sandbox.paypal.com",
+    "display_name": "Paypal (Sandbox)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api-m.sandbox.paypal.com/v1/oauth2/token"
+  },
+  "pennylane": {
+    "auth_url": "https://app.pennylane.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://app.pennylane.com",
+    "categories": [
+      "accounting",
+      "banking",
+      "invoicing",
+      "payment"
+    ],
+    "display_name": "Pennylane",
+    "retry": {
+      "at": [
+        "ratelimit-reset"
+      ]
+    },
+    "scope_separator": "+",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.pennylane.com/oauth/token"
+  },
+  "pingone": {
+    "auth_url": "https://auth.pingone.${connectionConfig.tld}/${connectionConfig.environmentId}/as/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.pingone.${connectionConfig.tld}",
+    "categories": [
+      "dev-tools"
+    ],
+    "display_name": "PingOne",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://auth.pingone.${connectionConfig.tld}/${connectionConfig.environmentId}/as/token"
+  },
+  "pinterest": {
+    "auth_url": "https://www.pinterest.com/oauth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.pinterest.com",
+    "categories": [
+      "design",
+      "marketing",
+      "social",
+      "video"
+    ],
+    "display_name": "Pinterest",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.pinterest.com/v5/oauth/token"
+  },
+  "pipedrive": {
+    "auth_url": "https://oauth.pipedrive.com/oauth/authorize",
+    "base_url": "${connectionConfig.api_domain}/api",
+    "categories": [
+      "crm"
+    ],
+    "disable_pkce": true,
+    "display_name": "Pipedrive",
+    "pagination": {
+      "limit_name_in_request": "limit",
+      "offset_name_in_request": "start",
+      "response_path": "data",
+      "type": "offset"
+    },
+    "token_url": "https://oauth.pipedrive.com/oauth/token"
+  },
+  "podium": {
+    "auth_url": "https://api.podium.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.podium.com",
+    "body_format": "json",
+    "categories": [
+      "communication",
+      "marketing"
+    ],
+    "display_name": "Podium",
+    "proxy_headers": {
+      "content-type": "application/json",
+      "podium-version": "${connectionConfig.apiVersion}"
+    },
+    "retry": {
+      "after": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.podium.com/oauth/token"
+  },
+  "practicefusion": {
+    "auth_url": "https://${connectionConfig.baseUrl}/authorize",
+    "authorization_params": {
+      "aud": "https://${connectionConfig.baseUrl}",
+      "launch": "${connectionConfig.launch}",
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.baseUrl}",
+    "categories": [
+      "other"
+    ],
+    "display_name": "PracticeFusion",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.baseUrl}/token"
+  },
+  "precisefp": {
+    "auth_url": "https://app.precisefp.com/oauth/authorize",
+    "authorization_method": "header",
+    "authorization_params": {
+      "response_type": "code",
+      "scope": "*"
+    },
+    "base_url": "https://app.precisefp.com",
+    "categories": [
+      "crm",
+      "productivity"
+    ],
+    "display_name": "PreciseFP",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.precisefp.com/oauth/token"
+  },
+  "printful": {
+    "auth_url": "https://www.printful.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.printful.com",
+    "categories": [
+      "e-commerce"
+    ],
+    "disable_pkce": true,
+    "display_name": "Printful",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://www.printful.com/oauth/token"
+  },
+  "procore": {
+    "auth_url": "https://login.procore.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.procore.com",
+    "categories": [
+      "erp"
+    ],
+    "display_name": "Procore",
+    "proxy_headers": {
+      "procore-company-id": "${connectionConfig.companyId}"
+    },
+    "retry": {
+      "at": [
+        "x-rate-limit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://login.procore.com/oauth/token"
+  },
+  "productboard": {
+    "auth_url": "https://app.productboard.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.productboard.com",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "Productboard",
+    "proxy_headers": {
+      "x-version": "1"
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.productboard.com/oauth2/token"
+  },
+  "qualtrics": {
+    "auth_url": "https://${connectionConfig.subdomain}.qualtrics.com/oauth2/auth",
+    "base_url": "https://${connectionConfig.subdomain}.qualtrics.com",
+    "categories": [
+      "surveys"
+    ],
+    "display_name": "Qualtrics",
+    "token_url": "https://${connectionConfig.subdomain}.qualtrics.com/oauth2/token"
+  },
+  "quickbooks": {
+    "auth_url": "https://appcenter.intuit.com/connect/oauth2",
+    "base_url": "https://quickbooks.api.intuit.com",
+    "categories": [
+      "accounting",
+      "popular"
+    ],
+    "display_name": "Quickbooks",
+    "token_url": "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+  },
+  "ramp": {
+    "auth_url": "https://app.ramp.com/v1/authorize",
+    "authorization_method": "header",
+    "base_url": "https://api.ramp.com",
+    "categories": [
+      "banking"
+    ],
+    "display_name": "Ramp",
+    "token_url": "https://api.ramp.com/developer/v1/token"
+  },
+  "ramp-sandbox": {
+    "auth_url": "https://demo.ramp.com/v1/authorize",
+    "authorization_method": "header",
+    "base_url": "https://demo-api.ramp.com",
+    "display_name": "Ramp (Sandbox)",
+    "token_url": "https://demo-api.ramp.com/developer/v1/token"
+  },
+  "reapit": {
+    "auth_url": "https://connect.reapit.cloud/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://platform.reapit.cloud",
+    "categories": [
+      "crm"
+    ],
+    "disable_pkce": true,
+    "display_name": "Reapit Connect",
+    "proxy_headers": {
+      "api-version": "${connectionConfig.version} || 2020-01-31"
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://connect.reapit.cloud/token"
+  },
+  "reddit": {
+    "auth_url": "https://www.reddit.com/api/v1/authorize",
+    "authorization_method": "header",
+    "authorization_params": {
+      "duration": "permanent"
+    },
+    "base_url": "https://oauth.reddit.com",
+    "categories": [
+      "social"
+    ],
+    "display_name": "Reddit",
+    "token_url": "https://www.reddit.com/api/v1/access_token"
+  },
+  "ring-central": {
+    "auth_url": "https://platform.ringcentral.com/restapi/oauth/authorize",
+    "authorization_method": "header",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://platform.ringcentral.com",
+    "categories": [
+      "support"
+    ],
+    "display_name": "RingCentral",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://platform.ringcentral.com/restapi/oauth/token"
+  },
+  "ring-central-sandbox": {
+    "auth_url": "https://platform.devtest.ringcentral.com/restapi/oauth/authorize",
+    "authorization_method": "header",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://platform.devtest.ringcentral.com",
+    "display_name": "RingCentral (Sandbox)",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://platform.devtest.ringcentral.com/restapi/oauth/token"
+  },
+  "rippling-shop-app": {
+    "auth_url": "https://app.rippling.com/apps/PLATFORM/${connectionConfig.appName}/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.rippling.com",
+    "categories": [
+      "hr"
+    ],
+    "display_name": "Rippling Shop App",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.rippling.com/api/o/token/"
+  },
+  "sage": {
+    "auth_url": "https://www.sageone.com/oauth2/auth/central",
+    "authorization_params": {
+      "filter": "apiv3.1"
+    },
+    "base_url": "https://api.accounting.sage.com",
+    "categories": [
+      "accounting",
+      "erp"
+    ],
+    "display_name": "Sage",
+    "token_url": "https://oauth.accounting.sage.com/token"
+  },
+  "sage-intacct-oauth": {
+    "auth_url": "https://api.intacct.com/ia/api/v1/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.intacct.com/ia/api",
+    "categories": [
+      "accounting",
+      "erp",
+      "popular"
+    ],
+    "display_name": "Sage Intacct (OAuth)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.intacct.com/ia/api/v1/oauth2/token"
+  },
+  "sage-people": {
+    "auth_url": "https://login.salesforce.com/services/oauth2/authorize",
+    "authorization_params": {
+      "prompt": "consent"
+    },
+    "base_url": "https://${connectionConfig.instance_url}/services/apexrest/spapi",
+    "categories": [
+      "hr"
+    ],
+    "default_scopes": [
+      "offline_access",
+      "api"
+    ],
+    "display_name": "Sage People",
+    "proxy_headers": {
+      "accept": "application/json"
+    },
+    "token_url": "https://login.salesforce.com/services/oauth2/token"
+  },
+  "salesforce": {
+    "auth_url": "https://${connectionConfig.hostname}/services/oauth2/authorize || https://login.salesforce.com/services/oauth2/authorize",
+    "authorization_params": {
+      "prompt": "consent"
+    },
+    "base_url": "${connectionConfig.instance_url}",
+    "categories": [
+      "crm",
+      "popular"
+    ],
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Salesforce",
+    "token_url": "https://${connectionConfig.hostname}/services/oauth2/token || https://login.salesforce.com/services/oauth2/token"
+  },
+  "salesforce-experience-cloud": {
+    "auth_url": "https://${connectionConfig.subdomain}.my.site.com/services/oauth2/authorize",
+    "base_url": "${connectionConfig.instance_url}",
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Salesforce Experience Cloud",
+    "token_url": "https://${connectionConfig.subdomain}.my.site.com/services/oauth2/token"
+  },
+  "salesforce-sandbox": {
+    "auth_url": "https://test.salesforce.com/services/oauth2/authorize",
+    "base_url": "${connectionConfig.instance_url}",
+    "default_scopes": [
+      "offline_access"
+    ],
+    "display_name": "Salesforce (Sandbox)",
+    "token_url": "https://test.salesforce.com/services/oauth2/token"
+  },
+  "salesloft": {
+    "auth_url": "https://accounts.salesloft.com/oauth/authorize",
+    "base_url": "https://api.salesloft.com",
+    "categories": [
+      "marketing"
+    ],
+    "display_name": "Salesloft",
+    "token_url": "https://accounts.salesloft.com/oauth/token"
+  },
+  "salesmsg-oauth2": {
+    "auth_url": "https://app.salesmessage.com/auth/oauth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.salesmessage.com/pub/",
+    "categories": [
+      "communication",
+      "marketing"
+    ],
+    "disable_pkce": true,
+    "display_name": "Salesmsg (OAuth2)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.salesmessage.com/pub/v2.2/oauth/token"
+  },
+  "schwab": {
+    "auth_url": "https://api.schwabapi.com/v1/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.schwabapi.com",
+    "categories": [
+      "banking",
+      "accounting"
+    ],
+    "disable_pkce": true,
+    "display_name": "Schwab",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.schwabapi.com/v1/oauth/token"
+  },
+  "segment": {
+    "auth_url": "https://id.segmentapis.com/oauth2/auth",
+    "base_url": "https://api.segment.io",
+    "categories": [
+      "analytics",
+      "marketing"
+    ],
+    "display_name": "Segment",
+    "token_url": "https://id.segmentapis.com/oauth2/token"
+  },
+  "sellsy": {
+    "auth_url": "https://login.sellsy.com/oauth2/authorization",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.sellsy.com",
+    "categories": [
+      "invoicing",
+      "accounting",
+      "crm"
+    ],
+    "display_name": "Sellsy",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://login.sellsy.com/oauth2/access-tokens"
+  },
+  "servicem8": {
+    "auth_url": "https://go.servicem8.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.servicem8.com",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "ServiceM8",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://go.servicem8.com/oauth/access_token"
+  },
+  "servicenow": {
+    "auth_url": "https://${connectionConfig.subdomain}.service-now.com/oauth_auth.do",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.service-now.com",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "ServiceNow",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.service-now.com/oauth_token.do"
+  },
+  "shopify": {
+    "auth_url": "https://${connectionConfig.subdomain}.myshopify.com/admin/oauth/authorize",
+    "base_url": "https://${connectionConfig.subdomain}.myshopify.com",
+    "categories": [
+      "e-commerce",
+      "popular"
+    ],
+    "display_name": "Shopify (OAuth)",
+    "proxy_headers": {
+      "x-shopify-access-token": "${accessToken}"
+    },
+    "token_url": "https://${connectionConfig.subdomain}.myshopify.com/admin/oauth/access_token"
+  },
+  "signnow": {
+    "auth_url": "https://app.signnow.com/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.signnow.com",
+    "categories": [
+      "legal"
+    ],
+    "disable_pkce": true,
+    "display_name": "SignNow",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.signnow.com/oauth2/token"
+  },
+  "signnow-sandbox": {
+    "auth_url": "https://app-eval.signnow.com/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api-eval.signnow.com",
+    "categories": [
+      "legal"
+    ],
+    "disable_pkce": true,
+    "display_name": "SignNow (Sandbox)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api-eval.signnow.com/oauth2/token"
+  },
+  "slack": {
+    "auth_url": "https://slack.com/oauth/v2/authorize",
+    "base_url": "https://slack.com/api",
+    "categories": [
+      "popular",
+      "productivity"
+    ],
+    "disable_pkce": true,
+    "display_name": "Slack",
+    "pagination": {
+      "cursor_name_in_request": "cursor",
+      "cursor_path_in_response": "response_metadata.next_cursor",
+      "limit_name_in_request": "limit",
+      "type": "cursor"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "scope_separator": ",",
+    "token_url": "https://slack.com/api/oauth.v2.access"
+  },
+  "smartsheet": {
+    "auth_url": "https://app.smartsheet.com/b/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.${connectionConfig.domain}",
+    "display_name": "Smartsheet",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.${connectionConfig.domain}/2.0/token"
+  },
+  "snapchat": {
+    "auth_url": "https://accounts.snapchat.com/login/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://adsapi.snapchat.com",
+    "categories": [
+      "video",
+      "social"
+    ],
+    "disable_pkce": true,
+    "display_name": "Snapchat (Ads API)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://accounts.snapchat.com/login/oauth2/access_token"
+  },
+  "snowflake": {
+    "auth_url": "https://${connectionConfig.snowflake_account_url}/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.snowflake_account_url}",
+    "categories": [
+      "dev-tools"
+    ],
+    "display_name": "Snowflake",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.snowflake_account_url}/oauth/token-request"
+  },
+  "splitwise": {
+    "auth_url": "https://secure.splitwise.com/oauth/authorize",
+    "base_url": "https://secure.splitwise.com",
+    "categories": [
+      "payment",
+      "social"
+    ],
+    "display_name": "Splitwise",
+    "token_url": "https://secure.splitwise.com/oauth/token"
+  },
+  "spotify": {
+    "auth_url": "https://accounts.spotify.com/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.spotify.com",
+    "categories": [
+      "other"
+    ],
+    "display_name": "Spotify (OAuth)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://accounts.spotify.com/api/token"
+  },
+  "squarespace": {
+    "auth_url": "https://login.squarespace.com/api/1/login/oauth/provider/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.squarespace.com",
+    "categories": [
+      "dev-tools",
+      "design"
+    ],
+    "display_name": "Squarespace",
+    "proxy_headers": {
+      "user-agent": "${connectionConfig.customappDescription}"
+    },
+    "scope_separator": ",",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://login.squarespace.com/api/1/login/oauth/provider/tokens"
+  },
+  "squareup": {
+    "auth_url": "https://connect.squareup.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code",
+      "session": false
+    },
+    "base_url": "https://connect.squareup.com",
+    "categories": [
+      "payment"
+    ],
+    "disable_pkce": true,
+    "display_name": "Squareup",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://connect.squareup.com/oauth2/token"
+  },
+  "squareup-sandbox": {
+    "auth_url": "https://connect.squareupsandbox.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code",
+      "session": false
+    },
+    "base_url": "https://connect.squareupsandbox.com",
+    "categories": [
+      "payment"
+    ],
+    "disable_pkce": true,
+    "display_name": "Squareup (Sandbox)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://connect.squareupsandbox.com/oauth2/token"
+  },
+  "stackexchange": {
+    "auth_url": "https://stackoverflow.com/oauth",
+    "base_url": "https://api.stackexchange.com",
+    "categories": [
+      "knowledge-base",
+      "support"
+    ],
+    "default_scopes": [
+      "no_expiry"
+    ],
+    "display_name": "Stack Exchange",
+    "token_url": "https://stackoverflow.com/oauth/access_token/json"
+  },
+  "strava": {
+    "auth_url": "https://www.strava.com/oauth/mobile/authorize",
+    "authorization_params": {
+      "approval_prompt": "auto",
+      "response_type": "code"
+    },
+    "base_url": "https://www.strava.com",
+    "categories": [
+      "social",
+      "sports"
+    ],
+    "display_name": "Strava (Mobile)",
+    "scope_separator": ",",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://www.strava.com/api/v3/oauth/token"
+  },
+  "strava-web": {
+    "auth_url": "https://www.strava.com/oauth/authorize",
+    "authorization_params": {
+      "approval_prompt": "force",
+      "response_type": "code"
+    },
+    "base_url": "https://www.strava.com",
+    "categories": [
+      "social",
+      "sports"
+    ],
+    "display_name": "Strava (Web)",
+    "scope_separator": ",",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://www.strava.com/api/v3/oauth/token"
+  },
+  "stripe": {
+    "auth_url": "https://connect.stripe.com/oauth/authorize",
+    "base_url": "https://api.stripe.com",
+    "categories": [
+      "payment"
+    ],
+    "display_name": "Stripe Connect",
+    "token_url": "https://connect.stripe.com/oauth/token"
+  },
+  "stripe-app": {
+    "auth_url": "https://marketplace.stripe.com/oauth/v2/authorize",
+    "base_url": "https://api.stripe.com",
+    "categories": [
+      "payment"
+    ],
+    "disable_pkce": true,
+    "display_name": "Stripe App",
+    "token_url": "https://api.stripe.com/v1/oauth/token"
+  },
+  "stripe-app-sandbox": {
+    "auth_url": "https://marketplace.stripe.com/oauth/v2/${connectionConfig.appDomain}/authorize",
+    "base_url": "https://api.stripe.com",
+    "disable_pkce": true,
+    "display_name": "Stripe App (Sandbox)",
+    "token_url": "https://api.stripe.com/v1/oauth/token"
+  },
+  "stripe-express": {
+    "auth_url": "https://connect.stripe.com/express/oauth/authorize",
+    "base_url": "https://api.stripe.com",
+    "categories": [
+      "payment"
+    ],
+    "display_name": "Stripe Express",
+    "token_url": "https://connect.stripe.com/oauth/token"
+  },
+  "survey-monkey": {
+    "auth_url": "https://api.surveymonkey.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.surveymonkey.com",
+    "categories": [
+      "surveys"
+    ],
+    "disable_pkce": true,
+    "display_name": "SurveyMonkey",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.surveymonkey.com/oauth/token"
+  },
+  "teamleader": {
+    "auth_url": "https://focus.teamleader.eu/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.focus.teamleader.eu",
+    "categories": [
+      "invoicing",
+      "crm"
+    ],
+    "display_name": "Teamleader Focus",
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://focus.teamleader.eu/oauth2/access_token"
+  },
+  "teamwork": {
+    "auth_url": "https://www.teamwork.com/launchpad/login",
+    "base_url": "${connectionConfig.installation.apiEndPoint}",
+    "categories": [
+      "productivity",
+      "ticketing"
+    ],
+    "display_name": "Teamwork",
+    "token_url": "https://www.teamwork.com/launchpad/v1/token.json"
+  },
+  "thrivecart-oauth": {
+    "auth_url": "https://thrivecart.com/authorization/new",
+    "base_url": "https://thrivecart.com/api/external",
+    "categories": [
+      "e-commerce",
+      "payment"
+    ],
+    "display_name": "ThriveCart (OAuth)",
+    "token_url": "https://thrivecart.com/authorization/token"
+  },
+  "ticktick": {
+    "auth_url": "https://ticktick.com/oauth/authorize",
+    "base_url": "https://api.ticktick.com",
+    "categories": [
+      "productivity",
+      "ticketing"
+    ],
+    "display_name": "TickTick",
+    "token_url": "https://ticktick.com/oauth/token"
+  },
+  "tiktok-accounts": {
+    "auth_url": "https://www.tiktok.com/v2/auth/authorize/",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://business-api.tiktok.com/open_api/v1.3/",
+    "categories": [
+      "social"
+    ],
+    "display_name": "TikTok Accounts",
+    "scope_separator": ",",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://business-api.tiktok.com/open_api/v1.3/tt_user/oauth2/token/"
+  },
+  "tiktok-ads": {
+    "auth_url": "https://business-api.tiktok.com/portal/auth",
+    "base_url": "https://business-api.tiktok.com/open_api/v1.3/",
+    "categories": [
+      "social"
+    ],
+    "display_name": "TikTok Ads",
+    "proxy_headers": {
+      "access-token": "${accessToken}"
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/"
+  },
+  "tiktok-personal": {
+    "auth_url": "https://www.tiktok.com/v2/auth/authorize/",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://open.tiktokapis.com",
+    "body_format": "form",
+    "categories": [
+      "social"
+    ],
+    "display_name": "TikTok Personal",
+    "retry": {
+      "at": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "scope_separator": ",",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://open.tiktokapis.com/v2/oauth/token/"
+  },
+  "timely": {
+    "auth_url": "https://api.timelyapp.com/1.1/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.timelyapp.com",
+    "categories": [
+      "productivity"
+    ],
+    "disable_pkce": true,
+    "display_name": "Timely",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.timelyapp.com/1.1/oauth/token"
+  },
+  "todoist": {
+    "auth_url": "https://todoist.com/oauth/authorize",
+    "base_url": "https://api.todoist.com",
+    "categories": [
+      "productivity",
+      "ticketing"
+    ],
+    "display_name": "Todoist",
+    "scope_separator": ",",
+    "token_url": "https://todoist.com/oauth/access_token"
+  },
+  "tremendous": {
+    "auth_url": "https://api.tremendous.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.tremendous.com/api/v2",
+    "categories": [
+      "payment"
+    ],
+    "display_name": "Tremendous",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.tremendous.com/oauth/token"
+  },
+  "tremendous-sandbox": {
+    "auth_url": "https://testflight.tremendous.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://testflight.tremendous.com/api/v2",
+    "categories": [
+      "payment"
+    ],
+    "display_name": "Tremendous (Sandbox)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://testflight.tremendous.com/oauth/token"
+  },
+  "tsheetsteam": {
+    "auth_url": "https://rest.tsheets.com/api/v1/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://rest.tsheets.com/api/v1",
+    "categories": [
+      "hr",
+      "productivity"
+    ],
+    "display_name": "TSheets",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://rest.tsheets.com/api/v1/grant"
+  },
+  "tumblr": {
+    "auth_url": "https://www.tumblr.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.tumblr.com/v2",
+    "categories": [
+      "social",
+      "communication"
+    ],
+    "display_name": "Tumblr",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.tumblr.com/v2/oauth2/token"
+  },
+  "twinfield": {
+    "auth_url": "https://login.twinfield.com/auth/authentication/connect/authorize",
+    "authorization_params": {
+      "nonce": "AnotherRandomStringTwinfield",
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.cluster}.twinfield.com",
+    "default_scopes": [
+      "openid",
+      "twf.user",
+      "twf.organisation",
+      "twf.organisationUser",
+      "offline_access"
+    ],
+    "disable_pkce": true,
+    "display_name": "Twinfield",
+    "token_url": "https://login.twinfield.com/auth/authentication/connect/token"
+  },
+  "twitch": {
+    "auth_url": "https://id.twitch.tv/oauth2/authorize",
+    "authorization_params": {
+      "force_verify": false,
+      "response_type": "code"
+    },
+    "base_url": "https://api.twitch.tv",
+    "categories": [
+      "gaming",
+      "social",
+      "sports",
+      "video"
+    ],
+    "display_name": "Twitch",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://id.twitch.tv/oauth2/token"
+  },
+  "twitter-v2": {
+    "auth_url": "https://twitter.com/i/oauth2/authorize",
+    "authorization_params": {
+      "response_mode": "query",
+      "response_type": "code"
+    },
+    "base_url": "https://api.twitter.com",
+    "categories": [
+      "marketing",
+      "social"
+    ],
+    "default_scopes": [
+      "offline.access"
+    ],
+    "display_name": "Twitter (v2)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.twitter.com/2/oauth2/token"
+  },
+  "typeform": {
+    "auth_url": "https://api.typeform.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.typeform.com",
+    "categories": [
+      "surveys"
+    ],
+    "default_scopes": [
+      "offline"
+    ],
+    "disable_pkce": true,
+    "display_name": "Typeform",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.typeform.com/oauth/token"
+  },
+  "uber": {
+    "auth_url": "https://login.uber.com/oauth/v2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.uber.com",
+    "display_name": "Uber",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://login.uber.com/oauth/v2/token"
+  },
+  "ukg-pro-wfm": {
+    "auth_url": "https://welcome-us.ukg.net/authorize",
+    "authorization_params": {
+      "audience": "https://wfm.ukg.net/api",
+      "realm": "${connectionConfig.tenantName}",
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.hostname}/api",
+    "categories": [
+      "hr"
+    ],
+    "display_name": "UKG Pro (Workforce Management)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://welcome-us.ukg.net/oauth/token"
+  },
+  "vimeo": {
+    "auth_url": "https://api.vimeo.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.vimeo.com",
+    "categories": [
+      "video"
+    ],
+    "display_name": "Vimeo (OAuth)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.vimeo.com/oauth/access_token"
+  },
+  "wakatime": {
+    "auth_url": "https://wakatime.com/oauth/authorize",
+    "base_url": "https://wakatime.com",
+    "categories": [
+      "analytics",
+      "dev-tools"
+    ],
+    "display_name": "Wakatime",
+    "token_url": "https://wakatime.com/oauth/token"
+  },
+  "wave-accounting": {
+    "auth_url": "https://api.waveapps.com/oauth2/authorize",
+    "base_url": "https://gql.waveapps.com",
+    "categories": [
+      "accounting"
+    ],
+    "display_name": "Wave Accounting",
+    "token_url": "https://api.waveapps.com/oauth2/token/"
+  },
+  "wealthbox": {
+    "auth_url": "https://app.crmworkspace.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.crmworkspace.com",
+    "categories": [
+      "crm"
+    ],
+    "display_name": "Wealthbox",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://app.crmworkspace.com/oauth/token"
+  },
+  "webex": {
+    "auth_url": "https://webexapis.com/v1/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://webexapis.com",
+    "categories": [
+      "communication"
+    ],
+    "display_name": "Webex",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://webexapis.com/v1/access_token"
+  },
+  "webflow": {
+    "auth_url": "https://webflow.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.webflow.com",
+    "categories": [
+      "dev-tools",
+      "design",
+      "cms"
+    ],
+    "display_name": "Webflow",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.webflow.com/oauth/access_token"
+  },
+  "whoop": {
+    "auth_url": "https://api.prod.whoop.com/oauth/oauth2/auth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.prod.whoop.com/",
+    "categories": [
+      "sports"
+    ],
+    "display_name": "Whoop",
+    "pagination": {
+      "limit_name_in_request": "limit",
+      "offset_name_in_request": "nextToken",
+      "type": "cursor"
+    },
+    "retry": {
+      "after": [
+        "x-ratelimit-reset"
+      ]
+    },
+    "token_url": "https://api.prod.whoop.com/oauth/oauth2/token"
+  },
+  "wildix-pbx": {
+    "auth_url": "https://${connectionConfig.subdomain}.wildixin.com/authorization/oauth2",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.wildixin.com",
+    "display_name": "Wildix PBX",
+    "token_url": "https://${connectionConfig.subdomain}.wildixin.com/authorization/oauth2Token"
+  },
+  "wiseagent": {
+    "auth_url": "https://sync.thewiseagent.com/WiseAuth/auth",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://sync.thewiseagent.com",
+    "body_format": "json",
+    "categories": [
+      "crm"
+    ],
+    "disable_pkce": true,
+    "display_name": "Wiseagent",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://sync.thewiseagent.com/WiseAuth/token"
+  },
+  "wordpress": {
+    "auth_url": "https://public-api.wordpress.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://public-api.wordpress.com/rest/v1",
+    "categories": [
+      "dev-tools",
+      "design",
+      "cms"
+    ],
+    "display_name": "WordPress",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://public-api.wordpress.com/oauth2/token"
+  },
+  "workable-oauth": {
+    "auth_url": "https://www.workable.com/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.subdomain}.workable.com",
+    "categories": [
+      "ats"
+    ],
+    "display_name": "Workable (OAuth)",
+    "retry": {
+      "at": [
+        "x-rate-limit-reset"
+      ]
+    },
+    "scope_separator": "+",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://www.workable.com/oauth/token"
+  },
+  "workday-oauth": {
+    "auth_url": "https://${connectionConfig.authorizationDomain}/${connectionConfig.tenant}/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.tokenDomain}/ccx/api",
+    "categories": [
+      "hr",
+      "popular"
+    ],
+    "display_name": "Workday (OAuth)",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://${connectionConfig.tokenDomain}/ccx/oauth2/${connectionConfig.tenant}/token"
+  },
+  "wrike": {
+    "auth_url": "https://login.wrike.com/oauth2/authorize/v4",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://${connectionConfig.host}/api/v4",
+    "categories": [
+      "productivity"
+    ],
+    "display_name": "Wrike",
+    "scope_separator": ",",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://login.wrike.com/oauth2/token"
+  },
+  "xero": {
+    "auth_url": "https://login.xero.com/identity/connect/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.xero.com",
+    "categories": [
+      "accounting",
+      "popular"
+    ],
+    "default_scopes": [
+      "offline_access",
+      "openid"
+    ],
+    "display_name": "Xero",
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_url": "https://identity.xero.com/connect/token"
+  },
+  "yahoo": {
+    "auth_url": "https://api.login.yahoo.com/oauth2/request_auth",
+    "base_url": "https://${connectionConfig.apiDomain}",
+    "categories": [
+      "social"
+    ],
+    "display_name": "Yahoo",
+    "token_url": "https://api.login.yahoo.com/oauth2/get_token"
+  },
+  "yandex": {
+    "auth_url": "https://oauth.yandex.com/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://translate.yandex.net",
+    "categories": [
+      "social"
+    ],
+    "display_name": "Yandex",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://oauth.yandex.com/token"
+  },
+  "zapier": {
+    "auth_url": "https://api.zapier.com/v2/authorize",
+    "authorization_params": {
+      "response_mode": "query",
+      "response_type": "code"
+    },
+    "base_url": "https://api.zapier.com",
+    "categories": [
+      "dev-tools"
+    ],
+    "disable_pkce": true,
+    "display_name": "Zapier",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://zapier.com/oauth/token"
+  },
+  "zapier-nla": {
+    "auth_url": "https://nla.zapier.com/oauth/authorize/",
+    "base_url": "https://nla.zapier.com",
+    "display_name": "Zapier NLA",
+    "token_url": "https://nla.zapier.com/oauth/token/"
+  },
+  "zendesk": {
+    "auth_url": "https://${connectionConfig.subdomain}.zendesk.com/oauth/authorizations/new",
+    "base_url": "https://${connectionConfig.subdomain}.zendesk.com",
+    "categories": [
+      "popular",
+      "support",
+      "ticketing"
+    ],
+    "display_name": "Zendesk",
+    "pagination": {
+      "limit_name_in_request": "per_page",
+      "link_path_in_response_body": "next_page",
+      "type": "link"
+    },
+    "retry": {
+      "after": [
+        "retry-after"
+      ]
+    },
+    "token_url": "https://${connectionConfig.subdomain}.zendesk.com/oauth/tokens"
+  },
+  "zendesk-sell": {
+    "auth_url": "https://api.getbase.com/oauth2/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.getbase.com",
+    "categories": [
+      "crm"
+    ],
+    "display_name": "Zendesk Sell",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://api.getbase.com/oauth2/token"
+  },
+  "zenefits": {
+    "auth_url": "https://secure.zenefits.com/oauth2/platform-authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.zenefits.com",
+    "categories": [
+      "hr"
+    ],
+    "display_name": "Zenefits",
+    "token_params": {
+      "grant_type": "authorization_code"
+    },
+    "token_url": "https://secure.zenefits.com/oauth2/token"
+  },
+  "zoho": {
+    "auth_url": "https://accounts.zoho.${connectionConfig.extension}/oauth/v2/auth || https://accounts.zoho.com/oauth/v2/auth",
+    "authorization_params": {
+      "access_type": "offline",
+      "prompt": "consent"
+    },
+    "base_url": "https://www.zohoapis.${connectionConfig.extension} || ${connectionConfig.api_domain}",
+    "categories": [
+      "accounting"
+    ],
+    "display_name": "Zoho",
+    "pagination": {
+      "limit_name_in_request": "per_page",
+      "offset_name_in_request": "page",
+      "response_path": "data",
+      "type": "offset"
+    },
+    "token_url": "https://accounts.zoho.${connectionConfig.extension}/oauth/v2/token || ${connectionConfig.accounts-server}/oauth/v2/token"
+  },
+  "zoom": {
+    "auth_url": "https://zoom.us/oauth/authorize",
+    "authorization_params": {
+      "response_type": "code"
+    },
+    "base_url": "https://api.zoom.us/v2",
+    "categories": [
+      "video"
+    ],
+    "display_name": "Zoom",
+    "pagination": {
+      "cursor_name_in_request": "next_page_token",
+      "cursor_path_in_response": "next_page_token",
+      "limit_name_in_request": "page_size",
+      "type": "cursor"
+    },
+    "scope_separator": ",",
+    "token_url": "https://zoom.us/oauth/token"
+  }
+}
