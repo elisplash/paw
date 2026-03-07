@@ -44,7 +44,7 @@ impl AnyProvider {
                 if config
                     .base_url
                     .as_deref()
-                    .map_or(false, |u| u.contains("/anthropic")) =>
+                    .is_some_and(|u| u.contains("/anthropic")) =>
             {
                 Box::new(AnthropicProvider::new(config))
             }

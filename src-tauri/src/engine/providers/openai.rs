@@ -133,10 +133,7 @@ impl OpenAiProvider {
                     .nth(1)
                     .and_then(|v| v.split('&').next())
                     .unwrap_or("2025-03-01-preview");
-                let model = config
-                    .default_model
-                    .as_deref()
-                    .unwrap_or("gpt-4o");
+                let model = config.default_model.as_deref().unwrap_or("gpt-4o");
                 base_url = format!(
                     "{}/openai/deployments/{}/chat/completions?api-version={}",
                     host, model, api_version
@@ -413,10 +410,7 @@ impl OpenAiProvider {
             if self.is_azure {
                 req = req.header("api-key", self.api_key.as_str());
             } else {
-                req = req.header(
-                    "Authorization",
-                    format!("Bearer {}", self.api_key.as_str()),
-                );
+                req = req.header("Authorization", format!("Bearer {}", self.api_key.as_str()));
             }
 
             let body_bytes = serde_json::to_vec(&body).unwrap_or_default();
@@ -488,9 +482,8 @@ impl OpenAiProvider {
             let mut current_event = String::new();
 
             while let Some(result) = byte_stream.next().await {
-                let bytes = result.map_err(|e| {
-                    ProviderError::Transport(format!("Stream read error: {}", e))
-                })?;
+                let bytes = result
+                    .map_err(|e| ProviderError::Transport(format!("Stream read error: {}", e)))?;
                 raw_buf.extend_from_slice(&bytes);
 
                 while let Some(pos) = raw_buf.iter().position(|&b| b == b'\n') {
@@ -547,16 +540,9 @@ impl OpenAiProvider {
                             }
                             "response.output_item.added" => {
                                 if v["type"].as_str() == Some("function_call") {
-                                    let output_index =
-                                        v["output_index"].as_u64().unwrap_or(0);
-                                    let call_id = v["call_id"]
-                                        .as_str()
-                                        .unwrap_or("")
-                                        .to_string();
-                                    let name = v["name"]
-                                        .as_str()
-                                        .unwrap_or("")
-                                        .to_string();
+                                    let output_index = v["output_index"].as_u64().unwrap_or(0);
+                                    let call_id = v["call_id"].as_str().unwrap_or("").to_string();
+                                    let name = v["name"].as_str().unwrap_or("").to_string();
                                     chunks.push(StreamChunk {
                                         delta_text: None,
                                         tool_calls: vec![ToolCallDelta {
@@ -575,8 +561,7 @@ impl OpenAiProvider {
                                 }
                             }
                             "response.function_call_arguments.delta" => {
-                                let output_index =
-                                    v["output_index"].as_u64().unwrap_or(0);
+                                let output_index = v["output_index"].as_u64().unwrap_or(0);
                                 if let Some(delta) = v["delta"].as_str() {
                                     chunks.push(StreamChunk {
                                         delta_text: None,
@@ -584,9 +569,7 @@ impl OpenAiProvider {
                                             index: output_index as usize,
                                             id: None,
                                             function_name: None,
-                                            arguments_delta: Some(
-                                                delta.to_string(),
-                                            ),
+                                            arguments_delta: Some(delta.to_string()),
                                             thought_signature: None,
                                         }],
                                         finish_reason: None,
@@ -599,10 +582,8 @@ impl OpenAiProvider {
                             }
                             "response.completed" => {
                                 let usage = v.get("usage").and_then(|u| {
-                                    let input_tok =
-                                        u["input_tokens"].as_u64().unwrap_or(0);
-                                    let output_tok =
-                                        u["output_tokens"].as_u64().unwrap_or(0);
+                                    let input_tok = u["input_tokens"].as_u64().unwrap_or(0);
+                                    let output_tok = u["output_tokens"].as_u64().unwrap_or(0);
                                     if input_tok > 0 || output_tok > 0 {
                                         Some(TokenUsage {
                                             input_tokens: input_tok,
@@ -616,8 +597,7 @@ impl OpenAiProvider {
                                         None
                                     }
                                 });
-                                let model_name =
-                                    v["model"].as_str().map(|s| s.to_string());
+                                let model_name = v["model"].as_str().map(|s| s.to_string());
                                 chunks.push(StreamChunk {
                                     delta_text: None,
                                     tool_calls: vec![],
@@ -1000,10 +980,18 @@ impl AiProvider for OpenAiProvider {
                 // Unified inference — strip /chat/completions to get /models
                 let models_base = base.split("/chat/completions").next().unwrap_or(base);
                 let models_base = models_base.split('?').next().unwrap_or(models_base);
-                format!("{}?api-version={}", models_base.trim_end_matches('/'), api_version)
+                format!(
+                    "{}?api-version={}",
+                    models_base.trim_end_matches('/'),
+                    api_version
+                )
             } else if base.contains("/openai/deployments/") {
                 // Classic Azure OpenAI — use /openai/models endpoint
-                let host = base.split("/openai").next().unwrap_or(base).trim_end_matches('/');
+                let host = base
+                    .split("/openai")
+                    .next()
+                    .unwrap_or(base)
+                    .trim_end_matches('/');
                 format!("{}/openai/models?api-version={}", host, api_version)
             } else {
                 // Fallback — base is already /models or similar

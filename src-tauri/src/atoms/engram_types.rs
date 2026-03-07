@@ -1729,3 +1729,73 @@ pub struct ReplayReport {
     /// Duration of the replay cycle in milliseconds.
     pub duration_ms: u64,
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECTION 23: THE FORGE — Structured Training & Certification (§45)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Certification status for a FORGE-trained procedural memory.
+///
+/// Extends procedural memories from "observed trigger→steps" into
+/// "verified competencies" — the core FORGE value proposition.
+/// Stored as the `certification_status` column on `procedural_memories`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum CertificationStatus {
+    /// Learned organically from usage — not yet verified by FORGE.
+    #[default]
+    Uncertified,
+    /// Currently undergoing structured training and testing.
+    InTraining,
+    /// Passed FORGE tests with sufficient confidence. Verified competency.
+    Certified,
+    /// Certification has lapsed (trust decayed below threshold or time-expired).
+    Expired,
+    /// Failed certification after max attempts — flagged for human review.
+    Failed,
+}
+
+impl CertificationStatus {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Uncertified => "uncertified",
+            Self::InTraining => "in_training",
+            Self::Certified => "certified",
+            Self::Expired => "expired",
+            Self::Failed => "failed",
+        }
+    }
+
+    pub fn parse(s: &str) -> Self {
+        match s {
+            "in_training" => Self::InTraining,
+            "certified" => Self::Certified,
+            "expired" => Self::Expired,
+            "failed" => Self::Failed,
+            _ => Self::Uncertified,
+        }
+    }
+}
+
+/// FORGE metadata carried on a procedural memory.
+///
+/// Not a DB table — this is a view struct composed from the columns
+/// we added to `procedural_memories`. Keeps the type system clean
+/// without any parallel storage.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ForgeMetadata {
+    /// Current certification status.
+    pub certification_status: CertificationStatus,
+    /// Top-level domain (e.g., "hubspot", "stripe").
+    #[serde(default)]
+    pub domain: String,
+    /// Full path in the skill tree DAG (e.g., "hubspot.workflows.triggers.deal_stage").
+    #[serde(default)]
+    pub skill_tree_path: String,
+    /// URL or document reference for lineage tracking.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub curriculum_source: Option<String>,
+    /// When the skill was last certified.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub certified_at: Option<String>,
+}

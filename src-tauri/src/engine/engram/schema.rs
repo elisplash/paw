@@ -95,6 +95,44 @@ pub fn run_engram_migrations(conn: &Connection) -> EngineResult<()> {
         [],
     );
 
+    // ── THE FORGE: Certification columns on procedural_memories ──────────
+    // Extends existing procedural memories with structured training metadata.
+    // Procedural memories already track trigger→steps with success/failure;
+    // FORGE adds formal certification status, domain taxonomy, skill-tree
+    // position, and curriculum lineage on top of that existing foundation.
+    let _ = conn.execute(
+        "ALTER TABLE procedural_memories ADD COLUMN certification_status TEXT NOT NULL DEFAULT 'uncertified'",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE procedural_memories ADD COLUMN domain TEXT NOT NULL DEFAULT ''",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE procedural_memories ADD COLUMN skill_tree_path TEXT NOT NULL DEFAULT ''",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE procedural_memories ADD COLUMN curriculum_source TEXT",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE procedural_memories ADD COLUMN certified_at TEXT",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_procedural_domain ON procedural_memories(domain)",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_procedural_cert_status ON procedural_memories(certification_status)",
+        [],
+    );
+    let _ = conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_procedural_skill_path ON procedural_memories(skill_tree_path)",
+        [],
+    );
+
     // ── Anti-forensic padding (KDBX-equivalent vault-size quantization) ──
     // Inflate the database to the next PADDING_BUCKET boundary so the
     // file size only reveals a coarse bucket, not the exact row count.
