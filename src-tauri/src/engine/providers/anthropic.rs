@@ -430,10 +430,12 @@ impl AnthropicProvider {
             format!("{}/v1/messages", base)
         };
 
-        // Azure endpoints (including AI Foundry) require ?api-version=
-        if self.is_azure && !url.contains("api-version") {
+        // Classic Azure OpenAI endpoints require ?api-version=.
+        // Azure AI Foundry /anthropic endpoints do NOT — they use the
+        // native Anthropic Messages API and reject unknown query params.
+        if self.is_azure_openai && !url.contains("api-version") {
             let sep = if url.contains('?') { '&' } else { '?' };
-            url = format!("{}{}api-version=2025-03-01-preview", url, sep);
+            url = format!("{}{}api-version=2024-08-01", url, sep);
         }
 
         let (system, mut formatted_messages) = Self::format_messages(messages);

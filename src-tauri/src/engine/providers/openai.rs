@@ -346,7 +346,20 @@ impl OpenAiProvider {
         });
 
         if !tools.is_empty() {
-            body["tools"] = json!(Self::format_tools(tools));
+            // Responses API uses a flat tool format with top-level
+            // name/description/parameters (NOT nested under "function").
+            let resp_tools: Vec<Value> = tools
+                .iter()
+                .map(|t| {
+                    json!({
+                        "type": "function",
+                        "name": t.function.name,
+                        "description": t.function.description,
+                        "parameters": t.function.parameters,
+                    })
+                })
+                .collect();
+            body["tools"] = json!(resp_tools);
         }
         if let Some(temp) = temperature {
             body["temperature"] = json!(temp);
