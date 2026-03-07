@@ -3,7 +3,7 @@
 // Every render function receives a container element as its first argument —
 // no global DOM lookups. This makes rendering instance-able for mini-hubs.
 
-import { formatMarkdown } from '../../components/molecules/markdown';
+import { formatMarkdown, wireCodeCopyButtons, escHtml } from '../../components/molecules/markdown';
 import { icon } from '../../components/helpers';
 import { findLastIndex } from '../atoms/chat';
 import { tesseractPlaceholder, activateTesseracts } from '../../components/tesseract';
@@ -12,6 +12,83 @@ import type { MessageWithAttachments } from '../../state/index';
 
 // ── Render options ───────────────────────────────────────────────────────
 
+// ── Follow-up suggestion generation ──────────────────────────────────────
+
+/**
+ * Generate short follow-up question suggestions from assistant content.
+ * Uses heuristic extraction (no LLM call — instant).
+ * Returns up to 3 suggestions.
+ */
+function generateFollowUpSuggestions(content: string): string[] {
+  const suggestions: string[] = [];
+  const lower = content.toLowerCase();
+
+  // If the response mentions code/implementation, suggest explaining or expanding
+  if (lower.includes('function') || lower.includes('class') || lower.includes('```')) {
+    suggestions.push('Explain this in more detail');
+  }
+  // If there's a list/steps, suggest continuing or alternatives
+  if ((lower.match(/\d\.\s/g)?.length ?? 0) >= 3 || (lower.match(/^[-•·]\s/gm)?.length ?? 0) >= 3) {
+    suggestions.push('Are there other approaches?');
+  }
+  // If there's an error or warning mentioned
+  if (lower.includes('error') || lower.includes('warning') || lower.includes('issue')) {
+    suggestions.push('How do I fix this?');
+  }
+  // If it mentions files or configuration
+  if (lower.includes('config') || lower.includes('setting') || lower.includes('.json') || lower.includes('.yaml')) {
+    suggestions.push('Show me an example configuration');
+  }
+  // Generic follow-up if we have room
+  if (suggestions.length < 2 && content.length > 200) {
+    suggestions.push('Tell me more');
+  }
+  if (suggestions.length < 3 && content.length > 300) {
+    suggestions.push('Summarize the key points');
+  }
+
+  return suggestions.slice(0, 3);
+}
+
+// ── Agent step indicator ─────────────────────────────────────────────────
+
+/**
+ * Show or update an agent tool-step indicator in the streaming message.
+ * Displays as a subtle status line: "⟳ Running: tool_name"
+ */
+export function showToolStep(container: HTMLElement, toolName: string): void {
+  const streamingMsg = container.querySelector('#streaming-message');
+  if (!streamingMsg) return;
+  let stepEl = streamingMsg.querySelector('.agent-step-indicator') as HTMLElement | null;
+  if (!stepEl) {
+    stepEl = document.createElement('div');
+    stepEl.className = 'agent-step-indicator';
+    // Insert before message-content
+    const contentEl = streamingMsg.querySelector('.message-content');
+    if (contentEl) streamingMsg.insertBefore(stepEl, contentEl);
+    else streamingMsg.appendChild(stepEl);
+  }
+  const humanLabels: Record<string, string> = {
+    exec: 'Running command',
+    run_command: 'Running command',
+    write_file: 'Writing file',
+    read_file: 'Reading file',
+    search: 'Searching',
+    web_search: 'Searching the web',
+    fetch: 'Fetching URL',
+    web_read: 'Reading page',
+    list_files: 'Listing files',
+    grep: 'Searching code',
+  };
+  const label = humanLabels[toolName] ?? `Using ${toolName}`;
+  stepEl.innerHTML = `<span class="ms step-spin" style="font-size:14px">progress_activity</span> ${escHtml(label)}`;
+}
+
+/** Remove the tool step indicator from the streaming message. */
+export function clearToolStep(container: HTMLElement): void {
+  container.querySelector('.agent-step-indicator')?.remove();
+}
+
 export interface RenderOpts {
   agentName: string;
   agentAvatar?: string;
@@ -19,6 +96,10 @@ export interface RenderOpts {
   onSpeak?: (text: string, btn: HTMLButtonElement) => void;
   /** Feedback callback: called when user clicks thumbs up/down on a message */
   onFeedback?: (messageId: string, helpful: boolean) => void;
+  /** Edit callback: called when user edits a previous message and re-sends */
+  onEdit?: (index: number, newContent: string) => void;
+  /** Follow-up click callback: called when user clicks a suggested follow-up */
+  onFollowUp?: (text: string) => void;
   /** For multi-agent: map of agentId → display info */
   agentMap?: Map<string, { name: string; avatar?: string; color?: string }>;
   /** Whether to show retry button (e.g. disable during streaming) */
@@ -153,24 +234,23 @@ export function renderSingleMessage(
   const contentEl = document.createElement('div');
   contentEl.className = 'message-content';
 
-  // Terminal-style prefix: YOU › or AGENT ›
-  // For multi-agent (squad) messages, use per-agent name and color from agentMap
-  const prefix = document.createElement('span');
-  prefix.className = 'message-prefix';
-  if (msg.role === 'user') {
-    prefix.textContent = 'YOU ›';
-  } else if (msg.role === 'assistant') {
-    const agentInfo = msg.agentId && opts.agentMap?.get(msg.agentId);
-    if (agentInfo) {
-      prefix.textContent = `${(agentInfo.name ?? msg.agentId).toUpperCase()} ›`;
-      if (agentInfo.color) prefix.style.color = agentInfo.color;
+  // Agent name prefix (only for assistant/system — user bubbles speak for themselves)
+  if (msg.role !== 'user') {
+    const prefix = document.createElement('span');
+    prefix.className = 'message-prefix';
+    if (msg.role === 'assistant') {
+      const agentInfo = msg.agentId && opts.agentMap?.get(msg.agentId);
+      if (agentInfo) {
+        prefix.textContent = agentInfo.name ?? msg.agentId;
+        if (agentInfo.color) prefix.style.color = agentInfo.color;
+      } else {
+        prefix.textContent = msg.agentName ?? opts.agentName ?? 'Agent';
+      }
     } else {
-      prefix.textContent = `${(msg.agentName ?? opts.agentName ?? 'AGENT').toUpperCase()} ›`;
+      prefix.textContent = 'System';
     }
-  } else {
-    prefix.textContent = 'SYS ›';
+    div.appendChild(prefix);
   }
-  contentEl.appendChild(prefix);
 
   const textNode = document.createElement('span');
   if (msg.role === 'assistant' || msg.role === 'system') {
@@ -218,6 +298,82 @@ export function renderSingleMessage(
     const retryContent = msg.content;
     retryBtn.addEventListener('click', () => opts.onRetry!(retryContent));
     div.appendChild(retryBtn);
+  }
+
+  // Edit button on user messages (click to edit and re-send)
+  if (msg.role === 'user' && !opts.isStreaming && opts.onEdit) {
+    const editBtn = document.createElement('button');
+    editBtn.className = 'message-edit-btn';
+    editBtn.title = 'Edit message';
+    editBtn.innerHTML = `<span class="ms" style="font-size:13px">edit</span>`;
+    const msgIndex = index;
+    editBtn.addEventListener('click', () => {
+      // Replace content with editable textarea
+      const editArea = document.createElement('textarea');
+      editArea.className = 'message-edit-area';
+      editArea.value = msg.content;
+      editArea.rows = Math.min(msg.content.split('\n').length + 1, 8);
+      const editActions = document.createElement('div');
+      editActions.className = 'message-edit-actions';
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'btn btn-primary btn-sm';
+      saveBtn.textContent = 'Send';
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'btn btn-ghost btn-sm';
+      cancelBtn.textContent = 'Cancel';
+      editActions.appendChild(saveBtn);
+      editActions.appendChild(cancelBtn);
+      contentEl.style.display = 'none';
+      div.insertBefore(editArea, contentEl);
+      div.insertBefore(editActions, contentEl);
+      editArea.focus();
+      editArea.setSelectionRange(editArea.value.length, editArea.value.length);
+      saveBtn.addEventListener('click', () => {
+        const newContent = editArea.value.trim();
+        if (newContent && newContent !== msg.content) {
+          opts.onEdit!(msgIndex, newContent);
+        }
+        editArea.remove();
+        editActions.remove();
+        contentEl.style.display = '';
+      });
+      cancelBtn.addEventListener('click', () => {
+        editArea.remove();
+        editActions.remove();
+        contentEl.style.display = '';
+      });
+      editArea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          saveBtn.click();
+        }
+        if (e.key === 'Escape') cancelBtn.click();
+      });
+    });
+    div.appendChild(editBtn);
+  }
+
+  // Follow-up suggestions on the last assistant message
+  if (
+    msg.role === 'assistant' &&
+    index === lastAssistantIdx &&
+    !opts.isStreaming &&
+    opts.onFollowUp &&
+    msg.content.length > 100
+  ) {
+    const suggestions = generateFollowUpSuggestions(msg.content);
+    if (suggestions.length > 0) {
+      const followUpRow = document.createElement('div');
+      followUpRow.className = 'follow-up-suggestions';
+      for (const s of suggestions) {
+        const pill = document.createElement('button');
+        pill.className = 'follow-up-pill';
+        pill.innerHTML = `<span class="ms" style="font-size:12px">arrow_forward</span> ${escHtml(s)}`;
+        pill.addEventListener('click', () => opts.onFollowUp!(s));
+        followUpRow.appendChild(pill);
+      }
+      div.appendChild(followUpRow);
+    }
   }
 
   // TTS button
@@ -315,6 +471,12 @@ export function renderMessages(
   const streamingEl = container.querySelector('#streaming-message');
   if (streamingEl) container.insertBefore(frag, streamingEl);
   else container.appendChild(frag);
+
+  // Wire code block copy buttons (event delegation on container — idempotent)
+  if (!(container as HTMLElement & { _codeCopyWired?: boolean })._codeCopyWired) {
+    wireCodeCopyButtons(container);
+    (container as HTMLElement & { _codeCopyWired?: boolean })._codeCopyWired = true;
+  }
 }
 
 // ── Streaming message helpers ────────────────────────────────────────────
@@ -331,11 +493,11 @@ export function showStreamingMessage(container: HTMLElement, agentName: string):
   const contentEl = document.createElement('div');
   contentEl.className = 'message-content';
 
-  // Terminal-style prefix for streaming
+  // Agent name prefix above content
   const prefix = document.createElement('span');
   prefix.className = 'message-prefix';
-  prefix.textContent = `${(agentName ?? 'AGENT').toUpperCase()} ›`;
-  contentEl.appendChild(prefix);
+  prefix.textContent = agentName ?? 'Agent';
+  div.appendChild(prefix);
 
   const streamSpan = document.createElement('span');
   streamSpan.innerHTML = tesseractPlaceholder(20, 'streaming');

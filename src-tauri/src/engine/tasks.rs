@@ -438,7 +438,7 @@ pub async fn execute_task(
             if let Ok(conn) = rusqlite::Connection::open(&store_path_clone) {
                 // Wrap in SessionStore so we can use Engram bridge for post-capture
                 let temp_store = crate::engine::sessions::SessionStore {
-                    conn: parking_lot::Mutex::new(conn),
+                    conn: std::sync::Arc::new(parking_lot::Mutex::new(conn)),
                 };
 
                 // Scope the MutexGuard so it's dropped before any .await

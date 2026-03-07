@@ -8,6 +8,7 @@
 use parking_lot::Mutex;
 use paw_temp_lib::engine::sessions::SessionStore;
 use rusqlite::Connection;
+use std::sync::Arc;
 
 /// Shared test helper: in-memory SessionStore.
 pub fn test_store() -> SessionStore {
@@ -15,7 +16,7 @@ pub fn test_store() -> SessionStore {
     conn.execute_batch("PRAGMA journal_mode=WAL;").ok();
     paw_temp_lib::engine::sessions::schema_for_testing(&conn);
     SessionStore {
-        conn: Mutex::new(conn),
+        conn: Arc::new(Mutex::new(conn)),
     }
 }
 

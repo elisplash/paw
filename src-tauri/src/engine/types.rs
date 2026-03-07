@@ -42,6 +42,9 @@ impl ProviderKind {
             ProviderKind::Grok => "https://api.x.ai/v1",
             ProviderKind::Mistral => "https://api.mistral.ai/v1",
             ProviderKind::Moonshot => "https://api.moonshot.cn/v1",
+            // Azure AI Foundry: user fills in their resource URL;
+            // OpenAiProvider normalises it to …/models at construction time.
+            ProviderKind::AzureFoundry => "",
         }
     }
 }

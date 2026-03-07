@@ -1,15 +1,17 @@
 // src/components/molecules/hil_modal.ts
-// Human-In-the-Loop tool approval modal + inline chat bubble.
+// Human-In-the-Loop tool approval — inline chat card (VS Code style).
 // Call initHILModal() once at app startup to register the Tauri event handler.
 //
 // VS Code-inspired approval UX:
-//   1. Inline approval bubble injected into the chat stream
-//   2. Modal overlay as fallback (always shown for dangerous tools)
-//   3. "Always Allow" button — persist per-tool auto-approve
-//   4. "Always Allow pattern" — auto-approve matching commands
+//   1. Inline approval card injected into the chat stream (no modal popup)
+//   2. "Always Allow" button — persist per-tool auto-approve
+//   3. "Always Allow pattern" — auto-approve matching commands
+//   4. Session override — approve all tools for N minutes
 //   5. Collapsed tool details by default
-//   6. Tier badge (external / dangerous / unknown)
-//   7. OS notification when approval is pending
+//   6. Tier badge + risk banner (external / dangerous / unknown)
+//   7. Type-to-confirm for critical-risk tools
+//   8. Network audit info banner
+//   9. OS notification when approval is pending
 
 import { onEngineToolApproval, resolveEngineToolApproval } from '../../engine-bridge';
 import type { EngineEvent } from '../../engine';
@@ -31,8 +33,6 @@ import { logCredentialActivity, logSecurityEvent } from '../../db';
 import { showToast } from '../toast';
 import { pushNotification } from '../notifications';
 import { escHtml } from '../molecules/markdown';
-
-const $ = (id: string) => document.getElementById(id);
 
 // ── Persist "Always Allow" per tool in localStorage ─────────────────
 const ALWAYS_ALLOW_KEY = 'paw-always-allow-tools';
@@ -80,92 +80,250 @@ function generatePattern(toolName: string, args?: Record<string, unknown>): stri
 }
 
 // ── Inline chat approval bubble ─────────────────────────────────────
-function injectChatBubble(
-  toolCallId: string,
-  toolName: string,
-  args: Record<string, unknown> | undefined,
-  tier: string,
-  risk: RiskClassification | null,
-  onAllow: () => void,
-  onDeny: () => void,
-  onAlwaysAllow: () => void,
-): HTMLElement | null {
+// VS Code pattern: ChatConfirmationWidget with title → content → button bar.
+// Resolved state collapses to a single-line summary (no faded full card).
+
+/** Human-friendly labels for internal tool names */
+const TOOL_LABELS: Record<string, string> = {
+  exec: 'Run command',
+  run_command: 'Run command',
+  write_file: 'Write file',
+  append_file: 'Append to file',
+  delete_file: 'Delete file',
+  email_send: 'Send email',
+  webhook_send: 'Send webhook',
+  rest_api_call: 'Call REST API',
+  slack_send: 'Send Slack message',
+  github_api: 'GitHub API call',
+  sol_swap: 'Swap tokens (Solana)',
+  sol_transfer: 'Transfer SOL',
+  dex_swap: 'DEX swap',
+  dex_transfer: 'DEX transfer',
+  coinbase_trade: 'Coinbase trade',
+  coinbase_transfer: 'Coinbase transfer',
+};
+
+/** Material icon for the tool tier */
+function tierIcon(tier: string): string {
+  switch (tier) {
+    case 'dangerous':
+      return 'warning';
+    case 'external':
+      return 'send';
+    default:
+      return 'gavel';
+  }
+}
+
+interface BubbleOptions {
+  toolCallId: string;
+  toolName: string;
+  args: Record<string, unknown> | undefined;
+  tier: string;
+  risk: RiskClassification | null;
+  pattern: string | null;
+  netAudit: { isNetworkRequest: boolean; targets: string[]; isExfiltration: boolean; exfiltrationReason?: string | null; allTargetsLocal: boolean };
+  requireTypeToConfirm: boolean;
+  onAllow: () => void;
+  onDeny: () => void;
+  onAlwaysAllow: () => void;
+  onAlwaysPattern: () => void;
+  onSessionOverride: (mins: number) => void;
+}
+
+function injectChatBubble(opts: BubbleOptions): HTMLElement | null {
   const chatMessages = document.getElementById('chat-messages');
   if (!chatMessages) return null;
+
+  const { toolCallId, toolName, args, tier, risk, pattern, netAudit, requireTypeToConfirm } = opts;
 
   const bubble = document.createElement('div');
   bubble.className = `chat-approval-bubble${tier === 'external' ? ' bubble-external' : tier === 'dangerous' ? ' bubble-dangerous' : ''}`;
   bubble.dataset.toolCallId = toolCallId;
 
-  const riskHint = risk
-    ? ` — <span style="color: var(--status-error)">${escHtml(risk.level)}: ${escHtml(risk.label)}</span>`
-    : '';
+  const humanLabel = TOOL_LABELS[toolName] ?? toolName;
   const argsJson = args ? JSON.stringify(args, null, 2) : '';
-  const tierLabel =
-    tier === 'external'
-      ? 'External action'
-      : tier === 'dangerous'
-        ? 'Dangerous'
-        : 'Requires approval';
+  const isDangerous = risk && (risk.level === 'critical' || risk.level === 'high');
+  const isCritical = risk?.level === 'critical';
 
+  // Risk pill (only for elevated risk)
+  const riskPill = risk
+    ? `<span class="approval-risk-pill risk-${escHtml(risk.level)}">${escHtml(risk.level)}</span>`
+    : '';
+
+  // Risk banner (dangerous/critical inline — replaces modal risk banner)
+  let riskBannerHtml = '';
+  if (risk && isDangerous) {
+    const riskIconChar = isCritical ? 'dangerous' : 'warning';
+    riskBannerHtml = `
+    <div class="chat-approval-risk-banner risk-${escHtml(risk.level)}">
+      <span class="ms" style="font-size:14px">${riskIconChar}</span>
+      <div>
+        <strong>${escHtml(risk.level.toUpperCase())}: ${escHtml(risk.label)}</strong>
+        <div class="risk-reason-text">${escHtml(risk.reason)}</div>
+      </div>
+    </div>`;
+  }
+
+  // Network audit banner
+  let netBannerHtml = '';
+  if (netAudit.isNetworkRequest) {
+    const targetStr = netAudit.targets.length > 0 ? netAudit.targets.join(', ') : 'unknown destination';
+    if (netAudit.isExfiltration) {
+      netBannerHtml = `<div class="chat-approval-net-banner net-exfiltration"><span class="ms" style="font-size:14px">shield</span> <strong>Possible Data Exfiltration</strong> → ${escHtml(targetStr)}</div>`;
+    } else if (!netAudit.allTargetsLocal) {
+      netBannerHtml = `<div class="chat-approval-net-banner net-external"><span class="ms" style="font-size:14px">language</span> External request → ${escHtml(targetStr)}</div>`;
+    } else {
+      netBannerHtml = `<div class="chat-approval-net-banner net-local"><span class="ms" style="font-size:14px">dns</span> Localhost request → ${escHtml(targetStr)}</div>`;
+    }
+  }
+
+  // Type-to-confirm (critical tools only)
+  const typeConfirmHtml = (isCritical && requireTypeToConfirm) ? `
+    <div class="chat-approval-type-confirm">
+      <label>Type <strong>ALLOW</strong> to continue:</label>
+      <input type="text" class="bubble-type-input" spellcheck="false" autocomplete="off" />
+    </div>` : '';
+
+  // Always-allow-pattern dropdown item
+  const patternItemHtml = pattern ? `
+          <button class="approval-dropdown-item bubble-pattern-btn">
+            <span class="ms" style="font-size:14px">rule</span> Always allow pattern: <code>${escHtml(pattern)}</code>
+          </button>` : '';
+
+  // Session override dropdown items (not for dangerous tools)
+  const sessionItems = isDangerous ? '' : `
+          <button class="approval-dropdown-item bubble-session-btn" data-minutes="480">
+            <span class="ms" style="font-size:14px">check_circle</span> Allow all for this session
+          </button>
+          <div class="approval-dropdown-divider"></div>
+          <div class="approval-dropdown-label">Auto-approve for…</div>
+          <button class="approval-dropdown-item bubble-session-btn" data-minutes="15">
+            <span class="ms" style="font-size:14px">timer</span> 15 minutes
+          </button>
+          <button class="approval-dropdown-item bubble-session-btn" data-minutes="30">
+            <span class="ms" style="font-size:14px">timer</span> 30 minutes
+          </button>
+          <button class="approval-dropdown-item bubble-session-btn" data-minutes="60">
+            <span class="ms" style="font-size:14px">timer</span> 60 minutes
+          </button>`;
+
+  // Build the card: title bar → risk/net banners → content → buttons (VS Code layout)
   bubble.innerHTML = `
-    <div class="chat-approval-bubble-header">
-      <span class="ms">${tier === 'dangerous' ? 'warning' : tier === 'external' ? 'send' : 'gavel'}</span>
-      ${escHtml(tierLabel)}: <span class="chat-approval-bubble-tool">${escHtml(toolName)}</span>
-      ${riskHint}
+    <div class="chat-approval-title">
+      <span class="ms approval-tier-icon">${tierIcon(tier)}</span>
+      <span class="approval-title-text">${escHtml(humanLabel)}</span>
+      ${riskPill}
     </div>
-    ${argsJson ? `<div class="chat-approval-bubble-args">${escHtml(argsJson)}</div>` : ''}
-    <div class="chat-approval-bubble-actions">
-      <button class="btn btn-primary btn-sm bubble-allow-btn">Continue</button>
-      <button class="btn btn-secondary btn-sm bubble-deny-btn">Deny</button>
-      <button class="btn btn-ghost btn-sm bubble-always-btn" title="Always auto-approve this tool">Always allow</button>
-      ${argsJson ? '<button class="btn btn-ghost btn-sm bubble-details-btn" style="margin-left: auto; font-size: 11px; color: var(--text-muted)">▸ Details</button>' : ''}
+    <div class="chat-approval-subtitle"><code>${escHtml(toolName)}</code>${args && 'command' in args ? ` — <span class="approval-cmd-preview">${escHtml(String(args.command).slice(0, 120))}</span>` : ''}</div>
+    ${riskBannerHtml}
+    ${netBannerHtml}
+    ${argsJson ? `
+    <details class="chat-approval-details">
+      <summary>Parameters</summary>
+      <pre class="chat-approval-args-code"><code>${escHtml(argsJson)}</code></pre>
+    </details>` : ''}
+    ${typeConfirmHtml}
+    <div class="chat-approval-buttons">
+      <div class="approval-primary-group">
+        <button class="btn btn-primary btn-sm bubble-allow-btn"${isCritical && requireTypeToConfirm ? ' disabled' : ''}>Continue</button>
+        <button class="btn btn-primary btn-sm approval-dropdown-toggle bubble-more-btn" title="More options">
+          <span class="ms">keyboard_arrow_down</span>
+        </button>
+        <div class="approval-dropdown-menu" style="display:none">
+          ${sessionItems}
+          ${sessionItems ? '<div class="approval-dropdown-divider"></div>' : ''}
+          <button class="approval-dropdown-item bubble-always-btn">
+            <span class="ms" style="font-size:14px">verified</span> Always allow <strong>${escHtml(toolName)}</strong>
+          </button>
+          ${patternItemHtml}
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm bubble-deny-btn">Skip</button>
     </div>
-    <div class="chat-approval-bubble-result approved">✓ Approved</div>
-    <div class="chat-approval-bubble-result denied">✕ Denied</div>
+    <div class="chat-approval-resolved approved">
+      <span class="ms" style="font-size:14px">check_circle</span> Approved
+    </div>
+    <div class="chat-approval-resolved denied">
+      <span class="ms" style="font-size:14px">cancel</span> Denied
+    </div>
   `;
 
   chatMessages.appendChild(bubble);
-  // Auto-scroll
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
   // Wire actions
-  const allowBtn = bubble.querySelector('.bubble-allow-btn');
+  const allowBtn = bubble.querySelector('.bubble-allow-btn') as HTMLButtonElement | null;
   const denyBtn = bubble.querySelector('.bubble-deny-btn');
   const alwaysBtn = bubble.querySelector('.bubble-always-btn');
-  const detailsBtn = bubble.querySelector('.bubble-details-btn');
-  const argsEl = bubble.querySelector('.chat-approval-bubble-args');
+  const patternBtn = bubble.querySelector('.bubble-pattern-btn');
+  const moreBtn = bubble.querySelector('.bubble-more-btn');
+  const dropdownMenu = bubble.querySelector('.approval-dropdown-menu') as HTMLElement | null;
+  const typeInput = bubble.querySelector('.bubble-type-input') as HTMLInputElement | null;
+  const sessionBtns = bubble.querySelectorAll('.bubble-session-btn');
 
   const resolve = (approved: boolean) => {
     bubble.classList.add('resolved');
-    const approvedEl = bubble.querySelector('.chat-approval-bubble-result.approved') as HTMLElement;
-    const deniedEl = bubble.querySelector('.chat-approval-bubble-result.denied') as HTMLElement;
+    const approvedEl = bubble.querySelector('.chat-approval-resolved.approved') as HTMLElement;
+    const deniedEl = bubble.querySelector('.chat-approval-resolved.denied') as HTMLElement;
     if (approved) {
-      if (approvedEl) approvedEl.style.display = 'block';
+      if (approvedEl) approvedEl.style.display = 'flex';
     } else {
-      if (deniedEl) deniedEl.style.display = 'block';
+      if (deniedEl) deniedEl.style.display = 'flex';
     }
   };
 
+  const closeDropdown = () => {
+    if (dropdownMenu) dropdownMenu.style.display = 'none';
+  };
+
+  // Dropdown toggle
+  moreBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (dropdownMenu) {
+      dropdownMenu.style.display = dropdownMenu.style.display === 'none' ? 'flex' : 'none';
+    }
+  });
+
+  // Close dropdown on outside click
+  document.addEventListener('click', closeDropdown, { once: true });
+
+  // Type-to-confirm wiring (critical tools)
+  if (typeInput && allowBtn && isCritical && requireTypeToConfirm) {
+    typeInput.addEventListener('input', () => {
+      const val = typeInput.value.trim().toUpperCase();
+      allowBtn.disabled = val !== 'ALLOW';
+      allowBtn.textContent = val === 'ALLOW' ? 'Continue' : 'Type ALLOW';
+    });
+    // Focus the input for immediate typing
+    requestAnimationFrame(() => typeInput.focus());
+  }
+
   allowBtn?.addEventListener('click', () => {
     resolve(true);
-    onAllow();
+    opts.onAllow();
   });
   denyBtn?.addEventListener('click', () => {
     resolve(false);
-    onDeny();
+    opts.onDeny();
   });
   alwaysBtn?.addEventListener('click', () => {
+    closeDropdown();
     resolve(true);
-    onAlwaysAllow();
+    opts.onAlwaysAllow();
   });
-  detailsBtn?.addEventListener('click', () => {
-    argsEl?.classList.toggle('expanded');
-    if (detailsBtn.textContent?.includes('▸')) {
-      detailsBtn.textContent = '▾ Details';
-    } else {
-      detailsBtn.textContent = '▸ Details';
-    }
+  patternBtn?.addEventListener('click', () => {
+    closeDropdown();
+    resolve(true);
+    opts.onAlwaysPattern();
+  });
+  sessionBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const mins = parseInt((btn as HTMLElement).dataset.minutes ?? '30', 10);
+      closeDropdown();
+      resolve(true);
+      opts.onSessionOverride(mins);
+    });
   });
 
   return bubble;
@@ -206,28 +364,7 @@ export function initHILModal(): void {
     } catch {
       args = undefined;
     }
-    const desc = `The agent wants to use: ${toolName}`;
     const sessionKey = event.session_id ?? '';
-
-    const modal = $('approval-modal');
-    const modalCard = $('approval-modal-card');
-    const modalTitle = $('approval-modal-title');
-    const descEl = $('approval-modal-desc');
-    const detailsEl = $('approval-modal-details');
-    const detailsToggle = $('approval-details-toggle') as HTMLDetailsElement | null;
-    const riskBanner = $('approval-risk-banner');
-    const riskIcon = $('approval-risk-icon');
-    const riskLabel = $('approval-risk-label');
-    const riskReason = $('approval-risk-reason');
-    const typeConfirm = $('approval-type-confirm');
-    const typeInput = $('approval-type-input') as HTMLInputElement | null;
-    const allowBtn = $('approval-allow-btn') as HTMLButtonElement | null;
-    const tierBadge = $('approval-tier-badge');
-    const alwaysActions = $('approval-always-actions');
-    const alwaysToolName = $('approval-always-tool-name');
-    const alwaysPatternBtn = $('approval-always-pattern-btn');
-    const alwaysPatternText = $('approval-always-pattern-text');
-    if (!modal || !descEl) return;
 
     const secSettings = loadSecuritySettings();
     const risk: RiskClassification | null = classifyCommandRisk(toolName, args);
@@ -370,7 +507,6 @@ export function initHILModal(): void {
     sendOSNotification(toolName);
 
     // ── Shared approval/deny handlers ───────────────────────────────
-    const isDangerous = risk && (risk.level === 'critical' || risk.level === 'high');
     const pattern = generatePattern(toolName, args);
 
     const doAllow = () => {
@@ -435,212 +571,41 @@ export function initHILModal(): void {
       }
     };
 
-    // ── Inject inline chat bubble ───────────────────────────────────
-    const chatBubble = injectChatBubble(
+    // ── Inject inline chat approval card (no modal popup) ─────────────
+    const chatBubble = injectChatBubble({
       toolCallId,
       toolName,
       args,
-      toolTier,
+      tier: toolTier,
       risk,
-      () => {
-        cleanupModal();
-        doAllow();
+      pattern,
+      netAudit,
+      requireTypeToConfirm: !!(secSettings.requireTypeToCritical && risk?.level === 'critical'),
+      onAllow: doAllow,
+      onDeny: doDeny,
+      onAlwaysAllow: doAlwaysAllow,
+      onAlwaysPattern: doAlwaysPattern,
+      onSessionOverride: (mins: number) => {
+        activateSessionOverride(mins);
+        resolveEngineToolApproval(toolCallId, true);
+        logCredentialActivity({
+          action: 'approved',
+          toolName,
+          detail: `[Engine] Session override (${mins}min): ${toolName}`,
+          sessionKey,
+          wasAllowed: true,
+        });
+        showToast(
+          `Session override active for ${mins} minutes — all tool requests auto-approved`,
+          'info',
+        );
       },
-      () => {
-        cleanupModal();
-        doDeny();
-      },
-      () => {
-        cleanupModal();
-        doAlwaysAllow();
-      },
-    );
+    });
+
+    // Keep reference for external resolution (if needed)
+    void chatBubble;
 
     // Notify: tool needs approval (important — user may be in another view)
     pushNotification('hil', 'Tool approval needed', toolName, undefined, 'chat');
-
-    // ── Show modal (always for dangerous, alongside bubble for others) ──
-    const isCritical = risk?.level === 'critical';
-
-    modalCard?.classList.remove('danger-modal');
-    riskBanner?.classList.remove('risk-critical', 'risk-high', 'risk-medium');
-    if (riskBanner) riskBanner.style.display = 'none';
-    if (typeConfirm) typeConfirm.style.display = 'none';
-    if (typeInput) typeInput.value = '';
-    if (allowBtn) {
-      allowBtn.disabled = false;
-      allowBtn.textContent = 'Allow';
-    }
-    if (modalTitle) modalTitle.textContent = 'Tool Approval Required';
-    if (detailsToggle) detailsToggle.open = false;
-
-    // Tier badge
-    if (tierBadge) {
-      tierBadge.className = 'approval-tier-badge';
-      if (toolTier === 'external') {
-        tierBadge.textContent = 'External';
-        tierBadge.classList.add('tier-external');
-      } else if (toolTier === 'dangerous') {
-        tierBadge.textContent = 'Dangerous';
-        tierBadge.classList.add('tier-dangerous');
-      } else {
-        tierBadge.textContent = toolTier;
-        tierBadge.classList.add('tier-unknown');
-      }
-    }
-
-    // Always Allow buttons
-    if (alwaysActions) alwaysActions.style.display = isDangerous ? 'none' : 'flex';
-    if (alwaysToolName) alwaysToolName.textContent = toolName;
-    if (alwaysPatternBtn && alwaysPatternText) {
-      if (pattern) {
-        alwaysPatternBtn.style.display = '';
-        alwaysPatternText.textContent = pattern;
-      } else {
-        alwaysPatternBtn.style.display = 'none';
-      }
-    }
-
-    if (risk) {
-      if (isDangerous) {
-        modalCard?.classList.add('danger-modal');
-        if (modalTitle) modalTitle.textContent = 'Dangerous Command Detected';
-      }
-      if (riskBanner && riskLabel && riskReason && riskIcon) {
-        riskBanner.style.display = 'flex';
-        riskBanner.classList.add(`risk-${risk.level}`);
-        riskLabel.textContent = `${risk.level.toUpperCase()}: ${risk.label}`;
-        riskReason.textContent = risk.reason;
-        riskIcon.textContent = isCritical ? '☠' : risk.level === 'high' ? '!' : '⚠';
-      }
-      if (isCritical && secSettings.requireTypeToCritical && typeConfirm && typeInput && allowBtn) {
-        typeConfirm.style.display = 'block';
-        allowBtn.disabled = true;
-        allowBtn.textContent = 'Type ALLOW first';
-        const onTypeInput = () => {
-          const val = typeInput.value.trim().toUpperCase();
-          allowBtn.disabled = val !== 'ALLOW';
-          allowBtn.textContent = val === 'ALLOW' ? 'Allow' : 'Type ALLOW first';
-        };
-        typeInput.addEventListener('input', onTypeInput);
-        (typeInput as unknown as Record<string, unknown>)._secCleanup = onTypeInput;
-      }
-    }
-
-    descEl.textContent = desc;
-
-    // Network audit banner
-    const netBanner = $('approval-network-banner');
-    if (netBanner) netBanner.style.display = 'none';
-    if (netAudit.isNetworkRequest && netBanner) {
-      netBanner.style.display = 'block';
-      const targetStr =
-        netAudit.targets.length > 0 ? netAudit.targets.join(', ') : 'unknown destination';
-      if (netAudit.isExfiltration) {
-        netBanner.className = 'network-banner network-exfiltration';
-        netBanner.innerHTML = `<strong>Possible Data Exfiltration</strong><br>Outbound data transfer detected → ${escHtml(targetStr)}`;
-      } else if (!netAudit.allTargetsLocal) {
-        netBanner.className = 'network-banner network-external';
-        netBanner.innerHTML = `<strong>External Network Request</strong><br>Destination: ${escHtml(targetStr)}`;
-      } else {
-        netBanner.className = 'network-banner network-local';
-        netBanner.innerHTML = `<strong>Localhost Request</strong><br>Destination: ${escHtml(targetStr)}`;
-      }
-    }
-
-    if (detailsEl) {
-      detailsEl.innerHTML = args
-        ? `<pre class="code-block"><code>${escHtml(JSON.stringify(args, null, 2))}</code></pre>`
-        : '';
-    }
-    modal.style.display = 'flex';
-
-    const cleanupModal = () => {
-      modal.style.display = 'none';
-      if (typeInput) {
-        const fn = (typeInput as unknown as Record<string, unknown>)._secCleanup as
-          | (() => void)
-          | undefined;
-        if (fn) typeInput.removeEventListener('input', fn);
-      }
-      $('approval-allow-btn')?.removeEventListener('click', onModalAllow);
-      $('approval-deny-btn')?.removeEventListener('click', onModalDeny);
-      $('approval-modal-close')?.removeEventListener('click', onModalDeny);
-      $('approval-always-allow-btn')?.removeEventListener('click', onModalAlwaysAllow);
-      $('approval-always-pattern-btn')?.removeEventListener('click', onModalAlwaysPattern);
-    };
-
-    const resolveInlineBubble = (approved: boolean) => {
-      if (chatBubble) {
-        chatBubble.classList.add('resolved');
-        const approvedEl = chatBubble.querySelector(
-          '.chat-approval-bubble-result.approved',
-        ) as HTMLElement;
-        const deniedEl = chatBubble.querySelector(
-          '.chat-approval-bubble-result.denied',
-        ) as HTMLElement;
-        if (approved && approvedEl) approvedEl.style.display = 'block';
-        if (!approved && deniedEl) deniedEl.style.display = 'block';
-      }
-    };
-
-    const onModalAllow = () => {
-      cleanupModal();
-      resolveInlineBubble(true);
-      doAllow();
-    };
-    const onModalDeny = () => {
-      cleanupModal();
-      resolveInlineBubble(false);
-      doDeny();
-    };
-    const onModalAlwaysAllow = () => {
-      cleanupModal();
-      resolveInlineBubble(true);
-      doAlwaysAllow();
-    };
-    const onModalAlwaysPattern = () => {
-      cleanupModal();
-      resolveInlineBubble(true);
-      doAlwaysPattern();
-    };
-
-    $('approval-allow-btn')?.addEventListener('click', onModalAllow);
-    $('approval-deny-btn')?.addEventListener('click', onModalDeny);
-    $('approval-modal-close')?.addEventListener('click', onModalDeny);
-    $('approval-always-allow-btn')?.addEventListener('click', onModalAlwaysAllow);
-    $('approval-always-pattern-btn')?.addEventListener('click', onModalAlwaysPattern);
-
-    // Session override dropdown
-    const overrideBtn = $('session-override-btn');
-    const overrideMenu = $('session-override-menu');
-    if (overrideBtn && overrideMenu) {
-      const toggleMenu = (e: Event) => {
-        e.stopPropagation();
-        overrideMenu.style.display = overrideMenu.style.display === 'none' ? 'flex' : 'none';
-      };
-      overrideBtn.addEventListener('click', toggleMenu);
-      overrideMenu.querySelectorAll('.session-override-opt').forEach((opt) => {
-        opt.addEventListener('click', () => {
-          const mins = parseInt((opt as HTMLElement).dataset.minutes ?? '30', 10);
-          activateSessionOverride(mins);
-          overrideMenu.style.display = 'none';
-          cleanupModal();
-          resolveInlineBubble(true);
-          resolveEngineToolApproval(toolCallId, true);
-          logCredentialActivity({
-            action: 'approved',
-            toolName,
-            detail: `[Engine] Session override (${mins}min): ${toolName}`,
-            sessionKey,
-            wasAllowed: true,
-          });
-          showToast(
-            `Session override active for ${mins} minutes — all tool requests auto-approved`,
-            'info',
-          );
-        });
-      });
-    }
   });
 }

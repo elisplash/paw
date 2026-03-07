@@ -795,6 +795,14 @@ Or describe it in natural language:
 
 ---
 
+## Relationship to the Agent Execution Architecture
+
+The Conductor Protocol operates at the **flow level** — compiling multi-node workflow graphs. The [Agent Execution Architecture](/reference/agent-execution-roadmap) extends parallel execution to the **conversation level** via Action DAG Planning (Phase 0). When a user's request involves multiple independent steps, the agent emits a DAG plan in a single inference call. The engine's DAG executor runs independent branches concurrently — the same principle as the Conductor's Parallelize primitive, applied to individual tool calls within a conversation turn.
+
+Together, the Conductor optimizes compiled flows while Action DAG Planning optimizes ad-hoc agent reasoning — parallel execution at every layer.
+
+---
+
 ## License & Attribution
 
 The Conductor Protocol is part of **OpenPawz** and is released under the **MIT License**. You are free to use, modify, and redistribute this technique in any project, commercial or otherwise. Attribution is appreciated but not required.

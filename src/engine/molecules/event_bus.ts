@@ -299,20 +299,10 @@ function routeToHandlers(
       // Update model selector with API-confirmed model name (main chat only)
       const confirmedModel = dAny.model as string | undefined;
       if (confirmedModel) {
-        if (!isBackground && handlers === _streamHandlers) {
-          const modelSel = document.getElementById('chat-model-select') as HTMLSelectElement | null;
-          if (modelSel) {
-            const exists = Array.from(modelSel.options).some((o) => o.value === confirmedModel);
-            if (!exists) {
-              const opt = document.createElement('option');
-              opt.value = confirmedModel;
-              opt.textContent = `✓ ${confirmedModel}`;
-              modelSel.appendChild(opt);
-            }
-            if (modelSel.value === 'default' || modelSel.value === '')
-              modelSel.value = confirmedModel;
-          }
-        }
+        // Update context limit from the model the backend actually used,
+        // but do NOT change the dropdown selection or inject unknown models.
+        // The dropdown shows only user-configured models; "Default Model"
+        // means the backend picks — the UI should not second-guess that.
         handlers.onModel(confirmedModel);
       }
 

@@ -19,6 +19,8 @@ import {
   appendThinkingDelta,
   recordTokenUsage,
   updateContextLimitFromModel,
+  handleToolStart,
+  handleToolEnd,
 } from './engine/organisms/chat_controller';
 import { mountInbox } from './engine/organisms/inbox_controller';
 import { registerStreamHandlers, registerResearchRouter } from './engine/molecules/event_bus';
@@ -31,6 +33,8 @@ registerStreamHandlers({
   onThinking: appendThinkingDelta,
   onToken: recordTokenUsage,
   onModel: updateContextLimitFromModel,
+  onToolStart: handleToolStart,
+  onToolEnd: handleToolEnd,
 });
 registerResearchRouter({
   isStreaming: ResearchModule.isStreaming,

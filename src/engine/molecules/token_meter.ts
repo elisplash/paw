@@ -83,6 +83,12 @@ export function createTokenMeter(selectors: {
       label.textContent = `0 / ${lim} tokens`;
       meter.title = 'Token tracking active — send a message to see usage';
 
+      // Hide stale warnings from previous session
+      const compWarn = $(selectors.compactionWarningId);
+      if (compWarn) compWarn.style.display = 'none';
+      const budgetWarn = $(selectors.budgetAlertId);
+      if (budgetWarn) budgetWarn.style.display = 'none';
+
       // Still update mission panel on zero state
       refreshMissionPanel({
         tokensUsed: 0,
@@ -225,6 +231,8 @@ export function createTokenMeter(selectors: {
       initMissionPanel();
       const budgetAlert = $(selectors.budgetAlertId);
       if (budgetAlert) budgetAlert.style.display = 'none';
+      const compactionWarning = $(selectors.compactionWarningId);
+      if (compactionWarning) compactionWarning.style.display = 'none';
     },
 
     update(state: TokenMeterState): void {

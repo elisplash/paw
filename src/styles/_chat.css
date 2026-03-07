@@ -7,7 +7,7 @@
 }
 
 .chat-header {
-  padding: 8px 16px;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
@@ -15,8 +15,8 @@
   flex-wrap: nowrap;
   gap: 8px;
   background: var(--bg-secondary);
-  min-height: 40px;
-  max-height: 40px;
+  min-height: 36px;
+  max-height: 36px;
 }
 
 .chat-header-left {
@@ -47,8 +47,8 @@
 }
 
 .chat-avatar {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -375,14 +375,14 @@
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 16px 20px;
+  padding: 8px 16px;
   background: var(--bg-primary);
 }
 
 .message {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   max-width: 100%;
-  animation: messageSlideIn 150ms ease-out;
+  animation: messageSlideIn 120ms ease-out;
 }
 
 @keyframes messageSlideIn {
@@ -396,50 +396,55 @@
   }
 }
 
+/* ── User messages: right-aligned compact bubbles ── */
 .message.user {
-  margin-left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
+/* ── Shared message content ── */
 .message-content {
-  padding: 6px 0;
+  padding: 0;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.5;
   word-wrap: break-word;
 }
 
-/* Terminal-style message prefix: YOU › / AGENT › */
+/* Agent label — inline, subtle, only shown on assistant messages */
 .message-prefix {
   font-family: var(--font-mono);
-  font-size: var(--type-label);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  margin-right: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   user-select: none;
-  display: block;
+  display: none; /* hidden by default; shown on assistant */
   margin-bottom: 2px;
 }
-.message.user .message-prefix {
-  color: var(--text-muted);
-}
 .message.assistant .message-prefix {
+  display: block;
   color: var(--accent);
 }
 .message.system .message-prefix {
+  display: block;
   color: var(--kinetic-steel);
 }
 
+/* User bubble */
 .message.user .message-content {
-  background: transparent;
+  background: var(--bg-tertiary);
   color: var(--text-primary);
-  border-radius: 0;
+  border-radius: 14px 14px 4px 14px;
   border: none;
-  border-left: 2px solid var(--text-muted);
-  padding-left: 12px;
+  padding: 8px 14px;
+  max-width: 85%;
+  width: fit-content;
 }
 
+/* Assistant: flat full-width, no border, no bubble */
 .message.assistant {
   position: relative;
-  padding-left: 0;
+  padding: 4px 0;
 }
 
 .message.assistant::before {
@@ -450,25 +455,31 @@
   background: transparent;
   color: var(--text-primary);
   border-radius: 0;
-  border-left: 2px solid var(--accent);
-  padding-left: 12px;
+  border: none;
+  padding: 0;
 }
 
+/* Timestamps: subtle, hover-only */
 .message-time {
-  font-size: var(--type-micro);
+  font-size: 10px;
   font-family: var(--font-mono);
   color: var(--text-muted);
   margin-top: 2px;
-  padding: 0 0 0 14px;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
-
+.message:hover .message-time {
+  opacity: 1;
+}
 .message.user .message-time {
-  text-align: left;
+  text-align: right;
+  padding-right: 4px;
 }
 
 /* ── Thinking/Reasoning Block ── */
 .thinking-block {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   border: 1px solid var(--border);
   border-left: 2px solid var(--kinetic-steel);
   border-radius: var(--radius-sm);
@@ -476,8 +487,8 @@
   overflow: hidden;
 }
 .thinking-block summary {
-  padding: 4px 12px;
-  font-size: var(--type-micro);
+  padding: 3px 10px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--kinetic-steel);
   cursor: pointer;
@@ -548,7 +559,7 @@
 
 /* Chat input */
 .chat-input-container {
-  padding: 10px 16px 16px;
+  padding: 8px 16px 12px;
   background: var(--bg-primary);
   position: relative;
   z-index: 1;
@@ -560,8 +571,8 @@
   align-items: flex-end;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 6px 8px 6px 14px;
+  border-radius: 14px;
+  padding: 4px 8px 4px 14px;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
@@ -652,8 +663,8 @@
 }
 
 .chat-send {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   padding: 0;
   background: var(--accent);
   color: var(--text-on-accent);
@@ -686,8 +697,8 @@
 }
 
 .chat-send svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   stroke-width: 2.5;
 }
 
@@ -856,11 +867,11 @@
 .tool-calls-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: 4px;
+  font-size: 10px;
   color: var(--text-secondary);
-  margin-top: 6px;
-  padding: 3px 10px;
+  margin-top: 3px;
+  padding: 2px 8px;
   background: var(--purple-subtle);
   border-radius: var(--radius-pill);
 }
@@ -874,10 +885,10 @@
 .message-retry-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 5px 14px 5px 10px;
-  font-size: 12px;
+  gap: 5px;
+  margin-top: 4px;
+  padding: 3px 10px 3px 8px;
+  font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
   background: var(--bg-secondary);
@@ -886,6 +897,11 @@
   cursor: pointer;
   transition: all var(--transition-fast);
   font-family: inherit;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.message:hover .message-retry-btn {
+  opacity: 1;
 }
 .message-retry-btn svg {
   width: 13px;
@@ -958,8 +974,8 @@
 /* ─── Feedback Buttons (thumbs up/down) ─── */
 .chat-feedback-row {
   display: flex;
-  gap: 4px;
-  margin-top: 6px;
+  gap: 3px;
+  margin-top: 3px;
   opacity: 0;
   transition: opacity 0.15s ease;
 }
@@ -970,8 +986,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   background: none;
   border: 1px solid var(--border);
@@ -981,7 +997,7 @@
   transition: all 0.15s ease;
 }
 .chat-fb-btn .ms {
-  font-size: 16px;
+  font-size: 14px;
 }
 .chat-fb-btn:hover {
   color: var(--accent);
@@ -1025,4 +1041,227 @@
   background: var(--accent);
   border-radius: 50%;
   cursor: pointer;
+}
+
+/* ─── @ Mention Autocomplete ─── */
+.at-autocomplete-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  z-index: 300;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-card, var(--bg-secondary));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+  margin-bottom: 4px;
+  padding: 4px 0;
+}
+.at-ac-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text);
+  transition: background 0.1s;
+}
+.at-ac-item:hover,
+.at-ac-item.selected {
+  background: var(--hover, var(--bg-tertiary));
+}
+.at-ac-item .ms {
+  color: var(--accent);
+}
+.at-ac-label {
+  font-weight: 600;
+  min-width: 70px;
+}
+.at-ac-desc {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* ─── Context Chips ─── */
+.context-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 12px 0;
+}
+.context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-subtle, color-mix(in srgb, var(--accent) 12%, transparent));
+  border-radius: var(--radius-pill, 999px);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+  white-space: nowrap;
+}
+.context-chip .ms {
+  color: var(--accent);
+}
+.context-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin-left: 2px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  border-radius: 50%;
+  transition: background 0.1s, color 0.1s;
+}
+.context-chip-remove:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text);
+}
+
+/* ─── Follow-up Suggestions ─── */
+.follow-up-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 0;
+}
+.follow-up-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill, 999px);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.follow-up-pill .ms {
+  font-size: 12px;
+}
+.follow-up-pill:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-subtle, color-mix(in srgb, var(--accent) 8%, transparent));
+}
+.follow-up-pill:active {
+  transform: scale(0.97);
+}
+
+/* ─── Agent Step Indicator ─── */
+.agent-step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0 6px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.step-spin {
+  animation: stepSpin 1s linear infinite;
+}
+@keyframes stepSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ─── Edit Button (user messages) ─── */
+.message-edit-btn {
+  position: absolute;
+  top: 0;
+  left: -28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.message.user {
+  position: relative;
+}
+.message.user:hover .message-edit-btn {
+  opacity: 1;
+}
+.message-edit-btn:hover {
+  color: var(--accent);
+}
+.message-edit-area {
+  width: 100%;
+  max-width: 85%;
+  min-height: 40px;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  resize: vertical;
+  outline: none;
+  margin-left: auto;
+}
+.message-edit-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* ─── Keyboard Shortcuts (empty state) ─── */
+.empty-shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+.shortcut-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.shortcut-row kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-muted);
 }

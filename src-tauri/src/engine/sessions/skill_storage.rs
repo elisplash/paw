@@ -91,12 +91,13 @@ mod tests {
     use crate::engine::sessions::schema::run_migrations;
     use parking_lot::Mutex;
     use rusqlite::Connection;
+    use std::sync::Arc;
 
     fn test_store() -> SessionStore {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
         SessionStore {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         }
     }
 

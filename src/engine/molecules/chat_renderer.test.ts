@@ -7,6 +7,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // Mock the markdown formatter and icon helper to avoid pulling in full deps.
 vi.mock('../../components/molecules/markdown', () => ({
   formatMarkdown: (text: string) => text,
+  wireCodeCopyButtons: () => {},
+  escHtml: (s: string) => s,
 }));
 vi.mock('../../components/helpers', () => ({
   icon: (name: string) => `<svg data-icon="${name}"></svg>`,
@@ -51,13 +53,12 @@ describe('renderSingleMessage', () => {
     container = document.createElement('div');
   });
 
-  it('renders a user message with "YOU ›" prefix', () => {
+  it('renders a user message without prefix (bubble-only)', () => {
     const msg = makeMessage({ role: 'user', content: 'Hi there' });
     const el = renderSingleMessage(container, msg, 0, 0, -1, defaultOpts);
     expect(el.classList.contains('message')).toBe(true);
     expect(el.classList.contains('user')).toBe(true);
-    const prefix = el.querySelector('.message-prefix')!;
-    expect(prefix.textContent).toBe('YOU ›');
+    expect(el.querySelector('.message-prefix')).toBeNull();
   });
 
   it('renders an assistant message with agent name prefix', () => {
@@ -65,14 +66,14 @@ describe('renderSingleMessage', () => {
     const el = renderSingleMessage(container, msg, 0, -1, 0, defaultOpts);
     expect(el.classList.contains('assistant')).toBe(true);
     const prefix = el.querySelector('.message-prefix')!;
-    expect(prefix.textContent).toBe('ARIA ›');
+    expect(prefix.textContent).toBe('Aria');
   });
 
-  it('renders a system message with "SYS ›" prefix', () => {
+  it('renders a system message with "System" prefix', () => {
     const msg = makeMessage({ role: 'system', content: 'System notice' });
     const el = renderSingleMessage(container, msg, 0, -1, -1, defaultOpts);
     const prefix = el.querySelector('.message-prefix')!;
-    expect(prefix.textContent).toBe('SYS ›');
+    expect(prefix.textContent).toBe('System');
   });
 
   it('renders multi-agent prefix with colour from agentMap', () => {
@@ -87,7 +88,7 @@ describe('renderSingleMessage', () => {
       agentMap,
     });
     const prefix = el.querySelector('.message-prefix') as HTMLElement;
-    expect(prefix.textContent).toBe('SCOUT ›');
+    expect(prefix.textContent).toBe('Scout');
     expect(prefix.style.color).toBe('rgb(255, 0, 0)');
   });
 
@@ -272,7 +273,7 @@ describe('showStreamingMessage', () => {
     const container = document.createElement('div');
     showStreamingMessage(container, 'Scout');
     const prefix = container.querySelector('.message-prefix')!;
-    expect(prefix.textContent).toBe('SCOUT ›');
+    expect(prefix.textContent).toBe('Scout');
   });
 });
 
@@ -372,13 +373,13 @@ describe('renderSingleMessage — edge cases', () => {
     container = document.createElement('div');
   });
 
-  it('falls back to AGENT when no agentName in opts', () => {
+  it('falls back to Agent when no agentName in opts', () => {
     const msg = makeMessage({ role: 'assistant', content: 'Hi' });
     const el = renderSingleMessage(container, msg, 0, -1, 0, {
       agentName: undefined as any,
     });
     const prefix = el.querySelector('.message-prefix')!;
-    expect(prefix.textContent).toBe('AGENT ›');
+    expect(prefix.textContent).toBe('Agent');
   });
 
   it('renders retry button on errored assistant message', () => {
@@ -415,7 +416,8 @@ describe('renderSingleMessage — edge cases', () => {
   it('renders user message content as textContent (not innerHTML)', () => {
     const msg = makeMessage({ role: 'user', content: '<b>bold</b>' });
     const el = renderSingleMessage(container, msg, 0, 0, -1, defaultOpts);
-    const textSpan = el.querySelectorAll('.message-content span')[1];
+    // No prefix span for user messages — text span is span[0]
+    const textSpan = el.querySelectorAll('.message-content span')[0];
     expect(textSpan.textContent).toBe('<b>bold</b>');
     expect(textSpan.innerHTML).not.toContain('<b>');
   });

@@ -41,83 +41,12 @@ export function escHtml(s: string): string {
 
 // ── Model Picker Helpers ──────────────────────────────────────────────
 
-/** Well-known models grouped by provider kind */
-const POPULAR_MODELS: Record<string, string[]> = {
-  ollama: [
-    'llama3.2:3b',
-    'llama3.2:1b',
-    'llama3.1:8b',
-    'llama3.1:70b',
-    'llama3.3:70b',
-    'mistral:7b',
-    'mixtral:8x7b',
-    'codellama:13b',
-    'codellama:34b',
-    'deepseek-coder:6.7b',
-    'deepseek-coder-v2:16b',
-    'phi3:mini',
-    'phi3:medium',
-    'qwen2.5:7b',
-    'qwen2.5:32b',
-    'qwen2.5:72b',
-    'gemma2:9b',
-    'gemma2:27b',
-    'command-r:35b',
-  ],
-  openai: [
-    'gpt-4o',
-    'gpt-4o-mini',
-    'gpt-4.1',
-    'gpt-4.1-mini',
-    'gpt-4.1-nano',
-    'o1',
-    'o1-mini',
-    'o3',
-    'o3-mini',
-    'o4-mini',
-  ],
-  anthropic: [
-    'claude-opus-4-6',
-    'claude-sonnet-4-6',
-    'claude-haiku-4-5-20251001',
-    'claude-sonnet-4-5-20250929',
-    'claude-3-haiku-20240307',
-  ],
-  google: [
-    'gemini-3.1-pro-preview',
-    'gemini-3-pro-preview',
-    'gemini-3-flash-preview',
-    'gemini-2.5-pro',
-    'gemini-2.5-flash',
-    'gemini-2.5-flash-lite',
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-  ],
-  openrouter: [
-    'anthropic/claude-sonnet-4-6',
-    'anthropic/claude-haiku-4-5-20251001',
-    'anthropic/claude-3-haiku-20240307',
-    'openai/gpt-4o',
-    'openai/gpt-4o-mini',
-    'google/gemini-3.1-pro-preview',
-    'google/gemini-3-flash-preview',
-    'google/gemini-2.5-pro',
-    'google/gemini-2.5-flash',
-    'meta-llama/llama-3.1-405b-instruct',
-    'meta-llama/llama-3.1-70b-instruct',
-    'deepseek/deepseek-chat',
-    'deepseek/deepseek-r1',
-    'mistralai/mistral-large',
-    'qwen/qwen-2.5-72b-instruct',
-  ],
-  custom: ['deepseek-chat', 'deepseek-reasoner'],
-};
-
 const KIND_LABELS: Record<string, string> = {
   ollama: 'Ollama',
   openai: 'OpenAI',
   anthropic: 'Anthropic',
   google: 'Google',
+  azurefoundry: 'Azure AI Foundry',
   openrouter: 'OpenRouter',
   custom: 'Custom',
   deepseek: 'DeepSeek',
@@ -132,6 +61,7 @@ export const PROVIDER_ICONS: Record<string, string> = {
   openai: 'smart_toy',
   anthropic: 'psychology',
   google: 'auto_awesome',
+  azurefoundry: 'cloud',
   openrouter: 'language',
   custom: 'build',
   deepseek: 'explore',
@@ -187,36 +117,21 @@ export function populateModelSelect(
     select.appendChild(defaultOpt);
   }
 
-  // Group models by provider
+  // Group models by provider — only show configured default_model
   const seen = new Set<string>();
   for (const provider of providers) {
     const kind = provider.kind || 'custom';
-    const models: string[] = [];
 
-    // Provider's configured default model first
-    if (provider.default_model && !seen.has(provider.default_model)) {
-      seen.add(provider.default_model);
-      models.push(provider.default_model);
-    }
-
-    // Popular models for this provider kind
-    for (const m of POPULAR_MODELS[kind] ?? []) {
-      if (!seen.has(m)) {
-        seen.add(m);
-        models.push(m);
-      }
-    }
-
-    if (models.length === 0) continue;
+    // Only show the provider's configured default model — no hardcoded guesses
+    if (!provider.default_model || seen.has(provider.default_model)) continue;
+    seen.add(provider.default_model);
 
     const group = document.createElement('optgroup');
     group.label = KIND_LABELS[kind] ?? `${kind}`;
-    for (const m of models) {
-      const opt = document.createElement('option');
-      opt.value = m;
-      opt.textContent = m;
-      group.appendChild(opt);
-    }
+    const opt = document.createElement('option');
+    opt.value = provider.default_model;
+    opt.textContent = provider.default_model;
+    group.appendChild(opt);
     select.appendChild(group);
   }
 

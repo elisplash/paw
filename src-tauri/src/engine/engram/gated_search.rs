@@ -1367,7 +1367,7 @@ mod tests {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         schema_for_testing(&conn);
         SessionStore {
-            conn: parking_lot::Mutex::new(conn),
+            conn: std::sync::Arc::new(parking_lot::Mutex::new(conn)),
         }
     }
 

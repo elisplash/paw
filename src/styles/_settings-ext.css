@@ -455,89 +455,301 @@
   color: var(--text);
 }
 
-/* ─── Inline chat approval bubble ─── */
+/* ─── Inline chat approval bubble (VS Code-inspired card layout) ─── */
 .chat-approval-bubble {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 16px;
+  gap: 0;
   margin: 8px 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
   border-radius: var(--radius-sm);
   font-size: 13px;
+  overflow: hidden;
   animation: approvalFadeIn 200ms ease-out;
 }
 @keyframes approvalFadeIn {
   from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.chat-approval-bubble.bubble-external {
-  border-left-color: var(--status-warning);
-}
-.chat-approval-bubble.bubble-dangerous {
-  border-left-color: var(--status-error);
-}
-.chat-approval-bubble-header {
+
+/* ── Title bar ── */
+.chat-approval-title {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 10px 14px 6px;
   font-weight: 600;
+  font-size: 13px;
 }
-.chat-approval-bubble-header .ms {
+.approval-tier-icon {
   font-size: 16px;
-}
-.chat-approval-bubble-tool {
   color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 500;
 }
-.chat-approval-bubble-args {
+.bubble-external .approval-tier-icon { color: var(--status-warning); }
+.bubble-dangerous .approval-tier-icon { color: var(--status-error); }
+.approval-title-text { flex: 1; }
+
+/* risk pill */
+.approval-risk-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  line-height: 1.4;
+}
+.approval-risk-pill.risk-critical { background: var(--status-error); color: #fff; }
+.approval-risk-pill.risk-high     { background: color-mix(in srgb, var(--status-error) 25%, transparent); color: var(--status-error); }
+.approval-risk-pill.risk-medium   { background: color-mix(in srgb, var(--status-warning) 25%, transparent); color: var(--status-warning); }
+.approval-risk-pill.risk-low      { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+
+/* ── Subtitle (raw tool name + command preview) ── */
+.chat-approval-subtitle {
+  padding: 0 14px 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.chat-approval-subtitle code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  background: transparent;
+  padding: 0;
+}
+.approval-cmd-preview {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+/* ── Collapsible parameters (native <details>) ── */
+.chat-approval-details {
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.chat-approval-details summary {
+  padding: 6px 14px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 11px;
+  user-select: none;
+}
+.chat-approval-details summary:hover { color: var(--text); }
+.chat-approval-args-code {
+  margin: 0;
+  padding: 8px 14px;
   font-size: 11px;
   color: var(--text-secondary);
   white-space: pre-wrap;
-  max-height: 120px;
+  max-height: 140px;
   overflow: auto;
-  background: var(--bg-code);
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  display: none;
+  background: var(--bg-code, rgba(0,0,0,0.15));
+  border-top: 1px solid var(--border);
 }
-.chat-approval-bubble-args.expanded {
-  display: block;
+.chat-approval-args-code code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: transparent;
+  padding: 0;
 }
-.chat-approval-bubble-actions {
+
+/* ── Button bar ── */
+.chat-approval-buttons {
   display: flex;
-  gap: 8px;
   align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
 }
-.chat-approval-bubble-actions .btn {
+.chat-approval-buttons .btn { font-size: 12px; padding: 4px 14px; }
+.approval-primary-group {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+}
+.approval-primary-group .bubble-allow-btn {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.approval-dropdown-toggle {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid rgba(255,255,255,0.18);
+  padding: 4px 8px !important;
+  min-width: 0;
+}
+.approval-dropdown-toggle .ms {
+  font-size: 16px;
+  line-height: 1;
+}
+.approval-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  flex-direction: column;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  min-width: 240px;
+  margin-top: 4px;
+}
+.approval-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.approval-dropdown-label {
+  padding: 4px 14px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.approval-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
   font-size: 12px;
-  padding: 4px 14px;
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
 }
-.chat-approval-bubble.resolved {
-  opacity: 0.6;
-  pointer-events: none;
+.approval-dropdown-item:hover {
+  background: var(--hover);
 }
-.chat-approval-bubble.resolved .chat-approval-bubble-actions {
+
+/* ── Resolved state (VS Code: hide buttons, show summary) ── */
+.chat-approval-resolved {
   display: none;
-}
-.chat-approval-bubble-result {
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
   font-size: 12px;
   font-weight: 500;
-  display: none;
 }
-.chat-approval-bubble.resolved .chat-approval-bubble-result {
-  display: block;
+.chat-approval-resolved.approved { color: var(--success, #4ec9b0); }
+.chat-approval-resolved.approved .ms { color: var(--success, #4ec9b0); }
+.chat-approval-resolved.denied { color: var(--status-error); }
+.chat-approval-resolved.denied .ms { color: var(--status-error); }
+
+.chat-approval-bubble.resolved .chat-approval-buttons { display: none; }
+.chat-approval-bubble.resolved .chat-approval-details { display: none; }
+.chat-approval-bubble.resolved {
+  opacity: 1;
 }
-.chat-approval-bubble-result.approved {
-  color: var(--success);
+
+/* Tier accent stripe */
+.chat-approval-bubble.bubble-external { border-left: 3px solid var(--status-warning); }
+.chat-approval-bubble.bubble-dangerous { border-left: 3px solid var(--status-error); }
+
+/* ── Inline risk banner (replaces modal risk banner) ── */
+.chat-approval-risk-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  line-height: 1.4;
+  border-top: 1px solid var(--border);
 }
-.chat-approval-bubble-result.denied {
+.chat-approval-risk-banner .ms { margin-top: 1px; }
+.chat-approval-risk-banner.risk-critical {
+  background: color-mix(in srgb, var(--status-error) 12%, transparent);
   color: var(--status-error);
 }
+.chat-approval-risk-banner.risk-high {
+  background: color-mix(in srgb, var(--status-error) 8%, transparent);
+  color: var(--status-error);
+}
+.chat-approval-risk-banner .risk-reason-text {
+  font-size: 11px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+/* ── Inline network audit banner ── */
+.chat-approval-net-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  font-size: 11px;
+  border-top: 1px solid var(--border);
+}
+.chat-approval-net-banner.net-exfiltration {
+  background: color-mix(in srgb, var(--status-error) 12%, transparent);
+  color: var(--status-error);
+}
+.chat-approval-net-banner.net-external {
+  background: color-mix(in srgb, var(--status-warning) 8%, transparent);
+  color: var(--status-warning);
+}
+.chat-approval-net-banner.net-local {
+  color: var(--text-secondary);
+}
+
+/* ── Type-to-confirm (critical tools) ── */
+.chat-approval-type-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+  border-top: 1px solid var(--border);
+}
+.chat-approval-type-confirm label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.chat-approval-type-confirm .bubble-type-input {
+  flex: 1;
+  max-width: 120px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  background: var(--bg-input, var(--bg-tertiary));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  outline: none;
+}
+.chat-approval-type-confirm .bubble-type-input:focus {
+  border-color: var(--accent);
+}
+
+/* ── Dropdown divider & label ── */
+.approval-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+.approval-dropdown-label {
+  padding: 6px 14px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+/* Hide risk/net banners + type-confirm on resolved */
+.chat-approval-bubble.resolved .chat-approval-risk-banner,
+.chat-approval-bubble.resolved .chat-approval-net-banner,
+.chat-approval-bubble.resolved .chat-approval-type-confirm { display: none; }
 
 /* ─── Security Settings ─── */
 .security-toggles {

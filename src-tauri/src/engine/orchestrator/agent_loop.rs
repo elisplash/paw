@@ -77,6 +77,16 @@ const SAFE_TOOLS: &[&str] = &[
     "search_ncnodes",
     "n8n_list_workflows",
     "mcp_refresh",
+    // Canvas (internal UI — zero side effects)
+    "canvas_push",
+    "canvas_update",
+    "canvas_save",
+    "canvas_load",
+    "canvas_list_dashboards",
+    "canvas_delete_dashboard",
+    "canvas_list_templates",
+    "canvas_from_template",
+    "canvas_create_template",
 ];
 
 // ── Unified loop ───────────────────────────────────────────────────────

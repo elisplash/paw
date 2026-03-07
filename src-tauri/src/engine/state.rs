@@ -5,7 +5,9 @@
 use crate::engine::engram::CognitiveState;
 use crate::engine::memory::EmbeddingClient;
 use crate::engine::sessions::SessionStore;
+use crate::engine::speculative::{SpeculativeCache, SpeculationConfig};
 use crate::engine::tool_index::ToolIndex;
+use crate::engine::tool_registry::PersistentToolRegistry;
 use crate::engine::types::*;
 
 use crate::engine::mcp::McpRegistry;
@@ -332,6 +334,12 @@ pub struct EngineState {
     pub mcp_registry: Arc<tokio::sync::Mutex<McpRegistry>>,
     /// Tool RAG index — semantic search over tool definitions ("the librarian").
     pub tool_index: Arc<tokio::sync::Mutex<ToolIndex>>,
+    /// Persistent tool registry — Phase 2: four-tier search with BM25/domain fallback.
+    pub persistent_tool_registry: Arc<tokio::sync::Mutex<PersistentToolRegistry>>,
+    /// Speculative execution cache — Phase 4: predict & cache next tool calls.
+    pub speculation_cache: Arc<Mutex<SpeculativeCache>>,
+    /// Speculative execution config.
+    pub speculation_config: SpeculationConfig,
     /// Tools loaded via request_tools in the current chat turn.
     /// Cleared at the start of each new chat message.
     pub loaded_tools: Arc<Mutex<std::collections::HashSet<String>>>,
@@ -393,6 +401,14 @@ impl EngineState {
         // Read max_concurrent_runs from config (default 4)
         let max_concurrent = config.max_concurrent_runs;
 
+        // Load speculation config from DB or use defaults
+        let speculation_config = match store.get_config("speculation_config") {
+            Ok(Some(json)) => {
+                serde_json::from_str::<SpeculationConfig>(&json).unwrap_or_default()
+            }
+            _ => SpeculationConfig::default(),
+        };
+
         Ok(EngineState {
             store,
             config: Mutex::new(config),
@@ -404,6 +420,11 @@ impl EngineState {
             active_runs: Arc::new(Mutex::new(HashMap::new())),
             mcp_registry: Arc::new(tokio::sync::Mutex::new(McpRegistry::new())),
             tool_index: Arc::new(tokio::sync::Mutex::new(ToolIndex::new())),
+            persistent_tool_registry: Arc::new(tokio::sync::Mutex::new(
+                PersistentToolRegistry::new(),
+            )),
+            speculation_cache: Arc::new(Mutex::new(SpeculativeCache::new(&speculation_config))),
+            speculation_config,
             loaded_tools: Arc::new(Mutex::new(HashSet::new())),
             request_queue: Arc::new(Mutex::new(HashMap::new())),
             yield_signals: Arc::new(Mutex::new(HashMap::new())),

@@ -11,6 +11,7 @@
 use super::atoms::*;
 use super::molecules;
 use crate::atoms::types::*;
+use crate::engine::binary_ipc::ResultAccumulator;
 use crate::engine::tools;
 use crate::engine::types::ToolCall;
 use log::{info, warn};
@@ -53,6 +54,12 @@ pub async fn execute_plan(
 
     let mut all_results: Vec<NodeResult> = Vec::new();
     let mut failed_nodes: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    // ── Phase 3: Binary IPC result accumulator ─────────────────────
+    // Accumulates plan results in compact binary (MessagePack) format
+    // alongside the Vec<NodeResult> for observability and potential
+    // binary context injection in future.
+    let mut result_accumulator = ResultAccumulator::new();
 
     for phase in &phases {
         // Check overall plan timeout
@@ -145,12 +152,13 @@ pub async fn execute_plan(
                     if result.status == NodeStatus::Error {
                         failed_nodes.insert(node_id);
                     }
+                    result_accumulator.push_result(&result);
                     all_results.push(result);
                 }
                 Err(join_err) => {
                     warn!("[plan] Node '{}' panicked: {}", node_id, join_err);
                     failed_nodes.insert(node_id.clone());
-                    all_results.push(NodeResult {
+                    let panic_result = NodeResult {
                         node_id: node_id.clone(),
                         tool: node_map
                             .get(node_id.as_str())
@@ -161,7 +169,9 @@ pub async fn execute_plan(
                         retryable: false,
                         retries: 0,
                         duration_ms: 0,
-                    });
+                    };
+                    result_accumulator.push_result(&panic_result);
+                    all_results.push(panic_result);
                 }
             }
         }
@@ -169,6 +179,13 @@ pub async fn execute_plan(
 
     // Log summary and emit completion event
     molecules::log_plan_summary(plan, &all_results);
+
+    // Phase 3: Log binary accumulator stats for observability
+    info!(
+        "[plan] Binary accumulator: {} results, ~{} bytes compact",
+        result_accumulator.count(),
+        result_accumulator.estimated_size()
+    );
 
     let success_count = all_results
         .iter()

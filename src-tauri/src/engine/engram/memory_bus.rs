@@ -836,6 +836,7 @@ mod tests {
     use crate::engine::sessions::schema_for_testing;
     use parking_lot::Mutex;
     use rusqlite::Connection;
+    use std::sync::Arc;
 
     const TEST_PLATFORM_KEY: &[u8] = b"test-platform-key-for-hmac-256!!";
 
@@ -843,7 +844,7 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         schema_for_testing(&conn);
         SessionStore {
-            conn: Mutex::new(conn),
+            conn: Arc::new(Mutex::new(conn)),
         }
     }
 

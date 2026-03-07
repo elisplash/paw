@@ -704,7 +704,7 @@ mod tests {
         crate::engine::sessions::schema_for_testing(&conn);
         conn.execute_batch(UNIFIED_AUDIT_SCHEMA).unwrap();
         SessionStore {
-            conn: parking_lot::Mutex::new(conn),
+            conn: std::sync::Arc::new(parking_lot::Mutex::new(conn)),
         }
     }
 

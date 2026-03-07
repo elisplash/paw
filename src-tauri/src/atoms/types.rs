@@ -30,6 +30,10 @@ pub enum ProviderKind {
     Grok,
     Mistral,
     Moonshot,
+    /// Azure AI Foundry — uses the Azure AI Inference API
+    /// (OpenAI-compatible with `api-key` header + `api-version` query param).
+    #[serde(alias = "azure_foundry")]
+    AzureFoundry,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

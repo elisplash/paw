@@ -29,6 +29,8 @@ export interface ChatInputController {
   clearAttachments(): void;
   /** Render the attachment preview strip */
   renderAttachmentPreview(): void;
+  /** Get active @ context mentions */
+  getContexts(): Array<{ type: string; label: string }>;
   /** Send callback — set by the consumer */
   onSend: ((content: string, attachments: File[]) => void) | null;
   /** Talk mode callback — set by the consumer */
@@ -64,6 +66,11 @@ export function createChatInput(config: ChatInputConfig = {}): ChatInputControll
 
   let pendingAttachments: File[] = [];
   let destroyed = false;
+
+  // ── Input history ──────────────────────────────────────────────────────
+  const inputHistory: string[] = [];
+  let historyIdx = -1;
+  let historyScratch = ''; // temp storage for current draft when navigating
 
   // ── Build DOM ──────────────────────────────────────────────────────────
 
@@ -113,6 +120,14 @@ export function createChatInput(config: ChatInputConfig = {}): ChatInputControll
 
   // Slash autocomplete popup (created lazily)
   let acPopup: HTMLElement | null = null;
+  // @ mention autocomplete popup
+  let atPopup: HTMLElement | null = null;
+  // Context chips container
+  const contextChips = document.createElement('div');
+  contextChips.className = 'context-chips';
+  contextChips.style.display = 'none';
+  root.appendChild(contextChips);
+  const activeContexts: Array<{ type: string; label: string }> = [];
 
   // Talk button
   if (showTalkBtn) {
@@ -141,6 +156,13 @@ export function createChatInput(config: ChatInputConfig = {}): ChatInputControll
   function handleSend(): void {
     const content = textarea.value.trim();
     if (!content) return;
+    // Save to input history
+    if (inputHistory[0] !== content) {
+      inputHistory.unshift(content);
+      if (inputHistory.length > 50) inputHistory.pop();
+    }
+    historyIdx = -1;
+    historyScratch = '';
     controller.onSend?.(content, [...pendingAttachments]);
   }
 
@@ -176,6 +198,57 @@ export function createChatInput(config: ChatInputConfig = {}): ChatInputControll
         return;
       }
     }
+
+    // Handle @ mention autocomplete navigation
+    if (atPopup && atPopup.style.display !== 'none') {
+      if (e.key === 'Escape') {
+        atPopup.style.display = 'none';
+        e.preventDefault();
+        return;
+      }
+      if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
+        const selected = atPopup.querySelector('.at-ac-item.selected') as HTMLElement | null;
+        if (selected) {
+          e.preventDefault();
+          applyAtMention(selected.dataset.mention ?? '');
+          return;
+        }
+      }
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const items = Array.from(atPopup.querySelectorAll('.at-ac-item')) as HTMLElement[];
+        const cur = items.findIndex((el) => el.classList.contains('selected'));
+        items.forEach((el) => el.classList.remove('selected'));
+        const next =
+          e.key === 'ArrowDown'
+            ? (cur + 1) % items.length
+            : (cur - 1 + items.length) % items.length;
+        items[next]?.classList.add('selected');
+        return;
+      }
+    }
+
+    // Input history: arrow-up/down when cursor is at start/end or empty
+    if (e.key === 'ArrowUp' && !e.shiftKey && textarea.selectionStart === 0 && inputHistory.length > 0) {
+      e.preventDefault();
+      if (historyIdx === -1) historyScratch = textarea.value;
+      if (historyIdx < inputHistory.length - 1) {
+        historyIdx++;
+        textarea.value = inputHistory[historyIdx];
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+        handleInput();
+      }
+      return;
+    }
+    if (e.key === 'ArrowDown' && !e.shiftKey && historyIdx >= 0 && textarea.selectionEnd === textarea.value.length) {
+      e.preventDefault();
+      historyIdx--;
+      textarea.value = historyIdx >= 0 ? inputHistory[historyIdx] : historyScratch;
+      textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      handleInput();
+      return;
+    }
+
     // Enter to send (shift+enter for newline)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -187,6 +260,12 @@ export function createChatInput(config: ChatInputConfig = {}): ChatInputControll
     // Auto-resize textarea
     textarea.style.height = 'auto';
     textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+
+    // Reset history navigation on manual typing
+    if (historyIdx >= 0) {
+      historyIdx = -1;
+      historyScratch = '';
+    }
 
     // Slash autocomplete
     const inputText = textarea.value;
@@ -222,10 +301,131 @@ export function createChatInput(config: ChatInputConfig = {}): ChatInputControll
     } else if (acPopup) {
       acPopup.style.display = 'none';
     }
+
+    // @ mention autocomplete
+    handleAtMention(inputText);
+  }
+
+  // ── @ Mention System ──────────────────────────────────────────────────
+
+  const AT_MENTIONS: Array<{ mention: string; label: string; icon: string; desc: string }> = [
+    { mention: '@workspace', label: 'Workspace', icon: 'folder_open', desc: 'Include workspace context' },
+    { mention: '@terminal', label: 'Terminal', icon: 'terminal', desc: 'Include terminal output' },
+    { mention: '@selection', label: 'Selection', icon: 'select_all', desc: 'Include selected text' },
+    { mention: '@web', label: 'Web', icon: 'language', desc: 'Search the web' },
+    { mention: '@memory', label: 'Memory', icon: 'psychology', desc: 'Search long-term memory' },
+    { mention: '@tasks', label: 'Tasks', icon: 'task_alt', desc: 'Current tasks context' },
+  ];
+
+  function handleAtMention(inputText: string): void {
+    // Detect @-trigger: look for @ followed by word chars at end of input
+    const atMatch = inputText.match(/@(\w*)$/);
+    if (!atMatch) {
+      if (atPopup) atPopup.style.display = 'none';
+      return;
+    }
+    const query = atMatch[1].toLowerCase();
+    const matches = AT_MENTIONS.filter(
+      (m) =>
+        m.mention.toLowerCase().includes(`@${query}`) ||
+        m.label.toLowerCase().includes(query),
+    );
+    if (matches.length === 0) {
+      if (atPopup) atPopup.style.display = 'none';
+      return;
+    }
+    if (!atPopup) {
+      atPopup = document.createElement('div');
+      atPopup.className = 'at-autocomplete-popup';
+      textarea.parentElement?.insertBefore(atPopup, textarea);
+    }
+    atPopup.innerHTML = matches
+      .map(
+        (m, i) =>
+          `<div class="at-ac-item${i === 0 ? ' selected' : ''}" data-mention="${escHtml(m.mention)}">
+        <span class="ms" style="font-size:14px">${m.icon}</span>
+        <span class="at-ac-label">${escHtml(m.label)}</span>
+        <span class="at-ac-desc">${escHtml(m.desc)}</span>
+      </div>`,
+      )
+      .join('');
+    atPopup.style.display = 'block';
+    atPopup.querySelectorAll('.at-ac-item').forEach((item) => {
+      item.addEventListener('click', () =>
+        applyAtMention((item as HTMLElement).dataset.mention ?? ''),
+      );
+    });
+  }
+
+  function applyAtMention(mention: string): void {
+    // Replace the @query at end of input with the full mention
+    textarea.value = textarea.value.replace(/@\w*$/, `${mention} `);
+    textarea.focus();
+    if (atPopup) atPopup.style.display = 'none';
+    // Add context chip
+    addContextChip(mention);
+  }
+
+  function addContextChip(mention: string): void {
+    const m = AT_MENTIONS.find((m) => m.mention === mention);
+    if (!m) return;
+    // Don't add duplicates
+    if (activeContexts.some((c) => c.type === mention)) return;
+    activeContexts.push({ type: mention, label: m.label });
+    renderContextChips();
+  }
+
+  function renderContextChips(): void {
+    if (activeContexts.length === 0) {
+      contextChips.style.display = 'none';
+      return;
+    }
+    contextChips.style.display = 'flex';
+    contextChips.innerHTML = activeContexts
+      .map(
+        (c, i) => {
+          const m = AT_MENTIONS.find((m) => m.mention === c.type);
+          return `<span class="context-chip" data-idx="${i}">
+          <span class="ms" style="font-size:12px">${m?.icon ?? 'label'}</span>
+          ${escHtml(c.label)}
+          <button class="context-chip-remove" data-idx="${i}" title="Remove">×</button>
+        </span>`;
+        },
+      )
+      .join('');
+    contextChips.querySelectorAll('.context-chip-remove').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt((btn as HTMLElement).dataset.idx ?? '0', 10);
+        activeContexts.splice(idx, 1);
+        renderContextChips();
+      });
+    });
+  }
+
+  // ── Image paste from clipboard ─────────────────────────────────────────
+
+  function handlePaste(e: ClipboardEvent): void {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const blob = item.getAsFile();
+        if (!blob) continue;
+        // Convert to File with a name
+        const ext = item.type.split('/')[1] ?? 'png';
+        const file = new File([blob], `pasted-image-${Date.now()}.${ext}`, { type: item.type });
+        pendingAttachments.push(file);
+        renderAttachmentPreviewFn();
+        break;
+      }
+    }
   }
 
   textarea.addEventListener('keydown', handleKeydown);
   textarea.addEventListener('input', handleInput);
+  textarea.addEventListener('paste', handlePaste);
 
   // ── Attachment preview rendering ───────────────────────────────────────
 
@@ -299,6 +499,10 @@ export function createChatInput(config: ChatInputConfig = {}): ChatInputControll
       textarea.style.height = 'auto';
       pendingAttachments = [];
       renderAttachmentPreviewFn();
+      historyIdx = -1;
+      historyScratch = '';
+      activeContexts.length = 0;
+      renderContextChips();
     },
     focus: () => textarea.focus(),
     getAttachments: () => [...pendingAttachments],
@@ -311,6 +515,7 @@ export function createChatInput(config: ChatInputConfig = {}): ChatInputControll
       renderAttachmentPreviewFn();
     },
     renderAttachmentPreview: renderAttachmentPreviewFn,
+    getContexts: () => [...activeContexts],
     onSend: null,
     onTalk: null,
     destroy: () => {
@@ -318,6 +523,7 @@ export function createChatInput(config: ChatInputConfig = {}): ChatInputControll
       destroyed = true;
       textarea.removeEventListener('keydown', handleKeydown);
       textarea.removeEventListener('input', handleInput);
+      textarea.removeEventListener('paste', handlePaste);
       root.remove();
     },
   };

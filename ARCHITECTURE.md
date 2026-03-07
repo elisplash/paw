@@ -1,7 +1,7 @@
 # Architecture
 
 > Pawz is a Tauri v2 native desktop app — Rust backend, TypeScript frontend, IPC bridge.
-> ~86k LOC total (39k Rust + 35k TypeScript + 12k CSS) · 602 tests · 3-job CI · 0 clippy warnings
+> ~112K LOC total (55k Rust + 42k TypeScript + 15k CSS) · 3,174 tests (1,008 Rust + 2,166 TypeScript) · 3-job CI · 0 clippy warnings
 
 ---
 
@@ -20,8 +20,10 @@
 │                     │ Tauri IPC (158 structured commands)    │
 │  ┌──────────────────▼────────────────────────────────────┐  │
 │  │  Rust Backend Engine                                  │  │
-│  │  • Agent loop with SSE streaming                      │  │
+│  │  • Agent loop with SSE streaming + Action DAG plans   │  │
 │  │  • Tool executor with human-in-the-loop approval      │  │
+│  │  • 5-phase execution pipeline (plan → constrain →     │  │
+│  │    discover → encode → speculate)                     │  │
 │  │  • 11 channel bridges                                 │  │
 │  │  • 3 native AI providers (+ 7 via model routing)      │  │
 │  │  • SQLite persistence + OS keychain                   │  │
@@ -69,7 +71,8 @@ src/                          # TypeScript frontend
 │   ├── agent-policies/       # Per-agent tool policies
 │   ├── channel-routing/      # Rule-based channel routing
 │   ├── session-compaction/   # AI summarization
-│   └── browser-sandbox/      # Browser profiles, screenshots, network policy
+│   ├── browser-sandbox/      # Browser profiles, screenshots, network policy
+│   └── action-dag/           # Action DAG plan visualization (atoms, molecules)
 ├── components/               # Shared UI components
 │   ├── helpers.ts            # DOM helpers, escaping, formatting
 │   └── toast.ts              # Toast notifications
@@ -187,8 +190,24 @@ src-tauri/                    # Rust backend
 │       │   ├── handlers.rs   # Tool call handlers
 │       │   ├── agent_loop.rs # Unified boss/worker agent loop
 │       │   └── sub_agent.rs  # Sub-agent spawning
+│       ├── plan/             # Phase 0: Action DAG planning — 3 modules
+│       │   ├── atoms.rs      # PlanNode, PlanDag, PlanStatus types
+│       │   ├── molecules.rs  # DAG validation, cycle detection, topological sort
+│       │   └── executor.rs   # Parallel DAG executor (tokio::JoinSet)
+│       ├── constrained/      # Phase 1: Constrained decoding — 2 modules
+│       │   ├── atoms.rs      # ConstraintMode enum, provider capability map
+│       │   └── molecules.rs  # Schema enforcement per provider
+│       ├── tool_registry/    # Phase 2: Persistent tool registry — 2 modules
+│       │   ├── atoms.rs      # ToolEmbedding, SearchTier, RegistryStats types
+│       │   └── molecules.rs  # PersistentToolRegistry, 4-tier search failover
+│       ├── binary_ipc/       # Phase 3: Binary IPC encoding — 2 modules
+│       │   ├── atoms.rs      # MessagePack frame types, BatchConfig
+│       │   └── molecules.rs  # EventBatcher, ResultAccumulator (rmp-serde)
+│       ├── speculative/      # Phase 4: Speculative execution — 2 modules
+│       │   ├── atoms.rs      # TransitionRecord, PredictionResult types
+│       │   └── molecules.rs  # SpeculativeEngine, transition prediction, warming
 │       ├── agent_loop/       # Core agent conversation loop — 2 modules
-│       │   ├── mod.rs        # run_agent_turn (streaming + tool routing)
+│       │   ├── mod.rs        # run_agent_turn (streaming + tool routing + plan interception)
 │       │   └── trading.rs    # Trading auto-approve policy checks
 │       ├── channels/         # Shared channel bridge logic — 3 modules
 │       │   ├── mod.rs        # Types, config helpers, message splitting
@@ -283,14 +302,19 @@ index.html                    # Single-page application shell
 
 ### Agent Loop (`agent_loop/`)
 
-The core conversation loop:
+The core conversation loop, enhanced with the 5-phase execution pipeline:
 1. Receives user message + optional yield signal
 2. Injects auto-recalled memories into context
-3. Sends to configured AI provider via SSE streaming
-4. Parses tool calls from response
-5. Routes each tool call through the tool executor (with HIL approval)
-6. Checks yield signal — if a new request is queued, wraps up gracefully
-7. Loops back with tool results until the agent is done or yield is requested
+3. **Phase 4:** Speculative engine predicts likely next tools, pre-warms connections
+4. **Phase 1:** Applies provider-specific constrained decoding (strict JSON schemas)
+5. Sends to configured AI provider via SSE streaming
+6. Parses tool calls from response
+7. **Phase 0:** If `execute_plan` tool is called, intercepts and routes to DAG executor for parallel execution
+8. **Phase 3:** Results assembled via Binary IPC (`EventBatcher` + `ResultAccumulator`)
+9. Routes each tool call through the tool executor (with HIL approval)
+10. **Phase 2:** Tool discovery uses `PersistentToolRegistry` with SQLite-backed embeddings
+11. Checks yield signal — if a new request is queued, wraps up gracefully
+12. Loops back with tool results until the agent is done or yield is requested
 
 **Request queue (VS Code pattern):** When a user sends a new message while the agent is still processing, the request is queued instead of rejected. The active agent receives a yield signal (atomic bool) and wraps up at the next round boundary. The queued request is then processed automatically.
 
@@ -319,12 +343,14 @@ Tool categories: `exec`, `web_search`, `web_fetch`, `file_read`, `file_write`, `
 
 ### AI Providers (`providers/`)
 
-Three native provider implementations with SSE streaming (each in its own module):
-- **OpenAI** — Chat completions API, function calling, multimodal
-- **Anthropic** — Messages API, tool use, thinking blocks
-- **Google Gemini** — GenerateContent API, function declarations, thought handling
+Three native provider implementations with SSE streaming and **constrained decoding** (each in its own module):
+- **OpenAI** — Chat completions API, function calling, multimodal. Constrained: `strict: true` on function schemas
+- **Anthropic** — Messages API, tool use, thinking blocks. Constrained: `tool_choice` enforcement
+- **Google Gemini** — GenerateContent API, function declarations, thought handling. Constrained: `tool_config` with `function_calling_config`
 
-Additional providers are handled via model-prefix routing to OpenAI-compatible endpoints (DeepSeek, xAI, Mistral, Moonshot, Azure).
+Additional providers are handled via model-prefix routing to OpenAI-compatible endpoints (DeepSeek, xAI, Mistral, Moonshot, Azure). Ollama supports `format: "json"` for local constrained output.
+
+`ProviderKind` implements `Copy + Eq` — providers track their kind for phase-specific behavior (e.g., selecting the correct constrained decoding mode).
 
 ### Channel Bridges
 
@@ -565,6 +591,8 @@ SQLite via Tauri's SQL plugin. Tables:
 | `agent_messages` | Inter-agent direct messages and broadcasts |
 | `squads` | Agent squad definitions |
 | `squad_members` | Squad membership (agent + role) |
+| `tool_embeddings` | Phase 2: Persistent tool embedding vectors (SQLite-backed) |
+| `tool_sequences` | Phase 4: Tool transition patterns for speculative prediction |
 
 Credential fields encrypted with AES-256-GCM. Encryption key stored in OS keychain (macOS Keychain / Linux libsecret / Windows Credential Manager). 12-byte random nonce per field. Auto-migration from legacy XOR format.
 
@@ -574,12 +602,13 @@ Credential fields encrypted with AES-256-GCM. Encryption key stored in OS keycha
 
 | Metric | Value |
 |--------|-------|
-| Rust tests | 242 (202 unit + 40 integration) |
-| TypeScript tests | 360 (24 test files) |
+| Rust tests | 1,008 (846 unit + 162 phase-specific) |
+| TypeScript tests | 2,166 (24 test files) |
+| Agent execution tests | 162 (Phase 0: 20 · Phase 1: 19 · Phase 2: 31 · Phase 3: 38 · Phase 4: 54) |
 | CI jobs | 3 parallel (Rust + TS + Security Audit) |
 | Clippy warnings | 0 (enforced via `-D warnings`) |
 | Known CVEs | 0 (`cargo audit` + `npm audit`) |
 | Error handling | 12-variant typed `EngineError` (thiserror 2) |
 | Credential encryption | AES-256-GCM |
 | IPC commands | 158 |
-| SQLite tables | 21 |
+| SQLite tables | 23 |

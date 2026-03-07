@@ -135,6 +135,16 @@ export const ALL_TOOLS = [
   'skill_store_get',
   'skill_store_list',
   'skill_store_delete',
+  // Canvas (internal UI)
+  'canvas_push',
+  'canvas_update',
+  'canvas_save',
+  'canvas_load',
+  'canvas_list_dashboards',
+  'canvas_delete_dashboard',
+  'canvas_list_templates',
+  'canvas_from_template',
+  'canvas_create_template',
 ] as const;
 
 /** Read-only tools that are generally safe. */
@@ -167,6 +177,16 @@ export const SAFE_TOOLS: readonly string[] = [
   'agent_read_messages',
   'list_squads',
   'skill_search',
+  // Canvas (internal UI — zero side effects)
+  'canvas_push',
+  'canvas_update',
+  'canvas_save',
+  'canvas_load',
+  'canvas_list_dashboards',
+  'canvas_delete_dashboard',
+  'canvas_list_templates',
+  'canvas_from_template',
+  'canvas_create_template',
 ];
 
 /** High-risk tools that modify the system or send data externally. */

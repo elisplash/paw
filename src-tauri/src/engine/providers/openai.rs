@@ -64,6 +64,25 @@ impl OpenAiProvider {
             }
         }
 
+        // Azure AI Foundry: normalise the user's URL so it ends with /models.
+        // Users may paste the full resource URL, a specific deployment path,
+        // or even the whole /models/chat/completions endpoint.  We strip
+        // everything after the host and append /models so that
+        // chat_stream() can simply append /chat/completions?api-version=….
+        if config.kind == ProviderKind::AzureFoundry {
+            let trimmed = base_url.trim_end_matches('/');
+            // Strip known Azure path suffixes so we're left with the base.
+            let host_base = trimmed
+                .split("/openai")
+                .next()
+                .unwrap_or(trimmed)
+                .split("/models")
+                .next()
+                .unwrap_or(trimmed)
+                .trim_end_matches('/');
+            base_url = format!("{}/models", host_base);
+        }
+
         let is_azure = base_url.contains(".azure.com");
         OpenAiProvider {
             client: pinned_client(),

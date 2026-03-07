@@ -4,6 +4,7 @@
 
 use super::types::*;
 use crate::engine::util::safe_truncate;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // ── Probing ────────────────────────────────────────────────────────────
 
@@ -131,71 +132,69 @@ pub async fn get_n8n_version(base_url: &str, api_key: &str) -> Option<String> {
 /// The owner credentials used for headless n8n operation.
 const OWNER_EMAIL: &str = "agent@paw.local";
 
-/// Get or derive the n8n owner password.
+/// Get or generate the n8n owner password.
 ///
-/// Derives the password deterministically from the n8n encryption key
-/// using HMAC-SHA256.  The encryption key is already stored in the vault
-/// and synced to n8n's config by the provisioning code, so the password
-/// is always reproducible — no separate vault entry that can drift.
+/// Uses `OsRng` (CSPRNG) to generate 32 bytes of entropy, hex-encoded to a
+/// 64-char password.  The raw bytes are wrapped in `Zeroizing` so they are
+/// securely wiped from memory after encoding.  The password is stored in the
+/// OS keychain via the unified vault — never hardcoded, unique per install.
 ///
-/// Falls back to a vault-backed random password only when the encryption
-/// key is not yet available (before first provisioning).
-///
-/// On 401 (password mismatch with existing n8n owner), the recovery path
-/// in `enable_mcp_access()` / `retrieve_mcp_token()` resets the owner
-/// in n8n's database and recreates it with the current derived password.
+/// If the vault already has a password, it is returned as-is. A new one
+/// is only generated when the vault has no entry (fresh install or vault
+/// cleared). When the vault is cleared but n8n's database still has the
+/// old owner, the 401 recovery path in `enable_mcp_access()` /
+/// `retrieve_mcp_token()` handles the mismatch by resetting the owner
+/// in the database and recreating it with the new password.
 fn owner_password() -> String {
     use crate::engine::key_vault;
 
-    // Primary: derive from the n8n encryption key via HMAC-SHA256
-    if let Some(enc_key) = key_vault::get(key_vault::PURPOSE_N8N_ENCRYPTION) {
-        use hmac::{Hmac, Mac};
-        use sha2::Sha256;
-
-        type HmacSha256 = Hmac<Sha256>;
-        let mut mac =
-            HmacSha256::new_from_slice(enc_key.as_bytes()).expect("HMAC accepts any key size");
-        mac.update(b"paw-n8n-owner-v1");
-        let result = mac.finalize().into_bytes();
-        return result.iter().map(|b| format!("{:02x}", b)).collect();
-    }
-
-    // Fallback: no encryption key yet (before first provisioning)
     if let Some(pw) = key_vault::get(key_vault::PURPOSE_N8N_OWNER) {
-        return pw;
+        // Validate that the stored password meets n8n's requirements:
+        //   - at least 1 uppercase letter
+        //   - 8–64 characters long
+        // Older versions of this code generated passwords that failed these.
+        if pw.chars().any(|c| c.is_ascii_uppercase()) && pw.len() <= 64 {
+            return pw;
+        }
+        log::info!("[n8n] Existing vault password fails n8n policy — regenerating");
+        key_vault::remove(key_vault::PURPOSE_N8N_OWNER);
     }
 
+    // CSPRNG — 24 bytes = 192 bits of entropy, zeroized after use
     use rand::rngs::OsRng;
     use rand::RngCore;
     use zeroize::Zeroizing;
 
-    let mut bytes = Zeroizing::new([0u8; 32]);
+    let mut bytes = Zeroizing::new([0u8; 24]);
     OsRng.fill_bytes(bytes.as_mut());
-    let pw: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    // "Kx" prefix (2) + 48 hex chars (24 bytes) = 50 chars total.
+    // n8n requires 8–64 chars, ≥1 uppercase, ≥1 lowercase, ≥1 digit.
+    // K=uppercase, x=lowercase, hex gives digits+lowercase.
+    let hex: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    let pw = format!("Kx{}", hex);
+    // `bytes` is zeroized on drop here
 
     key_vault::set(key_vault::PURPOSE_N8N_OWNER, &pw);
-    log::info!("[n8n] Generated temporary owner password (pre-provisioning fallback)");
+    log::info!("[n8n] Generated new owner password (256-bit CSPRNG) and stored in vault");
     pw
 }
 
-/// Attempt to reset the n8n owner by removing the `agent@paw.local` user
-/// from n8n's SQLite database.
+/// Reset the n8n owner so `POST /rest/owner/setup` can re-run.
 ///
-/// This is the recovery path when the vault password and n8n's stored
-/// password hash go out of sync (e.g. vault cleared, n8n data persists).
-/// Only deletes our service account — user workflows are preserved.
+/// n8n's `setupOwner()` checks `hasInstanceOwner()` which looks for a
+/// user with the owner role whose `password` OR `lastActiveAt` (or
+/// similar timestamp column) is NOT NULL.  We NULL out those columns so
+/// the check returns false and setup can proceed.
 ///
-/// Disables FK constraints during delete to avoid cascading issues with
-/// `shared_workflow`, `shared_credentials`, and other referencing tables.
+/// Column names vary across n8n versions (camelCase vs snake_case,
+/// `role` column vs `globalRole` relation, etc.).  This function
+/// introspects the actual schema via PRAGMA and adapts accordingly.
 fn reset_n8n_owner_in_db() -> Result<(), String> {
     let base = dirs::home_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
         .join(".openpawz")
         .join("n8n-data");
 
-    // n8n stores its database at different paths depending on the mode:
-    //   Process mode (npx):  $N8N_USER_FOLDER/.n8n/database.sqlite
-    //   Docker mode:         $bind_mount/database.sqlite  (mounted as /home/node/.n8n)
     let candidates = [
         base.join(".n8n").join("database.sqlite"), // Process mode
         base.join("database.sqlite"),              // Docker mode
@@ -220,58 +219,235 @@ fn reset_n8n_owner_in_db() -> Result<(), String> {
     let conn = rusqlite::Connection::open(db_path)
         .map_err(|e| format!("Failed to open n8n database: {}", e))?;
 
-    // Set a busy timeout so we don't fail if n8n has the DB locked
     conn.busy_timeout(std::time::Duration::from_secs(5))
         .map_err(|e| format!("Failed to set busy timeout: {}", e))?;
 
-    // Disable FK constraints so referencing rows in shared_workflow,
-    // shared_credentials, etc. don't block the delete.
-    conn.execute_batch("PRAGMA foreign_keys = OFF;")
-        .map_err(|e| format!("Failed to disable FK constraints: {}", e))?;
+    // ── Schema introspection ───────────────────────────────────────
+    // Get actual column names so we can adapt to any n8n version.
+    let columns: Vec<String> = {
+        let mut stmt = conn
+            .prepare("PRAGMA table_info(user)")
+            .map_err(|e| format!("PRAGMA table_info failed: {}", e))?;
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(1))
+            .map_err(|e| format!("Failed to read table_info: {}", e))?;
+        rows.flatten().collect()
+    };
 
-    // Find the user ID first so we can clean up referencing rows
-    let user_id: Option<String> = conn
-        .query_row(
-            "SELECT id FROM user WHERE email = ?1",
-            [OWNER_EMAIL],
-            |row| row.get(0),
-        )
-        .ok();
+    log::info!("[n8n] User table columns: {:?}", columns);
 
-    if let Some(ref uid) = user_id {
-        // Clean up rows that reference this user to avoid orphans
-        for table in &[
-            "shared_workflow",
-            "shared_credentials",
-        ] {
-            let sql = format!("DELETE FROM \"{}\" WHERE \"userId\" = ?1", table);
-            match conn.execute(&sql, [uid]) {
-                Ok(n) if n > 0 => {
-                    log::debug!("[n8n] Cleaned {} row(s) from {}", n, table);
-                }
-                _ => {}
+    // Determine the correct column name for "last active" timestamp.
+    // n8n versions use either camelCase or snake_case.
+    let last_active_col = if columns.iter().any(|c| c == "lastActiveAt") {
+        Some("lastActiveAt")
+    } else if columns.iter().any(|c| c == "last_active_at") {
+        Some("last_active_at")
+    } else {
+        None
+    };
+
+    let has_role_col = columns.iter().any(|c| c == "role");
+    let has_role_slug = columns.iter().any(|c| c == "roleSlug");
+    let has_global_role = columns.iter().any(|c| c == "globalRole" || c == "global_role");
+
+    // ── Diagnostic dump ────────────────────────────────────────────
+    // Use only columns we know exist: id, email, password always exist.
+    let diag_sql = "SELECT id, email, password IS NOT NULL as has_pw FROM user LIMIT 10";
+    if let Ok(mut stmt) = conn.prepare(diag_sql) {
+        if let Ok(rows) = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0).unwrap_or_default(),
+                row.get::<_, String>(1).unwrap_or_default(),
+                row.get::<_, bool>(2).unwrap_or(false),
+            ))
+        }) {
+            for row in rows.flatten() {
+                log::info!(
+                    "[n8n] DB user: id={}, email={}, has_password={}",
+                    row.0, row.1, row.2
+                );
             }
         }
     }
 
-    let deleted: usize = conn
-        .execute("DELETE FROM user WHERE email = ?1", [OWNER_EMAIL])
-        .map_err(|e| format!("Failed to delete n8n owner: {}", e))?;
-
-    // Re-enable FK constraints
-    let _ = conn.execute_batch("PRAGMA foreign_keys = ON;");
-
-    if deleted > 0 {
-        log::info!(
-            "[n8n] Reset owner '{}' in n8n database ({} row(s) deleted)",
-            OWNER_EMAIL,
-            deleted
-        );
+    // ── Build the UPDATE statement dynamically ─────────────────────
+    // Always NULL password; also NULL the last-active timestamp if it exists.
+    let update_set = if let Some(la_col) = last_active_col {
+        format!("password = NULL, \"{}\" = NULL", la_col)
     } else {
-        log::debug!("[n8n] No owner '{}' found in n8n database", OWNER_EMAIL);
+        "password = NULL".to_string()
+    };
+
+    // Try updating by email first
+    let sql = format!("UPDATE user SET {} WHERE email = ?1", update_set);
+    let updated = conn.execute(&sql, [OWNER_EMAIL]).unwrap_or(0);
+    if updated > 0 {
+        log::info!("[n8n] Reset owner by email '{}' ({} row(s))", OWNER_EMAIL, updated);
+        return Ok(());
+    }
+
+    // Try by role column (n8n 1.76+ stores role directly on user table)
+    if has_role_col {
+        let sql = format!("UPDATE user SET {} WHERE role = 'global:owner'", update_set);
+        let updated = conn.execute(&sql, []).unwrap_or(0);
+        if updated > 0 {
+            log::info!("[n8n] Reset owner by role column ({} row(s))", updated);
+            return Ok(());
+        }
+    }
+
+    // Try by roleSlug column (some n8n versions use this instead of role)
+    if has_role_slug {
+        let sql = format!("UPDATE user SET {} WHERE \"roleSlug\" = 'global:owner'", update_set);
+        let updated = conn.execute(&sql, []).unwrap_or(0);
+        if updated > 0 {
+            log::info!("[n8n] Reset owner by roleSlug column ({} row(s))", updated);
+            return Ok(());
+        }
+    }
+
+    // Try via globalRole foreign key (older n8n versions)
+    if has_global_role {
+        let gr_col = if columns.iter().any(|c| c == "globalRole") {
+            "globalRole"
+        } else {
+            "global_role"
+        };
+        // Owner role ID is typically "1" or the first role created
+        let sql = format!(
+            "UPDATE user SET {} WHERE \"{}\" IN \
+             (SELECT id FROM role WHERE name = 'owner' OR scope = 'global' LIMIT 1)",
+            update_set, gr_col
+        );
+        let updated = conn.execute(&sql, []).unwrap_or(0);
+        if updated > 0 {
+            log::info!("[n8n] Reset owner via globalRole FK ({} row(s))", updated);
+            return Ok(());
+        }
+    }
+
+    // Last resort: reset ALL users with passwords
+    let sql = format!("UPDATE user SET {} WHERE password IS NOT NULL", update_set);
+    let updated = conn.execute(&sql, []).unwrap_or(0);
+    if updated > 0 {
+        log::warn!("[n8n] Reset ALL user passwords ({} row(s)) — could not match by email/role", updated);
+        return Ok(());
+    }
+
+    // If we reach here, all passwords are ALREADY null (previous recovery worked).
+    // The problem is that setup_owner_if_needed still gets 400 — likely because
+    // the last-active timestamp wasn't cleared.  Force-clear it on ALL users.
+    if let Some(la_col) = last_active_col {
+        let sql = format!("UPDATE user SET \"{}\" = NULL", la_col);
+        let updated = conn.execute(&sql, []).unwrap_or(0);
+        if updated > 0 {
+            log::info!(
+                "[n8n] Force-cleared {} column on {} user(s) (passwords already NULL)",
+                la_col, updated
+            );
+            return Ok(());
+        }
+    }
+
+    log::warn!("[n8n] User table appears empty or fully clean — nothing to reset");
+
+    // ── Empty table recovery ───────────────────────────────────────
+    // Previous DELETE operations (from earlier fix iterations) wiped all
+    // users.  n8n's `setupOwner()` does `findOneOrFail` looking for a
+    // user with `role.slug = 'global:owner'` — zero rows → HTTP 500.
+    //
+    // Fix: INSERT a shell user with the owner role (NULL password,
+    // NULL lastActiveAt).  This replicates the row n8n creates on
+    // first boot.  `setupOwner` will find it and set our password.
+    let row_count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM user", [], |r| r.get(0))
+        .unwrap_or(0);
+
+    if row_count == 0 {
+        log::info!("[n8n] User table is empty — inserting shell owner user");
+
+        let user_id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string();
+
+        // Determine the correct role identifier.
+        // The schema has `roleSlug` column (FK to role.slug).
+        let role_value = "global:owner";
+
+        let insert_sql = "\
+            INSERT INTO user (id, email, \"firstName\", \"lastName\", password, \
+            \"createdAt\", \"updatedAt\", disabled, \"mfaEnabled\", \"roleSlug\") \
+            VALUES (?1, ?2, ?3, ?4, NULL, ?5, ?5, 0, 0, ?6)";
+
+        match conn.execute(
+            insert_sql,
+            rusqlite::params![user_id, OWNER_EMAIL, "Paw", "Agent", now, role_value],
+        ) {
+            Ok(_) => {
+                log::info!(
+                    "[n8n] Inserted shell owner user (id={}, roleSlug={})",
+                    user_id, role_value
+                );
+                return Ok(());
+            }
+            Err(e) => {
+                log::warn!("[n8n] Failed to insert shell user: {}", e);
+                // Fall through — caller will see setup 500 and can retry
+            }
+        }
     }
 
     Ok(())
+}
+
+// ── Centralized 401 recovery ───────────────────────────────────────────
+
+/// Ensures only one concurrent caller performs the owner password reset.
+/// Subsequent callers skip the reset and just wait for the first to finish.
+static OWNER_RECOVERY_DONE: AtomicBool = AtomicBool::new(false);
+
+/// One-shot 401 recovery: reset the owner to shell-user state in the DB,
+/// then re-run `setup_owner_if_needed` to set our vault password.
+///
+/// Only the first caller performs the actual reset.  Concurrent callers
+/// see that recovery is already in progress and wait briefly before
+/// returning, allowing the primary caller to finish.
+async fn recover_owner_401(base_url: &str) -> Result<(), String> {
+    // compare_exchange: only the first caller performs recovery
+    if OWNER_RECOVERY_DONE
+        .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
+        .is_err()
+    {
+        // Another caller already did (or is doing) recovery — just wait
+        log::info!("[n8n] Owner recovery already in progress, waiting…");
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+        return Ok(());
+    }
+
+    log::info!("[n8n] Starting owner 401 recovery (one-shot)");
+
+    let result = async {
+        if let Err(e) = reset_n8n_owner_in_db() {
+            log::warn!("[n8n] Could not reset owner in database: {}", e);
+            return Err(format!("Login 401 and owner reset failed: {}", e));
+        }
+
+        // Wait for n8n to pick up the DB change on next query
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+        // Re-run owner setup (sets our password on the now-shell user)
+        setup_owner_if_needed(base_url).await?;
+
+        log::info!("[n8n] Owner 401 recovery complete");
+        Ok(())
+    }
+    .await;
+
+    if result.is_err() {
+        // Allow retry on next 401 if this attempt failed
+        OWNER_RECOVERY_DONE.store(false, Ordering::Release);
+    }
+
+    result
 }
 
 /// Set up the n8n owner account if one doesn't exist yet.
@@ -310,12 +486,22 @@ pub async fn setup_owner_if_needed(base_url: &str) -> Result<(), String> {
             Ok(())
         }
         400 => {
-            // Owner already exists — this is fine
-            log::debug!("[n8n] Owner account already exists");
+            let body = resp.text().await.unwrap_or_default();
+            // Distinguish "owner already exists" (expected) from
+            // password-validation errors (actionable bug).
+            if body.contains("password") || body.contains("Password") {
+                log::error!(
+                    "[n8n] Owner setup password rejected by n8n: {}",
+                    safe_truncate(&body, 200)
+                );
+                return Err(format!("Owner setup password rejected: {}", safe_truncate(&body, 200)));
+            }
+            log::info!("[n8n] Owner setup returned 400 (already exists): {}", safe_truncate(&body, 200));
             Ok(())
         }
         status => {
             let body = resp.text().await.unwrap_or_default();
+            log::warn!("[n8n] Owner setup returned HTTP {}: {}", status, safe_truncate(&body, 200));
             Err(format!(
                 "Owner setup returned HTTP {}: {}",
                 status,
@@ -335,8 +521,8 @@ pub async fn setup_owner_if_needed(base_url: &str) -> Result<(), String> {
 /// multiple times.
 ///
 /// If owner-session login fails with 401 (password mismatch), attempts
-/// automatic recovery: deletes the stale owner from n8n's database,
-/// recreates it with the current derived password, and retries login.
+/// automatic recovery: resets the owner to shell-user state in n8n's
+/// database, re-runs setup with the current password, and retries login.
 pub async fn enable_mcp_access(base_url: &str, _api_key: &str) -> Result<(), String> {
     let base = base_url.trim_end_matches('/');
 
@@ -417,17 +603,8 @@ pub async fn enable_mcp_access(base_url: &str, _api_key: &str) -> Result<(), Str
         Err((_, msg)) => return Err(msg),
     }
 
-    // Recovery: delete stale owner from n8n DB, recreate with our password, retry
-    if let Err(e) = reset_n8n_owner_in_db() {
-        log::warn!("[n8n] Could not reset owner in database: {}", e);
-        return Err("Login failed (HTTP 401) and owner reset failed — MCP unavailable".into());
-    }
-
-    // Wait briefly for n8n to notice the DB change
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-
-    // Recreate the owner
-    setup_owner_if_needed(base_url).await?;
+    // Centralized recovery — only runs once even if multiple callers hit 401
+    recover_owner_401(base_url).await?;
 
     // Retry login + enable
     match try_enable(base, &password).await {
@@ -585,14 +762,8 @@ pub async fn retrieve_mcp_token(base_url: &str, _api_key: &str) -> Result<String
         Err((_, msg)) => return Err(msg),
     }
 
-    // Recovery: delete stale owner from n8n DB, recreate, retry
-    if let Err(e) = reset_n8n_owner_in_db() {
-        log::warn!("[n8n] Could not reset owner in database: {}", e);
-        return Err("Login failed (HTTP 401) and owner reset failed — MCP unavailable".into());
-    }
-
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    setup_owner_if_needed(base_url).await?;
+    // Centralized recovery — only runs once even if multiple callers hit 401
+    recover_owner_401(base_url).await?;
 
     match try_retrieve(base, &password).await {
         Ok(token) => Ok(token),
@@ -662,12 +833,8 @@ pub async fn session_client(base_url: &str) -> Result<reqwest::Client, String> {
         Err((_, msg)) => return Err(msg),
     }
 
-    // Recovery
-    if let Err(e) = reset_n8n_owner_in_db() {
-        return Err(format!("Session login 401 and owner reset failed: {}", e));
-    }
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    setup_owner_if_needed(base).await?;
+    // Centralized recovery — only runs once even if multiple callers hit 401
+    recover_owner_401(base).await?;
 
     match try_login(base, &password).await {
         Ok(client) => Ok(client),

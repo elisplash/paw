@@ -190,4 +190,31 @@ describe('formatMarkdown', () => {
     const result = formatMarkdown(':memory:');
     expect(result).toContain('<span class="ms ms-sm">memory</span>');
   });
+
+  // ── Emoji → Material Symbol replacement ────────────────────────────
+  it('replaces common emojis with :icon: syntax before rendering', () => {
+    const result = formatMarkdown('✅ Done');
+    expect(result).toContain('<span class="ms ms-sm">check_circle</span>');
+    expect(result).not.toContain('✅');
+  });
+
+  it('replaces multiple emojis in one message', () => {
+    const result = formatMarkdown('⚠️ Warning and ❌ Error');
+    expect(result).toContain('warning');
+    expect(result).toContain('cancel');
+    expect(result).not.toContain('⚠');
+    expect(result).not.toContain('❌');
+  });
+
+  it('replaces file/folder emojis', () => {
+    const result = formatMarkdown('📁 Files and 📄 Docs');
+    expect(result).toContain('folder');
+    expect(result).toContain('description');
+  });
+
+  it('does not replace emojis inside code blocks', () => {
+    const result = formatMarkdown('```\n✅ check\n```');
+    // Inside code blocks, content is escaped — emoji appears as-is text
+    expect(result).toContain('✅');
+  });
 });

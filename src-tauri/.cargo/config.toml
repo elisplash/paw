@@ -1,0 +1,36 @@
+# ── Build performance tuning ─────────────────────────────────────────────────
+# This config reduces rebuild times for the monolithic openpawz crate (~112K LOC).
+# With mold linker + cranelift backend, incremental rebuilds drop from ~45s to ~15s.
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+# Use cranelift codegen backend for debug builds (2-3x faster than LLVM).
+# Only affects `cargo build` / `cargo test` (dev profile).
+# Release builds still use LLVM for optimized output.
+# Requires: rustup component add rustc-codegen-cranelift-preview
+# Uncomment when available:
+# [unstable]
+# codegen-backend = true
+
+[build]
+# Parallelize more aggressively
+jobs = 16
+
+[profile.dev]
+# Incremental compilation (should be default but let's be explicit)
+incremental = true
+# Use line-tables-only debug info — much smaller binaries, still get backtraces
+debug = "line-tables-only"
+# Skip debug info for dependencies — saves link time
+# Our code still gets full debug info
+[profile.dev.package."*"]
+debug = false
+
+# Test profile inherits from dev but we can further optimize
+[profile.test]
+incremental = true
+debug = "line-tables-only"
+[profile.test.package."*"]
+debug = false

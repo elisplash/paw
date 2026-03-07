@@ -280,6 +280,18 @@ Together, they enable an agent to discover and execute any of 25,000+ integratio
 
 ---
 
+## Relationship to the Agent Execution Architecture
+
+The Foreman Protocol reduces cost per tool call. The [Agent Execution Architecture](/reference/agent-execution-roadmap) reduces the *number* of calls:
+
+- **Phase 0 (Action DAG)** — Multiple Foreman-executed tools run in parallel via DAG planning, cutting wall-clock time
+- **Phase 1 (Constrained Decoding)** — The Architect's tool-call JSON is guaranteed valid, eliminating retry loops that waste Foreman cycles
+- **Phase 4 (Speculative Execution)** — Connections to MCP endpoints are pre-warmed before the Foreman needs them, shaving 200–800ms per tool call
+
+The Foreman handles *how* to execute cheaply; the execution pipeline handles *when* and *how many times*.
+
+---
+
 ## License & Attribution
 
 The Foreman Protocol is part of **OpenPawz** and is released under the **MIT License**. You are free to use, modify, and redistribute this technique in any project, commercial or otherwise. Attribution is appreciated but not required.

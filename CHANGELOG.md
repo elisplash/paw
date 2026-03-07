@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+#### Agent Execution Architecture — 5-Phase Optimization Pipeline
+- **Phase 0: Action DAG Planning** — Model outputs a complete execution plan as a DAG in a single inference call; engine runs independent steps in parallel via `tokio::JoinSet`. New `execute_plan` pseudo-tool intercepted in agent loop. Per-node error isolation, retry with backoff, dependency-aware degradation, partial result synthesis. (20 tests)
+- **Phase 1: Constrained Decoding** — Provider-specific schema enforcement eliminates parse failures: OpenAI `strict: true`, Anthropic `tool_choice`, Google Gemini `tool_config` with `function_calling_config`, Ollama `format: "json"`. `ProviderKind` now `Copy + Eq` with per-provider constraint selection. (19 tests)
+- **Phase 2: Embedding-Indexed Tool Registry** — `PersistentToolRegistry` with SQLite-backed embeddings (`tool_embeddings` table). Four-tier search failover: Vector → BM25 → Domain → Keyword. Incremental indexing, MCP auto-index on discovery, graceful degradation when embedding model unavailable. (31 tests)
+- **Phase 3: Binary IPC** — MessagePack encoding via `rmp-serde` for streaming deltas and plan results. `EventBatcher` batches high-frequency engine events. `ResultAccumulator` assembles parallel DAG results into single binary buffer. (38 tests)
+- **Phase 4: Speculative Execution** — CPU branch prediction for agents. Learns tool transition patterns (`tool_sequences` table), predicts next tool, pre-warms connections. Read-only speculation, configurable threshold, silent discard on mismatch. (54 tests)
+- **Action DAG frontend** — `src/features/action-dag/` module (atoms.ts, molecules.ts, index.ts) for plan visualization
+- **Plan system prompt** — `prompts/plan.md` instructs capable models to emit DAG plans for multi-step tasks
+- **New EngineEvent variants** — `PlanStart`, `PlanNodeStart`, `PlanComplete` for real-time plan progress
+
 ### Fixed
 
 #### n8n Community Packages

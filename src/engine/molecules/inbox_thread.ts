@@ -195,15 +195,15 @@ export function createInboxThread(callbacks: InboxThreadCallbacks): InboxThreadC
 
     showEmpty() {
       emptyState.style.display = 'flex';
-      // Hide chat elements
-      const chatEls = body.querySelectorAll('.chat-main-col > *');
+      // Hide chat elements (but NOT warning banners — those are controlled by token_meter)
+      const chatEls = body.querySelectorAll('.chat-main-col > *:not(.compaction-warning):not(.budget-alert)');
       chatEls.forEach((el) => ((el as HTMLElement).style.display = 'none'));
     },
 
     showThread() {
       emptyState.style.display = 'none';
-      // Re-show chat elements that showEmpty() hid
-      const chatEls = body.querySelectorAll('.chat-main-col > *');
+      // Re-show chat elements that showEmpty() hid (but NOT warning banners)
+      const chatEls = body.querySelectorAll('.chat-main-col > *:not(.compaction-warning):not(.budget-alert)');
       chatEls.forEach((el) => ((el as HTMLElement).style.display = ''));
     },
 
