@@ -593,14 +593,23 @@ impl EmbeddingClient {
             format!("{}/chat/completions", base)
         };
 
-        let body = json!({
+        let mut body = json!({
             "model": fb.chat_model,
             "messages": [
                 { "role": "user", "content": prompt }
             ],
-            "temperature": 0.0,
             "max_tokens": 256,
         });
+
+        // gpt-5+ and reasoning models reject temperature != 1
+        let m = fb.chat_model.to_lowercase();
+        let skip_temp = m.starts_with("o1")
+            || m.starts_with("o3")
+            || m.starts_with("o4")
+            || m.starts_with("gpt-5");
+        if !skip_temp {
+            body["temperature"] = json!(0.0);
+        }
 
         let mut req = self
             .client

@@ -47,18 +47,12 @@ pub fn definitions() -> Vec<ToolDefinition> {
                             "description": "Component title shown in the card header"
                         },
                         "data": {
-                            "type": "object",
-                            "description": "Structured data for the component. Shape varies by type."
+                            "type": "string",
+                            "description": "JSON-encoded structured data for the component. Shape varies by type. Pass as a JSON string."
                         },
                         "position": {
-                            "type": "object",
-                            "description": "Optional grid placement: {col, row, width, height}",
-                            "properties": {
-                                "col": { "type": "integer" },
-                                "row": { "type": "integer" },
-                                "width": { "type": "integer" },
-                                "height": { "type": "integer" }
-                            }
+                            "type": "string",
+                            "description": "Optional JSON-encoded grid placement: {\"col\": int, \"row\": int, \"width\": int, \"height\": int}"
                         }
                     },
                     "required": ["type", "title", "data"]
@@ -82,12 +76,12 @@ pub fn definitions() -> Vec<ToolDefinition> {
                             "description": "New title (optional)"
                         },
                         "data": {
-                            "type": "object",
-                            "description": "New data (optional, replaces existing)"
+                            "type": "string",
+                            "description": "New JSON-encoded data (optional, replaces existing)"
                         },
                         "position": {
-                            "type": "object",
-                            "description": "New grid position (optional)"
+                            "type": "string",
+                            "description": "New JSON-encoded grid position (optional)"
                         }
                     },
                     "required": ["component_id"]
@@ -183,6 +177,12 @@ fn exec_push(
     let position_str = args.get("position").and_then(|p| {
         if p.is_object() {
             serde_json::to_string(p).ok()
+        } else if let Some(s) = p.as_str() {
+            // Tolerate string-encoded JSON from LLMs
+            serde_json::from_str::<serde_json::Value>(s)
+                .ok()
+                .filter(|v| v.is_object())
+                .and_then(|v| serde_json::to_string(&v).ok())
         } else {
             None
         }
@@ -211,13 +211,21 @@ fn exec_push(
 
     // Emit CanvasPush event so the frontend updates live
     let run_id = get_active_run(app_handle, agent_id);
+    let parsed_position: Option<crate::atoms::types::CanvasPosition> =
+        args.get("position").and_then(|p| {
+            if p.is_object() {
+                serde_json::from_value(p.clone()).ok()
+            } else if let Some(s) = p.as_str() {
+                serde_json::from_str(s).ok()
+            } else {
+                None
+            }
+        });
     let component = CanvasComponent {
         component_type: parse_component_type(comp_type),
         title: title.to_string(),
         data: data.clone(),
-        position: args
-            .get("position")
-            .and_then(|p| serde_json::from_value(p.clone()).ok()),
+        position: parsed_position,
     };
     let event = EngineEvent::CanvasPush {
         session_id: session_id.unwrap_or_default(),
@@ -265,6 +273,12 @@ fn exec_update(
     let position_str = args.get("position").and_then(|p| {
         if p.is_object() {
             serde_json::to_string(p).ok()
+        } else if let Some(s) = p.as_str() {
+            // Tolerate string-encoded JSON from LLMs
+            serde_json::from_str::<serde_json::Value>(s)
+                .ok()
+                .filter(|v| v.is_object())
+                .and_then(|v| serde_json::to_string(&v).ok())
         } else {
             None
         }
@@ -293,10 +307,24 @@ fn exec_update(
     let run_id = get_active_run(app_handle, agent_id);
     let patch = CanvasComponentPatch {
         title: title.map(|s| s.to_string()),
-        data: args.get("data").cloned(),
-        position: args
-            .get("position")
-            .and_then(|p| serde_json::from_value(p.clone()).ok()),
+        data: args.get("data").and_then(|d| {
+            if d.is_object() {
+                Some(d.clone())
+            } else if let Some(s) = d.as_str() {
+                serde_json::from_str(s).ok()
+            } else {
+                None
+            }
+        }),
+        position: args.get("position").and_then(|p| {
+            if p.is_object() {
+                serde_json::from_value(p.clone()).ok()
+            } else if let Some(s) = p.as_str() {
+                serde_json::from_str(s).ok()
+            } else {
+                None
+            }
+        }),
     };
     let event = EngineEvent::CanvasUpdate {
         session_id: session_id.unwrap_or_default(),

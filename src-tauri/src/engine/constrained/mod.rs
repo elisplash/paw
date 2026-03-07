@@ -11,5 +11,5 @@ pub mod molecules;
 pub use atoms::{detect_constraints, ConstraintConfig, ConstraintLevel};
 pub use molecules::{
     apply_anthropic_tool_choice, apply_google_tool_config, apply_ollama_json_format,
-    apply_openai_strict,
+    apply_openai_strict, normalize_tool_required,
 };
