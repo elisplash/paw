@@ -213,9 +213,9 @@ export class PawEngineClient {
     return invoke('engine_remove_provider', { providerId });
   }
 
-  async listProviderModels(providerId: string): Promise<
-    { id: string; name: string; context_window?: number; max_output?: number }[]
-  > {
+  async listProviderModels(
+    providerId: string,
+  ): Promise<{ id: string; name: string; context_window?: number; max_output?: number }[]> {
     return invoke('engine_list_provider_models', { providerId });
   }
 

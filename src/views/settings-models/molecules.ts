@@ -743,8 +743,7 @@ function renderProviderCard(provider: EngineProviderConfig, config: EngineConfig
     discoverWrap.style.cssText = 'margin-top:8px';
     const discoverBtn = document.createElement('button');
     discoverBtn.className = 'btn btn-ghost btn-sm';
-    discoverBtn.style.cssText =
-      'font-size:12px;display:inline-flex;align-items:center;gap:4px';
+    discoverBtn.style.cssText = 'font-size:12px;display:inline-flex;align-items:center;gap:4px';
     discoverBtn.innerHTML =
       '<span class="material-symbols-rounded" style="font-size:16px">travel_explore</span> Discover Models';
     discoverBtn.addEventListener('click', async () => {
