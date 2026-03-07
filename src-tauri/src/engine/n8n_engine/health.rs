@@ -166,15 +166,21 @@ fn owner_password() -> String {
     pw
 }
 
-/// Attempt to reset the n8n owner by removing the `agent@paw.local` user
-/// from n8n's SQLite database.
+/// Reset the n8n owner so `POST /rest/owner/setup` can re-run.
 ///
-/// This is the recovery path when the vault password and n8n's stored
-/// password hash go out of sync (e.g. vault cleared, n8n data persists).
-/// Only deletes our service account — user workflows are preserved.
+/// n8n's `setupOwner()` flow works as follows:
+///   1. `hasInstanceOwner()` — queries the `user` table for a user with
+///      the `global:owner` role whose `password` or `lastActiveAt` is
+///      NOT NULL.  If found → 400 "already set up".
+///   2. If NOT found → finds the "shell" owner user (role = global:owner,
+///      password IS NULL) and sets the password on it.
 ///
-/// Disables FK constraints during delete to avoid cascading issues with
-/// `shared_workflow`, `shared_credentials`, and other referencing tables.
+/// Simply deleting the user row fails because step (2) then can't find
+/// the shell user to update (→ 500).  Instead, we NULL out the password
+/// and lastActiveAt fields, turning the existing owner back into a shell
+/// user.  This makes `hasInstanceOwner()` return false and lets
+/// `setupOwner()` find and re-initialize the shell user with our new
+/// password.
 fn reset_n8n_owner_in_db() -> Result<(), String> {
     let base = dirs::home_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -212,48 +218,21 @@ fn reset_n8n_owner_in_db() -> Result<(), String> {
     conn.busy_timeout(std::time::Duration::from_secs(5))
         .map_err(|e| format!("Failed to set busy timeout: {}", e))?;
 
-    // Disable FK constraints so referencing rows in shared_workflow,
-    // shared_credentials, etc. don't block the delete.
-    conn.execute_batch("PRAGMA foreign_keys = OFF;")
-        .map_err(|e| format!("Failed to disable FK constraints: {}", e))?;
-
-    // Find the user ID first so we can clean up referencing rows
-    let user_id: Option<String> = conn
-        .query_row(
-            "SELECT id FROM user WHERE email = ?1",
+    // NULL out password + lastActiveAt so n8n treats this as a "shell" user
+    // that hasn't been set up yet.  The owner row stays intact (preserving
+    // role, shared_workflow, shared_credentials references) — only the
+    // credential fields are cleared.
+    let updated: usize = conn
+        .execute(
+            "UPDATE user SET password = NULL, \"lastActiveAt\" = NULL WHERE email = ?1",
             [OWNER_EMAIL],
-            |row| row.get(0),
         )
-        .ok();
+        .map_err(|e| format!("Failed to reset n8n owner password: {}", e))?;
 
-    if let Some(ref uid) = user_id {
-        // Clean up rows that reference this user to avoid orphans
-        for table in &[
-            "shared_workflow",
-            "shared_credentials",
-        ] {
-            let sql = format!("DELETE FROM \"{}\" WHERE \"userId\" = ?1", table);
-            match conn.execute(&sql, [uid]) {
-                Ok(n) if n > 0 => {
-                    log::debug!("[n8n] Cleaned {} row(s) from {}", n, table);
-                }
-                _ => {}
-            }
-        }
-    }
-
-    let deleted: usize = conn
-        .execute("DELETE FROM user WHERE email = ?1", [OWNER_EMAIL])
-        .map_err(|e| format!("Failed to delete n8n owner: {}", e))?;
-
-    // Re-enable FK constraints
-    let _ = conn.execute_batch("PRAGMA foreign_keys = ON;");
-
-    if deleted > 0 {
+    if updated > 0 {
         log::info!(
-            "[n8n] Reset owner '{}' in n8n database ({} row(s) deleted)",
+            "[n8n] Reset owner '{}' password in n8n database (shell-user state restored)",
             OWNER_EMAIL,
-            deleted
         );
     } else {
         log::debug!("[n8n] No owner '{}' found in n8n database", OWNER_EMAIL);
@@ -323,8 +302,8 @@ pub async fn setup_owner_if_needed(base_url: &str) -> Result<(), String> {
 /// multiple times.
 ///
 /// If owner-session login fails with 401 (password mismatch), attempts
-/// automatic recovery: deletes the stale owner from n8n's database,
-/// recreates it with the current derived password, and retries login.
+/// automatic recovery: resets the owner to shell-user state in n8n's
+/// database, re-runs setup with the current password, and retries login.
 pub async fn enable_mcp_access(base_url: &str, _api_key: &str) -> Result<(), String> {
     let base = base_url.trim_end_matches('/');
 
@@ -405,16 +384,16 @@ pub async fn enable_mcp_access(base_url: &str, _api_key: &str) -> Result<(), Str
         Err((_, msg)) => return Err(msg),
     }
 
-    // Recovery: delete stale owner from n8n DB, recreate with our password, retry
+    // Recovery: reset owner to shell-user state, re-run setup with our password, retry
     if let Err(e) = reset_n8n_owner_in_db() {
         log::warn!("[n8n] Could not reset owner in database: {}", e);
         return Err("Login failed (HTTP 401) and owner reset failed — MCP unavailable".into());
     }
 
-    // Wait briefly for n8n to notice the DB change
+    // Wait briefly for n8n to pick up the DB change
     tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-    // Recreate the owner
+    // Re-run owner setup (sets our password on the now-shell user)
     setup_owner_if_needed(base_url).await?;
 
     // Retry login + enable
@@ -573,7 +552,7 @@ pub async fn retrieve_mcp_token(base_url: &str, _api_key: &str) -> Result<String
         Err((_, msg)) => return Err(msg),
     }
 
-    // Recovery: delete stale owner from n8n DB, recreate, retry
+    // Recovery: reset owner to shell-user state, re-run setup, retry
     if let Err(e) = reset_n8n_owner_in_db() {
         log::warn!("[n8n] Could not reset owner in database: {}", e);
         return Err("Login failed (HTTP 401) and owner reset failed — MCP unavailable".into());
@@ -650,7 +629,7 @@ pub async fn session_client(base_url: &str) -> Result<reqwest::Client, String> {
         Err((_, msg)) => return Err(msg),
     }
 
-    // Recovery
+    // Recovery: reset owner to shell-user state, re-run setup, retry
     if let Err(e) = reset_n8n_owner_in_db() {
         return Err(format!("Session login 401 and owner reset failed: {}", e));
     }
