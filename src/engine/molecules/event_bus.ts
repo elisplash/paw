@@ -306,10 +306,14 @@ function routeToHandlers(
         handlers.onModel(confirmedModel);
       }
 
-      // Stream promise resolution — main handler only
+      // Stream promise resolution — main handler only.
+      // Prefer data.text (the full assembled response from Rust, passed through
+      // bridge.ts) over stream_s.content (accumulated deltas) which can be
+      // truncated if any IPC delta events were dropped or arrived out of order.
       if (!isBackground && stream_s?.resolve) {
-        if (stream_s.content) {
-          stream_s.resolve(stream_s.content);
+        const finalText = (dAny.text as string | undefined) || stream_s.content;
+        if (finalText) {
+          stream_s.resolve(finalText);
           stream_s.resolve = null;
         } else {
           console.debug('[event_bus] No content at lifecycle end — waiting 3s for chat.final...');
@@ -317,7 +321,7 @@ function routeToHandlers(
           setTimeout(() => {
             if (stream_s.resolve === savedResolve && stream_s.resolve) {
               console.warn('[event_bus] Grace period expired — resolving with empty content');
-              stream_s.resolve(stream_s.content || '');
+              stream_s.resolve((dAny.text as string | undefined) || stream_s.content || '');
               stream_s.resolve = null;
             }
           }, 3000);
