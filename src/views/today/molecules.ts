@@ -25,6 +25,7 @@ import type {
   EngineSkillStatus,
   TelemetryDailySummary,
   TelemetryModelBreakdown,
+  McpServerStatus,
 } from '../../engine/atoms/types';
 import { appState } from '../../state';
 import {
@@ -45,6 +46,11 @@ import {
   createEngramBrain,
   type EngramBrainInstance,
 } from '../../components/molecules/engram-brain';
+import {
+  createSignalFlow,
+  type SignalFlowInstance,
+  type SignalFlowData,
+} from '../../components/molecules/signal-flow';
 
 // ── Skeleton loading helper ──────────────────────────────────────────
 function skelLines(n = 3): string {
@@ -58,6 +64,7 @@ function skelLines(n = 3): string {
 // ── Hero logo + Engram brain instances ─────────────────────────────────
 let _heroLogo: HeroLogoInstance | null = null;
 let _engramBrain: EngramBrainInstance | null = null;
+let _signalFlow: SignalFlowInstance | null = null;
 let _engramCategories: [string, number][] = [];
 
 // ── Tauri bridge (lazy — resolves at call time, not module load) ──────
@@ -708,6 +715,56 @@ export async function fetchEngramStats() {
   }
 }
 
+// ── Signal Flow ──────────────────────────────────────────────────────
+export async function fetchSignalFlow() {
+  if (!_signalFlow) return;
+  try {
+    const [statusR, embedR, mcpR, n8nR, tailR] = await Promise.allSettled([
+      pawEngine.status(),
+      pawEngine.embeddingStatus(),
+      pawEngine.mcpStatus(),
+      pawEngine.n8nGetStatus(),
+      pawEngine.tailscaleStatus(),
+    ]);
+    const status = statusR.status === 'fulfilled' ? statusR.value : null;
+    const embed = embedR.status === 'fulfilled' ? embedR.value : null;
+    const mcpRaw = mcpR.status === 'fulfilled' ? mcpR.value : [];
+    const n8n = n8nR.status === 'fulfilled' ? n8nR.value : null;
+    const tailscale = tailR.status === 'fulfilled' ? tailR.value : null;
+
+    const data: SignalFlowData = {
+      llmProvider: status?.default_provider ?? '',
+      llmModel: status?.default_model ?? '',
+      embedConnected: embed?.model_available ?? false,
+      embedModel: embed?.model_name ?? '',
+      mcpServers: (mcpRaw as McpServerStatus[]).map((m) => ({
+        id: m.id,
+        name: m.name,
+        connected: m.connected,
+        toolCount: m.tool_count,
+      })),
+      n8nRunning: n8n?.running ?? false,
+      n8nMode: n8n?.mode ?? '',
+      tailscaleRunning: tailscale?.running ?? false,
+      tailscaleFunnel: tailscale?.funnel_active ?? false,
+    };
+    _signalFlow.update(data);
+
+    const nodeEl = $('signal-flow-nodes');
+    if (nodeEl) {
+      const active =
+        (data.llmProvider ? 1 : 0) +
+        (data.embedConnected ? 1 : 0) +
+        data.mcpServers.filter((m) => m.connected).length +
+        (data.n8nRunning ? 1 : 0) +
+        (data.tailscaleRunning ? 1 : 0);
+      nodeEl.textContent = active === 1 ? '1 node' : `${active} nodes`;
+    }
+  } catch (e) {
+    console.warn('[today] Signal flow fetch failed:', e);
+  }
+}
+
 /** Fetch and render the last 5 chat sessions. */
 export async function fetchRecentSessions() {
   const container = $('today-sessions');
@@ -1137,13 +1194,12 @@ export function renderToday() {
       </div>
 
       <!-- Row 2: Inbox + Recent Sessions -->
-      <div class="cmd-card bento-cell bento-span-6">
+      <div class="cmd-card bento-cell bento-span-6 signal-flow-card" id="signal-flow-card">
         <div class="today-card-header">
-          <span class="today-card-title">UNREAD MAIL</span>
+          <span class="today-card-title">SIGNAL FLOW</span>
+          <span class="today-card-count" id="signal-flow-nodes">…</span>
         </div>
-        <div class="today-card-body" id="today-emails">
-          ${skelLines(4)}
-        </div>
+        <div class="today-card-body signal-flow-body" id="signal-flow-canvas-wrap"></div>
       </div>
 
       <div class="cmd-card bento-cell bento-span-6">
@@ -1262,6 +1318,13 @@ export function renderToday() {
   if (brainWrap) {
     _engramBrain?.destroy();
     _engramBrain = createEngramBrain(brainWrap);
+  }
+
+  // ── Hydrate the Signal Flow canvas ──
+  const sfWrap = $('signal-flow-canvas-wrap');
+  if (sfWrap) {
+    _signalFlow?.destroy();
+    _signalFlow = createSignalFlow(sfWrap);
   }
 
   bindEvents();
