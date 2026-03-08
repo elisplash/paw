@@ -25,7 +25,7 @@ import type {
   EngineSkillStatus,
   TelemetryDailySummary,
   TelemetryModelBreakdown,
-  McpServerStatus,
+  EngineEvent,
 } from '../../engine/atoms/types';
 import { appState } from '../../state';
 import {
@@ -43,11 +43,6 @@ import {
 } from '../../components/kinetic-row';
 import { createHeroLogo, type HeroLogoInstance } from '../../components/hero-logo';
 import { renderPalaceGraphInto } from '../memory-palace/graph';
-import {
-  createSignalFlow,
-  type SignalFlowInstance,
-  type SignalFlowData,
-} from '../../components/molecules/signal-flow';
 
 // ── Skeleton loading helper ──────────────────────────────────────────
 function skelLines(n = 3): string {
@@ -58,9 +53,21 @@ function skelLines(n = 3): string {
   ).join('');
 }
 
+// ── Recall time-ago helper ────────────────────────────────────────────
+function _timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.floor(hr / 24)}d ago`;
+}
+
 // ── Hero logo + Engram brain instances ─────────────────────────────────
 let _heroLogo: HeroLogoInstance | null = null;
-let _signalFlow: SignalFlowInstance | null = null;
+let _recallRunId: string | null = null;
+let _recallUnsub: (() => void) | null = null;
 let _engramCategories: [string, number][] = [];
 
 // ── Tauri bridge (lazy — resolves at call time, not module load) ──────
@@ -711,53 +718,132 @@ export async function fetchEngramStats() {
   }
 }
 
-// ── Signal Flow ──────────────────────────────────────────────────────
-export async function fetchSignalFlow() {
-  if (!_signalFlow) return;
+// ── Recall ────────────────────────────────────────────────────────────
+/** No-op export — recall is user-triggered, not auto-fetched on load. */
+export async function fetchRecall() {
+  // intentionally empty — card is populated from localStorage on hydration
+}
+
+/** Compile recent data and stream an AI recap into the RECALL card. */
+async function _generateRecall() {
+  const btn = $('recall-btn') as HTMLButtonElement | null;
+  const out = $('recall-output');
+  if (!out || !btn) return;
+
+  // Clean up any in-flight previous run
+  _recallUnsub?.();
+  _recallUnsub = null;
+  _recallRunId = null;
+
+  btn.disabled = true;
+  btn.textContent = '⟳ Generating…';
+  out.innerHTML = '<span class="recall-cursor"></span>';
+
   try {
-    const [statusR, embedR, mcpR, n8nR, tailR] = await Promise.allSettled([
-      pawEngine.status(),
-      pawEngine.embeddingStatus(),
-      pawEngine.mcpStatus(),
-      pawEngine.n8nGetStatus(),
-      pawEngine.tailscaleStatus(),
+    // ── Gather data ──────────────────────────────────────────────────
+    const [sessions, mems] = await Promise.all([
+      pawEngine
+        .sessionsList(8)
+        .catch(() => [] as Awaited<ReturnType<typeof pawEngine.sessionsList>>),
+      pawEngine.memoryList(30).catch(() => [] as Awaited<ReturnType<typeof pawEngine.memoryList>>),
     ]);
-    const status = statusR.status === 'fulfilled' ? statusR.value : null;
-    const embed = embedR.status === 'fulfilled' ? embedR.value : null;
-    const mcpRaw = mcpR.status === 'fulfilled' ? mcpR.value : [];
-    const n8n = n8nR.status === 'fulfilled' ? n8nR.value : null;
-    const tailscale = tailR.status === 'fulfilled' ? tailR.value : null;
 
-    const data: SignalFlowData = {
-      llmProvider: status?.default_provider ?? '',
-      llmModel: status?.default_model ?? '',
-      embedConnected: embed?.model_available ?? false,
-      embedModel: embed?.model_name ?? '',
-      mcpServers: (mcpRaw as McpServerStatus[]).map((m) => ({
-        id: m.id,
-        name: m.name,
-        connected: m.connected,
-        toolCount: m.tool_count,
-      })),
-      n8nRunning: n8n?.running ?? false,
-      n8nMode: n8n?.mode ?? '',
-      tailscaleRunning: tailscale?.running ?? false,
-      tailscaleFunnel: tailscale?.funnel_active ?? false,
-    };
-    _signalFlow.update(data);
-
-    const nodeEl = $('signal-flow-nodes');
-    if (nodeEl) {
-      const active =
-        (data.llmProvider ? 1 : 0) +
-        (data.embedConnected ? 1 : 0) +
-        data.mcpServers.filter((m) => m.connected).length +
-        (data.n8nRunning ? 1 : 0) +
-        (data.tailscaleRunning ? 1 : 0);
-      nodeEl.textContent = active === 1 ? '1 node' : `${active} nodes`;
+    // Sample last few user messages from the 3 most recent sessions
+    const recentMsgs: string[] = [];
+    for (const s of sessions.slice(0, 3)) {
+      try {
+        const hist = await pawEngine.chatHistory(s.id, 6);
+        const userMsgs = hist.filter((m) => m.role === 'user').slice(-2);
+        if (userMsgs.length) {
+          const label = s.label || 'Session';
+          recentMsgs.push(`[${label}] ${userMsgs.map((m) => m.content.slice(0, 120)).join(' / ')}`);
+        }
+      } catch {
+        // non-fatal — skip this session
+      }
     }
+
+    // Today's memories
+    const todayStr = new Date().toDateString();
+    const todayMems = mems
+      .filter((m) => new Date(m.created_at).toDateString() === todayStr)
+      .slice(0, 10)
+      .map((m) => `• ${m.content.slice(0, 100)}`);
+
+    const lines = [
+      'Write a concise, friendly 2–3 sentence recap of what this user has been working on today.',
+      'Be specific — use their actual topics. No bullet points. Write in second person ("You\'ve been…").',
+      '',
+      sessions.length
+        ? `Recent sessions: ${sessions.map((s) => s.label || 'Untitled').join(', ')}`
+        : '',
+      recentMsgs.length ? `Recent messages:\n${recentMsgs.join('\n')}` : '',
+      todayMems.length ? `Memories captured today:\n${todayMems.join('\n')}` : '',
+    ].filter(Boolean);
+
+    if (lines.length <= 2) {
+      // No useful data — nothing to recap
+      out.innerHTML =
+        '<div class="recall-empty">No activity found yet — start a chat or save some memories!</div>';
+      btn.disabled = false;
+      btn.textContent = '↺ Recap';
+      return;
+    }
+
+    const prompt = lines.join('\n');
+
+    // ── Stream response ──────────────────────────────────────────────
+    let accumulated = '';
+
+    _recallUnsub = pawEngine.on('delta', (ev: EngineEvent) => {
+      if (ev.run_id !== _recallRunId || !ev.text) return;
+      accumulated += ev.text;
+      out.innerHTML = `${escHtml(accumulated)}<span class="recall-cursor"></span>`;
+    });
+
+    const unlistenComplete = pawEngine.on('complete', (ev: EngineEvent) => {
+      if (ev.run_id !== _recallRunId) return;
+      _recallUnsub?.();
+      _recallUnsub = null;
+      unlistenComplete();
+      _recallRunId = null;
+      out.innerHTML = escHtml(accumulated);
+      if (accumulated) {
+        localStorage.setItem('paw-recall-text', accumulated);
+        localStorage.setItem('paw-recall-ts', new Date().toISOString());
+      }
+      btn.disabled = false;
+      btn.textContent = '↺ Recap';
+    });
+
+    const unlistenError = pawEngine.on('error', (ev: EngineEvent) => {
+      if (ev.run_id !== _recallRunId) return;
+      _recallUnsub?.();
+      _recallUnsub = null;
+      unlistenError();
+      _recallRunId = null;
+      out.innerHTML = accumulated
+        ? escHtml(accumulated)
+        : '<div class="recall-empty">Could not generate recap — check your AI provider.</div>';
+      btn.disabled = false;
+      btn.textContent = '↺ Recap';
+    });
+
+    const resp = await pawEngine.chatSend({
+      session_id: 'paw-recall-ephemeral',
+      message: prompt,
+      system_prompt:
+        'You are a concise daily recap assistant. Summarize what the user has been doing today.',
+      tools_enabled: false,
+      temperature: 0.4,
+    });
+    _recallRunId = resp.run_id;
   } catch (e) {
-    console.warn('[today] Signal flow fetch failed:', e);
+    console.warn('[today] Recall generation failed:', e);
+    out.innerHTML =
+      '<div class="recall-empty">Could not generate recap — check your AI provider.</div>';
+    btn.disabled = false;
+    btn.textContent = '↺ Recap';
   }
 }
 
@@ -1189,13 +1275,15 @@ export function renderToday() {
         </div>
       </div>
 
-      <!-- Row 2: Inbox + Recent Sessions -->
-      <div class="cmd-card bento-cell bento-span-6 signal-flow-card" id="signal-flow-card">
+      <!-- Row 2: Recall + Recent Sessions -->
+      <div class="cmd-card bento-cell bento-span-6 recall-card" id="recall-card">
         <div class="today-card-header">
-          <span class="today-card-title">SIGNAL FLOW</span>
-          <span class="today-card-count" id="signal-flow-nodes">…</span>
+          <span class="today-card-title">RECALL</span>
+          <button class="btn btn-ghost btn-sm" id="recall-btn">↺ Recap</button>
         </div>
-        <div class="today-card-body signal-flow-body" id="signal-flow-canvas-wrap"></div>
+        <div class="today-card-body recall-body" id="recall-body">
+          <div class="recall-output" id="recall-output"></div>
+        </div>
       </div>
 
       <div class="cmd-card bento-cell bento-span-6">
@@ -1314,11 +1402,18 @@ export function renderToday() {
     void renderPalaceGraphInto(brainWrap);
   }
 
-  // ── Hydrate the Signal Flow canvas ──
-  const sfWrap = $('signal-flow-canvas-wrap');
-  if (sfWrap) {
-    _signalFlow?.destroy();
-    _signalFlow = createSignalFlow(sfWrap);
+  // ── Hydrate the Recall card with last stored recap ──
+  const recallOut = $('recall-output');
+  if (recallOut) {
+    const storedText = localStorage.getItem('paw-recall-text');
+    const storedTs = localStorage.getItem('paw-recall-ts');
+    if (storedText) {
+      const ago = storedTs ? _timeAgo(storedTs) : '';
+      recallOut.innerHTML = `${escHtml(storedText)}${ago ? `<div class="recall-ts">Last recap ${ago}</div>` : ''}`;
+    } else {
+      recallOut.innerHTML =
+        '<div class="recall-empty">Hit ↺ Recap to see what you\'ve been up to</div>';
+    }
   }
 
   bindEvents();
@@ -1478,6 +1573,9 @@ function bindEvents() {
   $('today-research-btn')?.addEventListener('click', () => switchView('research'));
   $('today-orchestrate-btn')?.addEventListener('click', () => switchView('orchestrator'));
   $('today-memory-vault-btn')?.addEventListener('click', () => switchView('memory-palace'));
+
+  // ── Recall card ─────────────────────────────────────────────────────────
+  $('recall-btn')?.addEventListener('click', () => void _generateRecall());
 
   // ── Engram card ─────────────────────────────────────────────────────────
   // Graph handles its own click/hover interactions; modal only via + Memory btn

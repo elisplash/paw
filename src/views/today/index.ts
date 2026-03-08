@@ -4,7 +4,6 @@ import { type Task, filterTodayTasks, engineTaskToToday } from './atoms';
 import {
   initMoleculesState,
   fetchWeather,
-  fetchSignalFlow,
   fetchCalendarEvents,
   fetchSkillOutputs,
   fetchActiveSkills,
@@ -90,7 +89,6 @@ export async function loadToday() {
   await Promise.allSettled([
     withTimeout(reloadTodayTasks(true), 20000, 'tasks'),
     withTimeout(fetchWeather(), 20000, 'weather'),
-    withTimeout(fetchSignalFlow(), 15000, 'signal-flow'),
     withTimeout(fetchCalendarEvents(), 20000, 'calendar'),
     withTimeout(fetchSkillOutputs(), 20000, 'skill-outputs'),
     withTimeout(fetchFleetStatus(), 20000, 'fleet'),
@@ -107,7 +105,6 @@ export async function loadToday() {
   const THIRTY_MIN = 30 * 60 * 1000;
   _refreshTimers.push(
     setInterval(() => withTimeout(fetchCalendarEvents(), 20000, 'cal-refresh'), FIVE_MIN),
-    setInterval(() => withTimeout(fetchSignalFlow(), 30000, 'signal-refresh'), FIVE_MIN),
     setInterval(() => withTimeout(loadIntegrationsDashboard(), 20000, 'integ-refresh'), FIVE_MIN),
     setInterval(() => withTimeout(fetchWeather(), 20000, 'weather-refresh'), THIRTY_MIN),
   );
