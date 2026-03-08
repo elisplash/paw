@@ -20,13 +20,19 @@ A native desktop AI platform that runs fully offline, connects to any provider, 
 
 ---
 
-## Screenshots
+## Paws Overview
 
 <div align="center">
 
-**OpenPawz in Action**
+**Pawz In Action**
 
 https://github.com/user-attachments/assets/9bee2c08-ca86-4483-89a1-3eae847054b4
+
+<br>
+
+**Engram Memory** — Interactive knowledge graph with force-directed layout, flowing edge particles, and memory recall
+
+https://github.com/user-attachments/assets/60b0f351-180e-49ed-a70b-e31556743949
 
 <br>
 
