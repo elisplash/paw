@@ -66,7 +66,6 @@ function _timeAgo(iso: string): string {
 
 // ── Hero logo + Engram brain instances ─────────────────────────────────
 let _heroLogo: HeroLogoInstance | null = null;
-let _recallRunId: string | null = null;
 let _recallUnsub: (() => void) | null = null;
 let _engramCategories: [string, number][] = [];
 
@@ -730,10 +729,9 @@ async function _generateRecall() {
   const out = $('recall-output');
   if (!out || !btn) return;
 
-  // Clean up any in-flight previous run
+  // Cancel any in-flight run (delta + complete + error unsubs are all in _recallUnsub)
   _recallUnsub?.();
   _recallUnsub = null;
-  _recallRunId = null;
 
   btn.disabled = true;
   btn.textContent = '⟳ Generating…';
@@ -782,7 +780,6 @@ async function _generateRecall() {
     ].filter(Boolean);
 
     if (lines.length <= 2) {
-      // No useful data — nothing to recap
       out.innerHTML =
         '<div class="recall-empty">No activity found yet — start a chat or save some memories!</div>';
       btn.disabled = false;
@@ -793,20 +790,28 @@ async function _generateRecall() {
     const prompt = lines.join('\n');
 
     // ── Stream response ──────────────────────────────────────────────
+    // Use a fresh session ID every invocation so there is zero conversation
+    // history — a fixed session accumulates prior recap exchanges as context
+    // and makes the LLM produce inconsistent follow-up responses.
+    const sessionId = crypto.randomUUID();
     let accumulated = '';
 
-    _recallUnsub = pawEngine.on('delta', (ev: EngineEvent) => {
-      if (ev.run_id !== _recallRunId || !ev.text) return;
+    const cleanup = () => {
+      _recallUnsub?.();
+      _recallUnsub = null;
+    };
+
+    // Filter by session_id (known before chatSend) to avoid the run_id
+    // race where _recallRunId is still null when the first delta fires.
+    const unDelta = pawEngine.on('delta', (ev: EngineEvent) => {
+      if (ev.session_id !== sessionId || !ev.text) return;
       accumulated += ev.text;
       out.innerHTML = `${escHtml(accumulated)}<span class="recall-cursor"></span>`;
     });
 
-    const unlistenComplete = pawEngine.on('complete', (ev: EngineEvent) => {
-      if (ev.run_id !== _recallRunId) return;
-      _recallUnsub?.();
-      _recallUnsub = null;
-      unlistenComplete();
-      _recallRunId = null;
+    const unComplete = pawEngine.on('complete', (ev: EngineEvent) => {
+      if (ev.session_id !== sessionId) return;
+      cleanup();
       out.innerHTML = escHtml(accumulated);
       if (accumulated) {
         localStorage.setItem('paw-recall-text', accumulated);
@@ -816,12 +821,9 @@ async function _generateRecall() {
       btn.textContent = '↺ Recap';
     });
 
-    const unlistenError = pawEngine.on('error', (ev: EngineEvent) => {
-      if (ev.run_id !== _recallRunId) return;
-      _recallUnsub?.();
-      _recallUnsub = null;
-      unlistenError();
-      _recallRunId = null;
+    const unError = pawEngine.on('error', (ev: EngineEvent) => {
+      if (ev.session_id !== sessionId) return;
+      cleanup();
       out.innerHTML = accumulated
         ? escHtml(accumulated)
         : '<div class="recall-empty">Could not generate recap — check your AI provider.</div>';
@@ -829,17 +831,25 @@ async function _generateRecall() {
       btn.textContent = '↺ Recap';
     });
 
-    const resp = await pawEngine.chatSend({
-      session_id: 'paw-recall-ephemeral',
+    // Bundle all three so a subsequent click cancels them atomically
+    _recallUnsub = () => {
+      unDelta();
+      unComplete();
+      unError();
+    };
+
+    await pawEngine.chatSend({
+      session_id: sessionId,
       message: prompt,
       system_prompt:
         'You are a concise daily recap assistant. Summarize what the user has been doing today.',
       tools_enabled: false,
       temperature: 0.4,
     });
-    _recallRunId = resp.run_id;
   } catch (e) {
     console.warn('[today] Recall generation failed:', e);
+    _recallUnsub?.();
+    _recallUnsub = null;
     out.innerHTML =
       '<div class="recall-empty">Could not generate recap — check your AI provider.</div>';
     btn.disabled = false;
