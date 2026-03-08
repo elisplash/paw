@@ -36,10 +36,10 @@ import {
   kineticDot,
   type KineticStatus,
 } from '../../components/kinetic-row';
-import { createHeroTesseract, type HeroTesseractInstance } from '../../components/tesseract';
+import { createHeroLogo, type HeroLogoInstance } from '../../components/hero-logo';
 
-// ── Hero tesseract instance ──────────────────────────────────────────
-let _heroTesseract: HeroTesseractInstance | null = null;
+// ── Hero logo instance ───────────────────────────────────────────────
+let _heroLogo: HeroLogoInstance | null = null;
 
 // ── Tauri bridge (lazy — resolves at call time, not module load) ──────
 // The @tauri-apps/api/core invoke is always available in the Tauri
@@ -904,11 +904,11 @@ export function renderToday() {
     </div>
   `;
 
-  // ── Hydrate the hero tesseract ──
-  const tesseractCell = $('today-tesseract');
-  if (tesseractCell) {
-    _heroTesseract?.destroy();
-    _heroTesseract = createHeroTesseract(tesseractCell);
+  // ── Hydrate the hero logo ──
+  const logoCell = $('today-tesseract');
+  if (logoCell) {
+    _heroLogo?.destroy();
+    _heroLogo = createHeroLogo(logoCell);
   }
 
   bindEvents();
