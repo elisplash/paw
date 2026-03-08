@@ -33,14 +33,14 @@ pub fn definitions() -> Vec<ToolDefinition> {
             tool_type: "function".into(),
             function: FunctionDefinition {
                 name: "canvas_push".into(),
-                description: "Add a new component to the user's Canvas dashboard. The component appears instantly. Returns the component_id for later updates.".into(),
+                description: "Add a new component to the user's Canvas dashboard. Choose the component type that matches the user's design intent — if the request implies a specific visual style, color scheme, branding, creative layout, or custom UI (marketing dashboard, infographic, funnel, scorecard, etc.), always use `embed` with custom HTML/CSS/JS. For data monitors and operational dashboards, use structured types like metric/chart/table. Returns the component_id for later updates.".into(),
                 parameters: serde_json::json!({
                     "type": "object",
                     "properties": {
                         "type": {
                             "type": "string",
                             "enum": VALID_COMPONENT_TYPES,
-                            "description": "Component type: metric (big number + trend), table (columns + rows), chart (line/bar/area/pie), log (timestamped entries), kv (key-value pairs), card (markdown body + actions), status (icon + text), progress (label + pct), form (inputs → tool call), markdown (freeform), timeline (visual phases/milestones), checklist (task list with progress), gauge (radial meter), countdown (animated timer), image (image + caption), embed (sandboxed HTML/CSS/JS — supports external libraries like three.js, anime.js, D3)"
+                            "description": "Component type — choose based on the user's design intent:\n• embed — FIRST choice for any custom visual design: fully sandboxed HTML/CSS/JS, supports three.js / D3 / Chart.js / anime.js / any CDN library. Use this for marketing assets, branded dashboards, infographics, funnels, scorecards, interactive charts with specific styling, or whenever the user describes a particular look or colour scheme.\n• metric — large KPI number with trend/delta indicator\n• chart — line / bar / area / pie visualization\n• table — rows + columns of structured data\n• card — markdown body: narrative, insights, action items\n• timeline — phases, milestones, schedule bars\n• checklist — task list with completion progress\n• status — per-item health indicators (ok / warn / down)\n• progress — labeled progress bars (0–100%)\n• gauge — radial meter (single value)\n• countdown — live timer counting down to a deadline\n• kv — key-value pairs, config values, quick references\n• log — timestamped activity/event stream\n• form — user inputs that invoke a tool on submit\n• markdown — freeform text / documentation block\n• image — image with caption"
                         },
                         "title": {
                             "type": "string",
@@ -48,7 +48,7 @@ pub fn definitions() -> Vec<ToolDefinition> {
                         },
                         "data": {
                             "type": "string",
-                            "description": "JSON-encoded structured data for the component. Shape varies by type. Pass as a JSON string."
+                            "description": "JSON-encoded data for the component (pass as a JSON string). Shape by type:\n• embed: {\"html\":\"<div>…</div>\",\"css\":\"body{background:#fff;font-family:sans-serif}…\",\"js\":\"…\",\"height\":400,\"libraries\":[\"https://cdn.jsdelivr.net/…\"]}\n• metric: {\"value\":\"$1.2M\",\"trend\":\"+12%\",\"delta\":\"+$120k\",\"unit\":\"USD\"}\n• chart: {\"labels\":[\"Jan\",\"Feb\"],\"datasets\":[{\"label\":\"Revenue\",\"data\":[100,200],\"type\":\"line\"}]}\n• table: {\"columns\":[\"Name\",\"Value\"],\"rows\":[[\"a\",\"b\"]]}\n• card: {\"body\":\"## Title\\n\\ncontent\",\"actions\":[{\"label\":\"Open\",\"url\":\"#\"}]}\n• status: {\"items\":[{\"label\":\"API\",\"state\":\"ok\"},{\"label\":\"DB\",\"state\":\"warn\"}]}\n• checklist: {\"items\":[{\"text\":\"Task 1\",\"done\":false}]}\n• progress: {\"items\":[{\"label\":\"Phase 1\",\"pct\":75}]}\n• gauge: {\"value\":72,\"max\":100,\"label\":\"CPU %\"}\n• countdown: {\"target\":\"2026-06-01T00:00:00Z\",\"label\":\"Launch\"}\n• kv: {\"items\":[{\"key\":\"Version\",\"value\":\"1.2.3\"}]}\n• log: {\"entries\":[{\"time\":\"10:00\",\"text\":\"Event description\"}]}\n• timeline: {\"phases\":[{\"label\":\"Design\",\"start\":\"Jan\",\"end\":\"Feb\",\"status\":\"done\"}]}\n• image: {\"src\":\"https://…\",\"caption\":\"Description\"}"
                         },
                         "position": {
                             "type": "string",

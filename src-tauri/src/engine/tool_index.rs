@@ -231,7 +231,7 @@ pub fn domain_summaries() -> Vec<(&'static str, &'static str, &'static str)> {
         (
             "canvas",
             "grid_view",
-            "Agent Canvas — create, update, and manage bento-grid dashboard widgets, save/load dashboards, use templates",
+            "Agent Canvas — visualize data and build interactive dashboards. Use structured component types (metric, chart, table, timeline, checklist, status, etc.) for data-driven displays. Use the `embed` type for fully custom HTML/CSS/JS — required for creative/marketing visuals, branded reports, infographics, funnels, or any design with a specific look and feel. Match the design to the user's intent: if they describe something visual, colorful, or non-standard → use embed with custom CSS; if they want a live data monitor → use structured components.",
         ),
         (
             "storage",

@@ -651,8 +651,8 @@ ${libTags}
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   background: transparent;
-  color: #e0ddd8;
-  font-family: 'JetBrains Mono', 'SF Mono', monospace;
+  color: inherit;
+  font-family: system-ui, -apple-system, sans-serif;
   overflow: hidden;
 }
 ${css || ''}
