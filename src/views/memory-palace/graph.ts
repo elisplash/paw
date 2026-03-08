@@ -334,7 +334,7 @@ function _buildGraph(mems: RawMem[], rawEdges: MemoryEdge[], canvas: HTMLCanvasE
 
   _camX = 0;
   _camY = 0;
-  _zoom = 1;
+  _zoom = _miniMode ? 0.55 : 1;
   _hoveredNode = null;
   _dragNode = null;
   _time = 0;
