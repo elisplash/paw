@@ -19,7 +19,6 @@ import {
 } from '../../state/index';
 // helpers & toast moved to chat_listeners molecule
 import * as AgentsModule from '../../views/agents';
-import * as SettingsModule from '../../views/settings-main';
 import {
   addActiveJob,
   clearActiveJobs,
@@ -147,6 +146,8 @@ function showInlineStop(): void {
   const stop = $('chat-stop-inline');
   if (send) send.style.display = 'none';
   if (stop) stop.style.display = '';
+  const input = $('chat-input') as HTMLTextAreaElement | null;
+  if (input) input.placeholder = 'Type to steer the agent… (Enter redirects)';
 }
 
 /** Hide the inline stop button and restore send (streaming ended). */
@@ -155,6 +156,8 @@ function hideInlineStop(): void {
   const stop = $('chat-stop-inline');
   if (send) send.style.display = '';
   if (stop) stop.style.display = 'none';
+  const input = $('chat-input') as HTMLTextAreaElement | null;
+  if (input) input.placeholder = 'Message your agent...';
 }
 
 // ── Stream teardown ──────────────────────────────────────────────────────
@@ -167,7 +170,10 @@ function teardownStream(sessionKey: string, reason: string): void {
   );
   pawEngine.chatAbort(sessionKey).catch(() => {});
   if (stream.resolve) {
-    stream.resolve(stream.content || `(${reason})`);
+    // Resolve with whatever partial content was accumulated (empty string if nothing).
+    // Do NOT use a reason-string sentinel — sendMessage uses truthiness of finalText
+    // to decide whether to commit the partial response to the message list.
+    stream.resolve(stream.content);
     stream.resolve = null;
   }
   if (stream.timeout) {
@@ -256,7 +262,7 @@ export function updateTokenMeter(): void {
 
 export function recordTokenUsage(usage: Record<string, unknown> | undefined): void {
   const state = meterSnapshot();
-  getTokenMeter().recordUsage(usage, state, SettingsModule.getBudgetLimit);
+  getTokenMeter().recordUsage(usage, state);
   syncMeterToAppState(state);
 }
 
@@ -894,7 +900,15 @@ export async function sendMessage(): Promise<void> {
   const chatModelSelect = document.getElementById('chat-model-select') as HTMLSelectElement | null;
   let content = chatInput?.value.trim();
   const currentKey = appState.currentSessionKey ?? '';
-  if (!content || appState.activeStreams.has(currentKey)) return;
+  if (!content) return;
+
+  // If streaming is active, redirect to steer instead of silently dropping.
+  // This means pressing Enter (or clicking Send) during a tool loop steers
+  // the agent rather than doing nothing — fixing the "hyper-focus" UX issue.
+  if (appState.activeStreams.has(currentKey)) {
+    await steerWithMessage();
+    return;
+  }
 
   // Slash command interception
   if (isSlashCommand(content)) {
@@ -984,15 +998,23 @@ export async function sendMessage(): Promise<void> {
     handleSendResult(result, ss, streamKey);
 
     const finalText = await responsePromise;
-    const didFinalize = appState.activeStreams.has(streamKey);
-    if (didFinalize) {
-      finalizeStreaming(finalText, undefined, streamKey);
+    // The session key shifts for new chats: handleSendResult moves the stream from
+    // '' to the real session ID assigned by Rust.  Use the current key as canonical.
+    const resolvedKey = appState.currentSessionKey ?? streamKey;
+    const isStreamActive =
+      appState.activeStreams.has(streamKey) || appState.activeStreams.has(resolvedKey);
+    if (isStreamActive || finalText) {
+      // Finalize when: stream still tracked (normal completion) OR partial content
+      // was accumulated before the user stopped (teardownStream resolved the promise
+      // with stream.content, which is truthy when content was received).
+      finalizeStreaming(finalText, undefined, resolvedKey);
     } else {
-      console.debug('[chat] Stream already torn down — skipping finalizeStreaming');
+      console.debug('[chat] Stream torn down with no content — skipping render');
     }
 
-    // Group chat fan-out: after Agent 1 finalizes successfully, run remaining members
-    if (finalText && didFinalize) {
+    // Group chat fan-out: after Agent 1 completes naturally, run remaining members.
+    // Skip fan-out when the stream was interrupted (isStreamActive = false).
+    if (finalText && isStreamActive) {
       const resolvedSessionKey = appState.currentSessionKey ?? streamKey;
       const groupMeta = groupSessionMap.get(resolvedSessionKey);
       if (groupMeta && groupMeta.members.length > 1) {
@@ -1008,13 +1030,12 @@ export async function sendMessage(): Promise<void> {
         }
       }
     }
-
-    loadSessions({ skipHistory: true }).catch(() => {});
   } catch (error) {
     console.error('[chat] error:', error);
-    if (ss?.el && appState.activeStreams.has(streamKey)) {
+    if (ss?.el) {
       const errMsg = error instanceof Error ? error.message : 'Failed to get response';
-      finalizeStreaming(ss.content || `Error: ${errMsg}`, undefined, streamKey);
+      const resolvedErrKey = appState.currentSessionKey ?? streamKey;
+      finalizeStreaming(ss.content || `Error: ${errMsg}`, undefined, resolvedErrKey);
     }
   } finally {
     const finalKey = appState.currentSessionKey ?? streamKey;
@@ -1026,6 +1047,8 @@ export async function sendMessage(): Promise<void> {
     }
     const chatSendBtn = document.getElementById('chat-send') as HTMLButtonElement | null;
     if (chatSendBtn) chatSendBtn.disabled = false;
+    // Always refresh the session list — covers normal completion, stop, and errors.
+    loadSessions({ skipHistory: true }).catch(() => {});
   }
 }
 

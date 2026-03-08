@@ -34,11 +34,7 @@ export interface TokenMeterController {
   /** Update the meter display from current state. */
   update(state: TokenMeterState): void;
   /** Record a token usage payload and update state + display. */
-  recordUsage(
-    usage: Record<string, unknown> | undefined,
-    state: TokenMeterState,
-    getBudgetLimit: () => number | null,
-  ): void;
+  recordUsage(usage: Record<string, unknown> | undefined, state: TokenMeterState): void;
   /** Update context limit when model changes. */
   updateContextLimitFromModel(modelName: string, state: TokenMeterState): void;
   /** Update the context breakdown popover. */
@@ -239,11 +235,7 @@ export function createTokenMeter(selectors: {
       updateMeter(state);
     },
 
-    recordUsage(
-      usage: Record<string, unknown> | undefined,
-      state: TokenMeterState,
-      getBudgetLimit: () => number | null,
-    ): void {
+    recordUsage(usage: Record<string, unknown> | undefined, state: TokenMeterState): void {
       if (!usage) return;
       const uAny = usage as Record<string, unknown>;
       const nested = uAny.response as Record<string, unknown> | undefined;
@@ -290,20 +282,9 @@ export function createTokenMeter(selectors: {
         cacheCreateTokens * rate.input * 1.25; // 25% surcharge on writes
       state.sessionCost += inputCost + outputTokens * rate.output;
 
-      const budgetLimit = getBudgetLimit();
-      if (budgetLimit != null && state.sessionCost >= budgetLimit * 0.8) {
-        const budgetAlert = $(selectors.budgetAlertId);
-        if (budgetAlert) {
-          budgetAlert.style.display = '';
-          const alertText = $(selectors.budgetAlertTextId);
-          if (alertText) {
-            alertText.textContent =
-              state.sessionCost >= budgetLimit
-                ? `Session budget exceeded: $${state.sessionCost.toFixed(4)} / $${budgetLimit.toFixed(2)}`
-                : `Nearing session budget: $${state.sessionCost.toFixed(4)} / $${budgetLimit.toFixed(2)}`;
-          }
-        }
-      }
+      // Note: the real daily budget enforcement is in the Rust backend (daily_budget_usd
+      // in EngineConfig, configurable in Settings → Advanced). The frontend budget alert
+      // banner (session-budget-alert) is only shown when the backend emits a budget error.
       updateMeter(state);
     },
 

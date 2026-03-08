@@ -280,6 +280,20 @@ export function initChatListeners(deps: ChatListenerDeps): void {
     if (warning) warning.style.display = 'none';
   });
 
+  // Budget alert "Settings" button — navigate directly to Advanced settings
+  $('session-budget-settings-btn')?.addEventListener('click', () => {
+    // Open the Settings panel and switch to the Advanced tab
+    const settingsBtn = document.querySelector('[data-view="settings"]') as HTMLElement | null;
+    if (settingsBtn) settingsBtn.click();
+    // Give the panel time to open, then click the Advanced tab
+    setTimeout(() => {
+      const advancedTab = document.querySelector(
+        '[data-settings-tab="advanced"], [data-tab="advanced"]',
+      ) as HTMLElement | null;
+      advancedTab?.click();
+    }, 150);
+  });
+
   // Talk Mode: use scoped TalkModeController
   _talkMode = createTalkMode(
     () => document.getElementById('chat-input') as HTMLTextAreaElement | null,

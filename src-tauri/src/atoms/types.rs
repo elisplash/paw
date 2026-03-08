@@ -717,7 +717,7 @@ pub(crate) fn default_user_timezone() -> String {
     "America/Chicago".to_string()
 }
 pub(crate) fn default_daily_budget_usd() -> f64 {
-    10.0
+    0.0 // Disabled by default. Set in Settings → Advanced → Daily Budget if you want a cap.
 }
 pub(crate) fn default_max_concurrent_runs() -> u32 {
     4

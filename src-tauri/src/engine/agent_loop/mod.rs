@@ -165,8 +165,8 @@ pub async fn run_agent_turn(
             if let Some(tracker) = daily_tokens {
                 if let Some(spent) = tracker.check_budget(daily_budget_usd) {
                     let msg = format!(
-                        "Daily budget exceeded (${:.2} spent, ${:.2} limit). Stopping to prevent further costs. \
-                        You can adjust your daily budget in Settings → Engine.",
+                        "Daily budget exceeded (${:.2} spent of ${:.2} limit). \
+                        To continue, go to Settings → Advanced → Daily Budget and increase or clear the limit.",
                         spent, daily_budget_usd
                     );
                     warn!("[engine] {}", msg);
