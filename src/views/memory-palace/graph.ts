@@ -59,6 +59,8 @@ let _alpha = 1;
 
 // Tooltip element
 let _tooltip: HTMLDivElement | null = null;
+// Mini-mode flag: true when rendering inside a card (suppresses labels/HUD)
+let _miniMode = false;
 
 // ── Edge type colors ───────────────────────────────────────────────────────
 
@@ -119,7 +121,86 @@ export function initPalaceGraph(): void {
   // rendering triggered by tab switch
 }
 
+/** Stop the animation loop and release all graph state. Safe to call multiple times. */
+export function destroyPalaceGraph(): void {
+  if (_animId) {
+    cancelAnimationFrame(_animId);
+    _animId = 0;
+  }
+  _simRunning = false;
+  _miniMode = false;
+  _eventsBound = false;
+  _tooltip?.remove();
+  _tooltip = null;
+  _canvas = null;
+  _ctx = null;
+  _nodes = [];
+  _edges = [];
+  _hoveredNode = null;
+  _dragNode = null;
+}
+
+/**
+ * Render the knowledge graph into an arbitrary container element.
+ * Creates its own <canvas> if none already present.
+ * Use this for embedded views (e.g. Today dashboard); use renderPalaceGraph()
+ * for the full Memory Palace view where fixed DOM IDs are present.
+ */
+export async function renderPalaceGraphInto(container: HTMLElement): Promise<void> {
+  destroyPalaceGraph();
+  _miniMode = true;
+
+  // Ensure the container has position:relative so the canvas fills it
+  if (getComputedStyle(container).position === 'static') {
+    container.style.position = 'relative';
+  }
+
+  let canvas = container.querySelector('canvas') as HTMLCanvasElement | null;
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    // Let CSS control size; _buildGraph will set pixel dimensions after layout
+    canvas.style.cssText = 'display:block;position:absolute;inset:0;';
+    container.appendChild(canvas);
+  }
+
+  // Wait for a paint frame so getBoundingClientRect returns real dimensions
+  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+  try {
+    const [engineMems, engineEdges] = await Promise.all([
+      pawEngine.memoryList(200),
+      pawEngine.memoryEdges(500).catch(() => [] as MemoryEdge[]),
+    ]);
+
+    if (!engineMems.length) {
+      const dpr = window.devicePixelRatio || 1;
+      const w = container.clientWidth || 300;
+      const h = container.clientHeight || 180;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.font = '700 11px ui-monospace,monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('No memories yet', w / 2, h / 2);
+      }
+      return;
+    }
+
+    _buildGraph(engineMems, engineEdges, canvas);
+  } catch (e) {
+    console.warn('[graph] renderPalaceGraphInto failed:', e);
+  }
+}
+
 export async function renderPalaceGraph(): Promise<void> {
+  _miniMode = false;
+  _eventsBound = false;
   const canvas = $('palace-graph-render') as HTMLCanvasElement | null;
   const emptyEl = $('palace-graph-empty');
   if (!canvas) return;
@@ -253,7 +334,7 @@ function _buildGraph(mems: RawMem[], rawEdges: MemoryEdge[], canvas: HTMLCanvasE
 
   _camX = 0;
   _camY = 0;
-  _zoom = 1;
+  _zoom = _miniMode ? 0.38 : 1;
   _hoveredNode = null;
   _dragNode = null;
   _time = 0;
@@ -262,12 +343,12 @@ function _buildGraph(mems: RawMem[], rawEdges: MemoryEdge[], canvas: HTMLCanvasE
     `[graph] ${_nodes.length} nodes, ${_edges.length} edges (${rawEdges.length} from DB)`,
   );
 
-  if (!_tooltip) {
+  if (!_tooltip && !_miniMode) {
     _tooltip = document.createElement('div');
     _tooltip.className = 'palace-graph-tooltip';
     canvas.parentElement?.appendChild(_tooltip);
   }
-  _tooltip.style.display = 'none';
+  if (_tooltip) _tooltip.style.display = 'none';
 
   _bindEvents(canvas);
 
@@ -620,18 +701,20 @@ function _draw(w: number, h: number): void {
   }
 
   // ── 3. Category labels ───────────────────────────────────────────────
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  for (const [cat, c] of catCenters) {
-    const rgb = _colorToRgb(getCategoryColor(cat));
-    ctx.font = '600 10px Figtree, system-ui, sans-serif';
-    ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.35)`;
-    ctx.letterSpacing = '0.08em';
-    ctx.fillText(cat.toUpperCase(), c.x, c.y - c.spread * 0.6 - 12);
-    // Count badge
-    ctx.font = '9px Figtree, system-ui, sans-serif';
-    ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)`;
-    ctx.fillText(`${c.count}`, c.x, c.y - c.spread * 0.6 - 1);
+  if (!_miniMode) {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (const [cat, c] of catCenters) {
+      const rgb = _colorToRgb(getCategoryColor(cat));
+      ctx.font = '600 10px Figtree, system-ui, sans-serif';
+      ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.35)`;
+      ctx.letterSpacing = '0.08em';
+      ctx.fillText(cat.toUpperCase(), c.x, c.y - c.spread * 0.6 - 12);
+      // Count badge
+      ctx.font = '9px Figtree, system-ui, sans-serif';
+      ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)`;
+      ctx.fillText(`${c.count}`, c.x, c.y - c.spread * 0.6 - 1);
+    }
   }
 
   // ── 4. Nodes — pulsing halos + cores ─────────────────────────────────
@@ -702,7 +785,7 @@ function _draw(w: number, h: number): void {
   }
 
   // ── 5. Hover card (on-canvas tooltip) ────────────────────────────────
-  if (_hoveredNode) {
+  if (_hoveredNode && !_miniMode) {
     const n = _hoveredNode;
     const color = getCategoryColor(n.category);
     const rgb = _colorToRgb(color);
@@ -791,21 +874,23 @@ function _draw(w: number, h: number): void {
   ctx.restore();
 
   // ── HUD ──────────────────────────────────────────────────────────────
-  ctx.save();
-  ctx.font = '600 9px Figtree, system-ui, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'bottom';
-  ctx.fillStyle = 'rgba(138, 132, 120, 0.5)';
-  ctx.fillText(
-    `${_nodes.length} MEMORIES  \u00B7  ${_edges.length} LINKS  \u00B7  ${Math.round(_zoom * 100)}%`,
-    10,
-    h - 10,
-  );
+  if (!_miniMode) {
+    ctx.save();
+    ctx.font = '600 9px Figtree, system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = 'rgba(138, 132, 120, 0.5)';
+    ctx.fillText(
+      `${_nodes.length} MEMORIES  \u00B7  ${_edges.length} LINKS  \u00B7  ${Math.round(_zoom * 100)}%`,
+      10,
+      h - 10,
+    );
 
-  // Zoom controls hint
-  ctx.textAlign = 'right';
-  ctx.fillText('scroll to zoom \u00B7 drag to pan \u00B7 double-click to recall', w - 10, h - 10);
-  ctx.restore();
+    // Zoom controls hint
+    ctx.textAlign = 'right';
+    ctx.fillText('scroll to zoom \u00B7 drag to pan \u00B7 double-click to recall', w - 10, h - 10);
+    ctx.restore();
+  }
 }
 
 // ── Rounded rect helper ────────────────────────────────────────────────────

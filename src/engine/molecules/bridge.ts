@@ -287,6 +287,10 @@ function translateEngineEvent(event: EngineEvent): Record<string, unknown> | nul
         stream: 'lifecycle',
         data: {
           phase: 'end',
+          // text is the full assembled response from Rust — pass it through
+          // so event_bus can use it as authoritative final content instead of
+          // accumulated deltas, which can be truncated if IPC events are dropped.
+          text: event.text,
           usage: event.usage
             ? {
                 input_tokens: event.usage.input_tokens,

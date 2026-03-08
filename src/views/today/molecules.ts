@@ -17,18 +17,23 @@ import {
   formatCost,
   agentStatus,
   getPawzMessage,
-  buildHeatmapData,
   buildCapabilityGroups,
 } from './atoms';
 import { renderSkillWidgets } from '../../components/molecules/skill-widget';
-import type { SkillOutput, EngineSkillStatus } from '../../engine/atoms/types';
+import type {
+  SkillOutput,
+  EngineSkillStatus,
+  TelemetryDailySummary,
+  TelemetryModelBreakdown,
+  EngineEvent,
+} from '../../engine/atoms/types';
 import { appState } from '../../state';
 import {
   renderDashboardIntegrations,
   wireDashboardEvents,
   loadServiceHealth,
 } from '../../features/integration-health';
-import { heatmapStrip } from '../../components/molecules/data-viz';
+import { sparkline } from '../../components/molecules/data-viz';
 import { isShowcaseActive, getShowcaseData } from '../../components/showcase';
 import {
   kineticRow,
@@ -37,10 +42,7 @@ import {
   type KineticStatus,
 } from '../../components/kinetic-row';
 import { createHeroLogo, type HeroLogoInstance } from '../../components/hero-logo';
-import {
-  createEngramBrain,
-  type EngramBrainInstance,
-} from '../../components/molecules/engram-brain';
+import { renderPalaceGraphInto } from '../memory-palace/graph';
 
 // ── Skeleton loading helper ──────────────────────────────────────────
 function skelLines(n = 3): string {
@@ -51,9 +53,20 @@ function skelLines(n = 3): string {
   ).join('');
 }
 
+// ── Recall time-ago helper ────────────────────────────────────────────
+function _timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const min = Math.floor(diff / 60_000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.floor(hr / 24)}d ago`;
+}
+
 // ── Hero logo + Engram brain instances ─────────────────────────────────
 let _heroLogo: HeroLogoInstance | null = null;
-let _engramBrain: EngramBrainInstance | null = null;
+let _recallUnsub: (() => void) | null = null;
 let _engramCategories: [string, number][] = [];
 
 // ── Tauri bridge (lazy — resolves at call time, not module load) ──────
@@ -704,6 +717,150 @@ export async function fetchEngramStats() {
   }
 }
 
+// ── Recall ────────────────────────────────────────────────────────────
+/** No-op export — recall is user-triggered, not auto-fetched on load. */
+export async function fetchRecall() {
+  // intentionally empty — card is populated from localStorage on hydration
+}
+
+/** Compile recent data and stream an AI recap into the RECALL card. */
+async function _generateRecall() {
+  const btn = $('recall-btn') as HTMLButtonElement | null;
+  const out = $('recall-output');
+  if (!out || !btn) return;
+
+  // Cancel any in-flight run (delta + complete + error unsubs are all in _recallUnsub)
+  _recallUnsub?.();
+  _recallUnsub = null;
+
+  btn.disabled = true;
+  btn.textContent = '⟳ Generating…';
+  out.innerHTML = '<span class="recall-cursor"></span>';
+
+  try {
+    // ── Gather data ──────────────────────────────────────────────────
+    const [sessions, mems] = await Promise.all([
+      pawEngine
+        .sessionsList(8)
+        .catch(() => [] as Awaited<ReturnType<typeof pawEngine.sessionsList>>),
+      pawEngine.memoryList(30).catch(() => [] as Awaited<ReturnType<typeof pawEngine.memoryList>>),
+    ]);
+
+    // Sample last few user messages from the 3 most recent sessions
+    const recentMsgs: string[] = [];
+    for (const s of sessions.slice(0, 3)) {
+      try {
+        const hist = await pawEngine.chatHistory(s.id, 6);
+        const userMsgs = hist.filter((m) => m.role === 'user').slice(-2);
+        if (userMsgs.length) {
+          const label = s.label || 'Session';
+          recentMsgs.push(`[${label}] ${userMsgs.map((m) => m.content.slice(0, 120)).join(' / ')}`);
+        }
+      } catch {
+        // non-fatal — skip this session
+      }
+    }
+
+    // Today's memories
+    const todayStr = new Date().toDateString();
+    const todayMems = mems
+      .filter((m) => new Date(m.created_at).toDateString() === todayStr)
+      .slice(0, 10)
+      .map((m) => `• ${m.content.slice(0, 100)}`);
+
+    const lines = [
+      'Write a concise, friendly 2–3 sentence recap of what this user has been working on today.',
+      'Be specific — use their actual topics. No bullet points. Write in second person ("You\'ve been…").',
+      '',
+      sessions.length
+        ? `Recent sessions: ${sessions.map((s) => s.label || 'Untitled').join(', ')}`
+        : '',
+      recentMsgs.length ? `Recent messages:\n${recentMsgs.join('\n')}` : '',
+      todayMems.length ? `Memories captured today:\n${todayMems.join('\n')}` : '',
+    ].filter(Boolean);
+
+    if (lines.length <= 2) {
+      out.innerHTML =
+        '<div class="recall-empty">No activity found yet — start a chat or save some memories!</div>';
+      btn.disabled = false;
+      btn.textContent = '↺ Recap';
+      return;
+    }
+
+    const prompt = lines.join('\n');
+
+    // ── Stream response ──────────────────────────────────────────────
+    // Use a fresh session ID every invocation so there is zero conversation
+    // history — a fixed session accumulates prior recap exchanges as context
+    // and makes the LLM produce inconsistent follow-up responses.
+    const sessionId = crypto.randomUUID();
+    let accumulated = '';
+
+    const cleanup = () => {
+      _recallUnsub?.();
+      _recallUnsub = null;
+    };
+
+    // Filter by session_id (known before chatSend) to avoid the run_id
+    // race where _recallRunId is still null when the first delta fires.
+    const unDelta = pawEngine.on('delta', (ev: EngineEvent) => {
+      if (ev.session_id !== sessionId || !ev.text) return;
+      accumulated += ev.text;
+      out.innerHTML = `${escHtml(accumulated)}<span class="recall-cursor"></span>`;
+    });
+
+    const unComplete = pawEngine.on('complete', (ev: EngineEvent) => {
+      if (ev.session_id !== sessionId) return;
+      // ev.text is the full assembled response from Rust — use it as the
+      // authoritative final text instead of accumulated deltas, which can
+      // be incomplete if any delta events were dropped or arrived out of order.
+      const finalText = ev.text || accumulated;
+      cleanup();
+      out.innerHTML = escHtml(finalText);
+      if (finalText) {
+        localStorage.setItem('paw-recall-text', finalText);
+        localStorage.setItem('paw-recall-ts', new Date().toISOString());
+      }
+      btn.disabled = false;
+      btn.textContent = '↺ Recap';
+    });
+
+    const unError = pawEngine.on('error', (ev: EngineEvent) => {
+      if (ev.session_id !== sessionId) return;
+      cleanup();
+      out.innerHTML = accumulated
+        ? escHtml(accumulated)
+        : '<div class="recall-empty">Could not generate recap — check your AI provider.</div>';
+      btn.disabled = false;
+      btn.textContent = '↺ Recap';
+    });
+
+    // Bundle all three so a subsequent click cancels them atomically
+    _recallUnsub = () => {
+      unDelta();
+      unComplete();
+      unError();
+    };
+
+    await pawEngine.chatSend({
+      session_id: sessionId,
+      message: prompt,
+      system_prompt:
+        'You are a concise daily recap assistant. Summarize what the user has been doing today.',
+      tools_enabled: false,
+      temperature: 0.4,
+    });
+  } catch (e) {
+    console.warn('[today] Recall generation failed:', e);
+    _recallUnsub?.();
+    _recallUnsub = null;
+    out.innerHTML =
+      '<div class="recall-empty">Could not generate recap — check your AI provider.</div>';
+    btn.disabled = false;
+    btn.textContent = '↺ Recap';
+  }
+}
+
 /** Fetch and render the last 5 chat sessions. */
 export async function fetchRecentSessions() {
   const container = $('today-sessions');
@@ -864,22 +1021,172 @@ function showQuickMemoryModal() {
   document.addEventListener('keydown', onEsc);
 }
 
-/** Populate the 30-day activity heatmap card. */
-export async function fetchHeatmap() {
-  const container = $('cmd-heatmap-body');
+/** Populate the TELEMETRY card — 14-day trends + today's headline stats + model breakdown. */
+export async function fetchTelemetry() {
+  const container = $('cmd-telemetry-body');
   if (!container) return;
 
+  // Build date range: last 14 days
+  const today = new Date();
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  const start = new Date(today);
+  start.setDate(start.getDate() - 13);
+
   try {
-    // Combine task activity + chat sessions for a complete picture
-    const [taskItems, sessions] = await Promise.all([
-      pawEngine.taskActivity(undefined, 500).catch(() => []),
-      pawEngine.sessionsList(500).catch(() => []),
+    const [range, modelBreakdown] = await Promise.all([
+      pawEngine.getMetricsRange(fmt(start), fmt(today)).catch(() => [] as TelemetryDailySummary[]),
+      pawEngine.getModelBreakdown(fmt(today)).catch(() => [] as TelemetryModelBreakdown[]),
     ]);
-    const days = buildHeatmapData(taskItems, sessions);
-    container.innerHTML = heatmapStrip(days);
+
+    // Build a complete 14-day map (fill in zeroes for missing days)
+    const dayMap = new Map<string, TelemetryDailySummary>();
+    range.forEach((r) => dayMap.set(r.date, r));
+    const allDays: TelemetryDailySummary[] = [];
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const key = fmt(d);
+      allDays.push(
+        dayMap.get(key) ?? {
+          date: key,
+          input_tokens: 0,
+          output_tokens: 0,
+          cost_usd: 0,
+          tool_calls: 0,
+          tool_duration_ms: 0,
+          llm_duration_ms: 0,
+          total_duration_ms: 0,
+          rounds: 0,
+          turn_count: 0,
+        },
+      );
+    }
+
+    const todayData = dayMap.get(fmt(today)) ?? allDays[allDays.length - 1];
+    const totalTokensToday = todayData.input_tokens + todayData.output_tokens;
+    const avgLlmMs =
+      todayData.turn_count > 0 ? Math.round(todayData.llm_duration_ms / todayData.turn_count) : 0;
+
+    // Sparkline data arrays
+    const costData = allDays.map((d) => d.cost_usd);
+    const tokenData = allDays.map((d) => d.input_tokens + d.output_tokens);
+    const maxCost = Math.max(...costData, 0.0001);
+    const maxTokens = Math.max(...tokenData, 1);
+
+    // Build day-label ticks (first and last only)
+    const tickFirst = new Date(start).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+    const tickLast = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    // Model breakdown bars
+    const totalCostBreakdown = modelBreakdown.reduce((s, m) => s + m.cost_usd, 0) || 0.0001;
+    const modelBars = modelBreakdown
+      .sort((a, b) => b.cost_usd - a.cost_usd)
+      .slice(0, 5)
+      .map((m) => {
+        const pct = ((m.cost_usd / totalCostBreakdown) * 100).toFixed(0);
+        const rawModel = m.model ?? 'unknown';
+        const modelLabel = rawModel.includes('/') ? rawModel.split('/').pop()! : rawModel;
+        const modelShort = modelLabel.length > 22 ? `${modelLabel.slice(0, 20)}…` : modelLabel;
+        return `
+          <div class="telem-model-row">
+            <span class="telem-model-name" title="${escHtml(rawModel)}">${escHtml(modelShort)}</span>
+            <div class="telem-model-bar-wrap">
+              <div class="telem-model-bar" style="width:${pct}%"></div>
+            </div>
+            <span class="telem-model-pct">${pct}%</span>
+          </div>`;
+      })
+      .join('');
+
+    container.innerHTML = `
+      <div class="telem-grid">
+
+        <!-- Col 1: Today stats -->
+        <div class="telem-col telem-col-stats">
+          <div class="telem-col-label">TODAY</div>
+          <div class="telem-stat">
+            <span class="telem-stat-val" id="telem-turns">—</span>
+            <span class="telem-stat-lbl">turns</span>
+          </div>
+          <div class="telem-stat">
+            <span class="telem-stat-val" id="telem-tools">—</span>
+            <span class="telem-stat-lbl">tool calls</span>
+          </div>
+          <div class="telem-stat">
+            <span class="telem-stat-val" id="telem-tokens">—</span>
+            <span class="telem-stat-lbl">tokens</span>
+          </div>
+          <div class="telem-stat">
+            <span class="telem-stat-val" id="telem-latency">—</span>
+            <span class="telem-stat-lbl">avg latency</span>
+          </div>
+        </div>
+
+        <!-- Col 2: Sparklines -->
+        <div class="telem-col telem-col-charts">
+          <div class="telem-chart-row">
+            <span class="telem-chart-label">cost / day</span>
+            <div class="telem-chart-wrap">
+              ${sparkline(costData, 'var(--accent,#d4654a)', 260, 36)}
+            </div>
+            <span class="telem-chart-peak">${formatCost(maxCost)}</span>
+          </div>
+          <div class="telem-chart-ticks">
+            <span>${escHtml(tickFirst)}</span>
+            <span>14d</span>
+            <span>${escHtml(tickLast)}</span>
+          </div>
+          <div class="telem-chart-row" style="margin-top:8px">
+            <span class="telem-chart-label">tokens / day</span>
+            <div class="telem-chart-wrap">
+              ${sparkline(tokenData, 'var(--kinetic-sage,#8fb0a0)', 260, 36)}
+            </div>
+            <span class="telem-chart-peak">${formatTokens(maxTokens)}</span>
+          </div>
+        </div>
+
+        <!-- Col 3: Model breakdown -->
+        <div class="telem-col telem-col-models">
+          <div class="telem-col-label">MODELS TODAY</div>
+          ${modelBars || `<div class="today-section-empty" style="text-align:left">No model usage today</div>`}
+        </div>
+
+      </div>
+    `;
+
+    // Animate count-up for today's stats
+    const { animateCountUp } = await import('../../components/molecules/data-viz');
+    const turnsEl = document.getElementById('telem-turns');
+    const toolsEl = document.getElementById('telem-tools');
+    const tokensEl = document.getElementById('telem-tokens');
+    const latencyEl = document.getElementById('telem-latency');
+
+    if (turnsEl) animateCountUp(turnsEl, todayData.turn_count, 700);
+    if (toolsEl) animateCountUp(toolsEl, todayData.tool_calls, 700);
+    if (tokensEl) {
+      // Use formatTokens for the final value but animate raw number
+      const t = totalTokensToday;
+      animateCountUp(
+        {
+          set textContent(v: string) {
+            tokensEl.textContent = formatTokens(Number(v));
+          },
+        } as unknown as HTMLElement,
+        t,
+        700,
+      );
+      // Just set directly — animateCountUp works on integers, formatting separately
+      tokensEl.textContent = formatTokens(t);
+    }
+    if (latencyEl) {
+      latencyEl.textContent = avgLlmMs > 0 ? `${(avgLlmMs / 1000).toFixed(1)}s` : '—';
+    }
   } catch (e) {
-    console.warn('[today] Heatmap fetch failed:', e);
-    container.innerHTML = `<div class="today-section-empty">No activity data</div>`;
+    console.warn('[today] Telemetry fetch failed:', e);
+    container.innerHTML = `<div class="today-section-empty">No telemetry data yet — start a chat to generate metrics</div>`;
   }
 }
 
@@ -982,13 +1289,14 @@ export function renderToday() {
         </div>
       </div>
 
-      <!-- Row 2: Inbox + Recent Sessions -->
-      <div class="cmd-card bento-cell bento-span-6">
+      <!-- Row 2: Recall + Recent Sessions -->
+      <div class="cmd-card bento-cell bento-span-6 recall-card" id="recall-card">
         <div class="today-card-header">
-          <span class="today-card-title">UNREAD MAIL</span>
+          <span class="today-card-title">RECALL</span>
+          <button class="btn btn-ghost btn-sm" id="recall-btn">↺ Recap</button>
         </div>
-        <div class="today-card-body" id="today-emails">
-          ${skelLines(4)}
+        <div class="today-card-body recall-body" id="recall-body">
+          <div class="recall-output" id="recall-output"></div>
         </div>
       </div>
 
@@ -1010,8 +1318,7 @@ export function renderToday() {
           <button class="btn btn-ghost btn-sm" id="engram-store-btn">+ Memory</button>
         </div>
         <div class="engram-card-body">
-          <div class="engram-brain-wrap" id="engram-brain-wrap" title="Click to store a memory in Engram">
-          </div>
+          <div class="engram-brain-wrap" id="engram-brain-wrap"></div>
           <div class="engram-stats-col" id="engram-stats-col">
             ${skelLines(3)}
           </div>
@@ -1078,13 +1385,14 @@ export function renderToday() {
         </div>
       </div>
 
-      <!-- Row 5: Heatmap (full width) -->
+      <!-- Row 5: Telemetry (full width) -->
       <div class="cmd-card bento-cell bento-span-full">
         <div class="today-card-header">
-          <span class="today-card-title">30-DAY HEATMAP</span>
+          <span class="today-card-title">TELEMETRY</span>
+          <span class="today-card-count" id="cmd-telemetry-label" style="margin-left:auto;font-size:10px;opacity:0.5">14-day</span>
         </div>
-        <div class="today-card-body" id="cmd-heatmap-body">
-          ${skelLines(1)}
+        <div class="today-card-body" style="max-height:none" id="cmd-telemetry-body">
+          ${skelLines(2)}
         </div>
       </div>
 
@@ -1102,11 +1410,24 @@ export function renderToday() {
     _heroLogo = createHeroLogo(logoCell);
   }
 
-  // ── Hydrate the Engram brain canvas ──
+  // ── Hydrate the Engram knowledge graph ──
   const brainWrap = $('engram-brain-wrap');
   if (brainWrap) {
-    _engramBrain?.destroy();
-    _engramBrain = createEngramBrain(brainWrap);
+    void renderPalaceGraphInto(brainWrap);
+  }
+
+  // ── Hydrate the Recall card with last stored recap ──
+  const recallOut = $('recall-output');
+  if (recallOut) {
+    const storedText = localStorage.getItem('paw-recall-text');
+    const storedTs = localStorage.getItem('paw-recall-ts');
+    if (storedText) {
+      const ago = storedTs ? _timeAgo(storedTs) : '';
+      recallOut.innerHTML = `${escHtml(storedText)}${ago ? `<div class="recall-ts">Last recap ${ago}</div>` : ''}`;
+    } else {
+      recallOut.innerHTML =
+        '<div class="recall-empty">Hit ↺ Recap to see what you\'ve been up to</div>';
+    }
   }
 
   bindEvents();
@@ -1267,8 +1588,11 @@ function bindEvents() {
   $('today-orchestrate-btn')?.addEventListener('click', () => switchView('orchestrator'));
   $('today-memory-vault-btn')?.addEventListener('click', () => switchView('memory-palace'));
 
+  // ── Recall card ─────────────────────────────────────────────────────────
+  $('recall-btn')?.addEventListener('click', () => void _generateRecall());
+
   // ── Engram card ─────────────────────────────────────────────────────────
-  $('engram-brain-wrap')?.addEventListener('click', showQuickMemoryModal);
+  // Graph handles its own click/hover interactions; modal only via + Memory btn
   $('engram-store-btn')?.addEventListener('click', showQuickMemoryModal);
 
   // ── Kinetic: apply spring hover to bento cards ──

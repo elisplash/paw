@@ -2,6 +2,7 @@
 // Depends on: atoms, molecules (badge helpers), helpers, toast, engine
 
 import { pawEngine } from '../../engine';
+import type { EngineEvent } from '../../engine/atoms/types';
 import { escHtml, escAttr } from '../../components/helpers';
 import { showToast } from '../../components/toast';
 import { type Agent, spriteAvatar } from './atoms';
@@ -19,12 +20,11 @@ interface MiniChatWindow {
   isMinimized: boolean;
   isStreaming: boolean;
   streamingContent: string;
+  thinkingContent: string;
   streamingEl: HTMLElement | null;
-  runId: string | null;
   unreadCount: number;
-  unlistenDelta: (() => void) | null;
-  unlistenComplete: (() => void) | null;
-  unlistenError: (() => void) | null;
+  /** Cancels all active event listeners atomically. Replaced on each send. */
+  _unlistenAll: (() => void) | null;
 }
 
 export const _miniChats: Map<string, MiniChatWindow> = new Map();
@@ -94,17 +94,14 @@ export function openMiniChat(agentId: string, getAgentsFn: () => Agent[]) {
     isMinimized: false,
     isStreaming: false,
     streamingContent: '',
+    thinkingContent: '',
     streamingEl: null,
-    runId: null,
     unreadCount: 0,
-    unlistenDelta: null,
-    unlistenComplete: null,
-    unlistenError: null,
+    _unlistenAll: null,
   };
   _miniChats.set(agentId, mc);
 
-  // Set up engine event listeners for this chat
-  setupMiniChatListeners(mc);
+  // No global listeners — registered per-send in sendMiniChatMessage
 
   // Header drag/minimize
   el.querySelector('.mini-chat-minimize')?.addEventListener('click', () =>
@@ -151,41 +148,94 @@ function miniChatMd(raw: string): string {
   return s;
 }
 
-function setupMiniChatListeners(mc: MiniChatWindow) {
-  // Listen for delta events
-  mc.unlistenDelta = pawEngine.on('delta', (event) => {
-    if (!mc.runId || event.run_id !== mc.runId) return;
-    mc.streamingContent += event.text || '';
+function setupSendListeners(mc: MiniChatWindow, sessionId: string) {
+  // Cancel any listeners from a previous send
+  mc._unlistenAll?.();
+
+  const unDelta = pawEngine.on('delta', (ev: EngineEvent) => {
+    if (ev.session_id !== sessionId || !ev.text) return;
+    mc.streamingContent += ev.text;
     if (mc.streamingEl) {
-      // During streaming: plain text for speed, markdown on finalize
+      // Plain text during streaming for speed; markdown rendered on finalize
       mc.streamingEl.textContent = mc.streamingContent;
       mc.messagesEl.scrollTop = mc.messagesEl.scrollHeight;
     }
   });
 
-  // Listen for completion — only finalize on the FINAL completion (no pending tool calls).
-  // Intermediate completions (tool_calls_count > 0) mean the agent is still working
-  // through tool rounds and more deltas/responses will follow.
-  mc.unlistenComplete = pawEngine.on('complete', (event) => {
-    if (!mc.runId || event.run_id !== mc.runId) return;
-    if (event.tool_calls_count && event.tool_calls_count > 0) return;
-    finalizeMiniChatStreaming(mc);
+  const unThinking = pawEngine.on('thinking_delta', (ev: EngineEvent) => {
+    if (ev.session_id !== sessionId || !ev.text) return;
+    mc.thinkingContent += ev.text;
+    if (mc.streamingEl) {
+      // Show a subtle thinking indicator
+      let indicator = mc.streamingEl.querySelector('.mini-chat-thinking') as HTMLElement | null;
+      if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.className = 'mini-chat-thinking';
+        mc.streamingEl.prepend(indicator);
+      }
+      indicator.textContent = `💭 ${mc.thinkingContent.slice(-80)}`;
+    }
   });
 
-  // Listen for errors
-  mc.unlistenError = pawEngine.on('error', (event) => {
-    if (!mc.runId || event.run_id !== mc.runId) return;
-    mc.streamingContent += `\nError: ${event.message || 'Error'}`;
-    finalizeMiniChatStreaming(mc);
+  const unToolReq = pawEngine.on('tool_request', (ev: EngineEvent) => {
+    if (ev.session_id !== sessionId) return;
+    const toolName = ev.tool_call?.function?.name ?? 'tool';
+    if (mc.streamingEl) {
+      let step = mc.streamingEl.querySelector('.mini-chat-tool-step') as HTMLElement | null;
+      if (!step) {
+        step = document.createElement('div');
+        step.className = 'mini-chat-tool-step';
+        mc.streamingEl.appendChild(step);
+      }
+      step.textContent = `▶ ${toolName}…`;
+    }
   });
+
+  const unToolRes = pawEngine.on('tool_result', (ev: EngineEvent) => {
+    if (ev.session_id !== sessionId) return;
+    mc.streamingEl?.querySelector('.mini-chat-tool-step')?.remove();
+  });
+
+  const unComplete = pawEngine.on('complete', (ev: EngineEvent) => {
+    if (ev.session_id !== sessionId) return;
+    // tool_calls_count > 0 means the agent is still in a tool round
+    if (ev.tool_calls_count && ev.tool_calls_count > 0) return;
+    // Use ev.text (full assembled response from Rust) as authoritative final
+    // content — accumulated deltas can be truncated if IPC events are dropped.
+    finalizeMiniChatStreaming(mc, ev.text || mc.streamingContent);
+  });
+
+  const unError = pawEngine.on('error', (ev: EngineEvent) => {
+    if (ev.session_id !== sessionId) return;
+    finalizeMiniChatStreaming(
+      mc,
+      mc.streamingContent
+        ? `${mc.streamingContent}\nError: ${ev.message || 'Error'}`
+        : `Error: ${ev.message || 'Error'}`,
+    );
+  });
+
+  mc._unlistenAll = () => {
+    unDelta();
+    unThinking();
+    unToolReq();
+    unToolRes();
+    unComplete();
+    unError();
+  };
 }
 
-function finalizeMiniChatStreaming(mc: MiniChatWindow) {
+function finalizeMiniChatStreaming(mc: MiniChatWindow, finalText: string) {
+  // Cancel all event listeners for this send
+  mc._unlistenAll?.();
+  mc._unlistenAll = null;
+
   mc.isStreaming = false;
-  mc.runId = null;
+  mc.streamingContent = '';
+  mc.thinkingContent = '';
   if (mc.streamingEl) {
     // Render final content with markdown formatting
-    mc.streamingEl.innerHTML = miniChatMd(mc.streamingContent);
+    mc.streamingEl.innerHTML = miniChatMd(finalText);
     mc.streamingEl.classList.remove('mini-chat-streaming');
 
     // Add feedback buttons (thumbs up / down)
@@ -252,6 +302,7 @@ async function sendMiniChatMessage(agentId: string) {
   mc.inputEl.value = '';
   mc.isStreaming = true;
   mc.streamingContent = '';
+  mc.thinkingContent = '';
   mc.inputEl.disabled = true;
 
   // Add user message bubble
@@ -269,6 +320,14 @@ async function sendMiniChatMessage(agentId: string) {
   mc.messagesEl.scrollTop = mc.messagesEl.scrollHeight;
 
   try {
+    // Use a known session_id before chatSend so listeners can filter by it
+    // immediately — avoids the run_id race where the first delta arrives
+    // before chatSend resolves and mc.runId is still null.
+    const sessionId = mc.sessionId ?? crypto.randomUUID();
+
+    // Register per-send scoped listeners before the network call
+    setupSendListeners(mc, sessionId);
+
     // Build agent system prompt
     const parts: string[] = [];
     if (mc.agent.name) parts.push(`You are ${mc.agent.name}.`);
@@ -279,19 +338,20 @@ async function sendMiniChatMessage(agentId: string) {
     const resolvedModel =
       mc.agent.model && mc.agent.model !== 'default' ? mc.agent.model : undefined;
 
-    const request = {
-      session_id: mc.sessionId || undefined,
+    const result = await pawEngine.chatSend({
+      session_id: sessionId,
       message: text,
       model: resolvedModel,
       system_prompt: systemPrompt,
       tools_enabled: true,
       agent_id: mc.agentId,
-    };
-
-    const result = await pawEngine.chatSend(request);
-    mc.runId = result.run_id;
+    });
+    // Persist the confirmed session_id (may differ from the UUID for new sessions
+    // if the backend assigned its own; update so subsequent sends reuse it)
     mc.sessionId = result.session_id;
   } catch (e) {
+    mc._unlistenAll?.();
+    mc._unlistenAll = null;
     console.error('[mini-chat] Send error:', e);
     asstBubble.textContent = `Error: ${e instanceof Error ? e.message : 'Failed to send'}`;
     asstBubble.classList.remove('mini-chat-streaming');
@@ -317,10 +377,9 @@ function toggleMinimizeMiniChat(agentId: string) {
 export function closeMiniChat(agentId: string) {
   const mc = _miniChats.get(agentId);
   if (!mc) return;
-  // Cleanup listeners
-  mc.unlistenDelta?.();
-  mc.unlistenComplete?.();
-  mc.unlistenError?.();
+  // Cancel all active event listeners
+  mc._unlistenAll?.();
+  mc._unlistenAll = null;
   mc.el.classList.remove('mini-chat-visible');
   setTimeout(() => mc.el.remove(), 200);
   _miniChats.delete(agentId);

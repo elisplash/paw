@@ -4,12 +4,11 @@ import { type Task, filterTodayTasks, engineTaskToToday } from './atoms';
 import {
   initMoleculesState,
   fetchWeather,
-  fetchUnreadEmails,
   fetchCalendarEvents,
   fetchSkillOutputs,
   fetchActiveSkills,
   fetchFleetStatus,
-  fetchHeatmap,
+  fetchTelemetry,
   fetchEngramStats,
   fetchRecentSessions,
   loadIntegrationsDashboard,
@@ -90,12 +89,11 @@ export async function loadToday() {
   await Promise.allSettled([
     withTimeout(reloadTodayTasks(true), 20000, 'tasks'),
     withTimeout(fetchWeather(), 20000, 'weather'),
-    withTimeout(fetchUnreadEmails(), 20000, 'emails'),
     withTimeout(fetchCalendarEvents(), 20000, 'calendar'),
     withTimeout(fetchSkillOutputs(), 20000, 'skill-outputs'),
     withTimeout(fetchFleetStatus(), 20000, 'fleet'),
     withTimeout(fetchActiveSkills(), 20000, 'skills'),
-    withTimeout(fetchHeatmap(), 20000, 'heatmap'),
+    withTimeout(fetchTelemetry(), 15000, 'telemetry'),
     withTimeout(fetchAndRenderActivity(), 20000, 'activity'),
     withTimeout(loadIntegrationsDashboard(), 20000, 'integrations'),
     withTimeout(fetchEngramStats(), 10000, 'engram-stats'),
@@ -107,7 +105,6 @@ export async function loadToday() {
   const THIRTY_MIN = 30 * 60 * 1000;
   _refreshTimers.push(
     setInterval(() => withTimeout(fetchCalendarEvents(), 20000, 'cal-refresh'), FIVE_MIN),
-    setInterval(() => withTimeout(fetchUnreadEmails(), 20000, 'email-refresh'), FIVE_MIN),
     setInterval(() => withTimeout(loadIntegrationsDashboard(), 20000, 'integ-refresh'), FIVE_MIN),
     setInterval(() => withTimeout(fetchWeather(), 20000, 'weather-refresh'), THIRTY_MIN),
   );

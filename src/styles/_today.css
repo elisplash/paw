@@ -847,37 +847,13 @@
 .engram-brain-wrap {
   flex: 0 0 58%;
   position: relative;
-  cursor: pointer;
   border-right: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
   overflow: hidden;
-  transition: background 0.2s;
-}
-.engram-brain-wrap::after {
-  content: 'click to store a memory';
-  position: absolute;
-  bottom: 10px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 9px;
-  font-family: var(--font-mono);
-  color: var(--text-muted);
-  opacity: 0;
-  transition: opacity 0.2s;
-  white-space: nowrap;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  pointer-events: none;
-}
-.engram-brain-wrap:hover::after {
-  opacity: 0.8;
-}
-.engram-brain-wrap:hover {
-  background: rgba(212, 101, 74, 0.03);
-}
-.engram-brain-canvas {
-  position: absolute;
-  inset: 0;
-  display: block;
+  background: radial-gradient(
+    ellipse at 50% 40%,
+    rgba(212, 101, 74, 0.04) 0%,
+    transparent 70%
+  );
 }
 .engram-stats-col {
   flex: 1;
@@ -1134,6 +1110,157 @@
   white-space: nowrap;
 }
 
+/* ── TELEMETRY Card ──────────────────────────────────────────────────── */
+.telem-grid {
+  display: grid;
+  grid-template-columns: 140px 1fr 220px;
+  gap: 0;
+  min-height: 110px;
+}
+@media (max-width: 800px) {
+  .telem-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.telem-col {
+  padding: 12px 16px;
+}
+.telem-col + .telem-col {
+  border-left: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+}
+.telem-col-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  opacity: 0.6;
+}
+
+/* Stats column */
+.telem-col-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.telem-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.telem-stat-val {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  min-width: 36px;
+}
+.telem-stat-lbl {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Charts column */
+.telem-col-charts {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.telem-chart-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.telem-chart-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  width: 72px;
+  flex-shrink: 0;
+}
+.telem-chart-wrap {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+.telem-chart-wrap .viz-sparkline {
+  width: 100% !important;
+  height: 36px !important;
+}
+.telem-chart-peak {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  width: 50px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.telem-chart-ticks {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--text-muted);
+  opacity: 0.45;
+  padding-left: 80px;
+  padding-right: 58px;
+  margin-bottom: 2px;
+}
+
+/* Model breakdown column */
+.telem-col-models {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.telem-model-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.telem-model-name {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+  width: 72px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.telem-model-bar-wrap {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 1px;
+  overflow: hidden;
+}
+.telem-model-bar {
+  height: 100%;
+  background: var(--accent, #d4654a);
+  border-radius: 1px;
+  min-width: 2px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.telem-model-pct {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  width: 24px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
 /* Today modal */
 .today-modal {
   position: fixed;
@@ -1175,4 +1302,46 @@
   gap: 10px;
   padding: 16px 20px;
   border-top: 1px solid var(--border);
+}
+
+/* ── Recall card ─────────────────────────────────────────────────── */
+.recall-body {
+  min-height: 130px;
+}
+
+.recall-output {
+  font-size: 13px;
+  line-height: 1.65;
+  color: rgba(232, 224, 212, 0.82);
+  padding: 2px 0;
+  white-space: pre-wrap;
+}
+
+.recall-ts {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.28);
+  margin-top: 10px;
+  font-family: var(--font-mono);
+}
+
+.recall-empty {
+  color: rgba(255, 255, 255, 0.28);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.recall-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 13px;
+  background: var(--accent);
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: recall-blink 1s step-end infinite;
+}
+
+@keyframes recall-blink {
+  50% {
+    opacity: 0;
+  }
 }

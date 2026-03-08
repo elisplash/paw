@@ -151,6 +151,27 @@
   opacity: 0.85;
 }
 
+/* Tool step indicator (▶ toolName…) */
+.mini-chat-tool-step {
+  font-size: 10px;
+  color: var(--kinetic-sage, #8fb0a0);
+  font-family: var(--font-mono);
+  margin-top: 4px;
+  opacity: 0.75;
+}
+
+/* Thinking indicator */
+.mini-chat-thinking {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
 /* Feedback buttons */
 .mini-chat-feedback {
   display: flex;
