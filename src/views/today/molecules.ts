@@ -37,6 +37,10 @@ import {
   type KineticStatus,
 } from '../../components/kinetic-row';
 import { createHeroLogo, type HeroLogoInstance } from '../../components/hero-logo';
+import {
+  createEngramBrain,
+  type EngramBrainInstance,
+} from '../../components/molecules/engram-brain';
 
 // ── Skeleton loading helper ──────────────────────────────────────────
 function skelLines(n = 3): string {
@@ -47,8 +51,10 @@ function skelLines(n = 3): string {
   ).join('');
 }
 
-// ── Hero logo instance ───────────────────────────────────────────────
+// ── Hero logo + Engram brain instances ─────────────────────────────────
 let _heroLogo: HeroLogoInstance | null = null;
+let _engramBrain: EngramBrainInstance | null = null;
+let _engramCategories: [string, number][] = [];
 
 // ── Tauri bridge (lazy — resolves at call time, not module load) ──────
 // The @tauri-apps/api/core invoke is always available in the Tauri
@@ -646,6 +652,218 @@ export async function fetchFleetStatus(retries = 3) {
   }
 }
 
+// ── Time-ago formatter ───────────────────────────────────────────────
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+/** Fetch Engram memory stats and render the ENGRAM card stats column. */
+export async function fetchEngramStats() {
+  const countEl = $('engram-memory-count');
+  const statsCol = $('engram-stats-col');
+
+  try {
+    const stats = await pawEngine.memoryStats();
+    _engramCategories = stats.categories;
+
+    if (countEl) countEl.textContent = stats.total_memories.toLocaleString();
+
+    if (statsCol) {
+      const topCats = stats.categories.slice(0, 8);
+      const embBadge = stats.has_embeddings
+        ? `<div class="engram-embed-badge"><span class="ms ms-xs">hub</span> vector search active</div>`
+        : '';
+      statsCol.innerHTML = `
+        <div>
+          <div class="engram-stat-total">${stats.total_memories.toLocaleString()}</div>
+          <div class="engram-stat-label">memories stored</div>
+          ${embBadge}
+        </div>
+        <div class="engram-categories">
+          ${topCats.map(([cat, count]) => `<span class="engram-cat-chip">${escHtml(cat)}<span class="engram-cat-count">${count}</span></span>`).join('')}
+        </div>
+        <div class="engram-hint">Ctrl+M · click brain to store</div>
+      `;
+    }
+  } catch (e) {
+    console.warn('[today] Engram stats failed:', e);
+    if (countEl) countEl.textContent = '—';
+    if (statsCol) {
+      statsCol.innerHTML = `
+        <div class="engram-stat-total">—</div>
+        <div class="engram-stat-label">memory engine offline</div>
+        <div class="engram-hint">Configure in Settings → Memory</div>
+      `;
+    }
+  }
+}
+
+/** Fetch and render the last 5 chat sessions. */
+export async function fetchRecentSessions() {
+  const container = $('today-sessions');
+  const countEl = $('today-sessions-count');
+  if (!container) return;
+
+  try {
+    const sessions = await pawEngine.sessionsList(6);
+
+    if (sessions.length === 0) {
+      if (countEl) countEl.textContent = '0';
+      container.innerHTML = `<div class="today-section-empty">No sessions yet — start a chat to begin</div>`;
+      return;
+    }
+
+    if (countEl) countEl.textContent = String(sessions.length);
+    const agents = getAgents();
+
+    container.innerHTML = sessions
+      .slice(0, 5)
+      .map((s) => {
+        const agentName = s.agent_id
+          ? (agents.find((a) => a.id === s.agent_id)?.name ?? null)
+          : null;
+        const label = s.label || 'Untitled Session';
+        const rawModel = s.model ?? '';
+        const modelShort = rawModel.includes('/') ? rawModel.split('/').pop()! : rawModel;
+        const meta = [
+          agentName,
+          modelShort,
+          `${s.message_count} msg${s.message_count !== 1 ? 's' : ''}`,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        return `
+          <div class="today-session-item" data-session-id="${escHtml(s.id)}">
+            <div class="today-session-dot"></div>
+            <div class="today-session-info">
+              <div class="today-session-label">${escHtml(label)}</div>
+              <div class="today-session-meta">${escHtml(meta)}</div>
+            </div>
+            <div class="today-session-time">${timeAgo(s.updated_at)}</div>
+          </div>`;
+      })
+      .join('');
+
+    container.querySelectorAll<HTMLElement>('.today-session-item').forEach((el) => {
+      el.addEventListener('click', () => {
+        const sessionId = el.dataset.sessionId;
+        if (sessionId) {
+          appState.currentSessionKey = sessionId;
+          switchView('chat');
+        }
+      });
+    });
+  } catch (e) {
+    console.warn('[today] Recent sessions failed:', e);
+    container.innerHTML = `<div class="today-section-empty">Could not load sessions</div>`;
+  }
+}
+
+// ── Quick Memory Modal ────────────────────────────────────────────────────
+
+function showQuickMemoryModal() {
+  document.querySelector('.qmem-overlay')?.remove();
+
+  const stored = _engramCategories.map(([c]) => c);
+  const defaults = ['general', 'fact', 'task', 'preference', 'code', 'research', 'note'];
+  const allCats = [...new Set([...defaults, ...stored])];
+
+  const overlay = document.createElement('div');
+  overlay.className = 'qmem-overlay';
+  overlay.innerHTML = `
+    <div class="qmem-modal" role="dialog" aria-label="Store Memory">
+      <div class="qmem-header">
+        <span class="ms ms-sm">psychology</span>
+        <span class="qmem-title">Store a Memory in Engram</span>
+        <button class="qmem-close" aria-label="Close">×</button>
+      </div>
+      <div class="qmem-body">
+        <textarea class="qmem-textarea" id="qmem-content"
+          placeholder="What do you want Engram to remember? (Ctrl+Enter to save)"></textarea>
+        <div class="qmem-row">
+          <select class="qmem-select" id="qmem-category">
+            ${allCats.map((c) => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}
+          </select>
+          <div class="qmem-importance">
+            <span>importance</span>
+            <input type="range" id="qmem-importance" min="1" max="10" value="5">
+            <span id="qmem-importance-val">5</span>
+          </div>
+        </div>
+      </div>
+      <div class="qmem-footer">
+        <span class="qmem-hint">Ctrl+Enter to store</span>
+        <button class="btn btn-ghost" id="qmem-cancel">Cancel</button>
+        <button class="btn btn-primary" id="qmem-submit">Store Memory</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  const textarea = overlay.querySelector<HTMLTextAreaElement>('#qmem-content')!;
+  const categoryEl = overlay.querySelector<HTMLSelectElement>('#qmem-category')!;
+  const importanceEl = overlay.querySelector<HTMLInputElement>('#qmem-importance')!;
+  const importanceVal = overlay.querySelector<HTMLSpanElement>('#qmem-importance-val')!;
+  const submitBtn = overlay.querySelector<HTMLButtonElement>('#qmem-submit')!;
+
+  textarea.focus();
+  importanceEl.addEventListener('input', () => {
+    importanceVal.textContent = importanceEl.value;
+  });
+
+  const close = () => {
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 155);
+  };
+
+  const submit = async () => {
+    const content = textarea.value.trim();
+    if (!content) {
+      textarea.focus();
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Storing…';
+    try {
+      await pawEngine.memoryStore(content, categoryEl.value, parseInt(importanceEl.value));
+      showToast('Memory stored in Engram', 'success');
+      close();
+      fetchEngramStats().catch(() => {});
+    } catch (e) {
+      console.error('[today] memoryStore failed:', e);
+      showToast('Failed to store memory', 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Store Memory';
+    }
+  };
+
+  overlay.querySelector('.qmem-close')?.addEventListener('click', close);
+  overlay.querySelector('#qmem-cancel')?.addEventListener('click', close);
+  submitBtn.addEventListener('click', submit);
+  textarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+
+  const onEsc = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      close();
+      document.removeEventListener('keydown', onEsc);
+    }
+  };
+  document.addEventListener('keydown', onEsc);
+}
+
 /** Populate the 30-day activity heatmap card. */
 export async function fetchHeatmap() {
   const container = $('cmd-heatmap-body');
@@ -764,7 +982,7 @@ export function renderToday() {
         </div>
       </div>
 
-      <!-- Row 2: Inbox + Quick Actions -->
+      <!-- Row 2: Inbox + Recent Sessions -->
       <div class="cmd-card bento-cell bento-span-6">
         <div class="today-card-header">
           <span class="today-card-title">UNREAD MAIL</span>
@@ -776,22 +994,51 @@ export function renderToday() {
 
       <div class="cmd-card bento-cell bento-span-6">
         <div class="today-card-header">
+          <span class="today-card-title">RECENT SESSIONS</span>
+          <span class="today-card-count" id="today-sessions-count">…</span>
+        </div>
+        <div class="today-card-body" id="today-sessions">
+          ${skelLines(3)}
+        </div>
+      </div>
+
+      <!-- Row 3: Engram + Quick Actions -->
+      <div class="cmd-card bento-cell bento-span-8 engram-card" id="engram-card">
+        <div class="today-card-header">
+          <span class="today-card-title">ENGRAM</span>
+          <span class="today-card-count" id="engram-memory-count">…</span>
+          <button class="btn btn-ghost btn-sm" id="engram-store-btn">+ Memory</button>
+        </div>
+        <div class="engram-card-body">
+          <div class="engram-brain-wrap" id="engram-brain-wrap" title="Click to store a memory in Engram">
+          </div>
+          <div class="engram-stats-col" id="engram-stats-col">
+            ${skelLines(3)}
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-card bento-cell bento-span-4">
+        <div class="today-card-header">
           <span class="today-card-title">QUICK ACTIONS</span>
         </div>
         <div class="today-card-body">
-          <button class="today-quick-action" id="today-briefing-btn">
-            ▸ Morning Briefing
+          <button class="today-quick-action" id="today-new-chat-btn">
+            ▸ New Chat
           </button>
-          <button class="today-quick-action" id="today-summarize-btn">
-            ▸ Summarize Inbox
+          <button class="today-quick-action" id="today-research-btn">
+            ▸ Research
           </button>
-          <button class="today-quick-action" id="today-schedule-btn">
-            ▸ What's on today?
+          <button class="today-quick-action" id="today-orchestrate-btn">
+            ▸ Orchestration
+          </button>
+          <button class="today-quick-action" id="today-memory-vault-btn">
+            ▸ Memory Vault
           </button>
         </div>
       </div>
 
-      <!-- Row 3: Fleet + Skills + Activity -->
+      <!-- Row 4: Fleet + Skills + Activity -->
       <div class="cmd-card bento-cell bento-span-4">
         <div class="today-card-header">
           <span class="today-card-title">AGENT FLEET</span>
@@ -853,6 +1100,13 @@ export function renderToday() {
   if (logoCell) {
     _heroLogo?.destroy();
     _heroLogo = createHeroLogo(logoCell);
+  }
+
+  // ── Hydrate the Engram brain canvas ──
+  const brainWrap = $('engram-brain-wrap');
+  if (brainWrap) {
+    _engramBrain?.destroy();
+    _engramBrain = createEngramBrain(brainWrap);
   }
 
   bindEvents();
@@ -1007,9 +1261,15 @@ function bindEvents() {
     });
   });
 
-  $('today-briefing-btn')?.addEventListener('click', () => triggerBriefing());
-  $('today-summarize-btn')?.addEventListener('click', () => triggerInboxSummary());
-  $('today-schedule-btn')?.addEventListener('click', () => triggerScheduleCheck());
+  // ── Quick Actions ───────────────────────────────────────────────────────
+  $('today-new-chat-btn')?.addEventListener('click', () => switchView('chat'));
+  $('today-research-btn')?.addEventListener('click', () => switchView('research'));
+  $('today-orchestrate-btn')?.addEventListener('click', () => switchView('orchestrator'));
+  $('today-memory-vault-btn')?.addEventListener('click', () => switchView('memory-palace'));
+
+  // ── Engram card ─────────────────────────────────────────────────────────
+  $('engram-brain-wrap')?.addEventListener('click', showQuickMemoryModal);
+  $('engram-store-btn')?.addEventListener('click', showQuickMemoryModal);
 
   // ── Kinetic: apply spring hover to bento cards ──
   document.querySelectorAll('.cmd-card').forEach((card) => {
@@ -1175,47 +1435,6 @@ export async function reloadTodayTasks(inPlace = false) {
     }
   } catch (e) {
     console.error('[today] reloadTodayTasks failed:', e);
-  }
-}
-
-// ── Quick Actions ─────────────────────────────────────────────────────
-
-async function triggerBriefing() {
-  showToast('Starting morning briefing...');
-  switchView('chat');
-  try {
-    await pawEngine.chatSend(
-      appState.currentSessionKey ?? 'main',
-      'Give me a morning briefing: weather, any calendar events today, and summarize my unread emails.',
-    );
-  } catch {
-    showToast('Failed to start briefing', 'error');
-  }
-}
-
-async function triggerInboxSummary() {
-  showToast('Summarizing inbox...');
-  switchView('chat');
-  try {
-    await pawEngine.chatSend(
-      appState.currentSessionKey ?? 'main',
-      'Check my email inbox and summarize the important unread messages.',
-    );
-  } catch {
-    showToast('Failed to summarize inbox', 'error');
-  }
-}
-
-async function triggerScheduleCheck() {
-  showToast('Checking schedule...');
-  switchView('chat');
-  try {
-    await pawEngine.chatSend(
-      appState.currentSessionKey ?? 'main',
-      'What do I have scheduled for today? Check my calendar.',
-    );
-  } catch {
-    showToast('Failed to check schedule', 'error');
   }
 }
 

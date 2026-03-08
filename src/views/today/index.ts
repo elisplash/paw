@@ -10,6 +10,8 @@ import {
   fetchActiveSkills,
   fetchFleetStatus,
   fetchHeatmap,
+  fetchEngramStats,
+  fetchRecentSessions,
   loadIntegrationsDashboard,
   renderToday,
   reloadTodayTasks,
@@ -96,6 +98,8 @@ export async function loadToday() {
     withTimeout(fetchHeatmap(), 20000, 'heatmap'),
     withTimeout(fetchAndRenderActivity(), 20000, 'activity'),
     withTimeout(loadIntegrationsDashboard(), 20000, 'integrations'),
+    withTimeout(fetchEngramStats(), 10000, 'engram-stats'),
+    withTimeout(fetchRecentSessions(), 10000, 'recent-sessions'),
   ]);
 
   // Auto-refresh time-sensitive cards while the view is open

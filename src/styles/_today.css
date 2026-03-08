@@ -835,6 +835,305 @@
   background: var(--accent-subtle);
 }
 
+/* ── ENGRAM Card ────────────────────────────────────────────────────── */
+.engram-card .today-card-body {
+  padding: 0;
+}
+.engram-card-body {
+  display: flex;
+  height: 185px;
+  overflow: hidden;
+}
+.engram-brain-wrap {
+  flex: 0 0 58%;
+  position: relative;
+  cursor: pointer;
+  border-right: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  overflow: hidden;
+  transition: background 0.2s;
+}
+.engram-brain-wrap::after {
+  content: 'click to store a memory';
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.engram-brain-wrap:hover::after {
+  opacity: 0.8;
+}
+.engram-brain-wrap:hover {
+  background: rgba(212, 101, 74, 0.03);
+}
+.engram-brain-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.engram-stats-col {
+  flex: 1;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  justify-content: center;
+}
+.engram-stat-total {
+  font-family: var(--font-mono);
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent, #d4654a);
+  letter-spacing: -0.02em;
+}
+.engram-stat-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+}
+.engram-embed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--kinetic-sage, #8fb0a0);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 5px;
+}
+.engram-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.engram-cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+  padding: 2px 5px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.engram-cat-count {
+  color: var(--accent, #d4654a);
+  font-size: 9px;
+}
+.engram-hint {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  opacity: 0.45;
+  letter-spacing: 0.04em;
+  margin-top: 3px;
+}
+
+/* ── Quick Memory Modal ──────────────────────────────────────────────── */
+.qmem-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+.qmem-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.qmem-modal {
+  width: 460px;
+  max-width: 92vw;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent, #d4654a);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+.qmem-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.qmem-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-primary);
+  flex: 1;
+}
+.qmem-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 0 4px;
+  transition: color 0.15s;
+}
+.qmem-close:hover {
+  color: var(--text-primary);
+}
+.qmem-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.qmem-textarea {
+  width: 100%;
+  min-height: 96px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 10px 12px;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+.qmem-textarea:focus {
+  border-color: var(--accent, #d4654a);
+}
+.qmem-textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+.qmem-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.qmem-select {
+  flex: 1;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 6px 8px;
+  outline: none;
+  cursor: pointer;
+  min-width: 0;
+}
+.qmem-select:focus {
+  border-color: var(--accent, #d4654a);
+}
+.qmem-importance {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.qmem-importance input[type='range'] {
+  width: 72px;
+  accent-color: var(--accent, #d4654a);
+}
+.qmem-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+}
+.qmem-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.55;
+  margin-right: auto;
+}
+
+/* ── Recent Sessions ─────────────────────────────────────────────────── */
+.today-session-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 6px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.05));
+  cursor: pointer;
+  transition: background 0.12s;
+  border-radius: 2px;
+}
+.today-session-item:last-child {
+  border-bottom: none;
+}
+.today-session-item:hover {
+  background: var(--bg-tertiary);
+}
+.today-session-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent, #d4654a);
+  flex-shrink: 0;
+  margin-top: 5px;
+  opacity: 0.65;
+}
+.today-session-info {
+  flex: 1;
+  min-width: 0;
+}
+.today-session-label {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.today-session-meta {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.today-session-time {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 /* Today modal */
 .today-modal {
   position: fixed;
