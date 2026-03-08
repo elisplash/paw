@@ -461,8 +461,11 @@ export function wireDashboardEvents(container: HTMLElement): void {
 
 // ── Composite: full dashboard integration section ──────────────────────
 
-export async function renderDashboardIntegrations(connectedServiceIds: string[]): Promise<string> {
-  const health = await loadServiceHealth();
+export async function renderDashboardIntegrations(
+  connectedServiceIds: string[],
+  preloadedHealth?: ServiceHealth[],
+): Promise<string> {
+  const health = preloadedHealth ?? (await loadServiceHealth());
   const summary = computeHealthSummary(health);
   const suggestions = generateSuggestions(connectedServiceIds);
   const chains = await loadChainRules();

@@ -95,6 +95,27 @@
   border: 1px solid var(--border-subtle, rgba(128, 128, 128, 0.15));
   transition: background var(--transition-fast);
 }
+.viz-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+.viz-heatmap-legend-cells {
+  display: flex;
+  gap: 3px;
+}
+.viz-heatmap-legend-cell {
+  width: 10px;
+  height: 10px;
+  min-width: unset;
+  max-width: unset;
+  flex: none;
+}
 
 .viz-progress {
   height: 6px;

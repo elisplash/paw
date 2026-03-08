@@ -421,14 +421,19 @@ describe('agentStatus', () => {
     expect(agentStatus(undefined)).toBe('offline');
   });
 
-  it('returns active within 60 seconds', () => {
+  it('returns active within 5 minutes', () => {
     const recent = new Date(Date.now() - 10_000).toISOString();
     expect(agentStatus(recent)).toBe('active');
   });
 
-  it('returns idle after 60 seconds', () => {
-    const old = new Date(Date.now() - 120_000).toISOString();
+  it('returns idle after 5 minutes but within 24 hours', () => {
+    const old = new Date(Date.now() - 10 * 60_000).toISOString();
     expect(agentStatus(old)).toBe('idle');
+  });
+
+  it('returns offline after 24 hours', () => {
+    const veryOld = new Date(Date.now() - 25 * 60 * 60_000).toISOString();
+    expect(agentStatus(veryOld)).toBe('offline');
   });
 });
 

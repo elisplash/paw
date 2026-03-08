@@ -16,9 +16,9 @@ import {
   formatTokens,
   formatCost,
   agentStatus,
+  getPawzMessage,
   buildHeatmapData,
   buildCapabilityGroups,
-  type CapabilityGroup,
 } from './atoms';
 import { renderSkillWidgets } from '../../components/molecules/skill-widget';
 import type { SkillOutput, EngineSkillStatus } from '../../engine/atoms/types';
@@ -37,6 +37,15 @@ import {
   type KineticStatus,
 } from '../../components/kinetic-row';
 import { createHeroLogo, type HeroLogoInstance } from '../../components/hero-logo';
+
+// ── Skeleton loading helper ──────────────────────────────────────────
+function skelLines(n = 3): string {
+  return Array.from(
+    { length: n },
+    (_, i) =>
+      `<div class="today-skel${i === 1 ? ' today-skel-short' : i === 2 ? ' today-skel-wider' : ''}"></div>`,
+  ).join('');
+}
 
 // ── Hero logo instance ───────────────────────────────────────────────
 let _heroLogo: HeroLogoInstance | null = null;
@@ -425,6 +434,8 @@ export async function fetchCalendarEvents() {
       } catch {
         /* ignore */
       }
+      const calCountEl = document.getElementById('today-calendar-count');
+      if (calCountEl) calCountEl.textContent = '0';
 
       if (!connected.includes('google-calendar') && !connected.includes('google-workspace')) {
         calEl.innerHTML = `<div class="today-section-empty">Connect a calendar integration via <a href="#" class="today-link-integrations">Integrations</a> to see events here</div>`;
@@ -455,17 +466,18 @@ export async function fetchCalendarEvents() {
             timeStr = '';
           }
         }
-        const locationHtml = ev.location
-          ? `<div class="today-cal-location" style="font-size:11px;color:var(--text-muted);margin-top:1px">${escHtml(ev.location)}</div>`
-          : '';
         return `
-        <div class="today-email-item" style="cursor:default">
-          <div class="today-email-from">${timeStr || 'TBD'}</div>
-          <div class="today-email-subject">${escHtml(ev.summary)}</div>
-          ${locationHtml}
+        <div class="today-cal-event">
+          <div class="today-cal-time">${timeStr || 'TBD'}</div>
+          <div class="today-cal-details">
+            <div class="today-cal-summary">${escHtml(ev.summary)}</div>
+            ${ev.location ? `<div class="today-cal-location"><span class="ms ms-xs">place</span>${escHtml(ev.location)}</div>` : ''}
+          </div>
         </div>`;
       })
       .join('');
+    const calCountEl = document.getElementById('today-calendar-count');
+    if (calCountEl) calCountEl.textContent = String(events.length);
   } catch (e) {
     console.warn('[today] Calendar fetch failed:', e);
     calEl.innerHTML = `<div class="today-section-empty">Could not load calendar</div>`;
@@ -540,81 +552,21 @@ export async function fetchActiveSkills() {
           .join('')}
       </div>
       ${remaining > 0 ? `<div class="cmd-skills-more">+ ${remaining} more</div>` : ''}
+      ${
+        buildCapabilityGroups(_activeSkills).length > 0
+          ? `<div class="cmd-skills-cats">${buildCapabilityGroups(_activeSkills)
+              .map((g) => escHtml(g.label))
+              .join(' · ')}</div>`
+          : ''
+      }
     `;
+    const skillsStagger = container.querySelector('.k-stagger');
+    if (skillsStagger) kineticStagger(skillsStagger as HTMLElement, '.cmd-skill-chip');
   } catch (e) {
     console.warn('[today] Skills list fetch failed:', e);
     if (container)
       container.innerHTML = `<div class="today-section-empty">Could not load skills</div>`;
   }
-}
-
-/** Populate the Capabilities card with grouped skill descriptions. */
-export async function fetchCapabilities() {
-  const container = $('cmd-capabilities-body');
-  if (!container) return;
-
-  try {
-    // Use already-fetched skills if available, otherwise fetch
-    let skills = _activeSkills;
-    if (skills.length === 0) {
-      const all = await pawEngine.skillsList();
-      skills = all.filter((s) => s.enabled);
-    }
-
-    if (skills.length === 0) {
-      container.innerHTML = `
-        <div class="today-section-empty">
-          Enable skills in Settings to unlock agent capabilities
-        </div>
-        <button class="btn btn-primary btn-sm capabilities-goto-skills" style="margin-top:8px">
-          <span class="ms ms-sm">bolt</span> Browse Skills
-        </button>
-      `;
-      container.querySelector('.capabilities-goto-skills')?.addEventListener('click', () => {
-        switchView('settings-skills');
-      });
-      return;
-    }
-
-    const groups = buildCapabilityGroups(skills);
-    container.innerHTML = renderCapabilityGroups(groups, skills.length);
-  } catch (e) {
-    console.warn('[today] Capabilities fetch failed:', e);
-    container.innerHTML = `<div class="today-section-empty">Could not load capabilities</div>`;
-  }
-}
-
-function renderCapabilityGroups(groups: CapabilityGroup[], totalSkills: number): string {
-  const groupsHtml = groups
-    .slice(0, 6)
-    .map(
-      (g) => `
-      <div class="cap-group">
-        <div class="cap-group-header">
-          <span class="ms ms-sm">${g.icon}</span>
-          <span class="cap-group-label">${escHtml(g.label)}</span>
-        </div>
-        <div class="cap-group-items">
-          ${g.capabilities
-            .slice(0, 3)
-            .map((c) => `<span class="cap-item">${escHtml(c)}</span>`)
-            .join('')}
-          ${g.capabilities.length > 3 ? `<span class="cap-item cap-more">+${g.capabilities.length - 3} more</span>` : ''}
-        </div>
-      </div>`,
-    )
-    .join('');
-
-  const moreGroups =
-    groups.length > 6
-      ? `<div class="cap-overflow">+${groups.length - 6} more categories</div>`
-      : '';
-
-  return `
-    <div class="cap-summary">${totalSkills} skill${totalSkills !== 1 ? 's' : ''} across ${groups.length} ${groups.length !== 1 ? 'categories' : 'category'}</div>
-    <div class="cap-groups">${groupsHtml}</div>
-    ${moreGroups}
-  `;
 }
 
 /** Populate the agent fleet status card. */
@@ -686,6 +638,8 @@ export async function fetchFleetStatus(retries = 3) {
         }
       });
     });
+    const fleetStagger = container.querySelector('.k-stagger');
+    if (fleetStagger) kineticStagger(fleetStagger as HTMLElement, '.cmd-fleet-item');
   } catch (e) {
     console.warn('[today] Fleet status failed:', e);
     container.innerHTML = `<div class="today-section-empty">Could not load agents — try refreshing</div>`;
@@ -728,10 +682,9 @@ export function renderToday() {
   const userAvatar = localStorage.getItem('paw-user-avatar') || '';
 
   const pendingTasks = tasks.filter((t) => !t.done);
-  const completedToday = tasks.filter((t) => t.done && isToday(t.createdAt));
+  const completedToday = tasks.filter((t) => t.done && isToday(t.updatedAt));
 
   // Usage stats — showcase overrides or real data
-  const tokensUsed = showcase ? showcase.tokenCount : appState.sessionTokensUsed;
   const cost = showcase ? showcase.cost : appState.sessionCost;
 
   // Build avatar HTML — profile picture or initials or default icon
@@ -753,14 +706,13 @@ export function renderToday() {
             <div class="today-label">MISSION CONTROL</div>
             <div class="today-greeting">${greeting}${userName ? `, <span class="today-user-name" id="today-user-name" title="Click to edit">${escHtml(userName)}</span>` : '<button class="today-set-name-btn" id="today-set-name">Set your name</button>'}</div>
             <div class="today-date">${dateStr}</div>
+            <div class="today-pawz-msg">${escHtml(getPawzMessage(pendingTasks.length, completedToday.length))}</div>
           </div>
         </div>
       </div>
       <div class="today-tesseract-cell" id="today-tesseract"></div>
       <div class="today-header-right">
         <div class="today-usage-strip">
-          <span class="today-usage-item"><span class="today-usage-val" id="cmd-tokens">${formatTokens(tokensUsed)}</span> <span class="today-usage-lbl">tokens</span></span>
-          <span class="today-usage-sep">·</span>
           <span class="today-usage-item"><span class="today-usage-val" id="cmd-cost">${formatCost(cost)}</span> <span class="today-usage-lbl">cost</span></span>
           <span class="today-usage-sep">·</span>
           <span class="today-usage-item"><span class="today-usage-val" id="cmd-input-tokens">${formatTokens(appState.sessionInputTokens)}</span> <span class="today-usage-lbl">in</span></span>
@@ -805,9 +757,10 @@ export function renderToday() {
       <div class="cmd-card bento-cell bento-span-6">
         <div class="today-card-header">
           <span class="today-card-title">CALENDAR</span>
+          <span class="today-card-count" id="today-calendar-count">…</span>
         </div>
         <div class="today-card-body" id="today-calendar">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(3)}
         </div>
       </div>
 
@@ -817,7 +770,7 @@ export function renderToday() {
           <span class="today-card-title">UNREAD MAIL</span>
         </div>
         <div class="today-card-body" id="today-emails">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(4)}
         </div>
       </div>
 
@@ -844,7 +797,7 @@ export function renderToday() {
           <span class="today-card-title">AGENT FLEET</span>
         </div>
         <div class="today-card-body" id="cmd-fleet-body">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(3)}
         </div>
       </div>
 
@@ -854,7 +807,7 @@ export function renderToday() {
           <span class="today-card-count" id="cmd-skills-count">…</span>
         </div>
         <div class="today-card-body" id="cmd-skills-body">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(3)}
         </div>
       </div>
 
@@ -863,7 +816,7 @@ export function renderToday() {
           <span class="today-card-title">ACTIVITY</span>
         </div>
         <div class="today-card-body" id="today-activity">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(3)}
         </div>
       </div>
 
@@ -874,26 +827,17 @@ export function renderToday() {
           <span class="today-card-count" id="cmd-integrations-count">…</span>
         </div>
         <div class="today-card-body" id="cmd-integrations-body">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(2)}
         </div>
       </div>
 
-      <!-- Row 5: Heatmap + Capabilities -->
-      <div class="cmd-card bento-cell bento-span-6">
+      <!-- Row 5: Heatmap (full width) -->
+      <div class="cmd-card bento-cell bento-span-full">
         <div class="today-card-header">
           <span class="today-card-title">30-DAY HEATMAP</span>
         </div>
         <div class="today-card-body" id="cmd-heatmap-body">
-          <span class="today-loading">Loading…</span>
-        </div>
-      </div>
-
-      <div class="cmd-card bento-cell bento-span-6 capabilities-card">
-        <div class="today-card-header">
-          <span class="today-card-title">CAPABILITIES</span>
-        </div>
-        <div class="today-card-body" id="cmd-capabilities-body">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(1)}
         </div>
       </div>
 
@@ -1071,16 +1015,6 @@ function bindEvents() {
   document.querySelectorAll('.cmd-card').forEach((card) => {
     kineticRow(card as HTMLElement, { spring: true, springCard: true });
   });
-
-  // ── Kinetic: stagger-materialise skill chips and fleet items ──
-  const fleetStagger = document.querySelector('#cmd-fleet-body .k-stagger');
-  if (fleetStagger) kineticStagger(fleetStagger as HTMLElement, '.cmd-fleet-item');
-
-  const skillsStagger = document.querySelector('#cmd-skills-body .k-stagger');
-  if (skillsStagger) kineticStagger(skillsStagger as HTMLElement, '.cmd-skill-chip');
-
-  // Integration health dashboard wiring
-  loadIntegrationsDashboard();
 }
 
 // ── Task Modal ────────────────────────────────────────────────────────
@@ -1189,7 +1123,7 @@ export async function reloadTodayTasks(inPlace = false) {
       if (!tasksContainer) return;
 
       const pendingTasks = mapped.filter((t) => !t.done);
-      const completedToday = mapped.filter((t) => t.done && isToday(t.createdAt));
+      const completedToday = mapped.filter((t) => t.done && isToday(t.updatedAt));
 
       tasksContainer.innerHTML =
         pendingTasks.length === 0
@@ -1251,7 +1185,7 @@ async function triggerBriefing() {
   switchView('chat');
   try {
     await pawEngine.chatSend(
-      'main',
+      appState.currentSessionKey ?? 'main',
       'Give me a morning briefing: weather, any calendar events today, and summarize my unread emails.',
     );
   } catch {
@@ -1264,7 +1198,7 @@ async function triggerInboxSummary() {
   switchView('chat');
   try {
     await pawEngine.chatSend(
-      'main',
+      appState.currentSessionKey ?? 'main',
       'Check my email inbox and summarize the important unread messages.',
     );
   } catch {
@@ -1276,7 +1210,10 @@ async function triggerScheduleCheck() {
   showToast('Checking schedule...');
   switchView('chat');
   try {
-    await pawEngine.chatSend('main', 'What do I have scheduled for today? Check my calendar.');
+    await pawEngine.chatSend(
+      appState.currentSessionKey ?? 'main',
+      'What do I have scheduled for today? Check my calendar.',
+    );
   } catch {
     showToast('Failed to check schedule', 'error');
   }
@@ -1284,7 +1221,7 @@ async function triggerScheduleCheck() {
 
 // ── Integration Dashboard Loader ──────────────────────────────────────
 
-async function loadIntegrationsDashboard() {
+export async function loadIntegrationsDashboard() {
   const body = $('cmd-integrations-body');
   const countEl = $('cmd-integrations-count');
   if (!body) return;
@@ -1338,7 +1275,7 @@ async function loadIntegrationsDashboard() {
       return;
     }
 
-    const html = await renderDashboardIntegrations(connectedIds);
+    const html = await renderDashboardIntegrations(connectedIds, health);
     body.innerHTML = html;
     wireDashboardEvents(body);
   } catch {

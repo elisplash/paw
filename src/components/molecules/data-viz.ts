@@ -49,7 +49,19 @@ export function heatmapStrip(
     })
     .join('');
 
-  return `<div class="viz-heatmap">${cells}</div>`;
+  const legendCells = [0.15, 0.35, 0.55, 0.75, 1]
+    .map(
+      (op) =>
+        `<div class="viz-heatmap-cell viz-heatmap-legend-cell" style="background:${color};opacity:${op}"></div>`,
+    )
+    .join('');
+
+  return `<div class="viz-heatmap">${cells}</div>
+    <div class="viz-heatmap-legend">
+      <span>less</span>
+      <div class="viz-heatmap-legend-cells">${legendCells}</div>
+      <span>more</span>
+    </div>`;
 }
 
 /**

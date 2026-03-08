@@ -12,6 +12,7 @@ export interface Task {
   text: string;
   done: boolean;
   createdAt: string;
+  updatedAt: string;
 }
 
 /** Convert an EngineTask to the lighter Today Task for display. */
@@ -21,12 +22,20 @@ export function engineTaskToToday(et: EngineTask): Task {
     text: et.title,
     done: et.status === 'done',
     createdAt: et.created_at,
+    updatedAt: et.updated_at,
   };
 }
 
 /** Filter engine tasks relevant to the Today view (not cron, not done-old). */
 export function filterTodayTasks(tasks: EngineTask[]): EngineTask[] {
-  return tasks.filter((t) => !t.cron_schedule);
+  const today = new Date().toDateString();
+  return tasks.filter((t) => {
+    if (t.cron_schedule) return false;
+    // Always show pending/in-progress tasks regardless of age
+    if (t.status !== 'done') return true;
+    // Only include done tasks completed today
+    return new Date(t.updated_at).toDateString() === today;
+  });
 }
 
 /** The status to set when toggling a task's done state. */
@@ -169,8 +178,9 @@ export function formatCost(n: number): string {
 export function agentStatus(lastUsed?: string): 'active' | 'idle' | 'offline' {
   if (!lastUsed) return 'offline';
   const diffMs = Date.now() - new Date(lastUsed).getTime();
-  if (diffMs < 60_000) return 'active'; // active within last minute
-  return 'idle';
+  if (diffMs < 5 * 60_000) return 'active'; // active within last 5 minutes
+  if (diffMs < 24 * 60 * 60_000) return 'idle'; // used today
+  return 'offline';
 }
 
 // ── Capabilities Helpers ──────────────────────────────────────────────
@@ -295,24 +305,28 @@ export function buildShowcaseData(): ShowcaseData {
         text: 'Review pull request #42',
         done: false,
         createdAt: new Date(now - 3600_000).toISOString(),
+        updatedAt: new Date(now - 3600_000).toISOString(),
       },
       {
         id: 'demo-2',
         text: 'Draft weekly standup notes',
         done: false,
         createdAt: new Date(now - 7200_000).toISOString(),
+        updatedAt: new Date(now - 7200_000).toISOString(),
       },
       {
         id: 'demo-3',
         text: 'Research competitor pricing',
         done: true,
         createdAt: new Date(now - 1800_000).toISOString(),
+        updatedAt: new Date(now - 900_000).toISOString(),
       },
       {
         id: 'demo-4',
         text: 'Update API documentation',
         done: false,
         createdAt: new Date(now - 5400_000).toISOString(),
+        updatedAt: new Date(now - 5400_000).toISOString(),
       },
     ],
     skillNames: ['Email', 'Browser', 'GitHub', 'File System', 'Shell', 'Web Search', 'Calendar'],
