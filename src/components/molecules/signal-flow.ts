@@ -41,8 +41,6 @@ interface SFEdge {
 }
 
 // ── colour constants (matches CSS design tokens) ─────────────────────
-const C_ACCENT = '#D4654A';
-const C_TEXT = 'rgba(255,255,255,0.88)';
 const C_SUB = 'rgba(255,255,255,0.38)';
 const C_DEAD = 'rgba(255,255,255,0.08)';
 
@@ -58,21 +56,6 @@ function bzPt(
 ): [number, number] {
   const u = 1 - t;
   return [u * u * x0 + 2 * u * t * cx + t * t * x1, u * u * y0 + 2 * u * t * cy + t * t * y1];
-}
-
-// ── cross-browser rounded rect ────────────────────────────────────────
-function rr(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + w - r, y);
-  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-  ctx.lineTo(x + w, y + h - r);
-  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-  ctx.lineTo(x + r, y + h);
-  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
 }
 
 // ── provider display name ─────────────────────────────────────────────
@@ -131,8 +114,8 @@ export function createSignalFlow(container: HTMLElement): SignalFlowInstance {
           id: `gl${i}`,
           label: '···',
           sub: '',
-          rx: 0.1,
-          ry: 0.32 + i * 0.36,
+          rx: 0.14,
+          ry: 0.28 + i * 0.44,
           kind: 'input',
           active: false,
         });
@@ -140,8 +123,8 @@ export function createSignalFlow(container: HTMLElement): SignalFlowInstance {
           id: `gr${i}`,
           label: '···',
           sub: '',
-          rx: 0.9,
-          ry: 0.28 + i * 0.44,
+          rx: 0.86,
+          ry: 0.24 + i * 0.52,
           kind: 'output',
           active: false,
         });
@@ -171,7 +154,7 @@ export function createSignalFlow(container: HTMLElement): SignalFlowInstance {
     }
     inputs.forEach((n, i) => {
       const c = inputs.length;
-      nodes.push({ ...n, rx: 0.11, ry: c === 1 ? 0.5 : 0.3 + (i / (c - 1)) * 0.4 });
+      nodes.push({ ...n, rx: 0.14, ry: c === 1 ? 0.5 : 0.28 + (i / (c - 1)) * 0.44 });
     });
 
     // ── engine node (centre) ──────────────────────────────────────
@@ -225,7 +208,7 @@ export function createSignalFlow(container: HTMLElement): SignalFlowInstance {
     }
     outputs.forEach((n, i) => {
       const c = outputs.length;
-      nodes.push({ ...n, rx: 0.89, ry: c === 1 ? 0.5 : 0.15 + (i / (c - 1)) * 0.7 });
+      nodes.push({ ...n, rx: 0.86, ry: c === 1 ? 0.5 : 0.2 + (i / (c - 1)) * 0.58 });
     });
 
     // ── edges ─────────────────────────────────────────────────────
@@ -401,87 +384,132 @@ export function createSignalFlow(container: HTMLElement): SignalFlowInstance {
       }
     }
 
-    // ── 3. Nodes (on top of edges) ───────────────────────────────
+    // ── 3. Nodes — glowing 3D spheres (off-centre radial gradient + specular) ──
     for (const node of nodes) {
       const nx = node.rx * cw;
       const ny = node.ry * ch;
       const isEng = node.kind === 'engine';
-      const nw = isEng ? 68 : 60;
-      const nh = isEng ? 38 : 28;
+      // Sphere radius scales with canvas height
+      const r = isEng ? ch * 0.13 : node.active ? ch * 0.085 : ch * 0.065;
       const pulse = 0.5 + 0.5 * Math.sin(time * 0.0017 + _phase(node.id));
 
+      // Engine: three concentric breathing rings
       if (isEng) {
-        // Engine: three concentric breathing rings
         ctx.beginPath();
-        ctx.arc(nx, ny, 46 + pulse * 8, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(212,101,74,${0.05 + pulse * 0.07})`;
-        ctx.lineWidth = 2;
+        ctx.arc(nx, ny, r * 2.3 + pulse * 10, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(212,101,74,${0.04 + pulse * 0.06})`;
+        ctx.lineWidth = 2.5;
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.arc(nx, ny, 36 + pulse * 5, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(212,101,74,${0.12 + pulse * 0.14})`;
+        ctx.arc(nx, ny, r * 1.7 + pulse * 6, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(212,101,74,${0.09 + pulse * 0.13})`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
         ctx.beginPath();
-        ctx.arc(nx, ny, 28, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(212,101,74,${0.07 + pulse * 0.05})`;
+        ctx.arc(nx, ny, r * 1.3, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(212,101,74,${0.06 + pulse * 0.04})`;
         ctx.lineWidth = 1;
         ctx.stroke();
-      } else {
-        // Non-engine: outer radial glow halo (Memory Palace node style)
-        const glowR = Math.max(nw, nh) * 0.72 + 6 + pulse * 5;
-        const haloA = node.active ? 0.16 + pulse * 0.07 : 0.04;
-        const halo = ctx.createRadialGradient(nx, ny, 4, nx, ny, glowR);
-        halo.addColorStop(
-          0,
-          node.active ? `rgba(143,176,160,${haloA})` : `rgba(255,255,255,${haloA})`,
-        );
-        halo.addColorStop(1, 'transparent');
-        ctx.fillStyle = halo;
-        ctx.beginPath();
-        ctx.arc(nx, ny, glowR, 0, Math.PI * 2);
-        ctx.fill();
       }
 
-      // Node rect fill
-      rr(ctx, nx - nw / 2, ny - nh / 2, nw, nh, 4);
-      ctx.fillStyle = isEng
-        ? `rgba(212,101,74,${0.09 + pulse * 0.07})`
-        : node.active
-          ? `rgba(143,176,160,${0.06 + pulse * 0.03})`
-          : 'rgba(255,255,255,0.03)';
+      // Outer halo (Memory Palace pulsing glow)
+      const glowR = r + 10 + pulse * 8;
+      const haloA = isEng ? 0.3 + pulse * 0.18 : node.active ? 0.18 + pulse * 0.1 : 0.05;
+      const hC = isEng ? '212,101,74' : node.active ? '143,176,160' : '200,200,200';
+      const halo = ctx.createRadialGradient(nx, ny, r * 0.3, nx, ny, glowR);
+      halo.addColorStop(0, `rgba(${hC},${haloA})`);
+      halo.addColorStop(1, `rgba(${hC},0)`);
+      ctx.fillStyle = halo;
+      ctx.beginPath();
+      ctx.arc(nx, ny, glowR, 0, Math.PI * 2);
       ctx.fill();
 
-      // Node border — pulses with the node
+      // 3D sphere core — off-centre radial gradient creates lit-sphere illusion
+      // Focal point top-left (bright), fades to colour at bottom-right (dark edge)
+      const coreAlpha = node.active || isEng ? 0.88 + pulse * 0.08 : 0.35;
+      let brightCol: [number, number, number];
+      let baseCol: [number, number, number];
+      if (isEng) {
+        brightCol = [255, 170, 130];
+        baseCol = [180, 70, 45];
+      } else if (node.active) {
+        brightCol = [190, 225, 205];
+        baseCol = [100, 148, 130];
+      } else {
+        brightCol = [130, 130, 130];
+        baseCol = [55, 55, 60];
+      }
+      const coreGrad = ctx.createRadialGradient(
+        nx - r * 0.32,
+        ny - r * 0.32,
+        0, // highlight focal point (top-left)
+        nx,
+        ny,
+        r * 1.2, // gradient radius
+      );
+      coreGrad.addColorStop(
+        0,
+        `rgba(${brightCol[0]},${brightCol[1]},${brightCol[2]},${coreAlpha})`,
+      );
+      coreGrad.addColorStop(
+        1,
+        `rgba(${baseCol[0]},${baseCol[1]},${baseCol[2]},${coreAlpha * 0.82})`,
+      );
+      ctx.beginPath();
+      ctx.arc(nx, ny, r, 0, Math.PI * 2);
+      ctx.fillStyle = coreGrad;
+      ctx.fill();
+
+      // Specular highlight — small bright arc top-left (same as Memory Palace)
+      ctx.beginPath();
+      ctx.arc(nx - r * 0.22, ny - r * 0.22, r * 0.38, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255,255,255,${isEng ? 0.22 : node.active ? 0.16 : 0.06})`;
+      ctx.fill();
+
+      // Thin rim light
+      ctx.beginPath();
+      ctx.arc(nx, ny, r, 0, Math.PI * 2);
       ctx.strokeStyle = isEng
-        ? `rgba(212,101,74,${0.65 + pulse * 0.35})`
+        ? `rgba(255,180,140,${0.55 + pulse * 0.35})`
         : node.active
-          ? `rgba(143,176,160,${0.45 + pulse * 0.3})`
-          : 'rgba(255,255,255,0.15)';
-      ctx.lineWidth = isEng ? 1.5 : 0.8;
+          ? `rgba(185,220,200,${0.38 + pulse * 0.28})`
+          : 'rgba(255,255,255,0.10)';
+      ctx.lineWidth = 0.8;
       ctx.stroke();
 
-      // Inner gleam (top-left highlight like Memory Palace)
-      if (node.active || isEng) {
-        rr(ctx, nx - nw / 2 + 2, ny - nh / 2 + 2, nw * 0.55, nh * 0.38, 3);
-        ctx.fillStyle = isEng ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.04)';
-        ctx.fill();
-      }
-
-      // Label text
-      const hasSub = !!node.sub;
+      // Labels
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = isEng ? C_ACCENT : node.active ? C_TEXT : C_SUB;
-      ctx.font = `${isEng ? 700 : 600} ${isEng ? 10 : 9}px 'JetBrains Mono','Fira Code',ui-monospace,monospace`;
-      ctx.fillText(node.label, nx, ny + (hasSub ? -5 : 0));
-
-      if (hasSub) {
-        ctx.fillStyle = isEng ? 'rgba(212,101,74,0.62)' : C_SUB;
-        ctx.font = `400 7.5px 'JetBrains Mono','Fira Code',ui-monospace,monospace`;
-        ctx.fillText(node.sub.length > 18 ? `${node.sub.slice(0, 18)}…` : node.sub, nx, ny + 6);
+      if (isEng) {
+        // Engine label renders inside the large sphere
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = `rgba(255,200,160,${0.94 + pulse * 0.05})`;
+        ctx.font = `700 ${Math.max(8, Math.round(r * 0.5))}px 'JetBrains Mono','Fira Code',ui-monospace,monospace`;
+        ctx.fillText(node.label, nx, ny - r * 0.13);
+        ctx.fillStyle = 'rgba(212,101,74,0.72)';
+        ctx.font = `500 ${Math.max(6, Math.round(r * 0.32))}px 'JetBrains Mono','Fira Code',ui-monospace,monospace`;
+        ctx.fillText(node.sub, nx, ny + r * 0.28);
+      } else {
+        // Non-engine labels render below the sphere
+        const labelY = ny + r + 5;
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = node.active ? 'rgba(232,224,212,0.88)' : C_SUB;
+        ctx.font = `600 8.5px 'JetBrains Mono','Fira Code',ui-monospace,monospace`;
+        ctx.fillText(
+          node.label.length > 11 ? `${node.label.slice(0, 11)}…` : node.label,
+          nx,
+          labelY,
+        );
+        if (node.sub) {
+          ctx.fillStyle = C_SUB;
+          ctx.font = `400 7px 'JetBrains Mono','Fira Code',ui-monospace,monospace`;
+          ctx.fillText(
+            node.sub.length > 13 ? `${node.sub.slice(0, 13)}…` : node.sub,
+            nx,
+            labelY + 11,
+          );
+        }
       }
     }
 
