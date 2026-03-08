@@ -14,7 +14,6 @@ import { animate, stagger, createTimeline, spring, utils } from 'animejs';
 export function viewEnter(el: HTMLElement | string) {
   return animate(el, {
     opacity: [0, 1],
-    scale: [0.97, 1],
     translateY: [8, 0],
     duration: 350,
     ease: 'out(3)',
@@ -27,7 +26,6 @@ export function viewEnter(el: HTMLElement | string) {
 export function viewLeave(el: HTMLElement | string) {
   return animate(el, {
     opacity: [1, 0],
-    scale: [1, 0.97],
     translateY: [0, -8],
     duration: 250,
     ease: 'in(2)',

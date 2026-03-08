@@ -8,9 +8,11 @@ import {
   fetchCalendarEvents,
   fetchSkillOutputs,
   fetchActiveSkills,
-  fetchCapabilities,
   fetchFleetStatus,
   fetchHeatmap,
+  fetchEngramStats,
+  fetchRecentSessions,
+  loadIntegrationsDashboard,
   renderToday,
   reloadTodayTasks,
 } from './molecules';
@@ -21,6 +23,12 @@ import { staggerCards } from '../../components/animations';
 // ── State ─────────────────────────────────────────────────────────────
 
 let _tasks: Task[] = [];
+
+// ── Auto-refresh interval handles ────────────────────────────────────────
+const _refreshTimers: ReturnType<typeof setInterval>[] = [];
+function clearRefreshTimers() {
+  _refreshTimers.splice(0).forEach(clearInterval);
+}
 
 // ── State bridge ──────────────────────────────────────────────────────
 
@@ -57,6 +65,9 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
 export async function loadToday() {
   console.debug('[today] loadToday called');
 
+  // Clear any previous refresh intervals before starting fresh
+  clearRefreshTimers();
+
   // 1. Load tasks FIRST so renderToday() has task data for the initial render
   try {
     const all = await pawEngine.tasksList();
@@ -71,7 +82,7 @@ export async function loadToday() {
   renderToday();
 
   // 2b. Animate dashboard cards cascading in
-  staggerCards('.today-card');
+  staggerCards('.cmd-card');
 
   // 3. Fetch all card data in parallel — each updates its own DOM element.
   //    reloadTodayTasks uses inPlace=true to avoid re-rendering the whole page.
@@ -84,10 +95,22 @@ export async function loadToday() {
     withTimeout(fetchSkillOutputs(), 20000, 'skill-outputs'),
     withTimeout(fetchFleetStatus(), 20000, 'fleet'),
     withTimeout(fetchActiveSkills(), 20000, 'skills'),
-    withTimeout(fetchCapabilities(), 20000, 'capabilities'),
     withTimeout(fetchHeatmap(), 20000, 'heatmap'),
     withTimeout(fetchAndRenderActivity(), 20000, 'activity'),
+    withTimeout(loadIntegrationsDashboard(), 20000, 'integrations'),
+    withTimeout(fetchEngramStats(), 10000, 'engram-stats'),
+    withTimeout(fetchRecentSessions(), 10000, 'recent-sessions'),
   ]);
+
+  // Auto-refresh time-sensitive cards while the view is open
+  const FIVE_MIN = 5 * 60 * 1000;
+  const THIRTY_MIN = 30 * 60 * 1000;
+  _refreshTimers.push(
+    setInterval(() => withTimeout(fetchCalendarEvents(), 20000, 'cal-refresh'), FIVE_MIN),
+    setInterval(() => withTimeout(fetchUnreadEmails(), 20000, 'email-refresh'), FIVE_MIN),
+    setInterval(() => withTimeout(loadIntegrationsDashboard(), 20000, 'integ-refresh'), FIVE_MIN),
+    setInterval(() => withTimeout(fetchWeather(), 20000, 'weather-refresh'), THIRTY_MIN),
+  );
 }
 
 export function initToday() {

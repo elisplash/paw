@@ -16,9 +16,9 @@ import {
   formatTokens,
   formatCost,
   agentStatus,
+  getPawzMessage,
   buildHeatmapData,
   buildCapabilityGroups,
-  type CapabilityGroup,
 } from './atoms';
 import { renderSkillWidgets } from '../../components/molecules/skill-widget';
 import type { SkillOutput, EngineSkillStatus } from '../../engine/atoms/types';
@@ -36,10 +36,25 @@ import {
   kineticDot,
   type KineticStatus,
 } from '../../components/kinetic-row';
-import { createHeroTesseract, type HeroTesseractInstance } from '../../components/tesseract';
+import { createHeroLogo, type HeroLogoInstance } from '../../components/hero-logo';
+import {
+  createEngramBrain,
+  type EngramBrainInstance,
+} from '../../components/molecules/engram-brain';
 
-// ── Hero tesseract instance ──────────────────────────────────────────
-let _heroTesseract: HeroTesseractInstance | null = null;
+// ── Skeleton loading helper ──────────────────────────────────────────
+function skelLines(n = 3): string {
+  return Array.from(
+    { length: n },
+    (_, i) =>
+      `<div class="today-skel${i === 1 ? ' today-skel-short' : i === 2 ? ' today-skel-wider' : ''}"></div>`,
+  ).join('');
+}
+
+// ── Hero logo + Engram brain instances ─────────────────────────────────
+let _heroLogo: HeroLogoInstance | null = null;
+let _engramBrain: EngramBrainInstance | null = null;
+let _engramCategories: [string, number][] = [];
 
 // ── Tauri bridge (lazy — resolves at call time, not module load) ──────
 // The @tauri-apps/api/core invoke is always available in the Tauri
@@ -425,6 +440,8 @@ export async function fetchCalendarEvents() {
       } catch {
         /* ignore */
       }
+      const calCountEl = document.getElementById('today-calendar-count');
+      if (calCountEl) calCountEl.textContent = '0';
 
       if (!connected.includes('google-calendar') && !connected.includes('google-workspace')) {
         calEl.innerHTML = `<div class="today-section-empty">Connect a calendar integration via <a href="#" class="today-link-integrations">Integrations</a> to see events here</div>`;
@@ -455,17 +472,18 @@ export async function fetchCalendarEvents() {
             timeStr = '';
           }
         }
-        const locationHtml = ev.location
-          ? `<div class="today-cal-location" style="font-size:11px;color:var(--text-muted);margin-top:1px">${escHtml(ev.location)}</div>`
-          : '';
         return `
-        <div class="today-email-item" style="cursor:default">
-          <div class="today-email-from">${timeStr || 'TBD'}</div>
-          <div class="today-email-subject">${escHtml(ev.summary)}</div>
-          ${locationHtml}
+        <div class="today-cal-event">
+          <div class="today-cal-time">${timeStr || 'TBD'}</div>
+          <div class="today-cal-details">
+            <div class="today-cal-summary">${escHtml(ev.summary)}</div>
+            ${ev.location ? `<div class="today-cal-location"><span class="ms ms-xs">place</span>${escHtml(ev.location)}</div>` : ''}
+          </div>
         </div>`;
       })
       .join('');
+    const calCountEl = document.getElementById('today-calendar-count');
+    if (calCountEl) calCountEl.textContent = String(events.length);
   } catch (e) {
     console.warn('[today] Calendar fetch failed:', e);
     calEl.innerHTML = `<div class="today-section-empty">Could not load calendar</div>`;
@@ -540,81 +558,21 @@ export async function fetchActiveSkills() {
           .join('')}
       </div>
       ${remaining > 0 ? `<div class="cmd-skills-more">+ ${remaining} more</div>` : ''}
+      ${
+        buildCapabilityGroups(_activeSkills).length > 0
+          ? `<div class="cmd-skills-cats">${buildCapabilityGroups(_activeSkills)
+              .map((g) => escHtml(g.label))
+              .join(' · ')}</div>`
+          : ''
+      }
     `;
+    const skillsStagger = container.querySelector('.k-stagger');
+    if (skillsStagger) kineticStagger(skillsStagger as HTMLElement, '.cmd-skill-chip');
   } catch (e) {
     console.warn('[today] Skills list fetch failed:', e);
     if (container)
       container.innerHTML = `<div class="today-section-empty">Could not load skills</div>`;
   }
-}
-
-/** Populate the Capabilities card with grouped skill descriptions. */
-export async function fetchCapabilities() {
-  const container = $('cmd-capabilities-body');
-  if (!container) return;
-
-  try {
-    // Use already-fetched skills if available, otherwise fetch
-    let skills = _activeSkills;
-    if (skills.length === 0) {
-      const all = await pawEngine.skillsList();
-      skills = all.filter((s) => s.enabled);
-    }
-
-    if (skills.length === 0) {
-      container.innerHTML = `
-        <div class="today-section-empty">
-          Enable skills in Settings to unlock agent capabilities
-        </div>
-        <button class="btn btn-primary btn-sm capabilities-goto-skills" style="margin-top:8px">
-          <span class="ms ms-sm">bolt</span> Browse Skills
-        </button>
-      `;
-      container.querySelector('.capabilities-goto-skills')?.addEventListener('click', () => {
-        switchView('settings-skills');
-      });
-      return;
-    }
-
-    const groups = buildCapabilityGroups(skills);
-    container.innerHTML = renderCapabilityGroups(groups, skills.length);
-  } catch (e) {
-    console.warn('[today] Capabilities fetch failed:', e);
-    container.innerHTML = `<div class="today-section-empty">Could not load capabilities</div>`;
-  }
-}
-
-function renderCapabilityGroups(groups: CapabilityGroup[], totalSkills: number): string {
-  const groupsHtml = groups
-    .slice(0, 6)
-    .map(
-      (g) => `
-      <div class="cap-group">
-        <div class="cap-group-header">
-          <span class="ms ms-sm">${g.icon}</span>
-          <span class="cap-group-label">${escHtml(g.label)}</span>
-        </div>
-        <div class="cap-group-items">
-          ${g.capabilities
-            .slice(0, 3)
-            .map((c) => `<span class="cap-item">${escHtml(c)}</span>`)
-            .join('')}
-          ${g.capabilities.length > 3 ? `<span class="cap-item cap-more">+${g.capabilities.length - 3} more</span>` : ''}
-        </div>
-      </div>`,
-    )
-    .join('');
-
-  const moreGroups =
-    groups.length > 6
-      ? `<div class="cap-overflow">+${groups.length - 6} more categories</div>`
-      : '';
-
-  return `
-    <div class="cap-summary">${totalSkills} skill${totalSkills !== 1 ? 's' : ''} across ${groups.length} ${groups.length !== 1 ? 'categories' : 'category'}</div>
-    <div class="cap-groups">${groupsHtml}</div>
-    ${moreGroups}
-  `;
 }
 
 /** Populate the agent fleet status card. */
@@ -686,10 +644,224 @@ export async function fetchFleetStatus(retries = 3) {
         }
       });
     });
+    const fleetStagger = container.querySelector('.k-stagger');
+    if (fleetStagger) kineticStagger(fleetStagger as HTMLElement, '.cmd-fleet-item');
   } catch (e) {
     console.warn('[today] Fleet status failed:', e);
     container.innerHTML = `<div class="today-section-empty">Could not load agents — try refreshing</div>`;
   }
+}
+
+// ── Time-ago formatter ───────────────────────────────────────────────
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.floor(hours / 24)}d ago`;
+}
+
+/** Fetch Engram memory stats and render the ENGRAM card stats column. */
+export async function fetchEngramStats() {
+  const countEl = $('engram-memory-count');
+  const statsCol = $('engram-stats-col');
+
+  try {
+    const stats = await pawEngine.memoryStats();
+    _engramCategories = stats.categories;
+
+    if (countEl) countEl.textContent = stats.total_memories.toLocaleString();
+
+    if (statsCol) {
+      const topCats = stats.categories.slice(0, 8);
+      const embBadge = stats.has_embeddings
+        ? `<div class="engram-embed-badge"><span class="ms ms-xs">hub</span> vector search active</div>`
+        : '';
+      statsCol.innerHTML = `
+        <div>
+          <div class="engram-stat-total">${stats.total_memories.toLocaleString()}</div>
+          <div class="engram-stat-label">memories stored</div>
+          ${embBadge}
+        </div>
+        <div class="engram-categories">
+          ${topCats.map(([cat, count]) => `<span class="engram-cat-chip">${escHtml(cat)}<span class="engram-cat-count">${count}</span></span>`).join('')}
+        </div>
+        <div class="engram-hint">Ctrl+M · click brain to store</div>
+      `;
+    }
+  } catch (e) {
+    console.warn('[today] Engram stats failed:', e);
+    if (countEl) countEl.textContent = '—';
+    if (statsCol) {
+      statsCol.innerHTML = `
+        <div class="engram-stat-total">—</div>
+        <div class="engram-stat-label">memory engine offline</div>
+        <div class="engram-hint">Configure in Settings → Memory</div>
+      `;
+    }
+  }
+}
+
+/** Fetch and render the last 5 chat sessions. */
+export async function fetchRecentSessions() {
+  const container = $('today-sessions');
+  const countEl = $('today-sessions-count');
+  if (!container) return;
+
+  try {
+    const sessions = await pawEngine.sessionsList(6);
+
+    if (sessions.length === 0) {
+      if (countEl) countEl.textContent = '0';
+      container.innerHTML = `<div class="today-section-empty">No sessions yet — start a chat to begin</div>`;
+      return;
+    }
+
+    if (countEl) countEl.textContent = String(sessions.length);
+    const agents = getAgents();
+
+    container.innerHTML = sessions
+      .slice(0, 5)
+      .map((s) => {
+        const agentName = s.agent_id
+          ? (agents.find((a) => a.id === s.agent_id)?.name ?? null)
+          : null;
+        const label = s.label || 'Untitled Session';
+        const rawModel = s.model ?? '';
+        const modelShort = rawModel.includes('/') ? rawModel.split('/').pop()! : rawModel;
+        const meta = [
+          agentName,
+          modelShort,
+          `${s.message_count} msg${s.message_count !== 1 ? 's' : ''}`,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        return `
+          <div class="today-session-item" data-session-id="${escHtml(s.id)}">
+            <div class="today-session-dot"></div>
+            <div class="today-session-info">
+              <div class="today-session-label">${escHtml(label)}</div>
+              <div class="today-session-meta">${escHtml(meta)}</div>
+            </div>
+            <div class="today-session-time">${timeAgo(s.updated_at)}</div>
+          </div>`;
+      })
+      .join('');
+
+    container.querySelectorAll<HTMLElement>('.today-session-item').forEach((el) => {
+      el.addEventListener('click', () => {
+        const sessionId = el.dataset.sessionId;
+        if (sessionId) {
+          appState.currentSessionKey = sessionId;
+          switchView('chat');
+        }
+      });
+    });
+  } catch (e) {
+    console.warn('[today] Recent sessions failed:', e);
+    container.innerHTML = `<div class="today-section-empty">Could not load sessions</div>`;
+  }
+}
+
+// ── Quick Memory Modal ────────────────────────────────────────────────────
+
+function showQuickMemoryModal() {
+  document.querySelector('.qmem-overlay')?.remove();
+
+  const stored = _engramCategories.map(([c]) => c);
+  const defaults = ['general', 'fact', 'task', 'preference', 'code', 'research', 'note'];
+  const allCats = [...new Set([...defaults, ...stored])];
+
+  const overlay = document.createElement('div');
+  overlay.className = 'qmem-overlay';
+  overlay.innerHTML = `
+    <div class="qmem-modal" role="dialog" aria-label="Store Memory">
+      <div class="qmem-header">
+        <span class="ms ms-sm">psychology</span>
+        <span class="qmem-title">Store a Memory in Engram</span>
+        <button class="qmem-close" aria-label="Close">×</button>
+      </div>
+      <div class="qmem-body">
+        <textarea class="qmem-textarea" id="qmem-content"
+          placeholder="What do you want Engram to remember? (Ctrl+Enter to save)"></textarea>
+        <div class="qmem-row">
+          <select class="qmem-select" id="qmem-category">
+            ${allCats.map((c) => `<option value="${escHtml(c)}">${escHtml(c)}</option>`).join('')}
+          </select>
+          <div class="qmem-importance">
+            <span>importance</span>
+            <input type="range" id="qmem-importance" min="1" max="10" value="5">
+            <span id="qmem-importance-val">5</span>
+          </div>
+        </div>
+      </div>
+      <div class="qmem-footer">
+        <span class="qmem-hint">Ctrl+Enter to store</span>
+        <button class="btn btn-ghost" id="qmem-cancel">Cancel</button>
+        <button class="btn btn-primary" id="qmem-submit">Store Memory</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  const textarea = overlay.querySelector<HTMLTextAreaElement>('#qmem-content')!;
+  const categoryEl = overlay.querySelector<HTMLSelectElement>('#qmem-category')!;
+  const importanceEl = overlay.querySelector<HTMLInputElement>('#qmem-importance')!;
+  const importanceVal = overlay.querySelector<HTMLSpanElement>('#qmem-importance-val')!;
+  const submitBtn = overlay.querySelector<HTMLButtonElement>('#qmem-submit')!;
+
+  textarea.focus();
+  importanceEl.addEventListener('input', () => {
+    importanceVal.textContent = importanceEl.value;
+  });
+
+  const close = () => {
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 155);
+  };
+
+  const submit = async () => {
+    const content = textarea.value.trim();
+    if (!content) {
+      textarea.focus();
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Storing…';
+    try {
+      await pawEngine.memoryStore(content, categoryEl.value, parseInt(importanceEl.value));
+      showToast('Memory stored in Engram', 'success');
+      close();
+      fetchEngramStats().catch(() => {});
+    } catch (e) {
+      console.error('[today] memoryStore failed:', e);
+      showToast('Failed to store memory', 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Store Memory';
+    }
+  };
+
+  overlay.querySelector('.qmem-close')?.addEventListener('click', close);
+  overlay.querySelector('#qmem-cancel')?.addEventListener('click', close);
+  submitBtn.addEventListener('click', submit);
+  textarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') close();
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit();
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) close();
+  });
+
+  const onEsc = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      close();
+      document.removeEventListener('keydown', onEsc);
+    }
+  };
+  document.addEventListener('keydown', onEsc);
 }
 
 /** Populate the 30-day activity heatmap card. */
@@ -728,10 +900,9 @@ export function renderToday() {
   const userAvatar = localStorage.getItem('paw-user-avatar') || '';
 
   const pendingTasks = tasks.filter((t) => !t.done);
-  const completedToday = tasks.filter((t) => t.done && isToday(t.createdAt));
+  const completedToday = tasks.filter((t) => t.done && isToday(t.updatedAt));
 
   // Usage stats — showcase overrides or real data
-  const tokensUsed = showcase ? showcase.tokenCount : appState.sessionTokensUsed;
   const cost = showcase ? showcase.cost : appState.sessionCost;
 
   // Build avatar HTML — profile picture or initials or default icon
@@ -753,14 +924,13 @@ export function renderToday() {
             <div class="today-label">MISSION CONTROL</div>
             <div class="today-greeting">${greeting}${userName ? `, <span class="today-user-name" id="today-user-name" title="Click to edit">${escHtml(userName)}</span>` : '<button class="today-set-name-btn" id="today-set-name">Set your name</button>'}</div>
             <div class="today-date">${dateStr}</div>
+            <div class="today-pawz-msg">${escHtml(getPawzMessage(pendingTasks.length, completedToday.length))}</div>
           </div>
         </div>
       </div>
       <div class="today-tesseract-cell" id="today-tesseract"></div>
       <div class="today-header-right">
         <div class="today-usage-strip">
-          <span class="today-usage-item"><span class="today-usage-val" id="cmd-tokens">${formatTokens(tokensUsed)}</span> <span class="today-usage-lbl">tokens</span></span>
-          <span class="today-usage-sep">·</span>
           <span class="today-usage-item"><span class="today-usage-val" id="cmd-cost">${formatCost(cost)}</span> <span class="today-usage-lbl">cost</span></span>
           <span class="today-usage-sep">·</span>
           <span class="today-usage-item"><span class="today-usage-val" id="cmd-input-tokens">${formatTokens(appState.sessionInputTokens)}</span> <span class="today-usage-lbl">in</span></span>
@@ -805,46 +975,76 @@ export function renderToday() {
       <div class="cmd-card bento-cell bento-span-6">
         <div class="today-card-header">
           <span class="today-card-title">CALENDAR</span>
+          <span class="today-card-count" id="today-calendar-count">…</span>
         </div>
         <div class="today-card-body" id="today-calendar">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(3)}
         </div>
       </div>
 
-      <!-- Row 2: Inbox + Quick Actions -->
+      <!-- Row 2: Inbox + Recent Sessions -->
       <div class="cmd-card bento-cell bento-span-6">
         <div class="today-card-header">
           <span class="today-card-title">UNREAD MAIL</span>
         </div>
         <div class="today-card-body" id="today-emails">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(4)}
         </div>
       </div>
 
       <div class="cmd-card bento-cell bento-span-6">
         <div class="today-card-header">
+          <span class="today-card-title">RECENT SESSIONS</span>
+          <span class="today-card-count" id="today-sessions-count">…</span>
+        </div>
+        <div class="today-card-body" id="today-sessions">
+          ${skelLines(3)}
+        </div>
+      </div>
+
+      <!-- Row 3: Engram + Quick Actions -->
+      <div class="cmd-card bento-cell bento-span-8 engram-card" id="engram-card">
+        <div class="today-card-header">
+          <span class="today-card-title">ENGRAM</span>
+          <span class="today-card-count" id="engram-memory-count">…</span>
+          <button class="btn btn-ghost btn-sm" id="engram-store-btn">+ Memory</button>
+        </div>
+        <div class="engram-card-body">
+          <div class="engram-brain-wrap" id="engram-brain-wrap" title="Click to store a memory in Engram">
+          </div>
+          <div class="engram-stats-col" id="engram-stats-col">
+            ${skelLines(3)}
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-card bento-cell bento-span-4">
+        <div class="today-card-header">
           <span class="today-card-title">QUICK ACTIONS</span>
         </div>
         <div class="today-card-body">
-          <button class="today-quick-action" id="today-briefing-btn">
-            ▸ Morning Briefing
+          <button class="today-quick-action" id="today-new-chat-btn">
+            ▸ New Chat
           </button>
-          <button class="today-quick-action" id="today-summarize-btn">
-            ▸ Summarize Inbox
+          <button class="today-quick-action" id="today-research-btn">
+            ▸ Research
           </button>
-          <button class="today-quick-action" id="today-schedule-btn">
-            ▸ What's on today?
+          <button class="today-quick-action" id="today-orchestrate-btn">
+            ▸ Orchestration
+          </button>
+          <button class="today-quick-action" id="today-memory-vault-btn">
+            ▸ Memory Vault
           </button>
         </div>
       </div>
 
-      <!-- Row 3: Fleet + Skills + Activity -->
+      <!-- Row 4: Fleet + Skills + Activity -->
       <div class="cmd-card bento-cell bento-span-4">
         <div class="today-card-header">
           <span class="today-card-title">AGENT FLEET</span>
         </div>
         <div class="today-card-body" id="cmd-fleet-body">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(3)}
         </div>
       </div>
 
@@ -854,7 +1054,7 @@ export function renderToday() {
           <span class="today-card-count" id="cmd-skills-count">…</span>
         </div>
         <div class="today-card-body" id="cmd-skills-body">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(3)}
         </div>
       </div>
 
@@ -863,7 +1063,7 @@ export function renderToday() {
           <span class="today-card-title">ACTIVITY</span>
         </div>
         <div class="today-card-body" id="today-activity">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(3)}
         </div>
       </div>
 
@@ -874,26 +1074,17 @@ export function renderToday() {
           <span class="today-card-count" id="cmd-integrations-count">…</span>
         </div>
         <div class="today-card-body" id="cmd-integrations-body">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(2)}
         </div>
       </div>
 
-      <!-- Row 5: Heatmap + Capabilities -->
-      <div class="cmd-card bento-cell bento-span-6">
+      <!-- Row 5: Heatmap (full width) -->
+      <div class="cmd-card bento-cell bento-span-full">
         <div class="today-card-header">
           <span class="today-card-title">30-DAY HEATMAP</span>
         </div>
         <div class="today-card-body" id="cmd-heatmap-body">
-          <span class="today-loading">Loading…</span>
-        </div>
-      </div>
-
-      <div class="cmd-card bento-cell bento-span-6 capabilities-card">
-        <div class="today-card-header">
-          <span class="today-card-title">CAPABILITIES</span>
-        </div>
-        <div class="today-card-body" id="cmd-capabilities-body">
-          <span class="today-loading">Loading…</span>
+          ${skelLines(1)}
         </div>
       </div>
 
@@ -904,11 +1095,18 @@ export function renderToday() {
     </div>
   `;
 
-  // ── Hydrate the hero tesseract ──
-  const tesseractCell = $('today-tesseract');
-  if (tesseractCell) {
-    _heroTesseract?.destroy();
-    _heroTesseract = createHeroTesseract(tesseractCell);
+  // ── Hydrate the hero logo ──
+  const logoCell = $('today-tesseract');
+  if (logoCell) {
+    _heroLogo?.destroy();
+    _heroLogo = createHeroLogo(logoCell);
+  }
+
+  // ── Hydrate the Engram brain canvas ──
+  const brainWrap = $('engram-brain-wrap');
+  if (brainWrap) {
+    _engramBrain?.destroy();
+    _engramBrain = createEngramBrain(brainWrap);
   }
 
   bindEvents();
@@ -1063,24 +1261,20 @@ function bindEvents() {
     });
   });
 
-  $('today-briefing-btn')?.addEventListener('click', () => triggerBriefing());
-  $('today-summarize-btn')?.addEventListener('click', () => triggerInboxSummary());
-  $('today-schedule-btn')?.addEventListener('click', () => triggerScheduleCheck());
+  // ── Quick Actions ───────────────────────────────────────────────────────
+  $('today-new-chat-btn')?.addEventListener('click', () => switchView('chat'));
+  $('today-research-btn')?.addEventListener('click', () => switchView('research'));
+  $('today-orchestrate-btn')?.addEventListener('click', () => switchView('orchestrator'));
+  $('today-memory-vault-btn')?.addEventListener('click', () => switchView('memory-palace'));
+
+  // ── Engram card ─────────────────────────────────────────────────────────
+  $('engram-brain-wrap')?.addEventListener('click', showQuickMemoryModal);
+  $('engram-store-btn')?.addEventListener('click', showQuickMemoryModal);
 
   // ── Kinetic: apply spring hover to bento cards ──
   document.querySelectorAll('.cmd-card').forEach((card) => {
     kineticRow(card as HTMLElement, { spring: true, springCard: true });
   });
-
-  // ── Kinetic: stagger-materialise skill chips and fleet items ──
-  const fleetStagger = document.querySelector('#cmd-fleet-body .k-stagger');
-  if (fleetStagger) kineticStagger(fleetStagger as HTMLElement, '.cmd-fleet-item');
-
-  const skillsStagger = document.querySelector('#cmd-skills-body .k-stagger');
-  if (skillsStagger) kineticStagger(skillsStagger as HTMLElement, '.cmd-skill-chip');
-
-  // Integration health dashboard wiring
-  loadIntegrationsDashboard();
 }
 
 // ── Task Modal ────────────────────────────────────────────────────────
@@ -1189,7 +1383,7 @@ export async function reloadTodayTasks(inPlace = false) {
       if (!tasksContainer) return;
 
       const pendingTasks = mapped.filter((t) => !t.done);
-      const completedToday = mapped.filter((t) => t.done && isToday(t.createdAt));
+      const completedToday = mapped.filter((t) => t.done && isToday(t.updatedAt));
 
       tasksContainer.innerHTML =
         pendingTasks.length === 0
@@ -1244,47 +1438,9 @@ export async function reloadTodayTasks(inPlace = false) {
   }
 }
 
-// ── Quick Actions ─────────────────────────────────────────────────────
-
-async function triggerBriefing() {
-  showToast('Starting morning briefing...');
-  switchView('chat');
-  try {
-    await pawEngine.chatSend(
-      'main',
-      'Give me a morning briefing: weather, any calendar events today, and summarize my unread emails.',
-    );
-  } catch {
-    showToast('Failed to start briefing', 'error');
-  }
-}
-
-async function triggerInboxSummary() {
-  showToast('Summarizing inbox...');
-  switchView('chat');
-  try {
-    await pawEngine.chatSend(
-      'main',
-      'Check my email inbox and summarize the important unread messages.',
-    );
-  } catch {
-    showToast('Failed to summarize inbox', 'error');
-  }
-}
-
-async function triggerScheduleCheck() {
-  showToast('Checking schedule...');
-  switchView('chat');
-  try {
-    await pawEngine.chatSend('main', 'What do I have scheduled for today? Check my calendar.');
-  } catch {
-    showToast('Failed to check schedule', 'error');
-  }
-}
-
 // ── Integration Dashboard Loader ──────────────────────────────────────
 
-async function loadIntegrationsDashboard() {
+export async function loadIntegrationsDashboard() {
   const body = $('cmd-integrations-body');
   const countEl = $('cmd-integrations-count');
   if (!body) return;
@@ -1338,7 +1494,7 @@ async function loadIntegrationsDashboard() {
       return;
     }
 
-    const html = await renderDashboardIntegrations(connectedIds);
+    const html = await renderDashboardIntegrations(connectedIds, health);
     body.innerHTML = html;
     wireDashboardEvents(body);
   } catch {
