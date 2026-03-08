@@ -371,6 +371,10 @@ export function finalizeStreaming(
       timestamp: new Date(),
       toolCalls,
       thinkingContent,
+      agentId: streamingAgent ?? undefined,
+      agentName: streamingAgent
+        ? (AgentsModule.getAgents().find((a) => a.id === streamingAgent)?.name ?? undefined)
+        : undefined,
     });
     autoSpeakIfEnabled(finalContent, _ttsState).then(() => syncTtsToAppState());
 
@@ -794,6 +798,96 @@ function handleSendResult(
   }
 }
 
+// ── Group chat fan-out ────────────────────────────────────────────────────
+// After Agent 1 finalizes, run each remaining group member sequentially so
+// they can each add their own perspective to the conversation thread.
+
+async function _runGroupTurns(
+  sessionKey: string,
+  userMessage: string,
+  priorResponses: Array<{ agentName: string; content: string }>,
+  remainingAgentIds: string[],
+): Promise<void> {
+  for (const agentId of remainingAgentIds) {
+    const agentProfile = AgentsModule.getAgents().find((a) => a.id === agentId);
+    if (!agentProfile) {
+      console.warn(`[chat] Group turn: agent ${agentId} not found — skipping`);
+      continue;
+    }
+
+    // Show a new streaming bubble attributed to this agent
+    const chatMessages = $('chat-messages');
+    if (!chatMessages) continue;
+    const chatEmpty = $('chat-empty');
+    if (chatEmpty) chatEmpty.style.display = 'none';
+    sweepStaleStreams();
+    const contentEl = rendererShowStreaming(chatMessages, agentProfile.name ?? 'AGENT');
+    const ss = createStreamState(agentProfile.id);
+    ss.el = contentEl;
+    appState.activeStreams.set(sessionKey, ss);
+    showInlineStop();
+    scrollToBottom();
+
+    // Build a context-enriched system prompt so the agent knows what was already said
+    const priorContext = priorResponses
+      .map((r) => `${r.agentName}: "${r.content.slice(0, 2000)}"`)
+      .join('\n\n');
+    const augmentedSystemPrompt = [
+      agentProfile.systemPrompt ?? '',
+      '\n\n[Group Discussion Context]',
+      `\nThe user asked: "${userMessage}"`,
+      `\nOther responses so far:\n${priorContext}`,
+      `\nNow add YOUR unique perspective as ${agentProfile.name}.`,
+      ' Be concise and speak directly to the user. You may agree, disagree, or add something new.',
+    ]
+      .join('')
+      .trim();
+
+    const responsePromise = new Promise<string>((resolve) => {
+      ss.resolve = resolve;
+      ss.timeout = setTimeout(() => resolve(ss.content || '(Response timed out)'), 600_000);
+    });
+
+    try {
+      const result = await engineChatSend(sessionKey, userMessage, {
+        agentProfile: { ...agentProfile, systemPrompt: augmentedSystemPrompt },
+      });
+      if (result.runId) ss.runId = result.runId;
+
+      const finalText = await responsePromise;
+
+      // Finalize inline — bypass finalizeStreaming()'s current-agent guard
+      document.getElementById('streaming-message')?.remove();
+      hideInlineStop();
+      appState.activeStreams.delete(sessionKey);
+      if (ss.timeout) {
+        clearTimeout(ss.timeout);
+        ss.timeout = null;
+      }
+
+      if (finalText) {
+        addMessage({
+          role: 'assistant',
+          content: finalText,
+          timestamp: new Date(),
+          agentId: agentProfile.id,
+          agentName: agentProfile.name,
+        });
+        priorResponses.push({ agentName: agentProfile.name ?? agentId, content: finalText });
+      }
+    } catch (error) {
+      console.error(`[chat] Group turn error for ${agentProfile.name}:`, error);
+      document.getElementById('streaming-message')?.remove();
+      hideInlineStop();
+      appState.activeStreams.delete(sessionKey);
+      if (ss?.timeout) {
+        clearTimeout(ss.timeout);
+        ss.timeout = null;
+      }
+    }
+  }
+}
+
 export async function sendMessage(): Promise<void> {
   const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement | null;
   const chatSend = document.getElementById('chat-send') as HTMLButtonElement | null;
@@ -890,11 +984,31 @@ export async function sendMessage(): Promise<void> {
     handleSendResult(result, ss, streamKey);
 
     const finalText = await responsePromise;
-    if (appState.activeStreams.has(streamKey)) {
+    const didFinalize = appState.activeStreams.has(streamKey);
+    if (didFinalize) {
       finalizeStreaming(finalText, undefined, streamKey);
     } else {
       console.debug('[chat] Stream already torn down — skipping finalizeStreaming');
     }
+
+    // Group chat fan-out: after Agent 1 finalizes successfully, run remaining members
+    if (finalText && didFinalize) {
+      const resolvedSessionKey = appState.currentSessionKey ?? streamKey;
+      const groupMeta = groupSessionMap.get(resolvedSessionKey);
+      if (groupMeta && groupMeta.members.length > 1) {
+        const primaryAgent = AgentsModule.getCurrentAgent();
+        const remaining = groupMeta.members.filter((id) => id !== (primaryAgent?.id ?? ''));
+        if (remaining.length > 0) {
+          await _runGroupTurns(
+            resolvedSessionKey,
+            content ?? '',
+            [{ agentName: primaryAgent?.name ?? 'Agent', content: finalText }],
+            remaining,
+          );
+        }
+      }
+    }
+
     loadSessions({ skipHistory: true }).catch(() => {});
   } catch (error) {
     console.error('[chat] error:', error);
