@@ -42,7 +42,6 @@ interface SFEdge {
 
 // ── colour constants (matches CSS design tokens) ─────────────────────
 const C_ACCENT = '#D4654A';
-const C_SAGE = '#8FB0A0';
 const C_TEXT = 'rgba(255,255,255,0.88)';
 const C_SUB = 'rgba(255,255,255,0.38)';
 const C_DEAD = 'rgba(255,255,255,0.08)';
@@ -103,6 +102,13 @@ export function createSignalFlow(container: HTMLElement): SignalFlowInstance {
   let edges: SFEdge[] = [];
   let rafId = 0;
   let lastT = 0;
+
+  // Per-node persistent pulse phases (so each node breathes independently)
+  const _phases = new Map<string, number>();
+  const _phase = (id: string) => {
+    if (!_phases.has(id)) _phases.set(id, Math.random() * Math.PI * 2);
+    return _phases.get(id)!;
+  };
 
   // ── build graph layout ──────────────────────────────────────────
   function buildGraph(data: SignalFlowData | null) {
@@ -278,7 +284,51 @@ export function createSignalFlow(container: HTMLElement): SignalFlowInstance {
       for (const p of e.pulses) p.t = (p.t + p.speed * dt) % 1;
     }
 
-    // ── draw edges (behind nodes) ───────────────────────────────
+    // ── 1. Ambient nebulae (behind everything) ──────────────────
+    const engNode = nodes.find((n) => n.kind === 'engine');
+    if (engNode) {
+      const ex = engNode.rx * cw;
+      const ey = engNode.ry * ch;
+      const eb = 0.5 + 0.5 * Math.sin(time * 0.0017 + _phase(engNode.id));
+      const engNebula = ctx.createRadialGradient(ex, ey, 0, ex, ey, ch * 0.55);
+      engNebula.addColorStop(0, `rgba(212,101,74,${0.1 + eb * 0.06})`);
+      engNebula.addColorStop(0.45, 'rgba(212,101,74,0.03)');
+      engNebula.addColorStop(1, 'transparent');
+      ctx.fillStyle = engNebula;
+      ctx.beginPath();
+      ctx.arc(ex, ey, ch * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const activeInputs = nodes.filter((n) => n.kind === 'input' && n.active);
+    if (activeInputs.length) {
+      const ix = (activeInputs.reduce((s, n) => s + n.rx, 0) / activeInputs.length) * cw;
+      const iy = (activeInputs.reduce((s, n) => s + n.ry, 0) / activeInputs.length) * ch;
+      const inNebula = ctx.createRadialGradient(ix, iy, 0, ix, iy, ch * 0.38);
+      inNebula.addColorStop(0, 'rgba(143,176,160,0.07)');
+      inNebula.addColorStop(0.65, 'rgba(143,176,160,0.02)');
+      inNebula.addColorStop(1, 'transparent');
+      ctx.fillStyle = inNebula;
+      ctx.beginPath();
+      ctx.arc(ix, iy, ch * 0.38, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const activeOutputs = nodes.filter((n) => n.kind === 'output' && n.active);
+    if (activeOutputs.length) {
+      const ox = (activeOutputs.reduce((s, n) => s + n.rx, 0) / activeOutputs.length) * cw;
+      const oy = (activeOutputs.reduce((s, n) => s + n.ry, 0) / activeOutputs.length) * ch;
+      const outNebula = ctx.createRadialGradient(ox, oy, 0, ox, oy, ch * 0.38);
+      outNebula.addColorStop(0, 'rgba(143,176,160,0.05)');
+      outNebula.addColorStop(0.65, 'rgba(143,176,160,0.015)');
+      outNebula.addColorStop(1, 'transparent');
+      ctx.fillStyle = outNebula;
+      ctx.beginPath();
+      ctx.arc(ox, oy, ch * 0.38, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── 2. Edges (behind nodes) ──────────────────────────────────
     for (const edge of edges) {
       const fn = nodes.find((n) => n.id === edge.from);
       const tn = nodes.find((n) => n.id === edge.to);
@@ -288,77 +338,139 @@ export function createSignalFlow(container: HTMLElement): SignalFlowInstance {
       const fy = fn.ry * ch;
       const tx = tn.rx * cw;
       const ty = tn.ry * ch;
-      // slight upward bow proportional to horizontal span
-      const cpx = (fx + tx) / 2;
-      const cpy = (fy + ty) / 2 - (tx - fx) * 0.07;
+      // Perpendicular bow — same elegant curve as Memory Palace edges
+      const mx = (fx + tx) / 2;
+      const my = (fy + ty) / 2;
+      const ddx = tx - fx;
+      const ddy = ty - fy;
+      const elen = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+      const cpx = mx - (ddy / elen) * elen * 0.12;
+      const cpy = my + (ddx / elen) * elen * 0.12;
 
-      // edge line
+      if (edge.active) {
+        // Soft glow underlay on active edges
+        ctx.beginPath();
+        ctx.moveTo(fx, fy);
+        ctx.quadraticCurveTo(cpx, cpy, tx, ty);
+        ctx.strokeStyle = 'rgba(143,176,160,0.10)';
+        ctx.lineWidth = 6;
+        ctx.stroke();
+      }
+
+      // Edge line
       ctx.beginPath();
       ctx.moveTo(fx, fy);
       ctx.quadraticCurveTo(cpx, cpy, tx, ty);
-      ctx.strokeStyle = edge.active ? 'rgba(143,176,160,0.20)' : C_DEAD;
-      ctx.lineWidth = 0.75;
+      ctx.strokeStyle = edge.active ? 'rgba(143,176,160,0.30)' : C_DEAD;
+      ctx.lineWidth = edge.active ? 1 : 0.75;
       if (!edge.active) ctx.setLineDash([3, 5]);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // pulse dots
+      // Pulse dots — two-layer glow + white-hot core (Memory Palace style)
       for (const p of edge.pulses) {
         const [bx, by] = bzPt(p.t, fx, fy, cpx, cpy, tx, ty);
-        // glow halo
+
+        // Outer diffuse halo
+        const g2 = ctx.createRadialGradient(bx, by, 0, bx, by, 16);
+        g2.addColorStop(0, 'rgba(143,176,160,0.25)');
+        g2.addColorStop(0.4, 'rgba(143,176,160,0.08)');
+        g2.addColorStop(1, 'transparent');
+        ctx.beginPath();
+        ctx.arc(bx, by, 16, 0, Math.PI * 2);
+        ctx.fillStyle = g2;
+        ctx.fill();
+
+        // Inner glow
         const g = ctx.createRadialGradient(bx, by, 0, bx, by, 7);
-        g.addColorStop(0, 'rgba(143,176,160,0.90)');
-        g.addColorStop(0.45, 'rgba(143,176,160,0.28)');
+        g.addColorStop(0, 'rgba(143,176,160,0.95)');
+        g.addColorStop(0.45, 'rgba(143,176,160,0.30)');
         g.addColorStop(1, 'transparent');
         ctx.beginPath();
         ctx.arc(bx, by, 7, 0, Math.PI * 2);
         ctx.fillStyle = g;
         ctx.fill();
-        // hard core
+
+        // White-hot core
         ctx.beginPath();
-        ctx.arc(bx, by, 2, 0, Math.PI * 2);
-        ctx.fillStyle = C_SAGE;
+        ctx.arc(bx, by, 1.8, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.globalAlpha = 0.88;
         ctx.fill();
+        ctx.globalAlpha = 1;
       }
     }
 
-    // ── draw nodes (on top of edges) ────────────────────────────
+    // ── 3. Nodes (on top of edges) ───────────────────────────────
     for (const node of nodes) {
       const nx = node.rx * cw;
       const ny = node.ry * ch;
       const isEng = node.kind === 'engine';
       const nw = isEng ? 68 : 60;
       const nh = isEng ? 38 : 28;
+      const pulse = 0.5 + 0.5 * Math.sin(time * 0.0017 + _phase(node.id));
 
-      // engine breathing ring
       if (isEng) {
-        const b = 0.5 + 0.5 * Math.sin(time * 0.0017);
+        // Engine: three concentric breathing rings
         ctx.beginPath();
-        ctx.arc(nx, ny, 34 + b * 5, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(212,101,74,${0.12 + b * 0.15})`;
+        ctx.arc(nx, ny, 46 + pulse * 8, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(212,101,74,${0.05 + pulse * 0.07})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(nx, ny, 36 + pulse * 5, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(212,101,74,${0.12 + pulse * 0.14})`;
         ctx.lineWidth = 1.5;
         ctx.stroke();
-        // static inner ring
+
         ctx.beginPath();
         ctx.arc(nx, ny, 28, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(212,101,74,0.07)';
+        ctx.strokeStyle = `rgba(212,101,74,${0.07 + pulse * 0.05})`;
         ctx.lineWidth = 1;
         ctx.stroke();
+      } else {
+        // Non-engine: outer radial glow halo (Memory Palace node style)
+        const glowR = Math.max(nw, nh) * 0.72 + 6 + pulse * 5;
+        const haloA = node.active ? 0.16 + pulse * 0.07 : 0.04;
+        const halo = ctx.createRadialGradient(nx, ny, 4, nx, ny, glowR);
+        halo.addColorStop(
+          0,
+          node.active ? `rgba(143,176,160,${haloA})` : `rgba(255,255,255,${haloA})`,
+        );
+        halo.addColorStop(1, 'transparent');
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(nx, ny, glowR, 0, Math.PI * 2);
+        ctx.fill();
       }
 
-      // node fill + border
+      // Node rect fill
       rr(ctx, nx - nw / 2, ny - nh / 2, nw, nh, 4);
       ctx.fillStyle = isEng
-        ? 'rgba(212,101,74,0.12)'
+        ? `rgba(212,101,74,${0.09 + pulse * 0.07})`
         : node.active
-          ? 'rgba(143,176,160,0.07)'
+          ? `rgba(143,176,160,${0.06 + pulse * 0.03})`
           : 'rgba(255,255,255,0.03)';
       ctx.fill();
-      ctx.strokeStyle = isEng ? C_ACCENT : node.active ? C_SAGE : 'rgba(255,255,255,0.18)';
+
+      // Node border — pulses with the node
+      ctx.strokeStyle = isEng
+        ? `rgba(212,101,74,${0.65 + pulse * 0.35})`
+        : node.active
+          ? `rgba(143,176,160,${0.45 + pulse * 0.3})`
+          : 'rgba(255,255,255,0.15)';
       ctx.lineWidth = isEng ? 1.5 : 0.8;
       ctx.stroke();
 
-      // label text
+      // Inner gleam (top-left highlight like Memory Palace)
+      if (node.active || isEng) {
+        rr(ctx, nx - nw / 2 + 2, ny - nh / 2 + 2, nw * 0.55, nh * 0.38, 3);
+        ctx.fillStyle = isEng ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.04)';
+        ctx.fill();
+      }
+
+      // Label text
       const hasSub = !!node.sub;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
