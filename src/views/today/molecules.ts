@@ -811,14 +811,18 @@ async function _generateRecall() {
 
     const unComplete = pawEngine.on('complete', (ev: EngineEvent) => {
       if (ev.session_id !== sessionId) return;
-      cleanup();
-      out.innerHTML = escHtml(accumulated);
-      if (accumulated) {
-        localStorage.setItem('paw-recall-text', accumulated);
-        localStorage.setItem('paw-recall-ts', new Date().toISOString());
-      }
-      btn.disabled = false;
-      btn.textContent = '↺ Recap';
+      // Defer by one macrotask so any queued delta events can drain first
+      // before we unsubscribe the listener — prevents half-sentence cutoff.
+      setTimeout(() => {
+        cleanup();
+        out.innerHTML = escHtml(accumulated);
+        if (accumulated) {
+          localStorage.setItem('paw-recall-text', accumulated);
+          localStorage.setItem('paw-recall-ts', new Date().toISOString());
+        }
+        btn.disabled = false;
+        btn.textContent = '↺ Recap';
+      }, 0);
     });
 
     const unError = pawEngine.on('error', (ev: EngineEvent) => {
