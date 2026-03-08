@@ -458,6 +458,8 @@ function renderMarkdown(data: Record<string, unknown>): string {
 
 function renderForm(data: Record<string, unknown>): string {
   const fields = dataArr(data, 'fields') as Record<string, unknown>[];
+  const onSubmitMessage = dataStr(data, 'on_submit_message');
+  const submitLabel = dataStr(data, 'submit_label', 'Submit');
   if (!fields.length) return '<p class="canvas-muted">No form fields</p>';
 
   const inputs = fields
@@ -474,7 +476,8 @@ function renderForm(data: Record<string, unknown>): string {
     })
     .join('');
 
-  return `<form class="canvas-form" data-canvas-form>${inputs}<button type="submit" class="btn btn-sm btn-primary canvas-form-submit">Submit</button></form>`;
+  const submitMsgAttr = onSubmitMessage ? ` data-submit-message="${escHtml(onSubmitMessage)}"` : '';
+  return `<form class="canvas-form" data-canvas-form${submitMsgAttr}>${inputs}<button type="submit" class="btn btn-sm btn-primary canvas-form-submit">${escHtml(submitLabel)}</button></form>`;
 }
 
 // ── Timeline ──────────────────────────────────────────────────────────
@@ -868,9 +871,12 @@ function activateLiveWidgets(scope?: HTMLElement): void {
         values[k] = String(v);
       });
 
-      // Dispatch event for external handlers (agents, automation)
-      document.dispatchEvent(new CustomEvent('canvas:form-submit', { detail: values }));
-      showToast('Form submitted', 'success');
+      // Dispatch event — canvas/index.ts listens and injects into main chat
+      const submitMessage = form.dataset.submitMessage ?? null;
+      document.dispatchEvent(
+        new CustomEvent('canvas:form-submit', { detail: { values, submitMessage } }),
+      );
+      showToast('Sent to agent…', 'info');
 
       // Visual feedback — briefly highlight submit button
       const btn = form.querySelector<HTMLButtonElement>('.canvas-form-submit');

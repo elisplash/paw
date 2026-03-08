@@ -32,6 +32,7 @@ let _sessionId: string | null = null;
 let _dashboardId: string | null = null;
 let _dashboardName: string | null = null;
 let _subscribed = false;
+let _refreshTimer: ReturnType<typeof setInterval> | null = null;
 
 // ── State bridge ──────────────────────────────────────────────────────
 
@@ -165,8 +166,82 @@ initTabBar('main', {
 
 // ── Public API ────────────────────────────────────────────────────────
 
+// ── Auto-refresh helpers ─────────────────────────────────────────────
+
+/** Parse "5m", "1h", "30s" → milliseconds. Returns null if invalid or < 10s. */
+function parseIntervalMs(s: string): number | null {
+  const m = /^(\d+)\s*(s|m|h|d)$/i.exec(s.trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 10);
+  const ms =
+    m[2].toLowerCase() === 's'
+      ? n * 1_000
+      : m[2].toLowerCase() === 'm'
+        ? n * 60_000
+        : m[2].toLowerCase() === 'h'
+          ? n * 3_600_000
+          : n * 86_400_000;
+  return ms >= 10_000 ? ms : null;
+}
+
+function startRefreshTimer(interval: string, prompt: string): void {
+  stopRefreshTimer();
+  const ms = parseIntervalMs(interval);
+  if (!ms) return;
+  _refreshTimer = setInterval(() => {
+    // Don't fire while agent is already streaming
+    if (document.getElementById('streaming-message')) return;
+    _injectChatMessage(
+      prompt.trim() || 'Please refresh this dashboard with the latest live data from all sources.',
+    );
+  }, ms);
+  console.debug(`[canvas] Auto-refresh timer started: every ${interval}`);
+}
+
+function stopRefreshTimer(): void {
+  if (_refreshTimer !== null) {
+    clearInterval(_refreshTimer);
+    _refreshTimer = null;
+  }
+}
+
+/**
+ * Inject a message into the main chat as if the user typed it.
+ * Used by canvas forms, action buttons, and the auto-refresh timer.
+ */
+function _injectChatMessage(message: string): void {
+  const chatInput = document.getElementById('chat-input') as HTMLTextAreaElement | null;
+  const chatSend = document.getElementById('chat-send') as HTMLButtonElement | null;
+  if (chatInput && chatSend && !chatSend.disabled) {
+    chatInput.value = message;
+    chatInput.dispatchEvent(new Event('input')); // trigger any auto-resize
+    chatSend.click();
+  }
+}
+
+// ── Canvas interactivity — form submit & action buttons ───────────────
+// These are wired globally once rather than per-render to avoid duplicates.
+
+document.addEventListener('canvas:form-submit', (e: Event) => {
+  const { values, submitMessage } = (
+    e as CustomEvent<{ values: Record<string, string>; submitMessage: string | null }>
+  ).detail;
+  const message =
+    submitMessage ||
+    `[Canvas form submitted] ${Object.entries(values)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(', ')}`;
+  _injectChatMessage(message);
+});
+
+document.addEventListener('canvas:action', (e: Event) => {
+  const { action } = (e as CustomEvent<{ action: string }>).detail;
+  if (action) _injectChatMessage(action);
+});
+
 /** Set the active session and load its canvas. */
 export async function loadCanvas(sessionId?: string): Promise<void> {
+  stopRefreshTimer();
   cleanupLiveWidgets();
   if (sessionId) {
     _sessionId = sessionId;
@@ -198,6 +273,7 @@ export async function loadCanvas(sessionId?: string): Promise<void> {
 
 /** Load a specific dashboard (called from sidebar or agent event). */
 export async function loadDashboard(dashboardId: string): Promise<void> {
+  stopRefreshTimer();
   cleanupLiveWidgets();
   _dashboardId = dashboardId;
   _sessionId = null;
@@ -212,6 +288,13 @@ export async function loadDashboard(dashboardId: string): Promise<void> {
   if (dash) {
     _dashboardName = dash.name;
     await addTab(dashboardId, dash);
+    // Start auto-refresh if the dashboard has a schedule configured
+    if (dash.refresh_interval) {
+      startRefreshTimer(
+        dash.refresh_interval,
+        dash.refresh_prompt ?? 'Please refresh this dashboard with the latest live data.',
+      );
+    }
   }
 
   await fetchDashboardComponents(dashboardId);

@@ -231,7 +231,7 @@ pub fn domain_summaries() -> Vec<(&'static str, &'static str, &'static str)> {
         (
             "canvas",
             "grid_view",
-            "Agent Canvas — visualize data and build interactive dashboards. Use structured component types (metric, chart, table, timeline, checklist, status, etc.) for data-driven displays. Use the `embed` type for fully custom HTML/CSS/JS — required for creative/marketing visuals, branded reports, infographics, funnels, or any design with a specific look and feel. Match the design to the user's intent: if they describe something visual, colorful, or non-standard → use embed with custom CSS; if they want a live data monitor → use structured components.",
+            "Agent Canvas — visualize data and build interactive dashboards. LIVE DATA: use rest_api_call or service_api_call to fetch from Stripe, HubSpot, etc., then canvas_push to create the tile and canvas_update to push fresh data. For auto-refreshing dashboards use create_task with cron_schedule + canvas_update. INTERACTIVE FORMS: use the form component type to capture user input — on submit the values arrive as a chat message so you can act on them. DESIGN: use embed for custom HTML/CSS/JS visuals (marketing, infographics, branded layouts); use structured types (metric, chart, table, timeline, checklist, status, gauge, progress) for operational data.",
         ),
         (
             "storage",
