@@ -511,6 +511,12 @@ pub enum EdgeType {
     PartOf,
     /// Source and target are semantically similar (discovered during dream replay).
     SimilarTo,
+    /// Source adds detail/depth to target (same topic, new facet).
+    Elaborates,
+    /// Source is a higher-level abstraction of target (L1→L0, L2→L1).
+    Generalizes,
+    /// Source is a more specific instance of target (inverse of Generalizes).
+    Specializes,
 }
 
 impl std::fmt::Display for EdgeType {
@@ -528,6 +534,9 @@ impl std::fmt::Display for EdgeType {
             EdgeType::ExampleOf => write!(f, "example_of"),
             EdgeType::PartOf => write!(f, "part_of"),
             EdgeType::SimilarTo => write!(f, "similar_to"),
+            EdgeType::Elaborates => write!(f, "elaborates"),
+            EdgeType::Generalizes => write!(f, "generalizes"),
+            EdgeType::Specializes => write!(f, "specializes"),
         }
     }
 }
@@ -548,6 +557,9 @@ impl std::str::FromStr for EdgeType {
             "example_of" => Ok(EdgeType::ExampleOf),
             "part_of" => Ok(EdgeType::PartOf),
             "similar_to" => Ok(EdgeType::SimilarTo),
+            "elaborates" => Ok(EdgeType::Elaborates),
+            "generalizes" => Ok(EdgeType::Generalizes),
+            "specializes" => Ok(EdgeType::Specializes),
             _ => Err(format!("Unknown edge type: {}", s)),
         }
     }
@@ -1896,6 +1908,8 @@ pub struct ReplayReport {
     pub re_embedded: usize,
     /// Number of new SimilarTo edges discovered.
     pub new_connections: usize,
+    /// Whether the abstraction tree was rebuilt (Phase 4).
+    pub tree_rebuilt: bool,
     /// Duration of the replay cycle in milliseconds.
     pub duration_ms: u64,
 }

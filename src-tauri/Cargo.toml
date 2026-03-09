@@ -109,6 +109,14 @@ hkdf = "0.12"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# ── Benchmarks ──────────────────────────────────────────────
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "engram_bench"
+harness = false
+
 # ── Tests: single binary to avoid OOM on codespace ──────────
 [[test]]
 name = "integration"

@@ -293,9 +293,7 @@ mod tests {
     fn test_store() -> SessionStore {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
-        SessionStore {
-            conn: Arc::new(Mutex::new(conn)),
-        }
+        SessionStore::from_connection(conn)
     }
 
     fn seed_skill(store: &SessionStore, id: &str, trigger: &str) {

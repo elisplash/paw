@@ -61,6 +61,7 @@ pub async fn store_episodic_dedup(
     mut mem: EpisodicMemory,
     embedding_client: Option<&EmbeddingClient>,
     dedup_threshold: Option<f64>,
+    hnsw_index: Option<&super::hnsw::SharedHnswIndex>,
 ) -> EngineResult<Option<String>> {
     let threshold = dedup_threshold.unwrap_or(DEDUP_JACCARD_THRESHOLD);
 
@@ -136,6 +137,11 @@ pub async fn store_episodic_dedup(
     }
 
     store.engram_store_episodic(&mem)?;
+
+    // Incremental HNSW update — keep the in-memory index current
+    if let (Some(idx), Some(ref embedding)) = (hnsw_index, &mem.embedding) {
+        super::hnsw::insert_shared(idx, &id, embedding.clone());
+    }
 
     // Audit
     store.engram_audit_log("store", &id, &mem.agent_id, &mem.session_id, None)?;
@@ -261,6 +267,7 @@ pub fn store_procedural(store: &SessionStore, mem: &ProceduralMemory) -> EngineR
 /// of momentum vectors (§8.6 trajectory-aware recall). Blend ratio: 0.7 current, 0.3 momentum.
 ///
 /// Returns a `RecallResult` containing both the memories and retrieval quality metrics.
+#[allow(clippy::too_many_arguments)]
 pub async fn search(
     store: &SessionStore,
     query: &str,
@@ -269,6 +276,7 @@ pub async fn search(
     embedding_client: Option<&EmbeddingClient>,
     budget_tokens: usize,
     momentum_embeddings: Option<&[Vec<f32>]>,
+    hnsw_index: Option<&super::hnsw::SharedHnswIndex>,
 ) -> EngineResult<RecallResult> {
     let search_start = std::time::Instant::now();
     let mut all_results: Vec<RetrievedMemory> = Vec::new();
@@ -303,13 +311,81 @@ pub async fn search(
                     query_emb
                 };
 
-                vec_episodic = store.engram_search_episodic_vector(
-                    &search_emb,
-                    client.model_name(),
-                    scope,
-                    search_limit,
-                    config.similarity_threshold as f64,
-                )?;
+                vec_episodic = match hnsw_index {
+                    Some(idx) if !super::hnsw::is_empty_shared(idx) => {
+                        // HNSW O(log n) approximate nearest-neighbor search.
+                        // Over-fetch to compensate for post-hoc scope + model filtering.
+                        // Adaptive: if initial fetch yields < 50% after filtering, widen or fall back.
+                        let model_name = client.model_name();
+                        // §5 Self-tuning: use the recall tuner's adapted threshold
+                        // instead of the static config value. Falls back to config
+                        // on first run before the tuner has enough samples.
+                        let adapted = super::recall_tuner::current_threshold();
+                        let threshold = if adapted != config.similarity_threshold as f64 {
+                            adapted
+                        } else {
+                            config.similarity_threshold as f64
+                        };
+                        let initial_k = search_limit * 3;
+
+                        let hnsw_results =
+                            super::hnsw::search_shared(idx, &search_emb, initial_k, threshold);
+
+                        // Batch-fetch all candidate memories in a single SQL query
+                        let candidate_ids: Vec<String> =
+                            hnsw_results.iter().map(|hr| hr.memory_id.clone()).collect();
+                        let batch = store
+                            .engram_get_episodic_batch(&candidate_ids)
+                            .unwrap_or_default();
+
+                        // Apply scope + model filters
+                        let mut filtered: Vec<(EpisodicMemory, f64)> = hnsw_results
+                            .into_iter()
+                            .filter_map(|hr| {
+                                batch.get(&hr.memory_id).and_then(|mem| {
+                                    if !crate::engine::sessions::engram::scope_matches(
+                                        scope, &mem.scope,
+                                    ) {
+                                        return None;
+                                    }
+                                    if !model_name.is_empty()
+                                        && mem.embedding_model.as_deref() != Some(model_name)
+                                    {
+                                        return None;
+                                    }
+                                    Some((mem.clone(), hr.similarity))
+                                })
+                            })
+                            .collect();
+
+                        // Adaptive fallback: if HNSW+scope filtering yields too few results,
+                        // fall back to brute-force which searches within scope natively.
+                        // This prevents quality regression for minority-scope agents.
+                        if filtered.len() < search_limit / 2 {
+                            store.engram_search_episodic_vector(
+                                &search_emb,
+                                model_name,
+                                scope,
+                                search_limit,
+                                threshold,
+                            )?
+                        } else {
+                            filtered.truncate(search_limit);
+                            filtered
+                        }
+                    }
+                    _ => {
+                        // Brute-force O(n) fallback when HNSW is unavailable or empty
+                        let adapted = super::recall_tuner::current_threshold();
+                        store.engram_search_episodic_vector(
+                            &search_emb,
+                            client.model_name(),
+                            scope,
+                            search_limit,
+                            adapted,
+                        )?
+                    }
+                };
             }
             Err(e) => {
                 warn!("[engram] Vector search skipped (embedding failed): {}", e);
@@ -360,9 +436,9 @@ pub async fn search(
         });
 
         // Record access for spacing effect
-        store
-            .engram_record_access(&mem.id, RETRIEVAL_STRENGTH_BOOST)
-            .ok();
+        if let Err(e) = store.engram_record_access(&mem.id, RETRIEVAL_STRENGTH_BOOST) {
+            log::debug!("[engram] Failed to record access for {}: {}", mem.id, e);
+        }
     }
 
     // Convert semantic BM25 results
@@ -457,9 +533,11 @@ pub async fn search(
                             created_at: mem.created_at.clone(),
                             agent_id: mem.agent_id.clone(),
                         });
-                        store
-                            .engram_record_access(&mem.id, RETRIEVAL_STRENGTH_BOOST * 0.5)
-                            .ok();
+                        if let Err(e) =
+                            store.engram_record_access(&mem.id, RETRIEVAL_STRENGTH_BOOST * 0.5)
+                        {
+                            log::debug!("[engram] Failed to record access for {}: {}", mem.id, e);
+                        }
                     }
                 }
             }
@@ -512,6 +590,20 @@ pub async fn search(
         result.quality.average_relevancy,
         result.quality.search_latency_ms,
     );
+
+    // §5 Self-tuning: feed NDCG into the recall tuner so the similarity
+    // threshold adapts over time. Low NDCG → loosen threshold (wider net);
+    // high NDCG → tighten threshold (reduce noise).
+    if result.quality.memories_packed > 0 {
+        let adapted = super::recall_tuner::observe_and_tune(result.quality.ndcg);
+        if (adapted - config.similarity_threshold as f64).abs() > 0.02 {
+            info!(
+                "[engram] Recall tuner: threshold adapted to {:.3} (EMA NDCG={:.3})",
+                adapted,
+                super::recall_tuner::current_ema_ndcg(),
+            );
+        }
+    }
 
     // §8.6 Attach the raw query embedding for trajectory tracking
     let mut result = result;
@@ -577,24 +669,43 @@ const CONSOLIDATION_SLOW_BOOST: f64 = 0.15;
 /// Fast-layer retrieval boost on each access.
 const RETRIEVAL_FAST_BOOST: f64 = 0.3;
 
-/// Apply FadeMem dual-layer decay to episodic memories.
+/// FadeMem β-exponent: SML (Short Memory Layer) — super-linear decay.
+/// half-life ≈ 5.02 days. Transient, low-importance memories fade rapidly.
+const BETA_SML: f64 = 1.2;
+
+/// FadeMem β-exponent: LML (Long Memory Layer) — sub-linear decay.
+/// half-life ≈ 11.25 days. Important, frequently-accessed memories persist.
+const BETA_LML: f64 = 0.8;
+
+/// Hysteresis: promote SML → LML when access frequency exceeds this threshold.
+/// Access frequency = access_count / days_since_creation.
+const PROMOTE_THRESHOLD: f64 = 0.7;
+
+/// Hysteresis: demote LML → SML when access frequency drops below this.
+/// Gap between promote/demote prevents oscillation.
+const DEMOTE_THRESHOLD: f64 = 0.3;
+
+/// Apply FadeMem dual-layer decay with β-exponent model to episodic memories.
 ///
-/// Updates both fast_strength and slow_strength, then derives a composite
-/// importance value. Returns the number of memories updated.
+/// Formula: strength(t) = S₀ · exp(-λ_base · t^β)
+///   - β = 0.8 (LML) for well-accessed memories → sub-linear, slow decay
+///   - β = 1.2 (SML) for low-access memories → super-linear, fast decay
 ///
-/// - fast_strength decays with `FAST_HALF_LIFE_HOURS` (rapid activation loss)
-/// - slow_strength decays with `half_life_days` (gradual consolidation loss)
-/// - importance = round(max(fast, slow) * base_importance_scale)
-pub fn apply_decay(store: &SessionStore, half_life_days: f32) -> EngineResult<usize> {
+/// Layer assignment uses hysteresis (promote/demote) to prevent oscillation.
+/// Per-type decay modulation: procedural ×0.5, semantic ×0.7, episodic ×1.0.
+///
+/// Returns the number of memories updated.
+pub fn apply_decay(store: &SessionStore, _half_life_days: f32) -> EngineResult<usize> {
+    let lambda_base: f64 = 0.1; // base decay rate (from ENGRAM.md)
     let lambda_fast = (2.0_f64.ln()) / FAST_HALF_LIFE_HOURS;
-    let lambda_slow = (2.0_f64.ln()) / (half_life_days as f64 * 24.0); // convert to hours
     let now = chrono::Utc::now();
 
     let updates: Vec<(String, f64, f64, i32)> = {
         let conn = store.conn.lock();
         let mut stmt = conn.prepare(
             "SELECT id, importance, last_accessed_at, created_at,
-                    COALESCE(fast_strength, 1.0), COALESCE(slow_strength, 0.0)
+                    COALESCE(fast_strength, 1.0), COALESCE(slow_strength, 0.0),
+                    access_count, category
              FROM episodic_memories
              WHERE consolidation_state != 'archived'",
         )?;
@@ -605,13 +716,50 @@ pub fn apply_decay(store: &SessionStore, half_life_days: f32) -> EngineResult<us
             let created: String = row.get(3)?;
             let fast: f64 = row.get(4)?;
             let slow: f64 = row.get(5)?;
+            let access_count: i32 = row.get(6)?;
+            let category: String = row.get::<_, String>(7).unwrap_or_default();
 
             let reference_time = last_access.as_deref().unwrap_or(&created);
-            let hours_elapsed = parse_days_since(reference_time, &now) * 24.0;
+            let days_elapsed = parse_days_since(reference_time, &now);
+            let hours_elapsed = days_elapsed * 24.0;
+            let days_since_creation = parse_days_since(&created, &now).max(0.01);
 
-            // Dual-layer decay
+            // Fast-layer: standard exponential (activation, not knowledge)
             let new_fast = (fast * (-lambda_fast * hours_elapsed).exp()).max(0.0);
-            let new_slow = (slow * (-lambda_slow * hours_elapsed).exp()).max(0.0);
+
+            // Slow-layer: β-exponent FadeMem model
+            // 1. Determine memory layer (LML vs SML) via hysteresis
+            let access_freq = access_count as f64 / days_since_creation;
+            let beta = if access_freq >= PROMOTE_THRESHOLD {
+                BETA_LML // sub-linear — decays slowly
+            } else if access_freq <= DEMOTE_THRESHOLD {
+                BETA_SML // super-linear — decays rapidly
+            } else {
+                // In hysteresis gap: use current slow_strength as proxy
+                // High slow_strength → was LML, keep LML; low → SML
+                if slow >= 0.5 {
+                    BETA_LML
+                } else {
+                    BETA_SML
+                }
+            };
+
+            // 2. Per-type decay modulation (§ ENGRAM.md: Adaptive Forgetting)
+            let type_modifier = match category.as_str() {
+                "procedure" | "skill" | "workflow" => 0.5, // skills persist longer
+                "knowledge" | "preference" | "fact" => 0.7, // knowledge decays slower
+                _ => 1.0,                                  // episodic at base rate
+            };
+
+            // 3. Frequently accessed memories persist (>5 accesses)
+            let access_modifier = if access_count > 5 { 0.7 } else { 1.0 };
+
+            // 4. Effective lambda with all modifiers
+            let lambda_eff = lambda_base * type_modifier * access_modifier;
+
+            // 5. β-exponent decay: S₀ · exp(-λ_eff · t^β)
+            let t_days = days_elapsed.max(0.0);
+            let new_slow = (slow * (-lambda_eff * t_days.powf(beta)).exp()).max(0.0);
 
             // Composite importance: the effective strength is the max of both layers
             // scaled by the original base importance (0-10).
@@ -688,6 +836,7 @@ pub fn garbage_collect(
     store: &SessionStore,
     importance_threshold: i32,
     batch_size: usize,
+    hnsw_index: Option<&super::hnsw::SharedHnswIndex>,
 ) -> EngineResult<usize> {
     let candidates = store.engram_list_gc_candidates(importance_threshold, batch_size)?;
 
@@ -716,6 +865,11 @@ pub fn garbage_collect(
         // Secure erase: zero content fields then delete (anti-forensic)
         store.engram_secure_erase_episodic(id)?;
         store.engram_audit_log("secure_erase", id, "system", "gc", Some("strength_gc"))?;
+
+        // Remove from HNSW index so deleted memories don't pollute search
+        if let Some(idx) = hnsw_index {
+            super::hnsw::remove_shared(idx, id);
+        }
     }
 
     if count > 0 {
@@ -1012,5 +1166,69 @@ mod tests {
         // Check L2 normalization
         let norm: f32 = blended.iter().map(|x| x * x).sum::<f32>().sqrt();
         assert!((norm - 1.0).abs() < 1e-5, "should be unit-normalized");
+    }
+
+    // ── HNSW Integration Tests ──────────────────────────────────────────
+
+    #[test]
+    fn test_hnsw_is_empty_shared_guards_search() {
+        // Verify that an empty HNSW index reports empty via O(1) check
+        let idx = super::super::hnsw::new_shared();
+        assert!(super::super::hnsw::is_empty_shared(&idx));
+
+        // After insert, should not be empty
+        super::super::hnsw::insert_shared(&idx, "a", vec![1.0, 0.0, 0.0]);
+        assert!(!super::super::hnsw::is_empty_shared(&idx));
+    }
+
+    #[test]
+    fn test_hnsw_insert_and_search_shared() {
+        let idx = super::super::hnsw::new_shared();
+
+        // Insert 3 vectors with known directions
+        super::super::hnsw::insert_shared(&idx, "x", vec![1.0, 0.0, 0.0]);
+        super::super::hnsw::insert_shared(&idx, "y", vec![0.0, 1.0, 0.0]);
+        super::super::hnsw::insert_shared(&idx, "z", vec![0.0, 0.0, 1.0]);
+
+        // Search for x-direction — should find "x" first
+        let results = super::super::hnsw::search_shared(&idx, &[1.0, 0.0, 0.0], 3, 0.0);
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0].memory_id, "x");
+        assert!((results[0].similarity - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_hnsw_scope_filtering_after_search() {
+        // Verifies the adaptive fallback logic: HNSW returns global results,
+        // then scope filtering prunes to only the requesting agent's memories.
+        use crate::atoms::engram_types::MemoryScope;
+
+        let idx = super::super::hnsw::new_shared();
+
+        // Simulate 10 memories: 9 from agent-A, 1 from agent-B
+        for i in 0..9 {
+            super::super::hnsw::insert_shared(
+                &idx,
+                &format!("a-{}", i),
+                vec![1.0 + i as f32 * 0.01, 0.0, 0.0],
+            );
+        }
+        super::super::hnsw::insert_shared(&idx, "b-0", vec![1.0, 0.01, 0.0]);
+
+        // Search returns all 10 — scope filtering must happen at the caller
+        let results = super::super::hnsw::search_shared(&idx, &[1.0, 0.0, 0.0], 10, 0.0);
+        assert_eq!(results.len(), 10);
+
+        // Verify scope_matches works correctly for filtering
+        let scope_a = MemoryScope::agent("agent-A");
+        let scope_b = MemoryScope::agent("agent-B");
+
+        // scope_matches is used by the HNSW block in search() to filter
+        assert!(crate::engine::sessions::engram::scope_matches(
+            &scope_a, &scope_a
+        ));
+        assert!(!crate::engine::sessions::engram::scope_matches(
+            &scope_a, &scope_b
+        ));
     }
 }

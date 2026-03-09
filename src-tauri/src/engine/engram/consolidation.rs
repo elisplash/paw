@@ -13,13 +13,19 @@
 //   7. Mark processed       – set consolidation_state = Consolidated/Archived
 
 use crate::atoms::engram_types::{
-    ConsolidationState, EdgeType, EpisodicMemory, MemoryEdge, SemanticMemory,
+    ConsolidationState, EdgeType, EpisodicMemory, MemoryEdge, MemoryScope, SemanticMemory,
 };
 use crate::atoms::error::EngineResult;
 use crate::engine::engram::metadata_inference;
 use crate::engine::memory::EmbeddingClient;
 use crate::engine::sessions::SessionStore;
 use log::{info, warn};
+
+/// Max NDCG drop tolerated before consolidation is rolled back (§ Transactional Forgetting).
+const NDCG_ROLLBACK_THRESHOLD: f64 = 0.05;
+
+/// Number of sample queries used for NDCG baseline measurement.
+const NDCG_SAMPLE_QUERIES: usize = 10;
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Configuration
@@ -73,6 +79,15 @@ pub async fn run_consolidation(
         "[engram:consolidation] Processing {} candidates",
         candidates.len()
     );
+
+    // ── SAVEPOINT: baseline NDCG for transactional forgetting (§ ENGRAM.md) ─
+    // Measure retrieval quality before mutations. If quality drops >5% after
+    // consolidation, the entire cycle rolls back — no memories are lost.
+    let baseline_ndcg = measure_sample_ndcg(store);
+    {
+        let conn = store.conn.lock();
+        conn.execute_batch("SAVEPOINT pre_consolidation")?;
+    }
 
     // ── 2. Enrich embeddings ─────────────────────────────────────────────
     let mut enriched = candidates;
@@ -174,6 +189,40 @@ pub async fn run_consolidation(
 
     report.gaps = gaps;
 
+    // ── NDCG quality gate: rollback if retrieval quality degraded ─────────
+    let post_ndcg = measure_sample_ndcg(store);
+    let ndcg_delta = post_ndcg - baseline_ndcg;
+
+    if ndcg_delta < -NDCG_ROLLBACK_THRESHOLD && baseline_ndcg > 0.0 {
+        warn!(
+            "[engram:consolidation] NDCG dropped {:.3} ({:.3} → {:.3}) — ROLLING BACK",
+            ndcg_delta, baseline_ndcg, post_ndcg,
+        );
+        {
+            let conn = store.conn.lock();
+            conn.execute_batch("ROLLBACK TO pre_consolidation")?;
+            conn.execute_batch("RELEASE pre_consolidation")?;
+        }
+        report.rolled_back = true;
+        store.engram_audit_log(
+            "consolidation_rollback",
+            "system",
+            "system",
+            "system",
+            Some(&format!(
+                "ndcg_delta={:.3} baseline={:.3} post={:.3}",
+                ndcg_delta, baseline_ndcg, post_ndcg,
+            )),
+        )?;
+        return Ok(report);
+    }
+
+    // ── RELEASE savepoint — consolidation accepted ───────────────────────
+    {
+        let conn = store.conn.lock();
+        conn.execute_batch("RELEASE pre_consolidation")?;
+    }
+
     // ── 7. Audit ─────────────────────────────────────────────────────────
     store.engram_audit_log(
         "consolidation_run",
@@ -223,6 +272,8 @@ pub struct ConsolidationReport {
     pub pii_upgrades: usize,
     /// Detected knowledge gaps for injection into working memory (§4.5).
     pub gaps: Vec<KnowledgeGap>,
+    /// Whether the consolidation was rolled back due to NDCG quality drop.
+    pub rolled_back: bool,
 }
 
 /// A detected gap in the knowledge graph.
@@ -242,6 +293,81 @@ pub enum GapKind {
     UnresolvedContradiction,
     /// Frequently accessed memory that hasn't been updated in a long time.
     StaleHighUse,
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Internal: NDCG Quality Measurement (Transactional Forgetting)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Measure NDCG on a sample of recent memory content.
+///
+/// Uses recent episodic memories as self-referencing queries — their own content
+/// should retrieve themselves and similar memories with high relevance. The
+/// average NDCG across samples forms the quality baseline.
+fn measure_sample_ndcg(store: &SessionStore) -> f64 {
+    use super::retrieval_quality::compute_ndcg;
+    use crate::atoms::engram_types::{CompressionLevel, MemoryType, RetrievedMemory, TrustScore};
+
+    let global = MemoryScope::global();
+    let samples = match store.engram_search_episodic_bm25("", &global, NDCG_SAMPLE_QUERIES) {
+        Ok(s) => s,
+        Err(_) => return 0.0,
+    };
+
+    if samples.is_empty() {
+        return 0.0;
+    }
+
+    let mut ndcg_sum = 0.0;
+    let mut ndcg_count = 0usize;
+
+    for (mem, _) in &samples {
+        // Use first 8 words as query probe
+        let query: String = mem
+            .content
+            .full
+            .split_whitespace()
+            .take(8)
+            .collect::<Vec<_>>()
+            .join(" ");
+        if query.len() < 3 {
+            continue;
+        }
+
+        let results = match store.engram_search_episodic_bm25(&query, &global, 10) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+
+        let retrieved: Vec<RetrievedMemory> = results
+            .iter()
+            .map(|(m, score)| RetrievedMemory {
+                memory_id: m.id.clone(),
+                content: m.content.full.clone(),
+                compression_level: CompressionLevel::Full,
+                memory_type: MemoryType::Episodic,
+                trust_score: TrustScore {
+                    relevance: *score as f32,
+                    accuracy: 0.5,
+                    freshness: 0.5,
+                    utility: 0.5,
+                },
+                token_cost: m.content.full.len() / 4,
+                category: m.category.clone(),
+                created_at: m.created_at.clone(),
+                agent_id: m.agent_id.clone(),
+            })
+            .collect();
+
+        ndcg_sum += compute_ndcg(&retrieved);
+        ndcg_count += 1;
+    }
+
+    if ndcg_count == 0 {
+        0.0
+    } else {
+        ndcg_sum / ndcg_count as f64
+    }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -561,6 +687,24 @@ async fn extract_and_store_semantics(
     store.engram_store_semantic(&to_store)?;
     link_cluster_to_semantic(store, cluster, &new_id)?;
 
+    // Elaboration: link new triple to existing same-subject triples with different predicates.
+    // This materializes the "adds detail" relationship so spreading activation can
+    // traverse from one facet of a topic to related facets during recall.
+    if !existing.is_empty() {
+        let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
+        for existing_mem in &existing {
+            if existing_mem.predicate != predicate {
+                store.engram_add_edge(&MemoryEdge {
+                    source_id: new_id.clone(),
+                    target_id: existing_mem.id.clone(),
+                    edge_type: EdgeType::Elaborates,
+                    weight: 0.6,
+                    created_at: now.clone(),
+                })?;
+            }
+        }
+    }
+
     result.triples_created += 1;
     result.contradictions = contradictions;
 
@@ -727,18 +871,19 @@ fn detect_gaps(store: &SessionStore) -> EngineResult<Vec<KnowledgeGap>> {
     if gaps.len() < MAX_GAP_SUGGESTIONS {
         let conn = store.conn.lock();
         let remaining = MAX_GAP_SUGGESTIONS - gaps.len();
+        let contradicts_token = super::encryption::tokenize_edge_type("contradicts");
         let mut stmt = conn.prepare(
             "SELECT s1.id, s2.id, s1.subject, s1.predicate, s1.object, s2.object,
                     s1.confidence, s2.confidence
              FROM semantic_memories s1
-             JOIN memory_edges e ON e.source_id = s1.id AND e.edge_type = 'Contradicts'
+             JOIN memory_edges e ON e.source_id = s1.id AND e.edge_type = ?2
              JOIN semantic_memories s2 ON s2.id = e.target_id
              WHERE ABS(s1.confidence - s2.confidence) < 0.15
              LIMIT ?1",
         )?;
 
         let rows: Vec<(String, String, String, String, String, String)> = stmt
-            .query_map(rusqlite::params![remaining], |row| {
+            .query_map(rusqlite::params![remaining, contradicts_token], |row| {
                 Ok((
                     row.get::<_, String>(0)?,
                     row.get::<_, String>(1)?,
@@ -926,5 +1071,70 @@ mod tests {
         let pred = extract_predicate(&cluster);
         // Should contain "relates_to_" prefix
         assert!(pred.starts_with("relates_to_"), "Got: {}", pred);
+    }
+
+    // ── Integration Tests ────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn test_run_consolidation_empty_store() {
+        let store = crate::engine::sessions::SessionStore::open_in_memory().unwrap();
+        crate::engine::sessions::schema_for_testing(&store.conn.lock());
+
+        let report = run_consolidation(&store, None, None).await.unwrap();
+        assert_eq!(report.candidates_found, 0);
+        assert_eq!(report.clusters_formed, 0);
+        assert_eq!(report.triples_created, 0);
+    }
+
+    #[tokio::test]
+    async fn test_run_consolidation_marks_singletons() {
+        let store = crate::engine::sessions::SessionStore::open_in_memory().unwrap();
+        crate::engine::sessions::schema_for_testing(&store.conn.lock());
+
+        // Insert a memory that looks old enough (>5min)
+        let mut mem = make_mem(
+            "s1",
+            "unique standalone fact about quantum computing",
+            None,
+            0.5,
+        );
+        mem.created_at = "2024-01-01T00:00:00Z".to_string(); // old enough
+        store.engram_store_episodic(&mem).unwrap();
+
+        let report = run_consolidation(&store, None, None).await.unwrap();
+        // Should find 1 candidate but 0 clusters (need ≥3 similar for a cluster)
+        assert_eq!(report.candidates_found, 1);
+        assert_eq!(report.clusters_formed, 0);
+        assert_eq!(report.singletons_marked, 1);
+    }
+
+    #[tokio::test]
+    async fn test_run_consolidation_clusters_similar_vectors() {
+        let store = crate::engine::sessions::SessionStore::open_in_memory().unwrap();
+        crate::engine::sessions::schema_for_testing(&store.conn.lock());
+
+        // Insert 3 similar memories with close embeddings — should form 1 cluster
+        let emb_a = vec![1.0, 0.1, 0.0];
+        let emb_b = vec![1.0, 0.2, 0.0];
+        let emb_c = vec![1.0, 0.15, 0.0];
+
+        for (id, emb) in [("c1", emb_a), ("c2", emb_b), ("c3", emb_c)] {
+            let mut mem = make_mem(
+                id,
+                &format!("Rust async runtime details {}", id),
+                Some(emb),
+                0.6,
+            );
+            mem.created_at = "2024-01-01T00:00:00Z".to_string();
+            store.engram_store_episodic(&mem).unwrap();
+        }
+
+        let report = run_consolidation(&store, None, Some(0.9)).await.unwrap();
+        assert_eq!(report.candidates_found, 3);
+        assert_eq!(
+            report.clusters_formed, 1,
+            "3 similar vectors should form 1 cluster"
+        );
+        // Triples may be 0 if no LLM is available — that's fine for a unit test
     }
 }

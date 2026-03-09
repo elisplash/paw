@@ -377,6 +377,7 @@ pub async fn engine_chat_send(
             recall_scope,
             request.message.clone(),
         );
+        builder = builder.hnsw_index(&state.hnsw_index);
     }
     // Wire working memory into the ContextBuilder (Tier 1 → prompt assembly)
     builder = builder.working_memory(&cognitive.working_memory);
@@ -732,7 +733,7 @@ pub async fn engine_chat_send(
                         }
                     }
 
-                    // Auto-capture memorable facts (with dedup guard)
+                    // Auto-capture memorable facts via Engram (with dedup guard)
                     // Uses LLM-powered extraction for 5x better fact coverage.
                     // Falls back to heuristic extraction if LLM call fails.
                     if auto_capture_on && !final_text.is_empty() {
@@ -747,14 +748,17 @@ pub async fn engine_chat_send(
                         if !facts.is_empty() {
                             let emb_client = engine_state.embedding_client();
                             for (content, category) in &facts {
-                                // Store in legacy system
-                                match memory::store_memory_dedup(
+                                // Store in Engram (three-tier episodic memory)
+                                match engram::bridge::store_auto_capture(
                                     &engine_state.store,
                                     content,
                                     category,
-                                    5,
                                     emb_client.as_ref(),
                                     Some(&agent_id_for_spawn),
+                                    Some(&session_id_clone),
+                                    None, // no channel context
+                                    None, // no channel user
+                                    Some(&engine_state.hnsw_index),
                                 )
                                 .await
                                 {
@@ -765,24 +769,6 @@ pub async fn engine_chat_send(
                                     Ok(None) => {
                                         info!("[engine] Auto-capture skipped (near-duplicate)")
                                     }
-                                    Err(e) => warn!("[engine] Auto-capture failed: {}", e),
-                                }
-
-                                // Also store in Engram (three-tier episodic memory)
-                                match engram::bridge::store_auto_capture(
-                                    &engine_state.store,
-                                    content,
-                                    category,
-                                    emb_client.as_ref(),
-                                    Some(&agent_id_for_spawn),
-                                    Some(&session_id_clone),
-                                    None, // no channel context
-                                    None, // no channel user
-                                )
-                                .await
-                                {
-                                    Ok(Some(_)) => {}
-                                    Ok(None) => {}
                                     Err(e) => warn!("[engine] Engram auto-capture failed: {}", e),
                                 }
                             }
@@ -812,27 +798,9 @@ pub async fn engine_chat_send(
                         )
                         .await;
                         let emb_client = engine_state.embedding_client();
-                        match memory::store_memory_dedup(
-                            &engine_state.store,
-                            &session_summary,
-                            "session",
-                            3,
-                            emb_client.as_ref(),
-                            Some(&agent_id_for_spawn),
-                        )
-                        .await
-                        {
-                            Ok(Some(id)) => info!(
-                                "[engine] Session summary stored ({} chars, id={})",
-                                session_summary.len(),
-                                safe_truncate(&id, 8)
-                            ),
-                            Ok(None) => info!("[engine] Session summary skipped (near-duplicate)"),
-                            Err(e) => warn!("[engine] Session summary store failed: {}", e),
-                        }
 
-                        // Also store session summary in Engram
-                        let _ = engram::bridge::store_auto_capture(
+                        // Store session summary in Engram only (no legacy dual-write)
+                        match engram::bridge::store_auto_capture(
                             &engine_state.store,
                             &session_summary,
                             "session",
@@ -841,8 +809,20 @@ pub async fn engine_chat_send(
                             Some(&session_id_clone),
                             None, // no channel context
                             None, // no channel user
+                            Some(&engine_state.hnsw_index),
                         )
-                        .await;
+                        .await
+                        {
+                            Ok(Some(id)) => info!(
+                                "[engine] Session summary stored in Engram ({} chars, id={})",
+                                session_summary.len(),
+                                safe_truncate(&id, 8)
+                            ),
+                            Ok(None) => info!("[engine] Session summary skipped (near-duplicate)"),
+                            Err(e) => {
+                                warn!("[engine] Engram session summary failed: {}", e)
+                            }
+                        }
                     }
 
                     // ── Auto-prune: cap stored messages per session ──

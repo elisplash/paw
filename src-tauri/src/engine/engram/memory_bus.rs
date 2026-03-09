@@ -36,7 +36,10 @@ use crate::atoms::engram_types::{
     MemoryScope, MemorySource, MemoryType, PublicationScope, SubscriptionFilter, TieredContent,
 };
 use crate::atoms::error::{EngineError, EngineResult};
-use crate::engine::engram::encryption::sanitize_recalled_memory;
+use crate::engine::engram::encryption::{
+    get_agent_encryption_key, prepare_for_storage, sanitize_recalled_memory,
+};
+use crate::engine::memory::EmbeddingClient;
 use crate::engine::sessions::SessionStore;
 use chrono::Utc;
 use hmac::{Hmac, Mac};
@@ -363,19 +366,27 @@ impl MemoryBus {
     ///
     /// Applies the agent's subscription filter, checks for contradictions
     /// against existing memories (with trust-weighted resolution), and
-    /// stores accepted memories.
+    /// stores accepted memories through the proper pipeline (encrypt → embed → HNSW → audit).
     ///
     /// Returns a DeliveryReport summarizing the cycle.
-    pub fn deliver(&self, agent_id: &str, store: &SessionStore) -> EngineResult<DeliveryReport> {
+    pub async fn deliver(
+        &self,
+        agent_id: &str,
+        store: &SessionStore,
+        embedding_client: Option<&EmbeddingClient>,
+        hnsw_index: Option<&super::hnsw::SharedHnswIndex>,
+    ) -> EngineResult<DeliveryReport> {
         let pubs = self
             .publications
             .lock()
-            .map_err(|e| EngineError::Other(format!("Bus lock poisoned: {}", e)))?;
+            .map_err(|e| EngineError::Other(format!("Bus lock poisoned: {}", e)))?
+            .clone();
 
         let subs = self
             .subscriptions
             .lock()
-            .map_err(|e| EngineError::Other(format!("Bus lock poisoned: {}", e)))?;
+            .map_err(|e| EngineError::Other(format!("Bus lock poisoned: {}", e)))?
+            .clone();
 
         // Snapshot trust scores for this delivery cycle
         let trust_scores = self
@@ -428,13 +439,16 @@ impl MemoryBus {
                     match resolution {
                         ContradictionResolution::AcceptIncoming => {
                             // Incoming publication wins — update existing
-                            store
-                                .engram_update_episodic_content(
-                                    &existing_mem.id,
-                                    &pub_mem.content,
-                                    None,
-                                )
-                                .ok();
+                            if let Err(e) = store.engram_update_episodic_content(
+                                &existing_mem.id,
+                                &pub_mem.content,
+                                None,
+                            ) {
+                                warn!(
+                                    "[engram::bus] Failed to update contradicted memory {}: {}",
+                                    existing_mem.id, e
+                                );
+                            }
                             let edge = MemoryEdge {
                                 source_id: existing_mem.id.clone(),
                                 target_id: pub_mem.memory_id.clone(),
@@ -442,7 +456,9 @@ impl MemoryBus {
                                 weight: overlap as f32,
                                 created_at: Utc::now().to_rfc3339(),
                             };
-                            store.engram_add_edge(&edge).ok();
+                            if let Err(e) = store.engram_add_edge(&edge) {
+                                warn!("[engram::bus] Failed to add contradiction edge: {}", e);
+                            }
                             report.contradictions_resolved += 1;
                         }
                         ContradictionResolution::KeepExisting => {
@@ -460,7 +476,8 @@ impl MemoryBus {
 
             if !contradicted {
                 // Store as new episodic memory in the receiving agent's scope
-                let mem = EpisodicMemory {
+                // Route through proper pipeline: embed → encrypt → store → HNSW → audit
+                let mut mem = EpisodicMemory {
                     id: format!("bus-{}-{}", pub_mem.memory_id, agent_id),
                     agent_id: agent_id.to_string(),
                     session_id: format!("bus-delivery-{}", pub_mem.source_agent),
@@ -484,7 +501,65 @@ impl MemoryBus {
                     created_at: Utc::now().to_rfc3339(),
                     last_accessed_at: None,
                 };
-                store.engram_store_episodic(&mem).ok();
+
+                // Generate embedding (async)
+                if let Some(client) = embedding_client {
+                    let embed_result: EngineResult<Vec<f32>> =
+                        client.embed(&mem.content.full).await;
+                    match embed_result {
+                        Ok(emb) => {
+                            mem.embedding_model = Some(client.model_name().to_string());
+                            mem.embedding = Some(emb);
+                        }
+                        Err(e) => {
+                            warn!("[engram::bus] Failed to embed bus-delivered memory: {}", e);
+                        }
+                    }
+                }
+
+                // Encrypt content at rest (per-agent HKDF key)
+                let mem_id = mem.id.clone();
+                match get_agent_encryption_key(&mem.agent_id) {
+                    Ok(key) => match prepare_for_storage(&mem.content.full, &key) {
+                        Ok(encrypted) => {
+                            mem.content.full = encrypted.content;
+                            if !encrypted.pii_types.is_empty() {
+                                info!(
+                                    "[engram::bus] Encrypted bus memory {} (pii={:?})",
+                                    mem_id, encrypted.pii_types
+                                );
+                            }
+                        }
+                        Err(e) => {
+                            warn!(
+                                "[engram::bus] Encryption failed for {}: {} — storing cleartext",
+                                mem_id, e
+                            );
+                        }
+                    },
+                    Err(e) => {
+                        warn!(
+                            "[engram::bus] No encryption key for {}: {} — storing cleartext",
+                            mem_id, e
+                        );
+                    }
+                }
+
+                // Store in DB
+                if let Err(e) = store.engram_store_episodic(&mem) {
+                    warn!("[engram::bus] Failed to store bus memory {}: {}", mem_id, e);
+                    continue;
+                }
+
+                // HNSW insertion for vector search
+                if let (Some(idx), Some(ref embedding)) = (hnsw_index, &mem.embedding) {
+                    super::hnsw::insert_shared(idx, &mem_id, embedding.clone());
+                }
+
+                // Audit trail
+                store
+                    .engram_audit_log("bus_deliver", &mem_id, &mem.agent_id, &mem.session_id, None)
+                    .ok();
             }
 
             delivered_count += 1;
@@ -843,9 +918,7 @@ mod tests {
     fn test_store() -> SessionStore {
         let conn = Connection::open_in_memory().unwrap();
         schema_for_testing(&conn);
-        SessionStore {
-            conn: Arc::new(Mutex::new(conn)),
-        }
+        SessionStore::from_connection(conn)
     }
 
     fn make_cap(agent_id: &str) -> AgentCapability {

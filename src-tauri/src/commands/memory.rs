@@ -1,11 +1,35 @@
 // commands/memory.rs — Thin wrappers for memory & embedding commands.
-// All business logic lives in engine/memory.rs.
+// Routes through Engram (3-tier memory) for store/search, and the Engram
+// session store for CRUD. The old engine::memory module is no longer used
+// for core CRUD — only shared utilities (EmbeddingClient) remain.
 
 use crate::commands::state::EngineState;
-use crate::engine::memory;
+use crate::engine::engram;
+use crate::engine::memory; // Still needed for backfill, embeddings, ensure_ollama_ready
 use crate::engine::types::*;
 use log::info;
 use tauri::State;
+
+/// Convert an EpisodicMemory to the frontend-facing Memory type.
+fn episodic_to_memory(mem: crate::atoms::engram_types::EpisodicMemory) -> Memory {
+    // Decrypt content for display (per-agent HKDF key)
+    let content = if let Ok(key) = engram::encryption::get_agent_encryption_key(&mem.agent_id) {
+        engram::encryption::decrypt_memory_content(&mem.content.full, &key)
+            .unwrap_or(mem.content.full)
+    } else {
+        mem.content.full
+    };
+
+    Memory {
+        id: mem.id,
+        content,
+        category: mem.category,
+        importance: (mem.importance * 10.0).round() as u8,
+        created_at: mem.created_at,
+        score: None,
+        agent_id: Some(mem.agent_id),
+    }
+}
 
 // ── Memory CRUD ────────────────────────────────────────────────────────
 
@@ -18,17 +42,20 @@ pub async fn engine_memory_store(
     agent_id: Option<String>,
 ) -> Result<String, String> {
     let cat = category.unwrap_or_else(|| "general".into());
-    let imp = importance.unwrap_or(5);
+    let imp_f32 = importance.unwrap_or(5) as f32 / 10.0; // Convert 0-10 → 0.0-1.0
     let emb_client = state.embedding_client();
-    memory::store_memory(
+    engram::bridge::store(
         &state.store,
         &content,
         &cat,
-        imp,
+        imp_f32,
         emb_client.as_ref(),
         agent_id.as_deref(),
+        None, // no session_id for explicit stores
+        Some(&state.hnsw_index),
     )
     .await
+    .map(|opt| opt.unwrap_or_default())
     .map_err(|e| e.to_string())
 }
 
@@ -42,7 +69,7 @@ pub async fn engine_memory_search(
     let lim = limit.unwrap_or(10);
     let threshold = state.memory_config.lock().recall_threshold;
     let emb_client = state.embedding_client();
-    memory::search_memories(
+    let results = engram::bridge::search(
         &state.store,
         &query,
         lim,
@@ -51,7 +78,20 @@ pub async fn engine_memory_search(
         agent_id.as_deref(),
     )
     .await
-    .map_err(|e| e.to_string())
+    .map_err(|e| e.to_string())?;
+
+    Ok(results
+        .into_iter()
+        .map(|r| Memory {
+            id: r.id,
+            content: r.content,
+            category: r.category,
+            importance: 5, // bridge::search doesn't expose importance
+            created_at: String::new(),
+            score: Some(r.score),
+            agent_id: agent_id.clone(),
+        })
+        .collect())
 }
 
 #[tauri::command]
@@ -64,7 +104,14 @@ pub fn engine_memory_get(
     state: State<'_, EngineState>,
     id: String,
 ) -> Result<Option<Memory>, String> {
-    state.store.get_memory_by_id(&id).map_err(|e| e.to_string())
+    match state.store.engram_get_episodic(&id) {
+        Ok(Some(mem)) => Ok(Some(episodic_to_memory(mem))),
+        Ok(None) => {
+            // Fallback: check old memory table for backward compat
+            state.store.get_memory_by_id(&id).map_err(|e| e.to_string())
+        }
+        Err(e) => Err(e.to_string()),
+    }
 }
 
 #[tauri::command]
@@ -75,15 +122,46 @@ pub fn engine_memory_update(
     category: String,
     importance: u8,
 ) -> Result<(), String> {
-    state
+    // Try Engram first
+    if state
         .store
-        .update_memory(&id, &content, &category, importance)
-        .map_err(|e| e.to_string())
+        .engram_get_episodic(&id)
+        .ok()
+        .flatten()
+        .is_some()
+    {
+        state
+            .store
+            .engram_update_episodic_content(&id, &content, None)
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    } else {
+        // Fallback to old memory table
+        state
+            .store
+            .update_memory(&id, &content, &category, importance)
+            .map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]
 pub fn engine_memory_delete(state: State<'_, EngineState>, id: String) -> Result<(), String> {
-    state.store.delete_memory(&id).map_err(|e| e.to_string())
+    // Try Engram first
+    if state
+        .store
+        .engram_get_episodic(&id)
+        .ok()
+        .flatten()
+        .is_some()
+    {
+        state
+            .store
+            .engram_delete_episodic(&id)
+            .map_err(|e| e.to_string())
+    } else {
+        // Fallback to old memory table
+        state.store.delete_memory(&id).map_err(|e| e.to_string())
+    }
 }
 
 #[tauri::command]
@@ -91,10 +169,23 @@ pub fn engine_memory_list(
     state: State<'_, EngineState>,
     limit: Option<usize>,
 ) -> Result<Vec<Memory>, String> {
-    state
-        .store
-        .list_memories(limit.unwrap_or(100))
-        .map_err(|e| e.to_string())
+    let scope = crate::atoms::engram_types::MemoryScope {
+        global: true,
+        ..Default::default()
+    };
+    let lim = limit.unwrap_or(100);
+
+    match state.store.engram_list_episodic(&scope, None, lim) {
+        Ok(memories) => Ok(memories.into_iter().map(episodic_to_memory).collect()),
+        Err(e) => {
+            // Fallback to old memory table
+            info!(
+                "[memory] Engram list failed ({}), falling back to old store",
+                e
+            );
+            state.store.list_memories(lim).map_err(|e| e.to_string())
+        }
+    }
 }
 
 #[tauri::command]

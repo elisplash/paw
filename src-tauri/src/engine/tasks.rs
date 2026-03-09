@@ -10,6 +10,8 @@
 //   - compute_next_run:   Simple schedule parser
 
 use crate::atoms::constants::{CRON_MAX_TOOL_ROUNDS, CRON_SESSION_KEEP_MESSAGES};
+use crate::engine::chat as chat_org;
+use crate::engine::engram;
 use crate::engine::providers::AnyProvider;
 use crate::engine::state::{normalize_model_name, resolve_provider_for_model, EngineState};
 use crate::engine::types::*;
@@ -235,104 +237,33 @@ pub async fn execute_task(
 
         let agent_context = state.store.compose_core_context(&agent_id).unwrap_or(None);
 
-        let mut parts: Vec<String> = Vec::new();
-        if let Some(sp) = &base_system_prompt {
-            parts.push(sp.clone());
-        }
-        if let Some(ac) = agent_context {
-            parts.push(ac);
-        }
-        if !skill_instructions.is_empty() {
-            parts.push(skill_instructions.clone());
+        // ── CognitiveState: activate the three-tier memory pipeline (§4) ──
+        let cognitive_lock = state.get_cognitive_state(&agent_id);
+        {
+            let mut cognitive = cognitive_lock.lock().await;
+            cognitive.decay_turn();
+            cognitive.adapt_wm_budget(&model);
         }
 
-        // §15 Pre-recall: inject relevant memories via gated search (§7)
-        // Replaces direct bridge::search() with intent-aware, quality-gated retrieval.
-        {
-            let emb_client = state.embedding_client();
-            let scope = crate::atoms::engram_types::MemoryScope::agent(&agent_id);
-            let search_config = crate::atoms::engram_types::MemorySearchConfig::default();
-            // Issue a signed capability token for read-path scope verification (§43.4)
-            let read_cap = crate::engine::engram::memory_bus::issue_read_capability(&agent_id).ok();
-            match crate::engine::engram::gated_search::gated_search(
-                &state.store,
-                &crate::engine::engram::gated_search::GatedSearchRequest {
-                    query: &task_prompt,
-                    scope: &scope,
-                    config: &search_config,
-                    embedding_client: emb_client.as_ref(),
-                    budget_tokens: 0,    // no token budget limit for tasks
-                    momentum: None,      // no momentum embeddings
-                    model: Some(&model), // per-model injection limits (§58.5)
-                    capability: read_cap.as_ref(),
-                },
-            )
-            .await
-            {
-                Ok(result) if !result.memories.is_empty() => {
-                    let mut memory_block = String::from("## Relevant Memories\n");
-                    for m in &result.memories {
-                        memory_block.push_str(&format!("- [{}] {}\n", m.category, m.content));
-                    }
-                    parts.push(memory_block);
-                    info!(
-                        "[task] Pre-recalled {} memories (gate={:?}) for task '{}' agent '{}'",
-                        result.memories.len(),
-                        result.gate,
-                        task.title,
-                        agent_id
-                    );
-                }
-                Ok(result)
-                    if result.gate == crate::engine::engram::gated_search::GateDecision::Refuse =>
-                {
-                    info!(
-                        "[task] Memory quality gate refused results for task '{}' (CRAG Incorrect tier)",
-                        task.title
-                    );
-                }
-                Ok(result)
-                    if matches!(
-                        result.gate,
-                        crate::engine::engram::gated_search::GateDecision::Defer(_)
-                    ) =>
-                {
-                    info!(
-                        "[task] Memory gate deferred for task '{}': {:?}",
-                        task.title, result.disambiguation_hint
-                    );
-                }
-                Ok(_) => {}
-                Err(e) => warn!("[task] Memory pre-recall failed for task: {}", e),
-            }
-        }
-
-        {
-            let user_tz = {
-                let cfg = state.config.lock();
-                cfg.user_timezone.clone()
-            };
-            let now_utc = chrono::Utc::now();
-            if let Ok(tz) = user_tz.parse::<chrono_tz::Tz>() {
-                let local: chrono::DateTime<chrono_tz::Tz> = now_utc.with_timezone(&tz);
-                parts.push(format!(
-                    "## Local Time\n- **Current time**: {}\n- **Timezone**: {} (UTC{})\n- **Day of week**: {}",
-                    local.format("%Y-%m-%d %H:%M:%S"),
-                    tz.name(),
-                    local.format("%:z"),
-                    local.format("%A"),
-                ));
-            } else {
-                let local = chrono::Local::now();
-                parts.push(format!(
-                    "## Local Time\n- **Current time**: {}\n- **Timezone**: {} (UTC{})\n- **Day of week**: {}",
-                    local.format("%Y-%m-%d %H:%M:%S"),
-                    local.format("%Z"),
-                    local.format("%:z"),
-                    local.format("%A"),
-                ));
-            }
-        }
+        // ── Build system prompt via ContextBuilder (budget-aware §14) ──
+        let context_window = {
+            let cfg = state.config.lock();
+            cfg.context_window_tokens
+        };
+        let emb_client = state.embedding_client();
+        let recall_scope = crate::atoms::engram_types::MemoryScope::agent(&agent_id);
+        let provider_name = format!("{:?}", provider_config.kind);
+        let user_tz = {
+            let cfg = state.config.lock();
+            cfg.user_timezone.clone()
+        };
+        let runtime_context = chat_org::build_runtime_context(
+            &model,
+            &provider_name,
+            &session_id,
+            &agent_id,
+            &user_tz,
+        );
 
         let agent_count_note = if agent_count > 1 {
             format!("\n\nYou are agent '{}', one of {} agents working on this task collaboratively. Focus on your area of expertise. Be thorough but avoid duplicating work other agents may do.", agent_id, agent_count)
@@ -358,12 +289,74 @@ pub async fn execute_task(
             String::new()
         };
 
-        parts.push(format!(
+        let task_context = format!(
             "## Current Task\nYou are working on a task from the task board.\n- **Title:** {}\n- **Priority:** {}{}{}\n\nComplete this task thoroughly. When done, summarize what you accomplished.",
             task.title, task.priority, agent_count_note, cron_context
-        ));
+        );
 
-        let full_system_prompt = parts.join("\n\n---\n\n");
+        let full_system_prompt = {
+            let cognitive = cognitive_lock.lock().await;
+            let mut builder =
+                engram::context_builder::ContextBuilder::new(&model).context_window(context_window);
+            if let Some(sp) = &base_system_prompt {
+                builder = builder.base_prompt(sp.clone());
+            }
+            builder = builder.runtime_context(runtime_context.clone());
+            if let Some(ref ac) = agent_context {
+                builder = builder.core_context(ac.clone());
+            }
+            if !skill_instructions.is_empty() {
+                builder = builder.skill_instructions(skill_instructions.clone());
+            }
+            // Task context at priority 1 (never dropped — it's the reason this agent exists)
+            builder = builder.custom_section("task_context", &task_context, 1);
+            // Auto-recall via ContextBuilder (replaces manual gated_search)
+            builder = builder.recall_from(
+                &state.store,
+                emb_client.as_ref(),
+                recall_scope.clone(),
+                task_prompt.clone(),
+            );
+            builder = builder.hnsw_index(&state.hnsw_index);
+            builder = builder.working_memory(&cognitive.working_memory);
+
+            match builder.build().await {
+                Ok(ctx) => {
+                    info!(
+                        "[task] ContextBuilder: sys={}tok hist={}tok reply={}tok mem={} for task '{}' agent '{}'",
+                        ctx.budget.system_prompt_tokens,
+                        ctx.budget.history_tokens,
+                        ctx.budget.available_for_reply,
+                        ctx.budget.memories_injected,
+                        task.title,
+                        agent_id
+                    );
+                    // Push recall embedding into momentum for trajectory-aware recall
+                    if let Some(emb) = ctx.query_embedding {
+                        let cognitive_lock2 = state.get_cognitive_state(&agent_id);
+                        let mut cog = cognitive_lock2.lock().await;
+                        cog.working_memory.push_momentum(emb);
+                    }
+                    ctx.system_prompt.unwrap_or_default()
+                }
+                Err(e) => {
+                    warn!(
+                        "[task] ContextBuilder failed, falling back to basic prompt: {}",
+                        e
+                    );
+                    // Fallback: basic prompt assembly
+                    let mut parts: Vec<String> = Vec::new();
+                    if let Some(sp) = &base_system_prompt {
+                        parts.push(sp.clone());
+                    }
+                    if let Some(ref ac) = agent_context {
+                        parts.push(ac.clone());
+                    }
+                    parts.push(task_context.clone());
+                    parts.join("\n\n---\n\n")
+                }
+            }
+        };
 
         let user_msg = StoredMessage {
             id: uuid::Uuid::new_v4().to_string(),
@@ -377,10 +370,6 @@ pub async fn execute_task(
         };
         state.store.add_message(&user_msg)?;
 
-        let context_window = {
-            let cfg = state.config.lock();
-            cfg.context_window_tokens
-        };
         let mut messages = state.store.load_conversation(
             &session_id,
             Some(&full_system_prompt),
@@ -438,9 +427,7 @@ pub async fn execute_task(
             // be moved. The store_path is the same DB, just opened independently.
             if let Ok(conn) = rusqlite::Connection::open(&store_path_clone) {
                 // Wrap in SessionStore so we can use Engram bridge for post-capture
-                let temp_store = crate::engine::sessions::SessionStore {
-                    conn: std::sync::Arc::new(parking_lot::Mutex::new(conn)),
-                };
+                let temp_store = crate::engine::sessions::SessionStore::from_connection(conn);
 
                 // Scope the MutexGuard so it's dropped before any .await
                 {
@@ -482,6 +469,7 @@ pub async fn execute_task(
                             Some(&session_id),
                             None,
                             None,
+                            None, // no HNSW in detached spawn (rebuilt on restart)
                         )
                         .await
                         {

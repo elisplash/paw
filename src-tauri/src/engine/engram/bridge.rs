@@ -28,6 +28,7 @@ use log::{info, warn};
 ///
 /// Creates an episodic memory with deduplication. The `source` is marked as
 /// `Explicit` for user/agent-initiated stores.
+#[allow(clippy::too_many_arguments)]
 pub async fn store(
     store: &SessionStore,
     content: &str,
@@ -36,6 +37,7 @@ pub async fn store(
     embedding_client: Option<&EmbeddingClient>,
     agent_id: Option<&str>,
     session_id: Option<&str>,
+    hnsw_index: Option<&super::hnsw::SharedHnswIndex>,
 ) -> EngineResult<Option<String>> {
     // §10.17 Input validation
     encryption::validate_memory_input(content, category)?;
@@ -84,7 +86,8 @@ pub async fn store(
     };
 
     // Use dedup to avoid storing duplicates
-    let result = super::graph::store_episodic_dedup(store, mem, embedding_client, None).await?;
+    let result =
+        super::graph::store_episodic_dedup(store, mem, embedding_client, None, hnsw_index).await?;
 
     Ok(result)
 }
@@ -102,6 +105,7 @@ pub async fn store_auto_capture(
     session_id: Option<&str>,
     channel: Option<&str>,
     channel_user_id: Option<&str>,
+    hnsw_index: Option<&super::hnsw::SharedHnswIndex>,
 ) -> EngineResult<Option<String>> {
     // §10.17 Input validation (lenient for auto-capture — skip empty check)
     if content.len() > encryption::MAX_MEMORY_CONTENT_BYTES {
@@ -149,7 +153,7 @@ pub async fn store_auto_capture(
         access_count: 0,
     };
 
-    super::graph::store_episodic_dedup(store, mem, embedding_client, None).await
+    super::graph::store_episodic_dedup(store, mem, embedding_client, None, hnsw_index).await
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -198,6 +202,7 @@ pub async fn search(
         embedding_client,
         limit * 100,
         None, // No momentum blending from bridge (callers with WorkingMemory can pass it)
+        None, // No HNSW index from bridge (callers with EngineState can pass it)
     )
     .await?;
 
@@ -257,6 +262,7 @@ pub async fn run_maintenance(
     embedding_client: Option<&EmbeddingClient>,
     half_life_days: f32,
     gc_importance_threshold: i32,
+    hnsw_index: Option<&super::hnsw::SharedHnswIndex>,
 ) -> EngineResult<MaintenanceReport> {
     // 0. Key rotation check — rekey legacy-encrypted memories if overdue
     let mut rekey_count = 0usize;
@@ -308,7 +314,7 @@ pub async fn run_maintenance(
     let decayed = super::graph::apply_decay(store, half_life_days)?;
 
     // 3. Garbage collection
-    let gc_count = super::graph::garbage_collect(store, gc_importance_threshold, 100)?;
+    let gc_count = super::graph::garbage_collect(store, gc_importance_threshold, 100, hnsw_index)?;
 
     // 4. Self-healing gap injection (§4.5)
     // Convert detected knowledge gaps into natural-language prompts
@@ -332,19 +338,71 @@ pub async fn run_maintenance(
         })
         .collect();
 
+    // 5. Dream replay — hippocampal-inspired memory consolidation (§44)
+    // Strengthens at-risk memories, re-embeds stale vectors, discovers latent connections.
+    let global_scope = crate::atoms::engram_types::MemoryScope::global();
+    let replay = super::dream_replay::run_replay(store, embedding_client, &global_scope).await;
+    let (replay_strengthened, replay_reembedded, replay_connections) = match replay {
+        Ok(r) => {
+            if r.strengthened > 0 || r.re_embedded > 0 || r.new_connections > 0 {
+                info!(
+                    "[engram:maintenance] Dream replay: {} strengthened, {} re-embedded, {} connections ({}ms)",
+                    r.strengthened, r.re_embedded, r.new_connections, r.duration_ms
+                );
+            }
+            (r.strengthened, r.re_embedded, r.new_connections)
+        }
+        Err(e) => {
+            warn!(
+                "[engram:maintenance] Dream replay failed (non-fatal): {}",
+                e
+            );
+            (0, 0, 0)
+        }
+    };
+
+    // 6. Memory fusion — near-duplicate detection and merging (FadeMem §Fusion)
+    // Highest-impact component per FadeMem ablation (-53.7% F1 without it).
+    let (fused_count, fusion_tombstoned) = match super::memory_fusion::run_fusion(store) {
+        Ok(fr) => {
+            let total = fr.fused_compatible + fr.fused_contradictory + fr.fused_subsumed;
+            if total > 0 {
+                info!(
+                    "[engram:maintenance] Fusion: {} fused, {} tombstoned, {} edges redirected",
+                    total, fr.tombstoned, fr.edges_redirected
+                );
+            }
+            (total, fr.tombstoned)
+        }
+        Err(e) => {
+            warn!(
+                "[engram:maintenance] Memory fusion failed (non-fatal): {}",
+                e
+            );
+            (0, 0)
+        }
+    };
+
     let report = MaintenanceReport {
         consolidation,
         memories_decayed: decayed,
         memories_gc: gc_count,
         memories_rekeyed: rekey_count,
         communities_detected: communities_found,
+        replay_strengthened,
+        replay_reembedded,
+        replay_connections,
+        fused: fused_count,
+        fusion_tombstoned,
         gap_prompts,
     };
 
     info!(
-        "[engram:maintenance] consolidation: {} triples, decay: {}, gc: {}, rekey: {}, communities: {}",
+        "[engram:maintenance] consolidation: {} triples, decay: {}, gc: {}, rekey: {}, communities: {}, replay: {}/{}/{}, fusion: {}/{}",
         report.consolidation.triples_created, report.memories_decayed, report.memories_gc,
         report.memories_rekeyed, report.communities_detected,
+        report.replay_strengthened, report.replay_reembedded, report.replay_connections,
+        report.fused, report.fusion_tombstoned,
     );
 
     Ok(report)
@@ -360,6 +418,16 @@ pub struct MaintenanceReport {
     pub memories_rekeyed: usize,
     /// Number of communities discovered by Louvain detection.
     pub communities_detected: usize,
+    /// Dream replay: memories strengthened above GC threshold.
+    pub replay_strengthened: usize,
+    /// Dream replay: memories re-embedded with current model.
+    pub replay_reembedded: usize,
+    /// Dream replay: new latent connections discovered.
+    pub replay_connections: usize,
+    /// Memory fusion: near-duplicate pairs fused.
+    pub fused: usize,
+    /// Memory fusion: memories tombstoned after fusion.
+    pub fusion_tombstoned: usize,
     /// Knowledge gaps detected during consolidation, formatted for working memory injection.
     pub gap_prompts: Vec<String>,
 }

@@ -95,6 +95,19 @@ pub fn run_engram_migrations(conn: &Connection) -> EngineResult<()> {
         [],
     );
 
+    // GraphRAG: Community metadata table for persisting Louvain community summaries.
+    // Summaries are hierarchical: topic + key_facts + themes, used by community-augmented search.
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS memory_communities (
+            id TEXT PRIMARY KEY,
+            label TEXT NOT NULL DEFAULT '',
+            summary TEXT NOT NULL DEFAULT '',
+            member_count INTEGER NOT NULL DEFAULT 0,
+            internal_weight REAL NOT NULL DEFAULT 0.0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );",
+    )?;
+
     // ── THE FORGE: Certification columns on procedural_memories ──────────
     // Extends existing procedural memories with structured training metadata.
     // Procedural memories already track trigger→steps with success/failure;

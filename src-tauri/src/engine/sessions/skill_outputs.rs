@@ -141,9 +141,7 @@ mod tests {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute_batch("PRAGMA journal_mode = WAL;").unwrap();
         schema_for_testing(&conn);
-        SessionStore {
-            conn: Arc::new(Mutex::new(conn)),
-        }
+        SessionStore::from_connection(conn)
     }
 
     #[test]

@@ -272,6 +272,7 @@ pub async fn compact_session(
             Some(session_id),
             None, // no channel
             None, // no channel user
+            None, // no HNSW access in compaction (rebuilt on startup)
         )
         .await
         {

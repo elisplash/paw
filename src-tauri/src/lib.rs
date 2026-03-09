@@ -185,6 +185,7 @@ pub fn run() {
                             emb_client.as_ref(),
                             7.0,   // half_life_days
                             1,     // gc_importance_threshold
+                            Some(&state.hnsw_index),
                         ).await {
                             Ok(report) => {
                                 log::info!(

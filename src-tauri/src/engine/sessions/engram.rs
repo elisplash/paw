@@ -111,6 +111,41 @@ impl SessionStore {
         Ok(result)
     }
 
+    /// Batch-fetch multiple episodic memories by ID (avoids N+1 SELECT pattern).
+    /// Returns a HashMap keyed by memory ID for O(1) lookup.
+    pub fn engram_get_episodic_batch(
+        &self,
+        ids: &[String],
+    ) -> EngineResult<std::collections::HashMap<String, EpisodicMemory>> {
+        if ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+        let rc = self.read_conn();
+        let conn = rc.lock();
+        // Build parameterized IN clause: WHERE id IN (?1, ?2, ..., ?N)
+        let placeholders: Vec<String> = (1..=ids.len()).map(|i| format!("?{}", i)).collect();
+        let sql = format!(
+            "SELECT id, content_full, content_summary, content_key_fact, content_tags,
+                    category, importance, agent_id, session_id, source,
+                    consolidation_state,
+                    scope_global, scope_project_id, scope_squad_id, scope_agent_id,
+                    scope_channel, scope_channel_user_id,
+                    embedding, embedding_model,
+                    created_at, last_accessed_at, access_count
+             FROM episodic_memories WHERE id IN ({})",
+            placeholders.join(", ")
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let params: Vec<&dyn rusqlite::ToSql> =
+            ids.iter().map(|id| id as &dyn rusqlite::ToSql).collect();
+        let rows = stmt
+            .query_map(params.as_slice(), Self::episodic_from_row)?
+            .filter_map(|r| r.ok())
+            .map(|mem| (mem.id.clone(), mem))
+            .collect();
+        Ok(rows)
+    }
+
     /// Delete an episodic memory by ID.
     pub fn engram_delete_episodic(&self, id: &str) -> EngineResult<()> {
         let conn = self.conn.lock();
@@ -354,7 +389,8 @@ impl SessionStore {
         scope: &MemoryScope,
         limit: usize,
     ) -> EngineResult<Vec<(EpisodicMemory, f64)>> {
-        let conn = self.conn.lock();
+        let rc = self.read_conn();
+        let conn = rc.lock();
 
         // Build hierarchical scope WHERE clause
         let mut scope_conditions: Vec<String> = vec!["1=1".into()]; // always true for global search
@@ -432,7 +468,8 @@ impl SessionStore {
         limit: usize,
         threshold: f64,
     ) -> EngineResult<Vec<(EpisodicMemory, f64)>> {
-        let conn = self.conn.lock();
+        let rc = self.read_conn();
+        let conn = rc.lock();
 
         let mut stmt = conn.prepare(
             "SELECT id, content_full, content_summary, content_key_fact, content_tags,
@@ -780,7 +817,8 @@ impl SessionStore {
         scope: &MemoryScope,
         limit: usize,
     ) -> EngineResult<Vec<(SemanticMemory, f64)>> {
-        let conn = self.conn.lock();
+        let rc = self.read_conn();
+        let conn = rc.lock();
 
         // Build hierarchical scope WHERE clause
         let scope_clause = if scope.global {
@@ -1051,7 +1089,8 @@ impl SessionStore {
         scope: &MemoryScope,
         limit: usize,
     ) -> EngineResult<Vec<ProceduralMemory>> {
-        let conn = self.conn.lock();
+        let rc = self.read_conn();
+        let conn = rc.lock();
         let agent_filter = scope.agent_id.as_deref().unwrap_or("");
         let like_query = format!("%{}%", query);
 
@@ -1128,19 +1167,25 @@ impl SessionStore {
 
 impl SessionStore {
     /// Add an edge between two memories.
+    /// The edge_type is HMAC-tokenized at rest to protect relationship semantics.
     pub fn engram_add_edge(&self, edge: &MemoryEdge) -> EngineResult<()> {
         let conn = self.conn.lock();
         let edge_type_str = edge.edge_type.to_string();
-        let id = format!("{}:{}:{}", edge.source_id, edge.target_id, edge_type_str);
+        // Tokenize edge_type: deterministic HMAC allows SQL equality matching
+        // while preventing an offline attacker from learning relationship semantics.
+        let token = crate::engine::engram::encryption::tokenize_edge_type(&edge_type_str);
+        // ID uses tokenized type too (no plaintext leak in composite key)
+        let id = format!("{}:{}:{}", edge.source_id, edge.target_id, token);
         conn.execute(
             "INSERT OR REPLACE INTO memory_edges (id, source_id, target_id, edge_type, weight, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![id, edge.source_id, edge.target_id, edge_type_str, edge.weight, edge.created_at],
+            params![id, edge.source_id, edge.target_id, token, edge.weight, edge.created_at],
         )?;
         Ok(())
     }
 
     /// Remove an edge.
+    /// Uses composite ID for deletion (works with encrypted edge_type column).
     pub fn engram_remove_edge(
         &self,
         source_id: &str,
@@ -1149,10 +1194,10 @@ impl SessionStore {
     ) -> EngineResult<()> {
         let conn = self.conn.lock();
         let edge_type_str = edge_type.to_string();
-        conn.execute(
-            "DELETE FROM memory_edges WHERE source_id = ?1 AND target_id = ?2 AND edge_type = ?3",
-            params![source_id, target_id, edge_type_str],
-        )?;
+        // Delete by composite ID (tokenized type in both ID and column)
+        let token = crate::engine::engram::encryption::tokenize_edge_type(&edge_type_str);
+        let id = format!("{}:{}:{}", source_id, target_id, token);
+        conn.execute("DELETE FROM memory_edges WHERE id = ?1", params![id])?;
         Ok(())
     }
 
@@ -1195,7 +1240,8 @@ impl SessionStore {
         seed_ids: &[String],
         min_weight: f32,
     ) -> EngineResult<Vec<(String, f32)>> {
-        let conn = self.conn.lock();
+        let rc = self.read_conn();
+        let conn = rc.lock();
         let mut result: std::collections::HashMap<String, f32> = std::collections::HashMap::new();
         let decay_factor: f32 = 0.5; // 2-hop neighbors get half activation
 
@@ -1264,9 +1310,9 @@ impl SessionStore {
 
     fn edge_from_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<MemoryEdge> {
         let edge_type_str: String = row.get(2)?;
-        let edge_type = edge_type_str
-            .parse::<EdgeType>()
-            .unwrap_or(EdgeType::RelatedTo);
+        // Resolve tokenized edge_type back to plaintext (backward compat: plaintext passes through)
+        let resolved = crate::engine::engram::encryption::resolve_edge_type(&edge_type_str);
+        let edge_type = resolved.parse::<EdgeType>().unwrap_or(EdgeType::RelatedTo);
 
         Ok(MemoryEdge {
             source_id: row.get(0)?,
@@ -1815,7 +1861,7 @@ fn non_empty_opt(val: Option<String>) -> Option<String> {
 }
 
 /// Check if a memory's scope is visible to the given search scope.
-fn scope_matches(search_scope: &MemoryScope, memory_scope: &MemoryScope) -> bool {
+pub(crate) fn scope_matches(search_scope: &MemoryScope, memory_scope: &MemoryScope) -> bool {
     // Global memories are always visible
     if memory_scope.global {
         return true;

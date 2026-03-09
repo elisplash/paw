@@ -68,16 +68,23 @@ pub async fn run_replay(
     let start = Instant::now();
     info!("[engram::dream] Starting dream replay cycle");
 
+    let strengthened = phase_strengthen_at_risk(store, scope)?;
+    let re_embedded = phase_reembed_stale(store, embedding_client).await?;
+    let new_connections = phase_discover_connections(store, scope)?;
+    let tree_rebuilt = phase_rebuild_derived(store, scope);
+
     let report = ReplayReport {
-        strengthened: phase_strengthen_at_risk(store, scope)?,
-        re_embedded: phase_reembed_stale(store, embedding_client).await?,
-        new_connections: phase_discover_connections(store, scope)?,
+        strengthened,
+        re_embedded,
+        new_connections,
+        tree_rebuilt,
         duration_ms: start.elapsed().as_millis() as u64,
     };
 
     info!(
-        "[engram::dream] Replay complete: {}ms, +{} strengthened, +{} re-embedded, +{} connections",
+        "[engram::dream] Replay complete: {}ms, +{} strengthened, +{} re-embedded, +{} connections, tree={}",
         report.duration_ms, report.strengthened, report.re_embedded, report.new_connections,
+        report.tree_rebuilt,
     );
 
     // Audit trail
@@ -87,8 +94,8 @@ pub async fn run_replay(
         scope.agent_id.as_deref().unwrap_or("global"),
         "dream",
         Some(&format!(
-            "strengthened={}, re_embedded={}, connections={}",
-            report.strengthened, report.re_embedded, report.new_connections,
+            "strengthened={}, re_embedded={}, connections={}, tree={}",
+            report.strengthened, report.re_embedded, report.new_connections, report.tree_rebuilt,
         )),
     )?;
 
@@ -250,6 +257,119 @@ fn phase_discover_connections(store: &SessionStore, scope: &MemoryScope) -> Engi
     }
 
     Ok(new_edges)
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Phase 4: Rebuild Derived Structures (Abstraction Tree)
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Rebuild the abstraction tree from the current memory store.
+///
+/// The abstraction tree provides multi-level hierarchical compression (§42)
+/// for budget-aware context assembly. Rebuilding during dream replay ensures
+/// the tree stays current as memories are added, strengthened, and fused.
+///
+/// Returns `true` if the tree was successfully rebuilt.
+fn phase_rebuild_derived(store: &SessionStore, scope: &MemoryScope) -> bool {
+    use super::abstraction_tree;
+    use super::tokenizer::Tokenizer;
+
+    let tokenizer = Tokenizer::heuristic();
+
+    // Fetch episodic memories for tree building (sync wrapper — rebuild_tree
+    // uses only DB reads which are fine to do on the current task).
+    let episodics = match store.engram_search_episodic_bm25("", scope, 500) {
+        Ok(e) => e,
+        Err(e) => {
+            warn!(
+                "[engram::dream] Phase 4: failed to fetch memories for tree: {}",
+                e
+            );
+            return false;
+        }
+    };
+
+    if episodics.is_empty() {
+        return false;
+    }
+
+    // Convert to RetrievedMemory for the tree builder
+    use crate::atoms::engram_types::{CompressionLevel, MemoryType, RetrievedMemory, TrustScore};
+
+    let memories: Vec<RetrievedMemory> = episodics
+        .iter()
+        .map(|(mem, score)| {
+            let content = mem.content.full.clone();
+            RetrievedMemory {
+                token_cost: tokenizer.count_tokens(&content),
+                content,
+                compression_level: CompressionLevel::Full,
+                memory_id: mem.id.clone(),
+                memory_type: MemoryType::Episodic,
+                trust_score: TrustScore {
+                    relevance: *score as f32,
+                    accuracy: 0.5,
+                    freshness: 0.5,
+                    utility: 0.5,
+                },
+                category: mem.category.clone(),
+                created_at: mem.created_at.clone(),
+                agent_id: mem.agent_id.clone(),
+            }
+        })
+        .collect();
+
+    let tree = abstraction_tree::build_tree(&memories, &tokenizer);
+    let level_count = tree.levels.len();
+    let total_nodes: usize = tree.levels.iter().map(|l| l.nodes.len()).sum();
+
+    // Materialize Generalizes / Specializes edges from the abstraction hierarchy.
+    // L1 nodes generalize their L0 children; L0 children specialize their L1 parent.
+    // These edges let spreading activation traverse abstraction levels during recall.
+    let mut hierarchy_edges = 0usize;
+    let now = chrono::Utc::now().to_rfc3339();
+    for level in &tree.levels {
+        for node in &level.nodes {
+            if node.children.is_empty() {
+                continue;
+            }
+            for child_id in &node.children {
+                // Parent generalizes child
+                store
+                    .engram_add_edge(&MemoryEdge {
+                        source_id: node.id.clone(),
+                        target_id: child_id.clone(),
+                        edge_type: EdgeType::Generalizes,
+                        weight: 0.7,
+                        created_at: now.clone(),
+                    })
+                    .ok();
+                // Child specializes parent
+                store
+                    .engram_add_edge(&MemoryEdge {
+                        source_id: child_id.clone(),
+                        target_id: node.id.clone(),
+                        edge_type: EdgeType::Specializes,
+                        weight: 0.7,
+                        created_at: now.clone(),
+                    })
+                    .ok();
+                hierarchy_edges += 2;
+            }
+        }
+    }
+
+    if total_nodes > 0 {
+        info!(
+            "[engram::dream] Phase 4: rebuilt abstraction tree ({} levels, {} nodes, {} hierarchy edges)",
+            level_count, total_nodes, hierarchy_edges,
+        );
+    }
+
+    // The tree is built but currently transient — it will be consumed by the
+    // ContextBuilder on the next prompt assembly via pack_with_fallback().
+    // Future: persist the tree structure in the DB for cross-session reuse.
+    total_nodes > 0
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

@@ -459,6 +459,10 @@ pub struct GatedSearchRequest<'a> {
     /// If `None`, read-path scope verification is skipped — backward-
     /// compatible but not recommended for production code paths.
     pub capability: Option<&'a super::memory_bus::AgentCapability>,
+    /// Optional HNSW vector index for O(log n) approximate nearest-neighbor
+    /// search. When provided and non-empty, replaces the O(n) brute-force
+    /// scan in the vector search component of graph::search.
+    pub hnsw_index: Option<&'a super::hnsw::SharedHnswIndex>,
 }
 
 /// Unified entry point for ALL memory retrieval across the system.
@@ -599,6 +603,7 @@ pub async fn gated_search(
         embedding_client,
         effective_budget,
         momentum,
+        req.hnsw_index,
     )
     .await?;
 
@@ -664,6 +669,7 @@ pub async fn gated_search(
                         embedding_client,
                         effective_budget / 2, // half budget per sub-query
                         momentum,
+                        req.hnsw_index,
                     )
                     .await
                     {
@@ -723,6 +729,7 @@ pub async fn gated_search(
                         embedding_client,
                         effective_budget / 2,
                         momentum,
+                        req.hnsw_index,
                     )
                     .await
                     {
@@ -1008,6 +1015,44 @@ fn community_augmented_search(
 
     if community_ids.is_empty() {
         return Ok(recall_result);
+    }
+
+    // Stage 1.5: Community summary injection — inject hierarchical summaries
+    // from the memory_communities table as high-value context entries.
+    // This is the core GraphRAG "global query" mechanism: instead of individual
+    // memories, inject the community-level summary for broader context.
+    {
+        let rc = store.read_conn();
+        let conn = rc.lock();
+        let tok = Tokenizer::heuristic();
+        for cid in &community_ids {
+            let ok = conn.query_row(
+                "SELECT summary, label FROM memory_communities WHERE id = ?1",
+                rusqlite::params![cid],
+                |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)),
+            );
+            if let Ok((summary, label)) = ok {
+                if !summary.is_empty() {
+                    let trust = TrustScore {
+                        relevance: 0.6, // moderate — community context, not direct match
+                        accuracy: 0.7,
+                        freshness: 0.8,
+                        utility: 0.5,
+                    };
+                    recall_result.memories.push(RetrievedMemory {
+                        token_cost: tok.count_tokens(&summary),
+                        content: summary,
+                        compression_level: CompressionLevel::Full,
+                        memory_id: format!("community:{}", cid),
+                        memory_type: MemoryType::Semantic,
+                        trust_score: trust,
+                        category: format!("community:{}", label),
+                        created_at: String::new(),
+                        agent_id: String::new(),
+                    });
+                }
+            }
+        }
     }
 
     // Stage 2: Intra-community retrieval — fetch members of those communities
@@ -1545,9 +1590,7 @@ mod tests {
         use crate::engine::sessions::{schema_for_testing, SessionStore};
         let conn = rusqlite::Connection::open_in_memory().unwrap();
         schema_for_testing(&conn);
-        SessionStore {
-            conn: std::sync::Arc::new(parking_lot::Mutex::new(conn)),
-        }
+        SessionStore::from_connection(conn)
     }
 
     fn store_test_memory(
@@ -1630,6 +1673,7 @@ mod tests {
                 momentum: None,
                 model: Some("gpt-4o"),
                 capability: None,
+                hnsw_index: None,
             },
         )
         .await
@@ -1684,6 +1728,7 @@ mod tests {
                 momentum: None,
                 model: Some("gpt-4o"),
                 capability: None,
+                hnsw_index: None,
             },
         )
         .await
@@ -1716,6 +1761,7 @@ mod tests {
                 momentum: None,
                 model: None,
                 capability: None,
+                hnsw_index: None,
             },
         )
         .await
@@ -1756,6 +1802,7 @@ mod tests {
                 momentum: None,
                 model: Some("claude-opus-4-6"),
                 capability: None,
+                hnsw_index: None,
             },
         )
         .await
@@ -1806,6 +1853,7 @@ mod tests {
                 momentum: None,
                 model: Some("gpt-4o"),
                 capability: None,
+                hnsw_index: None,
             },
         )
         .await
@@ -1852,6 +1900,7 @@ mod tests {
                 momentum: None,
                 model: Some("phi-3-mini"),
                 capability: None,
+                hnsw_index: None,
             },
         )
         .await
@@ -1869,6 +1918,7 @@ mod tests {
                 momentum: None,
                 model: Some("claude-opus-4-6"),
                 capability: None,
+                hnsw_index: None,
             },
         )
         .await
@@ -1923,6 +1973,7 @@ mod tests {
                     momentum: None,
                     model: None,
                     capability: None,
+                    hnsw_index: None,
                 },
             )
             .await

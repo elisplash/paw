@@ -8,6 +8,7 @@
 // No new tables. No new storage. Just structured queries on what exists.
 
 use crate::atoms::error::EngineResult;
+use crate::engine::engram::encryption::tokenize_edge_type;
 use crate::engine::sessions::SessionStore;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
@@ -65,14 +66,15 @@ pub fn get_domain_tree(
         .collect();
 
     // Resolve children via PartOf edges
+    let part_of_token = tokenize_edge_type("part_of");
     let mut result = nodes;
     for node in &mut result {
         let mut child_stmt = conn.prepare(
             "SELECT source_id FROM memory_edges
-             WHERE target_id = ?1 AND edge_type = 'part_of'",
+             WHERE target_id = ?1 AND edge_type = ?2",
         )?;
         let children: Vec<String> = child_stmt
-            .query_map(params![node.memory_id], |row| row.get(0))?
+            .query_map(params![node.memory_id, part_of_token], |row| row.get(0))?
             .filter_map(|r| r.ok())
             .collect();
         node.children = children;
@@ -89,11 +91,12 @@ pub fn link_skill_parent(
     parent_id: &str,
 ) -> EngineResult<()> {
     let conn = store.conn.lock();
+    let token = tokenize_edge_type("part_of");
     let edge_id = uuid::Uuid::new_v4().to_string();
     conn.execute(
         "INSERT OR IGNORE INTO memory_edges (id, source_id, target_id, edge_type, weight)
-         VALUES (?1, ?2, ?3, 'part_of', 0.8)",
-        params![edge_id, child_id, parent_id],
+         VALUES (?1, ?2, ?3, ?4, 0.8)",
+        params![edge_id, child_id, parent_id, token],
     )?;
     Ok(())
 }
@@ -106,11 +109,12 @@ pub fn link_skill_dependency(
     prerequisite_id: &str,
 ) -> EngineResult<()> {
     let conn = store.conn.lock();
+    let token = tokenize_edge_type("caused_by");
     let edge_id = uuid::Uuid::new_v4().to_string();
     conn.execute(
         "INSERT OR IGNORE INTO memory_edges (id, source_id, target_id, edge_type, weight)
-         VALUES (?1, ?2, ?3, 'caused_by', 0.9)",
-        params![edge_id, skill_id, prerequisite_id],
+         VALUES (?1, ?2, ?3, ?4, 0.9)",
+        params![edge_id, skill_id, prerequisite_id, token],
     )?;
     Ok(())
 }
@@ -118,12 +122,13 @@ pub fn link_skill_dependency(
 /// Get all prerequisites for a skill (skills it depends on).
 pub fn get_prerequisites(store: &SessionStore, skill_id: &str) -> EngineResult<Vec<String>> {
     let conn = store.conn.lock();
+    let token = tokenize_edge_type("caused_by");
     let mut stmt = conn.prepare(
         "SELECT target_id FROM memory_edges
-         WHERE source_id = ?1 AND edge_type = 'caused_by'",
+         WHERE source_id = ?1 AND edge_type = ?2",
     )?;
     let ids = stmt
-        .query_map(params![skill_id], |row| row.get(0))?
+        .query_map(params![skill_id, token], |row| row.get(0))?
         .filter_map(|r| r.ok())
         .collect();
     Ok(ids)
@@ -198,9 +203,7 @@ mod tests {
     fn test_store() -> SessionStore {
         let conn = Connection::open_in_memory().unwrap();
         run_migrations(&conn).unwrap();
-        SessionStore {
-            conn: Arc::new(Mutex::new(conn)),
-        }
+        SessionStore::from_connection(conn)
     }
 
     fn seed_skill(store: &SessionStore, id: &str, trigger: &str) {

@@ -36,7 +36,7 @@ https://github.com/user-attachments/assets/60b0f351-180e-49ed-a70b-e31556743949
 
 <br>
 
-**Integration Hub** — 25,000+ services via MCP Bridge, with category filters, connection health, and quick setup
+**Integration Hub** — Community services via MCP Bridge, with category filters, connection health, and quick setup
 
 <img src="images/screenshots/Integrations.png" alt="Integration Hub" width="800">
 
@@ -62,7 +62,7 @@ OpenPawz is a native Tauri v2 application with a pure Rust backend engine. It ru
 
 - **Private** — No cloud, no telemetry, no open ports. Credentials encrypted with AES-256-GCM in your OS keychain.
 - **Powerful** — Multi-agent orchestration, 11 channel bridges, hybrid memory, DeFi trading, browser automation, research workflows.
-- **Extensible** — 25,000+ integrations via embedded MCP bridge to n8n's community node ecosystem, unlimited providers, community skills via PawzHub, local Ollama workers, modular architecture.
+- **Extensible** — Comm integrations via embedded MCP bridge to n8n's community node ecosystem, unlimited providers, community skills via PawzHub, local Ollama workers, modular architecture.
 - **Tiny** — ~5 MB native binary. Not a 200 MB Electron wrapper.
 
 ---
@@ -77,7 +77,7 @@ Every other automation platform locks integrations inside workflows. You must bu
 | **To use a tool** | Build trigger → action chain first | Just ask your agent |
 | **AI's role** | One node inside the pipeline | The pipeline lives inside the agent |
 | **Install a new package** | Workflow node only | Instant chat tool + workflow node |
-| **25,000+ community nodes** | Manual sequential automation | AI-orchestrable via MCP bridge |
+| **Community nodes** | Manual sequential automation | AI-orchestrable via MCP bridge |
 
 ```
 Install "@n8n/n8n-nodes-slack":
@@ -89,7 +89,7 @@ Install "@n8n/n8n-nodes-slack":
 
 **How it works:** OpenPawz embeds n8n as an MCP server. n8n's MCP exposes three workflow-level tools: `search_workflows`, `execute_workflow`, and `get_workflow_details`. When you install a community package, Paw auto-deploys a per-service workflow (e.g. "OpenPawz MCP — Slack") that encapsulates the integration logic. The agent discovers workflows via semantic search and executes them via `execute_workflow` — all through the MCP bridge.
 
-**The insight:** n8n's 25,000 community nodes were designed for manual automation. OpenPawz makes them AI-native — Paw auto-deploys workflows that compose n8n nodes with credential binding, error handling, and retries. The agent decides which workflow to execute based on your intent, and only needs the visual Flow Builder when you want multi-step orchestration with branching, loops, or scheduling.
+**The insight:** n8n's community nodes were designed for manual automation. OpenPawz makes them AI-native — Paw auto-deploys workflows that compose n8n nodes with credential binding, error handling, and retries. The agent decides which workflow to execute based on your intent, and only needs the visual Flow Builder when you want multi-step orchestration with branching, loops, or scheduling.
 
 ---
 
@@ -127,7 +127,7 @@ Architect (Cloud LLM): "Send hello to #general" → calls mcp_slack_send_message
   → Tool execution handled by the cheapest capable model in the stack
 ```
 
-**Key insight:** MCP servers are self-describing. The worker model doesn't need to know how to use 25,000+ integrations — MCP tells it at runtime.
+**Key insight:** MCP servers are self-describing. The worker model doesn't need to know how to use community integrations — MCP tells it at runtime.
 
 📄 [Full case study: The Foreman Protocol](reference/foreman-protocol.mdx)
 
@@ -147,7 +147,7 @@ Convergent Mesh (agent debate until consensus):
   OpenPawz Conductor:  bidirectional edges → iterative rounds → convergence
 ```
 
-**Key insight:** 25,000+ n8n community nodes were designed for manual sequential automation. The Conductor makes them AI-orchestrable — describe a workflow in natural language, the NLP parser builds the graph, the Conductor compiles it, and the agents execute it. The entire n8n ecosystem becomes an AI-native automation engine.
+**Key insight:**  n8n community nodes were designed for manual sequential automation. The Conductor makes them AI-orchestrable — describe a workflow in natural language, the NLP parser builds the graph, the Conductor compiles it, and the agents execute it. The entire n8n ecosystem becomes an AI-native automation engine.
 
 📄 [Full case study: The Conductor Protocol](reference/conductor-protocol.mdx)
 
@@ -238,9 +238,9 @@ See [SECURITY.md](SECURITY.md) for the complete security architecture.
 - Per-agent chat sessions with persistent history and mini-chat popups
 - Agent dock with avatars (50 custom Pawz Boi sprites)
 
-### 25,000+ Integrations — Zero-Gap Automation
+### Community Integrations — Zero-Gap Automation
 
-OpenPawz ships with **400+ built-in integrations** compiled into the Rust binary. But the real breakthrough is the **MCP Bridge** — an embedded n8n engine that connects your agents to **25,000+ community integrations** via the Model Context Protocol. No plugins to install, no marketplace to browse. Your agent discovers and installs integrations at runtime, auto-deploys per-service workflows, and executes them on demand.
+OpenPawz ships with **400+ built-in integrations** compiled into the Rust binary. But the real breakthrough is the **MCP Bridge** — an embedded n8n engine that connects your agents to **Community integrations** via the Model Context Protocol. No plugins to install, no marketplace to browse. Your agent discovers and installs integrations at runtime, auto-deploys per-service workflows, and executes them on demand.
 
 #### How It Works
 
@@ -270,7 +270,7 @@ User: "Generate a QR code for my website"
 | CRM & Marketing | 30+ | Salesforce, HubSpot, Mailchimp, SendGrid, Intercom |
 | Miscellaneous | 55+ | Weather, RSS, Web Scraping, PDF, OCR, QR codes, Maps |
 
-#### MCP Bridge (25,000+ via embedded n8n)
+#### MCP Bridge (Nodes via embedded n8n)
 
 | Layer | What It Does |
 |-------|-------------|
@@ -314,7 +314,7 @@ Each bridge includes user approval flows, per-agent routing, and uniform start/s
 - **Memory Palace** — Visualization UI for browsing and managing stored memories
 
 ### Built-in Tools & Skills
-- 25,000+ integrations (400+ native + 25K community integrations via MCP bridge workflows) with encrypted credential injection
+- Community integrations (400+ native + community integrations via MCP bridge workflows) with encrypted credential injection
 - Community skills from the [skills.sh](https://skills.sh) ecosystem and PawzHub marketplace
 - Three-tier extensibility: Skills (SKILL.md) → Integrations (pawz-skill.toml) → Extensions (custom views + storage)
 - Kanban task board with agent assignment, cron scheduling, and event-driven triggers
@@ -373,7 +373,7 @@ flowchart LR
 
   subgraph Engine["Rust Engine"]
     Tauri["Tauri Commands"]
-    Integrations["25,000+ Integration Engine"]
+    Integrations["Community Integration Engine"]
     MCP["MCP Bridge · Embedded n8n"]
     Providers["AI Providers · Channel Bridges"]
     Tools["Tool Executor + HIL Approval"]

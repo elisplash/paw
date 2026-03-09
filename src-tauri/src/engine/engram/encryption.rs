@@ -438,6 +438,94 @@ pub fn get_platform_capability_key() -> EngineResult<[u8; 32]> {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// Edge Encryption Key
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Derive a dedicated HMAC key for edge type tokenization.
+///
+/// Edge topology (source_id, target_id) remains cleartext for index lookups,
+/// but `edge_type` is replaced with a keyed HMAC token so an attacker with
+/// DB access cannot learn relationship semantics (causal, temporal, contradicts).
+///
+/// We use HMAC tokenization (deterministic) rather than AES-GCM (randomized)
+/// because SQL WHERE clauses need equality matching on edge_type.
+///
+/// Domain-separated from agent keys via distinct HKDF salt:
+///   salt  = "engram-edge-key-v1"
+///   info  = "edge-type-hmac"
+pub fn get_edge_hmac_key() -> EngineResult<[u8; 32]> {
+    let master = get_memory_encryption_key()?;
+    let salt = b"engram-edge-key-v1";
+    let hk = Hkdf::<Sha256>::new(Some(salt), &master);
+    let mut okm = [0u8; 32];
+    hk.expand(b"edge-type-hmac", &mut okm)
+        .map_err(|e| EngineError::Other(format!("HKDF expand (edge key) failed: {}", e)))?;
+    Ok(okm)
+}
+
+/// Compute the HMAC token for an edge type string.
+/// Returns a hex-encoded HMAC-SHA256 tag (deterministic — same input → same output).
+/// If keying fails, returns the plaintext (graceful degradation).
+pub fn tokenize_edge_type(edge_type: &str) -> String {
+    use hmac::{Hmac, Mac};
+    type HmacSha256 = Hmac<Sha256>;
+    match get_edge_hmac_key() {
+        Ok(key) => {
+            let mut mac =
+                <HmacSha256 as Mac>::new_from_slice(&key).expect("HMAC accepts any key length");
+            mac.update(edge_type.as_bytes());
+            let result = mac.finalize();
+            // Prefix with "et:" so we can detect tokenized vs plaintext values
+            let hex: String = result
+                .into_bytes()
+                .iter()
+                .map(|b| format!("{:02x}", b))
+                .collect();
+            format!("et:{}", hex)
+        }
+        Err(_) => edge_type.to_string(),
+    }
+}
+
+/// Resolve a tokenized edge type back to its plaintext EdgeType.
+/// Since there are only ~10 EdgeType variants, we try all of them
+/// and return the one whose HMAC matches the stored token.
+/// Returns the original string if not tokenized (backward compat).
+pub fn resolve_edge_type(token: &str) -> String {
+    if !token.starts_with("et:") {
+        // Not tokenized — plaintext (pre-encryption edges). Return as-is.
+        return token.to_string();
+    }
+    // Try all known EdgeType Display variants (snake_case canonical form)
+    let known_types = [
+        "consolidated_into",
+        "contradicts",
+        "supported_by",
+        "supersedes",
+        "caused_by",
+        "temporally_adjacent",
+        "related_to",
+        "inferred_from",
+        "learned_from",
+        "example_of",
+        "part_of",
+        "similar_to",
+        "elaborates",
+        "generalizes",
+        "specializes",
+        // FromStr also accepts "supports" → SupportedBy
+        "supports",
+    ];
+    for candidate in known_types {
+        if tokenize_edge_type(candidate) == token {
+            return candidate.to_string();
+        }
+    }
+    // Fallback: return "RelatedTo" if we can't resolve
+    "RelatedTo".to_string()
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // Encrypt / Decrypt
 // ═════════════════════════════════════════════════════════════════════════════
 

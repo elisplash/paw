@@ -128,9 +128,7 @@ mod tests {
     fn test_store() -> SessionStore {
         let conn = Connection::open_in_memory().unwrap();
         schema_for_testing(&conn);
-        SessionStore {
-            conn: Arc::new(Mutex::new(conn)),
-        }
+        SessionStore::from_connection(conn)
     }
 
     #[test]

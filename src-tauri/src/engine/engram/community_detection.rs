@@ -50,6 +50,9 @@ pub struct Community {
     pub internal_weight: f64,
     /// Auto-derived label from member content.
     pub label: String,
+    /// Hierarchical summary built from member key_facts and content.
+    /// Richer than the label — used by GraphRAG search for context injection.
+    pub summary: String,
 }
 
 /// Report from a community detection run.
@@ -222,7 +225,8 @@ pub fn detect_communities(
                 id: seq_id,
                 member_ids,
                 internal_weight: internal_w,
-                label: String::new(), // resolved below
+                label: String::new(),   // resolved below
+                summary: String::new(), // resolved below
             }
         })
         .collect();
@@ -315,37 +319,59 @@ fn load_graph(
     Ok((edges, node_index, reverse_index))
 }
 
-/// Derive human-readable labels for communities by extracting common
-/// categories and top keywords from member memories.
+/// Derive human-readable labels and hierarchical summaries for communities
+/// by extracting common categories, top keywords, and aggregating member content.
+///
+/// Summary format (GraphRAG §7 hierarchical):
+///   "Topic: {label}\n\nKey facts:\n- fact1\n- fact2\n...\n\nThemes: kw1, kw2, kw3"
+///
+/// This summary is used by community-augmented search to inject cluster context
+/// instead of individual memories — enabling "global" queries over the knowledge graph.
 fn derive_labels(store: &SessionStore, mut communities: Vec<Community>) -> Vec<Community> {
     let conn = store.conn.lock();
 
     for community in &mut communities {
         let mut category_counts: HashMap<String, usize> = HashMap::new();
         let mut word_counts: HashMap<String, usize> = HashMap::new();
+        let mut key_facts: Vec<String> = Vec::new();
 
         // Sample up to 20 members for label derivation
         let sample: Vec<&String> = community.member_ids.iter().take(20).collect();
 
         for id in &sample {
             let ok = conn.query_row(
-                "SELECT category, content_key_fact FROM episodic_memories WHERE id = ?1",
+                "SELECT category, content_key_fact, content_summary FROM episodic_memories WHERE id = ?1",
                 rusqlite::params![id],
                 |row| {
                     let cat: String = row.get(0)?;
                     let kf: Option<String> = row.get(1)?;
-                    Ok((cat, kf))
+                    let summary: Option<String> = row.get(2)?;
+                    Ok((cat, kf, summary))
                 },
             );
-            if let Ok((category, key_fact)) = ok {
+            if let Ok((category, key_fact, summary)) = ok {
                 *category_counts.entry(category).or_default() += 1;
-                if let Some(kf) = key_fact {
+
+                // Collect key facts for hierarchical summary
+                if let Some(ref kf) = key_fact {
+                    if !kf.is_empty() && key_facts.len() < 10 {
+                        key_facts.push(kf.clone());
+                    }
                     for word in kf.split_whitespace() {
                         let w = word
                             .trim_matches(|c: char| !c.is_alphanumeric())
                             .to_lowercase();
                         if w.len() > 3 && !is_stop_word(&w) {
                             *word_counts.entry(w).or_default() += 1;
+                        }
+                    }
+                }
+
+                // Fall back to summary if no key_fact
+                if key_fact.is_none() || key_fact.as_deref() == Some("") {
+                    if let Some(ref s) = summary {
+                        if !s.is_empty() && key_facts.len() < 10 {
+                            key_facts.push(s.clone());
                         }
                     }
                 }
@@ -364,25 +390,56 @@ fn derive_labels(store: &SessionStore, mut communities: Vec<Community>) -> Vec<C
         let keyword_part: Vec<&str> = top_words.iter().take(2).map(|(w, _)| w.as_str()).collect();
 
         community.label = if keyword_part.is_empty() {
-            top_category
+            top_category.clone()
         } else {
             format!("{}: {}", top_category, keyword_part.join(", "))
         };
+
+        // Build hierarchical summary (GraphRAG-style)
+        let themes: Vec<&str> = top_words.iter().take(5).map(|(w, _)| w.as_str()).collect();
+        let mut summary_parts = Vec::new();
+        summary_parts.push(format!("Topic: {}", community.label));
+        summary_parts.push(format!("Members: {} memories", community.member_ids.len()));
+        if !key_facts.is_empty() {
+            let facts_section: Vec<String> = key_facts.iter().map(|f| format!("- {}", f)).collect();
+            summary_parts.push(format!("Key facts:\n{}", facts_section.join("\n")));
+        }
+        if !themes.is_empty() {
+            summary_parts.push(format!("Themes: {}", themes.join(", ")));
+        }
+        community.summary = summary_parts.join("\n\n");
     }
 
     communities
 }
 
-/// Persist community assignments to the database.
-/// Updates episodic_memories.community_id and stores community summaries.
+/// Persist community assignments and summaries to the database.
+/// Updates episodic_memories.community_id and stores community metadata
+/// in the memory_communities table.
 fn persist_communities(store: &SessionStore, communities: &[Community]) -> EngineResult<()> {
     let conn = store.conn.lock();
 
     // Clear existing assignments
     let _ = conn.execute("UPDATE episodic_memories SET community_id = NULL", []);
+    let _ = conn.execute("DELETE FROM memory_communities", []);
 
     for community in communities {
         let comm_id_str = community.id.to_string();
+
+        // Persist community metadata + summary
+        conn.execute(
+            "INSERT OR REPLACE INTO memory_communities (id, label, summary, member_count, internal_weight)
+             VALUES (?1, ?2, ?3, ?4, ?5)",
+            rusqlite::params![
+                comm_id_str,
+                community.label,
+                community.summary,
+                community.member_ids.len(),
+                community.internal_weight,
+            ],
+        )?;
+
+        // Assign community to members
         for member_id in &community.member_ids {
             let _ = conn.execute(
                 "UPDATE episodic_memories SET community_id = ?2 WHERE id = ?1",
@@ -449,11 +506,15 @@ pub fn communities_to_domains(
                 if placeholders.is_empty() {
                     0usize
                 } else {
+                    let contradicts_token =
+                        super::encryption::tokenize_edge_type("contradicts");
+                    // Extra placeholder at end for the tokenized edge_type
                     let query = format!(
                         "SELECT COUNT(*) FROM memory_edges
-                         WHERE edge_type = 'contradicts'
+                         WHERE edge_type = ?{extra}
                            AND source_id IN ({0}) AND target_id IN ({0})",
-                        placeholders
+                        placeholders,
+                        extra = c.member_ids.len() * 2 + 1
                     );
                     let mut stmt = match conn.prepare(&query) {
                         Ok(s) => s,
@@ -466,7 +527,7 @@ pub fn communities_to_domains(
                             memory_ids: c.member_ids.clone(),
                         },
                     };
-                    // Need to bind member_ids twice (for both IN clauses)
+                    // Need to bind member_ids twice (for both IN clauses), plus the token
                     let mut params: Vec<Box<dyn rusqlite::types::ToSql>> = Vec::new();
                     for id in &c.member_ids {
                         params.push(Box::new(id.clone()));
@@ -474,6 +535,7 @@ pub fn communities_to_domains(
                     for id in &c.member_ids {
                         params.push(Box::new(id.clone()));
                     }
+                    params.push(Box::new(contradicts_token));
                     stmt.query_row(rusqlite::params_from_iter(params.iter().map(|p| p.as_ref())), |row| row.get::<_, usize>(0))
                         .unwrap_or(0)
                 }

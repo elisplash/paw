@@ -242,6 +242,7 @@ pub async fn run_channel_agent(
                 momentum: mom_ref,
                 model: Some(&model), // per-model injection limits (§58.5)
                 capability: read_cap.as_ref(),
+                hnsw_index: Some(&engine_state.hnsw_index),
             },
         )
         .await
@@ -266,82 +267,98 @@ pub async fn run_channel_agent(
         }
     };
 
-    // Build full system prompt — MINIMAL version for channel bridges.
+    // Build full system prompt via ContextBuilder (§14 budget-aware).
     //
-    // KEY INSIGHT: The channel agent only has ~4 tools (fetch, memory_store,
-    // memory_search, self_info). The system prompt should ONLY describe those.
-    // The base system prompt describes 41+ tools (exec, write_file, web_browse...)
-    // that aren't even available to the channel agent — including it confuses the
-    // model and wastes ~2K tokens on irrelevant instructions.
+    // Channel agents intentionally skip the base system prompt (which describes
+    // 41+ tools not available to channel bridges) and use channel_context as the
+    // primary section. Memory recall was already performed above via gated_search
+    // (with override detection + CRAG quality gating), so we inject those results
+    // as a custom section rather than using ContextBuilder's recall_from.
+    let cb_context_window = {
+        let cfg = engine_state.config.lock();
+        cfg.context_window_tokens
+    };
+
+    let provider_name = format!("{:?}", provider_config.kind);
+    let user_tz = {
+        let cfg = engine_state.config.lock();
+        cfg.user_timezone.clone()
+    };
+    let runtime_ctx =
+        chat_org::build_runtime_context(&model, &provider_name, &session_id, agent_id, &user_tz);
+
+    let discipline_text = "## Conversation Discipline\n\
+        - **Act immediately.** When the user asks you to do something, start doing it with your tools right now. Don't ask for confirmation.\n\
+        - **For creating channels/categories:** Use `discord_setup_channels` — it creates everything in ONE call.\n\
+        - **For individual operations** (sending messages, editing, permissions): Use `fetch`.\n\
+        - **Never ask for information you already have.** Your server ID and API reference are above.\n\
+        - **If a call fails, try again.** Don't give up or ask the user to do it manually.\n\
+        - **Keep responses short.** Brief updates between actions, not essays.";
+
     let full_system_prompt = {
-        let mut parts: Vec<String> = Vec::new();
+        let cognitive = cognitive_lock.lock().await;
 
-        // 1. Channel-specific context (Discord API ref, credentials, examples)
-        // This is the MOST important part — it tells the agent how to do its job.
-        parts.push(channel_context.to_string());
+        let mut builder = crate::engine::engram::context_builder::ContextBuilder::new(&model)
+            .context_window(cb_context_window);
 
-        // 2. Core identity from soul files (IDENTITY.md, SOUL.md, USER.md)
-        if let Some(cc) = &core_context {
-            parts.push(cc.to_string());
+        // Channel context at priority 0 (highest — tells agent its job/API reference)
+        builder = builder.custom_section("channel_context", channel_context, 0);
+
+        // Core identity from soul files (IDENTITY.md, SOUL.md, USER.md)
+        if let Some(ref cc) = core_context {
+            builder = builder.core_context(cc.clone());
         }
 
-        // 3. Skip the base system prompt — it describes exec, write_file, web_browse,
-        // create_agent, etc. which are NOT available to channel bridges. Including it
-        // confuses the model into trying tools that don't exist or generating empty
-        // responses because it can't reconcile the instructions with the actual tool set.
+        // Runtime context (model, session, time info)
+        builder = builder.runtime_context(runtime_ctx);
 
-        // 4. Lightweight runtime context
-        let provider_name = format!("{:?}", provider_config.kind);
-        let user_tz = {
-            let cfg = engine_state.config.lock();
-            cfg.user_timezone.clone()
-        };
-        parts.push(chat_org::build_runtime_context(
-            &model,
-            &provider_name,
-            &session_id,
-            agent_id,
-            &user_tz,
-        ));
+        // Conversation discipline at priority 1
+        builder = builder.custom_section("conversation_discipline", discipline_text, 1);
 
-        // 5. Channel-bridge conversation discipline
-        parts.push(
-            "## Conversation Discipline\n\
-            - **Act immediately.** When the user asks you to do something, start doing it with your tools right now. Don't ask for confirmation.\n\
-            - **For creating channels/categories:** Use `discord_setup_channels` — it creates everything in ONE call.\n\
-            - **For individual operations** (sending messages, editing, permissions): Use `fetch`.\n\
-            - **Never ask for information you already have.** Your server ID and API reference are above.\n\
-            - **If a call fails, try again.** Don't give up or ask the user to do it manually.\n\
-            - **Keep responses short.** Brief updates between actions, not essays.".to_string()
-        );
-
-        // 6. Engram recalled memories (§8) — inject relevant cross-session context
+        // Pre-recalled memories from gated_search above (with CRAG quality gating)
         if let Some(ref recalled) = channel_recalled {
-            let mut mem_parts: Vec<String> = Vec::new();
-            mem_parts.push("## Recalled Context".to_string());
+            let mut mem_parts: Vec<String> = vec!["## Recalled Context".to_string()];
             for (i, mem) in recalled.iter().take(5).enumerate() {
-                mem_parts.push(format!("{}. [{}] {}", i + 1, mem.memory_type, mem.content,));
+                mem_parts.push(format!("{}. [{}] {}", i + 1, mem.memory_type, mem.content));
             }
-            parts.push(mem_parts.join("\n"));
+            builder = builder.custom_section("recalled_context", mem_parts.join("\n"), 7);
         }
 
-        // 7. Working memory context (Tier 1)
-        {
-            let cognitive = cognitive_lock.lock().await;
-            let wm_text = cognitive.working_memory.format_for_context();
-            if !wm_text.is_empty() {
-                parts.push(format!("## Working Memory\n{}", wm_text));
+        // Working memory slots (Tier 1)
+        builder = builder.working_memory(&cognitive.working_memory);
+
+        match builder.build().await {
+            Ok(ctx) => {
+                info!(
+                    "[{}] ContextBuilder: sys={}tok reply={}tok mem={} for agent '{}'",
+                    channel_prefix,
+                    ctx.budget.system_prompt_tokens,
+                    ctx.budget.available_for_reply,
+                    ctx.budget.memories_injected,
+                    agent_id
+                );
+                if let Some(emb) = ctx.query_embedding {
+                    let cognitive_lock2 = engine_state.get_cognitive_state(agent_id);
+                    let mut cog = cognitive_lock2.lock().await;
+                    cog.working_memory.push_momentum(emb);
+                }
+                ctx.system_prompt
+            }
+            Err(e) => {
+                warn!(
+                    "[{}] ContextBuilder failed, falling back: {}",
+                    channel_prefix, e
+                );
+                // Fallback: manual assembly
+                let mut parts: Vec<String> = Vec::new();
+                parts.push(channel_context.to_string());
+                if let Some(ref cc) = core_context {
+                    parts.push(cc.to_string());
+                }
+                parts.push(discipline_text.to_string());
+                Some(parts.join("\n\n---\n\n"))
             }
         }
-
-        let prompt = parts.join("\n\n---\n\n");
-        info!(
-            "[{}] System prompt: {} chars for agent '{}'",
-            channel_prefix,
-            prompt.len(),
-            agent_id
-        );
-        Some(prompt)
     };
 
     // Load conversation history.
@@ -667,6 +684,7 @@ pub async fn run_channel_agent(
                         Some(&session_id),
                         Some(channel_prefix),
                         Some(user_id),
+                        Some(&engine_state.hnsw_index),
                     )
                     .await;
                 }

@@ -240,6 +240,7 @@ async fn execute_memory_store(
         emb_client.as_ref(),
         Some(agent_id),
         None, // session_id
+        Some(&state.hnsw_index),
     )
     .await?;
 
@@ -300,6 +301,7 @@ async fn execute_memory_search(
             momentum: None,   // no momentum embeddings
             model: None,      // tool search — conservative injection limits
             capability: read_cap.as_ref(),
+            hnsw_index: Some(&state.hnsw_index),
         },
     )
     .await?;

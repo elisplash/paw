@@ -703,9 +703,7 @@ mod tests {
         conn.execute_batch("PRAGMA journal_mode=WAL;").ok();
         crate::engine::sessions::schema_for_testing(&conn);
         conn.execute_batch(UNIFIED_AUDIT_SCHEMA).unwrap();
-        SessionStore {
-            conn: std::sync::Arc::new(parking_lot::Mutex::new(conn)),
-        }
+        SessionStore::from_connection(conn)
     }
 
     #[test]

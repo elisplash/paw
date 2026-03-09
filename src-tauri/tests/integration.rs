@@ -15,9 +15,7 @@ pub fn test_store() -> SessionStore {
     let conn = Connection::open_in_memory().expect("Failed to open in-memory DB");
     conn.execute_batch("PRAGMA journal_mode=WAL;").ok();
     paw_temp_lib::engine::sessions::schema_for_testing(&conn);
-    SessionStore {
-        conn: Arc::new(Mutex::new(conn)),
-    }
+    SessionStore::from_connection(conn)
 }
 
 mod config_persistence;

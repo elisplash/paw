@@ -145,7 +145,7 @@ pub async fn run_project(app_handle: &tauri::AppHandle, project_id: &str) -> Eng
         })
         .collect();
 
-    // Boss agent system prompt
+    // Boss agent system prompt via ContextBuilder (§14 budget-aware)
     let boss_soul = state
         .store
         .compose_agent_context(&project.boss_agent)
@@ -154,81 +154,20 @@ pub async fn run_project(app_handle: &tauri::AppHandle, project_id: &str) -> Eng
         skills::get_enabled_skill_instructions(&state.store, &project.boss_agent)
             .unwrap_or_default();
 
-    let mut sys_parts: Vec<String> = Vec::new();
-    if let Some(sp) = &base_system_prompt {
-        sys_parts.push(sp.clone());
-    }
-    if let Some(soul) = boss_soul {
-        sys_parts.push(soul);
-    }
-    if !skill_instructions.is_empty() {
-        sys_parts.push(skill_instructions.clone());
-    }
-
-    // §17 Pre-recall: inject relevant memories via gated search (§7)
-    // Replaces direct bridge::search() with intent-aware, quality-gated retrieval.
+    // ── CognitiveState: activate the three-tier memory pipeline (§4) ──
+    let cognitive_lock = state.get_cognitive_state(&project.boss_agent);
     {
-        let emb_client = state.embedding_client();
-        let scope = crate::atoms::engram_types::MemoryScope::agent(&project.boss_agent);
-        let search_config = crate::atoms::engram_types::MemorySearchConfig::default();
-        // Issue a signed capability token for read-path scope verification (§43.4)
-        let read_cap =
-            crate::engine::engram::memory_bus::issue_read_capability(&project.boss_agent).ok();
-        match crate::engine::engram::gated_search::gated_search(
-            &state.store,
-            &crate::engine::engram::gated_search::GatedSearchRequest {
-                query: &project.goal,
-                scope: &scope,
-                config: &search_config,
-                embedding_client: emb_client.as_ref(),
-                budget_tokens: 0,    // no token budget limit for orchestrator
-                momentum: None,      // no momentum embeddings
-                model: Some(&model), // per-model injection limits (§58.5)
-                capability: read_cap.as_ref(),
-            },
-        )
-        .await
-        {
-            Ok(result) if !result.memories.is_empty() => {
-                let mut memory_block = String::from(
-                    "## Relevant Memories\nPrior knowledge that may help with this project:\n",
-                );
-                for m in &result.memories {
-                    memory_block.push_str(&format!("- [{}] {}\n", m.category, m.content));
-                }
-                sys_parts.push(memory_block);
-                info!(
-                    "[orchestrator] Pre-recalled {} memories (gate={:?}) for project '{}'",
-                    result.memories.len(),
-                    result.gate,
-                    project.title
-                );
-            }
-            Ok(result)
-                if result.gate == crate::engine::engram::gated_search::GateDecision::Refuse =>
-            {
-                info!(
-                    "[orchestrator] Memory quality gate refused results for project '{}' (CRAG Incorrect tier)",
-                    project.title
-                );
-            }
-            Ok(result)
-                if matches!(
-                    result.gate,
-                    crate::engine::engram::gated_search::GateDecision::Defer(_)
-                ) =>
-            {
-                info!(
-                    "[orchestrator] Memory gate deferred for project '{}': {:?}",
-                    project.title, result.disambiguation_hint
-                );
-            }
-            Ok(_) => {}
-            Err(e) => warn!("[orchestrator] Memory pre-recall failed: {}", e),
-        }
+        let mut cognitive = cognitive_lock.lock().await;
+        cognitive.decay_turn();
+        cognitive.adapt_wm_budget(&model);
     }
 
-    sys_parts.push(format!(
+    let context_window = {
+        let cfg = state.config.lock();
+        cfg.context_window_tokens
+    };
+
+    let orchestrator_context = format!(
         r#"## Orchestrator Mode
 
 You are the **Boss Agent** orchestrating project "{}".
@@ -254,10 +193,76 @@ You are the **Boss Agent** orchestrating project "{}".
 - Always call `project_complete` when done."#,
         project.title,
         project.goal,
-        if agent_roster.is_empty() { "No sub-agents assigned. You'll work solo.".into() } else { agent_roster.join("\n") }
-    ));
+        if agent_roster.is_empty() {
+            "No sub-agents assigned. You'll work solo.".into()
+        } else {
+            agent_roster.join("\n")
+        }
+    );
 
-    let boss_system_prompt = sys_parts.join("\n\n---\n\n");
+    let boss_system_prompt = {
+        let emb_client = state.embedding_client();
+        let recall_scope = crate::atoms::engram_types::MemoryScope::agent(&project.boss_agent);
+        let cognitive = cognitive_lock.lock().await;
+
+        let mut builder = crate::engine::engram::context_builder::ContextBuilder::new(&model)
+            .context_window(context_window);
+        if let Some(sp) = &base_system_prompt {
+            builder = builder.base_prompt(sp.clone());
+        }
+        if let Some(ref soul) = boss_soul {
+            builder = builder.core_context(soul.clone());
+        }
+        if !skill_instructions.is_empty() {
+            builder = builder.skill_instructions(skill_instructions.clone());
+        }
+        // Orchestrator context at priority 1 (critical — it's the boss's instructions)
+        builder = builder.custom_section("orchestrator_mode", &orchestrator_context, 1);
+        // Team roster at priority 4
+        if !agent_roster.is_empty() {
+            builder = builder.agent_roster(agent_roster.join("\n"));
+        }
+        // Auto-recall via ContextBuilder (replaces manual gated_search)
+        builder = builder.recall_from(
+            &state.store,
+            emb_client.as_ref(),
+            recall_scope,
+            project.goal.clone(),
+        );
+        builder = builder.hnsw_index(&state.hnsw_index);
+        builder = builder.working_memory(&cognitive.working_memory);
+
+        match builder.build().await {
+            Ok(ctx) => {
+                info!(
+                    "[orchestrator] ContextBuilder: sys={}tok hist={}tok reply={}tok mem={} for project '{}'",
+                    ctx.budget.system_prompt_tokens,
+                    ctx.budget.history_tokens,
+                    ctx.budget.available_for_reply,
+                    ctx.budget.memories_injected,
+                    project.title
+                );
+                if let Some(emb) = ctx.query_embedding {
+                    let cognitive_lock2 = state.get_cognitive_state(&project.boss_agent);
+                    let mut cog = cognitive_lock2.lock().await;
+                    cog.working_memory.push_momentum(emb);
+                }
+                ctx.system_prompt.unwrap_or_default()
+            }
+            Err(e) => {
+                warn!("[orchestrator] ContextBuilder failed, falling back: {}", e);
+                let mut parts: Vec<String> = Vec::new();
+                if let Some(sp) = &base_system_prompt {
+                    parts.push(sp.clone());
+                }
+                if let Some(ref soul) = boss_soul {
+                    parts.push(soul.clone());
+                }
+                parts.push(orchestrator_context.clone());
+                parts.join("\n\n---\n\n")
+            }
+        }
+    };
 
     // Build tools: builtins + skill tools + orchestrator boss tools
     let mut all_tools = ToolDefinition::builtins();
@@ -369,6 +374,7 @@ You are the **Boss Agent** orchestrating project "{}".
                     Some(&session_id),
                     None,
                     None,
+                    Some(&state.hnsw_index),
                 )
                 .await
                 {

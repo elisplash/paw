@@ -306,7 +306,7 @@ async fn run_swarm_turn(
             .create_session(&session_id, &model, None, Some(recipient_id))?;
     }
 
-    // Build system prompt
+    // Build system prompt via ContextBuilder (§14 budget-aware)
     let base_system_prompt = {
         let cfg = state.config.lock();
         cfg.default_system_prompt.clone()
@@ -318,90 +318,22 @@ async fn run_swarm_turn(
     let skill_instructions =
         skills::get_enabled_skill_instructions(&state.store, recipient_id).unwrap_or_default();
 
-    let provider_name = format!("{:?}", provider_config.kind);
-    let user_tz = {
+    // ── CognitiveState: activate the three-tier memory pipeline (§4) ──
+    let cognitive_lock = state.get_cognitive_state(recipient_id);
+    {
+        let mut cognitive = cognitive_lock.lock().await;
+        cognitive.decay_turn();
+        cognitive.adapt_wm_budget(&model);
+    }
+
+    let context_window = {
         let cfg = state.config.lock();
-        cfg.user_timezone.clone()
-    };
-    let runtime_context = chat_org::build_runtime_context(
-        &model,
-        &provider_name,
-        &session_id,
-        recipient_id,
-        &user_tz,
-    );
-
-    // ── Auto-recall memories for the swarm agent (§55 gated search) ────
-    let todays_memories = {
-        let scope = crate::atoms::engram_types::MemoryScope::squad(squad_id, recipient_id);
-        let search_config = crate::atoms::engram_types::MemorySearchConfig::default();
-        let emb_client = state.embedding_client();
-        // Issue a squad-scoped capability token for read-path verification (§43.4)
-        let read_cap = crate::engine::engram::memory_bus::issue_scoped_capability(
-            recipient_id,
-            crate::atoms::engram_types::PublicationScope::Squad,
-        )
-        .ok();
-        match crate::engine::engram::gated_search::gated_search(
-            &state.store,
-            &crate::engine::engram::gated_search::GatedSearchRequest {
-                query: message_content,
-                scope: &scope,
-                config: &search_config,
-                embedding_client: emb_client.as_ref(),
-                budget_tokens: 0,    // no token budget limit
-                momentum: None,      // no momentum embeddings
-                model: Some(&model), // per-model injection limits (§58.5)
-                capability: read_cap.as_ref(),
-            },
-        )
-        .await
-        {
-            Ok(result) if !result.memories.is_empty() => {
-                let mem_text = result
-                    .memories
-                    .iter()
-                    .map(|r| format!("- [{}] {}", r.category, r.content))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                Some(format!("## Recalled Memories\n{}", mem_text))
-            }
-            Ok(result)
-                if result.gate == crate::engine::engram::gated_search::GateDecision::Refuse =>
-            {
-                info!(
-                    "[swarm] Memory quality gate refused results for squad '{}' agent '{}'",
-                    squad_id, recipient_id
-                );
-                None
-            }
-            Ok(result)
-                if matches!(
-                    result.gate,
-                    crate::engine::engram::gated_search::GateDecision::Defer(_)
-                ) =>
-            {
-                info!(
-                    "[swarm] Memory gate deferred for squad '{}' agent '{}': {:?}",
-                    squad_id, recipient_id, result.disambiguation_hint
-                );
-                None
-            }
-            _ => None,
-        }
+        cfg.context_window_tokens
     };
 
-    let mut full_system_prompt = chat_org::compose_chat_system_prompt(
-        base_system_prompt.as_deref(),
-        runtime_context,
-        agent_context.as_deref(),
-        todays_memories.as_deref(),
-        &skill_instructions,
-    );
-
-    // Add swarm collaboration context
-    let swarm_context = format!(
-        "\n\n---\n\n## Squad Collaboration\n\
+    // Swarm collaboration context (priority 1 — critical for squad coordination)
+    let swarm_context_text = format!(
+        "## Squad Collaboration\n\
         You are a member of the **{}** squad.\n\
         - **Squad Goal**: {}\n\
         - **Your role**: Collaborate with fellow squad members toward the squad goal.\n\
@@ -415,11 +347,63 @@ async fn run_swarm_turn(
         squad_name, squad_goal, sender_id
     );
 
-    if let Some(ref mut sp) = full_system_prompt {
-        sp.push_str(&swarm_context);
-    } else {
-        full_system_prompt = Some(swarm_context.trim_start_matches("\n\n---\n\n").to_string());
-    }
+    let full_system_prompt = {
+        let emb_client = state.embedding_client();
+        let recall_scope = crate::atoms::engram_types::MemoryScope::squad(squad_id, recipient_id);
+        let cognitive = cognitive_lock.lock().await;
+
+        let mut builder = crate::engine::engram::context_builder::ContextBuilder::new(&model)
+            .context_window(context_window);
+        if let Some(ref sp) = base_system_prompt {
+            builder = builder.base_prompt(sp.clone());
+        }
+        if let Some(ref ctx) = agent_context {
+            builder = builder.core_context(ctx.clone());
+        }
+        if !skill_instructions.is_empty() {
+            builder = builder.skill_instructions(skill_instructions.clone());
+        }
+        builder = builder.custom_section("swarm_context", &swarm_context_text, 1);
+        builder = builder.recall_from(
+            &state.store,
+            emb_client.as_ref(),
+            recall_scope,
+            message_content.to_string(),
+        );
+        builder = builder.hnsw_index(&state.hnsw_index);
+        builder = builder.working_memory(&cognitive.working_memory);
+
+        match builder.build().await {
+            Ok(ctx) => {
+                info!(
+                    "[swarm] ContextBuilder: sys={}tok hist={}tok reply={}tok mem={} for squad '{}' agent '{}'",
+                    ctx.budget.system_prompt_tokens,
+                    ctx.budget.history_tokens,
+                    ctx.budget.available_for_reply,
+                    ctx.budget.memories_injected,
+                    squad_id, recipient_id
+                );
+                if let Some(emb) = ctx.query_embedding {
+                    let cognitive_lock2 = state.get_cognitive_state(recipient_id);
+                    let mut cog = cognitive_lock2.lock().await;
+                    cog.working_memory.push_momentum(emb);
+                }
+                ctx.system_prompt
+            }
+            Err(e) => {
+                warn!("[swarm] ContextBuilder failed, falling back: {}", e);
+                let mut parts: Vec<String> = Vec::new();
+                if let Some(ref sp) = base_system_prompt {
+                    parts.push(sp.clone());
+                }
+                if let Some(ref ctx) = agent_context {
+                    parts.push(ctx.clone());
+                }
+                parts.push(swarm_context_text.clone());
+                Some(parts.join("\n\n---\n\n"))
+            }
+        }
+    };
 
     // Store synthetic user message that triggers the agent
     let user_msg = StoredMessage {
@@ -439,10 +423,6 @@ async fn run_swarm_turn(
     state.store.add_message(&user_msg)?;
 
     // Load conversation history
-    let context_window = {
-        let cfg = state.config.lock();
-        cfg.context_window_tokens
-    };
     let mut messages = state.store.load_conversation(
         &session_id,
         full_system_prompt.as_deref(),
@@ -543,6 +523,36 @@ async fn run_swarm_turn(
             };
             let _ = state.store.add_message(&stored);
         }
+    }
+
+    // §17 Post-capture: store swarm outcomes to Engram (was missing — closes the gap)
+    if !result.is_empty() {
+        let emb_client = state.embedding_client();
+        if let Err(e) = crate::engine::engram::bridge::store_auto_capture(
+            &state.store,
+            &result,
+            "swarm_outcome",
+            emb_client.as_ref(),
+            Some(recipient_id),
+            Some(&session_id),
+            None, // no channel
+            None, // no channel_user_id
+            Some(&state.hnsw_index),
+        )
+        .await
+        {
+            warn!(
+                "[swarm] Post-capture failed for squad '{}' agent '{}': {}",
+                squad_id, recipient_id, e
+            );
+        }
+    }
+
+    // Push assistant reply into CognitiveState sensory buffer
+    {
+        let cognitive_lock2 = state.get_cognitive_state(recipient_id);
+        let mut cognitive = cognitive_lock2.lock().await;
+        cognitive.push_message(recipient_id, &result);
     }
 
     Ok(result)
