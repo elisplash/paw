@@ -1,7 +1,10 @@
 // pawz-code — tools.rs
 // Code-focused tool implementations for the standalone developer agent.
 //
-// Tools: exec, read_file, write_file, list_directory, grep, fetch, remember, recall
+// Tools: exec, read_file, write_file, list_directory, grep, fetch,
+//        remember, recall, apply_patch, git_status, git_diff,
+//        workspace_map, file_summary, search_symbols,
+//        engram_store, engram_recall
 //
 // Security: sensitive path checks and exec command filters mirror the main
 // Pawz engine to keep the same safety guarantees.
@@ -192,6 +195,175 @@ pub fn all_tools() -> Vec<ToolDef> {
                 "required": ["query"]
             }),
         },
+        // ── New coding-specific tools ──────────────────────────────────────
+        ToolDef {
+            name: "apply_patch",
+            description: "Apply a unified diff patch to a file. \
+                Use this for targeted edits instead of rewriting the whole file. \
+                The patch must be in standard unified diff format (--- a/file +++ b/file).",
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to the file to patch"
+                    },
+                    "patch": {
+                        "type": "string",
+                        "description": "Unified diff patch content"
+                    }
+                },
+                "required": ["path", "patch"]
+            }),
+        },
+        ToolDef {
+            name: "git_status",
+            description: "Get the current git status of a repository. \
+                Shows staged, unstaged, and untracked files.",
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to the git repository root (optional, uses workspace_root if omitted)"
+                    }
+                }
+            }),
+        },
+        ToolDef {
+            name: "git_diff",
+            description: "Get the git diff for a repository. Shows what has changed. \
+                Can show staged diff, unstaged diff, or diff against a specific ref.",
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to the git repository root (optional)"
+                    },
+                    "staged": {
+                        "type": "boolean",
+                        "description": "Show staged changes only (default false = show unstaged)"
+                    },
+                    "ref": {
+                        "type": "string",
+                        "description": "Compare against this ref (e.g. 'HEAD~1', 'main')"
+                    },
+                    "file": {
+                        "type": "string",
+                        "description": "Limit diff to this specific file (optional)"
+                    }
+                }
+            }),
+        },
+        ToolDef {
+            name: "workspace_map",
+            description: "Generate a compact map of the workspace file structure. \
+                Much cheaper than list_directory for understanding repo layout. \
+                Use this instead of recursive list_directory for large repos.",
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to root (uses workspace_root if omitted)"
+                    },
+                    "depth": {
+                        "type": "integer",
+                        "description": "Max depth to traverse (default 3)"
+                    }
+                }
+            }),
+        },
+        ToolDef {
+            name: "file_summary",
+            description: "Generate a structural summary of a source file showing \
+                function/struct/class definitions without reading the full content. \
+                Use when you need to understand file structure, not full content.",
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Absolute path to the source file"
+                    }
+                },
+                "required": ["path"]
+            }),
+        },
+        ToolDef {
+            name: "search_symbols",
+            description: "Search for function/struct/class/const definitions by name across the workspace. \
+                Returns file paths and line numbers of matches.",
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "Symbol name to search for (partial match supported)"
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "Directory to search in (uses workspace_root if omitted)"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["function", "struct", "class", "const", "type", "any"],
+                        "description": "Symbol kind to search for (default: any)"
+                    }
+                },
+                "required": ["symbol"]
+            }),
+        },
+        ToolDef {
+            name: "engram_store",
+            description: "Store a compressed understanding of the codebase in Engram. \
+                Use this for architecture facts, module relationships, key entrypoints, \
+                and patterns that are stable across sessions. \
+                This is for structural understanding, not factual notes (use remember for facts).",
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "Identifier for this engram entry (e.g. 'auth_flow', 'db_schema')"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Compressed description of this architectural understanding"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["architecture", "module", "pattern", "summary", "entrypoint"],
+                        "description": "Category of this engram (default: summary)"
+                    },
+                    "scope": {
+                        "type": "string",
+                        "description": "Workspace scope (defaults to configured workspace_root)"
+                    }
+                },
+                "required": ["key", "content"]
+            }),
+        },
+        ToolDef {
+            name: "engram_recall",
+            description: "Search the Engram for stored codebase understanding. \
+                Use at the start of complex tasks to load relevant architectural context.",
+            parameters: serde_json::json!({
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search terms to find relevant engram entries"
+                    },
+                    "scope": {
+                        "type": "string",
+                        "description": "Limit search to this workspace scope (optional)"
+                    }
+                },
+                "required": ["query"]
+            }),
+        },
     ]
 }
 
@@ -211,6 +383,14 @@ pub async fn execute(
         "fetch" => Some(tool_fetch(args).await),
         "remember" => Some(tool_remember(args, state)),
         "recall" => Some(tool_recall(args, state)),
+        "apply_patch" => Some(tool_apply_patch(args).await),
+        "git_status" => Some(tool_git_status(args, state).await),
+        "git_diff" => Some(tool_git_diff(args, state).await),
+        "workspace_map" => Some(tool_workspace_map(args, state)),
+        "file_summary" => Some(tool_file_summary(args)),
+        "search_symbols" => Some(tool_search_symbols(args, state).await),
+        "engram_store" => Some(tool_engram_store(args, state)),
+        "engram_recall" => Some(tool_engram_recall(args, state)),
         _ => None,
     }
 }
@@ -452,19 +632,11 @@ async fn tool_grep(args: &Value) -> Result<String> {
     let path = PathBuf::from(path_str);
     check_path(&path, "grep")?;
 
-    let mut cmd_args = vec!["-n".to_string(), format!("-{}", if context > 0 { format!("C{}", context) } else { "".to_string() })];
-    if recursive && path.is_dir() {
-        cmd_args.push("-r".to_string());
-    }
-    cmd_args.push("-E".to_string()); // extended regex
-    cmd_args.push("--".to_string());
-    cmd_args.push(pattern.to_string());
-    cmd_args.push(path_str.to_string());
-
     // Use exec under the hood via sh for portability
     let flag = if context > 0 { format!("-C{}", context) } else { String::new() };
     let recurse_flag = if recursive && path.is_dir() { "-r" } else { "" };
-    let command = format!("grep -nE {} {} -- {} {}", flag, recurse_flag,
+    let command = format!("grep -nE {} {} -- {} {}",
+        flag, recurse_flag,
         shell_escape(pattern), shell_escape(path_str));
 
     let output = tokio::process::Command::new("sh")
@@ -563,5 +735,264 @@ fn tool_recall(args: &Value, state: &AppState) -> Result<String> {
         .into_iter()
         .map(|(k, v)| format!("**{}**: {}", k, v))
         .collect();
+    Ok(formatted.join("\n\n"))
+}
+
+// ── apply_patch ──────────────────────────────────────────────────────────────
+
+async fn tool_apply_patch(args: &Value) -> Result<String> {
+    let path_str = args["path"].as_str().ok_or_else(|| anyhow::anyhow!("apply_patch: missing 'path'"))?;
+    let patch = args["patch"].as_str().ok_or_else(|| anyhow::anyhow!("apply_patch: missing 'patch'"))?;
+
+    let path = PathBuf::from(path_str);
+    check_path(&path, "apply_patch")?;
+
+    if !path.exists() {
+        bail!("apply_patch: file not found: {}", path.display());
+    }
+
+    // Write patch to a temp file and apply with `patch` command
+    let tmp_patch = std::env::temp_dir().join(format!("pawz-patch-{}.diff", uuid_short()));
+    std::fs::write(&tmp_patch, patch)
+        .map_err(|e| anyhow::anyhow!("apply_patch: failed to write temp patch: {}", e))?;
+
+    let output = tokio::process::Command::new("patch")
+        .arg("--no-backup-if-mismatch")
+        .arg("-p0")
+        .arg(path_str)
+        .arg(&tmp_patch)
+        .output()
+        .await
+        .map_err(|e| anyhow::anyhow!("apply_patch: failed to run patch command: {}", e))?;
+
+    // Clean up temp file
+    let _ = std::fs::remove_file(&tmp_patch);
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    if output.status.success() {
+        log::info!("[apply_patch] patched {}", path_str);
+        Ok(format!("Patch applied successfully to {}\n{}", path_str, stdout))
+    } else {
+        bail!("apply_patch: patch failed:\n{}\n{}", stdout, stderr)
+    }
+}
+
+fn uuid_short() -> String {
+    uuid::Uuid::new_v4().to_string().split('-').next().unwrap_or("tmp").to_string()
+}
+
+// ── git_status ───────────────────────────────────────────────────────────────
+
+async fn tool_git_status(args: &Value, state: &AppState) -> Result<String> {
+    let cwd = args["path"]
+        .as_str()
+        .or_else(|| state.config.workspace_root.as_deref())
+        .ok_or_else(|| anyhow::anyhow!("git_status: no path provided and no workspace_root configured"))?;
+
+    let output = tokio::process::Command::new("git")
+        .arg("status")
+        .arg("--short")
+        .arg("--branch")
+        .current_dir(cwd)
+        .output()
+        .await
+        .map_err(|e| anyhow::anyhow!("git_status: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if !output.status.success() {
+        bail!("git_status: {}", stderr);
+    }
+
+    Ok(if stdout.is_empty() { "No changes (clean working tree)".into() } else { stdout })
+}
+
+// ── git_diff ─────────────────────────────────────────────────────────────────
+
+async fn tool_git_diff(args: &Value, state: &AppState) -> Result<String> {
+    let cwd = args["path"]
+        .as_str()
+        .or_else(|| state.config.workspace_root.as_deref())
+        .ok_or_else(|| anyhow::anyhow!("git_diff: no path provided and no workspace_root configured"))?;
+
+    let staged = args["staged"].as_bool().unwrap_or(false);
+    let git_ref = args["ref"].as_str();
+    let file = args["file"].as_str();
+
+    let mut cmd = tokio::process::Command::new("git");
+    cmd.arg("diff");
+
+    if staged {
+        cmd.arg("--staged");
+    }
+
+    if let Some(r) = git_ref {
+        cmd.arg(r);
+    }
+
+    if let Some(f) = file {
+        cmd.arg("--").arg(f);
+    }
+
+    cmd.current_dir(cwd);
+
+    let output = cmd.output().await.map_err(|e| anyhow::anyhow!("git_diff: {}", e))?;
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if !output.status.success() {
+        bail!("git_diff: {}", stderr);
+    }
+
+    if stdout.is_empty() {
+        return Ok("No differences found.".into());
+    }
+
+    const MAX: usize = 40_000;
+    if stdout.len() > MAX {
+        Ok(format!("{}\n... (truncated)", &stdout[..MAX]))
+    } else {
+        Ok(stdout)
+    }
+}
+
+// ── workspace_map ─────────────────────────────────────────────────────────────
+
+fn tool_workspace_map(args: &Value, state: &AppState) -> Result<String> {
+    let root_str = args["path"]
+        .as_str()
+        .or_else(|| state.config.workspace_root.as_deref())
+        .ok_or_else(|| anyhow::anyhow!("workspace_map: no path provided and no workspace_root configured"))?;
+
+    let depth = args["depth"].as_u64().unwrap_or(3) as usize;
+    let root = PathBuf::from(root_str);
+    check_path(&root, "workspace_map")?;
+
+    if !root.exists() {
+        bail!("workspace_map: path not found: {}", root.display());
+    }
+
+    Ok(crate::reduction::workspace_map(&root, depth))
+}
+
+// ── file_summary ──────────────────────────────────────────────────────────────
+
+fn tool_file_summary(args: &Value) -> Result<String> {
+    let path_str = args["path"].as_str().ok_or_else(|| anyhow::anyhow!("file_summary: missing 'path'"))?;
+    let path = PathBuf::from(path_str);
+    check_path(&path, "file_summary")?;
+
+    if !path.exists() {
+        bail!("file_summary: file not found: {}", path.display());
+    }
+
+    Ok(crate::reduction::file_summary(&path))
+}
+
+// ── search_symbols ────────────────────────────────────────────────────────────
+
+async fn tool_search_symbols(args: &Value, state: &AppState) -> Result<String> {
+    let symbol = args["symbol"].as_str().ok_or_else(|| anyhow::anyhow!("search_symbols: missing 'symbol'"))?;
+    let search_path = args["path"]
+        .as_str()
+        .or_else(|| state.config.workspace_root.as_deref())
+        .ok_or_else(|| anyhow::anyhow!("search_symbols: no path and no workspace_root configured"))?;
+
+    let kind = args["kind"].as_str().unwrap_or("any");
+
+    // Build a grep pattern based on the kind and language
+    let pattern = match kind {
+        "function" => format!(
+            r"(fn |function |def |async fn |async function |async def ).*{}",
+            regex_escape(symbol)
+        ),
+        "struct" => format!(r"(struct |class ).*{}", regex_escape(symbol)),
+        "const" => format!(r"(const |let |var ).*{}", regex_escape(symbol)),
+        "type" => format!(r"(type |interface |enum ).*{}", regex_escape(symbol)),
+        _ => format!(
+            r"(fn |function |def |struct |class |const |let |impl |type |interface |enum ).*{}",
+            regex_escape(symbol)
+        ),
+    };
+
+    // Skip build dirs
+    let command = format!(
+        "grep -rn --include='*.rs' --include='*.ts' --include='*.tsx' \
+         --include='*.js' --include='*.py' --include='*.go' \
+         --exclude-dir=target --exclude-dir=node_modules --exclude-dir=.git \
+         -E -- {} {}",
+        shell_escape(&pattern),
+        shell_escape(search_path)
+    );
+
+    let output = tokio::process::Command::new("sh")
+        .arg("-c")
+        .arg(&command)
+        .output()
+        .await
+        .map_err(|e| anyhow::anyhow!("search_symbols: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+    if stdout.is_empty() {
+        Ok(format!("No symbol '{}' found.", symbol))
+    } else {
+        const MAX: usize = 15_000;
+        if stdout.len() > MAX {
+            Ok(format!("{}\n... (truncated)", &stdout[..MAX]))
+        } else {
+            Ok(stdout)
+        }
+    }
+}
+
+fn regex_escape(s: &str) -> String {
+    // Escape special regex chars
+    s.chars().fold(String::new(), |mut acc, c| {
+        if "[](){}.*+?^$|\\".contains(c) {
+            acc.push('\\');
+        }
+        acc.push(c);
+        acc
+    })
+}
+
+// ── engram_store / engram_recall ──────────────────────────────────────────────
+
+fn tool_engram_store(args: &Value, state: &AppState) -> Result<String> {
+    let key = args["key"].as_str().ok_or_else(|| anyhow::anyhow!("engram_store: missing 'key'"))?;
+    let content = args["content"].as_str().ok_or_else(|| anyhow::anyhow!("engram_store: missing 'content'"))?;
+    let kind = args["kind"].as_str().unwrap_or("summary");
+    let scope = args["scope"]
+        .as_str()
+        .or_else(|| state.config.workspace_root.as_deref())
+        .unwrap_or("global");
+
+    crate::engram::store(state, scope, key, content, kind)?;
+    Ok(format!("Engram stored: [{}] {} (scope: {})", kind, key, scope))
+}
+
+fn tool_engram_recall(args: &Value, state: &AppState) -> Result<String> {
+    let query = args["query"].as_str().ok_or_else(|| anyhow::anyhow!("engram_recall: missing 'query'"))?;
+    let scope = args["scope"].as_str();
+
+    let results = crate::engram::search(state, query, scope)?;
+    if results.is_empty() {
+        return Ok("No engram entries found.".into());
+    }
+
+    let formatted: Vec<String> = results
+        .iter()
+        .filter_map(|r| {
+            let key = r["key"].as_str()?;
+            let content = r["content"].as_str()?;
+            let kind = r["kind"].as_str().unwrap_or("summary");
+            Some(format!("[{}] **{}**: {}", kind, key, content))
+        })
+        .collect();
+
     Ok(formatted.join("\n\n"))
 }

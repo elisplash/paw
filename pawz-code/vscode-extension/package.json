@@ -12,8 +12,18 @@
   "engines": {
     "vscode": "^1.95.0"
   },
-  "categories": ["AI", "Chat"],
-  "keywords": ["ai", "chat", "agent", "pawz", "coding", "copilot"],
+  "categories": [
+    "AI",
+    "Chat"
+  ],
+  "keywords": [
+    "ai",
+    "chat",
+    "agent",
+    "pawz",
+    "coding",
+    "copilot"
+  ],
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
@@ -35,6 +45,16 @@
       {
         "command": "pawz-code.openSettings",
         "title": "Pawz CODE: Open Settings",
+        "category": "Pawz CODE"
+      },
+      {
+        "command": "pawz-code.showStatus",
+        "title": "Pawz CODE: Show Daemon Status",
+        "category": "Pawz CODE"
+      },
+      {
+        "command": "pawz-code.reconnect",
+        "title": "Pawz CODE: Reconnect to Daemon",
         "category": "Pawz CODE"
       }
     ],
@@ -60,9 +80,9 @@
     "package": "vsce package"
   },
   "devDependencies": {
+    "@types/node": "^20.19.37",
     "@types/vscode": "^1.95.0",
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "@vscode/vsce": "^3.0.0"
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.0.0"
   }
 }

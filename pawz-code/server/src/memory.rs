@@ -64,6 +64,13 @@ pub fn remember(state: &AppState, key: &str, content: &str, tags: Option<&str>) 
     Ok(())
 }
 
+/// Count total memory entries.
+pub fn memory_count(state: &AppState) -> anyhow::Result<i64> {
+    let db = state.db.lock().unwrap();
+    let count: i64 = db.query_row("SELECT COUNT(*) FROM memories", [], |r| r.get(0))?;
+    Ok(count)
+}
+
 /// Full-text search across all memory notes (key + content).
 pub fn recall(state: &AppState, query: &str) -> Result<Vec<(String, String)>> {
     let db = state.db.lock().unwrap();

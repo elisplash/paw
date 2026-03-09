@@ -1,18 +1,22 @@
 // pawz-code — main.rs
-// HTTP server: POST /chat/stream (SSE), GET /health
+// HTTP server: POST /chat/stream (SSE), GET /health, GET /status,
+//              POST /runs/cancel, GET /memory/search
 // Auth: bearer token checked on every request except /health.
 
 mod agent;
 mod config;
+mod engram;
 mod memory;
+mod protocols;
 mod provider;
+mod reduction;
 mod state;
 mod tools;
 mod types;
 
 use axum::{
     body::Body,
-    extract::State,
+    extract::{Query, State},
     http::{Request, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -21,6 +25,7 @@ use axum::{
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures::StreamExt;
+use serde::Deserialize;
 use std::sync::Arc;
 use tokio_stream::wrappers::BroadcastStream;
 use types::ChatRequest;
@@ -59,7 +64,7 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
-// ── Health ───────────────────────────────────────────────────────────────────
+// ── GET /health ──────────────────────────────────────────────────────────────
 
 async fn health(State(state): State<Arc<state::AppState>>) -> impl IntoResponse {
     Json(serde_json::json!({
@@ -68,6 +73,110 @@ async fn health(State(state): State<Arc<state::AppState>>) -> impl IntoResponse 
         "model": state.config.model,
         "provider": state.config.provider,
     }))
+}
+
+// ── GET /status ──────────────────────────────────────────────────────────────
+
+async fn status(State(state): State<Arc<state::AppState>>) -> impl IntoResponse {
+    let active_runs = state.active_run_count();
+    let memory_count = memory::memory_count(&state).unwrap_or(0);
+    let engram_count = engram::engram_count(&state).unwrap_or(0);
+    let loaded_protocols = protocols::loaded_protocol_names(&state);
+
+    Json(serde_json::json!({
+        "status": "ok",
+        "service": "pawz-code",
+        "version": env!("CARGO_PKG_VERSION"),
+        "model": state.config.model,
+        "provider": state.config.provider,
+        "workspace_root": state.config.workspace_root,
+        "active_runs": active_runs,
+        "memory_entries": memory_count,
+        "engram_entries": engram_count,
+        "protocols": loaded_protocols,
+        "max_rounds": state.config.max_rounds,
+    }))
+}
+
+// ── POST /runs/cancel ────────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+struct CancelRequest {
+    run_id: String,
+}
+
+async fn cancel_run(
+    State(state): State<Arc<state::AppState>>,
+    Json(req): Json<CancelRequest>,
+) -> impl IntoResponse {
+    let cancelled = state.cancel_run(&req.run_id);
+    if cancelled {
+        log::info!("[cancel] run_id={} cancelled", req.run_id);
+        Json(serde_json::json!({ "cancelled": true, "run_id": req.run_id }))
+    } else {
+        Json(serde_json::json!({
+            "cancelled": false,
+            "run_id": req.run_id,
+            "reason": "run not found or already complete"
+        }))
+    }
+}
+
+// ── GET /memory/search ───────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+struct MemorySearchQuery {
+    q: String,
+    #[serde(default = "default_limit")]
+    limit: usize,
+}
+
+fn default_limit() -> usize {
+    20
+}
+
+async fn memory_search(
+    State(state): State<Arc<state::AppState>>,
+    Query(params): Query<MemorySearchQuery>,
+) -> impl IntoResponse {
+    match memory::recall(&state, &params.q) {
+        Ok(results) => {
+            let limited: Vec<_> = results.into_iter().take(params.limit).collect();
+            let items: Vec<_> = limited
+                .into_iter()
+                .map(|(k, v)| serde_json::json!({ "key": k, "content": v }))
+                .collect();
+            Json(serde_json::json!({ "results": items, "query": params.q }))
+        }
+        Err(e) => Json(serde_json::json!({
+            "results": [],
+            "query": params.q,
+            "error": e.to_string()
+        })),
+    }
+}
+
+// ── GET /engram/search ───────────────────────────────────────────────────────
+
+#[derive(Deserialize)]
+struct EngramSearchQuery {
+    q: String,
+    #[serde(default)]
+    scope: Option<String>,
+}
+
+async fn engram_search(
+    State(state): State<Arc<state::AppState>>,
+    Query(params): Query<EngramSearchQuery>,
+) -> impl IntoResponse {
+    match engram::search(&state, &params.q, params.scope.as_deref()) {
+        Ok(results) => Json(serde_json::json!({ "results": results, "query": params.q })),
+        Err(e) => Json(serde_json::json!({
+            "results": [],
+            "query": params.q,
+            "error": e.to_string()
+        })),
+    }
 }
 
 // ── POST /chat/stream ────────────────────────────────────────────────────────
@@ -89,14 +198,19 @@ async fn chat_stream(
         &req.message[..req.message.len().min(120)]
     );
 
+    // Register run for cancellation tracking
+    state.register_run(&run_id);
+
     // Subscribe BEFORE spawning the agent so we don't miss early events
     let rx = state.sse_tx.subscribe();
     let sid = session_id.clone();
 
     // Spawn agent in background — it streams events via sse_tx
     let state_clone = state.clone();
+    let run_id_clone = run_id.clone();
     tokio::spawn(async move {
-        agent::run(state_clone, req, session_id, run_id).await;
+        agent::run(state_clone.clone(), req, session_id, run_id_clone.clone()).await;
+        state_clone.deregister_run(&run_id_clone);
     });
 
     // Filter broadcast to events for this session only, then stop after complete/error.
@@ -157,9 +271,16 @@ async fn main() -> anyhow::Result<()> {
     let bind = format!("{}:{}", config.bind, config.port);
     let app_state = Arc::new(state::AppState::new(config)?);
 
+    // Load protocols on startup
+    protocols::load_protocols(&app_state);
+
     let app = Router::new()
         .route("/chat/stream", post(chat_stream))
         .route("/health", get(health))
+        .route("/status", get(status))
+        .route("/runs/cancel", post(cancel_run))
+        .route("/memory/search", get(memory_search))
+        .route("/engram/search", get(engram_search))
         .layer(middleware::from_fn_with_state(app_state.clone(), require_auth))
         .with_state(app_state);
 

@@ -33,6 +33,34 @@ pub struct Config {
     /// Optional workspace root injected into every system prompt
     #[serde(default)]
     pub workspace_root: Option<String>,
+    /// Model role routing — override which model handles each task role.
+    /// If not set, all roles use the default `model`.
+    #[serde(default)]
+    pub model_roles: ModelRoles,
+}
+
+/// Role-based model routing. Use cheaper/faster models for subtasks.
+/// Leave any field as None to fall back to the default `model`.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ModelRoles {
+    /// Fast model for quick questions and classifications
+    #[serde(default)]
+    pub fast: Option<String>,
+    /// Cheap model for compression, summarisation, and token reduction
+    #[serde(default)]
+    pub cheap: Option<String>,
+    /// Planner model for decomposing complex tasks
+    #[serde(default)]
+    pub planner: Option<String>,
+    /// Coder model for patch generation and edit tasks
+    #[serde(default)]
+    pub coder: Option<String>,
+    /// Review model for final review and verification
+    #[serde(default)]
+    pub review: Option<String>,
+    /// Long-context model for architecture reasoning over large codebases
+    #[serde(default)]
+    pub long_context: Option<String>,
 }
 
 fn default_port() -> u16 {
@@ -52,6 +80,21 @@ fn default_max_rounds() -> u32 {
 }
 
 impl Config {
+    /// Resolve the model for a given role, falling back to the default model.
+    pub fn model_for_role(&self, role: &str) -> &str {
+        let roles = &self.model_roles;
+        let routed = match role {
+            "fast" => roles.fast.as_deref(),
+            "cheap" => roles.cheap.as_deref(),
+            "planner" => roles.planner.as_deref(),
+            "coder" => roles.coder.as_deref(),
+            "review" => roles.review.as_deref(),
+            "long_context" => roles.long_context.as_deref(),
+            _ => None,
+        };
+        routed.unwrap_or(&self.model)
+    }
+
     pub fn config_path() -> PathBuf {
         dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
@@ -85,6 +128,7 @@ impl Config {
             base_url: None,
             max_rounds: default_max_rounds(),
             workspace_root: None,
+            model_roles: ModelRoles::default(),
         };
 
         std::fs::create_dir_all(path.parent().unwrap())?;

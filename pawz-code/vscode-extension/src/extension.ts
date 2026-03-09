@@ -14,6 +14,7 @@
 import * as vscode from 'vscode';
 import { PawzCodeClient } from './pawz-client';
 import { ToolRenderer } from './tool-renderer';
+import { ConnectionStateManager } from './connection-state';
 
 const PARTICIPANT_ID = 'pawz-code';
 
@@ -27,7 +28,14 @@ class MemoryContentProvider implements vscode.TextDocumentContentProvider {
   }
 }
 
+let connectionManager: ConnectionStateManager | undefined;
+
 export function activate(context: vscode.ExtensionContext): void {
+  // Connection health monitor + status bar
+  connectionManager = new ConnectionStateManager(context);
+  context.subscriptions.push(connectionManager);
+  connectionManager.startHeartbeat();
+
   const participant = vscode.chat.createChatParticipant(PARTICIPANT_ID, handleChatRequest);
   participant.iconPath = vscode.Uri.joinPath(context.extensionUri, 'images', 'icon.png');
   context.subscriptions.push(participant);
@@ -67,6 +75,72 @@ export function activate(context: vscode.ExtensionContext): void {
       void vscode.commands.executeCommand('workbench.action.openSettings', 'pawzCode');
     }),
   );
+
+  // Show status command (triggered by status bar click)
+  context.subscriptions.push(
+    vscode.commands.registerCommand('pawz-code.showStatus', async () => {
+      const mgr = connectionManager;
+      if (!mgr) return;
+
+      const isConnected = mgr.getStatus() === 'connected';
+      const info = mgr.getDaemonInfo();
+
+      if (!isConnected) {
+        const action = await vscode.window.showWarningMessage(
+          'Pawz CODE is not connected to the daemon.',
+          'Open Settings',
+          'Retry',
+        );
+        if (action === 'Open Settings') {
+          void vscode.commands.executeCommand('pawz-code.openSettings');
+        } else if (action === 'Retry') {
+          await mgr.checkHealth();
+        }
+        return;
+      }
+
+      const lines = [
+        `**Pawz CODE** — Connected`,
+        ``,
+        `- Model: \`${info?.model ?? 'unknown'}\``,
+        `- Provider: \`${info?.provider ?? 'unknown'}\``,
+        `- Version: \`${info?.version ?? 'unknown'}\``,
+        `- Active runs: ${info?.active_runs ?? 0}`,
+        `- Memory entries: ${info?.memory_entries ?? 0}`,
+        `- Engram entries: ${info?.engram_entries ?? 0}`,
+        `- Protocols: ${(info?.protocols ?? []).join(', ') || 'none'}`,
+      ];
+
+      const doc = await vscode.workspace.openTextDocument({
+        content: lines.join('\n'),
+        language: 'markdown',
+      });
+      await vscode.window.showTextDocument(doc, { preview: true });
+    }),
+  );
+
+  // Reconnect command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('pawz-code.reconnect', async () => {
+      const connected = await connectionManager?.checkHealth();
+      if (connected) {
+        void vscode.window.showInformationMessage('Pawz CODE reconnected.');
+      } else {
+        void vscode.window.showWarningMessage(
+          'Pawz CODE could not reconnect. Is the daemon running?',
+        );
+      }
+    }),
+  );
+
+  // React to config changes — restart heartbeat
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e: vscode.ConfigurationChangeEvent) => {
+      if (e.affectsConfiguration('pawzCode')) {
+        connectionManager?.startHeartbeat();
+      }
+    }),
+  );
 }
 
 async function handleChatRequest(
@@ -91,6 +165,18 @@ async function handleChatRequest(
     return;
   }
 
+  // Check connection state before trying — show helpful message if offline
+  if (connectionManager?.getStatus() === 'disconnected') {
+    stream.markdown(
+      `**Pawz CODE daemon is not reachable** at \`${serverUrl}\`.\n\n` +
+        'Make sure the `pawz-code` server is running:\n' +
+        '```bash\ncd pawz-code/server && cargo run\n```\n',
+    );
+    stream.button({ command: 'pawz-code.reconnect', title: '$(sync) Retry Connection' });
+    stream.button({ command: 'pawz-code.openSettings', title: '$(gear) Settings' });
+    return;
+  }
+
   const client = new PawzCodeClient(serverUrl, authToken);
   const renderer = new ToolRenderer(stream);
   const context = buildWorkspaceContext();
@@ -104,15 +190,24 @@ async function handleChatRequest(
       (event) => renderer.handleEvent(event),
       abortController.signal,
     );
+
+    // After successful response, ensure connection state is updated
+    if (connectionManager?.getStatus() !== 'connected') {
+      void connectionManager?.checkHealth();
+    }
   } catch (err: unknown) {
     if ((err as { name?: string }).name === 'AbortError') return;
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
+      // Update connection state
+      void connectionManager?.checkHealth();
+
       stream.markdown(
         `**Could not reach pawz-code** at \`${serverUrl}\`.\n\n` +
           'Make sure the `pawz-code` server is running.\n' +
           'Check `pawzCode.serverUrl` matches the configured port.',
       );
+      stream.button({ command: 'pawz-code.reconnect', title: '$(sync) Retry Connection' });
       stream.button({ command: 'pawz-code.openSettings', title: '$(gear) Check Settings' });
     } else {
       stream.markdown(`**Pawz CODE error:** ${msg}`);
@@ -146,11 +241,14 @@ function buildWorkspaceContext(): string {
 
   parts.push(
     'You have full access to the workspace via read_file, write_file, exec, ' +
-      'list_directory, grep, fetch, remember, and recall tools. ' +
+      'list_directory, grep, fetch, remember, recall, workspace_map, file_summary, ' +
+      'search_symbols, git_status, git_diff, apply_patch, engram_store, and engram_recall tools. ' +
       'Use absolute paths or resolve relative paths against the workspace root above.',
   );
 
   return parts.join('\n\n');
 }
 
-export function deactivate(): void {}
+export function deactivate(): void {
+  connectionManager?.dispose();
+}

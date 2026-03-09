@@ -301,9 +301,13 @@ async fn execute_read_file(args: &serde_json::Value, agent_id: &str) -> EngineRe
 
     const MAX_FILE: usize = 32_000;
     if content.len() > MAX_FILE {
+        let mut end = MAX_FILE;
+        while end > 0 && !content.is_char_boundary(end) {
+            end -= 1;
+        }
         Ok(format!(
             "{}...\n[truncated, {} total bytes]",
-            &content[..MAX_FILE],
+            &content[..end],
             content.len()
         ))
     } else {

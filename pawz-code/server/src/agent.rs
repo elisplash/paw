@@ -1,18 +1,30 @@
 // pawz-code — agent.rs
 // The agent loop: call LLM, execute tools, loop, emit SSE events throughout.
-// Designed to run in a spawned tokio task so the SSE handler can stream live.
+// Now integrates: protocols, token reduction pipeline, engram context,
+// cancellation support, and rolling task summaries.
 
+use crate::engram;
 use crate::memory;
+use crate::protocols;
 use crate::provider;
+use crate::reduction::{self, PromptAssembler};
 use crate::state::AppState;
 use crate::tools;
 use crate::types::*;
 use std::sync::Arc;
 use std::time::Instant;
 
-/// Build the system prompt injecting memory context and workspace info.
-fn build_system_prompt(state: &AppState) -> String {
-    let memories = memory::all_memories_context(state);
+/// Build the system prompt using the reduction pipeline:
+/// base prompt + active protocols + engram context + memory + workspace map.
+fn build_system_prompt(state: &AppState, message: &str, history: &[Message]) -> String {
+    // Base identity
+    let base = "You are Pawz CODE — a highly capable developer AI agent.\n\
+         You have full access to the user's codebase and development tools.\n\
+         You can read and write files, run shell commands, grep code, and fetch URLs.\n\
+         You have persistent memory across sessions via the remember/recall tools.\n\
+         You have deep codebase understanding via the engram_store/engram_recall tools.";
+
+    // Workspace info
     let workspace = state
         .config
         .workspace_root
@@ -20,32 +32,51 @@ fn build_system_prompt(state: &AppState) -> String {
         .map(|w| format!("\nWorkspace root: {}\n", w))
         .unwrap_or_default();
 
-    let memory_section = if memories.is_empty() {
-        String::new()
-    } else {
-        format!(
-            "\n## Long-term memory (your notes from previous sessions)\n{}\n",
-            memories
-        )
+    let base_with_workspace = format!("{}{}", base, workspace);
+
+    // Protocol context (always inject coding + edit + repo_safety + verification)
+    let protocol_context = protocols::default_protocol_context(state);
+
+    // Engram context — load for workspace scope if configured
+    let engram_context = state
+        .config
+        .workspace_root
+        .as_deref()
+        .map(|root| engram::scope_context(state, root))
+        .unwrap_or_default();
+
+    // Memory context
+    let memory_context = memory::all_memories_context(state);
+
+    // Workspace map — only inject for architecture/exploration tasks
+    let request_kind = reduction::classify_request(message);
+    let workspace_summary = match request_kind {
+        reduction::RequestKind::Architecture | reduction::RequestKind::Exploration => {
+            state.config.workspace_root.as_deref().map(|root| {
+                reduction::workspace_map(std::path::Path::new(root), 3)
+            })
+        }
+        _ => None,
     };
 
-    format!(
-        "You are Pawz CODE — a highly capable developer AI agent.\n\
-         You have full access to the user's codebase and development tools.\n\
-         You can read and write files, run shell commands, grep code, and fetch URLs.\n\
-         You have persistent memory across sessions via the remember/recall tools.\
-         {workspace}\
-         {memory_section}\n\
-         ## Tool use guidelines\n\
-         - Always explore before changing: read_file / list_directory / grep first.\n\
-         - Use exec for git operations, builds, tests, package managers.\n\
-         - Use remember proactively to store architecture decisions, conventions, key facts.\n\
-         - Use recall at the start of complex tasks to surface relevant context.\n\
-         - Prefer small, targeted edits. Show what changed and why.\n\
-         - If a command might be destructive, explain what it does before running.\n\
-         \n\
-         You are working on the code that built you. Think carefully, move precisely."
-    )
+    // Rolling task summary — compress long sessions
+    let task_summary = if history.len() > 10 {
+        let s = reduction::rolling_task_summary(history, 10);
+        if s.is_empty() { None } else { Some(s) }
+    } else {
+        None
+    };
+
+    // Assemble compressed prompt
+    let assembler = PromptAssembler {
+        workspace_summary,
+        engram_context: if engram_context.is_empty() { None } else { Some(engram_context) },
+        memory_context: if memory_context.is_empty() { None } else { Some(memory_context) },
+        protocol_context: if protocol_context.is_empty() { None } else { Some(protocol_context) },
+        task_summary,
+    };
+
+    assembler.build(&base_with_workspace)
 }
 
 /// Run a complete agent turn for a single chat request.
@@ -56,8 +87,6 @@ pub async fn run(state: Arc<AppState>, req: ChatRequest, session_id: String, run
         .build()
         .unwrap_or_default();
 
-    let system = build_system_prompt(&state);
-
     // Load conversation history
     let mut history = match memory::load_history(&state, &session_id) {
         Ok(h) => h,
@@ -66,6 +95,9 @@ pub async fn run(state: Arc<AppState>, req: ChatRequest, session_id: String, run
             return;
         }
     };
+
+    // Build system prompt with reduction pipeline
+    let system = build_system_prompt(&state, &req.message, &history);
 
     // Build the user message, injecting VS Code workspace context if provided
     let user_text = if let Some(ctx) = &req.context {
@@ -90,6 +122,12 @@ pub async fn run(state: Arc<AppState>, req: ChatRequest, session_id: String, run
 
     // ── Agent loop ────────────────────────────────────────────────────────────
     loop {
+        // Check cancellation
+        if state.is_cancelled(&run_id) {
+            fire_error(&state, &session_id, &run_id, "Run cancelled by operator.");
+            return;
+        }
+
         if round >= max_rounds {
             fire_error(
                 &state,
@@ -173,6 +211,12 @@ pub async fn run(state: Arc<AppState>, req: ChatRequest, session_id: String, run
         // Execute each tool call, collect results
         let mut tool_result_blocks = Vec::new();
         for tc in &llm.tool_calls {
+            // Check cancellation before each tool
+            if state.is_cancelled(&run_id) {
+                fire_error(&state, &session_id, &run_id, "Run cancelled by operator.");
+                return;
+            }
+
             total_tool_calls += 1;
 
             let args: serde_json::Value = serde_json::from_str(&tc.function.arguments)
