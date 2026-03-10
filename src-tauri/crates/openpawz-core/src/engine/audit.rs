@@ -167,10 +167,8 @@ fn get_audit_signing_key() -> EngineResult<zeroize::Zeroizing<Vec<u8>>> {
         return Ok(zeroize::Zeroizing::new(decoded));
     }
     // No key exists — generate a new random key using OS CSPRNG
-    use rand::rngs::OsRng;
-    use rand::RngCore;
     let mut key = zeroize::Zeroizing::new(vec![0u8; 32]);
-    OsRng.fill_bytes(&mut key);
+    getrandom::getrandom(&mut key).expect("OS CSPRNG failed");
     let key_b64 = zeroize::Zeroizing::new(base64::Engine::encode(
         &base64::engine::general_purpose::STANDARD,
         key.as_slice(),

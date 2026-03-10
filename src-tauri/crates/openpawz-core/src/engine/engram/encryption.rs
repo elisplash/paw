@@ -19,8 +19,6 @@ use aes_gcm::aead::Aead;
 use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use hkdf::Hkdf;
 use log::{error, info, warn};
-use rand::rngs::OsRng;
-use rand::RngCore;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -376,7 +374,7 @@ fn load_memory_key_from_keychain() -> EngineResult<zeroize::Zeroizing<Vec<u8>>> 
     }
     // No key exists — generate a new random 256-bit key using OS CSPRNG
     let mut key = zeroize::Zeroizing::new(vec![0u8; 32]);
-    OsRng.fill_bytes(&mut key);
+    getrandom::getrandom(&mut key).expect("OS CSPRNG failed");
     let key_b64 = zeroize::Zeroizing::new(base64::Engine::encode(
         &base64::engine::general_purpose::STANDARD,
         key.as_slice(),
@@ -538,7 +536,7 @@ pub fn encrypt_memory_content(content: &str, key: &[u8]) -> EngineResult<String>
         .map_err(|_| EngineError::Other("AES key must be 32 bytes".into()))?;
 
     let mut nonce_bytes = [0u8; 12];
-    OsRng.fill_bytes(&mut nonce_bytes);
+    getrandom::getrandom(&mut nonce_bytes).expect("OS CSPRNG failed");
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let ciphertext = cipher

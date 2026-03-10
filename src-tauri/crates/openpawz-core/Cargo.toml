@@ -48,6 +48,7 @@ zeroize = { version = "1", features = ["derive"] }
 aes-gcm = "0.10"
 hkdf = "0.12"
 rand = "0.8"
+getrandom = "0.2"
 subtle = "2"
 
 # ── Concurrency ──
