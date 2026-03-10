@@ -286,9 +286,7 @@ mod tests {
     use super::*;
     use crate::atoms::engram_types::{MemoryScope, ProceduralMemory};
     use crate::engine::sessions::schema::run_migrations;
-    use parking_lot::Mutex;
     use rusqlite::Connection;
-    use std::sync::Arc;
 
     fn test_store() -> SessionStore {
         let conn = Connection::open_in_memory().unwrap();

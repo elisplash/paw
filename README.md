@@ -52,6 +52,12 @@ https://github.com/user-attachments/assets/60b0f351-180e-49ed-a70b-e31556743949
 
 <img src="images/screenshots/Chat.png" alt="Chat" width="800">
 
+<br>
+
+**Pawz CLI** — Full engine access from the terminal with zero network overhead
+
+<img src="images/screenshots/PAWZ-CLI.png" alt="Pawz CLI" width="800">
+
 </div>
 
 ---

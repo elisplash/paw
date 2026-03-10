@@ -8,7 +8,7 @@ use crate::atoms::error::EngineResult;
 use log::{info, warn};
 use rusqlite::Connection;
 
-pub(crate) fn run_migrations(conn: &Connection) -> EngineResult<()> {
+pub fn run_migrations(conn: &Connection) -> EngineResult<()> {
     // ── Pre-migration: detect stale project_agents schema ───────────
     // Older versions created project_agents with (id INTEGER PK, project_id INTEGER,
     // name TEXT, …) which is incompatible with the current (project_id TEXT,

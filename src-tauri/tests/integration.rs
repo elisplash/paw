@@ -5,10 +5,8 @@
 //
 // Each module retains its original tests unchanged.
 
-use parking_lot::Mutex;
 use paw_temp_lib::engine::sessions::SessionStore;
 use rusqlite::Connection;
-use std::sync::Arc;
 
 /// Shared test helper: in-memory SessionStore.
 pub fn test_store() -> SessionStore {
