@@ -357,6 +357,11 @@ pub struct EngineState {
     /// HNSW vector index for approximate nearest-neighbor search on episodic
     /// memory embeddings. Built from DB on startup, updated incrementally.
     pub hnsw_index: crate::engine::engram::hnsw::SharedHnswIndex,
+    /// Broadcast channel for SSE subscribers (e.g. the Pawz VS Code extension
+    /// connecting via the webhook `/chat/stream` endpoint).
+    /// Every `engine-event` is sent here alongside the Tauri webview emit so that
+    /// non-webview clients receive real-time streaming events.
+    pub sse_events: tokio::sync::broadcast::Sender<String>,
 }
 
 impl EngineState {
@@ -368,6 +373,10 @@ impl EngineState {
 
         // Initialize community skills table (skills.sh ecosystem)
         store.init_community_skills_table()?;
+
+        // Seed built-in canvas visualisation skills into Engram procedural memory.
+        // Uses deterministic IDs — idempotent on every startup.
+        crate::engine::engram::skill_library::seed_builtin_canvas_skills(&store).ok();
 
         // Load config from DB or use defaults
         let mut config = match store.get_config("engine_config") {
@@ -420,6 +429,11 @@ impl EngineState {
             idx
         };
 
+        // SSE broadcast channel — capacity of 1024 events per subscriber.
+        // The VS Code extension (and any other SSE client) subscribes before
+        // each agent turn and drains events in real time.
+        let (sse_tx, _) = tokio::sync::broadcast::channel::<String>(1024);
+
         Ok(EngineState {
             store,
             config: Mutex::new(config),
@@ -441,6 +455,7 @@ impl EngineState {
             yield_signals: Arc::new(Mutex::new(HashMap::new())),
             cognitive_states: Arc::new(Mutex::new(HashMap::new())),
             hnsw_index,
+            sse_events: sse_tx,
         })
     }
 

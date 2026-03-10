@@ -21,8 +21,8 @@ use serde_json::json;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
-use std::time::Instant;
-use tauri::Emitter;
+use std::time::{Duration, Instant};
+use tauri::{Emitter, Manager};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
@@ -272,7 +272,161 @@ async fn run_server(app_handle: tauri::AppHandle, config: WebhookConfig) -> Engi
     let _ = app_handle.emit("webhook-status", json!({ "kind": "disconnected" }));
     Ok(())
 }
+// ── SSE Chat Handler ──────────────────────────────────────────────
 
+/// Handle `POST /chat/stream` — streams every EngineEvent (delta, tool_request,
+/// tool_result, complete, etc.) as SSE to the caller.
+/// This is the primary endpoint for the Pawz VS Code extension.
+/// Set `allow_dangerous_tools = true` in webhook config to give the agent
+/// the full tool set (read_file, write_file, exec, etc.).
+async fn handle_sse_chat(
+    stream: &mut tokio::net::TcpStream,
+    app_handle: &tauri::AppHandle,
+    config: Arc<WebhookConfig>,
+    body_str: &str,
+) -> EngineResult<()> {
+    let req: WebhookRequest = match serde_json::from_str(body_str) {
+        Ok(r) => r,
+        Err(e) => {
+            send_json(
+                stream,
+                400,
+                &WebhookResponse {
+                    ok: false,
+                    response: None,
+                    error: Some(format!("Invalid JSON body: {}", e)),
+                    agent_id: None,
+                },
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+
+    let agent_id = req
+        .agent_id
+        .as_deref()
+        .unwrap_or(&config.default_agent_id)
+        .to_string();
+
+    // Must match the session_id format used by run_channel_agent:
+    // format!("eng-{}-{}-{}", channel_prefix, agent_id, user_id)
+    let session_id = format!("eng-webhook-{}-{}", agent_id, req.user_id);
+    let session_filter = format!("\"session_id\":\"{}\"", session_id);
+
+    // Subscribe to engine event broadcast BEFORE spawning the agent so no
+    // events are missed during the startup window.
+    let mut rx = match app_handle.try_state::<crate::engine::state::EngineState>() {
+        Some(es) => es.sse_events.subscribe(),
+        None => {
+            send_json(
+                stream,
+                503,
+                &WebhookResponse {
+                    ok: false,
+                    response: None,
+                    error: Some("Engine not initialised".into()),
+                    agent_id: None,
+                },
+            )
+            .await?;
+            return Ok(());
+        }
+    };
+
+    // Commit to SSE — send headers now, no turning back.
+    let sse_headers = "HTTP/1.1 200 OK\r\n\
+        Content-Type: text/event-stream\r\n\
+        Cache-Control: no-cache\r\n\
+        Connection: keep-alive\r\n\
+        Access-Control-Allow-Origin: *\r\n\
+        Access-Control-Allow-Headers: Authorization, Content-Type\r\n\
+        \r\n";
+    stream
+        .write_all(sse_headers.as_bytes())
+        .await
+        .map_err(|e| format!("SSE header write failed: {}", e))?;
+
+    // Spawn the agent turn in the background.
+    let app2 = app_handle.clone();
+    let message = req.message.clone();
+    let user_id = req.user_id.clone();
+    let context = req.context.clone().unwrap_or_else(|| {
+        "You are responding via the Pawz VS Code extension. \
+         The user is working in their code editor. \
+         You have full access to the workspace via read_file, write_file, exec, and all built-in tools. \
+         File paths are absolute or relative to the workspace root provided in the conversation context."
+            .into()
+    });
+    let aid = agent_id.clone();
+    let allow_dangerous = config.allow_dangerous_tools;
+    tokio::spawn(async move {
+        let _ = channels::run_channel_agent(
+            &app2,
+            "webhook",
+            &context,
+            &message,
+            &user_id,
+            &aid,
+            allow_dangerous,
+        )
+        .await;
+    });
+
+    // Stream events to the SSE client.
+    // The agent loop always emits Complete or Error as its final event —
+    // that's our termination signal. A keepalive comment keeps the
+    // connection alive during long-running tool chains.
+    let keepalive_interval = Duration::from_secs(15);
+    let max_duration = Duration::from_secs(300); // 5-minute hard cap
+    let t0 = Instant::now();
+
+    loop {
+        if t0.elapsed() > max_duration {
+            let _ = stream
+                .write_all(
+                    b"data: {\"kind\":\"error\",\"message\":\"Request timeout\"}\
+                    \n\n",
+                )
+                .await;
+            break;
+        }
+
+        match tokio::time::timeout(keepalive_interval, rx.recv()).await {
+            Ok(Ok(payload)) => {
+                if !payload.contains(&session_filter) {
+                    continue; // event belongs to a different session
+                }
+                let frame = format!("data: {}\n\n", payload);
+                if stream.write_all(frame.as_bytes()).await.is_err() {
+                    break; // client disconnected
+                }
+                let terminal = payload.contains("\"kind\":\"complete\"")
+                    || payload.contains("\"kind\":\"error\"");
+                if terminal {
+                    break;
+                }
+            }
+            Ok(Err(tokio::sync::broadcast::error::RecvError::Lagged(n))) => {
+                warn!(
+                    "[webhook-sse] Broadcast lagged {} events — client too slow, skipping",
+                    n
+                );
+                // Continue — future events are still readable
+            }
+            Ok(Err(_)) => break, // broadcast channel closed
+            Err(_) => {
+                // Keepalive interval hit — send SSE comment to keep connection alive
+                if stream.write_all(b": keepalive\n\n").await.is_err() {
+                    break;
+                }
+            }
+        }
+    }
+
+    REQUEST_COUNT.fetch_add(1, Ordering::Relaxed);
+    Ok(())
+}
 // ── Request Handler ────────────────────────────────────────────────────
 
 async fn handle_request(
@@ -381,6 +535,12 @@ async fn handle_request(
         )
         .await?;
         return Ok(());
+    }
+
+    // ── Route: POST /chat/stream — SSE (VS Code extension / trusted local clients) ──
+    if method == "POST" && path == "/chat/stream" {
+        let body_str = raw.split("\r\n\r\n").nth(1).unwrap_or("");
+        return handle_sse_chat(&mut stream, &app_handle, config.clone(), body_str).await;
     }
 
     // ── Route: POST /webhook/:agent_id ──────────────────────────────

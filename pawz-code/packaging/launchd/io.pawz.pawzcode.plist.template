@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>io.pawz.pawzcode</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{BINARY_PATH}}</string>
+    </array>
+
+    <!-- Run immediately when launchd loads the agent -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart the process if it exits -->
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- Redirect stdout to the log file -->
+    <key>StandardOutPath</key>
+    <string>{{HOME}}/.pawz-code/logs/daemon.log</string>
+
+    <!-- Redirect stderr to the same log file -->
+    <key>StandardErrorPath</key>
+    <string>{{HOME}}/.pawz-code/logs/daemon.log</string>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>{{HOME}}</string>
+</dict>
+</plist>

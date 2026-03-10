@@ -1,0 +1,92 @@
+{
+  "name": "pawz-code",
+  "displayName": "Pawz CODE",
+  "publisher": "openpawz",
+  "description": "Your always-on developer AI agent — persistent memory, full code tools, zero connection to what it's building.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OpenPawz/openpawz"
+  },
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "AI",
+    "Chat"
+  ],
+  "keywords": [
+    "ai",
+    "chat",
+    "agent",
+    "pawz",
+    "coding",
+    "copilot"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "chatParticipants": [
+      {
+        "id": "pawzcode",
+        "name": "pawzcode",
+        "fullName": "Pawz CODE",
+        "description": "Developer AI — remembers your codebase, runs tools, ships code",
+        "isSticky": true
+      }
+    ],
+    "commands": [
+      {
+        "command": "pawz-code.showDiff",
+        "title": "Pawz CODE: Show Proposed Diff",
+        "category": "Pawz CODE"
+      },
+      {
+        "command": "pawz-code.openSettings",
+        "title": "Pawz CODE: Open Settings",
+        "category": "Pawz CODE"
+      },
+      {
+        "command": "pawz-code.showStatus",
+        "title": "Pawz CODE: Show Daemon Status",
+        "category": "Pawz CODE"
+      },
+      {
+        "command": "pawz-code.reconnect",
+        "title": "Pawz CODE: Reconnect to Daemon",
+        "category": "Pawz CODE"
+      }
+    ],
+    "configuration": {
+      "title": "Pawz CODE",
+      "properties": {
+        "pawzCode.serverUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:3941",
+          "description": "pawz-code server URL. Run `pawz-code` binary to start it."
+        },
+        "pawzCode.authToken": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Auth token from `~/.pawz-code/config.toml` (printed on first run)."
+        }
+      }
+    }
+  },
+  "files": [
+    "out/**",
+    "images/**"
+  ],
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.37",
+    "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.0.0",
+    "typescript": "^5.0.0"
+  }
+}

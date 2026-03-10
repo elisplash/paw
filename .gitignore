@@ -70,8 +70,17 @@ nohup.out
 # Rust build artifacts (cargo target dirs)
 **/target/
 .tauri-updater-key
+.venv/
+
+# Generated extension artifacts
+vscode-extension/out/
+vscode-extension/*.vsix
+
+# Local backup copies
+src-tauri/src/engine/agent_loop_backup_*/
 
 # Private website (separate repo)
 website/
 # Private planning docs
 .oauth-implementation.md
+.venv/

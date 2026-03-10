@@ -724,6 +724,10 @@ export interface EngineTask {
   next_run_at?: string;
   created_at: string;
   updated_at: string;
+  /** JSON event trigger condition, e.g. {"type":"webhook","path":"/deploy"} */
+  event_trigger?: string;
+  /** If true, task re-queues automatically after each completion (always-on monitoring). */
+  persistent?: boolean;
 }
 
 export interface TaskAgent {

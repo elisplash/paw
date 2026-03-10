@@ -94,11 +94,13 @@ export function createTaskCard(task: EngineTask): HTMLElement {
     : '';
   const timeAgo = formatTimeAgo(task.updated_at || task.created_at);
 
-  // Show run button for tasks with agents
+  // Show run button for tasks with agents that aren't already done
   const hasAgents = agents.length > 0;
-  const canRun = hasAgents && ['assigned', 'inbox'].includes(task.status);
+  const canRun = hasAgents && !['done'].includes(task.status);
+  const runBtnTitle =
+    task.status === 'blocked' ? 'Retry' : task.status === 'in_progress' ? 'Re-run' : 'Run now';
   const runBtnHtml = canRun
-    ? `<button class="task-card-action run-btn" data-action="run" title="Run now">▶</button>`
+    ? `<button class="task-card-action run-btn" data-action="run" title="${runBtnTitle}">▶</button>`
     : '';
   const agentCountHtml =
     agents.length > 1 ? `<span class="task-card-agent-count">${agents.length} agents</span>` : '';
@@ -180,7 +182,7 @@ export function renderFeed() {
   }
 
   list.innerHTML = '';
-  for (const item of filtered.slice(0, 30)) {
+  for (const item of filtered.slice(0, 50)) {
     const el = document.createElement('div');
     el.className = 'feed-item';
 
@@ -228,6 +230,8 @@ export function openTaskModal(task?: EngineTask) {
   const inputAgent = $('tasks-modal-input-agent') as HTMLSelectElement;
   const inputCron = $('tasks-modal-input-cron') as HTMLInputElement;
   const inputCronEnabled = $('tasks-modal-input-cron-enabled') as HTMLInputElement;
+  const inputPersistent = $('tasks-modal-input-persistent') as HTMLInputElement;
+  const inputEventTrigger = $('tasks-modal-input-event-trigger') as HTMLInputElement;
   const inputModel = $('tasks-modal-input-model') as HTMLSelectElement;
   const deleteBtn = $('tasks-modal-delete');
   const runBtn = $('tasks-modal-run');
@@ -239,6 +243,8 @@ export function openTaskModal(task?: EngineTask) {
   if (inputPriority) inputPriority.value = task?.priority || 'medium';
   if (inputCron) inputCron.value = task?.cron_schedule || '';
   if (inputCronEnabled) inputCronEnabled.checked = task?.cron_enabled || false;
+  if (inputPersistent) inputPersistent.checked = task?.persistent || false;
+  if (inputEventTrigger) inputEventTrigger.value = task?.event_trigger || '';
   if (inputModel) inputModel.value = task?.model || '';
 
   // Dynamically populate model dropdown from configured providers
@@ -369,6 +375,8 @@ export async function saveTask() {
   const inputPriority = $('tasks-modal-input-priority') as HTMLSelectElement;
   const inputCron = $('tasks-modal-input-cron') as HTMLInputElement;
   const inputCronEnabled = $('tasks-modal-input-cron-enabled') as HTMLInputElement;
+  const inputPersistent = $('tasks-modal-input-persistent') as HTMLInputElement;
+  const inputEventTrigger = $('tasks-modal-input-event-trigger') as HTMLInputElement;
   const inputModel = $('tasks-modal-input-model') as HTMLSelectElement;
 
   const title = inputTitle?.value.trim();
@@ -379,6 +387,8 @@ export async function saveTask() {
 
   const cronSchedule = inputCron?.value.trim() || undefined;
   const cronEnabled = inputCronEnabled?.checked || false;
+  const persistent = inputPersistent?.checked || false;
+  const eventTrigger = inputEventTrigger?.value.trim() || undefined;
   const taskModel = inputModel?.value || undefined;
 
   // Primary agent = first lead or first agent in the multi-select
@@ -402,6 +412,8 @@ export async function saveTask() {
     model: taskModel,
     cron_schedule: cronSchedule,
     cron_enabled: cronEnabled,
+    persistent,
+    event_trigger: eventTrigger,
     last_run_at: editingTask?.last_run_at,
     next_run_at: editingTask?.next_run_at,
     created_at: editingTask?.created_at || now,

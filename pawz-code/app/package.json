@@ -1,0 +1,22 @@
+{
+  "name": "pawz-code-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pawz CODE — Tauri desktop control panel for the pawz-code daemon",
+  "scripts": {
+    "dev": "vite --port 1421",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
+    "vite": "^5.0.0",
+    "typescript": "^5.0.0"
+  }
+}

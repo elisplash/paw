@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pawz CODE</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-size: 13px;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        height: 100vh;
+        overflow: hidden;
+      }
+      .app { display: flex; flex-direction: column; height: 100vh; }
+      .header {
+        padding: 12px 16px;
+        background: #252526;
+        border-bottom: 1px solid #3e3e3e;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .header h1 { font-size: 14px; font-weight: 600; color: #e0e0e0; }
+      .status-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #888;
+        flex-shrink: 0;
+      }
+      .status-dot.connected { background: #4ec9b0; }
+      .status-dot.disconnected { background: #f48771; }
+      .content { flex: 1; overflow-y: auto; padding: 12px 16px; }
+      .section { margin-bottom: 16px; }
+      .section-title {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #888;
+        margin-bottom: 8px;
+      }
+      .card {
+        background: #252526;
+        border: 1px solid #3e3e3e;
+        border-radius: 4px;
+        padding: 10px 12px;
+      }
+      .row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; }
+      .row label { color: #888; font-size: 12px; }
+      .row value { color: #d4d4d4; font-size: 12px; font-family: monospace; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 12px;
+        border-radius: 3px;
+        border: none;
+        cursor: pointer;
+        font-size: 12px;
+        font-family: inherit;
+        transition: background 0.1s;
+      }
+      .btn-primary { background: #0e639c; color: #fff; }
+      .btn-primary:hover { background: #1177bb; }
+      .btn-danger { background: #5a1d1d; color: #f48771; }
+      .btn-danger:hover { background: #6e2424; }
+      .btn-ghost { background: transparent; color: #d4d4d4; border: 1px solid #3e3e3e; }
+      .btn-ghost:hover { background: #2a2d2e; }
+      .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+      .stat-grid {
+        display: grid; grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .stat-card {
+        background: #252526;
+        border: 1px solid #3e3e3e;
+        border-radius: 4px;
+        padding: 8px 10px;
+        text-align: center;
+      }
+      .stat-card .stat-val { font-size: 20px; font-weight: 600; color: #4ec9b0; }
+      .stat-card .stat-lbl { font-size: 11px; color: #888; margin-top: 2px; }
+      .log-box {
+        background: #111;
+        border: 1px solid #3e3e3e;
+        border-radius: 4px;
+        padding: 8px;
+        font-family: monospace;
+        font-size: 11px;
+        color: #888;
+        height: 120px;
+        overflow-y: auto;
+        line-height: 1.5;
+      }
+      .tag {
+        display: inline-block;
+        padding: 1px 6px;
+        border-radius: 10px;
+        font-size: 11px;
+        background: #0e3a4f;
+        color: #4ec9b0;
+        margin: 2px;
+      }
+      #status-text { font-size: 12px; color: #888; }
+      .config-field { margin-bottom: 8px; }
+      .config-field label {
+        display: block;
+        font-size: 11px;
+        color: #888;
+        margin-bottom: 4px;
+      }
+      .input {
+        width: 100%;
+        padding: 6px 8px;
+        background: #1e1e1e;
+        border: 1px solid #3e3e3e;
+        border-radius: 3px;
+        color: #d4d4d4;
+        font-family: monospace;
+        font-size: 12px;
+      }
+      .input:focus {
+        outline: none;
+        border-color: #0e639c;
+      }
+      .footer {
+        padding: 8px 16px;
+        background: #252526;
+        border-top: 1px solid #3e3e3e;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="header">
+        <div class="status-dot" id="status-dot"></div>
+        <h1>Pawz CODE</h1>
+        <span id="status-text">Checking...</span>
+      </div>
+
+      <div class="content">
+        <!-- Auth Token Display (Prominent) -->
+        <div class="section">
+          <div class="section-title">🔑 Auth Token for VS Code</div>
+          <div class="card" style="background: #2a3a2a; border-color: #4ec9b0;">
+            <div style="margin-bottom: 8px;">
+              <label style="font-size: 11px; color: #888; display: block; margin-bottom: 4px;">
+                Copy this token and paste it in VS Code Settings → <code>pawzCode.authToken</code>
+              </label>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <input
+                  type="text"
+                  id="token-display"
+                  class="input"
+                  readonly
+                  style="flex: 1; font-family: monospace; font-size: 11px; background: #1a1a1a;"
+                  placeholder="No token configured yet"
+                >
+                <button class="btn btn-primary" onclick="copyToken()" style="flex-shrink: 0;">
+                  📋 Copy Token
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Daemon status -->
+        <div class="section">
+          <div class="section-title">Daemon Status</div>
+          <div class="card">
+            <div class="row">
+              <label>Model</label>
+              <span id="info-model" style="font-family:monospace;font-size:12px">—</span>
+            </div>
+            <div class="row">
+              <label>Provider</label>
+              <span id="info-provider" style="font-family:monospace;font-size:12px">—</span>
+            </div>
+            <div class="row">
+              <label>Workspace</label>
+              <span id="info-workspace" style="font-family:monospace;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis">—</span>
+            </div>
+            <div class="row">
+              <label>Version</label>
+              <span id="info-version" style="font-family:monospace;font-size:12px">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="section">
+          <div class="section-title">Activity</div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-val" id="stat-runs">0</div>
+              <div class="stat-lbl">Active Runs</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val" id="stat-memory">0</div>
+              <div class="stat-lbl">Memory Entries</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val" id="stat-engram">0</div>
+              <div class="stat-lbl">Engram Entries</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val" id="stat-protocols">0</div>
+              <div class="stat-lbl">Protocols</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Protocols -->
+        <div class="section">
+          <div class="section-title">Active Protocols</div>
+          <div class="card">
+            <div id="protocols-list" style="min-height:24px"></div>
+          </div>
+        </div>
+
+        <!-- Config Editor -->
+        <div class="section">
+          <div class="section-title">Configuration</div>
+          <div class="card" style="padding: 12px;">
+            <div class="config-field">
+              <label for="cfg-provider">Provider</label>
+              <select id="cfg-provider" class="input" onchange="onProviderChange()">
+                <option value="anthropic">Anthropic</option>
+                <option value="claude_code">Claude Code (No API Key)</option>
+                <option value="openai">OpenAI</option>
+                <option value="ollama">Ollama (Local)</option>
+              </select>
+            </div>
+            <div class="config-field" id="field-api-key">
+              <label for="cfg-api-key">API Key</label>
+              <input type="password" id="cfg-api-key" class="input" placeholder="sk-ant-...">
+            </div>
+            <div class="config-field">
+              <label for="cfg-model">Model</label>
+              <input type="text" id="cfg-model" class="input" placeholder="claude-sonnet-4-20250514">
+            </div>
+            <div class="config-field" id="field-claude-binary" style="display:none;">
+              <label for="cfg-claude-binary">Claude Binary Path</label>
+              <input type="text" id="cfg-claude-binary" class="input" placeholder="/Users/elibury/.local/bin/claude">
+            </div>
+            <div class="config-field">
+              <label for="cfg-token">Auth Token</label>
+              <div style="display:flex;gap:4px;">
+                <input type="password" id="cfg-token" class="input" placeholder="your-secret-token">
+                <button class="btn btn-ghost" onclick="generateToken()" style="flex-shrink:0;">Generate</button>
+              </div>
+            </div>
+            <div class="btn-group" style="margin-top:8px;">
+              <button class="btn btn-primary" onclick="loadConfigForm()">Load</button>
+              <button class="btn btn-primary" onclick="saveConfigForm()">Save</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="section">
+          <div class="section-title">Controls</div>
+          <div class="btn-group">
+            <button class="btn btn-ghost" onclick="refresh()">↻ Refresh</button>
+            <button class="btn btn-primary" id="btn-daemon" onclick="toggleDaemon()">▶ Start Daemon</button>
+            <button class="btn btn-ghost" id="btn-start-at-login" onclick="toggleStartAtLogin()">⟳ Start at Login</button>
+          </div>
+        </div>
+
+        <!-- Log -->
+        <div class="section">
+          <div class="section-title">Log</div>
+          <div class="log-box" id="log-box">Initialising...</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <span>Pawz CODE Control</span>
+        <span id="footer-time"></span>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

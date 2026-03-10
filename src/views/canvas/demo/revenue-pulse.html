@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #07090f;
+  font-family: 'SF Pro Display', system-ui, sans-serif;
+  overflow: hidden;
+  width: 100vw; height: 100vh;
+  color: #e8f0fe;
+}
+
+/* ── Hex grid background ─────────────────── */
+#bg { position: absolute; inset: 0; opacity: 0.3; pointer-events: none; }
+
+/* ── Main layout ─────────────────────────── */
+#root {
+  position: relative; z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 60px 1fr 80px;
+  gap: 0;
+  height: 100vh;
+  padding: 0;
+}
+
+/* ── Header ──────────────────────────────── */
+header {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(99,202,253,0.15);
+  background: rgba(7,9,15,0.8);
+  backdrop-filter: blur(12px);
+}
+.logo {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.2em;
+  color: #63cafd; text-transform: uppercase;
+}
+.live-pill {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: #63cafd; letter-spacing: 0.1em;
+}
+.pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #4ade80;
+  animation: pulse 1.6s ease-in-out infinite;
+  box-shadow: 0 0 8px #4ade80;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.4; transform: scale(0.7); }
+}
+.ts { font-size: 11px; color: rgba(232,240,254,0.35); }
+
+/* ── Chart panel (spans 2 cols) ──────────── */
+#chart-panel {
+  grid-column: 1 / 3;
+  padding: 20px 24px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  border-right: 1px solid rgba(99,202,253,0.1);
+  border-bottom: 1px solid rgba(99,202,253,0.1);
+}
+.panel-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.15em;
+  color: rgba(99,202,253,0.6); text-transform: uppercase;
+}
+#chart-canvas { flex: 1; }
+
+/* ── Stats panel ─────────────────────────── */
+#stats-panel {
+  grid-column: 3;
+  padding: 20px;
+  display: flex; flex-direction: column; gap: 14px;
+  border-bottom: 1px solid rgba(99,202,253,0.1);
+}
+.stat-card {
+  flex: 1;
+  background: rgba(99,202,253,0.04);
+  border: 1px solid rgba(99,202,253,0.12);
+  border-radius: 8px;
+  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+.stat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, #63cafd, transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.stat-card:hover::before { opacity: 1; }
+.stat-card:hover { border-color: rgba(99,202,253,0.3); }
+.stat-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
+  color: rgba(99,202,253,0.55); text-transform: uppercase; margin-bottom: 6px;
+}
+.stat-value {
+  font-size: 28px; font-weight: 700; letter-spacing: -0.02em;
+  color: #e8f0fe; line-height: 1;
+}
+.stat-delta {
+  margin-top: 5px; font-size: 11px; font-weight: 600;
+  display: flex; align-items: center; gap: 4px;
+}
+.stat-delta.up   { color: #4ade80; }
+.stat-delta.down { color: #f87171; }
+.stat-delta .spark { display: inline-block; width: 32px; height: 14px; vertical-align: middle; }
+
+/* ── Funnel ──────────────────────────────── */
+#funnel-panel {
+  grid-column: 1 / -1;
+  padding: 0 24px;
+  display: flex; align-items: center; gap: 0;
+  border-top: 1px solid rgba(99,202,253,0.1);
+}
+.funnel-stage {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 3px; position: relative;
+}
+.funnel-stage:not(:last-child)::after {
+  content: '▶';
+  position: absolute; right: -8px; top: 50%; transform: translateY(-50%);
+  color: rgba(99,202,253,0.25); font-size: 10px;
+}
+.funnel-bar-wrap {
+  width: 100%; height: 22px;
+  background: rgba(99,202,253,0.06);
+  border-radius: 3px; overflow: hidden;
+}
+.funnel-bar {
+  height: 100%; border-radius: 3px;
+  background: linear-gradient(90deg, #63cafd, #818cf8);
+  transition: width 1.4s cubic-bezier(0.16,1,0.3,1);
+  box-shadow: 0 0 12px rgba(99,202,253,0.4);
+}
+.funnel-name  { font-size: 9px; color: rgba(232,240,254,0.4); letter-spacing: 0.1em; text-transform: uppercase; }
+.funnel-val   { font-size: 13px; font-weight: 700; color: #e8f0fe; }
+.funnel-drop  { font-size: 9px; color: rgba(248,113,113,0.8); }
+
+/* ── Scan line overlay ───────────────────── */
+#scan {
+  position: fixed; inset: 0; pointer-events: none; z-index: 99;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent, transparent 2px,
+    rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px
+  );
+}
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div id="scan"></div>
+
+<div id="root">
+  <header>
+    <div class="logo">Revenue Pulse</div>
+    <div class="live-pill"><div class="pulse"></div> LIVE</div>
+    <div class="ts" id="ts"></div>
+  </header>
+
+  <div id="chart-panel">
+    <div class="panel-label">Daily Revenue — Last 30 Days</div>
+    <canvas id="chart-canvas"></canvas>
+  </div>
+
+  <div id="stats-panel">
+    <div class="stat-card">
+      <div class="stat-label">MRR</div>
+      <div class="stat-value" id="val-mrr">$0</div>
+      <div class="stat-delta up" id="d-mrr">
+        <svg class="spark" id="spark-mrr" viewBox="0 0 32 14"></svg>
+        — —
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">New Customers</div>
+      <div class="stat-value" id="val-cust">0</div>
+      <div class="stat-delta up" id="d-cust">
+        <svg class="spark" id="spark-cust" viewBox="0 0 32 14"></svg>
+        — —
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Revenue / User</div>
+      <div class="stat-value" id="val-arpu">$0</div>
+      <div class="stat-delta" id="d-arpu">
+        <svg class="spark" id="spark-arpu" viewBox="0 0 32 14"></svg>
+        — —
+      </div>
+    </div>
+  </div>
+
+  <div id="funnel-panel">
+    <div class="funnel-stage">
+      <div class="funnel-val" id="f0">—</div>
+      <div class="funnel-bar-wrap"><div class="funnel-bar" id="fb0" style="width:0%"></div></div>
+      <div class="funnel-name">Visitors</div>
+    </div>
+    <div class="funnel-stage">
+      <div class="funnel-val" id="f1">—</div>
+      <div class="funnel-bar-wrap"><div class="funnel-bar" id="fb1" style="width:0%"></div></div>
+      <div class="funnel-name">Trials</div>
+      <div class="funnel-drop" id="fd1"></div>
+    </div>
+    <div class="funnel-stage">
+      <div class="funnel-val" id="f2">—</div>
+      <div class="funnel-bar-wrap"><div class="funnel-bar" id="fb2" style="width:0%"></div></div>
+      <div class="funnel-name">Converted</div>
+      <div class="funnel-drop" id="fd2"></div>
+    </div>
+    <div class="funnel-stage">
+      <div class="funnel-val" id="f3">—</div>
+      <div class="funnel-bar-wrap"><div class="funnel-bar" id="fb3" style="width:0%"></div></div>
+      <div class="funnel-name">Retained</div>
+      <div class="funnel-drop" id="fd3"></div>
+    </div>
+    <div class="funnel-stage">
+      <div class="funnel-val" id="f4">—</div>
+      <div class="funnel-bar-wrap"><div class="funnel-bar" id="fb4" style="width:0%"></div></div>
+      <div class="funnel-name">Expanded</div>
+      <div class="funnel-drop" id="fd4"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── DATA (replaced by agent at runtime via canvas_update) ───────────
+const DATA = window.__CANVAS_DATA__ || {
+  mrr: 47293,
+  mrr_delta: 12.4,
+  customers: 143,
+  customers_delta: 8.1,
+  arpu: 331,
+  arpu_delta: 3.9,
+  daily: [12400,13200,11800,14500,15200,13900,16100,17300,15800,18200,
+          19100,17600,20300,18900,21500,19800,22100,20600,23400,21900,
+          24200,22700,25500,23800,26100,24500,27200,25900,28400,28900],
+  funnel: [42000, 8200, 1843, 1432, 580]
+};
+
+// ── HEX GRID ─────────────────────────────────────────────────────────
+const bgC = document.getElementById('bg');
+const bgX = bgC.getContext('2d');
+function drawHex() {
+  bgC.width = window.innerWidth; bgC.height = window.innerHeight;
+  const R = 22, W = Math.sqrt(3)*R, H = 2*R;
+  bgX.strokeStyle = 'rgba(99,202,253,0.18)';
+  bgX.lineWidth = 0.5;
+  const cols = Math.ceil(bgC.width / W) + 2;
+  const rows = Math.ceil(bgC.height / (H*0.75)) + 2;
+  for (let r = -1; r < rows; r++) {
+    for (let c = -1; c < cols; c++) {
+      const x = c * W + (r%2 ? W/2 : 0);
+      const y = r * H * 0.75;
+      bgX.beginPath();
+      for (let i=0;i<6;i++) {
+        const a = Math.PI/180*(60*i-30);
+        bgX[i?'lineTo':'moveTo'](x+R*Math.cos(a), y+R*Math.sin(a));
+      }
+      bgX.closePath(); bgX.stroke();
+    }
+  }
+}
+drawHex();
+
+// ── TIMESTAMP ────────────────────────────────────────────────────────
+function tick() {
+  document.getElementById('ts').textContent =
+    new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+tick(); setInterval(tick, 1000);
+
+// ── COUNTER ANIMATION ─────────────────────────────────────────────────
+function animCount(el, target, fmt, dur=1200) {
+  const start = performance.now();
+  const step = now => {
+    const t = Math.min(1, (now-start)/dur);
+    const ease = 1 - Math.pow(1 - t, 3);
+    el.textContent = fmt(Math.round(target * ease));
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+const fmtUSD = n => '$' + n.toLocaleString();
+animCount(document.getElementById('val-mrr'),  DATA.mrr,      fmtUSD);
+animCount(document.getElementById('val-cust'), DATA.customers, n => n.toString());
+animCount(document.getElementById('val-arpu'), DATA.arpu,      fmtUSD);
+
+// ── SPARKLINES ───────────────────────────────────────────────────────
+function sparkline(svgId, values, color) {
+  const svg = document.getElementById(svgId);
+  const w = 32, h = 14;
+  const mn = Math.min(...values), mx = Math.max(...values);
+  const px = (i) => (i/(values.length-1))*w;
+  const py = (v) => h - ((v-mn)/(mx-mn||1))*(h-2) - 1;
+  const pts = values.map((v,i) => `${px(i)},${py(v)}`).join(' ');
+  svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+const sparkD = DATA.daily;
+sparkline('spark-mrr',  sparkD.slice(-8).map(v=>v*0.82),  '#4ade80');
+sparkline('spark-cust', sparkD.slice(-8).map((_,i)=>i*2+8), '#63cafd');
+sparkline('spark-arpu', sparkD.slice(-8).map(v=>v/85),    '#a78bfa');
+
+// ── DELTA LABELS ─────────────────────────────────────────────────────
+function setDelta(id, val, cls) {
+  const el = document.getElementById(id);
+  el.className = 'stat-delta ' + (val>=0?'up':'down');
+  const arrow = val>=0 ? '▲' : '▼';
+  el.innerHTML = el.querySelector('svg').outerHTML + ` ${arrow} ${Math.abs(val).toFixed(1)}% vs last month`;
+}
+setTimeout(()=>{setDelta('d-mrr', DATA.mrr_delta); setDelta('d-cust', DATA.customers_delta); setDelta('d-arpu', DATA.arpu_delta);}, 900);
+
+// ── CHART ─────────────────────────────────────────────────────────────
+const cc = document.getElementById('chart-canvas');
+const ctx = cc.getContext('2d');
+function drawChart() {
+  const panel = document.getElementById('chart-panel');
+  cc.width  = panel.clientWidth - 48;
+  cc.height = panel.clientHeight - 44;
+  if (cc.width < 10 || cc.height < 10) return;
+  const W = cc.width, H = cc.height;
+  const d = DATA.daily;
+  const mn = Math.min(...d)*0.9, mx = Math.max(...d)*1.05;
+  const x = i => (i/(d.length-1)) * (W-40) + 20;
+  const y = v => H-24 - ((v-mn)/(mx-mn)) * (H-40);
+
+  ctx.clearRect(0,0,W,H);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(99,202,253,0.08)';
+  ctx.lineWidth = 1;
+  for (let i=0;i<4;i++) {
+    const yy = 12 + i*(H-36)/3;
+    ctx.beginPath(); ctx.moveTo(20,yy); ctx.lineTo(W-20,yy); ctx.stroke();
+  }
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(99,202,253,0.25)');
+  grad.addColorStop(1,'rgba(99,202,253,0)');
+  ctx.beginPath();
+  ctx.moveTo(x(0),y(d[0]));
+  d.forEach((v,i) => { if(i) ctx.lineTo(x(i),y(v)); });
+  ctx.lineTo(x(d.length-1),H-24); ctx.lineTo(x(0),H-24);
+  ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+
+  // Line with glow
+  ctx.save();
+  ctx.shadowColor='#63cafd'; ctx.shadowBlur=12;
+  ctx.strokeStyle='#63cafd'; ctx.lineWidth=2;
+  ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.beginPath();
+  d.forEach((v,i) => { ctx[i?'lineTo':'moveTo'](x(i),y(v)); });
+  ctx.stroke(); ctx.restore();
+
+  // Dots on last point
+  const lx=x(d.length-1), ly=y(d[d.length-1]);
+  ctx.save();
+  ctx.shadowColor='#63cafd'; ctx.shadowBlur=16;
+  ctx.fillStyle='#63cafd';
+  ctx.beginPath(); ctx.arc(lx,ly,4,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // X axis labels (every 5 days)
+  ctx.fillStyle='rgba(232,240,254,0.3)'; ctx.font='10px system-ui';
+  ctx.textAlign='center';
+  for(let i=0;i<d.length;i+=5) {
+    ctx.fillText(`D${i+1}`, x(i), H-8);
+  }
+}
+setTimeout(drawChart, 50);
+
+// ── FUNNEL ANIMATION ──────────────────────────────────────────────────
+const FV = DATA.funnel;
+const fmtK = n => n>=1000 ? (n/1000).toFixed(1)+'k' : n.toString();
+FV.forEach((v,i) => {
+  document.getElementById('f'+i).textContent = fmtK(v);
+  const pct = Math.round(v/FV[0]*100);
+  setTimeout(() => {
+    document.getElementById('fb'+i).style.width = pct+'%';
+  }, 300 + i*150);
+  if (i>0) {
+    const drop = Math.round((1 - v/FV[i-1])*100);
+    document.getElementById('fd'+i).textContent = `-${drop}%`;
+  }
+});
+</script>
+</body>
+</html>

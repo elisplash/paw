@@ -225,6 +225,47 @@ fn builtin_templates() -> Vec<BuiltinTemplate> {
             tags: r#"["email","inbox","communication"]"#,
             setup_prompt: Some("Fetch email inbox data including unread count, priority messages, and thread activity"),
         },
+        BuiltinTemplate {
+            id: "creative-report",
+            name: "Creative Report",
+            description: "Custom visual report: an embed widget for fully styled HTML/CSS visuals, plus narrative cards — ideal for marketing, analytics presentations, or any design with specific branding",
+            icon: "palette",
+            components: r#"[
+                {"type":"embed","title":"Main Visual","data_hint":"Custom HTML/CSS/JS: chart, infographic, funnel, or branded layout. Set a background colour, custom fonts, and brand colours in css.","height":340},
+                {"type":"card","title":"Executive Summary","data_hint":"Markdown narrative: key findings, story, context"},
+                {"type":"card","title":"Key Callouts","data_hint":"Bullet-point highlights, notable numbers, recommended actions"}
+            ]"#,
+            tags: r#"["creative","report","marketing","visual","embed"]"#,
+            setup_prompt: Some("Build a visually distinct report. Use the embed widget for the main visual with custom CSS branding (set your own colours, fonts, layout). Use cards for narrative context."),
+        },
+        BuiltinTemplate {
+            id: "day-planner",
+            name: "Day Planner",
+            description: "Today's schedule: countdown to the next event, task checklist, day timeline, and quick-reference notes",
+            icon: "today",
+            components: r#"[
+                {"type":"countdown","title":"Next Event","data_hint":"Target time of the next meeting or deadline"},
+                {"type":"checklist","title":"Today's Tasks","data_hint":"Tasks to complete today with done/pending state"},
+                {"type":"timeline","title":"Today's Schedule","data_hint":"Timeline of today's events and meetings"},
+                {"type":"kv","title":"Quick Notes","data_hint":"Handy references: links, contacts, reminders"}
+            ]"#,
+            tags: r#"["schedule","tasks","productivity","personal"]"#,
+            setup_prompt: Some("Gather today's calendar events, pending tasks, and any reminders to populate the day planner"),
+        },
+        BuiltinTemplate {
+            id: "service-status",
+            name: "Service Status Board",
+            description: "Multi-service health: status indicators per service, uptime percentages, incident timeline, and MTTR metric",
+            icon: "health_and_safety",
+            components: r#"[
+                {"type":"status","title":"Service Health","data_hint":"Health state of each service: API, DB, Auth, CDN, workers etc."},
+                {"type":"progress","title":"Uptime (30d)","data_hint":"Uptime percentage per service as progress bars"},
+                {"type":"timeline","title":"Recent Incidents","data_hint":"Incident history with timestamps and resolution status"},
+                {"type":"metric","title":"MTTR","data_hint":"Mean time to recovery in minutes"}
+            ]"#,
+            tags: r#"["devops","status","monitoring","incidents","sre"]"#,
+            setup_prompt: Some("Check service statuses, retrieve recent incident data, and calculate uptime metrics for each service"),
+        },
     ]
 }
 
@@ -291,7 +332,7 @@ mod tests {
     fn seed_builtin_templates() {
         let store = test_store();
         let count = store.seed_builtin_templates().unwrap();
-        assert_eq!(count, 5);
+        assert_eq!(count, 8);
         // Idempotent — second run seeds 0.
         let count2 = store.seed_builtin_templates().unwrap();
         assert_eq!(count2, 0);

@@ -443,12 +443,12 @@ export async function loadAdvancedSettings() {
 
     const budgetRow = formRow(
       'Daily Budget (USD)',
-      'Estimated daily spend limit. Agent stops when exceeded. Set to 0 to disable.',
+      'Set a daily spending cap. The agent stops when exceeded. Set to 0 (default) to disable.',
     );
-    const budgetInp = numberInput(config.daily_budget_usd ?? 10, {
+    const budgetInp = numberInput(config.daily_budget_usd ?? 0, {
       min: 0,
       step: 1,
-      placeholder: '10',
+      placeholder: '0 (disabled)',
     });
     budgetInp.style.maxWidth = '120px';
     budgetRow.appendChild(budgetInp);

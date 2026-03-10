@@ -16,6 +16,19 @@ use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
 use trading::check_trading_auto_approve;
 
+/// Emit an engine event to both the Tauri webview frontend AND any SSE
+/// subscribers (e.g. the Pawz VS Code extension via `/chat/stream`).
+/// All `engine-event` emissions must go through this instead of calling
+/// `app_handle.emit()` directly so SSE clients receive live streaming events.
+fn fire(app: &tauri::AppHandle, event: EngineEvent) {
+    let _ = app.emit("engine-event", &event);
+    if let Some(es) = app.try_state::<crate::engine::state::EngineState>() {
+        if let Ok(json) = serde_json::to_string(&event) {
+            let _ = es.sse_events.send(json);
+        }
+    }
+}
+
 /// Run a complete agent turn: send messages to the model, execute tool calls,
 /// and repeat until the model produces a final text response or max rounds hit.
 ///
@@ -108,8 +121,8 @@ pub async fn run_agent_turn(
                         My previous work may be incomplete."
                         .to_string();
                 }
-                let _ = app_handle.emit(
-                    "engine-event",
+                fire(
+                    app_handle,
                     EngineEvent::Complete {
                         session_id: session_id.to_string(),
                         run_id: run_id.to_string(),
@@ -138,8 +151,8 @@ pub async fn run_agent_turn(
                     max_rounds, max_rounds
                 );
                 // Emit the fallback text so the frontend shows *something*
-                let _ = app_handle.emit(
-                    "engine-event",
+                fire(
+                    app_handle,
                     EngineEvent::Complete {
                         session_id: session_id.to_string(),
                         run_id: run_id.to_string(),
@@ -165,13 +178,13 @@ pub async fn run_agent_turn(
             if let Some(tracker) = daily_tokens {
                 if let Some(spent) = tracker.check_budget(daily_budget_usd) {
                     let msg = format!(
-                        "Daily budget exceeded (${:.2} spent, ${:.2} limit). Stopping to prevent further costs. \
-                        You can adjust your daily budget in Settings → Engine.",
+                        "Daily budget exceeded (${:.2} spent of ${:.2} limit). \
+                        To continue, go to Settings → Advanced → Daily Budget and increase or clear the limit.",
                         spent, daily_budget_usd
                     );
                     warn!("[engine] {}", msg);
-                    let _ = app_handle.emit(
-                        "engine-event",
+                    fire(
+                        app_handle,
                         EngineEvent::Error {
                             session_id: session_id.to_string(),
                             run_id: run_id.to_string(),
@@ -209,8 +222,8 @@ pub async fn run_agent_turn(
                 // Phase 3: Batch deltas before emitting to reduce IPC overhead.
                 // push_delta returns Some(batch) when flush is needed.
                 if let Some(batch) = delta_batcher.push_delta(dt) {
-                    let _ = app_handle.emit(
-                        "engine-event",
+                    fire(
+                        app_handle,
                         EngineEvent::Delta {
                             session_id: session_id.to_string(),
                             run_id: run_id.to_string(),
@@ -222,8 +235,8 @@ pub async fn run_agent_turn(
 
             // Emit thinking/reasoning text to frontend
             if let Some(tt) = &chunk.thinking_text {
-                let _ = app_handle.emit(
-                    "engine-event",
+                fire(
+                    app_handle,
                     EngineEvent::ThinkingDelta {
                         session_id: session_id.to_string(),
                         run_id: run_id.to_string(),
@@ -335,8 +348,8 @@ pub async fn run_agent_turn(
                         pct, est_usd, daily_budget_usd
                     );
                     warn!("[engine] {}", msg);
-                    let _ = app_handle.emit(
-                        "engine-event",
+                    fire(
+                        app_handle,
                         EngineEvent::Error {
                             session_id: session_id.to_string(),
                             run_id: run_id.to_string(),
@@ -387,6 +400,24 @@ pub async fn run_agent_turn(
                 name: None,
             });
 
+            // ── Phase 3: Flush remaining batched deltas BEFORE Complete ──
+            // Must happen first so the streaming bubble on the frontend shows
+            // the full text before lifecycle:end resolves the stream promise.
+            // Previously this flush happened after Complete, causing the
+            // streaming preview to briefly show truncated content.
+            if let Some(batch) = delta_batcher.flush() {
+                fire(
+                    app_handle,
+                    EngineEvent::Delta {
+                        session_id: session_id.to_string(),
+                        run_id: run_id.to_string(),
+                        text: batch.combined_text,
+                    },
+                );
+            }
+            // Log binary IPC batcher stats for the session
+            crate::engine::binary_ipc::log_session_stats(&delta_batcher.stats(), 0);
+
             // Emit completion event
             let usage = if last_input_tokens > 0 || total_output_tokens > 0 {
                 Some(TokenUsage {
@@ -399,8 +430,8 @@ pub async fn run_agent_turn(
             } else {
                 None
             };
-            let _ = app_handle.emit(
-                "engine-event",
+            fire(
+                app_handle,
                 EngineEvent::Complete {
                     session_id: session_id.to_string(),
                     run_id: run_id.to_string(),
@@ -439,20 +470,6 @@ pub async fn run_agent_turn(
                 }
                 telem::emit_summary(app_handle, &summary);
             }
-
-            // ── Phase 3: Flush remaining batched deltas ───────────────
-            if let Some(batch) = delta_batcher.flush() {
-                let _ = app_handle.emit(
-                    "engine-event",
-                    EngineEvent::Delta {
-                        session_id: session_id.to_string(),
-                        run_id: run_id.to_string(),
-                        text: batch.combined_text,
-                    },
-                );
-            }
-            // Log binary IPC batcher stats for the session
-            crate::engine::binary_ipc::log_session_stats(&delta_batcher.stats(), 0);
 
             // ── Phase 4: Log speculation stats for the session ────────
             crate::engine::speculative::log_session_speculation_stats(&speculation_stats);
@@ -909,8 +926,8 @@ pub async fn run_agent_turn(
                         tc.function.name
                     );
                     // Emit audit event so frontend can track agent-policy approvals
-                    let _ = app_handle.emit(
-                        "engine-event",
+                    fire(
+                        app_handle,
                         EngineEvent::ToolAutoApproved {
                             session_id: session_id.to_string(),
                             run_id: run_id.to_string(),
@@ -932,8 +949,8 @@ pub async fn run_agent_turn(
                 }
 
                 // Emit tool request event — frontend will show approval modal
-                let _ = app_handle.emit(
-                    "engine-event",
+                fire(
+                    app_handle,
                     EngineEvent::ToolRequest {
                         session_id: session_id.to_string(),
                         run_id: run_id.to_string(),
@@ -984,8 +1001,8 @@ pub async fn run_agent_turn(
                 }
 
                 // Emit denial as tool result
-                let _ = app_handle.emit(
-                    "engine-event",
+                fire(
+                    app_handle,
                     EngineEvent::ToolResultEvent {
                         session_id: session_id.to_string(),
                         run_id: run_id.to_string(),
@@ -1036,8 +1053,8 @@ pub async fn run_agent_turn(
             }
 
             // Emit tool result event
-            let _ = app_handle.emit(
-                "engine-event",
+            fire(
+                app_handle,
                 EngineEvent::ToolResultEvent {
                     session_id: session_id.to_string(),
                     run_id: run_id.to_string(),

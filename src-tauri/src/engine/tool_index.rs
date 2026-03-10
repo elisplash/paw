@@ -231,7 +231,7 @@ pub fn domain_summaries() -> Vec<(&'static str, &'static str, &'static str)> {
         (
             "canvas",
             "grid_view",
-            "Agent Canvas — create, update, and manage bento-grid dashboard widgets, save/load dashboards, use templates",
+            "Agent Canvas — visualize data and build interactive dashboards. LIVE DATA: use rest_api_call or service_api_call to fetch from Stripe, HubSpot, etc., then canvas_push to create the tile and canvas_update to push fresh data. For auto-refreshing dashboards use create_task with cron_schedule + canvas_update. INTERACTIVE FORMS: use the form component type to capture user input — on submit the values arrive as a chat message so you can act on them. DESIGN: use embed for custom HTML/CSS/JS visuals (marketing, infographics, branded layouts); use structured types (metric, chart, table, timeline, checklist, status, gauge, progress) for operational data.",
         ),
         (
             "storage",

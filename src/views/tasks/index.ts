@@ -3,9 +3,9 @@
 // Supports drag-and-drop, live feed, cron scheduling, and agent auto-work.
 
 import { pawEngine, type EngineTask, type EngineTaskActivity, type TaskAgent } from '../../engine';
-import { showToast } from '../../components/toast';
 import { $ } from '../../components/helpers';
-import * as SquadsModule from '../squads';
+import * as AutomationsModule from '../automations';
+import * as OrchestratorModule from '../orchestrator';
 import {
   setMoleculesState,
   renderBoard,
@@ -28,7 +28,6 @@ let _editingTask: EngineTask | null = null;
 let _feedFilter: 'all' | 'tasks' | 'status' = 'all';
 let _agents: { id: string; name: string; avatar: string }[] = [];
 let _modalSelectedAgents: TaskAgent[] = [];
-let _cronInterval: ReturnType<typeof setInterval> | null = null;
 
 // ── State bridge for molecules ─────────────────────────────────────────────
 
@@ -82,36 +81,16 @@ export function onTaskUpdated(_data: { task_id: string; status: string }) {
 }
 
 // ── Cron Timer ─────────────────────────────────────────────────────────────
+// The authoritative cron heartbeat runs in Rust (60s interval, lib.rs).
+// These stubs are kept for backwards compatibility with main.ts call sites.
 
 export function startCronTimer() {
-  if (_cronInterval) return;
-  _cronInterval = setInterval(async () => {
-    try {
-      const triggered = await pawEngine.tasksCronTick();
-      if (triggered.length > 0) {
-        showToast(`${triggered.length} cron task(s) triggered`, 'info');
-        for (const taskId of triggered) {
-          try {
-            await pawEngine.taskRun(taskId);
-          } catch (e) {
-            if (!String(e).includes('already running')) {
-              console.warn('[tasks] Auto-run failed for', taskId, e);
-            }
-          }
-        }
-        await loadTasks();
-      }
-    } catch (e) {
-      console.warn('[tasks] Cron tick failed:', e);
-    }
-  }, 30_000);
+  // No-op: scheduling is handled by the Rust cron heartbeat (run_cron_heartbeat, 60s).
+  // The backend emits task-updated events which drive UI refreshes via onTaskUpdated().
 }
 
 export function stopCronTimer() {
-  if (_cronInterval) {
-    clearInterval(_cronInterval);
-    _cronInterval = null;
-  }
+  // No-op: nothing to stop.
 }
 
 // ── Event Binding ──────────────────────────────────────────────────────────
@@ -201,17 +180,13 @@ export function switchTab(tabName: string) {
     const el = $(`tasks-tab-${panel}`);
     if (el) el.style.display = panel === tabName ? '' : 'none';
   }
-  // Load squads content into embedded container when that tab is selected
-  if (tabName === 'squads') {
-    const container = $('tasks-squads-container');
-    const sourceView = $('squads-view');
-    if (container && sourceView && !container.hasChildNodes()) {
-      // Move the squads view content into the tasks tab container
-      while (sourceView.firstChild) {
-        container.appendChild(sourceView.firstChild);
-      }
-    }
-    SquadsModule.loadSquads();
+  if (tabName === 'scheduled') {
+    AutomationsModule.loadCron();
+  } else if (tabName === 'projects') {
+    OrchestratorModule.loadProjects();
+  } else if (tabName === 'squads') {
+    // Squads is a full navigation view — emit an event so the router can switch to it
+    window.dispatchEvent(new CustomEvent('paw:navigate', { detail: { view: 'squads' } }));
   }
 }
 

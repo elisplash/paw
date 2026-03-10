@@ -1,0 +1,20 @@
+[Unit]
+Description=Pawz CODE daemon — local AI developer agent
+Documentation=https://github.com/elisplash/paw
+After=network.target
+
+[Service]
+Type=simple
+ExecStart={{BINARY_PATH}}
+Restart=on-failure
+RestartSec=3
+
+# Redirect stdout and stderr to the log file
+StandardOutput=append:{{HOME}}/.pawz-code/logs/daemon.log
+StandardError=append:{{HOME}}/.pawz-code/logs/daemon.log
+
+# Working directory
+WorkingDirectory={{HOME}}
+
+[Install]
+WantedBy=default.target

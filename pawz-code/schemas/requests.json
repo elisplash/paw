@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PawzCodeRequests",
+  "description": "HTTP request/response schemas for the pawz-code daemon API",
+  "definitions": {
+    "ChatRequest": {
+      "title": "POST /chat/stream",
+      "type": "object",
+      "required": ["message"],
+      "properties": {
+        "message": {
+          "type": "string",
+          "description": "The user's message to the agent"
+        },
+        "context": {
+          "type": "string",
+          "description": "VS Code workspace context injected by the extension"
+        },
+        "user_id": {
+          "type": "string",
+          "default": "user"
+        },
+        "session_id": {
+          "type": "string",
+          "description": "Resume an existing session. If omitted, a new session is created."
+        },
+        "agent_id": {
+          "type": "string",
+          "description": "Reserved for future multi-agent routing"
+        }
+      }
+    },
+    "CancelRequest": {
+      "title": "POST /runs/cancel",
+      "type": "object",
+      "required": ["run_id"],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "description": "The run_id to cancel (from the Complete or ToolRequest events)"
+        }
+      }
+    },
+    "CancelResponse": {
+      "type": "object",
+      "required": ["cancelled", "run_id"],
+      "properties": {
+        "cancelled": { "type": "boolean" },
+        "run_id": { "type": "string" },
+        "reason": { "type": "string" }
+      }
+    },
+    "HealthResponse": {
+      "title": "GET /health",
+      "type": "object",
+      "required": ["status", "service", "model", "provider"],
+      "properties": {
+        "status": { "type": "string", "const": "ok" },
+        "service": { "type": "string", "const": "pawz-code" },
+        "model": { "type": "string" },
+        "provider": { "type": "string" }
+      }
+    },
+    "StatusResponse": {
+      "title": "GET /status",
+      "type": "object",
+      "required": ["status", "service", "version"],
+      "properties": {
+        "status": { "type": "string" },
+        "service": { "type": "string" },
+        "version": { "type": "string" },
+        "model": { "type": "string" },
+        "provider": { "type": "string" },
+        "workspace_root": { "type": ["string", "null"] },
+        "active_runs": { "type": "integer" },
+        "memory_entries": { "type": "integer" },
+        "engram_entries": { "type": "integer" },
+        "protocols": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "max_rounds": { "type": "integer" }
+      }
+    },
+    "MemorySearchResponse": {
+      "title": "GET /memory/search?q=&limit=",
+      "type": "object",
+      "required": ["results", "query"],
+      "properties": {
+        "query": { "type": "string" },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key", "content"],
+            "properties": {
+              "key": { "type": "string" },
+              "content": { "type": "string" }
+            }
+          }
+        },
+        "error": { "type": "string" }
+      }
+    },
+    "EngramSearchResponse": {
+      "title": "GET /engram/search?q=&scope=",
+      "type": "object",
+      "required": ["results", "query"],
+      "properties": {
+        "query": { "type": "string" },
+        "results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["scope", "key", "content", "kind"],
+            "properties": {
+              "scope": { "type": "string" },
+              "key": { "type": "string" },
+              "content": { "type": "string" },
+              "kind": { "type": "string" },
+              "updated_at": { "type": "string" }
+            }
+          }
+        },
+        "error": { "type": "string" }
+      }
+    }
+  }
+}

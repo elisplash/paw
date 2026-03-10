@@ -65,6 +65,7 @@ import * as NodesModule from './views/nodes';
 import * as ProjectsModule from './views/projects';
 import * as AgentsModule from './views/agents';
 import * as TasksModule from './views/tasks';
+import * as AutomationsModule from './views/automations';
 import * as OrchestratorModule from './views/orchestrator';
 import { initCommandPalette } from './components/command-palette';
 import { initNotifications } from './components/notifications';
@@ -498,6 +499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     ProjectsModule.bindEvents();
     TasksModule.bindTaskEvents();
+    AutomationsModule.initAutomations();
     OrchestratorModule.initOrchestrator();
     initChannels();
     initChatListeners();

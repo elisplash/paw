@@ -1,0 +1,129 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EngineEvent",
+  "description": "SSE wire events emitted by the pawz-code daemon. All events share a 'kind' discriminator.",
+  "oneOf": [
+    {
+      "title": "Delta",
+      "description": "Streaming text token from the LLM",
+      "type": "object",
+      "required": ["kind", "session_id", "run_id", "text"],
+      "properties": {
+        "kind": { "const": "delta" },
+        "session_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "text": { "type": "string" }
+      }
+    },
+    {
+      "title": "ThinkingDelta",
+      "description": "Streaming thinking token (extended thinking models)",
+      "type": "object",
+      "required": ["kind", "session_id", "run_id", "text"],
+      "properties": {
+        "kind": { "const": "thinking_delta" },
+        "session_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "text": { "type": "string" }
+      }
+    },
+    {
+      "title": "ToolRequest",
+      "description": "The agent is requesting a tool call",
+      "type": "object",
+      "required": ["kind", "session_id", "run_id", "tool_call"],
+      "properties": {
+        "kind": { "const": "tool_request" },
+        "session_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "tool_call": { "$ref": "#/definitions/ToolCall" },
+        "tool_tier": { "type": "string", "enum": ["safe", "review", "dangerous"] },
+        "round_number": { "type": "integer" }
+      }
+    },
+    {
+      "title": "ToolAutoApproved",
+      "description": "A tool call was automatically approved",
+      "type": "object",
+      "required": ["kind", "session_id", "run_id", "tool_name", "tool_call_id"],
+      "properties": {
+        "kind": { "const": "tool_auto_approved" },
+        "session_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "tool_name": { "type": "string" },
+        "tool_call_id": { "type": "string" }
+      }
+    },
+    {
+      "title": "ToolResult",
+      "description": "Result of a tool execution",
+      "type": "object",
+      "required": ["kind", "session_id", "run_id", "tool_call_id", "output", "success"],
+      "properties": {
+        "kind": { "const": "tool_result" },
+        "session_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "tool_call_id": { "type": "string" },
+        "output": { "type": "string" },
+        "success": { "type": "boolean" },
+        "duration_ms": { "type": "integer" }
+      }
+    },
+    {
+      "title": "Complete",
+      "description": "The agent run has finished",
+      "type": "object",
+      "required": ["kind", "session_id", "run_id", "text", "tool_calls_count"],
+      "properties": {
+        "kind": { "const": "complete" },
+        "session_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "text": { "type": "string" },
+        "tool_calls_count": { "type": "integer" },
+        "usage": { "$ref": "#/definitions/TokenUsage" },
+        "model": { "type": "string" },
+        "total_rounds": { "type": "integer" },
+        "max_rounds": { "type": "integer" }
+      }
+    },
+    {
+      "title": "Error",
+      "description": "An error occurred during the run",
+      "type": "object",
+      "required": ["kind", "session_id", "run_id", "message"],
+      "properties": {
+        "kind": { "const": "error" },
+        "session_id": { "type": "string" },
+        "run_id": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    }
+  ],
+  "definitions": {
+    "ToolCall": {
+      "type": "object",
+      "required": ["id", "type", "function"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "const": "function" },
+        "function": {
+          "type": "object",
+          "required": ["name", "arguments"],
+          "properties": {
+            "name": { "type": "string" },
+            "arguments": { "type": "string", "description": "JSON-encoded arguments" }
+          }
+        }
+      }
+    },
+    "TokenUsage": {
+      "type": "object",
+      "required": ["input_tokens", "output_tokens", "total_tokens"],
+      "properties": {
+        "input_tokens": { "type": "integer" },
+        "output_tokens": { "type": "integer" },
+        "total_tokens": { "type": "integer" }
+      }
+    }
+  }
+}

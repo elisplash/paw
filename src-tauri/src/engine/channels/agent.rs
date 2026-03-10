@@ -396,53 +396,70 @@ pub async fn run_channel_agent(
     //   - memory_store / memory_search: remember things across conversations
     //   - self_info: introspect own config when asked
     let mut tools: Vec<ToolDefinition> = {
-        let mut all_builtins = ToolDefinition::builtins();
-        // Add all discord tools
-        all_builtins.extend(crate::engine::tools::discord::definitions());
-        let whitelist = [
-            "fetch",
-            "memory_store",
-            "memory_search",
-            "self_info",
-            // channels
-            "discord_setup_channels",
-            "discord_list_channels",
-            "discord_delete_channels",
-            "discord_edit_channel",
-            // messages
-            "discord_send_message",
-            "discord_edit_message",
-            "discord_delete_messages",
-            "discord_get_messages",
-            "discord_pin_message",
-            "discord_unpin_message",
-            "discord_react",
-            // roles
-            "discord_list_roles",
-            "discord_create_role",
-            "discord_delete_role",
-            "discord_assign_role",
-            "discord_remove_role",
-            // members
-            "discord_list_members",
-            "discord_get_member",
-            "discord_kick",
-            "discord_ban",
-            "discord_unban",
-            // server
-            "discord_server_info",
-            "discord_create_invite",
-        ];
-        let filtered: Vec<ToolDefinition> = all_builtins
-            .into_iter()
-            .filter(|t| whitelist.contains(&t.function.name.as_str()))
-            .collect();
-        info!(
-            "[{}] Channel tool whitelist: {} tools",
-            channel_prefix,
-            filtered.len()
-        );
-        filtered
+        if allow_dangerous_tools {
+            // Full tool set for trusted local clients (e.g. VS Code extension, local
+            // webhook). allow_dangerous_tools=true means the caller is on the same
+            // machine as the user — give them the full desktop-chat tool suite:
+            // read_file, write_file, exec, memory, browser, and all built-ins.
+            let tools = ToolDefinition::builtins();
+            info!(
+                "[{}] Full tool set ({} tools) — allow_dangerous_tools=true",
+                channel_prefix,
+                tools.len()
+            );
+            tools
+        } else {
+            // Restricted whitelist for untrusted remote channel clients
+            // (Discord, Telegram, Slack, IRC, etc.). These bridges expose the
+            // agent to arbitrary external users — limit to safe, read-only ops.
+            let mut all_builtins = ToolDefinition::builtins();
+            // Add all discord tools
+            all_builtins.extend(crate::engine::tools::discord::definitions());
+            let whitelist = [
+                "fetch",
+                "memory_store",
+                "memory_search",
+                "self_info",
+                // channels
+                "discord_setup_channels",
+                "discord_list_channels",
+                "discord_delete_channels",
+                "discord_edit_channel",
+                // messages
+                "discord_send_message",
+                "discord_edit_message",
+                "discord_delete_messages",
+                "discord_get_messages",
+                "discord_pin_message",
+                "discord_unpin_message",
+                "discord_react",
+                // roles
+                "discord_list_roles",
+                "discord_create_role",
+                "discord_delete_role",
+                "discord_assign_role",
+                "discord_remove_role",
+                // members
+                "discord_list_members",
+                "discord_get_member",
+                "discord_kick",
+                "discord_ban",
+                "discord_unban",
+                // server
+                "discord_server_info",
+                "discord_create_invite",
+            ];
+            let filtered: Vec<ToolDefinition> = all_builtins
+                .into_iter()
+                .filter(|t| whitelist.contains(&t.function.name.as_str()))
+                .collect();
+            info!(
+                "[{}] Channel tool whitelist: {} tools",
+                channel_prefix,
+                filtered.len()
+            );
+            filtered
+        }
     };
 
     let provider = AnyProvider::from_config(&provider_config);

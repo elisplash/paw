@@ -122,6 +122,11 @@ export async function loadWebhookSettings() {
       <input type="number" id="wh-rate" value="${config.rate_limit_per_minute}" min="0" max="10000"
         class="form-input" style="${inputStyle}" />
     </div>
+    <div style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:4px">
+      <input type="checkbox" id="wh-enabled" ${config.enabled ? 'checked' : ''} />
+      <span style="font-weight:600">Enabled</span>
+      <span style="color:var(--text-muted);font-size:11px">Must be on for the server to start</span>
+    </div>
     <div style="font-size:12px;display:flex;align-items:center;gap:8px;cursor:pointer">
       <input type="checkbox" id="wh-dangerous" ${config.allow_dangerous_tools ? 'checked' : ''} />
       <span style="font-weight:600">Allow dangerous tools</span>
@@ -175,9 +180,11 @@ export async function loadWebhookSettings() {
     const port = parseInt((form.querySelector('#wh-port') as HTMLInputElement).value) || 3940;
     const agentId = (form.querySelector('#wh-agent-id') as HTMLInputElement).value || 'default';
     const rate = parseInt((form.querySelector('#wh-rate') as HTMLInputElement).value) || 0;
+    const enabled = (form.querySelector('#wh-enabled') as HTMLInputElement).checked;
     const dangerous = (form.querySelector('#wh-dangerous') as HTMLInputElement).checked;
     const updated: WebhookConfig = {
       ...config,
+      enabled,
       bind_address: bindAddress,
       port,
       default_agent_id: agentId,
