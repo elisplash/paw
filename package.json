@@ -44,6 +44,14 @@
     "vitest": "^4.0.18"
   },
   "overrides": {
-    "minimatch": ">=10.0.0"
+    "minimatch": ">=10.0.0",
+    "flatted": ">=3.4.0",
+    "undici": ">=7.24.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "flatted": ">=3.4.0",
+      "undici": ">=7.24.0"
+    }
   }
 }

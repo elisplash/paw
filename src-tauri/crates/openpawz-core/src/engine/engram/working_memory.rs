@@ -317,15 +317,13 @@ impl WorkingMemory {
     }
 
     /// Restore from a snapshot. This replaces existing state.
+    /// Original source types are preserved so source-aware decay rates
+    /// remain accurate after an agent switch (UserMention still decays
+    /// slower than ToolResult, etc.).
     pub fn restore(&mut self, snapshot: WorkingMemorySnapshot) {
         self.slots = snapshot.slots;
         self.momentum_embeddings = snapshot.momentum_embeddings;
         self.current_tokens = self.slots.iter().map(|s| s.token_cost).sum();
-
-        // Mark all restored slots
-        for slot in &mut self.slots {
-            slot.source = WorkingMemorySource::Restored;
-        }
 
         // Re-sort by priority
         self.slots.sort_by(|a, b| {
@@ -467,11 +465,8 @@ mod tests {
 
         assert_eq!(wm2.slot_count(), 1);
         assert_eq!(wm2.momentum().len(), 1);
-        // Restored slots should be marked as Restored
-        assert!(matches!(
-            wm2.slots()[0].source,
-            WorkingMemorySource::Restored
-        ));
+        // Restored slots preserve their original source type
+        assert!(matches!(wm2.slots()[0].source, WorkingMemorySource::Recall));
     }
 
     #[test]

@@ -14,5 +14,6 @@ pub mod provider_registry;
 pub mod providers;
 pub mod scc;
 pub mod sessions;
+pub mod tool_metadata;
 pub mod types;
 pub mod util;

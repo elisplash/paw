@@ -386,22 +386,12 @@ async fn execute_worker_tool(
 
     // §Security: Block dangerous tools that require HIL approval.
     // These must go through the main agent loop where the user can approve/deny.
-    // Case-insensitive to prevent casing bypass (e.g., "Exec", "WRITE_FILE").
-    const BLOCKED_WORKER_TOOLS: &[&str] = &[
-        "exec",
-        "write_file",
-        "delete_file",
-        "append_file",
-        "email_send",
-        "webhook_send",
-        "rest_api_call",
-        "slack_send",
-        "github_api",
-    ];
+    // Uses the centralized tool_metadata registry which handles both direct tools
+    // and MCP naming convention blocklists.
     let name_lower = name.to_lowercase();
-    if BLOCKED_WORKER_TOOLS.iter().any(|b| name_lower == *b) {
+    if !openpawz_core::engine::tool_metadata::worker_allowed(&name_lower) {
         warn!(
-            "[worker-delegate] Blocked dangerous tool '{}' from worker execution",
+            "[worker-delegate] Blocked tool '{}' from worker execution (not worker-allowed)",
             name
         );
         return ToolResult {
@@ -413,43 +403,6 @@ async fn execute_worker_tool(
             ),
             success: false,
         };
-    }
-
-    // §Security: Block MCP tools whose names contain dangerous operation keywords.
-    // This prevents a rogue MCP server from exposing "mcp_server_exec" or
-    // "mcp_server_write_file" that would bypass the direct tool blocklist above.
-    if let Some(after_prefix) = name_lower.strip_prefix("mcp_") {
-        const BLOCKED_MCP_PATTERNS: &[&str] = &[
-            "exec",
-            "shell",
-            "run_command",
-            "terminal",
-            "system",
-            "write_file",
-            "delete_file",
-            "remove_file",
-            "file_write",
-            "rm_rf",
-            "rmdir",
-            "unlink",
-        ];
-        for pattern in BLOCKED_MCP_PATTERNS {
-            if after_prefix.contains(pattern) {
-                warn!(
-                    "[worker-delegate] Blocked MCP tool matching dangerous pattern '{}': {}",
-                    pattern, name
-                );
-                return ToolResult {
-                    tool_call_id: tool_call.id.clone(),
-                    output: format!(
-                        "Error: MCP tool '{}' matches blocked pattern '{}'. \
-                         Dangerous MCP operations cannot be executed by the worker.",
-                        name, pattern
-                    ),
-                    success: false,
-                };
-            }
-        }
     }
 
     let result = if let Some(r) = tools::fetch::execute(name, &args, app_handle).await {

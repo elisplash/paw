@@ -24,70 +24,13 @@ pub(crate) enum AgentRole<'a> {
     Worker { agent_id: &'a str },
 }
 
-// ── Safe tools (shared) ────────────────────────────────────────────────
+// ── Safe tools (centralized registry) ───────────────────────────────────
 
-/// Tools that skip HIL (human-in-the-loop) approval for both roles.
-/// Exfiltration-capable tools (email_send, slack_send, webhook_send,
-/// rest_api_call, exec, write_file, append_file, delete_file) are
-/// intentionally excluded — they always require user approval.
-const SAFE_TOOLS: &[&str] = &[
-    // Core read-only
-    "fetch",
-    "read_file",
-    "list_directory",
-    // Web tools
-    "web_search",
-    "web_read",
-    "web_screenshot",
-    "web_browse",
-    // Soul / persona
-    "soul_read",
-    "soul_write",
-    "soul_list",
-    // Memory
-    "memory_store",
-    "memory_search",
-    // Self-awareness
-    "self_info",
-    // Skill tools (read-only)
-    "email_read",
-    "slack_read",
-    "github_api",
-    "image_generate",
-    // Orchestrator / worker control — intercepted before reaching HIL,
-    // but listed here so they're skipped if interception is bypassed.
-    "delegate_task",
-    "check_agent_status",
-    "send_agent_message",
-    "project_complete",
-    "create_sub_agent",
-    "report_progress",
-    // Inter-agent comms (safe: only sends/reads messages between agents)
-    "agent_send_message",
-    "agent_read_messages",
-    // Squads (safe: team management)
-    "create_squad",
-    "list_squads",
-    "manage_squad",
-    "squad_broadcast",
-    // Task management (read/create — not destructive)
-    "create_task",
-    "list_tasks",
-    // n8n discovery (read-only — no HIL needed)
-    "search_ncnodes",
-    "n8n_list_workflows",
-    "mcp_refresh",
-    // Canvas (internal UI — zero side effects)
-    "canvas_push",
-    "canvas_update",
-    "canvas_save",
-    "canvas_load",
-    "canvas_list_dashboards",
-    "canvas_delete_dashboard",
-    "canvas_list_templates",
-    "canvas_from_template",
-    "canvas_create_template",
-];
+/// Check if a tool skips HIL approval. Delegates to the centralized
+/// tool_metadata registry, falling back to orchestrator-safe flag.
+fn is_orchestrator_safe(name: &str) -> bool {
+    openpawz_core::engine::tool_metadata::orchestrator_safe(name)
+}
 
 // ── Unified loop ───────────────────────────────────────────────────────
 
@@ -338,7 +281,7 @@ pub(crate) async fn run_orchestrator_loop(
             }
 
             // Standard tools — apply HIL policy
-            let skip_hil = SAFE_TOOLS.contains(&tc.function.name.as_str());
+            let skip_hil = is_orchestrator_safe(&tc.function.name);
             let approved = if skip_hil {
                 true
             } else {

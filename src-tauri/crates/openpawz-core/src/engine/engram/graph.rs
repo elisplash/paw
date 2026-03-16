@@ -122,17 +122,32 @@ pub async fn store_episodic_dedup(
                 }
             }
             Err(e) => {
-                warn!(
-                    "[engram] Failed to encrypt memory {}: {} — storing cleartext",
-                    id, e
-                );
+                // Fail closed: refuse to store PII-bearing content unencrypted.
+                // Only warn and proceed for content with no detected PII.
+                let pii = super::encryption::detect_pii(&mem.content.full);
+                if !pii.has_pii {
+                    warn!("[engram] Encryption failed for {}: {} — no PII detected, storing cleartext", id, e);
+                } else {
+                    return Err(crate::atoms::error::EngineError::Other(format!(
+                        "Encryption failed for memory {} with PII detected: {}",
+                        id, e
+                    )));
+                }
             }
         },
         Err(e) => {
-            warn!(
-                "[engram] No encryption key available: {} — storing cleartext",
-                e
-            );
+            let pii = super::encryption::detect_pii(&mem.content.full);
+            if !pii.has_pii {
+                warn!(
+                    "[engram] No encryption key for {}: {} — no PII detected, storing cleartext",
+                    id, e
+                );
+            } else {
+                return Err(crate::atoms::error::EngineError::Other(format!(
+                    "No encryption key for memory {} with PII detected: {}",
+                    id, e
+                )));
+            }
         }
     }
 
@@ -233,11 +248,27 @@ pub async fn store_semantic_dedup(
                 }
             }
             Err(e) => {
-                warn!("[engram] Failed to encrypt semantic memory {}: {}", id, e);
+                let pii = super::encryption::detect_pii(&mem.full_text);
+                if !pii.has_pii {
+                    warn!("[engram] Failed to encrypt semantic memory {}: {} — no PII, storing cleartext", id, e);
+                } else {
+                    return Err(crate::atoms::error::EngineError::Other(format!(
+                        "Encryption failed for semantic memory {} with PII: {}",
+                        id, e
+                    )));
+                }
             }
         },
         Err(e) => {
-            warn!("[engram] No encryption key for semantic memory: {}", e);
+            let pii = super::encryption::detect_pii(&mem.full_text);
+            if !pii.has_pii {
+                warn!("[engram] No encryption key for semantic memory: {} — no PII, storing cleartext", e);
+            } else {
+                return Err(crate::atoms::error::EngineError::Other(format!(
+                    "No encryption key for semantic memory with PII: {}",
+                    e
+                )));
+            }
         }
     }
 
@@ -334,9 +365,13 @@ pub async fn search(
                         // Batch-fetch all candidate memories in a single SQL query
                         let candidate_ids: Vec<String> =
                             hnsw_results.iter().map(|hr| hr.memory_id.clone()).collect();
-                        let batch = store
-                            .engram_get_episodic_batch(&candidate_ids)
-                            .unwrap_or_default();
+                        let batch = match store.engram_get_episodic_batch(&candidate_ids) {
+                            Ok(b) => b,
+                            Err(e) => {
+                                warn!("[engram] Batch fetch failed during HNSW search: {} — falling back to BM25", e);
+                                std::collections::HashMap::new()
+                            }
+                        };
 
                         // Apply scope + model filters
                         let mut filtered: Vec<(EpisodicMemory, f64)> = hnsw_results

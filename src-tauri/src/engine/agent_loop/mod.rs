@@ -12,6 +12,7 @@ use crate::engine::telemetry::{integration as telem, RunCollector};
 use crate::engine::tools;
 use crate::engine::types::*;
 use log::{info, warn};
+use openpawz_core::engine::tool_metadata::{self, ToolTier};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager};
 use trading::check_trading_auto_approve;
@@ -276,7 +277,10 @@ pub async fn run_agent_turn(
             }
 
             if let Some(reason) = &chunk.finish_reason {
-                if reason == "stop" || reason == "end_turn" || reason == "STOP" {
+                // Normalize across providers: OpenAI="stop", Anthropic="end_turn",
+                // Google="STOP", others may return "complete"/"finished".
+                let r = reason.to_lowercase();
+                if r == "stop" || r == "end_turn" || r == "complete" || r == "finished" {
                     _finished = true;
                 }
             }
@@ -707,167 +711,24 @@ pub async fn run_agent_turn(
         for tc in &tool_calls {
             info!("[engine] Tool call: {} id={}", tc.function.name, tc.id);
 
-            // ─── T1: Safe — read-only / informational (always auto-approve) ───
-            let tier1_safe: &[&str] = &[
-                "fetch",
-                "read_file",
-                "list_directory",
-                "soul_read",
-                "soul_list",
-                "memory_search",
-                "memory_stats",
-                "self_info",
-                "web_search",
-                "web_read",
-                "web_screenshot",
-                "web_browse",
-                "list_tasks",
-                "email_read",
-                "slack_read",
-                "telegram_read",
-                "google_gmail_list",
-                "google_gmail_read",
-                "google_calendar_list",
-                "google_drive_list",
-                "google_drive_read",
-                "google_sheets_read",
-                "sol_balance",
-                "sol_quote",
-                "sol_portfolio",
-                "sol_token_info",
-                "dex_balance",
-                "dex_quote",
-                "dex_portfolio",
-                "dex_token_info",
-                "dex_check_token",
-                "dex_search_token",
-                "dex_watch_wallet",
-                "dex_whale_transfers",
-                "dex_top_traders",
-                "dex_trending",
-                "coinbase_prices",
-                "coinbase_balance",
-                "agent_list",
-                "agent_skills",
-                "agent_read_messages",
-                "list_squads",
-                "skill_search",
-                "skill_list",
-                "request_tools",
-                "mcp_refresh",
-                "search_ncnodes",
-                "n8n_list_workflows",
-                // Canvas (internal UI — zero side effects)
-                "canvas_push",
-                "canvas_update",
-                "canvas_save",
-                "canvas_load",
-                "canvas_list_dashboards",
-                "canvas_delete_dashboard",
-                "canvas_list_templates",
-                "canvas_from_template",
-                "canvas_create_template",
-                "trello_list_boards",
-                "trello_get_board",
-                "trello_get_lists",
-                "trello_get_cards",
-                "trello_get_card",
-                "trello_search",
-                "trello_get_labels",
-                "trello_get_members",
-                "execute_plan",
-            ];
-
-            // ─── T2: Reversible — local writes, can be undone (auto-approve) ───
-            let tier2_reversible: &[&str] = &[
-                "soul_write",
-                "memory_store",
-                "memory_knowledge",
-                "update_profile",
-                "create_task",
-                "manage_task",
-                "write_file",
-                "agent_skill_assign",
-                "skill_install",
-                "agent_send_message",
-                "create_squad",
-                "manage_squad",
-                "squad_broadcast",
-            ];
-
-            // ─── T3: External — irreversible outbound actions (prompt, offer Always Allow) ───
-            // These leave the user's machine — can't be undone once sent.
-            let tier3_external: &[&str] = &[
-                "email_send",
-                "google_gmail_send",
-                "google_docs_create",
-                "google_drive_upload",
-                "google_drive_share",
-                "google_calendar_create",
-                "google_sheets_append",
-                "google_api",
-                "image_generate",
-                "trello_create_board",
-                "trello_update_board",
-                "trello_create_list",
-                "trello_update_list",
-                "trello_archive_list",
-                "trello_create_card",
-                "trello_update_card",
-                "trello_move_card",
-                "trello_add_comment",
-                "trello_create_label",
-                "trello_update_label",
-                "trello_add_label",
-                "trello_remove_label",
-                "trello_create_checklist",
-                "trello_add_checklist_item",
-                "trello_toggle_checklist_item",
-            ];
-
-            // ─── T4: Dangerous — financial / destructive (always prompt) ───
-            let tier4_dangerous: &[&str] = &[
-                "exec",
-                "run_command",
-                "sol_swap",
-                "sol_transfer",
-                "sol_wallet_create",
-                "dex_swap",
-                "dex_transfer",
-                "dex_wallet_create",
-                "coinbase_trade",
-                "coinbase_transfer",
-                "coinbase_wallet_create",
-            ];
-
-            // Combined auto-approve set: T1 + T2
-            let auto_approved_tools: Vec<&str> = tier1_safe
-                .iter()
-                .chain(tier2_reversible.iter())
-                .copied()
-                .collect();
-
-            // Trading write tools check the policy-based approval function
-            let trading_write_tools = tier4_dangerous
-                .iter()
-                .filter(|t| {
-                    t.starts_with("sol_") || t.starts_with("dex_") || t.starts_with("coinbase_")
-                })
-                .copied()
-                .collect::<Vec<&str>>();
+            // ─── Tool classification via centralized registry ───
+            let tool_name = tc.function.name.as_str();
+            let tool_tier = tool_metadata::tier(tool_name);
+            let auto_approved = tool_metadata::auto_approved_tools();
 
             // Determine the tier label for the tool (sent to frontend for UI hints)
-            let _tool_tier = if tier1_safe.contains(&tc.function.name.as_str()) {
-                "safe"
-            } else if tier2_reversible.contains(&tc.function.name.as_str()) {
-                "reversible"
-            } else if tier3_external.contains(&tc.function.name.as_str()) {
-                "external"
-            } else if tier4_dangerous.contains(&tc.function.name.as_str()) {
-                "dangerous"
-            } else {
-                "unknown" // MCP/dynamic tools — default to requiring approval
+            let _tool_tier = match tool_tier {
+                ToolTier::Safe => "safe",
+                ToolTier::Reversible => "reversible",
+                ToolTier::External => "external",
+                ToolTier::Dangerous => "dangerous",
             };
+
+            // Trading write tools check the policy-based approval function
+            let is_trading_dangerous = tool_tier == ToolTier::Dangerous
+                && (tool_name.starts_with("sol_")
+                    || tool_name.starts_with("dex_")
+                    || tool_name.starts_with("coinbase_"));
 
             // ── Circuit breaker: block tools that already hit HARD_STOP ──
             if let Some(count) = tool_fail_counter.get(&tc.function.name) {
@@ -891,11 +752,11 @@ pub async fn run_agent_turn(
             }
 
             let skip_hil = if auto_approve_all
-                || auto_approved_tools.contains(&tc.function.name.as_str())
+                || auto_approved.contains(&tool_name)
                 || user_approved_tools.iter().any(|t| t == &tc.function.name)
             {
                 true
-            } else if trading_write_tools.contains(&tc.function.name.as_str()) {
+            } else if is_trading_dangerous {
                 check_trading_auto_approve(&tc.function.name, &tc.function.arguments, app_handle)
             } else {
                 false
@@ -903,7 +764,7 @@ pub async fn run_agent_turn(
 
             let approved = if skip_hil {
                 // Distinguish agent-level auto-approve from safe-tool auto-approve in logs
-                if auto_approve_all && !auto_approved_tools.contains(&tc.function.name.as_str()) {
+                if auto_approve_all && !auto_approved.contains(&tool_name) {
                     info!(
                         "[engine] Tool auto-approved (agent policy): {}",
                         tc.function.name

@@ -210,131 +210,15 @@ impl WarmTarget {
 
 /// Classify a tool as read-only or write based on its name.
 ///
-/// Conservative: unknown tools default to `Write` (never speculate on unknowns).
-/// Only well-known read patterns are classified as `ReadOnly`.
+/// Delegates to the centralized tool_metadata registry. The registry's
+/// three-state mutability (ReadOnly / WriteLocal / WriteSideEffect) is
+/// collapsed to the binary ReadOnly / Write needed for speculation safety.
 pub fn classify_tool_mutability(tool_name: &str) -> ToolMutability {
-    // ── Explicit read-only tools ───────────────────────────────────────
-    match tool_name {
-        // Filesystem reads
-        "read_file" | "list_directory" => return ToolMutability::ReadOnly,
-
-        // Web reads
-        "fetch" | "web_search" | "web_read" | "web_screenshot" | "web_browse" => {
-            return ToolMutability::ReadOnly;
-        }
-
-        // Identity reads
-        "soul_read" | "soul_list" | "self_info" => return ToolMutability::ReadOnly,
-
-        // Memory reads
-        "memory_search" => return ToolMutability::ReadOnly,
-
-        // Agent reads
-        "agent_list" | "agent_skills" | "agent_read_messages" => {
-            return ToolMutability::ReadOnly;
-        }
-
-        // Squad reads
-        "list_squads" => return ToolMutability::ReadOnly,
-
-        // Task reads
-        "list_tasks" => return ToolMutability::ReadOnly,
-
-        // Skill reads
-        "skill_list" | "skill_search" => return ToolMutability::ReadOnly,
-
-        // Canvas reads
-        "canvas_list_dashboards" | "canvas_list_templates" | "canvas_load" => {
-            return ToolMutability::ReadOnly;
-        }
-
-        // Dashboard reads
-        "skill_output" => return ToolMutability::ReadOnly,
-
-        // Storage reads
-        "skill_store_get" | "skill_store_list" => return ToolMutability::ReadOnly,
-
-        // Email reads
-        "email_read" => return ToolMutability::ReadOnly,
-
-        // Messaging reads
-        "slack_read" | "telegram_read" => return ToolMutability::ReadOnly,
-
-        // Trading reads (view-only)
-        "coinbase_prices" | "coinbase_balance" => return ToolMutability::ReadOnly,
-
-        // Tool RAG meta-tool
-        "request_tools" => return ToolMutability::ReadOnly,
-
-        _ => {}
+    use openpawz_core::engine::tool_metadata;
+    match tool_metadata::mutability(tool_name) {
+        tool_metadata::ToolMutability::ReadOnly => ToolMutability::ReadOnly,
+        _ => ToolMutability::Write,
     }
-
-    // ── Pattern-based read detection for prefixed tools ────────────────
-
-    // Google Workspace / Gmail reads
-    if (tool_name.starts_with("google_") || tool_name.starts_with("gmail_"))
-        && (tool_name.contains("_list")
-            || tool_name.contains("_get")
-            || tool_name.contains("_search")
-            || tool_name.contains("_read"))
-    {
-        return ToolMutability::ReadOnly;
-    }
-
-    // Discord reads
-    if tool_name.starts_with("discord_")
-        && (tool_name.contains("_list") || tool_name.contains("_get"))
-    {
-        return ToolMutability::ReadOnly;
-    }
-
-    // Discourse reads
-    if tool_name.starts_with("discourse_")
-        && (tool_name.contains("_list")
-            || tool_name.contains("_get")
-            || tool_name.contains("_search"))
-    {
-        return ToolMutability::ReadOnly;
-    }
-
-    // Trello reads
-    if tool_name.starts_with("trello_")
-        && (tool_name.contains("_list") || tool_name.contains("_get"))
-    {
-        return ToolMutability::ReadOnly;
-    }
-
-    // MCP tools — conservative: only list/get/search/read are safe
-    if tool_name.starts_with("mcp_")
-        && (tool_name.contains("_list")
-            || tool_name.contains("_get")
-            || tool_name.contains("_search")
-            || tool_name.contains("_read"))
-    {
-        return ToolMutability::ReadOnly;
-    }
-
-    // DEX reads
-    if tool_name.starts_with("dex_")
-        && (tool_name.contains("_price")
-            || tool_name.contains("_balance")
-            || tool_name.contains("_list"))
-    {
-        return ToolMutability::ReadOnly;
-    }
-
-    // Solana reads
-    if tool_name.starts_with("sol_")
-        && (tool_name.contains("_balance")
-            || tool_name.contains("_price")
-            || tool_name.contains("_list")
-            || tool_name.contains("_get"))
-    {
-        return ToolMutability::ReadOnly;
-    }
-
-    // Default: Write (conservative — never speculate on unknown tools)
-    ToolMutability::Write
 }
 
 /// Convenience: check if a tool is read-only (safe for speculation).

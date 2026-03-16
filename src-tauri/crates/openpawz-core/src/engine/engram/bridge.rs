@@ -55,8 +55,16 @@ pub async fn store(
         }
         prepared.content
     } else {
-        warn!("[engram] No encryption key available — storing cleartext");
-        content.to_string()
+        // Fail closed: refuse to store content with detected PII unencrypted
+        let pii = encryption::detect_pii(content);
+        if !pii.has_pii {
+            warn!("[engram] No encryption key available — no PII detected, storing cleartext");
+            content.to_string()
+        } else {
+            return Err(crate::atoms::error::EngineError::Other(
+                "Cannot store memory with detected PII: encryption key unavailable".into(),
+            ));
+        }
     };
 
     let id = uuid::Uuid::new_v4().to_string();
@@ -122,7 +130,13 @@ pub async fn store_auto_capture(
         let prepared = encryption::prepare_for_storage(content, key)?;
         prepared.content
     } else {
-        content.to_string()
+        let pii = encryption::detect_pii(content);
+        if !pii.has_pii {
+            content.to_string()
+        } else {
+            warn!("[engram] Auto-capture skipped — PII detected but encryption key unavailable");
+            return Ok(None);
+        }
     };
 
     let id = uuid::Uuid::new_v4().to_string();
