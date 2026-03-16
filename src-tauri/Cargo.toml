@@ -81,7 +81,7 @@ rustls = { version = "0.23", default-features = false, features = ["std", "tls12
 webpki-roots = "1.0"
 
 # ── Container Sandboxing (Docker) ───────────────────────────────
-bollard = "0.16"
+bollard = "0.20"
 
 # ── Matrix E2EE (Olm/Megolm via vodozemac) ──────────────────────
 matrix-sdk = { version = "0.10", default-features = false, features = ["e2e-encryption", "sqlite", "rustls-tls"] }
