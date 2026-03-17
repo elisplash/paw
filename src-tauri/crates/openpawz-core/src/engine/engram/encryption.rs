@@ -415,6 +415,44 @@ pub fn get_agent_encryption_key(agent_id: &str) -> EngineResult<[u8; 32]> {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
+// §10.13 Cross-Agent Identity Verification
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Derive a session-bound identity token for an agent.
+/// This binds an agent_id to the current session via HMAC, preventing
+/// agent-ID spoofing or cross-agent memory access via forged strings.
+///
+/// Returns: hex-encoded HMAC(session_key, agent_id)
+pub fn derive_agent_identity_token(session_id: &str, agent_id: &str) -> EngineResult<String> {
+    let master = get_memory_encryption_key()?;
+    let salt = b"engram-agent-identity-v1";
+    let hk = Hkdf::<Sha256>::new(Some(salt), &master);
+    let mut session_key = [0u8; 32];
+    hk.expand(session_id.as_bytes(), &mut session_key)
+        .map_err(|e| EngineError::Other(format!("HKDF expand failed: {}", e)))?;
+
+    let mut mac = <hmac::Hmac<Sha256> as hmac::Mac>::new_from_slice(&session_key)
+        .map_err(|e| EngineError::Other(format!("HMAC key error: {}", e)))?;
+    hmac::Mac::update(&mut mac, agent_id.as_bytes());
+    let result = hmac::Mac::finalize(mac);
+    // Encode as hex using manual conversion (no hex crate dependency)
+    let bytes = result.into_bytes();
+    let hex_str: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
+    Ok(hex_str)
+}
+
+/// Verify that a claimed agent_id matches a previously derived identity token.
+/// Uses constant-time comparison to prevent timing attacks.
+pub fn verify_agent_identity_token(
+    session_id: &str,
+    claimed_agent_id: &str,
+    token: &str,
+) -> EngineResult<bool> {
+    let expected = derive_agent_identity_token(session_id, claimed_agent_id)?;
+    Ok(subtle::ConstantTimeEq::ct_eq(expected.as_bytes(), token.as_bytes()).into())
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
 // Platform Capability Signing Key
 // ═════════════════════════════════════════════════════════════════════════════
 
@@ -1511,6 +1549,75 @@ pub struct PurgeResult {
     pub records_erased: u64,
     /// Number of identifiers processed.
     pub identifiers_processed: usize,
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// §10.8 Timing Side-Channel Resistance
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Minimum duration for a search operation (§10.8).
+/// All searches are padded to at least this duration so that an observer
+/// cannot infer whether a search returned 0 or 1000 results from timing alone.
+pub const SEARCH_ENVELOPE_MS: u64 = 50;
+
+/// Execute an async operation inside a constant-time envelope.
+/// The function always takes at least `SEARCH_ENVELOPE_MS` milliseconds,
+/// regardless of how long the inner operation took.
+///
+/// This prevents timing side-channels where an attacker observes response
+/// latency to infer the size/existence of memory contents.
+pub async fn constant_time_envelope<T, F, Fut>(op: F) -> T
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = T>,
+{
+    let start = std::time::Instant::now();
+    let result = op().await;
+    let elapsed_ms = start.elapsed().as_millis() as u64;
+    if elapsed_ms < SEARCH_ENVELOPE_MS {
+        tokio::time::sleep(std::time::Duration::from_millis(
+            SEARCH_ENVELOPE_MS - elapsed_ms,
+        ))
+        .await;
+    }
+    result
+}
+
+/// Synchronous constant-time envelope for non-async operations.
+pub fn constant_time_envelope_sync<T, F: FnOnce() -> T>(op: F) -> T {
+    let start = std::time::Instant::now();
+    let result = op();
+    let elapsed_ms = start.elapsed().as_millis() as u64;
+    if elapsed_ms < SEARCH_ENVELOPE_MS {
+        std::thread::sleep(std::time::Duration::from_millis(
+            SEARCH_ENVELOPE_MS - elapsed_ms,
+        ));
+    }
+    result
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// §10.16 Semantic Oracle Resistance
+// ═════════════════════════════════════════════════════════════════════════════
+
+/// Quantize a trust score composite to discrete buckets (§10.16).
+/// This prevents an attacker from fingerprinting specific memories by
+/// observing precise floating-point scores. Scores are snapped to
+/// the nearest 0.05 boundary.
+pub fn quantize_score(score: f32) -> f32 {
+    (score * 20.0).round() / 20.0
+}
+
+/// Add calibrated differential-privacy noise to a score (§10.16).
+/// Uses Laplace noise with scale `epsilon` to provide (ε,0)-DP.
+/// The noise is bounded to keep scores in [0.0, 1.0].
+pub fn dp_noise_score(score: f32, epsilon: f32) -> f32 {
+    use rand::Rng;
+    let scale = 1.0 / epsilon;
+    // Laplace noise via inverse CDF: Lap(0, b) = -b * sign(u) * ln(1 - 2|u|)
+    let u: f64 = rand::rng().random_range(-0.5_f64..0.5_f64);
+    let noise = -(scale as f64) * u.signum() * (1.0 - 2.0 * u.abs()).ln();
+    (score as f64 + noise).clamp(0.0, 1.0) as f32
 }
 
 // ═════════════════════════════════════════════════════════════════════════════

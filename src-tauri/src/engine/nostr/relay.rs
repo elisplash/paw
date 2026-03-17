@@ -51,7 +51,7 @@ pub(crate) async fn run_relay_loop(
         "since": chrono::Utc::now().timestamp() - 10, // Only new events
     }]);
     ws_tx
-        .send(WsMessage::Text(req.to_string()))
+        .send(WsMessage::Text(req.to_string().into()))
         .await
         .map_err(|e| EngineError::Channel {
             channel: "nostr".into(),
@@ -228,7 +228,7 @@ pub(crate) async fn run_relay_loop(
                                         Ok(dm_event) => {
                                             let publish = json!(["EVENT", dm_event]);
                                             if let Err(e) = ws_tx
-                                                .send(WsMessage::Text(publish.to_string()))
+                                                .send(WsMessage::Text(publish.to_string().into()))
                                                 .await
                                             {
                                                 warn!("[nostr] Failed to send DM: {}", e);
@@ -246,8 +246,9 @@ pub(crate) async fn run_relay_loop(
                             ) {
                                 Ok(reply_event) => {
                                     let publish = json!(["EVENT", reply_event]);
-                                    if let Err(e) =
-                                        ws_tx.send(WsMessage::Text(publish.to_string())).await
+                                    if let Err(e) = ws_tx
+                                        .send(WsMessage::Text(publish.to_string().into()))
+                                        .await
                                     {
                                         warn!("[nostr] Failed to publish reply: {}", e);
                                     }

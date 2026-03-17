@@ -238,7 +238,7 @@ async fn run_socket_mode(app_handle: tauri::AppHandle, config: SlackConfig) -> E
         // Acknowledge every envelope immediately (Slack requires this within 3 seconds)
         if !envelope_id.is_empty() {
             let ack = json!({ "envelope_id": envelope_id });
-            let _ = write.send(WsMessage::Text(ack.to_string())).await;
+            let _ = write.send(WsMessage::Text(ack.to_string().into())).await;
         }
 
         let event_type = envelope["type"].as_str().unwrap_or("");

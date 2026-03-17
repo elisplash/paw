@@ -43,7 +43,7 @@ thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 rmp-serde = "1"
-toml = "0.8"
+toml = "0.9"
 dirs = "6"
 getrandom = "0.2"
 rand_core = { version = "0.6", features = ["getrandom"] }
@@ -75,13 +75,13 @@ scraper = "0.25"
 url = "2"
 
 # ── Channel Bridges (WebSocket + IRC) ───────────────────────────
-tokio-tungstenite = { version = "0.21", features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"] }
 tokio-rustls = "0.26"
 rustls = { version = "0.23", default-features = false, features = ["std", "tls12", "ring"] }
 webpki-roots = "1.0"
 
 # ── Container Sandboxing (Docker) ───────────────────────────────
-bollard = "0.16"
+bollard = "0.20"
 
 # ── Matrix E2EE (Olm/Megolm via vodozemac) ──────────────────────
 matrix-sdk = { version = "0.10", default-features = false, features = ["e2e-encryption", "sqlite", "rustls-tls"] }
@@ -117,7 +117,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # ── Benchmarks ──────────────────────────────────────────────
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { version = "0.8", features = ["html_reports"] }
 
 [[bench]]
 name = "engram_bench"

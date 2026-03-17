@@ -65,15 +65,17 @@ pub async fn engine_memory_search(
     query: String,
     limit: Option<usize>,
     agent_id: Option<String>,
+    // §11 Frontend SearchConfig wiring — optional override for search parameters
+    threshold: Option<f64>,
 ) -> Result<Vec<Memory>, String> {
     let lim = limit.unwrap_or(10);
-    let threshold = state.memory_config.lock().recall_threshold;
+    let thresh = threshold.unwrap_or_else(|| state.memory_config.lock().recall_threshold);
     let emb_client = state.embedding_client();
     let results = engram::bridge::search(
         &state.store,
         &query,
         lim,
-        threshold,
+        thresh,
         emb_client.as_ref(),
         agent_id.as_deref(),
     )

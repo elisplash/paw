@@ -186,11 +186,37 @@ pub struct SearchResult {
 
 /// Search Engram memories. Equivalent to the old `memory::search_memories`
 /// but uses BM25+vector+graph fusion.
+/// Wrapped in a constant-time envelope (§10.8) to prevent timing side-channels.
 pub async fn search(
     store: &SessionStore,
     query: &str,
     limit: usize,
     _threshold: f64,
+    embedding_client: Option<&EmbeddingClient>,
+    agent_id: Option<&str>,
+) -> EngineResult<Vec<SearchResult>> {
+    // §10.8 Constant-time envelope: ensure search always takes ≥50ms
+    let search_start = std::time::Instant::now();
+
+    let result = search_inner(store, query, limit, embedding_client, agent_id).await;
+
+    // Pad to minimum duration regardless of outcome
+    let elapsed_ms = search_start.elapsed().as_millis() as u64;
+    if elapsed_ms < encryption::SEARCH_ENVELOPE_MS {
+        tokio::time::sleep(std::time::Duration::from_millis(
+            encryption::SEARCH_ENVELOPE_MS - elapsed_ms,
+        ))
+        .await;
+    }
+
+    result
+}
+
+/// Inner search logic (factored out so the envelope wraps the entire operation).
+async fn search_inner(
+    store: &SessionStore,
+    query: &str,
+    limit: usize,
     embedding_client: Option<&EmbeddingClient>,
     agent_id: Option<&str>,
 ) -> EngineResult<Vec<SearchResult>> {
@@ -241,7 +267,8 @@ pub async fn search(
                 content,
                 category: r.category,
                 memory_type: r.memory_type.to_string(),
-                score: r.trust_score.composite() as f64,
+                // §10.16 Quantize score to prevent memory fingerprinting
+                score: encryption::quantize_score(r.trust_score.composite()) as f64,
             }
         })
         .collect();
@@ -252,6 +279,25 @@ pub async fn search(
         encryption::safe_log_preview(query, 50),
         mapped.len()
     );
+
+    // §10.18 Audit trail for search operations
+    {
+        let result_ids: Vec<&str> = mapped.iter().map(|r| r.id.as_str()).collect();
+        let detail = serde_json::json!({
+            "query_preview": encryption::safe_log_preview(query, 80),
+            "results": mapped.len(),
+            "result_ids": result_ids,
+        });
+        let aid = agent_id.unwrap_or("global");
+        // Best-effort: don't fail the search if audit logging fails
+        let _ = store.engram_audit_log(
+            "search",
+            "", // no single memory_id for a search
+            aid,
+            "", // session_id not available at bridge level
+            Some(&detail.to_string()),
+        );
+    }
 
     Ok(mapped)
 }

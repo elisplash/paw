@@ -577,6 +577,45 @@ pub fn is_empty_shared(shared: &SharedHnswIndex) -> bool {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// §9.1b Background Warming
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Warm the HNSW index in the background without blocking the main thread.
+///
+/// Spawns a tokio blocking task that builds the index from the DB and swaps it
+/// into the shared index when ready. During warming, searches fall back
+/// to brute-force (the index is empty until the swap).
+///
+/// Caller must ensure `store` lives long enough (it uses Arc<Mutex> internally).
+pub fn warm_in_background(shared: SharedHnswIndex, store: &SessionStore) -> EngineResult<()> {
+    let start = std::time::Instant::now();
+    info!("[hnsw] Index warming started...");
+
+    let new_index = build_from_store(store)?;
+    let count = new_index.len();
+
+    match shared.write() {
+        Ok(mut guard) => {
+            *guard = new_index;
+            info!(
+                "[hnsw] Index warming complete: {} vectors in {}ms",
+                count,
+                start.elapsed().as_millis()
+            );
+        }
+        Err(e) => {
+            warn!("[hnsw] Index warming: write lock poisoned: {}", e);
+            return Err(crate::atoms::error::EngineError::Other(format!(
+                "HNSW lock poisoned: {}",
+                e
+            )));
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

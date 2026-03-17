@@ -730,6 +730,105 @@ pub fn detect_response_loop(messages: &mut Vec<Message>) {
     }
 }
 
+// ── Post-response grounding check ──────────────────────────────────────────────
+
+/// Verify that the agent's response addresses the user's actual message.
+///
+/// Runs a fast keyword-overlap check between the user's last message and the
+/// agent's response. Returns `Some(correction)` if the response appears to
+/// address a *different* topic entirely, indicating the model drifted to stale
+/// context. Returns `None` if the response looks grounded.
+///
+/// Guards against false positives:
+///   - Short user messages (< 3 keywords) are skipped — too noisy
+///   - Tool-call rounds are skipped — the text is a tool-result summary
+///   - Only fires when user keyword overlap is **zero** and the response is long
+///     enough that it's clearly talking about *something* (just not the right thing)
+///   - First response in a session is never flagged (no context to drift from)
+pub fn grounding_check(messages: &[Message], response_text: &str) -> Option<String> {
+    // Skip empty or very short responses (greetings, acknowledgements)
+    if response_text.len() < 80 {
+        return None;
+    }
+
+    // Find the last user message
+    let last_user = messages.iter().rev().find(|m| m.role == Role::User)?;
+    let user_text = last_user.content.as_text_ref().to_lowercase();
+
+    // Skip short user messages (e.g. "yes", "ok", "go ahead")
+    let stop_words = build_stop_words();
+    let user_keywords: Vec<&str> = user_text
+        .split_whitespace()
+        .filter(|w| w.len() > 2 && !stop_words.contains(w))
+        .collect();
+    if user_keywords.len() < 3 {
+        return None;
+    }
+
+    // Check if the response contains ANY of the user's keywords
+    let response_lower = response_text.to_lowercase();
+    let response_words: std::collections::HashSet<&str> = response_lower
+        .split_whitespace()
+        .filter(|w| w.len() > 2)
+        .collect();
+
+    let hits = user_keywords
+        .iter()
+        .filter(|uk| {
+            response_words
+                .iter()
+                .any(|rw| rw.contains(*uk) || uk.contains(rw))
+        })
+        .count();
+
+    let overlap = hits as f64 / user_keywords.len() as f64;
+
+    // If the response has ZERO keyword overlap with the user's message,
+    // and the response is substantive (not just a tool acknowledgement),
+    // the model is probably answering an old question.
+    if overlap > 0.0 {
+        return None;
+    }
+
+    // Don't flag if the response looks like a tool-use acknowledgement
+    let tool_phrases = [
+        "i'll",
+        "let me",
+        "calling",
+        "searching",
+        "fetching",
+        "running",
+    ];
+    let response_start = &response_lower[..response_lower.len().min(200)];
+    if tool_phrases.iter().any(|p| response_start.contains(p)) {
+        return None;
+    }
+
+    // Only flag if there are at least 2 prior assistant messages (need history to drift from)
+    let assistant_count = messages
+        .iter()
+        .filter(|m| m.role == Role::Assistant)
+        .count();
+    if assistant_count < 2 {
+        return None;
+    }
+
+    warn!(
+        "[engine] Grounding check FAILED: response has 0/{} keyword overlap with user message",
+        user_keywords.len()
+    );
+
+    let user_preview = crate::engine::util::safe_truncate(&user_text, 300);
+    Some(format!(
+        "GROUNDING CHECK: Your response does not address the user's actual message. \
+        The user said:\n\n>>> {} <<<\n\n\
+        Your response talked about something else entirely. \
+        Read the user's message above and respond ONLY to what they asked. \
+        Do not continue any previous topic.",
+        user_preview
+    ))
+}
+
 /// Build the common stop-word set used by topic analysis.
 fn build_stop_words() -> std::collections::HashSet<&'static str> {
     [

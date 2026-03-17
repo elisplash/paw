@@ -344,6 +344,38 @@ impl WorkingMemory {
         self.current_tokens = 0;
     }
 
+    /// §8.6 Topic-change eviction: aggressively remove low-activation slots
+    /// that are unlikely to be relevant after a conversational topic shift.
+    ///
+    /// Keeps:
+    ///   - Slots from user mentions (always high-priority)
+    ///   - Slots above `keep_threshold` priority
+    ///
+    /// Returns the evicted slots (callers may cascade them to long-term store).
+    pub fn evict_for_topic_change(&mut self, keep_threshold: f32) -> Vec<WorkingMemorySlot> {
+        let mut evicted = Vec::new();
+        let mut kept = Vec::new();
+
+        for slot in self.slots.drain(..) {
+            if slot.source == WorkingMemorySource::UserMention || slot.priority >= keep_threshold {
+                kept.push(slot);
+            } else {
+                self.current_tokens = self.current_tokens.saturating_sub(slot.token_cost);
+                evicted.push(slot);
+            }
+        }
+
+        self.slots = kept;
+        if !evicted.is_empty() {
+            log::info!(
+                "[working_memory] Topic-change eviction: {} slots evicted, {} kept",
+                evicted.len(),
+                self.slots.len()
+            );
+        }
+        evicted
+    }
+
     // ── Internal ────────────────────────────────────────────────────────
 
     /// Evict the lowest-priority slot. Returns it if one was evicted.

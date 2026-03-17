@@ -15,6 +15,7 @@ thiserror = "2"
 async-trait = "0.1"
 
 # ── Database ──
+# Default: bundled vanilla SQLite. Enable `sqlcipher` feature for full-DB encryption.
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 # ── HTTP client ──
@@ -37,6 +38,7 @@ uuid = { version = "1", features = ["v4"] }
 
 # ── Filesystem paths ──
 dirs = "6"
+filetime = "0.2"
 
 # ── Keychain ──
 keyring = { version = "3", features = ["apple-native", "linux-native"] }
@@ -47,7 +49,7 @@ hmac = "0.12"
 zeroize = { version = "1", features = ["derive"] }
 aes-gcm = "0.10"
 hkdf = "0.12"
-rand = "0.8"
+rand = "0.9"
 getrandom = "0.2"
 subtle = "2"
 
@@ -66,3 +68,14 @@ regex = "1"
 
 # ── Base64 ──
 base64 = "0.22"
+
+# ── Process hardening ──
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[features]
+default = []
+# §10.1-10.3 Full-DB encryption via SQLCipher.
+# Replaces bundled SQLite with SQLCipher. Requires OpenSSL dev headers on Linux.
+# Usage: cargo build --features sqlcipher
+sqlcipher = []

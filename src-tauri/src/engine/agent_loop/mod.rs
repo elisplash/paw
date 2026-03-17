@@ -382,6 +382,37 @@ pub async fn run_agent_turn(
                 final_text = helpers::empty_response_fallback();
             }
 
+            // ── Grounding check: verify response addresses user's message ──
+            // Run only once (round > 1 means we already retried) and only when
+            // the model produced substantive text (not a fallback).
+            if round == 1 {
+                if let Some(correction) =
+                    crate::engine::chat::grounding_check(messages, &final_text)
+                {
+                    // Push the ungrounded response as assistant message so the
+                    // model sees what it said, then inject the correction.
+                    messages.push(Message {
+                        role: Role::Assistant,
+                        content: MessageContent::Text(text_accum),
+                        tool_calls: None,
+                        tool_call_id: None,
+                        name: None,
+                    });
+                    messages.push(Message {
+                        role: Role::System,
+                        content: MessageContent::Text(correction),
+                        tool_calls: None,
+                        tool_call_id: None,
+                        name: None,
+                    });
+                    info!(
+                        "[engine] Grounding check failed at round {} — retrying with correction",
+                        round
+                    );
+                    continue;
+                }
+            }
+
             // Add assistant message to history
             messages.push(Message {
                 role: Role::Assistant,

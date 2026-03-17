@@ -27,6 +27,7 @@
 //   - cognitive_event: Observability bus for cognitive pipeline events (§47.6)
 
 pub mod abstraction_tree;
+pub mod anticipatory;
 pub mod bridge;
 pub mod cognitive_event;
 pub mod cognitive_state;
@@ -36,6 +37,7 @@ pub mod context_builder;
 pub mod context_continuity;
 pub mod dream_replay;
 pub mod emotional_memory;
+pub mod encrypted_export;
 pub mod encryption;
 pub mod entity_tracking;
 pub mod gated_search;
@@ -48,12 +50,16 @@ pub mod memory_fusion;
 pub mod meta_cognition;
 pub mod metadata_inference;
 pub mod model_caps;
+pub mod process_hardening;
+pub mod proposition;
 pub mod recall_tuner;
 pub mod reranking;
+pub mod research_bridge;
 pub mod retrieval_quality;
 pub mod schema;
 pub mod sensory_buffer;
 pub mod skill_library;
+pub mod sqlcipher;
 pub mod temporal_search;
 pub mod tokenizer;
 pub mod working_memory;

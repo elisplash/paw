@@ -3,11 +3,12 @@
 // Uses bollard (Docker API client) to manage ephemeral containers.
 
 use crate::atoms::error::{EngineError, EngineResult};
-use bollard::container::{
-    Config, CreateContainerOptions, LogsOptions, RemoveContainerOptions, StartContainerOptions,
+use bollard::container::LogOutput;
+use bollard::models::{ContainerCreateBody, HostConfig};
+use bollard::query_parameters::{
+    CreateContainerOptions, LogsOptions, RemoveContainerOptions, StartContainerOptions,
     WaitContainerOptions,
 };
-use bollard::models::HostConfig;
 use bollard::Docker;
 use futures::StreamExt;
 use log::{info, warn};
@@ -86,7 +87,7 @@ pub async fn is_docker_available() -> bool {
 
 /// Pull image if not already present.
 async fn ensure_image(docker: &Docker, image: &str) -> EngineResult<()> {
-    use bollard::image::CreateImageOptions;
+    use bollard::query_parameters::CreateImageOptions;
 
     // Check if image exists locally
     match docker.inspect_image(image).await {
@@ -97,7 +98,7 @@ async fn ensure_image(docker: &Docker, image: &str) -> EngineResult<()> {
     }
 
     let opts = CreateImageOptions {
-        from_image: image,
+        from_image: Some(image.to_string()),
         ..Default::default()
     };
 
@@ -158,7 +159,7 @@ pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResu
         ..Default::default()
     };
 
-    let container_config = Config {
+    let container_config = ContainerCreateBody {
         image: Some(config.image.clone()),
         cmd: Some(vec![
             "sh".to_string(),
@@ -180,8 +181,8 @@ pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResu
     };
 
     let create_opts = CreateContainerOptions {
-        name: &container_name,
-        platform: None,
+        name: Some(container_name.clone()),
+        platform: String::new(),
     };
 
     // Create container
@@ -199,7 +200,7 @@ pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResu
 
     // Start container
     docker
-        .start_container(&container_id, None::<StartContainerOptions<String>>)
+        .start_container(&container_id, None::<StartContainerOptions>)
         .await
         .map_err(|e| {
             // Try to clean up on start failure
@@ -213,7 +214,7 @@ pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResu
     let exit_code;
 
     let wait_future = async {
-        let mut stream = docker.wait_container(&container_id, None::<WaitContainerOptions<String>>);
+        let mut stream = docker.wait_container(&container_id, None::<WaitContainerOptions>);
         if let Some(result) = stream.next().await {
             match result {
                 Ok(response) => response.status_code,
@@ -236,14 +237,14 @@ pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResu
                 config.timeout_secs
             );
             // Kill the container
-            let _ = docker.kill_container::<String>(&container_id, None).await;
+            let _ = docker.kill_container(&container_id, None).await;
             exit_code = -1;
             timed_out = true;
         }
     }
 
     // Collect logs (stdout + stderr)
-    let log_opts = LogsOptions::<String> {
+    let log_opts = LogsOptions {
         stdout: true,
         stderr: true,
         follow: false,
@@ -257,10 +258,10 @@ pub async fn run_in_sandbox(command: &str, config: &SandboxConfig) -> EngineResu
     while let Some(log_result) = log_stream.next().await {
         match log_result {
             Ok(output) => match output {
-                bollard::container::LogOutput::StdOut { message } => {
+                LogOutput::StdOut { message } => {
                     stdout.push_str(&String::from_utf8_lossy(&message));
                 }
-                bollard::container::LogOutput::StdErr { message } => {
+                LogOutput::StdErr { message } => {
                     stderr.push_str(&String::from_utf8_lossy(&message));
                 }
                 _ => {}

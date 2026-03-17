@@ -1360,7 +1360,9 @@ impl SessionStore {
     /// alongside the data. On load, the HMAC is verified to catch tampering
     /// or agent-ID reassignment.
     pub fn engram_save_snapshot(&self, snapshot: &WorkingMemorySnapshot) -> EngineResult<()> {
-        use crate::engine::engram::encryption::compute_snapshot_hmac;
+        use crate::engine::engram::encryption::{
+            compute_snapshot_hmac, encrypt_memory_content, get_agent_encryption_key,
+        };
 
         let conn = self.conn.lock();
         let json = serde_json::to_string(snapshot).unwrap_or_else(|_| "{}".into());
@@ -1368,7 +1370,28 @@ impl SessionStore {
         let slot_count = snapshot.slots.len() as i32;
         let total_tokens: i32 = snapshot.slots.iter().map(|s| s.token_cost as i32).sum();
 
-        // Compute integrity HMAC — covers agent_id + snapshot JSON.
+        // §10.19 Encrypt snapshot content at rest using agent-derived key.
+        // If encryption fails (e.g. keychain unavailable), store plaintext + warn.
+        let stored_json = match get_agent_encryption_key(&snapshot.agent_id) {
+            Ok(key) => encrypt_memory_content(&json, &key).unwrap_or_else(|e| {
+                log::warn!(
+                    "[engram] Could not encrypt snapshot for '{}': {} — storing plaintext",
+                    snapshot.agent_id,
+                    e
+                );
+                json.clone()
+            }),
+            Err(e) => {
+                log::warn!(
+                    "[engram] No encryption key for snapshot '{}': {} — storing plaintext",
+                    snapshot.agent_id,
+                    e
+                );
+                json.clone()
+            }
+        };
+
+        // Compute integrity HMAC — covers agent_id + plaintext snapshot JSON.
         // If keychain is unavailable (e.g. CI), we store NULL and log a warning.
         let hmac = match compute_snapshot_hmac(&snapshot.agent_id, &json) {
             Ok(h) => Some(h),
@@ -1385,7 +1408,14 @@ impl SessionStore {
             "INSERT OR REPLACE INTO working_memory_snapshots
              (agent_id, snapshot_json, snapshot_hmac, slot_count, total_tokens, saved_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![snapshot.agent_id, json, hmac, slot_count, total_tokens, now],
+            params![
+                snapshot.agent_id,
+                stored_json,
+                hmac,
+                slot_count,
+                total_tokens,
+                now
+            ],
         )?;
         Ok(())
     }
@@ -1399,7 +1429,9 @@ impl SessionStore {
         &self,
         agent_id: &str,
     ) -> EngineResult<Option<WorkingMemorySnapshot>> {
-        use crate::engine::engram::encryption::verify_snapshot_hmac;
+        use crate::engine::engram::encryption::{
+            decrypt_memory_content, get_agent_encryption_key, is_encrypted, verify_snapshot_hmac,
+        };
 
         let conn = self.conn.lock();
         let mut stmt = conn.prepare(
@@ -1413,7 +1445,30 @@ impl SessionStore {
             .optional()?;
 
         match result {
-            Some((json, hmac_opt)) => {
+            Some((stored_json, hmac_opt)) => {
+                // §10.19 Decrypt snapshot if encrypted
+                let json = if is_encrypted(&stored_json) {
+                    match get_agent_encryption_key(agent_id) {
+                        Ok(key) => decrypt_memory_content(&stored_json, &key)
+                            .unwrap_or_else(|e| {
+                                log::warn!(
+                                    "[engram] Could not decrypt snapshot for '{}': {} — trying as plaintext",
+                                    agent_id, e
+                                );
+                                stored_json.clone()
+                            }),
+                        Err(e) => {
+                            log::warn!(
+                                "[engram] No decryption key for snapshot '{}': {} — trying as plaintext",
+                                agent_id, e
+                            );
+                            stored_json.clone()
+                        }
+                    }
+                } else {
+                    stored_json
+                };
+
                 // Verify integrity if HMAC is present
                 if let Some(ref stored_hmac) = hmac_opt {
                     match verify_snapshot_hmac(agent_id, &json, stored_hmac) {
@@ -1492,8 +1547,22 @@ impl SessionStore {
 
         let entries = stmt
             .query_map(params![memory_id, limit as i64], |row| {
+                let op_str: String = row.get(0)?;
+                let operation = match op_str.as_str() {
+                    "store" => AuditOperation::Store,
+                    "update" => AuditOperation::Update,
+                    "delete" => AuditOperation::Delete,
+                    "search" => AuditOperation::Search,
+                    "consolidate" => AuditOperation::Consolidate,
+                    "migrate" => AuditOperation::Migrate,
+                    "encrypt" => AuditOperation::Encrypt,
+                    "decrypt" => AuditOperation::Decrypt,
+                    "negative_feedback" => AuditOperation::NegativeFeedback,
+                    "positive_feedback" => AuditOperation::PositiveFeedback,
+                    _ => AuditOperation::Store, // fallback for unknown ops
+                };
                 Ok(AuditEntry {
-                    operation: AuditOperation::Store,
+                    operation,
                     memory_id: row.get(1)?,
                     actor: row.get(2)?,
                     detail: row.get(3)?,

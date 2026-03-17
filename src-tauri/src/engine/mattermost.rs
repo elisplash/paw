@@ -248,7 +248,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
         "data": { "token": config.token }
     });
     ws_tx
-        .send(WsMessage::Text(auth_msg.to_string()))
+        .send(WsMessage::Text(auth_msg.to_string().into()))
         .await
         .map_err(|e| EngineError::Channel {
             channel: "mattermost".into(),
@@ -276,7 +276,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &MattermostConfig) -
             msg = ws_rx.next() => msg,
             _ = tokio::time::sleep(std::time::Duration::from_secs(60)) => {
                 // Keepalive ping
-                let _ = ws_tx.send(WsMessage::Ping(vec![])).await;
+                let _ = ws_tx.send(WsMessage::Ping(vec![].into())).await;
                 continue;
             }
         };

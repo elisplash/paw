@@ -53,10 +53,13 @@ export async function storeMemory(opts: MemoryStoreOptions): Promise<string> {
 export async function searchMemories(opts: MemorySearchOptions): Promise<Memory[]> {
   // @ts-ignore — Tauri invoke
   const { invoke } = window.__TAURI__.core;
+  // §11 Wire frontend SearchConfig threshold to backend
+  const config = loadSearchConfig();
   return invoke('engine_memory_search', {
     query: opts.query,
     limit: opts.limit ?? 10,
     agentId: opts.agentId ?? null,
+    threshold: config.threshold,
   });
 }
 

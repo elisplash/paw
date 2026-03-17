@@ -360,7 +360,7 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
         }
     });
     write
-        .send(WsMessage::Text(identify.to_string()))
+        .send(WsMessage::Text(identify.to_string().into()))
         .await
         .map_err(|e| EngineError::Channel {
             channel: "discord".into(),
@@ -393,7 +393,7 @@ async fn run_gateway_loop(app_handle: tauri::AppHandle, config: DiscordConfig) -
             let seq = hb_rx.try_recv().ok().flatten();
             let hb = json!({ "op": 1, "d": seq });
             let mut w = hb_write_clone.lock().await;
-            if let Err(e) = w.send(WsMessage::Text(hb.to_string())).await {
+            if let Err(e) = w.send(WsMessage::Text(hb.to_string().into())).await {
                 warn!("[discord] Heartbeat send failed: {}", e);
                 break;
             }

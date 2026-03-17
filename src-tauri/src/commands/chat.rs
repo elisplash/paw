@@ -424,8 +424,19 @@ pub async fn engine_chat_send(
             // with "messages with role 'tool' must be a response to a
             // preceding message with 'tool_calls'" once prior tool exchanges
             // survive context trimming.
+            //
+            // Use `original_messages` (uncompressed) for matching because
+            // Band B/C/D compression alters the content text, causing exact
+            // matches to fail and tool metadata to be silently dropped.
             let mut raw_cursor = 0; // track position in raw_messages for matching
-            for (role, content) in &ctx.messages {
+            for (idx, (role, content)) in ctx.messages.iter().enumerate() {
+                // Match against the original (uncompressed) content
+                let original_content = ctx
+                    .original_messages
+                    .get(idx)
+                    .map(|(_, c)| c.as_str())
+                    .unwrap_or(content.as_str());
+
                 // Try to find the matching raw StoredMessage so we can
                 // restore tool_calls_json / tool_call_id / name.
                 let mut tool_calls: Option<Vec<ToolCall>> = None;
@@ -435,7 +446,7 @@ pub async fn engine_chat_send(
                 // Linear scan from raw_cursor — messages appear in the same
                 // order, but trim_history may have dropped some from the front.
                 for (i, rm) in raw_messages.iter().enumerate().skip(raw_cursor) {
-                    if rm.role == *role && rm.content == *content {
+                    if rm.role == *role && rm.content == original_content {
                         tool_calls = rm
                             .tool_calls_json
                             .as_ref()
@@ -523,9 +534,9 @@ pub async fn engine_chat_send(
     // The spawn closure will re-acquire it when the response is ready.
     drop(cognitive);
 
-    // ── Clear loaded tools for this new chat turn ─────────────────────────
-    // Tool RAG: reset the set of dynamically-loaded tools so each turn starts fresh.
-    state.loaded_tools.lock().clear();
+    // ── Tool RAG: preserve loaded tools across turns within the same topic ──
+    // Tools are only cleared on topic shifts (explicit/implicit) below,
+    // not every turn. This lets multi-step tool workflows span turns.
 
     // ── Build tool list (organism) — Tool RAG: core tools + previously loaded ─
     let loaded_tools = state.loaded_tools.lock().clone();
@@ -547,8 +558,10 @@ pub async fn engine_chat_send(
         let cognitive_lock = state.get_cognitive_state(&agent_id_owned);
         let mut cog = cognitive_lock.lock().await;
         cog.working_memory.clear_momentum();
+        // Tool RAG: clear loaded tools on topic shift so stale tools don't leak
+        state.loaded_tools.lock().clear();
         log::info!(
-            "[engine] User override detected in chat — momentum cleared for '{}'",
+            "[engine] User override detected in chat — momentum + tools cleared for '{}'",
             agent_id_owned
         );
     }
@@ -560,7 +573,10 @@ pub async fn engine_chat_send(
         let cognitive_lock = state.get_cognitive_state(&agent_id_owned);
         let mut cog = cognitive_lock.lock().await;
         cog.working_memory.clear_momentum();
-        cog.working_memory.clear();
+        // §8.6 Selective eviction: keep user mentions and high-priority slots
+        cog.working_memory.evict_for_topic_change(0.6);
+        // Tool RAG: clear loaded tools on implicit topic shift
+        state.loaded_tools.lock().clear();
 
         // Strip today's memory notes from the system prompt — they anchor
         // the model to the old topic even after tool messages are stripped.

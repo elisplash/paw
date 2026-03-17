@@ -7,11 +7,12 @@ use super::health::poll_n8n_ready;
 use super::types::*;
 use crate::atoms::error::{EngineError, EngineResult};
 use crate::engine::key_vault;
-use bollard::container::{
-    Config as ContainerConfig, CreateContainerOptions, ListContainersOptions,
-    RemoveContainerOptions, StartContainerOptions,
+use bollard::models::{
+    ContainerCreateBody, HostConfig, PortBinding, RestartPolicy, RestartPolicyNameEnum,
 };
-use bollard::models::{HostConfig, PortBinding, RestartPolicy, RestartPolicyNameEnum};
+use bollard::query_parameters::{
+    CreateContainerOptions, ListContainersOptions, RemoveContainerOptions, StartContainerOptions,
+};
 use bollard::Docker;
 use std::collections::HashMap;
 
@@ -184,20 +185,19 @@ pub async fn provision_docker_container(
         ..Default::default()
     };
 
-    let mut exposed_ports = HashMap::new();
-    exposed_ports.insert("5678/tcp".to_string(), HashMap::new());
+    // exposed_ports defined inline in ContainerCreateBody below
 
-    let container_config = ContainerConfig {
+    let container_config = ContainerCreateBody {
         image: Some(N8N_IMAGE.to_string()),
         env: Some(env_vars),
         host_config: Some(host_config),
-        exposed_ports: Some(exposed_ports),
+        exposed_ports: Some(vec!["5678/tcp".to_string()]),
         ..Default::default()
     };
 
     let create_opts = CreateContainerOptions {
-        name: CONTAINER_NAME,
-        platform: None,
+        name: Some(CONTAINER_NAME.to_string()),
+        platform: String::new(),
     };
 
     let container = docker
@@ -206,7 +206,7 @@ pub async fn provision_docker_container(
         .map_err(|e| EngineError::Other(format!("Failed to create n8n container: {}", e)))?;
 
     docker
-        .start_container(&container.id, None::<StartContainerOptions<String>>)
+        .start_container(&container.id, None::<StartContainerOptions>)
         .await
         .map_err(|e| EngineError::Other(format!("Failed to start n8n container: {}", e)))?;
 
@@ -300,7 +300,7 @@ pub async fn provision_docker_container(
 
 /// Pull Docker image if not already present locally.
 async fn pull_image_if_needed(docker: &Docker, image: &str) -> EngineResult<()> {
-    use bollard::image::CreateImageOptions;
+    use bollard::query_parameters::CreateImageOptions;
     use futures::StreamExt;
 
     // Check if image exists locally
@@ -309,7 +309,7 @@ async fn pull_image_if_needed(docker: &Docker, image: &str) -> EngineResult<()> 
     }
 
     let opts = CreateImageOptions {
-        from_image: image,
+        from_image: Some(image.to_string()),
         ..Default::default()
     };
 
@@ -365,7 +365,7 @@ pub async fn restart_existing_container(
 
     // Try to start the container (it may be stopped)
     let _ = docker
-        .start_container(container_id, None::<StartContainerOptions<String>>)
+        .start_container(container_id, None::<StartContainerOptions>)
         .await;
 
     let port = config.container_port.unwrap_or(DEFAULT_PORT);
@@ -421,7 +421,7 @@ async fn cleanup_stale_container(docker: &Docker) {
     filters.insert("name".to_string(), vec![CONTAINER_NAME.to_string()]);
     let opts = ListContainersOptions {
         all: true,
-        filters,
+        filters: Some(filters),
         ..Default::default()
     };
     if let Ok(containers) = docker.list_containers(Some(opts)).await {

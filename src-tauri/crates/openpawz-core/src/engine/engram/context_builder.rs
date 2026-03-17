@@ -71,9 +71,14 @@ const DEFAULT_RECALL_THRESHOLD: f64 = 0.3;
 pub struct AssembledContext {
     /// The final system prompt (all sections assembled).
     pub system_prompt: Option<String>,
-    /// Conversation messages, trimmed to fit budget.
+    /// Conversation messages, trimmed to fit budget (may be compressed).
     /// Each entry is (role, content).
     pub messages: Vec<(String, String)>,
+    /// Original (uncompressed) content for each entry in `messages`.
+    /// Same length and order as `messages`. Used by the caller to match
+    /// tool-call metadata against the raw stored messages, since Band B/C/D
+    /// compression alters the content text.
+    pub original_messages: Vec<(String, String)>,
     /// Token accounting.
     pub budget: BudgetReport,
     /// Memories that were injected into the system prompt.
@@ -475,7 +480,7 @@ impl<'a> ContextBuilder<'a> {
 
         // ── 5. Budget conversation history ───────────────────────────────
         let history_budget = usable_tokens.saturating_sub(system_tokens).max(min_history);
-        let (trimmed_messages, history_tokens, trimmed_count) =
+        let (trimmed_messages, original_messages, history_tokens, trimmed_count) =
             trim_history(&self.messages, history_budget, &self.tokenizer);
 
         let available_for_reply = effective_window
@@ -506,6 +511,7 @@ impl<'a> ContextBuilder<'a> {
         Ok(AssembledContext {
             system_prompt,
             messages: trimmed_messages,
+            original_messages,
             budget,
             recalled_memories,
             query_embedding: recall_query_embedding,
@@ -708,20 +714,52 @@ fn truncate_str(s: &str, max_chars: usize) -> &str {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// Internal: History Trimming
+// Internal: History Trimming — 4-Tier Compression (§8.2)
 // ═════════════════════════════════════════════════════════════════════════════
 
-/// Trim conversation history to fit within a token budget.
-/// Keeps recent messages, drops oldest first.
-/// Returns (trimmed_messages, total_tokens, dropped_count).
+/// §8.2 Compression band for history messages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum HistoryBand {
+    /// Band A: most recent messages — kept verbatim
+    Verbatim,
+    /// Band B: summarized — content truncated with [...] suffix
+    Summarized,
+    /// Band C: key fact — role + first sentence only
+    KeyFact,
+    /// Band D: oldest messages — topic tag only, or dropped
+    TagOnly,
+}
+
+/// Band allocation ratios (from most recent to oldest).
+const BAND_A_RATIO: f32 = 0.35;
+const BAND_B_RATIO: f32 = 0.25;
+const BAND_C_RATIO: f32 = 0.20;
+// Band D gets the remaining 0.20
+
+/// Maximum characters for Band B (summarized) content.
+const BAND_B_MAX_CHARS: usize = 120;
+
+/// Trim conversation history to fit within a token budget using
+/// 4-tier compression (§8.2):
+///   A (newest 35%): verbatim
+///   B (next 25%): truncated summary
+///   C (next 20%): first sentence only
+///   D (oldest 20%): "[role: ...]" tag or dropped
+///
+/// Returns (trimmed_messages, originals, total_tokens, dropped_count).
+/// `originals` mirrors `trimmed_messages` but with uncompressed content,
+/// so the caller can match against raw stored messages for metadata recovery.
+#[allow(clippy::type_complexity)]
 fn trim_history(
     messages: &[(String, String)],
     budget: usize,
     tokenizer: &Tokenizer,
-) -> (Vec<(String, String)>, usize, usize) {
+) -> (Vec<(String, String)>, Vec<(String, String)>, usize, usize) {
     if messages.is_empty() {
-        return (Vec::new(), 0, 0);
+        return (Vec::new(), Vec::new(), 0, 0);
     }
+
+    let n = messages.len();
 
     // Count tokens per message (role overhead + content)
     let per_message_overhead = 4; // role tokens + formatting
@@ -734,21 +772,86 @@ fn trim_history(
 
     let total: usize = costs.iter().sum();
     if total <= budget {
-        return (messages.to_vec(), total, 0);
+        return (messages.to_vec(), messages.to_vec(), total, 0);
     }
 
-    // Drop oldest messages until we fit
-    let mut start = 0;
-    let mut running = total;
-    while running > budget && start < messages.len() {
-        running -= costs[start];
-        start += 1;
+    // Assign bands based on position (newest messages get Band A)
+    let band_a_start = n - (n as f32 * BAND_A_RATIO).ceil() as usize;
+    let band_b_start = n - (n as f32 * (BAND_A_RATIO + BAND_B_RATIO)).ceil() as usize;
+    let band_c_start =
+        n - (n as f32 * (BAND_A_RATIO + BAND_B_RATIO + BAND_C_RATIO)).ceil() as usize;
+
+    let band_for = |idx: usize| -> HistoryBand {
+        if idx >= band_a_start {
+            HistoryBand::Verbatim
+        } else if idx >= band_b_start {
+            HistoryBand::Summarized
+        } else if idx >= band_c_start {
+            HistoryBand::KeyFact
+        } else {
+            HistoryBand::TagOnly
+        }
+    };
+
+    // Compress messages according to their band
+    let mut result: Vec<(String, String)> = Vec::with_capacity(n);
+    let mut originals: Vec<(String, String)> = Vec::with_capacity(n);
+    let mut used_tokens = 0usize;
+    let mut dropped = 0usize;
+
+    for (i, (role, content)) in messages.iter().enumerate() {
+        let band = band_for(i);
+        let compressed_content = match band {
+            HistoryBand::Verbatim => content.clone(),
+            HistoryBand::Summarized => {
+                if content.len() > BAND_B_MAX_CHARS {
+                    // Truncate at a word boundary if possible
+                    let truncated = &content[..BAND_B_MAX_CHARS];
+                    let end = truncated.rfind(' ').unwrap_or(BAND_B_MAX_CHARS);
+                    format!("{} [...]", &content[..end])
+                } else {
+                    content.clone()
+                }
+            }
+            HistoryBand::KeyFact => {
+                // First sentence only
+                let first_sentence = content
+                    .find(". ")
+                    .or_else(|| content.find(".\n"))
+                    .map(|i| &content[..=i])
+                    .unwrap_or_else(|| {
+                        if content.len() > 80 {
+                            &content[..80]
+                        } else {
+                            content
+                        }
+                    });
+                first_sentence.to_string()
+            }
+            HistoryBand::TagOnly => {
+                format!("[{}: ...]", role)
+            }
+        };
+
+        let msg_cost = tokenizer.count_tokens(role)
+            + tokenizer.count_tokens(&compressed_content)
+            + per_message_overhead;
+
+        if used_tokens + msg_cost <= budget {
+            used_tokens += msg_cost;
+            result.push((role.clone(), compressed_content));
+            originals.push((role.clone(), content.clone()));
+        } else if band == HistoryBand::Verbatim {
+            // Never drop Band A messages — force them in
+            used_tokens += msg_cost;
+            result.push((role.clone(), compressed_content));
+            originals.push((role.clone(), content.clone()));
+        } else {
+            dropped += 1;
+        }
     }
 
-    let kept = messages[start..].to_vec();
-    let kept_tokens: usize = costs[start..].iter().sum();
-
-    (kept, kept_tokens, start)
+    (result, originals, used_tokens, dropped)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -819,7 +922,7 @@ mod tests {
             ("user".to_string(), "Hello".to_string()),
             ("assistant".to_string(), "Hi there!".to_string()),
         ];
-        let (kept, tokens, dropped) = trim_history(&messages, 10000, &tok);
+        let (kept, _originals, tokens, dropped) = trim_history(&messages, 10000, &tok);
         assert_eq!(kept.len(), 2);
         assert_eq!(dropped, 0);
         assert!(tokens > 0);
@@ -837,7 +940,7 @@ mod tests {
             ("user".to_string(), "Third".to_string()),
         ];
         // Very tight budget — should drop the first message
-        let (kept, _, dropped) = trim_history(&messages, 15, &tok);
+        let (kept, _, _, dropped) = trim_history(&messages, 15, &tok);
         assert!(dropped > 0, "Should have dropped at least one message");
         assert!(kept.len() < 3);
     }
@@ -845,7 +948,7 @@ mod tests {
     #[test]
     fn test_trim_history_empty() {
         let tok = make_tokenizer();
-        let (kept, tokens, dropped) = trim_history(&[], 1000, &tok);
+        let (kept, _originals, tokens, dropped) = trim_history(&[], 1000, &tok);
         assert!(kept.is_empty());
         assert_eq!(tokens, 0);
         assert_eq!(dropped, 0);

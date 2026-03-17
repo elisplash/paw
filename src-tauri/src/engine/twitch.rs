@@ -167,14 +167,14 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
     let nick = config.bot_username.to_lowercase();
 
     ws_tx
-        .send(WsMessage::Text(format!("PASS {}", token)))
+        .send(WsMessage::Text(format!("PASS {}", token).into()))
         .await
         .map_err(|e| EngineError::Channel {
             channel: "twitch".into(),
             message: e.to_string(),
         })?;
     ws_tx
-        .send(WsMessage::Text(format!("NICK {}", nick)))
+        .send(WsMessage::Text(format!("NICK {}", nick).into()))
         .await
         .map_err(|e| EngineError::Channel {
             channel: "twitch".into(),
@@ -209,7 +209,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
                     }
                     if line.starts_with("PING") {
                         let pong = line.replacen("PING", "PONG", 1);
-                        let _ = ws_tx.send(WsMessage::Text(pong)).await;
+                        let _ = ws_tx.send(WsMessage::Text(pong.into())).await;
                     }
                 }
                 if authed {
@@ -233,7 +233,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
             format!("#{}", ch)
         };
         ws_tx
-            .send(WsMessage::Text(format!("JOIN {}", channel)))
+            .send(WsMessage::Text(format!("JOIN {}", channel).into()))
             .await
             .map_err(|e| EngineError::Channel {
                 channel: "twitch".into(),
@@ -283,7 +283,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
             // Handle PING
             if line.starts_with("PING") {
                 let pong = line.replacen("PING", "PONG", 1);
-                let _ = ws_tx.send(WsMessage::Text(pong)).await;
+                let _ = ws_tx.send(WsMessage::Text(pong.into())).await;
                 continue;
             }
 
@@ -403,7 +403,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
                     // Twitch limit is 500 chars per message
                     for chunk in channels::split_message(&reply, 490) {
                         let irc_msg = format!("PRIVMSG {} :{}", channel, chunk);
-                        let _ = ws_tx.send(WsMessage::Text(irc_msg)).await;
+                        let _ = ws_tx.send(WsMessage::Text(irc_msg.into())).await;
                         // Twitch rate limit: ~20 msgs per 30s for regular, ~100 for mods
                         tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
                     }
@@ -411,7 +411,7 @@ async fn run_ws_loop(app_handle: &tauri::AppHandle, config: &TwitchConfig) -> En
                 Err(e) => {
                     error!("[twitch] Agent error for {}: {}", sender, e);
                     let err_msg = format!("PRIVMSG {} :Error processing your message", channel);
-                    let _ = ws_tx.send(WsMessage::Text(err_msg)).await;
+                    let _ = ws_tx.send(WsMessage::Text(err_msg.into())).await;
                 }
                 _ => {}
             }

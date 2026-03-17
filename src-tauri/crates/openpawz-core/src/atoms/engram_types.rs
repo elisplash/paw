@@ -229,6 +229,19 @@ impl TrustScore {
         self.utility = (self.utility + 0.08).min(1.0);
     }
 
+    /// §7.2 Accuracy calibration via corroboration.
+    /// When multiple independent sources confirm a fact, boost accuracy.
+    /// `corroboration_count` — how many independent memories agree.
+    /// Accuracy approaches 1.0 asymptotically with more corroboration.
+    pub fn apply_corroboration(&mut self, corroboration_count: usize) {
+        if corroboration_count == 0 {
+            return;
+        }
+        // Asymptotic: each corroboration narrows the gap to 1.0 by 20%
+        let boost = 1.0 - (0.8_f32).powi(corroboration_count as i32);
+        self.accuracy = (self.accuracy + (1.0 - self.accuracy) * boost * 0.5).min(1.0);
+    }
+
     /// Check if this memory should be filtered out due to low trust.
     /// Memories with very low composite scores are noise.
     pub fn should_filter(&self, threshold: f32) -> bool {
@@ -1089,7 +1102,7 @@ pub struct WorkingMemorySlot {
 }
 
 /// How a piece of content entered working memory.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WorkingMemorySource {
     /// Auto-recalled from LTM.
     Recall,

@@ -302,7 +302,7 @@ async fn poll_api_ready(client: &reqwest::Client, api_url: &str) -> bool {
 /// Force-stop and remove a Docker container, ignoring errors.
 async fn force_remove_container(docker: &bollard::Docker, container_id: &str) {
     let _ = docker.stop_container(container_id, None).await;
-    let opts = bollard::container::RemoveContainerOptions {
+    let opts = bollard::query_parameters::RemoveContainerOptions {
         force: true,
         ..Default::default()
     };
@@ -317,12 +317,11 @@ pub(crate) async fn ensure_evolution_container(
     app_handle: &tauri::AppHandle,
     config: &WhatsAppConfig,
 ) -> EngineResult<String> {
-    use bollard::container::{
-        Config as ContainerConfig, CreateContainerOptions, ListContainersOptions,
-        StartContainerOptions,
-    };
-    use bollard::image::CreateImageOptions;
+    use bollard::models::ContainerCreateBody;
     use bollard::models::HostConfig;
+    use bollard::query_parameters::{
+        CreateContainerOptions, CreateImageOptions, ListContainersOptions, StartContainerOptions,
+    };
     use futures::StreamExt;
 
     let docker = ensure_docker_ready(app_handle).await?;
@@ -332,7 +331,7 @@ pub(crate) async fn ensure_evolution_container(
     filters.insert("name".to_string(), vec![CONTAINER_NAME.to_string()]);
     let opts = ListContainersOptions {
         all: true,
-        filters,
+        filters: Some(filters),
         ..Default::default()
     };
 
@@ -343,7 +342,11 @@ pub(crate) async fn ensure_evolution_container(
 
     if let Some(existing) = containers.first() {
         let container_id = existing.id.clone().unwrap_or_default();
-        let state = existing.state.as_deref().unwrap_or("");
+        let state = existing
+            .state
+            .as_ref()
+            .map(|s| s.to_string())
+            .unwrap_or_default();
         let image = existing.image.as_deref().unwrap_or("");
 
         // Check if container needs recreating (wrong image or stale API key)
@@ -417,7 +420,7 @@ pub(crate) async fn ensure_evolution_container(
             // Container exists but stopped — start it and wait for API
             info!("[whatsapp] Starting existing Evolution API container");
             docker
-                .start_container(&container_id, None::<StartContainerOptions<String>>)
+                .start_container(&container_id, None::<StartContainerOptions>)
                 .await
                 .map_err(|e| EngineError::Other(e.to_string()))?;
 
@@ -446,7 +449,7 @@ pub(crate) async fn ensure_evolution_container(
                 }),
             );
             let pull_opts = CreateImageOptions {
-                from_image: EVOLUTION_IMAGE,
+                from_image: Some(EVOLUTION_IMAGE.to_string()),
                 ..Default::default()
             };
             let mut stream = docker.create_image(Some(pull_opts), None, None);
@@ -479,7 +482,7 @@ pub(crate) async fn ensure_evolution_container(
         ..Default::default()
     };
 
-    let container_config = ContainerConfig {
+    let container_config = ContainerCreateBody {
         image: Some(EVOLUTION_IMAGE.to_string()),
         env: Some(vec![
             // v1.x defaults to JWT auth; explicitly switch to API key auth
@@ -505,17 +508,13 @@ pub(crate) async fn ensure_evolution_container(
             "DATABASE_CONNECTION_URI=file:./data/evolution.db".to_string(),
         ]),
         host_config: Some(host_config),
-        exposed_ports: Some({
-            let mut ports = std::collections::HashMap::new();
-            ports.insert("8080/tcp".to_string(), std::collections::HashMap::new());
-            ports
-        }),
+        exposed_ports: Some(vec!["8080/tcp".to_string()]),
         ..Default::default()
     };
 
     let create_opts = CreateContainerOptions {
-        name: CONTAINER_NAME,
-        platform: None,
+        name: Some(CONTAINER_NAME.to_string()),
+        platform: String::new(),
     };
 
     let container = docker
@@ -531,7 +530,7 @@ pub(crate) async fn ensure_evolution_container(
 
     // Start it
     docker
-        .start_container(&container_id, None::<StartContainerOptions<String>>)
+        .start_container(&container_id, None::<StartContainerOptions>)
         .await
         .map_err(|e| EngineError::Other(e.to_string()))?;
 
@@ -548,7 +547,7 @@ pub(crate) async fn ensure_evolution_container(
     }
 
     // Fetch container logs to diagnose why it's not starting
-    let log_opts = bollard::container::LogsOptions::<String> {
+    let log_opts = bollard::query_parameters::LogsOptions {
         stdout: true,
         stderr: true,
         tail: "20".to_string(),

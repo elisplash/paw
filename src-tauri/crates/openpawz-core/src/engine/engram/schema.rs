@@ -16,6 +16,7 @@
 
 use crate::atoms::error::EngineResult;
 use log::info;
+use rand::Rng;
 use rusqlite::Connection;
 
 /// Run Engram-specific migrations. Called from sessions/schema.rs run_migrations().
@@ -176,7 +177,13 @@ pub fn run_engram_migrations(conn: &Connection) -> EngineResult<()> {
 /// from the file size alone. Equivalent to KDBX inner-content padding.
 const PADDING_BUCKET_BYTES: u64 = 512 * 1024;
 
-/// Ensure `_engram_padding` table inflates the DB to the next bucket boundary.
+/// Maximum random jitter added within a bucket (§10.4b).
+/// Prevents an attacker from correlating "just crossed a bucket boundary"
+/// with the exact timing of a memory store operation.
+const JITTER_MAX_BYTES: u64 = 64 * 1024; // 64 KB
+
+/// Ensure `_engram_padding` table inflates the DB to the next bucket boundary,
+/// with random intra-bucket jitter (§10.4b).
 pub fn pad_to_bucket(conn: &Connection) -> EngineResult<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _engram_padding (
@@ -190,7 +197,11 @@ pub fn pad_to_bucket(conn: &Connection) -> EngineResult<()> {
     let current_bytes = page_size * page_count;
 
     let target_bytes = ((current_bytes / PADDING_BUCKET_BYTES) + 1) * PADDING_BUCKET_BYTES;
-    let deficit = target_bytes.saturating_sub(current_bytes);
+
+    // §10.4b Intra-bucket jitter: add a random offset within the bucket so
+    // the final file size is not always exactly at the boundary.
+    let jitter: u64 = rand::rng().random_range(0..JITTER_MAX_BYTES);
+    let deficit = target_bytes.saturating_sub(current_bytes) + jitter;
 
     if deficit > 0 {
         // Each row ≈ content + 20 bytes overhead. We use 4KB blobs so
@@ -198,8 +209,7 @@ pub fn pad_to_bucket(conn: &Connection) -> EngineResult<()> {
         let blob_size: usize = 4096;
         let rows_needed = (deficit as usize / blob_size).max(1);
 
-        // Clear existing padding and write fresh (random-length would leak
-        // timing info, so we use fixed-size blobs of zeroed bytes).
+        // Clear existing padding and write fresh.
         conn.execute("DELETE FROM _engram_padding", [])?;
         let mut stmt = conn.prepare("INSERT INTO _engram_padding (pad) VALUES (zeroblob(?1))")?;
         for _ in 0..rows_needed {
@@ -207,7 +217,35 @@ pub fn pad_to_bucket(conn: &Connection) -> EngineResult<()> {
         }
     }
 
+    // §10.4b Neutralize DB file mtime after padding to prevent temporal
+    // correlation attacks. Set to a fixed epoch (2020-01-01T00:00:00Z).
+    neutralize_mtime(conn);
+
     Ok(())
+}
+
+/// Set the database file's mtime to a fixed epoch to prevent temporal
+/// correlation attacks (§10.4b). Best-effort; silently no-ops on failure.
+fn neutralize_mtime(conn: &Connection) {
+    use std::time::{Duration, SystemTime};
+
+    // Retrieve the DB file path from SQLite
+    let db_path: Option<String> = conn
+        .query_row(
+            "PRAGMA database_list",
+            [],
+            |row| row.get::<_, String>(2), // column 2 = file path
+        )
+        .ok();
+
+    if let Some(path) = db_path {
+        if path.is_empty() || path == ":memory:" {
+            return;
+        }
+        // Fixed epoch: 2020-01-01T00:00:00 UTC (1577836800 seconds from UNIX epoch)
+        let fixed_epoch = SystemTime::UNIX_EPOCH + Duration::from_secs(1_577_836_800);
+        let _ = filetime::set_file_mtime(&path, filetime::FileTime::from_system_time(fixed_epoch));
+    }
 }
 
 const ENGRAM_SCHEMA: &str = "

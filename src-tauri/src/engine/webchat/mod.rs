@@ -223,7 +223,9 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
         );
 
         let msg = json!({ "type": "system", "text": denial_str });
-        let _ = ws_sender.send(WsMessage::Text(msg.to_string())).await;
+        let _ = ws_sender
+            .send(WsMessage::Text(msg.to_string().into()))
+            .await;
         return Ok(());
     }
 
@@ -232,7 +234,9 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
         "type": "system",
         "text": format!("Connected to {}. Send a message to start chatting!", config.page_title)
     });
-    let _ = ws_sender.send(WsMessage::Text(welcome.to_string())).await;
+    let _ = ws_sender
+        .send(WsMessage::Text(welcome.to_string().into()))
+        .await;
 
     let agent_id = config.agent_id.clone().unwrap_or_default();
     let channel_context = format!(
@@ -272,7 +276,9 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
 
                 // Send typing indicator
                 let typing = json!({ "type": "typing" });
-                let _ = ws_sender.send(WsMessage::Text(typing.to_string())).await;
+                let _ = ws_sender
+                    .send(WsMessage::Text(typing.to_string().into()))
+                    .await;
 
                 // Route through agent
                 let reply = channels::run_channel_agent(
@@ -292,7 +298,7 @@ async fn handle_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 };
 
                 if ws_sender
-                    .send(WsMessage::Text(response.to_string()))
+                    .send(WsMessage::Text(response.to_string().into()))
                     .await
                     .is_err()
                 {
