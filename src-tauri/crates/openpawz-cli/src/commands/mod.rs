@@ -1,9 +1,13 @@
 pub mod agent;
+pub mod audit;
 pub mod config;
+pub mod doctor;
 pub mod memory;
+pub mod project;
 pub mod session;
 pub mod setup;
 pub mod status;
+pub mod task;
 
 use crate::OutputFormat;
 

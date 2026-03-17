@@ -32,6 +32,22 @@ pub enum SessionAction {
     },
     /// Clean up empty/stale sessions
     Cleanup,
+    /// Prune old messages from a session (keep most recent N)
+    Prune {
+        /// Session ID
+        id: String,
+        /// Number of recent messages to keep
+        #[arg(long, default_value = "50")]
+        keep: usize,
+    },
+    /// Export a session's history to a file
+    Export {
+        /// Session ID
+        id: String,
+        /// Output file (JSON)
+        #[arg(long, short)]
+        output: String,
+    },
 }
 
 pub fn run(
@@ -140,6 +156,73 @@ pub fn run(
                 OutputFormat::Quiet => println!("{}", removed),
                 OutputFormat::Human => {
                     println!("Cleaned up {} empty session(s).", removed);
+                }
+            }
+            Ok(())
+        }
+        SessionAction::Prune { id, keep } => {
+            let removed = store
+                .prune_session_messages(&id, keep as i64)
+                .map_err(|e| e.to_string())?;
+            match format {
+                OutputFormat::Json => {
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "session_id": id,
+                            "messages_removed": removed,
+                            "messages_kept": keep,
+                        })
+                    );
+                }
+                OutputFormat::Quiet => println!("{}", removed),
+                OutputFormat::Human => {
+                    println!(
+                        "Pruned {} message(s) from session '{}' (kept {})",
+                        removed,
+                        truncate(&id, 12),
+                        keep,
+                    );
+                }
+            }
+            Ok(())
+        }
+        SessionAction::Export { id, output } => {
+            let messages = store
+                .get_messages(&id, 100_000)
+                .map_err(|e| e.to_string())?;
+            let session = store.get_session(&id).map_err(|e| e.to_string())?;
+
+            let export = serde_json::json!({
+                "session": session,
+                "messages": messages,
+                "exported_at": chrono::Utc::now().to_rfc3339(),
+            });
+
+            let json = serde_json::to_string_pretty(&export).map_err(|e| e.to_string())?;
+            std::fs::write(&output, &json)
+                .map_err(|e| format!("Failed to write {}: {}", output, e))?;
+
+            match format {
+                OutputFormat::Json => {
+                    println!(
+                        "{}",
+                        serde_json::json!({
+                            "session_id": id,
+                            "messages": messages.len(),
+                            "file": output,
+                            "bytes": json.len(),
+                        })
+                    );
+                }
+                OutputFormat::Quiet => println!("{}", output),
+                OutputFormat::Human => {
+                    println!(
+                        "Exported {} messages from '{}' → {}",
+                        messages.len(),
+                        truncate(&id, 12),
+                        output,
+                    );
                 }
             }
             Ok(())

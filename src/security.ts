@@ -134,6 +134,106 @@ const DANGER_PATTERNS: DangerPattern[] = [
     label: 'Remote Code Exec',
     reason: 'Downloads and pipes to python interpreter',
   },
+  {
+    pattern: /\bbase64\b.*-d.*\|\s*(ba)?sh/i,
+    level: 'critical',
+    label: 'Encoded Code Exec',
+    reason: 'Decodes base64 payload and pipes to shell',
+  },
+
+  // ── CRITICAL: Reverse shells ──
+  {
+    pattern: /\/dev\/tcp\//i,
+    level: 'critical',
+    label: 'Reverse Shell',
+    reason: 'Bash /dev/tcp reverse shell technique',
+  },
+  {
+    pattern: /\bmkfifo\b.*\bnc\b/i,
+    level: 'critical',
+    label: 'Reverse Shell',
+    reason: 'Named pipe + netcat reverse shell',
+  },
+  {
+    pattern: /\bsocat\b.*\bexec\b/i,
+    level: 'critical',
+    label: 'Reverse Shell',
+    reason: 'socat reverse shell technique',
+  },
+
+  // ── CRITICAL: Inline code execution (arbitrary code from arguments) ──
+  {
+    pattern: /\bpython3?\s+-c\b/i,
+    level: 'critical',
+    label: 'Inline Code Exec',
+    reason: 'Executes arbitrary Python code from command line',
+  },
+  {
+    pattern: /\bperl\s+-e\b/i,
+    level: 'critical',
+    label: 'Inline Code Exec',
+    reason: 'Executes arbitrary Perl code from command line',
+  },
+  {
+    pattern: /\bruby\s+-e\b/i,
+    level: 'critical',
+    label: 'Inline Code Exec',
+    reason: 'Executes arbitrary Ruby code from command line',
+  },
+  {
+    pattern: /\bnode\s+-e\b/i,
+    level: 'critical',
+    label: 'Inline Code Exec',
+    reason: 'Executes arbitrary Node.js code from command line',
+  },
+
+  // ── CRITICAL: Credential / secret theft ──
+  {
+    pattern: /\bcat\b.*(\.env|\/etc\/shadow|\.ssh\/|credentials|secrets?\.)/i,
+    level: 'critical',
+    label: 'Credential Access',
+    reason: 'Reads files likely containing credentials or secrets',
+  },
+  {
+    pattern: /\bhistory\b.*\|.*(curl|wget|nc|ssh|scp)/i,
+    level: 'critical',
+    label: 'History Exfiltration',
+    reason: 'Reads shell history and pipes to network tool',
+  },
+
+  // ── HIGH: Environment variable exfiltration ──
+  {
+    pattern: /\benv\b.*\|\s*(curl|wget|nc|ncat|ssh|scp)/i,
+    level: 'high',
+    label: 'Env Exfiltration',
+    reason: 'Dumps environment variables to a network tool',
+  },
+  {
+    pattern: /\bprintenv\b/i,
+    level: 'high',
+    label: 'Print Environment',
+    reason: 'Prints all environment variables (may contain secrets)',
+  },
+
+  // ── HIGH: Kernel / boot tampering ──
+  {
+    pattern: /\binsmod\b/i,
+    level: 'high',
+    label: 'Kernel Module Load',
+    reason: 'Loads a kernel module (rootkit vector)',
+  },
+  {
+    pattern: /\bmodprobe\b/i,
+    level: 'high',
+    label: 'Kernel Module',
+    reason: 'Loads/configures a kernel module',
+  },
+  {
+    pattern: /\bsysctl\s+-w/i,
+    level: 'high',
+    label: 'Kernel Parameter Change',
+    reason: 'Modifies kernel parameters at runtime',
+  },
 
   // ── HIGH: Firewall / network security ──
   {
@@ -702,6 +802,9 @@ const EXFILTRATION_PATTERNS = [
   /\bscp\b.*:\s*$/i, // scp file host: (outbound)
   /\brsync\b.*[^@]+@[^:]+:/i, // rsync to remote
   />\s*\/dev\/tcp\//i, // bash /dev/tcp redirect
+  /\benv\b.*\|\s*(curl|wget|nc|ncat)/i, // env dump to network
+  /\bprintenv\b.*\|\s*(curl|wget|nc|ncat)/i, // printenv to network
+  /\btar\b.*\|\s*(curl|wget|nc|ncat)/i, // archive & exfil
 ];
 
 /** Known-safe localhost / loopback destinations. */
@@ -797,6 +900,89 @@ export function getSessionOverrideRemaining(): number {
     return 0;
   }
   return remaining;
+}
+
+// ── Filesystem write tool detection (H3) ───────────────────────────────────
+
+// ── Config key validation ──────────────────────────────────────────────────
+// Prevents arbitrary key injection via `openpawz config set`.
+// Only known config keys are allowed; values are sanitised.
+
+const ALLOWED_CONFIG_KEYS = new Set([
+  'default_model',
+  'daily_budget_usd',
+  'max_tool_rounds',
+  'max_tokens',
+  'temperature',
+  'system_prompt',
+  'memory_enabled',
+  'memory_auto_store',
+  'memory_recall_threshold',
+  'sandbox_enabled',
+  'sandbox_image',
+  'token_rotation_interval_days',
+]);
+
+/**
+ * Validate a config key against the known allowlist.
+ * Returns null if valid, or an error message.
+ */
+export function validateConfigKey(key: string): string | null {
+  if (!key || typeof key !== 'string') return 'Config key must be a non-empty string';
+  if (key.length > 64) return 'Config key too long (max 64 chars)';
+  // Only alphanumeric + underscores + dots
+  if (!/^[a-z][a-z0-9_.]*$/i.test(key))
+    return 'Config key contains invalid characters (use a-z, 0-9, _, .)';
+  if (!ALLOWED_CONFIG_KEYS.has(key)) {
+    return `Unknown config key "${key}". Allowed: ${[...ALLOWED_CONFIG_KEYS].sort().join(', ')}`;
+  }
+  return null;
+}
+
+/**
+ * Sanitise a config value — reject values that contain shell metacharacters
+ * or attempted injection payloads.
+ */
+export function sanitizeConfigValue(value: string): string | null {
+  if (typeof value !== 'string') return 'Config value must be a string';
+  if (value.length > 4096) return 'Config value too long (max 4096 chars)';
+  // Reject null bytes
+  if (value.includes('\0')) return 'Config value contains null bytes';
+  return null; // valid
+}
+
+// ── CLI rate limiting ──────────────────────────────────────────────────────
+// In-memory sliding window rate limiter for CLI operations.
+// Prevents automated abuse (e.g., brute-forcing lock screen passphrase).
+
+const _rateLimitBuckets = new Map<string, number[]>();
+
+/**
+ * Check rate limit for an operation category.
+ * @param category Operation category (e.g., 'lock_verify', 'config_set')
+ * @param maxPerMinute Maximum allowed operations per 60-second window
+ * @returns true if allowed, false if rate-limited
+ */
+export function checkRateLimit(category: string, maxPerMinute: number): boolean {
+  const now = Date.now();
+  const windowMs = 60_000;
+  let timestamps = _rateLimitBuckets.get(category) ?? [];
+  // Evict entries outside the window
+  timestamps = timestamps.filter((t) => now - t < windowMs);
+  if (timestamps.length >= maxPerMinute) {
+    _rateLimitBuckets.set(category, timestamps);
+    return false;
+  }
+  timestamps.push(now);
+  _rateLimitBuckets.set(category, timestamps);
+  return true;
+}
+
+/**
+ * Reset rate limit counters (for testing).
+ */
+export function resetRateLimits(): void {
+  _rateLimitBuckets.clear();
 }
 
 // ── Filesystem write tool detection (H3) ───────────────────────────────────

@@ -5,7 +5,8 @@
 
 mod commands;
 
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
+use clap_complete::{generate, Shell};
 
 const BANNER: &str = concat!(
     "\n",
@@ -56,7 +57,7 @@ enum OutputFormat {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Manage agents (list, create, delete)
+    /// Manage agents (list, create, delete, files, context)
     Agent {
         #[command(subcommand)]
         action: commands::agent::AgentAction,
@@ -71,15 +72,38 @@ enum Commands {
         #[command(subcommand)]
         action: commands::config::ConfigAction,
     },
-    /// Memory operations (store, search, list)
+    /// Memory operations (store, search, list, export, import)
     Memory {
         #[command(subcommand)]
         action: commands::memory::MemoryAction,
     },
+    /// Task management (list, create, update, delete, due)
+    Task {
+        #[command(subcommand)]
+        action: commands::task::TaskAction,
+    },
+    /// Tamper-evident audit log (log, verify, stats)
+    Audit {
+        #[command(subcommand)]
+        action: commands::audit::AuditAction,
+    },
+    /// Multi-agent project orchestration (list, create, team, messages)
+    Project {
+        #[command(subcommand)]
+        action: commands::project::ProjectAction,
+    },
     /// Engine status and diagnostics
     Status,
+    /// Comprehensive health check
+    Doctor,
     /// Initial setup wizard
     Setup,
+    /// Generate shell completions
+    Completions {
+        /// Shell to generate completions for
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 #[tokio::main]
@@ -108,8 +132,17 @@ async fn main() {
         Commands::Session { action } => commands::session::run(&store, action, &cli.output),
         Commands::Config { action } => commands::config::run(&store, action, &cli.output),
         Commands::Memory { action } => commands::memory::run(&store, action, &cli.output).await,
+        Commands::Task { action } => commands::task::run(&store, action, &cli.output),
+        Commands::Audit { action } => commands::audit::run(&store, action, &cli.output),
+        Commands::Project { action } => commands::project::run(&store, action, &cli.output),
         Commands::Status => commands::status::run(&store, &cli.output),
+        Commands::Doctor => commands::doctor::run(&store, &cli.output),
         Commands::Setup => commands::setup::run(&store),
+        Commands::Completions { shell } => {
+            let mut cmd = Cli::command();
+            generate(shell, &mut cmd, "openpawz", &mut std::io::stdout());
+            Ok(())
+        }
     };
 
     if let Err(e) = result {
